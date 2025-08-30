@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 // List all users by request
 pub async fn list_user_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &ListUserRequest,
 ) -> Result<ListUserReply, MqttBrokerError> {
@@ -55,7 +55,7 @@ pub async fn list_user_by_req(
 
 // Create a new user
 pub async fn create_user_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &CreateUserRequest,
 ) -> Result<CreateUserReply, MqttBrokerError> {
@@ -73,7 +73,7 @@ pub async fn create_user_by_req(
 
 // Delete an existing user
 pub async fn delete_user_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &DeleteUserRequest,
 ) -> Result<DeleteUserReply, MqttBrokerError> {

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use common_base::tools::now_mills;
@@ -29,7 +29,7 @@ use std::sync::Arc;
 
 // List all topics by request
 pub async fn list_topic_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &ListTopicRequest,
 ) -> Result<ListTopicReply, MqttBrokerError> {
     let topics = extract_topic(cache_manager)?;
@@ -51,7 +51,7 @@ pub async fn list_topic_by_req(
     })
 }
 
-fn extract_topic(cache_manager: &Arc<CacheManager>) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
+fn extract_topic(cache_manager: &Arc<MQTTCacheManager>) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
     let mut topics = Vec::new();
     for entry in cache_manager.topic_info.iter() {
         let topic = entry.value();
@@ -63,7 +63,7 @@ fn extract_topic(cache_manager: &Arc<CacheManager>) -> Result<Vec<MqttTopicRaw>,
 // Delete a topic rewrite rule
 pub async fn delete_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &DeleteTopicRewriteRuleRequest,
 ) -> Result<DeleteTopicRewriteRuleReply, MqttBrokerError> {
     let topic_storage = TopicStorage::new(client_pool.clone());
@@ -86,7 +86,7 @@ pub async fn delete_topic_rewrite_rule_by_req(
 // Create a topic rewrite rule
 pub async fn create_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MqttBrokerError> {
     let config = broker_config();
@@ -111,7 +111,7 @@ pub async fn create_topic_rewrite_rule_by_req(
 }
 
 pub async fn get_all_topic_rewrite_rule_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> Result<ListRewriteTopicRuleReply, MqttBrokerError> {
     let mut topic_rewrite_rules = Vec::new();
     for entry in cache_manager.topic_rewrite_rule.iter() {

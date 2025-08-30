@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub async fn session_list() -> String {
-    "".to_string()
+use axum::extract::Query;
+use common_base::http_response::success_response;
+
+use crate::request::SessionListReq;
+
+pub async fn session_list(Query(params): Query<SessionListReq>) -> String {
+    success_response(params.client_id)
 }

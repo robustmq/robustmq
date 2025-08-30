@@ -45,7 +45,7 @@ use crate::admin::{
     list_connection_by_req, list_flapping_detect_by_req,
 };
 use crate::common::metrics_cache::MetricsCacheManager;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -80,7 +80,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     metrics_cache_manager: Arc<MetricsCacheManager>,
@@ -89,7 +89,7 @@ pub struct GrpcAdminServices {
 impl GrpcAdminServices {
     pub fn new(
         client_pool: Arc<ClientPool>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         metrics_cache_manager: Arc<MetricsCacheManager>,

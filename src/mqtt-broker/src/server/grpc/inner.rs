@@ -16,7 +16,7 @@ use crate::admin::inner::{
     delete_session_by_req, send_last_will_message_by_req, update_cache_by_req,
 };
 use crate::bridge::manager::ConnectorManager;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
@@ -30,7 +30,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcInnerServices {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     connector_manager: Arc<ConnectorManager>,
     subscribe_manager: Arc<SubscribeManager>,
     schema_manager: Arc<SchemaRegisterManager>,
@@ -40,7 +40,7 @@ pub struct GrpcInnerServices {
 
 impl GrpcInnerServices {
     pub fn new(
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connector_manager: Arc<ConnectorManager>,
         schema_manager: Arc<SchemaRegisterManager>,

@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
-pub mod mqtt;
-pub mod request;
-pub mod response;
-pub mod server;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct SessionListReq {
+    pub client_id: Option<String>,
+}

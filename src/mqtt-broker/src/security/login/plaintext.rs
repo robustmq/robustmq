@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::Authentication;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
@@ -22,11 +22,11 @@ use std::sync::Arc;
 pub struct Plaintext {
     username: String,
     password: String,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
 }
 
 impl Plaintext {
-    pub fn new(username: String, password: String, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(username: String, password: String, cache_manager: Arc<MQTTCacheManager>) -> Self {
         Plaintext {
             username,
             password,
@@ -37,7 +37,7 @@ impl Plaintext {
 
 pub async fn plaintext_check_login(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     username: &str,
     password: &str,
 ) -> Result<bool, MqttBrokerError> {
@@ -65,7 +65,7 @@ pub async fn plaintext_check_login(
 
 async fn try_get_check_user_by_driver(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     username: &str,
 ) -> Result<bool, MqttBrokerError> {
     if let Some(user) = driver.get_user(username.to_owned()).await? {
@@ -105,7 +105,7 @@ mod test {
     use protocol::mqtt::common::Login;
 
     use super::Plaintext;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use crate::security::login::Authentication;
 
     #[tokio::test]
@@ -115,7 +115,7 @@ mod test {
             ..Default::default()
         };
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
+        let cache_manager: Arc<MQTTCacheManager> = Arc::new(MQTTCacheManager::new(
             client_pool.clone(),
             conf.cluster_name.clone(),
         ));

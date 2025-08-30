@@ -38,7 +38,10 @@ name = "admin-server"
 version = "0.1.30"
 dependencies = [
  "axum",
+ "common-base",
  "mockall",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
 ]

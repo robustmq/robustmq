@@ -14,7 +14,7 @@
 
 use super::flow_control::is_qos_message;
 use super::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
@@ -48,7 +48,7 @@ pub struct MQTTHandlerCommand {
     mqtt3_service: MqttService,
     mqtt4_service: MqttService,
     mqtt5_service: MqttService,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     pub client_pool: Arc<ClientPool>,
@@ -56,7 +56,7 @@ pub struct MQTTHandlerCommand {
 
 #[derive(Clone)]
 pub struct CommandContext {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub subscribe_manager: Arc<SubscribeManager>,

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    handler::{cache::CacheManager, error::MqttBrokerError},
+    handler::{cache::MQTTCacheManager, error::MqttBrokerError},
     security::auth::common::ip_match,
 };
 use common_base::tools::now_second;
@@ -23,7 +23,7 @@ use std::sync::Arc;
 use tracing::info;
 
 pub fn is_blacklist(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connection: &MQTTConnection,
 ) -> Result<bool, MqttBrokerError> {
     // todo: I believe this code can be refactored using the Chain of Responsibility pattern.
@@ -115,7 +115,7 @@ pub fn is_blacklist(
 #[cfg(test)]
 mod test {
     use super::is_blacklist;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use common_base::tools::{local_hostname, now_second};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
@@ -124,7 +124,7 @@ mod test {
     use std::sync::Arc;
 
     struct TestFixture {
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         connection: MQTTConnection,
         user: MqttUser,
     }
@@ -132,7 +132,7 @@ mod test {
     fn setup() -> TestFixture {
         let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
 
         let user = MqttUser {
             username: "loboxu".to_string(),

@@ -40,7 +40,7 @@ use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     common::metrics_cache::MetricsCacheManager,
-    handler::{cache::CacheManager as MqttCacheManager, heartbeat::check_placement_center_status},
+    handler::{cache::MQTTCacheManager as MqttCacheManager, heartbeat::check_placement_center_status},
     security::AuthDriver,
     storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,

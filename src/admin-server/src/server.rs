@@ -15,7 +15,7 @@
 use axum::{routing::get, Router};
 use tracing::info;
 
-use crate::mqtt::session::session_list;
+use crate::{cluster::overview, mqtt::session::session_list};
 
 pub struct AdminServer {}
 
@@ -31,12 +31,33 @@ impl AdminServer {
 
     pub async fn start(&self, port: u32) {
         let ip = format!("0.0.0.0:{port}");
-        let route = Router::new().route("/session/list", get(session_list));
+        let route = Router::new()
+            .merge(self.common_route())
+            .merge(self.mqtt_route())
+            .merge(self.kafka_route())
+            .merge(self.meta_route());
+
         let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
         info!(
             "Admin HTTP Server started successfully, listening port: {}",
             port
         );
         axum::serve(listener, route).await.unwrap();
+    }
+
+    fn common_route(&self) -> Router {
+        Router::new().route("/overview", get(overview))
+    }
+
+    fn mqtt_route(&self) -> Router {
+        Router::new().route("/session/list", get(session_list))
+    }
+
+    fn kafka_route(&self) -> Router {
+        Router::new()
+    }
+
+    fn meta_route(&self) -> Router {
+        Router::new()
     }
 }

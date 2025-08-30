@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::observability::system_topic::{replace_topic_name, write_topic_data};
 
 use common_config::broker::broker_config;
@@ -70,7 +70,7 @@ pub struct SystemAlarmEventMessage {
 
 pub async fn st_check_system_alarm(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     let mqtt_conf = broker_config();
@@ -111,7 +111,7 @@ pub async fn st_check_system_alarm(
 
 async fn is_send_a_new_system_event(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
     alarm_type: AlarmType,
     current_usage: f32,
@@ -152,7 +152,7 @@ async fn is_send_a_new_system_event(
 
 pub async fn st_report_system_alarm_event(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
     message_event: &SystemAlarmEventMessage,
 ) {
@@ -271,7 +271,7 @@ mod tests {
     async fn test_report_system_alarm_event() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
@@ -323,7 +323,7 @@ mod tests {
     async fn test_is_send_a_new_system_event_current_usage_gt_config_usage() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
@@ -360,7 +360,7 @@ mod tests {
     async fn test_is_send_a_new_system_event_current_usage_le_config_usage() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 50.0; // Simulate current CPU usage
@@ -397,7 +397,7 @@ mod tests {
     async fn test_is_send_a_new_system_event_metadata_exist_value_but_the_value_is_different() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
@@ -459,7 +459,7 @@ mod tests {
     async fn test_is_send_a_new_system_event_metadata_exist_value_and_the_value_is_same() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
@@ -513,7 +513,7 @@ mod tests {
     async fn test_is_send_a_new_system_event_metadata_param_is_different() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage

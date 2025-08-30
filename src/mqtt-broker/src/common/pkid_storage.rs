@@ -24,11 +24,11 @@ use protocol::meta::placement_center_inner::{
 };
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 
 pub async fn pkid_save(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
@@ -59,7 +59,7 @@ pub async fn pkid_save(
 }
 
 pub async fn pkid_exists(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
@@ -89,7 +89,7 @@ pub async fn pkid_exists(
 }
 
 pub async fn pkid_delete(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
@@ -129,7 +129,7 @@ mod test {
     use std::sync::Arc;
 
     use super::{pkid_delete, pkid_exists, pkid_save};
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
 
     #[tokio::test]
     #[ignore]
@@ -138,7 +138,7 @@ mod test {
 
         let cluster_name = "test".to_string();
         let client_pool = Arc::new(ClientPool::new(10));
-        let cache_manager = Arc::new(CacheManager::new(client_pool.clone(), cluster_name));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name));
         let client_id = "test".to_string();
         let pkid = 15;
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)

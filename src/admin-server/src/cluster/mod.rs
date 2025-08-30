@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
-pub mod mqtt;
-pub mod request;
-pub mod response;
-pub mod server;
+use common_base::http_response::success_response;
+
+use crate::response::SessionListResp;
+
+pub async fn overview() -> String {
+    let data = SessionListResp {};
+    success_response(data)
+}

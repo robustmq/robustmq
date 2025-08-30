@@ -22,7 +22,7 @@ use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flow_control::is_connection_rate_exceeded;
@@ -129,7 +129,7 @@ pub fn is_delete_session(user_properties: &Vec<(String, String)>) -> bool {
 pub async fn disconnect_connection(
     client_id: &str,
     connect_id: u64,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,

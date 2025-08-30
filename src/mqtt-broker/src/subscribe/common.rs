@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
 
@@ -191,7 +191,7 @@ pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
 }
 
 pub async fn get_sub_topic_id_list(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     sub_path: &str,
 ) -> Vec<String> {
     let mut result = Vec::new();
@@ -273,7 +273,7 @@ mod tests {
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
 
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use crate::subscribe::common::{
         build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
         get_sub_topic_id_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,
@@ -452,7 +452,7 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool, "test-cluster".to_string()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

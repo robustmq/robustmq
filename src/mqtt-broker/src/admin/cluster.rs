@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use common_base::enum_type::feature_type::FeatureType;
@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub async fn set_cluster_config_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &SetClusterConfigRequest,
 ) -> Result<SetClusterConfigReply, MqttBrokerError> {
@@ -66,7 +66,7 @@ pub async fn set_cluster_config_by_req(
 }
 
 pub fn get_cluster_config_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> Result<GetClusterConfigReply, MqttBrokerError> {
     Ok(GetClusterConfigReply {
         mqtt_broker_cluster_dynamic_config: serde_json::to_vec(

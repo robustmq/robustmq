@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -23,7 +23,7 @@ pub mod slow;
 pub mod system_topic;
 
 pub async fn start_observability(
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     message_storage_adapter: ArcStorageAdapter,
     client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,

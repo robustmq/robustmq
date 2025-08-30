@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 // List blacklists by request
 pub async fn list_blacklist_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, MqttBrokerError> {
@@ -43,7 +43,7 @@ pub async fn list_blacklist_by_req(
 }
 
 async fn extract_blacklist(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<Vec<BlacklistRaw>, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
@@ -61,7 +61,7 @@ async fn extract_blacklist(
 }
 // Delete blacklist entry
 pub async fn delete_blacklist_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, MqttBrokerError> {
@@ -95,7 +95,7 @@ pub async fn delete_blacklist_by_req(
 
 // Create new blacklist entry
 pub async fn create_blacklist_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, MqttBrokerError> {

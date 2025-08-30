@@ -89,7 +89,7 @@ pub struct ClientPkidData {
 }
 
 #[derive(Clone)]
-pub struct CacheManager {
+pub struct MQTTCacheManager {
     pub start_time: u64,
 
     pub client_pool: Arc<ClientPool>,
@@ -140,9 +140,9 @@ pub struct CacheManager {
     pub alarm_events: DashMap<String, SystemAlarmEventMessage>,
 }
 
-impl CacheManager {
+impl MQTTCacheManager {
     pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
-        let cache = CacheManager {
+        let cache = MQTTCacheManager {
             start_time: now_second(),
             client_pool,
             cluster_name,
@@ -455,7 +455,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_a_alarm_event_is_empty() {
         let client_pool = Arc::new(ClientPool::new(1));
-        let cache_manager = CacheManager::new(client_pool, "test_cluster".to_string());
+        let cache_manager = MQTTCacheManager::new(client_pool, "test_cluster".to_string());
 
         let event = cache_manager.get_alarm_event("test_event");
         assert!(event.is_none());
@@ -464,7 +464,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_and_get_alarm_event() {
         let client_pool = Arc::new(ClientPool::new(1));
-        let cache_manager = CacheManager::new(client_pool, "test_cluster".to_string());
+        let cache_manager = MQTTCacheManager::new(client_pool, "test_cluster".to_string());
 
         let event = SystemAlarmEventMessage {
             name: "test_event".to_string(),

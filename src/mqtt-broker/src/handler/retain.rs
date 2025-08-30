@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
 use super::message::build_message_expire;
 use crate::common::types::ResultMqttBrokerError;
@@ -57,7 +57,7 @@ pub async fn is_new_sub(
 }
 
 pub async fn save_retain_message(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
     client_id: &str,
@@ -97,7 +97,7 @@ pub struct TrySendRetainMessageContext {
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub is_new_subs: DashMap<String, bool>,
 }
@@ -140,7 +140,7 @@ pub struct SendRetainMessageContext {
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub stop_sx: broadcast::Sender<bool>,
     pub is_new_subs: DashMap<String, bool>,

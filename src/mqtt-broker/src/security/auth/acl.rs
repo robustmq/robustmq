@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    handler::cache::CacheManager,
+    handler::cache::MQTTCacheManager,
     security::auth::common::{ip_match, topic_match},
 };
 use metadata_struct::{
@@ -23,7 +23,7 @@ use metadata_struct::{
 use std::sync::Arc;
 
 pub fn is_acl_deny(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connection: &MQTTConnection,
     topic_name: &str,
     action: MqttAclAction,
@@ -70,7 +70,7 @@ fn check_for_deny(
 #[cfg(test)]
 mod test {
     use super::is_acl_deny;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use crate::handler::constant::WILDCARD_RESOURCE;
     use common_base::tools::local_hostname;
     use grpc_clients::pool::ClientPool;
@@ -82,7 +82,7 @@ mod test {
     use std::sync::Arc;
 
     struct TestFixture {
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         connection: MQTTConnection,
         user: MqttUser,
         topic_name: String,
@@ -92,7 +92,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),

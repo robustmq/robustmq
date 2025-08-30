@@ -41,7 +41,7 @@ use super::subscribe::{save_subscribe, SaveSubscribeContext};
 use super::unsubscribe::remove_subscribe;
 use crate::common::pkid_storage::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::cache::{
-    CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
+    MQTTCacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
@@ -70,7 +70,7 @@ use crate::subscribe::manager::SubscribeManager;
 #[derive(Clone)]
 pub struct MqttService {
     protocol: MqttProtocol,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: ArcStorageAdapter,
     delay_message_manager: Arc<DelayMessageManager>,
@@ -83,7 +83,7 @@ pub struct MqttService {
 #[derive(Clone)]
 pub struct MqttServiceContext {
     pub protocol: MqttProtocol,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub delay_message_manager: Arc<DelayMessageManager>,

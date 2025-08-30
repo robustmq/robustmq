@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::observability::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX: &str = "$SYS/brokers/${node}/st
 
 pub(crate) async fn report_broker_stat_topics(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     report_system_data(

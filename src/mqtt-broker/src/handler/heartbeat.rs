@@ -14,7 +14,7 @@
 
 use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
 use common_config::broker::broker_config;
@@ -28,7 +28,7 @@ use tracing::{debug, error, info};
 
 pub async fn register_node(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> ResultMqttBrokerError {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_config();
@@ -39,7 +39,7 @@ pub async fn register_node(
 
 pub async fn report_heartbeat(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultMqttBrokerError {

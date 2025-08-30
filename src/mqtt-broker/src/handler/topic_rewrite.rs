@@ -22,24 +22,24 @@ use tracing::info;
 use crate::handler::error::MqttBrokerError;
 use crate::subscribe::common::{decode_sub_path, is_match_sub_and_topic};
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 
 pub fn convert_publish_topic_by_rewrite_rule(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     topic_name: &str,
 ) -> Result<Option<String>, MqttBrokerError> {
     gen_convert_rewrite_name(cache_manager, topic_name)
 }
 
 pub fn convert_sub_path_by_rewrite_rule(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     path: &str,
 ) -> Result<Option<String>, MqttBrokerError> {
     gen_convert_rewrite_name(cache_manager, path)
 }
 
 fn gen_convert_rewrite_name(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     name: &str,
 ) -> Result<Option<String>, MqttBrokerError> {
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
@@ -180,7 +180,7 @@ mod tests {
         }
     }
 
-    async fn build_rules() -> Arc<CacheManager> {
+    async fn build_rules() -> Arc<MQTTCacheManager> {
         let rules = vec![
             SimpleRule::new(r"y/+/z/#", r"y/z/$2", r"^y/(.+)/z/(.+)$"),
             SimpleRule::new(r"x/#", r"z/y/x/$1", r"^x/y/(.+)$"),
@@ -188,7 +188,7 @@ mod tests {
         ];
 
         let client_pool = Arc::new(ClientPool::new(100));
-        let cache_manager = Arc::new(CacheManager::new(client_pool, unique_id()));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, unique_id()));
         for rule in rules.iter() {
             let rule = MqttTopicRewriteRule {
                 cluster: "default".to_string(),

@@ -30,12 +30,12 @@ use super::{
     write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {
     pub message_storage_adapter: ArcStorageAdapter,
-    pub metadata_cache: Arc<CacheManager>,
+    pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub session: MqttSession,
     pub connection: MQTTConnection,
@@ -47,7 +47,7 @@ pub struct StReportDisconnectedEventContext {
 #[derive(Clone)]
 pub struct StReportSubscribedEventContext {
     pub message_storage_adapter: ArcStorageAdapter,
-    pub metadata_cache: Arc<CacheManager>,
+    pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection: MQTTConnection,
     pub connect_id: u64,
@@ -58,7 +58,7 @@ pub struct StReportSubscribedEventContext {
 #[derive(Clone)]
 pub struct StReportUnsubscribedEventContext {
     pub message_storage_adapter: ArcStorageAdapter,
-    pub metadata_cache: Arc<CacheManager>,
+    pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection: MQTTConnection,
     pub connect_id: u64,
@@ -126,7 +126,7 @@ pub struct SystemTopicUnSubscribedEventMessage {
 #[derive(Clone)]
 pub struct StReportConnectedEventContext {
     pub message_storage_adapter: ArcStorageAdapter,
-    pub metadata_cache: Arc<CacheManager>,
+    pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub session: MqttSession,
     pub connection: MQTTConnection,

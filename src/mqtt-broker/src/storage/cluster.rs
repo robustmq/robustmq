@@ -31,7 +31,7 @@ use protocol::meta::placement_center_inner::{
     UnRegisterNodeRequest,
 };
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 
 pub struct ClusterStorage {
     client_pool: Arc<ClientPool>,
@@ -78,7 +78,7 @@ impl ClusterStorage {
 
     pub async fn register_node(
         &self,
-        cache_manager: &Arc<CacheManager>,
+        cache_manager: &Arc<MQTTCacheManager>,
         config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();

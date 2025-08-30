@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
@@ -31,7 +31,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tracing::info;
 
 pub async fn update_cache_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
@@ -54,7 +54,7 @@ pub async fn update_cache_by_req(
 }
 
 pub async fn delete_session_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
@@ -81,7 +81,7 @@ pub async fn delete_session_by_req(
 }
 
 pub async fn send_last_will_message_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     message_storage_adapter: &ArcStorageAdapter,
     req: &SendLastWillMessageRequest,

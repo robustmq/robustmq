@@ -15,7 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::command::create_command;
 use crate::{
-    handler::{cache::CacheManager, command::CommandContext},
+    handler::{cache::MQTTCacheManager, command::CommandContext},
     security::AuthDriver,
     subscribe::manager::SubscribeManager,
 };
@@ -46,7 +46,7 @@ pub struct Server {
 #[derive(Clone)]
 pub struct TcpServerContext {
     pub subscribe_manager: Arc<SubscribeManager>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub delay_message_manager: Arc<DelayMessageManager>,

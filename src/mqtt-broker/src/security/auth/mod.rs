@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::security::auth::acl::is_acl_deny;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::super_user::is_super_user;
@@ -28,7 +28,7 @@ pub mod metadata;
 pub mod super_user;
 
 pub fn is_allow_acl(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connection: &MQTTConnection,
     topic_name: &str,
     action: MqttAclAction,

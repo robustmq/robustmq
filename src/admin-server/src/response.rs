@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
-pub mod mqtt;
-pub mod request;
-pub mod response;
-pub mod server;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SessionListResp {}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct OverViewResp {}

@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use protocol::broker::broker_mqtt_admin::{ListSessionReply, ListSessionRequest, SessionRaw};
 use std::sync::Arc;
 
 pub async fn list_session_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &ListSessionRequest,
 ) -> Result<ListSessionReply, MqttBrokerError> {
     let sessions = extract_sessions(cache_manager);
@@ -33,7 +33,7 @@ pub async fn list_session_by_req(
     })
 }
 
-fn extract_sessions(cache_manager: &Arc<CacheManager>) -> Vec<SessionRaw> {
+fn extract_sessions(cache_manager: &Arc<MQTTCacheManager>) -> Vec<SessionRaw> {
     cache_manager
         .session_info
         .iter()

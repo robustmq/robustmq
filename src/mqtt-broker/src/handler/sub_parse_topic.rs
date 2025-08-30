@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::{
-    cache::CacheManager,
+    cache::MQTTCacheManager,
     subscribe::{parse_subscribe, ParseSubscribeContext},
     topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
@@ -27,7 +27,7 @@ use tracing::{error, info};
 
 pub async fn start_parse_subscribe_by_new_topic_thread(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
@@ -58,7 +58,7 @@ pub async fn start_parse_subscribe_by_new_topic_thread(
 
 async fn parse_subscribe_by_new_topic(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     last_update_time: u64,
 ) {
