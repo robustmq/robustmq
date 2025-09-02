@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::storage::user::UserStorage;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -21,7 +21,7 @@ use metadata_struct::mqtt::user::MqttUser;
 use std::sync::Arc;
 
 pub async fn init_system_user(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> ResultMqttBrokerError {
     let conf = broker_config();
@@ -42,7 +42,7 @@ pub async fn init_system_user(
     Ok(())
 }
 
-pub fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {
+pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
@@ -55,7 +55,7 @@ pub fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool 
 #[cfg(test)]
 mod test {
     use super::is_super_user;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;
@@ -65,7 +65,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
 
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),

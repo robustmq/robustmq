@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
@@ -43,12 +43,12 @@ pub mod storage;
 
 #[derive(Clone)]
 pub struct AuthDriver {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
 }
 
 impl AuthDriver {
-    pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
+    pub fn new(cache_manager: Arc<MQTTCacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_config();
 
         let driver = match build_driver(client_pool.clone(), conf.mqtt_auth_storage.clone()) {

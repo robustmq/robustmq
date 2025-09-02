@@ -20,7 +20,7 @@ use super::push::{
 };
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::slow::core::get_calculate_time_from_broker_config;
 use crate::observability::slow::core::record_slow_subscribe_data;
@@ -42,7 +42,7 @@ use tracing::warn;
 use tracing::{error, info};
 
 pub struct ExclusivePush {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage: ArcStorageAdapter,
@@ -52,7 +52,7 @@ pub struct ExclusivePush {
 impl ExclusivePush {
     pub fn new(
         message_storage: ArcStorageAdapter,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         metrics_cache_manager: Arc<MetricsCacheManager>,
@@ -212,7 +212,7 @@ pub struct ExclusivePushContext {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub message_storage: MessageStorage,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub metrics_cache_manager: Arc<MetricsCacheManager>,
     pub subscriber: Subscriber,
     pub group_id: String,

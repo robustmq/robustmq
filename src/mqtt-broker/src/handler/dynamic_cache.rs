@@ -36,11 +36,11 @@ use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use tracing::info;
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 
 pub async fn load_metadata_cache(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     auth_driver: &Arc<AuthDriver>,
     connector_manager: &Arc<ConnectorManager>,
@@ -119,7 +119,7 @@ pub async fn load_metadata_cache(
 }
 
 pub async fn update_cache_metadata(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,

@@ -17,7 +17,7 @@ use crate::bridge::core::start_connector_thread;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::load_metadata_cache;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use crate::handler::heartbeat::{register_node, report_heartbeat};
@@ -45,7 +45,7 @@ use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct MqttBrokerServerParams {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub subscribe_manager: Arc<SubscribeManager>,
@@ -58,7 +58,7 @@ pub struct MqttBrokerServerParams {
 }
 
 pub struct MqttBrokerServer {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: ArcStorageAdapter,
     subscribe_manager: Arc<SubscribeManager>,

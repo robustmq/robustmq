@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::subscribe::common::{decode_share_group_and_path, get_share_sub_leader, Subscriber};
@@ -35,7 +35,7 @@ use std::sync::Arc;
 
 pub async fn set_auto_subscribe_rule_by_req(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &SetAutoSubscribeRuleRequest,
 ) -> Result<SetAutoSubscribeRuleReply, MqttBrokerError> {
     let config = broker_config();
@@ -93,7 +93,7 @@ pub async fn set_auto_subscribe_rule_by_req(
 // Delete auto subscribe rule
 pub async fn delete_auto_subscribe_rule_by_req(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &DeleteAutoSubscribeRuleRequest,
 ) -> Result<DeleteAutoSubscribeRuleReply, MqttBrokerError> {
     let config = broker_config();
@@ -112,7 +112,7 @@ pub async fn delete_auto_subscribe_rule_by_req(
 
 // List all auto subscribe rules
 pub async fn list_auto_subscribe_rule_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> Result<ListAutoSubscribeRuleReply, MqttBrokerError> {
     let auto_subscribe_rules = cache_manager
         .auto_subscribe_rule

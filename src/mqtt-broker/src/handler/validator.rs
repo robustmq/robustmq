@@ -23,7 +23,7 @@ use protocol::mqtt::common::{
 use std::cmp::min;
 use std::sync::Arc;
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::content_type::{
     payload_format_indicator_check_by_lastwill, payload_format_indicator_check_by_publish,
 };
@@ -160,7 +160,7 @@ pub fn connect_validator(
 
 pub async fn publish_validator(
     protocol: &MqttProtocol,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     connection: &MQTTConnection,
     publish: &Publish,

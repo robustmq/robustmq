@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::message::build_message_expire;
 use super::retain::save_retain_message;
@@ -30,7 +30,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 
 pub async fn send_last_will_message(
     client_id: &str,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,

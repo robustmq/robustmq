@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::last_will::last_will_delay_interval;
 use crate::common::types::ResultMqttBrokerError;
@@ -35,7 +35,7 @@ pub struct BuildSessionContext {
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
 }
 
 pub async fn build_session(
@@ -105,7 +105,7 @@ pub async fn save_session(
 }
 
 fn session_expiry_interval(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
     let default_session_expiry_interval = cache_manager
@@ -136,7 +136,7 @@ fn session_expiry_interval(
 #[cfg(test)]
 mod test {
     use super::session_expiry_interval;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use common_config::{broker::default_broker_config, config::BrokerConfig};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
@@ -165,7 +165,7 @@ mod test {
             ..Default::default()
         };
         let client_pool = Arc::new(ClientPool::new(100));
-        let cache_manager = Arc::new(CacheManager::new(
+        let cache_manager = Arc::new(MQTTCacheManager::new(
             client_pool.clone(),
             conf.cluster_name.clone(),
         ));

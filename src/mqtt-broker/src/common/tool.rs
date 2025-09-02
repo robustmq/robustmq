@@ -18,7 +18,7 @@ use common_base::node_status::NodeStatus;
 use protocol::mqtt::common::MqttPacket;
 use tokio::{select, sync::broadcast, time::sleep};
 
-use crate::{common::types::ResultMqttBrokerError, handler::cache::CacheManager};
+use crate::{common::types::ResultMqttBrokerError, handler::cache::MQTTCacheManager};
 
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
@@ -53,7 +53,7 @@ where
     }
 }
 
-pub async fn wait_cluster_running(cache_manager: &Arc<CacheManager>) {
+pub async fn wait_cluster_running(cache_manager: &Arc<MQTTCacheManager>) {
     loop {
         if cache_manager.get_status() == NodeStatus::Running {
             break;

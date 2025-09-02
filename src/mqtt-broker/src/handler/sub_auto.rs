@@ -22,7 +22,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 
 use super::{
-    cache::CacheManager,
+    cache::MQTTCacheManager,
     subscribe::{save_subscribe, SaveSubscribeContext},
 };
 
@@ -31,7 +31,7 @@ pub async fn try_auto_subscribe(
     login: &Option<Login>,
     protocol: &MqttProtocol,
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> ResultMqttBrokerError {
     let auto_subscribe_rules: Vec<MqttAutoSubscribeRule> = cache_manager

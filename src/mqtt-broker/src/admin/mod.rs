@@ -28,7 +28,7 @@ pub mod user;
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::common::metrics_cache::MetricsCacheManager;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
@@ -47,7 +47,7 @@ pub async fn cluster_status_by_req(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> Result<ClusterStatusReply, MqttBrokerError> {
     let config = broker_config();
 
@@ -129,7 +129,7 @@ pub async fn cluster_overview_metrics_by_req(
 
 pub async fn enable_flapping_detect_by_req(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &EnableFlappingDetectRequest,
 ) -> Result<EnableFlappingDetectReply, MqttBrokerError> {
     match enable_flapping_detect(client_pool, cache_manager, *request).await {
@@ -142,7 +142,7 @@ pub async fn enable_flapping_detect_by_req(
 
 pub async fn list_connection_by_req(
     connection_manager: &Arc<ConnectionManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> Result<ListConnectionReply, MqttBrokerError> {
     let mut reply = ListConnectionReply::default();
     let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
@@ -167,7 +167,7 @@ pub async fn list_connection_by_req(
 }
 
 pub async fn list_flapping_detect_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &ListFlappingDetectRequest,
 ) -> Result<ListFlappingDetectReply, MqttBrokerError> {
     let flapping_detects = extract_flapping_detect(cache_manager);
@@ -181,7 +181,7 @@ pub async fn list_flapping_detect_by_req(
     })
 }
 
-fn extract_flapping_detect(cache_manager: &Arc<CacheManager>) -> Vec<FlappingDetectRaw> {
+fn extract_flapping_detect(cache_manager: &Arc<MQTTCacheManager>) -> Vec<FlappingDetectRaw> {
     cache_manager
         .acl_metadata
         .flapping_detect_map

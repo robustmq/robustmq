@@ -34,6 +34,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
+name = "admin-server"
+version = "0.1.30"
+dependencies = [
+ "axum",
+ "common-base",
+ "common-config",
+ "grpc-clients",
+ "metadata-struct",
+ "mockall",
+ "mqtt-broker",
+ "network-server",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -541,6 +559,7 @@ dependencies = [
 name = "broker-server"
 version = "0.1.30"
 dependencies = [
+ "admin-server",
  "axum",
  "bytes",
  "common-base",

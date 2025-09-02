@@ -39,7 +39,8 @@ use crate::subscribe::{
 };
 
 use super::{
-    cache::CacheManager, error::MqttBrokerError, topic_rewrite::convert_sub_path_by_rewrite_rule,
+    cache::MQTTCacheManager, error::MqttBrokerError,
+    topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
 use crate::common::types::ResultMqttBrokerError;
 
@@ -48,7 +49,7 @@ pub struct SaveSubscribeContext {
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,

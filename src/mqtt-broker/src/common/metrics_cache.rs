@@ -17,7 +17,8 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
 use crate::{
-    common::tool::loop_select, handler::cache::CacheManager, subscribe::manager::SubscribeManager,
+    common::tool::loop_select, handler::cache::MQTTCacheManager,
+    subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use common_metrics::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
@@ -222,7 +223,7 @@ impl MetricsCacheManager {
 
 pub fn metrics_record_thread(
     metrics_cache_manager: Arc<MetricsCacheManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     time_window: u64,
@@ -331,7 +332,7 @@ mod test {
 
     use crate::{
         common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
-        handler::cache::CacheManager,
+        handler::cache::MQTTCacheManager,
         subscribe::manager::SubscribeManager,
     };
 
@@ -357,7 +358,7 @@ mod test {
         let (stop_send, _) = broadcast::channel(2);
         let client_pool = Arc::new(ClientPool::new(100));
         let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
         let subscribe_manager = Arc::new(SubscribeManager::new());
 
         // add mock connection

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
 use common_config::broker::broker_config;
@@ -37,7 +37,7 @@ pub enum ClusterDynamicConfig {
     MqttSchema,
 }
 
-impl CacheManager {
+impl MQTTCacheManager {
     // slow sub
     pub fn update_slow_sub_config(&self, slow_sub: MqttSlowSubscribeConfig) {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
@@ -161,7 +161,7 @@ pub async fn build_cluster_config(
 }
 
 pub async fn update_cluster_dynamic_config(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     resource_type: ClusterDynamicConfig,
     config: Vec<u8>,
 ) -> ResultMqttBrokerError {

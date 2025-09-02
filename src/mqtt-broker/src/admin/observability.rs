@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use std::str::FromStr;
 
 use crate::common::metrics_cache::MetricsCacheManager;
@@ -27,7 +27,7 @@ use tonic::Status;
 
 // ---- slow subscribe ----
 pub async fn set_slow_subscribe_config_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: &SetSlowSubscribeConfigRequest,
 ) -> Result<SetSlowSubscribeConfigReply, crate::handler::error::MqttBrokerError> {
     let mut slow_subscribe_config = cache_manager.get_slow_sub_config();
@@ -43,7 +43,7 @@ pub async fn set_slow_subscribe_config_by_req(
     })
 }
 pub async fn list_slow_subscribe_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     metrics_cache_manager: &Arc<MetricsCacheManager>,
     _request: &ListSlowSubscribeRequest,
 ) -> Result<ListSlowSubscribeReply, crate::handler::error::MqttBrokerError> {
@@ -66,7 +66,7 @@ pub async fn list_slow_subscribe_by_req(
 }
 
 pub async fn set_system_alarm_config_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     req: &SetSystemAlarmConfigRequest,
 ) -> Result<SetSystemAlarmConfigReply, Status> {
     let mut system_monitor_config = cache_manager.get_system_monitor_config();
@@ -96,7 +96,7 @@ pub async fn set_system_alarm_config_by_req(
 }
 
 pub async fn list_system_alarm_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     _req: &ListSystemAlarmRequest,
 ) -> Result<ListSystemAlarmReply, Status> {
     let list_system_alarm_raw: Vec<ListSystemAlarmRaw> = cache_manager
@@ -133,7 +133,7 @@ mod test {
     pub async fn test_set_system_alarm_config_by_req() {
         init_broker_conf_by_config(default_broker_config());
         let cache_client_pool = Arc::new(ClientPool::new(3));
-        let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
+        let cache_manager = Arc::new(MQTTCacheManager::new(cache_client_pool, cluster_name()));
         cache_manager.set_cluster_config(default_broker_config());
 
         let req = SetSystemAlarmConfigRequest {
@@ -164,7 +164,7 @@ mod test {
     pub async fn test_list_system_alarm_by_req() {
         init_broker_conf_by_config(default_broker_config());
         let cache_client_pool = Arc::new(ClientPool::new(3));
-        let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
+        let cache_manager = Arc::new(MQTTCacheManager::new(cache_client_pool, cluster_name()));
         cache_manager.set_cluster_config(BrokerConfig::default());
 
         let req = ListSystemAlarmRequest {};

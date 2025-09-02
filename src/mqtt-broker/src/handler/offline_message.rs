@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use super::{
-    cache::CacheManager,
+    cache::MQTTCacheManager,
     delay_message::{
         DelayPublishTopic, DELAY_MESSAGE_FLAG, DELAY_MESSAGE_RECV_MS, DELAY_MESSAGE_TARGET_MS,
     },
@@ -40,7 +40,7 @@ pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str
 pub struct SaveMessageContext {
     pub message_storage_adapter: ArcStorageAdapter,
     pub delay_message_manager: Arc<DelayMessageManager>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub publish: Publish,
     pub publish_properties: Option<PublishProperties>,

@@ -18,14 +18,14 @@ use common_base::tools::now_second;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::PublishProperties;
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 
 pub fn is_message_expire(message: &MqttMessage) -> bool {
     message.expiry_interval < now_second()
 }
 
 pub fn build_message_expire(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     publish_properties: &Option<PublishProperties>,
 ) -> u64 {
     if let Some(properties) = publish_properties {
@@ -50,14 +50,14 @@ mod tests {
     use metadata_struct::mqtt::message::MqttMessage;
     use protocol::mqtt::common::PublishProperties;
 
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use crate::handler::message::{build_message_expire, is_message_expire};
 
     #[test]
     fn build_message_expire_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
         let cluster = BrokerConfig {
             mqtt_protocol_config: MqttProtocolConfig {
                 max_message_expiry_interval: 10,

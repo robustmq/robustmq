@@ -27,12 +27,12 @@ use super::{
     SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME,
     SYSTEM_TOPIC_BROKERS_VERSION,
 };
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::storage::cluster::ClusterStorage;
 
 pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
@@ -50,7 +50,7 @@ pub(crate) async fn report_cluster_status(
 
 pub(crate) async fn report_broker_version(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     report_system_data(
@@ -65,7 +65,7 @@ pub(crate) async fn report_broker_version(
 
 pub(crate) async fn report_broker_time(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     //  report system uptime
@@ -94,7 +94,7 @@ pub(crate) async fn report_broker_time(
 
 pub(crate) async fn report_broker_sysdescr(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     report_system_data(

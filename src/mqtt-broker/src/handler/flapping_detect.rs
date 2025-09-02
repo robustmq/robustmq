@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
@@ -31,7 +31,7 @@ use tracing::{debug, error, info};
 
 pub struct UpdateFlappingDetectCache {
     stop_send: broadcast::Sender<bool>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
 }
 
 #[derive(Clone, Debug)]
@@ -42,7 +42,7 @@ pub struct FlappingDetectCondition {
 }
 
 impl UpdateFlappingDetectCache {
-    pub fn new(stop_send: broadcast::Sender<bool>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(stop_send: broadcast::Sender<bool>, cache_manager: Arc<MQTTCacheManager>) -> Self {
         Self {
             stop_send,
             cache_manager,
@@ -91,7 +91,7 @@ impl UpdateFlappingDetectCache {
     }
 }
 
-pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager>) {
+pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<MQTTCacheManager>) {
     // get metric
     let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
     let current_request_time = now_second();
@@ -141,7 +141,7 @@ pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager
 }
 
 fn add_blacklist_4_connection_jitter(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     config: MqttFlappingDetect,
     client_id: String,
 ) {
@@ -175,7 +175,7 @@ fn is_exceed_max_client_connections(
 
 pub async fn enable_flapping_detect(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     request: EnableFlappingDetectRequest,
 ) -> ResultMqttBrokerError {
     let connection_jitter = MqttFlappingDetect {

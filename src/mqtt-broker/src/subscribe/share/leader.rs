@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
@@ -44,7 +44,7 @@ pub struct ShareLeaderPush {
     pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: ArcStorageAdapter,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
 }
 
 impl ShareLeaderPush {
@@ -52,7 +52,7 @@ impl ShareLeaderPush {
         subscribe_manager: Arc<SubscribeManager>,
         message_storage: ArcStorageAdapter,
         connection_manager: Arc<ConnectionManager>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
     ) -> Self {
         ShareLeaderPush {
             subscribe_manager,
@@ -234,7 +234,7 @@ impl ShareLeaderPush {
 #[derive(Clone)]
 pub struct ShareLeaderPushContext {
     pub connection_manager: Arc<ConnectionManager>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub message_storage: MessageStorage,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub share_leader_key: String,

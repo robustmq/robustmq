@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::{CacheManager, ConnectionLiveTime};
+use super::cache::{ConnectionLiveTime, MQTTCacheManager};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::common::tool::loop_select;
@@ -36,7 +36,7 @@ use tracing::{debug, info};
 
 #[derive(Clone)]
 pub struct TrySendDistinctPacketContext {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection_manager: Arc<ConnectionManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
@@ -49,7 +49,7 @@ pub struct TrySendDistinctPacketContext {
 
 #[derive(Clone)]
 pub struct ClientKeepAlive {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
@@ -61,7 +61,7 @@ impl ClientKeepAlive {
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         ClientKeepAlive {
@@ -228,7 +228,7 @@ mod test {
     use tokio::time::sleep;
 
     use super::keep_live_time;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::cache::MQTTCacheManager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::subscribe::manager::SubscribeManager;
     use network_server::common::connection_manager::ConnectionManager;
@@ -290,7 +290,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
 
-        let cache_manager = Arc::new(CacheManager::new(
+        let cache_manager = Arc::new(MQTTCacheManager::new(
             client_pool.clone(),
             conf.cluster_name.clone(),
         ));

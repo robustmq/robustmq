@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 // List all ACL entries
 pub async fn list_acl_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<ListAclReply, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
@@ -46,7 +46,7 @@ pub async fn list_acl_by_req(
 
 // Create a new ACL entry
 pub async fn create_acl_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &CreateAclRequest,
 ) -> Result<CreateAclReply, MqttBrokerError> {
@@ -61,7 +61,7 @@ pub async fn create_acl_by_req(
 
 // Delete an existing ACL entry
 pub async fn delete_acl_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &DeleteAclRequest,
 ) -> Result<DeleteAclReply, MqttBrokerError> {

@@ -89,7 +89,7 @@ pub struct ClientPkidData {
 }
 
 #[derive(Clone)]
-pub struct CacheManager {
+pub struct MQTTCacheManager {
     pub start_time: u64,
 
     pub client_pool: Arc<ClientPool>,
@@ -140,9 +140,9 @@ pub struct CacheManager {
     pub alarm_events: DashMap<String, SystemAlarmEventMessage>,
 }
 
-impl CacheManager {
+impl MQTTCacheManager {
     pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
-        let cache = CacheManager {
+        let cache = MQTTCacheManager {
             start_time: now_second(),
             client_pool,
             cluster_name,
@@ -456,9 +456,9 @@ mod tests {
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackListType;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
-    fn create_cache_manager() -> CacheManager {
+    fn create_cache_manager() -> MQTTCacheManager {
         let client_pool = Arc::new(ClientPool::new(1));
-        CacheManager::new(client_pool, "test_cluster".to_string())
+        MQTTCacheManager::new(client_pool, "test_cluster".to_string())
     }
 
     #[tokio::test]
@@ -488,6 +488,7 @@ mod tests {
     }
 
     #[tokio::test]
+
     async fn user_info_operations() {
         let cache_manager = create_cache_manager();
         let user1 = MqttUser {
@@ -784,7 +785,9 @@ mod tests {
 
         // get non-existent
         assert!(!cache_manager.topic_alias_exists(connect_id, topic_alias));
-        assert!(cache_manager.get_topic_alias(connect_id, topic_alias).is_none());
+        assert!(cache_manager
+            .get_topic_alias(connect_id, topic_alias)
+            .is_none());
 
         // add
         let properties = Some(PublishProperties {
