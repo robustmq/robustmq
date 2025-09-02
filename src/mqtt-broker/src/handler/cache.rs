@@ -461,7 +461,6 @@ mod tests {
         MQTTCacheManager::new(client_pool, "test_cluster".to_string())
     }
 
-
     #[tokio::test]
     async fn node_operations() {
         let cache_manager = create_cache_manager();
@@ -786,7 +785,9 @@ mod tests {
 
         // get non-existent
         assert!(!cache_manager.topic_alias_exists(connect_id, topic_alias));
-        assert!(cache_manager.get_topic_alias(connect_id, topic_alias).is_none());
+        assert!(cache_manager
+            .get_topic_alias(connect_id, topic_alias)
+            .is_none());
 
         // add
         let properties = Some(PublishProperties {
