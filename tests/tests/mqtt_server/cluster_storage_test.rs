@@ -32,7 +32,10 @@ mod tests {
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, config.cluster_name.clone()));
+        let cache_manager = Arc::new(MQTTCacheManager::new(
+            client_pool,
+            config.cluster_name.clone(),
+        ));
 
         config.broker_id = 1234u64;
         cluster_storage

@@ -51,7 +51,9 @@ pub async fn list_topic_by_req(
     })
 }
 
-fn extract_topic(cache_manager: &Arc<MQTTCacheManager>) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
+fn extract_topic(
+    cache_manager: &Arc<MQTTCacheManager>,
+) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
     let mut topics = Vec::new();
     for entry in cache_manager.topic_info.iter() {
         let topic = entry.value();

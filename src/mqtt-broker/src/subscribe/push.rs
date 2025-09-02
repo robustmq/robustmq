@@ -15,7 +15,9 @@
 use super::common::min_qos;
 use super::common::Subscriber;
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::{MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::cache::{
+    MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};

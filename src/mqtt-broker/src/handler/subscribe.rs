@@ -39,7 +39,8 @@ use crate::subscribe::{
 };
 
 use super::{
-    cache::MQTTCacheManager, error::MqttBrokerError, topic_rewrite::convert_sub_path_by_rewrite_rule,
+    cache::MQTTCacheManager, error::MqttBrokerError,
+    topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
 use crate::common::types::ResultMqttBrokerError;
 

@@ -17,7 +17,8 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
 use crate::{
-    common::tool::loop_select, handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager,
+    common::tool::loop_select, handler::cache::MQTTCacheManager,
+    subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use common_metrics::mqtt::server::{record_broker_connections_max, record_broker_connections_num};

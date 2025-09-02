@@ -37,7 +37,9 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info, warn};
 
 use crate::common::tool::is_ignore_print;
-use crate::handler::cache::{MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::cache::{
+    MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
 use crate::subscribe::common::get_share_sub_leader;

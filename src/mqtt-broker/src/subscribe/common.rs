@@ -452,7 +452,10 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(MQTTCacheManager::new(client_pool, "test-cluster".to_string()));
+        let metadata_cache = Arc::new(MQTTCacheManager::new(
+            client_pool,
+            "test-cluster".to_string(),
+        ));
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);
