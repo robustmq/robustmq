@@ -177,10 +177,11 @@ pub enum AclActionType {
 pub(crate) struct CreateAclArgs {
     #[arg(short, long, required = true)]
     pub(crate) cluster_name: String,
-    #[arg(long,
-        required = true,
+    #[arg(
+        long,
         value_parser = EnumValueParser::<MqttAclResourceType>::new(),
-        default_missing_value = "ClientId",)]
+        default_missing_value = "ClientId"
+    )]
     pub(crate) resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
     pub(crate) resource_name: String,
@@ -188,16 +189,17 @@ pub(crate) struct CreateAclArgs {
     pub(crate) topic: String,
     #[arg(long, required = true)]
     pub(crate) ip: String,
-    #[arg(long,
-        required = true,
-    value_parser = EnumValueParser::<MqttAclAction>::new(),
-    default_missing_value = "All",
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclAction>::new(),
+        default_missing_value = "All",
     )]
     pub(crate) action: MqttAclAction,
-    #[arg(long,
-        required = true,
-    value_parser = EnumValueParser::<MqttAclPermission>::new(),
-    default_missing_value = "Allow",)]
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclPermission>::new(),
+        default_missing_value = "Allow",
+    )]
     pub(crate) permission: MqttAclPermission,
 }
 
@@ -206,8 +208,30 @@ pub(crate) struct CreateAclArgs {
 pub(crate) struct DeleteAclArgs {
     #[arg(short, long, required = true)]
     pub(crate) cluster_name: String,
-    #[arg(short, long, required = true)]
-    pub(crate) acl: String,
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclResourceType>::new(),
+        default_missing_value = "ClientId"
+    )]
+    pub(crate) resource_type: MqttAclResourceType,
+    #[arg(long, required = true)]
+    pub(crate) resource_name: String,
+    #[arg(long, required = true)]
+    pub(crate) topic: String,
+    #[arg(long, required = true)]
+    pub(crate) ip: String,
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclAction>::new(),
+        default_missing_value = "All",
+    )]
+    pub(crate) action: MqttAclAction,
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclPermission>::new(),
+        default_missing_value = "Allow",
+    )]
+    pub(crate) permission: MqttAclPermission,
 }
 
 // blacklist feat
@@ -717,10 +741,20 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
                 acl: acl.encode()?,
             }))
         }
-        AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(DeleteAclRequest {
-            cluster_name: arg.cluster_name,
-            acl: Vec::from(arg.acl),
-        })),
+        AclActionType::Delete(arg) => {
+            let acl = MqttAcl {
+                resource_type: arg.resource_type,
+                resource_name: arg.resource_name,
+                topic: arg.topic,
+                ip: arg.ip,
+                action: arg.action,
+                permission: arg.permission,
+            };
+            Ok(MqttActionType::DeleteAcl(DeleteAclRequest {
+                cluster_name: arg.cluster_name,
+                acl: acl.encode()?,
+            }))
+        }
     }
 }
 
