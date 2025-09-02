@@ -14,14 +14,23 @@
 
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
-use common_base::http_response::success_response;
+use grpc_clients::pool::ClientPool;
+use mqtt_broker::{
+    common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
+    subscribe::manager::SubscribeManager,
+};
+use network_server::common::connection_manager::ConnectionManager;
 
-use crate::{request::SessionListReq, state::HttpState};
+#[derive(Clone)]
+pub struct HttpState {
+    pub client_pool: Arc<ClientPool>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub mqtt_context: MQTTContext,
+}
 
-pub async fn session_list(
-    State(_state): State<Arc<HttpState>>,
-    Query(params): Query<SessionListReq>,
-) -> String {
-    success_response(params.client_id)
+#[derive(Clone)]
+pub struct MQTTContext {
+    pub cache_manager: Arc<MQTTCacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub metrics_manager: Arc<MetricsCacheManager>,
 }

@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use crate::grpc::start_grpc_server;
-use admin_server::server::AdminServer;
+use admin_server::{
+    server::AdminServer,
+    state::{HttpState, MQTTContext},
+};
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
@@ -69,9 +72,9 @@ mod metrics;
 
 pub struct BrokerServer {
     main_runtime: Runtime,
-    place_params: Option<PlacementCenterServerParams>,
-    mqtt_params: Option<MqttBrokerServerParams>,
-    journal_params: Option<JournalServerParams>,
+    place_params: PlacementCenterServerParams,
+    mqtt_params: MqttBrokerServerParams,
+    journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
     config: BrokerConfig,
 }
@@ -87,26 +90,11 @@ impl BrokerServer {
         let config = broker_config();
         let client_pool = Arc::new(ClientPool::new(100));
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
-        let mut place_params = None;
 
-        if config.is_start_meta() {
-            main_runtime.block_on(async {
-                place_params =
-                    Some(BrokerServer::build_placement_center(client_pool.clone()).await);
-            });
-        }
-
-        let mqtt_params = if config.is_start_broker() {
-            Some(BrokerServer::build_mqtt_server(client_pool.clone()))
-        } else {
-            None
-        };
-
-        let journal_params = if config.is_start_journal() {
-            Some(BrokerServer::build_journal_server(client_pool.clone()))
-        } else {
-            None
-        };
+        let place_params = main_runtime
+            .block_on(async { BrokerServer::build_placement_center(client_pool.clone()).await });
+        let mqtt_params = BrokerServer::build_mqtt_server(client_pool.clone());
+        let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
             main_runtime,
@@ -138,9 +126,18 @@ impl BrokerServer {
         });
 
         // Start Admin Server
+        let state = Arc::new(HttpState {
+            client_pool: self.client_pool.clone(),
+            connection_manager: self.mqtt_params.connection_manager.clone(),
+            mqtt_context: MQTTContext {
+                cache_manager: self.mqtt_params.cache_manager.clone(),
+                subscribe_manager: self.mqtt_params.subscribe_manager.clone(),
+                metrics_manager: self.mqtt_params.metrics_cache_manager.clone(),
+            },
+        });
         server_runtime.spawn(async move {
             let admin_server = AdminServer::new();
-            admin_server.start(8080).await;
+            admin_server.start(8080, state).await;
         });
 
         // check grpc server ready
@@ -168,22 +165,24 @@ impl BrokerServer {
         let mut mqtt_stop_send = None;
         let mut journal_stop_send = None;
 
+        let config = broker_config();
         // start placement center
         let (stop_send, _) = broadcast::channel(2);
         let place_runtime =
             create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
-        if let Some(params) = self.place_params.clone() {
+        let place_params = self.place_params.clone();
+        if config.is_start_meta() {
             place_stop_send = Some(stop_send.clone());
             place_runtime.spawn(async move {
-                let mut pc = PlacementCenterServer::new(params, stop_send.clone());
+                let mut pc = PlacementCenterServer::new(place_params, stop_send.clone());
                 pc.start().await;
             });
-        }
 
-        // check placement ready
-        self.main_runtime.block_on(async {
-            check_placement_center_status(self.client_pool.clone()).await;
-        });
+            // check placement ready
+            self.main_runtime.block_on(async {
+                check_placement_center_status(self.client_pool.clone()).await;
+            });
+        }
 
         // start journal server
         let (stop_send, _) = broadcast::channel(2);
@@ -191,24 +190,23 @@ impl BrokerServer {
             "journal-runtime",
             self.config.runtime.runtime_worker_threads,
         );
-        if let Some(params) = self.journal_params.clone() {
+
+        if config.is_start_journal() {
             journal_stop_send = Some(stop_send.clone());
-            let server = JournalServer::new(params, stop_send.clone());
+            let server = JournalServer::new(self.journal_params.clone(), stop_send.clone());
             journal_runtime.spawn(async move {
                 server.start().await;
             });
-            self.check_journal_server_ready(&self.journal_params);
+            self.wait_for_journal_ready();
         }
-
-        self.wait_for_journal_ready();
 
         // start mqtt server
         let (stop_send, _) = broadcast::channel(2);
         let mqtt_runtime =
             create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
-        if let Some(params) = self.mqtt_params.clone() {
+        if config.is_start_broker() {
             mqtt_stop_send = Some(stop_send.clone());
-            let server = MqttBrokerServer::new(params, stop_send);
+            let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send);
             mqtt_runtime.spawn(async move {
                 server.start().await;
             });
@@ -384,46 +382,6 @@ impl BrokerServer {
         });
     }
 
-    fn check_journal_server_ready(&self, journal_params: &Option<JournalServerParams>) {
-        if journal_params.is_none() {
-            return;
-        }
-
-        let config = self.config.clone();
-        let max_retries = 30;
-        let retry_interval = Duration::from_millis(100);
-
-        std::thread::spawn(move || {
-            let journal_port = config.journal_server.tcp_port;
-            let addr = format!("127.0.0.1:{}", journal_port);
-
-            for attempt in 1..=max_retries {
-                match std::net::TcpStream::connect(&addr) {
-                    Ok(_) => {
-                        info!("Journal server is ready on port {}", journal_port);
-                        return;
-                    }
-                    Err(e) => {
-                        if attempt % 10 == 0 {
-                            info!(
-                                "Journal server not ready yet (attempt {}/{}): {}",
-                                attempt, max_retries, e
-                            );
-                        }
-                    }
-                }
-
-                std::thread::sleep(retry_interval);
-            }
-
-            error!(
-                "Journal server failed to start within {} attempts",
-                max_retries
-            );
-            std::process::exit(1);
-        });
-    }
-
     fn wait_for_grpc_ready(&self, grpc_ready: &Arc<AtomicBool>) {
         let max_wait_time = Duration::from_secs(10);
         let check_interval = Duration::from_millis(100);
@@ -441,10 +399,6 @@ impl BrokerServer {
     }
 
     fn wait_for_journal_ready(&self) {
-        if self.journal_params.is_none() {
-            return;
-        }
-
         let journal_port = self.config.journal_server.tcp_port;
         let max_wait_time = Duration::from_secs(10);
         let check_interval = Duration::from_millis(100);

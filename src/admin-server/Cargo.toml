@@ -25,6 +25,11 @@ tracing.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 common-base.workspace = true
+mqtt-broker.workspace = true
+network-server.workspace = true
+grpc-clients.workspace = true
+common-config.workspace = true
+metadata-struct.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

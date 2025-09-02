@@ -17,6 +17,7 @@ use crate::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
 use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
+use common_config::broker::broker_config;
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
 use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
@@ -48,9 +49,9 @@ use tower::{Layer, Service};
 use tracing::info;
 
 pub async fn start_grpc_server(
-    place_params: Option<PlacementCenterServerParams>,
-    mqtt_params: Option<MqttBrokerServerParams>,
-    journal_params: Option<JournalServerParams>,
+    place_params: PlacementCenterServerParams,
+    mqtt_params: MqttBrokerServerParams,
+    journal_params: JournalServerParams,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{grpc_port}").parse()?;
@@ -71,50 +72,51 @@ pub async fn start_grpc_server(
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
 
-    if let Some(params) = place_params {
+    let config = broker_config();
+    if config.is_start_meta() {
         route = route
             .add_service(
-                PlacementCenterServiceServer::new(get_place_inner_handler(&params))
+                PlacementCenterServiceServer::new(get_place_inner_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                KvServiceServer::new(get_place_kv_handler(&params))
+                KvServiceServer::new(get_place_kv_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                MqttServiceServer::new(get_place_mqtt_handler(&params))
+                MqttServiceServer::new(get_place_mqtt_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                EngineServiceServer::new(get_place_engine_handler(&params))
+                EngineServiceServer::new(get_place_engine_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                OpenRaftServiceServer::new(get_place_raft_handler(&params))
+                OpenRaftServiceServer::new(get_place_raft_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             );
     }
 
-    if let Some(params) = mqtt_params {
+    if config.is_start_broker() {
         route = route
             .add_service(
-                MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(&params))
+                MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                MqttBrokerAdminServiceServer::new(get_mqtt_admin_handler(&params))
+                MqttBrokerAdminServiceServer::new(get_mqtt_admin_handler(&mqtt_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             );
     }
 
-    if let Some(params) = journal_params {
+    if config.is_start_journal() {
         route = route
             .add_service(
-                JournalServerAdminServiceServer::new(get_journal_admin_handler(&params))
+                JournalServerAdminServiceServer::new(get_journal_admin_handler(&journal_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                JournalServerInnerServiceServer::new(get_journal_inner_handler(&params))
+                JournalServerInnerServiceServer::new(get_journal_inner_handler(&journal_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             );
     }

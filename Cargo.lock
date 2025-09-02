@@ -39,7 +39,12 @@ version = "0.1.30"
 dependencies = [
  "axum",
  "common-base",
+ "common-config",
+ "grpc-clients",
+ "metadata-struct",
  "mockall",
+ "mqtt-broker",
+ "network-server",
  "serde",
  "serde_json",
  "tokio",

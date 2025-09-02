@@ -456,7 +456,7 @@ mod tests {
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackListType;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
-    fn create_cache_manager() -> CacheManager {
+    fn create_cache_manager() -> MQTTCacheManager {
         let client_pool = Arc::new(ClientPool::new(1));
         MQTTCacheManager::new(client_pool, "test_cluster".to_string())
     }

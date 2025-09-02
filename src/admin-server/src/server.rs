@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{
+    cluster::{index, overview, overview_metrics},
+    mqtt::session::session_list,
+    state::HttpState,
+};
 use axum::{routing::get, Router};
+use std::sync::Arc;
 use tracing::info;
-
-use crate::{cluster::overview, mqtt::session::session_list};
 
 pub struct AdminServer {}
 
@@ -29,13 +33,14 @@ impl AdminServer {
         AdminServer {}
     }
 
-    pub async fn start(&self, port: u32) {
+    pub async fn start(&self, port: u32, state: Arc<HttpState>) {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new()
             .merge(self.common_route())
             .merge(self.mqtt_route())
             .merge(self.kafka_route())
-            .merge(self.meta_route());
+            .merge(self.meta_route())
+            .with_state(state);
 
         let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
         info!(
@@ -45,19 +50,22 @@ impl AdminServer {
         axum::serve(listener, route).await.unwrap();
     }
 
-    fn common_route(&self) -> Router {
-        Router::new().route("/overview", get(overview))
+    fn common_route(&self) -> Router<Arc<HttpState>> {
+        Router::new()
+            .route("/", get(index))
+            .route("/overview", get(overview))
+            .route("/overview-metrics", get(overview_metrics))
     }
 
-    fn mqtt_route(&self) -> Router {
+    fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new().route("/session/list", get(session_list))
     }
 
-    fn kafka_route(&self) -> Router {
+    fn kafka_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
 
-    fn meta_route(&self) -> Router {
+    fn meta_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
 }

@@ -13,4 +13,3 @@
 // limitations under the License.
 
 pub mod session;
-pub fn route() {}

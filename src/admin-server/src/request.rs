@@ -15,6 +15,12 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+pub struct OverviewMetricsReq {
+    pub start_time: u64,
+    pub end_time: u64,
+}
+
+#[derive(Deserialize)]
 pub struct SessionListReq {
     pub client_id: Option<String>,
 }
