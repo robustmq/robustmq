@@ -894,6 +894,7 @@ dependencies = [
  "console-subscriber",
  "journal-server",
  "lazy_static",
+ "metadata-struct",
  "mockall",
  "protocol",
  "tokio",
@@ -2915,6 +2916,7 @@ name = "metadata-struct"
 version = "0.1.30"
 dependencies = [
  "bytes",
+ "clap",
  "common-base",
  "common-config",
  "crc32fast",

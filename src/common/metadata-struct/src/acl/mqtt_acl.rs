@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
@@ -28,76 +29,29 @@ pub struct MqttAcl {
 }
 
 impl MqttAcl {
+    pub fn build(
+        resource_type: MqttAclResourceType,
+        resource_name: String,
+        topic: String,
+        ip: String,
+        action: MqttAclAction,
+        permission: MqttAclPermission,
+    ) -> Self {
+        MqttAcl {
+            resource_type,
+            resource_name,
+            topic,
+            ip,
+            action,
+            permission,
+        }
+    }
+
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         Ok(serde_json::from_slice(data)?)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MqttAclResourceType {
-    ClientId,
-    User,
-}
-
-impl fmt::Display for MqttAclResourceType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MqttAclResourceType::ClientId => "ClientId",
-                MqttAclResourceType::User => "User",
-            }
-        )
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MqttAclAction {
-    All,
-    Subscribe,
-    Publish,
-    PubSub,
-    Retain,
-    Qos,
-}
-
-impl fmt::Display for MqttAclAction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MqttAclAction::All => "All",
-                MqttAclAction::Subscribe => "Subscribe",
-                MqttAclAction::Publish => "Publish",
-                MqttAclAction::PubSub => "PubSub",
-                MqttAclAction::Retain => "Retain",
-                MqttAclAction::Qos => "Qos",
-            }
-        )
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MqttAclPermission {
-    Allow,
-    Deny,
-}
-
-impl fmt::Display for MqttAclPermission {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MqttAclPermission::Allow => "Allow",
-                MqttAclPermission::Deny => "Deny",
-            }
-        )
     }
 }

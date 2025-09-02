@@ -380,12 +380,12 @@ impl BrokerServer {
         let retry_interval = Duration::from_millis(100);
 
         std::thread::spawn(move || {
-            let addr = format!("127.0.0.1:{}", grpc_port);
+            let addr = format!("127.0.0.1:{grpc_port}");
 
             for attempt in 1..=max_retries {
                 match std::net::TcpStream::connect(&addr) {
                     Ok(_) => {
-                        info!("GRPC server is ready on port {}", grpc_port);
+                        info!("GRPC server is ready on port {grpc_port}");
                         grpc_ready.store(true, Ordering::Relaxed);
                         return;
                     }
@@ -432,7 +432,7 @@ impl BrokerServer {
         let start_time = std::time::Instant::now();
 
         while start_time.elapsed() < max_wait_time {
-            match std::net::TcpStream::connect(format!("127.0.0.1:{}", journal_port)) {
+            match std::net::TcpStream::connect(format!("127.0.0.1:{journal_port}")) {
                 Ok(_) => {
                     info!("Journal server startup check completed");
                     return;

@@ -13,14 +13,3 @@
 // limitations under the License.
 
 pub mod acl;
-pub mod blacklist;
-pub mod client;
-pub mod cluster;
-pub mod connector;
-pub mod inner;
-pub mod observability;
-pub mod schema;
-pub mod session;
-pub mod subscribe;
-pub mod topic;
-pub mod user;

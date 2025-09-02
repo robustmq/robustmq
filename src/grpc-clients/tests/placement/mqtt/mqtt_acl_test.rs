@@ -14,17 +14,17 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::unique_id;
     use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::acl::mqtt_acl::{
-        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
-    };
+    use metadata_struct::acl::mqtt_acl::MqttAcl;
     use protocol::meta::placement_center_mqtt::{
         CreateAclRequest, DeleteAclRequest, ListAclRequest,
     };
+    use std::sync::Arc;
 
     use crate::common::get_placement_addr;
 

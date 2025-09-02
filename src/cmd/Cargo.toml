@@ -44,6 +44,7 @@ clap-cargo.workspace = true
 protocol.workspace = true
 console-subscriber.workspace = true
 broker-server.workspace = true
+metadata-struct.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

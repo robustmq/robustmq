@@ -16,10 +16,9 @@ use crate::{
     handler::cache::MQTTCacheManager,
     security::auth::common::{ip_match, topic_match},
 };
-use metadata_struct::{
-    acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclPermission},
-    mqtt::connection::MQTTConnection,
-};
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+use metadata_struct::{acl::mqtt_acl::MqttAcl, mqtt::connection::MQTTConnection};
 use std::sync::Arc;
 
 pub fn is_acl_deny(
@@ -73,10 +72,15 @@ mod test {
     use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
     use crate::handler::constant::WILDCARD_RESOURCE;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::local_hostname;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::acl::mqtt_acl::MqttAcl;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;
@@ -135,7 +139,7 @@ mod test {
             resource_name,
             topic: topic.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: action.clone(),
+            action,
             permission: MqttAclPermission::Deny,
         };
         fixture.cache_manager.add_acl(acl);

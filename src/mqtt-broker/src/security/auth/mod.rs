@@ -16,7 +16,7 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::security::auth::acl::is_acl_deny;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::super_user::is_super_user;
-use metadata_struct::acl::mqtt_acl::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;

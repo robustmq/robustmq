@@ -12,15 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod blacklist;
-pub mod client;
-pub mod cluster;
-pub mod connector;
-pub mod inner;
-pub mod observability;
-pub mod schema;
-pub mod session;
-pub mod subscribe;
-pub mod topic;
-pub mod user;
+pub mod mqtt_acl_action;
+pub mod mqtt_acl_permission;
+pub mod mqtt_acl_resource_type;
