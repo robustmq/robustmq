@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::handler::cache::MQTTCacheManager;
-use broker_core::cache::BrokerCacheManager;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -25,7 +24,6 @@ pub mod system_topic;
 
 pub async fn start_observability(
     cache_manager: Arc<MQTTCacheManager>,
-    broker_cache: Arc<BrokerCacheManager>,
     message_storage_adapter: ArcStorageAdapter,
     client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
@@ -33,7 +31,6 @@ pub async fn start_observability(
     let system_topic = SystemTopic::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
-        broker_cache.clone(),
         client_pool.clone(),
     );
 

@@ -70,7 +70,7 @@ pub fn get_cluster_config_by_req(
 ) -> Result<GetClusterConfigReply, MqttBrokerError> {
     Ok(GetClusterConfigReply {
         mqtt_broker_cluster_dynamic_config: serde_json::to_vec(
-            &cache_manager.get_cluster_config(),
+            &cache_manager.broker_cache.get_cluster_config(),
         )?,
     })
 }

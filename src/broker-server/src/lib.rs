@@ -272,7 +272,7 @@ impl BrokerServer {
         let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
-            config.cluster_name.clone(),
+            broker_cache.clone(),
         ));
 
         let storage_driver = match build_message_storage_driver() {
@@ -298,7 +298,6 @@ impl BrokerServer {
         let schema_manager = Arc::new(SchemaRegisterManager::new());
 
         MqttBrokerServerParams {
-            broker_cache,
             cache_manager,
             client_pool,
             message_storage_adapter: arc_storage_driver,

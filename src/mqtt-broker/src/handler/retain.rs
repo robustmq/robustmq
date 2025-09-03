@@ -166,7 +166,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
         let topic_id_list = get_sub_topic_id_list(&context.cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(context.client_pool.clone());
-        let cluster = context.cache_manager.get_cluster_config();
+        let cluster = context.cache_manager.broker_cache.get_cluster_config();
 
         for topic_id in topic_id_list.iter() {
             let topic_name =

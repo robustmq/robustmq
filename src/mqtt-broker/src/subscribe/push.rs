@@ -223,6 +223,7 @@ pub async fn send_publish_packet_to_client(
 
 pub fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
     let cluster_qos = cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .max_qos;

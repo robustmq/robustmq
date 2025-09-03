@@ -227,6 +227,7 @@ mod test {
     use tokio::time::sleep;
 
     use super::keep_live_time;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::subscribe::manager::SubscribeManager;
@@ -282,18 +283,9 @@ mod test {
 
     #[tokio::test]
     pub async fn get_expire_connection_test() {
-        let conf = BrokerConfig {
-            cluster_name: "test".to_string(),
-            ..Default::default()
-        };
         let client_pool = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
-
-        let cache_manager = Arc::new(MQTTCacheManager::new(
-            client_pool.clone(),
-            conf.cluster_name.clone(),
-        ));
-
+        let cache_manager = test_build_mqtt_cache_manager();
         let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(

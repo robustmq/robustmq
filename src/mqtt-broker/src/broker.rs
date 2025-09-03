@@ -31,7 +31,6 @@ use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
-use broker_core::cache::BrokerCacheManager;
 use broker_core::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
@@ -45,7 +44,6 @@ use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct MqttBrokerServerParams {
-    pub broker_cache: Arc<BrokerCacheManager>,
     pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub message_storage_adapter: ArcStorageAdapter,
@@ -59,7 +57,6 @@ pub struct MqttBrokerServerParams {
 }
 
 pub struct MqttBrokerServer {
-    broker_cache: Arc<BrokerCacheManager>,
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: ArcStorageAdapter,
@@ -93,7 +90,6 @@ impl MqttBrokerServer {
         MqttBrokerServer {
             main_stop,
             inner_stop,
-            broker_cache: params.broker_cache,
             cache_manager: params.cache_manager,
             client_pool: params.client_pool,
             message_storage_adapter: params.message_storage_adapter,
@@ -157,11 +153,9 @@ impl MqttBrokerServer {
         let message_storage_adapter = self.message_storage_adapter.clone();
         let client_pool = self.client_pool.clone();
         let raw_stop_send = self.inner_stop.clone();
-        let broker_cache = self.broker_cache.clone();
         tokio::spawn(async move {
             start_observability(
                 cache_manager,
-                broker_cache,
                 message_storage_adapter,
                 client_pool,
                 raw_stop_send,
@@ -277,11 +271,6 @@ impl MqttBrokerServer {
     }
 
     async fn start_init(&self) {
-        let client_pool = self.client_pool.clone();
-        let cache_manager = self.cache_manager.clone();
-        let connector_manager = self.connector_manager.clone();
-        let schema_manager = self.schema_manager.clone();
-        let auth_driver = self.auth_driver.clone();
         if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
             panic!("{}", e);
         }
@@ -292,18 +281,6 @@ impl MqttBrokerServer {
             &self.auth_driver,
             &self.connector_manager,
             &self.schema_manager,
-        )
-        .await
-        {
-            panic!("{}", e);
-        }
-
-        if let Err(e) = load_metadata_cache(
-            &cache_manager,
-            &client_pool,
-            &auth_driver,
-            &connector_manager,
-            &schema_manager,
         )
         .await
         {

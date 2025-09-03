@@ -18,6 +18,7 @@ use dashmap::DashMap;
 use metadata_struct::placement::node::BrokerNode;
 
 pub struct BrokerCacheManager {
+    // start_time
     pub start_time: u64,
 
     // node list
@@ -71,6 +72,15 @@ impl BrokerCacheManager {
 
     pub fn get_status(&self) -> NodeStatus {
         self.status.get(&self.cluster_name).unwrap().clone()
+    }
+
+    // cluster config
+    pub fn set_cluster_config(&self, cluster: BrokerConfig) {
+        self.cluster_info.insert(self.cluster_name.clone(), cluster);
+    }
+
+    pub fn get_cluster_config(&self) -> BrokerConfig {
+        self.cluster_info.get(&self.cluster_name).unwrap().clone()
     }
 }
 

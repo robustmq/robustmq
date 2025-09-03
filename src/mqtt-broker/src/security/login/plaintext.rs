@@ -97,28 +97,18 @@ impl Authentication for Plaintext {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use common_config::config::BrokerConfig;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;
+    use std::sync::Arc;
 
     use super::Plaintext;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
     use crate::security::login::Authentication;
 
     #[tokio::test]
     pub async fn plaintext_test() {
-        let conf = BrokerConfig {
-            cluster_name: "test".to_string(),
-            ..Default::default()
-        };
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let cache_manager: Arc<MQTTCacheManager> = Arc::new(MQTTCacheManager::new(
-            client_pool.clone(),
-            conf.cluster_name.clone(),
-        ));
+        let cache_manager: Arc<MQTTCacheManager> = test_build_mqtt_cache_manager();
         let username = "lobo".to_string();
         let password = "pwd123".to_string();
         let user = MqttUser {

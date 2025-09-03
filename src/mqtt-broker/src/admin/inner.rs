@@ -68,7 +68,7 @@ pub async fn delete_session_by_req(
     );
     wait_cluster_running(broker_cache).await;
 
-    if cache_manager.cluster_name != req.cluster_name {
+    if cache_manager.broker_cache.cluster_name != req.cluster_name {
         return Err(MqttBrokerError::ClusterNotMatch(req.cluster_name.clone()));
     }
 

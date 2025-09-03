@@ -121,6 +121,7 @@ pub async fn list_system_alarm_by_req(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
 
@@ -131,9 +132,10 @@ mod test {
     #[tokio::test]
     pub async fn test_set_system_alarm_config_by_req() {
         init_broker_conf_by_config(default_broker_config());
-        let cache_client_pool = Arc::new(ClientPool::new(3));
-        let cache_manager = Arc::new(MQTTCacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_config(default_broker_config());
+        let cache_manager = test_build_mqtt_cache_manager();
+        cache_manager
+            .broker_cache
+            .set_cluster_config(default_broker_config());
 
         let req = SetSystemAlarmConfigRequest {
             enable: Some(true),
@@ -162,9 +164,10 @@ mod test {
     #[tokio::test]
     pub async fn test_list_system_alarm_by_req() {
         init_broker_conf_by_config(default_broker_config());
-        let cache_client_pool = Arc::new(ClientPool::new(3));
-        let cache_manager = Arc::new(MQTTCacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_config(BrokerConfig::default());
+        let cache_manager = test_build_mqtt_cache_manager();
+        cache_manager
+            .broker_cache
+            .set_cluster_config(BrokerConfig::default());
 
         let req = ListSystemAlarmRequest {};
         let test_event = "test_event";

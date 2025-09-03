@@ -313,8 +313,11 @@ pub fn metrics_gc_thread(
 
 #[cfg(test)]
 mod test {
-    use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
     use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
+    use crate::{
+        common::tool::test_build_mqtt_cache_manager,
+        observability::slow::slow_subscribe_data::SlowSubscribeData,
+    };
     use std::{
         net::{Ipv4Addr, SocketAddrV4},
         sync::Arc,
@@ -353,9 +356,7 @@ mod test {
     pub async fn metrics_cache_test() {
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let (stop_send, _) = broadcast::channel(2);
-        let client_pool = Arc::new(ClientPool::new(100));
-        let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
+        let cache_manager = test_build_mqtt_cache_manager();
         let subscribe_manager = Arc::new(SubscribeManager::new());
 
         // add mock connection

@@ -74,7 +74,6 @@ use crate::observability::system_topic::sysmon::{
     SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE, SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE,
 };
 use crate::storage::message::MessageStorage;
-use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select};
 use common_config::broker::broker_config;
@@ -123,7 +122,6 @@ pub mod sysmon;
 
 pub struct SystemTopic {
     pub metadata_cache: Arc<MQTTCacheManager>,
-    broker_cache: Arc<BrokerCacheManager>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub client_pool: Arc<ClientPool>,
 }
@@ -132,13 +130,11 @@ impl SystemTopic {
     pub fn new(
         metadata_cache: Arc<MQTTCacheManager>,
         message_storage_adapter: ArcStorageAdapter,
-        broker_cache: Arc<BrokerCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         SystemTopic {
             metadata_cache,
             message_storage_adapter,
-            broker_cache,
             client_pool,
         }
     }
@@ -150,7 +146,6 @@ impl SystemTopic {
                 &self.client_pool,
                 &self.metadata_cache,
                 &self.message_storage_adapter,
-                &self.broker_cache,
             )
             .await;
 
@@ -293,17 +288,10 @@ pub(crate) async fn report_broker_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
-    broker_cache: &Arc<BrokerCacheManager>,
 ) {
     broker::report_cluster_status(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
-    broker::report_broker_time(
-        client_pool,
-        metadata_cache,
-        broker_cache,
-        message_storage_adapter,
-    )
-    .await;
+    broker::report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
 }
 
@@ -439,7 +427,7 @@ pub(crate) async fn write_topic_data(
 
 #[cfg(test)]
 mod test {
-    use crate::handler::cache::MQTTCacheManager;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
     use common_base::tools::{get_local_ip, unique_id};
@@ -455,7 +443,7 @@ mod test {
     async fn test_write_topic_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
+        let cache_manger = test_build_mqtt_cache_manager();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
@@ -509,7 +497,7 @@ mod test {
     async fn test_report_system_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
+        let cache_manger = test_build_mqtt_cache_manager();
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());

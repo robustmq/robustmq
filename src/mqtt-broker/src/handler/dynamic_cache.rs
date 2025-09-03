@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::cache::MQTTCacheManager;
+use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
@@ -37,9 +39,6 @@ use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use tracing::info;
 
-use super::cache::MQTTCacheManager;
-use super::dynamic_config::build_cluster_config;
-
 pub async fn load_metadata_cache(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -49,7 +48,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     // load cluster config
     let cluster = build_cluster_config(client_pool).await?;
-    cache_manager.set_cluster_config(cluster);
+    cache_manager.broker_cache.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
