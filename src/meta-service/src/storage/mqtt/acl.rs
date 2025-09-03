@@ -124,13 +124,13 @@ impl AclStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::acl::mqtt_acl::{
-        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
-    };
+    use metadata_struct::acl::mqtt_acl::MqttAcl;
+    use std::sync::Arc;
 
     use crate::storage::{
         mqtt::acl::AclStorage,
@@ -157,12 +157,12 @@ mod tests {
         let permission = MqttAclPermission::Allow;
 
         let acl = MqttAcl {
-            resource_type: resource_type.clone(),
+            resource_type,
             resource_name: resource_name.clone(),
-            topic: topic.clone(),
-            ip: ip.clone(),
-            action: action.clone(),
-            permission: permission.clone(),
+            topic,
+            ip,
+            action,
+            permission,
         };
 
         acl_storage.save(&cluster_name, acl.clone()).unwrap();
@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(res.len(), 1);
 
         let acl2 = MqttAcl {
-            resource_type: resource_type.clone(),
+            resource_type,
             resource_name: "test_resource2".to_string(),
             topic: "test_topic2".to_string(),
             ip: "127.0.0.12".to_string(),

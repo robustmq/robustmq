@@ -19,15 +19,16 @@ mod tests {
         network_types, protocol_versions, qos_list, ssl_by_type, ws_by_type,
     };
     use crate::mqtt_protocol::ClientTestProperties;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::unique_id;
     use grpc_clients::mqtt::admin::call::{
         mqtt_broker_create_acl, mqtt_broker_create_user, mqtt_broker_delete_acl,
         mqtt_broker_delete_user, mqtt_broker_list_acl,
     };
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::acl::mqtt_acl::{
-        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
-    };
+    use metadata_struct::acl::mqtt_acl::MqttAcl;
     use paho_mqtt::MessageBuilder;
     use protocol::broker::broker_mqtt_admin::{
         CreateAclRequest, CreateUserRequest, DeleteAclRequest, DeleteUserRequest, ListAclRequest,
@@ -50,7 +51,7 @@ mod tests {
         .await;
 
         // 测试无ACL时的发布
-        match resource_type.clone() {
+        match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
             }
@@ -60,16 +61,16 @@ mod tests {
         }
 
         // 创建ACL规则
-        let acl = match resource_type.clone() {
+        let acl = match resource_type {
             MqttAclResourceType::User => create_test_acl(
-                resource_type.clone(),
+                resource_type,
                 username.clone(),
                 topic.clone(),
                 MqttAclAction::Publish,
                 MqttAclPermission::Deny,
             ),
             MqttAclResourceType::ClientId => create_test_acl(
-                resource_type.clone(),
+                resource_type,
                 client_id.clone(),
                 topic.clone(),
                 MqttAclAction::Publish,
@@ -86,7 +87,7 @@ mod tests {
         .await;
 
         // 测试有ACL时的发布
-        match resource_type.clone() {
+        match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), true).await;
             }

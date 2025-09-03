@@ -196,7 +196,13 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // user admin
             MQTTAction::User(args) => process_user_args(args),
             // access control list admin
-            MQTTAction::Acl(args) => process_acl_args(args),
+            MQTTAction::Acl(args) => match process_acl_args(args) {
+                Ok(action) => action,
+                Err(e) => {
+                    eprintln!("Error processing ACL args: {e}");
+                    return;
+                }
+            },
             // blacklist admin
             MQTTAction::Blacklist(args) => process_blacklist_args(args),
             // flapping detect

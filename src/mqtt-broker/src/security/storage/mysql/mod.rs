@@ -16,10 +16,11 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::{
-    MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
-};
+use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::prelude::Queryable;
@@ -163,7 +164,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             MqttAclPermission::Allow => 1,
             MqttAclPermission::Deny => 0,
         };
-        let (username, clientid) = match acl.resource_type.clone() {
+        let (username, clientid) = match acl.resource_type {
             MqttAclResourceType::ClientId => (String::new(), acl.resource_name),
             MqttAclResourceType::User => (acl.resource_name, String::new()),
         };
@@ -202,7 +203,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
     async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let mut conn = self.pool.get_conn()?;
-        let sql = match acl.resource_type.clone() {
+        let sql = match acl.resource_type {
             MqttAclResourceType::ClientId => format!(
                 "delete from {} where clientid = '{}';",
                 self.table_acl(),

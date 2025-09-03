@@ -405,8 +405,10 @@ mod tests {
     use crate::common::tool::test_build_mqtt_cache_manager;
 
     use super::*;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::now_second;
-    use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission, MqttAclResourceType};
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackListType;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::mqtt::common::{QoS, RetainHandling};
@@ -681,7 +683,7 @@ mod tests {
         // get
         let key = cache_manager.auto_subscribe_rule_key(&rule.cluster, &rule.topic);
         let rule_info = cache_manager.auto_subscribe_rule.get(&key);
-        println!("{:?}", rule_info);
+        println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
