@@ -58,6 +58,15 @@ impl AdminServer {
             .route("/", get(index))
             .route("/overview", get(overview))
             .route("/overview-metrics", get(overview_metrics))
+            .route("/client-list", get(overview_metrics))
+            .route("/session-list", get(overview_metrics))
+            .route("/topic-list", get(overview_metrics))
+            .route("/subscribe-list", get(overview_metrics))
+            .route("/user-list", get(overview_metrics))
+            .route("/acl-list", get(overview_metrics))
+            .route("/blacklist-list", get(overview_metrics))
+            .route("/connector-list", get(overview_metrics))
+            .route("/schema-list", get(overview_metrics))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
