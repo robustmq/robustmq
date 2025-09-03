@@ -17,7 +17,10 @@ use admin_server::{
     server::AdminServer,
     state::{HttpState, MQTTContext},
 };
-use broker_core::{cache::BrokerCacheManager, heartbeat::check_placement_center_status};
+use broker_core::{
+    cache::BrokerCacheManager,
+    heartbeat::{check_placement_center_status, register_node, report_heartbeat},
+};
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
@@ -214,35 +217,18 @@ impl BrokerServer {
             create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
         if config.is_start_broker() {
             mqtt_stop_send = Some(stop_send.clone());
-            let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send);
+            let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
             mqtt_runtime.spawn(async move {
                 server.start().await;
             });
         }
 
         // register node
-        //         // register node
-        // let client_pool = self.client_pool.clone();
-        // let cache_manager = self.cache_manager.clone();
-        // let raw_stop_send = self.inner_stop.clone();
+        let raw_stop_send = stop_send.clone();
+        server_runtime.block_on(async move {
+            self.register_node(raw_stop_send.clone()).await;
+        });
 
-        // // register node
-        // let config = broker_config();
-        // match register_node(&client_pool, &cache_manager).await {
-        //     Ok(()) => {
-        //         // heartbeat report
-        //         let raw_stop_send = raw_stop_send.clone();
-        //         let raw_client_pool = client_pool.clone();
-        //         tokio::spawn(async move {
-        //             report_heartbeat(&raw_client_pool, &cache_manager, raw_stop_send.clone()).await;
-        //         });
-
-        //         info!("Node {} has been successfully registered", config.broker_id);
-        //     }
-        //     Err(e) => {
-        //         error!("Node registration failed. Error message:{}", e);
-        //     }
-        // }
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
     }
@@ -449,5 +435,28 @@ impl BrokerServer {
 
         error!("Journal server failed to start within {:?}", max_wait_time);
         std::process::exit(1);
+    }
+
+    async fn register_node(&self, main_stop: broadcast::Sender<bool>) {
+        // register node
+        let client_pool = self.client_pool.clone();
+        let broker_cache = self.broker_cache.clone();
+
+        // register node
+        let config = broker_config();
+        match register_node(&client_pool, &broker_cache).await {
+            Ok(()) => {
+                // heartbeat report
+                let raw_client_pool = client_pool.clone();
+                tokio::spawn(async move {
+                    report_heartbeat(&raw_client_pool, &broker_cache, main_stop.clone()).await;
+                });
+
+                info!("Node {} has been successfully registered", config.broker_id);
+            }
+            Err(e) => {
+                error!("Node registration failed. Error message:{}", e);
+            }
+        }
     }
 }

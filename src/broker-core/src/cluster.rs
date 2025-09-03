@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
@@ -21,7 +22,7 @@ use grpc_clients::placement::inner::call::{
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::node_extend::MqttNodeExtend;
+use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
 use metadata_struct::placement::node::BrokerNode;
 use protocol::meta::placement_center_inner::{
     ClusterStatusRequest, ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest,
@@ -29,8 +30,6 @@ use protocol::meta::placement_center_inner::{
     UnRegisterNodeRequest,
 };
 use std::sync::Arc;
-
-use crate::cache::BrokerCacheManager;
 
 pub struct ClusterStorage {
     client_pool: Arc<ClientPool>,
@@ -81,14 +80,15 @@ impl ClusterStorage {
         config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();
-
-        let extend = MqttNodeExtend {
-            grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-            mqtt_addr: format!("{}:{}", local_ip, config.mqtt_server.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.mqtt_server.tls_port),
-            websocket_addr: format!("{}:{}", local_ip, config.mqtt_server.websocket_port),
-            websockets_addr: format!("{}:{}", local_ip, config.mqtt_server.websockets_port),
-            quic_addr: format!("{}:{}", local_ip, config.mqtt_server.quic_port),
+        let extend = NodeExtend {
+            mqtt: MqttNodeExtend {
+                grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
+                mqtt_addr: format!("{}:{}", local_ip, config.mqtt_server.tcp_port),
+                mqtts_addr: format!("{}:{}", local_ip, config.mqtt_server.tls_port),
+                websocket_addr: format!("{}:{}", local_ip, config.mqtt_server.websocket_port),
+                websockets_addr: format!("{}:{}", local_ip, config.mqtt_server.websockets_port),
+                quic_addr: format!("{}:{}", local_ip, config.mqtt_server.quic_port),
+            },
         };
 
         let node = BrokerNode {
