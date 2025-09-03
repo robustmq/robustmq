@@ -14,15 +14,13 @@
 
 #[cfg(test)]
 mod tests {
+    use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
     use common_config::{
         broker::{default_broker_config, init_broker_conf_by_config},
         config::MqttProtocolConfig,
     };
     use grpc_clients::pool::ClientPool;
-    use mqtt_broker::{
-        handler::{cache::MQTTCacheManager, dynamic_config::ClusterDynamicConfig},
-        storage::cluster::ClusterStorage,
-    };
+    use mqtt_broker::handler::dynamic_config::ClusterDynamicConfig;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -32,10 +30,7 @@ mod tests {
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        let cache_manager = Arc::new(MQTTCacheManager::new(
-            client_pool,
-            config.cluster_name.clone(),
-        ));
+        let cache_manager = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
 
         config.broker_id = 1234u64;
         cluster_storage

@@ -18,6 +18,7 @@ use crate::{
     state::HttpState,
 };
 use axum::extract::{Query, State};
+use broker_core::cluster::ClusterStorage;
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
@@ -28,7 +29,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
-    storage::cluster::ClusterStorage, subscribe::manager::SubscribeManager,
+    subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;

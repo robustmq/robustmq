@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use common_base::node_status::NodeStatus;
 use protocol::mqtt::common::MqttPacket;
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::time::sleep;
 
-use crate::{common::types::ResultMqttBrokerError, handler::cache::MQTTCacheManager};
+use crate::handler::cache::MQTTCacheManager;
 
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
@@ -28,29 +28,6 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
         return true;
     }
     false
-}
-
-pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
-where
-    F: FnOnce() -> Fut + Copy,
-    Fut: Future<Output = ResultMqttBrokerError>,
-{
-    let mut stop_recv = stop_sx.subscribe();
-    let mut internal = tokio::time::interval(Duration::from_secs(tick_secs));
-    loop {
-        select! {
-            val = stop_recv.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
-                        break;
-                    }
-                }
-            }
-            _ = internal.tick() => {
-                let _ = ac_fn().await;
-            }
-        }
-    }
 }
 
 pub async fn wait_cluster_running(cache_manager: &Arc<MQTTCacheManager>) {

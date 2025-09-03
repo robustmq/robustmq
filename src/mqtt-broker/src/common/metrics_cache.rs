@@ -13,14 +13,11 @@
 // limitations under the License.
 
 use crate::common::concurrent_btree_map::ShardedConcurrentBTreeMap;
-use crate::common::types::ResultMqttBrokerError;
 use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
-use crate::{
-    common::tool::loop_select, handler::cache::MQTTCacheManager,
-    subscribe::manager::SubscribeManager,
-};
-use common_base::tools::now_second;
+use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
+use common_base::error::ResultCommonError;
+use common_base::tools::{loop_select, now_second};
 use common_metrics::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
 use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
@@ -231,7 +228,7 @@ pub fn metrics_record_thread(
 ) {
     info!("Metrics record thread start successfully");
     tokio::spawn(async move {
-        let record_func = async || -> ResultMqttBrokerError {
+        let record_func = async || -> ResultCommonError {
             let now = now_second();
             let metrics_cache_manager = metrics_cache_manager.clone();
             let connection_manager = connection_manager.clone();
@@ -262,7 +259,7 @@ pub fn metrics_gc_thread(
 ) {
     info!("Metrics gc thread start successfully");
     tokio::spawn(async move {
-        let record_func = async || -> ResultMqttBrokerError {
+        let record_func = async || -> ResultCommonError {
             let now_time = now_second();
             let save_time = 3600 * 24 * 3;
 

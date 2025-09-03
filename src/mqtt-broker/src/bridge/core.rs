@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
+use common_base::{error::ResultCommonError, tools::loop_select};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
@@ -50,7 +50,7 @@ pub async fn start_connector_thread(
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let ac_fn = async || -> ResultMqttBrokerError {
+    let ac_fn = async || -> ResultCommonError {
         check_connector(&message_storage, &connector_manager).await;
         sleep(Duration::from_secs(1)).await;
         Ok(())

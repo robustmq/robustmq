@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
@@ -30,8 +28,9 @@ use protocol::meta::placement_center_inner::{
     HeartbeatRequest, NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest,
     UnRegisterNodeRequest,
 };
+use std::sync::Arc;
 
-use crate::handler::cache::MQTTCacheManager;
+use crate::cache::BrokerCacheManager;
 
 pub struct ClusterStorage {
     client_pool: Arc<ClientPool>,
@@ -78,7 +77,7 @@ impl ClusterStorage {
 
     pub async fn register_node(
         &self,
-        cache_manager: &Arc<MQTTCacheManager>,
+        cache_manager: &Arc<BrokerCacheManager>,
         config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();

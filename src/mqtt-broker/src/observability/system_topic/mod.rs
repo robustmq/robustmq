@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::tool::loop_select;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::topic::try_init_topic;
 use crate::observability::system_topic::packet::bytes::{
@@ -76,7 +74,8 @@ use crate::observability::system_topic::sysmon::{
     SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE, SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE,
 };
 use crate::storage::message::MessageStorage;
-use common_base::tools::get_local_ip;
+use common_base::error::ResultCommonError;
+use common_base::tools::{get_local_ip, loop_select};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
@@ -142,7 +141,7 @@ impl SystemTopic {
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
         self.try_init_system_topic().await;
-        let ac_fn = async || -> ResultMqttBrokerError {
+        let ac_fn = async || -> ResultCommonError {
             report_broker_info(
                 &self.client_pool,
                 &self.metadata_cache,

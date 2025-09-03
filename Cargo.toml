@@ -15,6 +15,7 @@
 [workspace]
 members = [
     "src/broker",
+    "src/broker-core",
     "src/admin-server",
     "src/mqtt-broker",
     "src/amqp-broker",
@@ -161,8 +162,9 @@ console-subscriber = "0.4.1"
 prettytable-rs = "^0.10"
 ## workspaces members
 mqtt-broker = { path = "src/mqtt-broker" }
-amqp-broker = { path = "src/amqp-broker" }
+core- = { path = "src/amqp-broker" }
 broker-server = { path = "src/broker" }
+broker-core = { path = "src/broker-core" }
 kafka-broker = { path = "src/kafka-broker" }
 delay-message = { path = "src/delay-message" }
 meta-service = { path = "src/meta-service" }

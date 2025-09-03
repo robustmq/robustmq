@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use broker_core::cluster::ClusterStorage;
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
@@ -28,7 +29,6 @@ use super::{
     SYSTEM_TOPIC_BROKERS_VERSION,
 };
 use crate::handler::cache::MQTTCacheManager;
-use crate::storage::cluster::ClusterStorage;
 
 pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,

@@ -20,7 +20,6 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::load_metadata_cache;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
-use crate::handler::heartbeat::{register_node, report_heartbeat};
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::observability::start_observability;
@@ -28,11 +27,11 @@ use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
 use crate::server::{Server, TcpServerContext};
-use crate::storage::cluster::ClusterStorage;
 use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
+use broker_core::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -303,29 +302,6 @@ impl MqttBrokerServer {
         .await
         {
             panic!("{}", e);
-        }
-
-        // register node
-        let client_pool = self.client_pool.clone();
-        let cache_manager = self.cache_manager.clone();
-        let raw_stop_send = self.inner_stop.clone();
-
-        // register node
-        let config = broker_config();
-        match register_node(&client_pool, &cache_manager).await {
-            Ok(()) => {
-                // heartbeat report
-                let raw_stop_send = raw_stop_send.clone();
-                let raw_client_pool = client_pool.clone();
-                tokio::spawn(async move {
-                    report_heartbeat(&raw_client_pool, &cache_manager, raw_stop_send.clone()).await;
-                });
-
-                info!("Node {} has been successfully registered", config.broker_id);
-            }
-            Err(e) => {
-                error!("Node registration failed. Error message:{}", e);
-            }
         }
     }
 

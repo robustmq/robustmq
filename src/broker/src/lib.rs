@@ -17,6 +17,7 @@ use admin_server::{
     server::AdminServer,
     state::{HttpState, MQTTContext},
 };
+use broker_core::heartbeat::check_placement_center_status;
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
@@ -43,9 +44,7 @@ use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     common::metrics_cache::MetricsCacheManager,
-    handler::{
-        cache::MQTTCacheManager as MqttCacheManager, heartbeat::check_placement_center_status,
-    },
+    handler::cache::MQTTCacheManager as MqttCacheManager,
     security::AuthDriver,
     storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,
@@ -212,6 +211,29 @@ impl BrokerServer {
             });
         }
 
+        // register node
+        //         // register node
+        // let client_pool = self.client_pool.clone();
+        // let cache_manager = self.cache_manager.clone();
+        // let raw_stop_send = self.inner_stop.clone();
+
+        // // register node
+        // let config = broker_config();
+        // match register_node(&client_pool, &cache_manager).await {
+        //     Ok(()) => {
+        //         // heartbeat report
+        //         let raw_stop_send = raw_stop_send.clone();
+        //         let raw_client_pool = client_pool.clone();
+        //         tokio::spawn(async move {
+        //             report_heartbeat(&raw_client_pool, &cache_manager, raw_stop_send.clone()).await;
+        //         });
+
+        //         info!("Node {} has been successfully registered", config.broker_id);
+        //     }
+        //     Err(e) => {
+        //         error!("Node registration failed. Error message:{}", e);
+        //     }
+        // }
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
     }

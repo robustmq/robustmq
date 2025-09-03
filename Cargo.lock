@@ -38,6 +38,7 @@ name = "admin-server"
 version = "0.1.30"
 dependencies = [
  "axum",
+ "broker-core",
  "common-base",
  "common-config",
  "grpc-clients",
@@ -556,11 +557,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "broker-core"
+version = "0.1.30"
+dependencies = [
+ "common-base",
+ "common-config",
+ "dashmap",
+ "grpc-clients",
+ "metadata-struct",
+ "protocol",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "broker-server"
 version = "0.1.30"
 dependencies = [
  "admin-server",
  "axum",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",
@@ -3006,6 +3024,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-server",
+ "broker-core",
  "bytes",
  "chrono",
  "common-base",
@@ -4786,6 +4805,7 @@ dependencies = [
  "apache-avro",
  "axum",
  "bincode",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",

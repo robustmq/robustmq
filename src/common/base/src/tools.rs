@@ -14,14 +14,18 @@
 
 use local_ip_address::local_ip;
 use std::fs;
+use std::future::Future;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::select;
+use tokio::sync::broadcast;
 use tonic::Status;
 use tracing::warn;
 use uuid::Uuid;
 
 use crate::enum_type::time_unit_enum::TimeUnit;
 use crate::error::common::CommonError;
+use crate::error::ResultCommonError;
 
 /// Create multi-level directory
 ///
@@ -213,5 +217,28 @@ mod tests {
     fn test_get_addr_by_local_hostname() {
         let ip = get_addr_by_local_hostname(1883);
         let _: SocketAddr = ip.parse().unwrap();
+    }
+}
+
+pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
+where
+    F: FnOnce() -> Fut + Copy,
+    Fut: Future<Output = ResultCommonError>,
+{
+    let mut stop_recv = stop_sx.subscribe();
+    let mut internal = tokio::time::interval(Duration::from_secs(tick_secs));
+    loop {
+        select! {
+            val = stop_recv.recv() => {
+                if let Ok(flag) = val {
+                    if flag {
+                        break;
+                    }
+                }
+            }
+            _ = internal.tick() => {
+                let _ = ac_fn().await;
+            }
+        }
     }
 }

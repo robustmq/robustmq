@@ -15,7 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::storage::cluster::ClusterStorage;
+use broker_core::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use common_config::config::{
     BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
