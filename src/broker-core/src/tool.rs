@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
-
-use common_base::node_status::NodeStatus;
-use tokio::time::sleep;
-
 use crate::cache::BrokerCacheManager;
+use common_base::node_status::NodeStatus;
+use std::{sync::Arc, time::Duration};
+use tokio::time::sleep;
 
 pub async fn wait_cluster_running(cache_manager: &Arc<BrokerCacheManager>) {
     loop {
-        if cache_manager.get_status() == NodeStatus::Running {
-            break;
+        if let Some(status) = cache_manager.status.get(&cache_manager.cluster_name) {
+            if status.clone() == NodeStatus::Running {
+                break;
+            }
         }
         sleep(Duration::from_secs(1)).await;
     }

@@ -123,11 +123,8 @@ mod test {
     use super::*;
     use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
-    use crate::storage::message::cluster_name;
-
     use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
-    use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
     pub async fn test_set_system_alarm_config_by_req() {

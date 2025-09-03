@@ -639,7 +639,7 @@ mod tests {
     async fn topic_rewrite_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager();
         let rule = MqttTopicRewriteRule {
-            cluster: "test_cluster".to_string(),
+            cluster: cache_manager.broker_cache.cluster_name.clone(),
             action: "publish".to_string(),
             source_topic: "source/topic".to_string(),
             dest_topic: "target/topic".to_string(),
@@ -667,7 +667,7 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager();
         let rule = MqttAutoSubscribeRule {
-            cluster: "test_cluster".to_string(),
+            cluster: cache_manager.broker_cache.cluster_name.clone(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
             no_local: false,
@@ -681,6 +681,7 @@ mod tests {
         // get
         let key = cache_manager.auto_subscribe_rule_key(&rule.cluster, &rule.topic);
         let rule_info = cache_manager.auto_subscribe_rule.get(&key);
+        println!("{:?}", rule_info);
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 

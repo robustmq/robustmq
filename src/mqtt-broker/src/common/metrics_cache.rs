@@ -324,17 +324,14 @@ mod test {
         time::Duration,
     };
 
+    use crate::{
+        common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
+        subscribe::manager::SubscribeManager,
+    };
     use common_base::tools::now_second;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
     use network_server::common::connection_manager::ConnectionManager;
     use tokio::{sync::broadcast, time::sleep};
-
-    use crate::{
-        common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
-        handler::cache::MQTTCacheManager,
-        subscribe::manager::SubscribeManager,
-    };
 
     #[tokio::test]
     pub async fn minute_test() {

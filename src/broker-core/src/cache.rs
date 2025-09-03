@@ -70,10 +70,6 @@ impl BrokerCacheManager {
         self.status.insert(self.cluster_name.clone(), status);
     }
 
-    pub fn get_status(&self) -> NodeStatus {
-        self.status.get(&self.cluster_name).unwrap().clone()
-    }
-
     // cluster config
     pub fn set_cluster_config(&self, cluster: BrokerConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
@@ -87,16 +83,8 @@ impl BrokerCacheManager {
 #[cfg(test)]
 mod tests {
     use crate::cache::BrokerCacheManager;
-    use common_base::{node_status::NodeStatus, tools::now_second};
+    use common_base::tools::now_second;
     use metadata_struct::placement::node::BrokerNode;
-
-    #[tokio::test]
-    async fn status_operations() {
-        let cache_manager = BrokerCacheManager::new("test".to_string());
-        assert_eq!(cache_manager.get_status(), NodeStatus::Starting);
-        cache_manager.set_status(NodeStatus::Running);
-        assert_eq!(cache_manager.get_status(), NodeStatus::Running);
-    }
 
     #[tokio::test]
     async fn start_time_operations() {

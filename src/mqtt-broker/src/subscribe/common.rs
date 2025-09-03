@@ -265,16 +265,11 @@ pub async fn loop_commit_offset(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use common_base::tools::unique_id;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
-
     use crate::common::tool::test_build_mqtt_cache_manager;
-    use crate::handler::cache::MQTTCacheManager;
     use crate::subscribe::common::{
         build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
         get_sub_topic_id_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,

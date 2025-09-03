@@ -228,7 +228,6 @@ mod test {
 
     use super::keep_live_time;
     use crate::common::tool::test_build_mqtt_cache_manager;
-    use crate::handler::cache::MQTTCacheManager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::subscribe::manager::SubscribeManager;
     use network_server::common::connection_manager::ConnectionManager;
