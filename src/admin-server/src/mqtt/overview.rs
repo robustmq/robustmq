@@ -23,7 +23,6 @@ use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
     tools::now_second,
-    version::version,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -34,9 +33,6 @@ use mqtt_broker::{
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;
 
-pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
-    format!("RobustMQ {}", version())
-}
 pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     match cluster_overview_by_req(
         &state.client_pool,

@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use crate::{
-    cluster::{index, overview, overview_metrics},
-    mqtt::session::session_list,
+    mqtt::{
+        overview::{overview, overview_metrics},
+        session::session_list,
+    },
     state::HttpState,
 };
-use axum::{routing::get, Router};
+use axum::{extract::State, routing::get, Router};
+use common_base::version::version;
 use std::sync::Arc;
 use tracing::info;
 
@@ -68,4 +71,8 @@ impl AdminServer {
     fn meta_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
+}
+
+pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
+    format!("RobustMQ {}", version())
 }
