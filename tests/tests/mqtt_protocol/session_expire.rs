@@ -57,7 +57,7 @@ mod tests {
 
         let check_fn = async {
             loop {
-                let request = ListSessionRequest { options: None };
+                let request = ListSessionRequest {};
                 let res = mqtt_broker_list_session(&client_pool, &grpc_addr, request).await;
                 assert!(res.is_ok());
                 let sessions = res.unwrap().sessions;
@@ -102,7 +102,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let request = ListSessionRequest { options: None };
+        let request = ListSessionRequest {};
         let res = mqtt_broker_list_session(&client_pool, &grpc_addr, request).await;
         assert!(res.is_ok());
         let sessions = res.unwrap().sessions;

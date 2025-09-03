@@ -60,10 +60,7 @@ mod tests {
         )
         .await;
 
-        let list_request = ListBlacklistRequest {
-            cluster_name: cluster_name.clone(),
-            options: None,
-        };
+        let list_request = ListBlacklistRequest {};
         let mut flag = false;
         match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
