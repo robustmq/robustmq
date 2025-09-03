@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::inner::{
+use crate::admin::inner::{
     delete_session_by_req, send_last_will_message_by_req, update_cache_by_req,
 };
 use crate::bridge::manager::ConnectorManager;

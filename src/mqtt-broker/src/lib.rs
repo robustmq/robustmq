@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-pub mod command;
+pub mod admin;
 pub mod bridge;
 pub mod broker;
 pub mod common;
