@@ -122,10 +122,10 @@ impl BrokerServer {
 
         let grpc_ready = Arc::new(AtomicBool::new(false));
         let grpc_ready_check = grpc_ready.clone();
-
+        let raw_broker_cache = broker_cache.clone();
         server_runtime.spawn(async move {
             if let Err(e) = start_grpc_server(
-                broker_cache,
+                raw_broker_cache.clone(),
                 place_params,
                 mqtt_params,
                 journal_params,
@@ -146,6 +146,7 @@ impl BrokerServer {
                 subscribe_manager: self.mqtt_params.subscribe_manager.clone(),
                 metrics_manager: self.mqtt_params.metrics_cache_manager.clone(),
             },
+            broker_cache: broker_cache.clone(),
         });
         server_runtime.spawn(async move {
             let admin_server = AdminServer::new();

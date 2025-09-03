@@ -26,7 +26,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
-use metadata_struct::placement::node::BrokerNode;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -90,9 +89,6 @@ pub struct ClientPkidData {
 pub struct MQTTCacheManager {
     pub client_pool: Arc<ClientPool>,
 
-    // node list
-    pub node_lists: DashMap<u64, BrokerNode>,
-
     // cluster_name
     pub cluster_name: String,
 
@@ -138,7 +134,6 @@ impl MQTTCacheManager {
         MQTTCacheManager {
             client_pool,
             cluster_name,
-            node_lists: DashMap::with_capacity(2),
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
@@ -152,22 +147,6 @@ impl MQTTCacheManager {
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
         }
-    }
-
-    // node
-    pub fn add_node(&self, node: BrokerNode) {
-        self.node_lists.insert(node.node_id, node);
-    }
-
-    pub fn remove_node(&self, node: BrokerNode) {
-        self.node_lists.remove(&node.node_id);
-    }
-
-    pub fn node_list(&self) -> Vec<BrokerNode> {
-        self.node_lists
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect()
     }
 
     // session
@@ -434,32 +413,6 @@ mod tests {
     fn create_cache_manager() -> MQTTCacheManager {
         let client_pool = Arc::new(ClientPool::new(1));
         MQTTCacheManager::new(client_pool, "test_cluster".to_string())
-    }
-
-    #[tokio::test]
-    async fn node_operations() {
-        let cache_manager = create_cache_manager();
-        let node = BrokerNode {
-            node_id: 1,
-            node_ip: "127.0.0.1".to_string(),
-            ..Default::default()
-        };
-
-        // add
-        cache_manager.add_node(node.clone());
-
-        // get
-        let nodes = cache_manager.node_list();
-        assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].node_id, node.node_id);
-        assert_eq!(nodes[0].node_ip, node.node_ip);
-
-        // remove
-        cache_manager.remove_node(node.clone());
-
-        // get again
-        let nodes = cache_manager.node_list();
-        assert!(nodes.is_empty());
     }
 
     #[tokio::test]

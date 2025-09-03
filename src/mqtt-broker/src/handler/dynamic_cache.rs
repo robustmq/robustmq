@@ -20,6 +20,7 @@ use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
+use broker_core::cache::BrokerCacheManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
@@ -119,6 +120,7 @@ pub async fn load_metadata_cache(
 }
 
 pub async fn update_cache_metadata(
+    broker_cache: &Arc<BrokerCacheManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
@@ -133,7 +135,7 @@ pub async fn update_cache_metadata(
                     "Node {} is online. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.add_node(node);
+                broker_cache.add_node(node);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
@@ -141,7 +143,7 @@ pub async fn update_cache_metadata(
                     "Node {} has been taken offline. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.remove_node(node);
+                broker_cache.remove_node(node);
             }
         },
 

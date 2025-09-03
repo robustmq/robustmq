@@ -78,6 +78,7 @@ impl BrokerCacheManager {
 mod tests {
     use crate::cache::BrokerCacheManager;
     use common_base::{node_status::NodeStatus, tools::now_second};
+    use metadata_struct::placement::node::BrokerNode;
 
     #[tokio::test]
     async fn status_operations() {
@@ -93,5 +94,31 @@ mod tests {
         let start_time = cache_manager.get_start_time();
         assert!(start_time > 0);
         assert!(start_time <= now_second());
+    }
+
+    #[tokio::test]
+    async fn node_operations() {
+        let cache_manager = BrokerCacheManager::new("test".to_string());
+        let node = BrokerNode {
+            node_id: 1,
+            node_ip: "127.0.0.1".to_string(),
+            ..Default::default()
+        };
+
+        // add
+        cache_manager.add_node(node.clone());
+
+        // get
+        let nodes = cache_manager.node_list();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].node_id, node.node_id);
+        assert_eq!(nodes[0].node_ip, node.node_ip);
+
+        // remove
+        cache_manager.remove_node(node.clone());
+
+        // get again
+        let nodes = cache_manager.node_list();
+        assert!(nodes.is_empty());
     }
 }

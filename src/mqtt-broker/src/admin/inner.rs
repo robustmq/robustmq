@@ -45,6 +45,7 @@ pub async fn update_cache_by_req(
     }
     wait_cluster_running(broker_cache).await;
     update_cache_metadata(
+        broker_cache,
         cache_manager,
         connector_manager,
         subscribe_manager,

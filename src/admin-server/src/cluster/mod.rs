@@ -18,7 +18,7 @@ use crate::{
     state::HttpState,
 };
 use axum::extract::{Query, State};
-use broker_core::cluster::ClusterStorage;
+use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
@@ -43,6 +43,7 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
         &state.mqtt_context.subscribe_manager,
         &state.connection_manager,
         &state.mqtt_context.cache_manager,
+        &state.broker_cache,
     )
     .await
     {
@@ -104,11 +105,12 @@ async fn cluster_overview_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
+    broker_cache: &Arc<BrokerCacheManager>,
 ) -> Result<OverViewResp, CommonError> {
     let config = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let placement_status = cluster_storage.place_cluster_status().await?;
-    let node_list = cache_manager.node_list();
+    let node_list = broker_cache.node_list();
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
