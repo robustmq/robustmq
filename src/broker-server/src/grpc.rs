@@ -15,7 +15,6 @@
 use crate::cluster_service::ClusterInnerService;
 use crate::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
 use axum::http::{self};
-use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
@@ -42,14 +41,12 @@ use protocol::meta::placement_center_kv::kv_service_server::KvServiceServer;
 use protocol::meta::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::meta::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 use tonic::transport::Server;
 use tower::{Layer, Service};
 use tracing::info;
 
 pub async fn start_grpc_server(
-    broker_cache: Arc<BrokerCacheManager>,
     place_params: PlacementCenterServerParams,
     mqtt_params: MqttBrokerServerParams,
     journal_params: JournalServerParams,
@@ -101,11 +98,8 @@ pub async fn start_grpc_server(
     if config.is_start_broker() {
         route = route
             .add_service(
-                MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(
-                    &broker_cache,
-                    &mqtt_params,
-                ))
-                .max_decoding_message_size(grpc_max_decoding_message_size),
+                MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
+                    .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
                 MqttBrokerAdminServiceServer::new(get_mqtt_admin_handler(&mqtt_params))
@@ -171,12 +165,8 @@ fn get_place_raft_handler(place_params: &PlacementCenterServerParams) -> GrpcOpe
     GrpcOpenRaftServices::new(place_params.storage_driver.raft_node.clone())
 }
 
-fn get_mqtt_inner_handler(
-    broker_cache: &Arc<BrokerCacheManager>,
-    mqtt_params: &MqttBrokerServerParams,
-) -> GrpcInnerServices {
+fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServices {
     GrpcInnerServices::new(
-        broker_cache.clone(),
         mqtt_params.cache_manager.clone(),
         mqtt_params.subscribe_manager.clone(),
         mqtt_params.connector_manager.clone(),

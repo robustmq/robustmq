@@ -327,7 +327,6 @@ impl MqttBrokerServer {
         delay_message_manager: &Arc<DelayMessageManager>,
         connection_manager: &Arc<ConnectionManager>,
     ) -> ResultMqttBrokerError {
-        let config = broker_config();
         let _ = delay_message_manager.stop().await;
         connection_manager.close_all_connect().await;
         info!("All TCP, TLS, WS, and WSS network connections have been successfully closed.");
