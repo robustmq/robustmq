@@ -36,28 +36,22 @@ pub fn build_message_expire(
         }
     }
 
-    let cluster = cache_manager.get_cluster_config();
+    let cluster = cache_manager.broker_cache.get_cluster_config();
     now_second() + cluster.mqtt_protocol_config.max_message_expiry_interval
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::message::{build_message_expire, is_message_expire};
     use common_base::tools::now_second;
     use common_config::config::{BrokerConfig, MqttProtocolConfig};
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use protocol::mqtt::common::PublishProperties;
 
-    use crate::handler::cache::MQTTCacheManager;
-    use crate::handler::message::{build_message_expire, is_message_expire};
-
     #[test]
     fn build_message_expire_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
+        let cache_manager = test_build_mqtt_cache_manager();
         let cluster = BrokerConfig {
             mqtt_protocol_config: MqttProtocolConfig {
                 max_message_expiry_interval: 10,
@@ -65,7 +59,7 @@ mod tests {
             },
             ..Default::default()
         };
-        cache_manager.set_cluster_config(cluster);
+        cache_manager.broker_cache.set_cluster_config(cluster);
 
         let publish_properties = None;
         let res = build_message_expire(&cache_manager, &publish_properties);

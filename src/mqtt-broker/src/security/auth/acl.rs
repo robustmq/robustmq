@@ -70,10 +70,10 @@ fn check_for_deny(
 #[cfg(test)]
 mod test {
     use super::is_acl_deny;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
     use crate::handler::constant::WILDCARD_RESOURCE;
     use common_base::tools::local_hostname;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
@@ -89,10 +89,8 @@ mod test {
     }
 
     fn setup() -> TestFixture {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
+        let cache_manager = test_build_mqtt_cache_manager();
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),

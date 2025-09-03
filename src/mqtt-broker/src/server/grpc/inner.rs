@@ -18,6 +18,7 @@ use crate::admin::inner::{
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::subscribe::manager::SubscribeManager;
+use broker_core::cache::BrokerCacheManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
 use protocol::broker::broker_mqtt_inner::{
@@ -30,6 +31,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcInnerServices {
+    broker_cache: Arc<BrokerCacheManager>,
     cache_manager: Arc<MQTTCacheManager>,
     connector_manager: Arc<ConnectorManager>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -40,6 +42,7 @@ pub struct GrpcInnerServices {
 
 impl GrpcInnerServices {
     pub fn new(
+        broker_cache: Arc<BrokerCacheManager>,
         cache_manager: Arc<MQTTCacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connector_manager: Arc<ConnectorManager>,
@@ -48,6 +51,7 @@ impl GrpcInnerServices {
         message_storage_adapter: ArcStorageAdapter,
     ) -> Self {
         GrpcInnerServices {
+            broker_cache,
             cache_manager,
             subscribe_manager,
             connector_manager,
@@ -66,6 +70,7 @@ impl MqttBrokerInnerService for GrpcInnerServices {
     ) -> Result<Response<UpdateMqttCacheReply>, Status> {
         let req = request.into_inner();
         update_cache_by_req(
+            &self.broker_cache,
             &self.cache_manager,
             &self.connector_manager,
             &self.subscribe_manager,
@@ -82,10 +87,15 @@ impl MqttBrokerInnerService for GrpcInnerServices {
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
-        delete_session_by_req(&self.cache_manager, &self.subscribe_manager, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
+        delete_session_by_req(
+            &self.broker_cache,
+            &self.cache_manager,
+            &self.subscribe_manager,
+            &req,
+        )
+        .await
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn send_last_will_message(
@@ -94,6 +104,7 @@ impl MqttBrokerInnerService for GrpcInnerServices {
     ) -> Result<Response<SendLastWillMessageReply>, Status> {
         let req = request.into_inner();
         send_last_will_message_by_req(
+            &self.broker_cache,
             &self.cache_manager,
             &self.client_pool,
             &self.message_storage_adapter,

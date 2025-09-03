@@ -53,6 +53,7 @@ pub struct SaveMessageContext {
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
     let offline_message_disabled = !context
         .cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_offline_message
         .enable;

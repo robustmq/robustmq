@@ -172,7 +172,6 @@ mod tests {
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::ClusterType;
 
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
@@ -191,7 +190,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
+            roles: Vec::new(),
             ..Default::default()
         };
         let data = serde_json::to_vec(&node).unwrap();

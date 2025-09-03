@@ -28,7 +28,7 @@ mod tests {
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
     use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::{ClusterType, RegisterNodeRequest};
+    use protocol::meta::placement_center_inner::RegisterNodeRequest;
     use protocol::meta::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
         ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest, UpdateSegmentMetaRequest,
@@ -56,7 +56,7 @@ mod tests {
         };
 
         let node = BrokerNode {
-            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
@@ -274,7 +274,7 @@ mod tests {
         };
 
         let node = BrokerNode {
-            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
@@ -419,7 +419,7 @@ mod tests {
         };
 
         let node = BrokerNode {
-            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
@@ -534,7 +534,7 @@ mod tests {
         };
 
         let node = BrokerNode {
-            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),

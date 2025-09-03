@@ -18,12 +18,10 @@ mod tests {
     use metadata_struct::placement::node::BrokerNode;
     use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::meta::placement_center_inner::{
-        ClusterType, NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
-    use crate::place_server::common::{
-        cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr,
-    };
+    use crate::place_server::common::{cluster_name, extend_info, node_id, node_ip, pc_addr};
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
@@ -33,7 +31,7 @@ mod tests {
         let cluster_name = cluster_name();
         let node_id = node_id();
         let node = BrokerNode {
-            cluster_type: cluster_type(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),
@@ -70,7 +68,6 @@ mod tests {
             }
         }
         let request = UnRegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster_name.clone(),
             node_id,
         };

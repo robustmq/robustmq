@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
@@ -23,15 +22,13 @@ use grpc_clients::placement::inner::call::{
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::node_extend::MqttNodeExtend;
+use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
 use metadata_struct::placement::node::BrokerNode;
 use protocol::meta::placement_center_inner::{
-    ClusterStatusRequest, ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest,
-    HeartbeatRequest, NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
+    NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
-
-use crate::handler::cache::MQTTCacheManager;
+use std::sync::Arc;
 
 pub struct ClusterStorage {
     client_pool: Arc<ClientPool>,
@@ -78,23 +75,24 @@ impl ClusterStorage {
 
     pub async fn register_node(
         &self,
-        cache_manager: &Arc<MQTTCacheManager>,
+        cache_manager: &Arc<BrokerCacheManager>,
         config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();
-
-        let extend = MqttNodeExtend {
-            grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-            mqtt_addr: format!("{}:{}", local_ip, config.mqtt_server.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.mqtt_server.tls_port),
-            websocket_addr: format!("{}:{}", local_ip, config.mqtt_server.websocket_port),
-            websockets_addr: format!("{}:{}", local_ip, config.mqtt_server.websockets_port),
-            quic_addr: format!("{}:{}", local_ip, config.mqtt_server.quic_port),
+        let extend = NodeExtend {
+            mqtt: MqttNodeExtend {
+                grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
+                mqtt_addr: format!("{}:{}", local_ip, config.mqtt_server.tcp_port),
+                mqtts_addr: format!("{}:{}", local_ip, config.mqtt_server.tls_port),
+                websocket_addr: format!("{}:{}", local_ip, config.mqtt_server.websocket_port),
+                websockets_addr: format!("{}:{}", local_ip, config.mqtt_server.websockets_port),
+                quic_addr: format!("{}:{}", local_ip, config.mqtt_server.quic_port),
+            },
         };
 
         let node = BrokerNode {
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             cluster_name: config.cluster_name.clone(),
+            roles: config.roles.clone(),
             node_ip: local_ip.clone(),
             node_id: config.broker_id,
             node_inner_addr: format!("{}:{}", local_ip, config.grpc_port),
@@ -117,7 +115,6 @@ impl ClusterStorage {
 
     pub async fn unregister_node(&self, config: &BrokerConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
-            cluster_type: ClusterType::MqttBrokerServer.into(),
             cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
@@ -135,7 +132,6 @@ impl ClusterStorage {
         let config = broker_config();
         let req = HeartbeatRequest {
             cluster_name: config.cluster_name.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.into(),
             node_id: config.broker_id,
         };
 

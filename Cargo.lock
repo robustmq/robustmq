@@ -38,6 +38,7 @@ name = "admin-server"
 version = "0.1.30"
 dependencies = [
  "axum",
+ "broker-core",
  "common-base",
  "common-config",
  "grpc-clients",
@@ -475,7 +476,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -556,11 +557,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "broker-core"
+version = "0.1.30"
+dependencies = [
+ "common-base",
+ "common-config",
+ "dashmap",
+ "grpc-clients",
+ "metadata-struct",
+ "protocol",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "broker-server"
 version = "0.1.30"
 dependencies = [
  "admin-server",
  "axum",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",
@@ -1534,7 +1552,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2415,7 +2433,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3006,6 +3024,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-server",
+ "broker-core",
  "bytes",
  "chrono",
  "common-base",
@@ -4034,7 +4053,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "multimap",
  "once_cell",
@@ -4054,7 +4073,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.103",
@@ -4396,7 +4415,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4772,7 +4791,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#a586de533a7127c3c4fe120b803cb5b0061ef75b"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#d2b309cb390188f09e12bce6cf198a0e97dd95d1"
 dependencies = [
  "prost-build",
  "prost-validate-build",
@@ -4786,6 +4805,7 @@ dependencies = [
  "apache-avro",
  "axum",
  "bincode",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",
@@ -4901,7 +4921,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4914,7 +4934,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.9.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4993,7 +5013,7 @@ dependencies = [
  "security-framework 3.2.0",
  "security-framework-sys",
  "webpki-root-certs 0.26.11",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5607,7 +5627,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.7",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6602,7 +6622,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

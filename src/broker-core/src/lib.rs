@@ -12,25 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct NodeExtend {
-    pub mqtt: MqttNodeExtend,
-}
-
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct MqttNodeExtend {
-    pub grpc_addr: String,
-    pub mqtt_addr: String,
-    pub mqtts_addr: String,
-    pub websocket_addr: String,
-    pub websockets_addr: String,
-    pub quic_addr: String,
-}
-
-impl NodeExtend {
-    pub fn encode(&self) -> String {
-        serde_json::to_string(&self).unwrap()
-    }
-}
+pub mod cache;
+pub mod cluster;
+pub mod heartbeat;
+pub mod tool;

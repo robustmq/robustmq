@@ -55,17 +55,12 @@ pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> b
 #[cfg(test)]
 mod test {
     use super::is_super_user;
-    use crate::handler::cache::MQTTCacheManager;
-    use grpc_clients::pool::ClientPool;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use metadata_struct::mqtt::user::MqttUser;
-    use std::sync::Arc;
 
     #[tokio::test]
     pub async fn check_super_user_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
+        let cache_manager = test_build_mqtt_cache_manager();
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),

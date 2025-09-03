@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::tool::loop_select;
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::storage::cluster::ClusterStorage;
+use common_base::{
+    error::{common::CommonError, ResultCommonError},
+    tools::loop_select,
+};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use serde::{Deserialize, Serialize};
@@ -26,10 +25,12 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
+use crate::{cache::BrokerCacheManager, cluster::ClusterStorage};
+
 pub async fn register_node(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<MQTTCacheManager>,
-) -> ResultMqttBrokerError {
+    cache_manager: &Arc<BrokerCacheManager>,
+) -> ResultCommonError {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_config();
     let node = cluster_storage.register_node(cache_manager, config).await?;
@@ -39,10 +40,10 @@ pub async fn register_node(
 
 pub async fn report_heartbeat(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<MQTTCacheManager>,
+    cache_manager: &Arc<BrokerCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let ac_fn = async || -> ResultMqttBrokerError {
+    let ac_fn = async || -> ResultCommonError {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         if let Err(e) = cluster_storage.heartbeat().await {
             if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
@@ -66,7 +67,7 @@ struct PlacementCenterStatus {
 }
 
 pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) {
-    let fun = async move || -> Result<Option<bool>, MqttBrokerError> {
+    let fun = async move || -> Result<Option<bool>, CommonError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let data = cluster_storage.place_cluster_status().await?;
         let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::cache::MQTTCacheManager;
+use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
@@ -20,6 +22,7 @@ use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
+use broker_core::cache::BrokerCacheManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
@@ -36,9 +39,6 @@ use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use tracing::info;
 
-use super::cache::MQTTCacheManager;
-use super::dynamic_config::build_cluster_config;
-
 pub async fn load_metadata_cache(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -48,7 +48,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     // load cluster config
     let cluster = build_cluster_config(client_pool).await?;
-    cache_manager.set_cluster_config(cluster);
+    cache_manager.broker_cache.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
@@ -119,6 +119,7 @@ pub async fn load_metadata_cache(
 }
 
 pub async fn update_cache_metadata(
+    broker_cache: &Arc<BrokerCacheManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
@@ -133,7 +134,7 @@ pub async fn update_cache_metadata(
                     "Node {} is online. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.add_node(node);
+                broker_cache.add_node(node);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
@@ -141,7 +142,7 @@ pub async fn update_cache_metadata(
                     "Node {} has been taken offline. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.remove_node(node);
+                broker_cache.remove_node(node);
             }
         },
 

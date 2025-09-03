@@ -91,9 +91,10 @@ fn gen_rewrite_topic(
 
 #[cfg(test)]
 mod tests {
+    use crate::common::tool::test_build_mqtt_cache_manager;
+
     use super::*;
-    use common_base::tools::{self, unique_id};
-    use grpc_clients::pool::ClientPool;
+    use common_base::tools::{self};
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -187,8 +188,7 @@ mod tests {
             SimpleRule::new(r"x/y/+", r"z/y/$1", r"^x/y/(\d+)$"),
         ];
 
-        let client_pool = Arc::new(ClientPool::new(100));
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, unique_id()));
+        let cache_manager = test_build_mqtt_cache_manager();
         for rule in rules.iter() {
             let rule = MqttTopicRewriteRule {
                 cluster: "default".to_string(),

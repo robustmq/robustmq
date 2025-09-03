@@ -227,7 +227,6 @@ mod tests {
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::ClusterType;
     use std::sync::Arc;
 
     #[test]
@@ -294,7 +293,7 @@ mod tests {
         let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
         cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
+            roles: Vec::new(),
             node_id: 1,
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
@@ -304,7 +303,7 @@ mod tests {
         });
         cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
+            roles: Vec::new(),
             node_id: 2,
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
@@ -314,7 +313,7 @@ mod tests {
         });
         cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
+            roles: Vec::new(),
             node_id: 3,
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),

@@ -71,7 +71,7 @@ impl AuthDriver {
         _connect_properties: &Option<ConnectProperties>,
         _socket_addr: &SocketAddr,
     ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config();
 
         if cluster.mqtt_security.secret_free_login {
             return Ok(true);

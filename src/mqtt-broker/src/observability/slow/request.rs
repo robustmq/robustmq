@@ -30,7 +30,7 @@ pub struct SlowRequestMs {
 
 // total processing time of the request packet was recorded
 pub fn try_record_total_request_ms(cache_manager: Arc<CacheManager>, package: RequestPackage) {
-    let cluster_config = cache_manager.get_cluster_config();
+    let cluster_config = cache_manager.broker_cache.get_cluster_config()();
     if !cluster_config.mqtt_slow_sub.enable {
         return;
     }

@@ -24,9 +24,9 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::meta::placement_center_inner::{
-        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest,
-        DeleteResourceConfigRequest, ExistsIdempotentDataRequest, GetResourceConfigRequest,
-        NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+        ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest,
+        ExistsIdempotentDataRequest, GetResourceConfigRequest, NodeListRequest,
+        RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -45,7 +45,6 @@ mod tests {
             }
         }
 
-        let cluster_type = ClusterType::PlacementCenter;
         let cluster_name = "test-cluster-name".to_string();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
@@ -53,7 +52,7 @@ mod tests {
         let extend_info = "".to_string();
 
         let node = BrokerNode {
-            cluster_type: cluster_type.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
             node_id,
@@ -89,14 +88,13 @@ mod tests {
             }
         }
 
-        let cluster_type = ClusterType::PlacementCenter;
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
         let extend_info = "".to_string();
 
         let node = BrokerNode {
-            cluster_type: cluster_type.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: "".to_string(),
             node_ip: node_ip.clone(),
             node_id,
@@ -133,7 +131,6 @@ mod tests {
             }
         }
 
-        let cluster_type = ClusterType::PlacementCenter;
         let cluster_name = "test-cluster-name".to_string();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
@@ -141,7 +138,7 @@ mod tests {
         let extend_info = "".to_string();
 
         let node = BrokerNode {
-            cluster_type: cluster_type.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.to_string(),
             node_ip: "".to_string(),
             node_id,
@@ -169,19 +166,16 @@ mod tests {
         let request = ClusterStatusRequest::default();
         assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
 
-        let cluster_type = ClusterType::PlacementCenter as i32;
         let cluster_name = "test-cluster-name".to_string();
         let node_id = 1235u64;
 
         let request = UnRegisterNodeRequest {
-            cluster_type,
             cluster_name: cluster_name.clone(),
             node_id,
         };
         assert!(unregister_node(&client_pool, &addrs, request).await.is_ok());
 
         let request_cluster_name_empty = UnRegisterNodeRequest {
-            cluster_type,
             cluster_name: "".to_string(),
             node_id,
         };

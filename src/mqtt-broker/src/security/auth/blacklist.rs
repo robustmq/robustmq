@@ -115,9 +115,9 @@ pub fn is_blacklist(
 #[cfg(test)]
 mod test {
     use super::is_blacklist;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
     use common_base::tools::{local_hostname, now_second};
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
@@ -130,9 +130,7 @@ mod test {
     }
 
     fn setup() -> TestFixture {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, cluster_name));
+        let cache_manager = test_build_mqtt_cache_manager();
 
         let user = MqttUser {
             username: "loboxu".to_string(),

@@ -15,12 +15,11 @@
 use super::cache::{ConnectionLiveTime, MQTTCacheManager};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
-use crate::common::tool::loop_select;
-use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
-use common_base::tools::now_second;
+use common_base::error::ResultCommonError;
+use common_base::tools::{loop_select, now_second};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
@@ -74,12 +73,12 @@ impl ClientKeepAlive {
     }
 
     pub async fn start_heartbeat_check(&self) {
-        let ac_fn = async || -> ResultMqttBrokerError { self.keep_alive().await };
+        let ac_fn = async || -> ResultCommonError { self.keep_alive().await };
         loop_select(ac_fn, 1, &self.stop_send).await;
         info!("Heartbeat check thread stopped successfully.");
     }
 
-    async fn keep_alive(&self) -> ResultMqttBrokerError {
+    async fn keep_alive(&self) -> ResultCommonError {
         let expire_connection = self.get_expire_connection().await;
 
         for connect_id in expire_connection {
@@ -228,7 +227,7 @@ mod test {
     use tokio::time::sleep;
 
     use super::keep_live_time;
-    use crate::handler::cache::MQTTCacheManager;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::subscribe::manager::SubscribeManager;
     use network_server::common::connection_manager::ConnectionManager;
@@ -283,18 +282,9 @@ mod test {
 
     #[tokio::test]
     pub async fn get_expire_connection_test() {
-        let conf = BrokerConfig {
-            cluster_name: "test".to_string(),
-            ..Default::default()
-        };
         let client_pool = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
-
-        let cache_manager = Arc::new(MQTTCacheManager::new(
-            client_pool.clone(),
-            conf.cluster_name.clone(),
-        ));
-
+        let cache_manager = test_build_mqtt_cache_manager();
         let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(

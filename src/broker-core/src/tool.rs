@@ -12,25 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
+use crate::cache::BrokerCacheManager;
+use common_base::node_status::NodeStatus;
+use std::{sync::Arc, time::Duration};
+use tokio::time::sleep;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct NodeExtend {
-    pub mqtt: MqttNodeExtend,
-}
-
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct MqttNodeExtend {
-    pub grpc_addr: String,
-    pub mqtt_addr: String,
-    pub mqtts_addr: String,
-    pub websocket_addr: String,
-    pub websockets_addr: String,
-    pub quic_addr: String,
-}
-
-impl NodeExtend {
-    pub fn encode(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+pub async fn wait_cluster_running(cache_manager: &Arc<BrokerCacheManager>) {
+    loop {
+        if let Some(status) = cache_manager.status.get(&cache_manager.cluster_name) {
+            if status.clone() == NodeStatus::Running {
+                break;
+            }
+        }
+        sleep(Duration::from_secs(1)).await;
     }
 }

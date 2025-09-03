@@ -17,6 +17,10 @@ use admin_server::{
     server::AdminServer,
     state::{HttpState, MQTTContext},
 };
+use broker_core::{
+    cache::BrokerCacheManager,
+    heartbeat::{check_placement_center_status, register_node, report_heartbeat},
+};
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
@@ -43,9 +47,7 @@ use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     common::metrics_cache::MetricsCacheManager,
-    handler::{
-        cache::MQTTCacheManager as MqttCacheManager, heartbeat::check_placement_center_status,
-    },
+    handler::cache::MQTTCacheManager as MqttCacheManager,
     security::AuthDriver,
     storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,
@@ -76,6 +78,7 @@ pub struct BrokerServer {
     mqtt_params: MqttBrokerServerParams,
     journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
+    broker_cache: Arc<BrokerCacheManager>,
     config: BrokerConfig,
 }
 
@@ -90,13 +93,15 @@ impl BrokerServer {
         let config = broker_config();
         let client_pool = Arc::new(ClientPool::new(100));
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
-
+        let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
         let place_params = main_runtime
             .block_on(async { BrokerServer::build_placement_center(client_pool.clone()).await });
-        let mqtt_params = BrokerServer::build_mqtt_server(client_pool.clone());
+        let mqtt_params =
+            BrokerServer::build_mqtt_server(client_pool.clone(), broker_cache.clone());
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
+            broker_cache,
             main_runtime,
             place_params,
             journal_params,
@@ -110,16 +115,23 @@ impl BrokerServer {
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
         let journal_params = self.journal_params.clone();
+        let broker_cache = self.broker_cache.clone();
         let server_runtime =
             create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
         let grpc_port = self.config.grpc_port;
 
         let grpc_ready = Arc::new(AtomicBool::new(false));
         let grpc_ready_check = grpc_ready.clone();
-
+        let raw_broker_cache = broker_cache.clone();
         server_runtime.spawn(async move {
-            if let Err(e) =
-                start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
+            if let Err(e) = start_grpc_server(
+                raw_broker_cache.clone(),
+                place_params,
+                mqtt_params,
+                journal_params,
+                grpc_port,
+            )
+            .await
             {
                 panic!("{e}")
             }
@@ -134,6 +146,7 @@ impl BrokerServer {
                 subscribe_manager: self.mqtt_params.subscribe_manager.clone(),
                 metrics_manager: self.mqtt_params.metrics_cache_manager.clone(),
             },
+            broker_cache: broker_cache.clone(),
         });
         server_runtime.spawn(async move {
             let admin_server = AdminServer::new();
@@ -206,11 +219,17 @@ impl BrokerServer {
             create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
         if config.is_start_broker() {
             mqtt_stop_send = Some(stop_send.clone());
-            let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send);
+            let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
             mqtt_runtime.spawn(async move {
                 server.start().await;
             });
         }
+
+        // register node
+        let raw_stop_send = stop_send.clone();
+        server_runtime.block_on(async move {
+            self.register_node(raw_stop_send.clone()).await;
+        });
 
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
@@ -246,11 +265,14 @@ impl BrokerServer {
         }
     }
 
-    fn build_mqtt_server(client_pool: Arc<ClientPool>) -> MqttBrokerServerParams {
+    fn build_mqtt_server(
+        client_pool: Arc<ClientPool>,
+        broker_cache: Arc<BrokerCacheManager>,
+    ) -> MqttBrokerServerParams {
         let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
-            config.cluster_name.clone(),
+            broker_cache.clone(),
         ));
 
         let storage_driver = match build_message_storage_driver() {
@@ -317,6 +339,8 @@ impl BrokerServer {
         mqtt_stop: Option<broadcast::Sender<bool>>,
         journal_stop: Option<broadcast::Sender<bool>>,
     ) {
+        self.broker_cache
+            .set_status(common_base::node_status::NodeStatus::Running);
         self.main_runtime.block_on(async {
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
@@ -324,6 +348,9 @@ impl BrokerServer {
                 "{}",
                 "When ctrl + c is received, the service starts to stop"
             );
+
+            self.broker_cache
+                .set_status(common_base::node_status::NodeStatus::Stopping);
 
             if let Some(sx) = mqtt_stop {
                 if let Err(e) = sx.send(true) {
@@ -418,5 +445,28 @@ impl BrokerServer {
 
         error!("Journal server failed to start within {:?}", max_wait_time);
         std::process::exit(1);
+    }
+
+    async fn register_node(&self, main_stop: broadcast::Sender<bool>) {
+        // register node
+        let client_pool = self.client_pool.clone();
+        let broker_cache = self.broker_cache.clone();
+
+        // register node
+        let config = broker_config();
+        match register_node(&client_pool, &broker_cache).await {
+            Ok(()) => {
+                // heartbeat report
+                let raw_client_pool = client_pool.clone();
+                tokio::spawn(async move {
+                    report_heartbeat(&raw_client_pool, &broker_cache, main_stop.clone()).await;
+                });
+
+                info!("Node {} has been successfully registered", config.broker_id);
+            }
+            Err(e) => {
+                error!("Node registration failed. Error message:{}", e);
+            }
+        }
     }
 }

@@ -120,7 +120,7 @@ impl MqttService {
     }
 
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
-        let cluster = self.cache_manager.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config();
 
         // connect params validator
         if let Some(res) = connect_validator(
@@ -741,6 +741,7 @@ impl MqttService {
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self
             .cache_manager
+            .broker_cache
             .get_cluster_config()
             .mqtt_protocol_config
             .max_qos;

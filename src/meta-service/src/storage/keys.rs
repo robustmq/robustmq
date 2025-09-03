@@ -13,16 +13,12 @@
 // limitations under the License.
 
 /** ===========Cluster========== */
-pub fn key_cluster(cluster_type: &str, cluster_name: &str) -> String {
-    format!("/clusters/{cluster_type}/{cluster_name}")
+pub fn key_cluster(cluster_name: &str) -> String {
+    format!("/clusters/{cluster_name}")
 }
 
 pub fn key_cluster_prefix() -> String {
     "/clusters/".to_string()
-}
-
-pub fn key_cluster_prefix_by_type(cluster_type: &str) -> String {
-    format!("/clusters/{cluster_type}/")
 }
 
 pub fn key_node(cluster_name: &str, node_id: u64) -> String {

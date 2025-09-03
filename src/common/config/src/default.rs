@@ -23,7 +23,7 @@ use common_base::runtime::get_runtime_worker_threads;
 use toml::Table;
 
 pub fn default_roles() -> Vec<String> {
-    vec!["place".to_string(), "broker".to_string()]
+    vec!["meta".to_string(), "broker".to_string()]
 }
 
 pub fn default_cluster_name() -> String {

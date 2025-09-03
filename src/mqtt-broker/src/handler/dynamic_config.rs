@@ -15,7 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::storage::cluster::ClusterStorage;
+use broker_core::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use common_config::config::{
     BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
@@ -40,88 +40,109 @@ pub enum ClusterDynamicConfig {
 impl MQTTCacheManager {
     // slow sub
     pub fn update_slow_sub_config(&self, slow_sub: MqttSlowSubscribeConfig) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_slow_subscribe_config = slow_sub.to_owned();
         }
     }
 
     pub fn get_slow_sub_config(&self) -> MqttSlowSubscribeConfig {
-        self.get_cluster_config().mqtt_slow_subscribe_config
+        self.broker_cache
+            .get_cluster_config()
+            .mqtt_slow_subscribe_config
     }
 
     // flapping detect
     pub fn update_flapping_detect_config(&self, flapping_detect: MqttFlappingDetect) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_flapping_detect = flapping_detect;
         }
     }
 
     pub fn get_flapping_detect_config(&self) -> MqttFlappingDetect {
-        self.get_cluster_config().mqtt_flapping_detect
+        self.broker_cache.get_cluster_config().mqtt_flapping_detect
     }
 
     // mqtt protocol config
     pub fn update_mqtt_protocol_config(&self, mqtt_protocol_config: MqttProtocolConfig) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_protocol_config = mqtt_protocol_config;
         }
     }
 
     pub fn get_mqtt_protocol_config(&self) -> MqttProtocolConfig {
-        self.get_cluster_config().mqtt_protocol_config
+        self.broker_cache.get_cluster_config().mqtt_protocol_config
     }
 
     // offline message
     pub fn update_offline_message_config(&self, offline_message: MqttOfflineMessage) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_offline_message = offline_message;
         }
     }
 
     pub fn get_offline_message_config(&self) -> MqttOfflineMessage {
-        self.get_cluster_config().mqtt_offline_message
+        self.broker_cache.get_cluster_config().mqtt_offline_message
     }
 
     // system monitor
     pub fn update_system_monitor_config(&self, system_monitor: MqttSystemMonitor) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_system_monitor = system_monitor;
         }
     }
 
     pub fn get_system_monitor_config(&self) -> MqttSystemMonitor {
-        self.get_cluster_config().mqtt_system_monitor
+        self.broker_cache.get_cluster_config().mqtt_system_monitor
     }
 
     // schema
     pub fn update_schema_config(&self, schema: MqttSchema) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_schema = schema;
         }
     }
 
     pub fn get_schema_config(&self) -> MqttSchema {
-        self.get_cluster_config().mqtt_schema
+        self.broker_cache.get_cluster_config().mqtt_schema
     }
 
     // schema
     pub fn update_security_config(&self, security: MqttSecurity) {
-        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+        if let Some(mut config) = self
+            .broker_cache
+            .cluster_info
+            .get_mut(&self.broker_cache.cluster_name)
+        {
             config.mqtt_security = security;
         }
     }
 
     pub fn get_security_config(&self) -> MqttSecurity {
-        self.get_cluster_config().mqtt_security
-    }
-
-    // cluster config
-    pub fn set_cluster_config(&self, cluster: BrokerConfig) {
-        self.cluster_info.insert(self.cluster_name.clone(), cluster);
-    }
-
-    pub fn get_cluster_config(&self) -> BrokerConfig {
-        self.cluster_info.get(&self.cluster_name).unwrap().clone()
+        self.broker_cache.get_cluster_config().mqtt_security
     }
 }
 

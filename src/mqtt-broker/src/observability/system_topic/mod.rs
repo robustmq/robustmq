@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::tool::loop_select;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::topic::try_init_topic;
 use crate::observability::system_topic::packet::bytes::{
@@ -76,7 +74,8 @@ use crate::observability::system_topic::sysmon::{
     SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE, SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE,
 };
 use crate::storage::message::MessageStorage;
-use common_base::tools::get_local_ip;
+use common_base::error::ResultCommonError;
+use common_base::tools::{get_local_ip, loop_select};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
@@ -142,7 +141,7 @@ impl SystemTopic {
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
         self.try_init_system_topic().await;
-        let ac_fn = async || -> ResultMqttBrokerError {
+        let ac_fn = async || -> ResultCommonError {
             report_broker_info(
                 &self.client_pool,
                 &self.metadata_cache,
@@ -428,7 +427,7 @@ pub(crate) async fn write_topic_data(
 
 #[cfg(test)]
 mod test {
-    use crate::handler::cache::MQTTCacheManager;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
     use common_base::tools::{get_local_ip, unique_id};
@@ -444,7 +443,7 @@ mod test {
     async fn test_write_topic_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
+        let cache_manger = test_build_mqtt_cache_manager();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
@@ -498,7 +497,7 @@ mod test {
     async fn test_report_system_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = Arc::new(MQTTCacheManager::new(client_pool.clone(), cluster_name()));
+        let cache_manger = test_build_mqtt_cache_manager();
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
