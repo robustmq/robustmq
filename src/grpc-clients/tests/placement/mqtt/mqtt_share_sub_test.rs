@@ -21,7 +21,7 @@ mod tests {
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::{ClusterType, RegisterNodeRequest};
+    use protocol::meta::placement_center_inner::RegisterNodeRequest;
     use protocol::meta::placement_center_mqtt::GetShareSubLeaderRequest;
 
     use crate::common::get_placement_addr;
@@ -37,7 +37,7 @@ mod tests {
         let node_id: u64 = 1;
 
         let node = BrokerNode {
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
             node_id,

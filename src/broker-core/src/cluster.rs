@@ -25,9 +25,8 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
 use metadata_struct::placement::node::BrokerNode;
 use protocol::meta::placement_center_inner::{
-    ClusterStatusRequest, ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest,
-    HeartbeatRequest, NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
+    NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
 
@@ -92,8 +91,8 @@ impl ClusterStorage {
         };
 
         let node = BrokerNode {
-            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             cluster_name: config.cluster_name.clone(),
+            roles: config.roles.clone(),
             node_ip: local_ip.clone(),
             node_id: config.broker_id,
             node_inner_addr: format!("{}:{}", local_ip, config.grpc_port),
@@ -116,7 +115,6 @@ impl ClusterStorage {
 
     pub async fn unregister_node(&self, config: &BrokerConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
-            cluster_type: ClusterType::MqttBrokerServer.into(),
             cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
@@ -134,7 +132,6 @@ impl ClusterStorage {
         let config = broker_config();
         let req = HeartbeatRequest {
             cluster_name: config.cluster_name.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.into(),
             node_id: config.broker_id,
         };
 

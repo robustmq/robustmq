@@ -14,17 +14,16 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use std::thread::sleep;
-    use std::time::Duration;
-
     use common_base::tools::{now_second, unique_id};
     use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::{ClusterType, RegisterNodeRequest};
+    use protocol::meta::placement_center_inner::RegisterNodeRequest;
     use protocol::meta::placement_center_mqtt::GetShareSubLeaderRequest;
+    use std::sync::Arc;
+    use std::thread::sleep;
+    use std::time::Duration;
     use tracing::info;
 
     #[tokio::test]
@@ -32,14 +31,13 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec!["127.0.0.1:1228".to_string()];
 
-        let cluster_type = ClusterType::MqttBrokerServer;
         let cluster_name = unique_id();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();
         let extend_info = "".to_string();
         let node = BrokerNode {
-            cluster_type: cluster_type.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_ip,
             node_id,
@@ -76,14 +74,13 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec!["127.0.0.1:1228".to_string()];
 
-        let cluster_type = ClusterType::MqttBrokerServer;
         let cluster_name = unique_id();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();
         let extend_info = "".to_string();
         let node = BrokerNode {
-            cluster_type: cluster_type.as_str_name().to_string(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_ip,
             node_id,

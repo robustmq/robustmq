@@ -73,7 +73,6 @@ impl NodeStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::meta::placement_center_inner::ClusterType;
     use tempfile::tempdir;
 
     fn setup_kv_storage() -> NodeStorage {
@@ -91,7 +90,6 @@ mod tests {
             cluster_name: "test_cluster".to_string(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
-            cluster_type: ClusterType::PlacementCenter.as_str_name().to_string(),
             ..Default::default()
         }
     }

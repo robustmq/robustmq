@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use common_base::tools::unique_id;
-use protocol::meta::placement_center_inner::ClusterType;
 
 #[allow(dead_code)]
 pub fn pc_addr() -> String {
@@ -28,11 +27,6 @@ pub fn shard_name() -> String {
 #[allow(dead_code)]
 pub fn shard_replica() -> u32 {
     1
-}
-
-#[allow(dead_code)]
-pub fn cluster_type() -> String {
-    ClusterType::JournalServer.as_str_name().to_string()
 }
 
 #[allow(dead_code)]

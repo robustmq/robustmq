@@ -18,7 +18,6 @@ use crate::raft::route::apply::StorageDriver;
 use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::placement::node::str_to_cluster_type;
 use protocol::meta::placement_center_inner::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -70,11 +69,9 @@ impl BrokerHeartbeat {
                     if now_time - heart_data.time >= self.timeout_ms / 1000
                         && self.cluster_cache.get_cluster(&cluster_name).is_some()
                     {
-                        let cluster_type = str_to_cluster_type(&node.cluster_type).unwrap();
                         let req = UnRegisterNodeRequest {
                             node_id: node.node_id,
                             cluster_name: cluster_name.to_string(),
-                            cluster_type: cluster_type.into(),
                         };
 
                         if let Err(e) = un_register_node_by_req(

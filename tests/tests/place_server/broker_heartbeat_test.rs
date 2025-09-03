@@ -22,9 +22,7 @@ mod tests {
     use protocol::meta::placement_center_inner::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;
 
-    use crate::place_server::common::{
-        cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr,
-    };
+    use crate::place_server::common::{cluster_name, extend_info, node_id, node_ip, pc_addr};
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
@@ -34,7 +32,7 @@ mod tests {
         let cluster_name = cluster_name();
         let node_id = node_id();
         let node = BrokerNode {
-            cluster_type: cluster_type(),
+            roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),

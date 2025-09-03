@@ -19,8 +19,7 @@ mod tests {
     use metadata_struct::placement::node::BrokerNode;
     use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::meta::placement_center_inner::{
-        ClusterType, HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest,
-        UnRegisterNodeRequest,
+        HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
     };
     use protocol::meta::placement_center_journal::engine_service_client::EngineServiceClient;
     use protocol::meta::placement_center_journal::{
@@ -28,8 +27,8 @@ mod tests {
     };
 
     use crate::place_server::common::{
-        cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
-        seq_num, shard_name,
+        cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, producer_id, seq_num,
+        shard_name,
     };
 
     #[tokio::test]
@@ -39,7 +38,7 @@ mod tests {
             .unwrap();
         let node = BrokerNode {
             cluster_name: cluster_name(),
-            cluster_type: cluster_type(),
+            roles: Vec::new(),
             node_ip: node_ip(),
             node_id: node_id(),
             node_inner_addr: node_ip(),
@@ -64,7 +63,7 @@ mod tests {
 
         let mut node = BrokerNode {
             cluster_name: cluster_name(),
-            cluster_type: cluster_type(),
+            roles: Vec::new(),
             node_ip: node_ip(),
             node_id: node_id(),
             node_inner_addr: node_ip(),
@@ -125,7 +124,6 @@ mod tests {
             .unwrap();
 
         let request = HeartbeatRequest {
-            cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster_name(),
             node_id: node_id(),
         };
@@ -140,7 +138,6 @@ mod tests {
             .unwrap();
 
         let request = UnRegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster_name(),
             node_id: node_id(),
         };

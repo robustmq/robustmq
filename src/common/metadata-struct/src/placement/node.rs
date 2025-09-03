@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::meta::placement_center_inner::ClusterType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct BrokerNode {
     pub cluster_name: String,
-    pub cluster_type: String,
+    pub roles: Vec<String>,
     pub extend: String,
     pub node_id: u64,
     pub node_ip: String,
@@ -31,24 +30,4 @@ impl BrokerNode {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
-}
-
-pub fn str_to_cluster_type(cluster_type: &str) -> Option<ClusterType> {
-    if *cluster_type == *ClusterType::AmqpBrokerServer.as_str_name() {
-        return Some(ClusterType::AmqpBrokerServer);
-    }
-
-    if *cluster_type == *ClusterType::PlacementCenter.as_str_name() {
-        return Some(ClusterType::PlacementCenter);
-    }
-
-    if *cluster_type == *ClusterType::JournalServer.as_str_name() {
-        return Some(ClusterType::JournalServer);
-    }
-
-    if *cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
-        return Some(ClusterType::MqttBrokerServer);
-    }
-
-    None
 }

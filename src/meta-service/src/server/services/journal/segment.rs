@@ -540,7 +540,6 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::ClusterType;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
 
@@ -561,7 +560,7 @@ mod tests {
 
         let node = BrokerNode {
             cluster_name: config.cluster_name.clone(),
-            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+            roles: Vec::new(),
             register_time: now_second(),
             start_time: now_second(),
             extend: serde_json::to_string(&extend_info).unwrap(),
