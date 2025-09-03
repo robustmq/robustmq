@@ -131,6 +131,9 @@ pub enum CommonError {
     #[error("[write_frame]Connection management could not obtain an available {0} connection. Connection ID: {1}")]
     NotObtainAvailableConnection(String, u64),
 
+    #[error("{0} is an unavailable type of Connector.")]
+    IneligibleConnectorType(String),
+
     #[error("{0}")]
     OpenDALError(#[from] opendal::Error),
 }

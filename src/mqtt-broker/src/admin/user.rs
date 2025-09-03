@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
@@ -28,7 +27,7 @@ use std::sync::Arc;
 pub async fn list_user_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: &ListUserRequest,
+    _request: &ListUserRequest,
 ) -> Result<ListUserReply, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
 
@@ -42,15 +41,7 @@ pub async fn list_user_by_req(
         };
         users.push(user_raw);
     }
-
-    let filtered = apply_filters(users, &request.options);
-    let sorted = apply_sorting(filtered, &request.options);
-    let pagination = apply_pagination(sorted, &request.options);
-
-    Ok(ListUserReply {
-        users: pagination.0,
-        total_count: pagination.1 as u32,
-    })
+    Ok(ListUserReply { users })
 }
 
 // Create a new user
@@ -82,14 +73,4 @@ pub async fn delete_user_by_req(
     auth_driver.delete_user(request.username.clone()).await?;
 
     Ok(DeleteUserReply {})
-}
-
-impl Queryable for UserRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
-        match field {
-            "username" => Some(self.username.clone()),
-            "is_superuser" => Some(self.is_superuser.to_string()),
-            _ => None,
-        }
-    }
 }

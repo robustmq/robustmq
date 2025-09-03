@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
@@ -32,34 +31,19 @@ pub async fn list_topic_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     request: &ListTopicRequest,
 ) -> Result<ListTopicReply, MqttBrokerError> {
-    let topics = extract_topic(cache_manager)?;
-
-    if request.topic_name.as_deref().unwrap_or_default().is_empty() {
-        let topic_count = topics.len();
-        return Ok(ListTopicReply {
-            topics,
-            total_count: topic_count as u32,
-        });
-    }
-    let filtered = apply_filters(topics, &request.options);
-    let sorted = apply_sorting(filtered, &request.options);
-    let pagination = apply_pagination(sorted, &request.options);
-
-    Ok(ListTopicReply {
-        topics: pagination.0,
-        total_count: pagination.1 as u32,
-    })
-}
-
-fn extract_topic(
-    cache_manager: &Arc<MQTTCacheManager>,
-) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
     let mut topics = Vec::new();
     for entry in cache_manager.topic_info.iter() {
         let topic = entry.value();
-        topics.push(MqttTopicRaw::from(topic.clone()));
+        if let Some(tp) = request.topic_name.clone() {
+            if tp == topic.topic_name {
+                topics.push(MqttTopicRaw::from(topic.clone()));
+            }
+        } else {
+            topics.push(MqttTopicRaw::from(topic.clone()));
+        }
     }
-    Ok(topics)
+
+    Ok(ListTopicReply { topics })
 }
 
 // Delete a topic rewrite rule
@@ -125,16 +109,4 @@ pub async fn get_all_topic_rewrite_rule_by_req(
         rewrite_topic_rules: topic_rewrite_rules.clone(),
         total_count: topic_rewrite_rules.len() as u32,
     })
-}
-
-impl Queryable for MqttTopicRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
-        match field {
-            "topic_id" => Some(self.topic_id.clone()),
-            "cluster_name" => Some(self.cluster_name.clone()),
-            "topic_name" => Some(self.topic_name.clone()),
-            "is_contain_retain_message" => Some(self.is_contain_retain_message.to_string()),
-            _ => None,
-        }
-    }
 }

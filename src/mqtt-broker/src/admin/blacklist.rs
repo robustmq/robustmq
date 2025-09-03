@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
-use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::{cache::MQTTCacheManager, flapping_detect::enable_flapping_detect};
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use protocol::broker::broker_mqtt_admin::{
     BlacklistRaw, CreateBlacklistReply, CreateBlacklistRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, ListBlacklistReply, ListBlacklistRequest,
+    DeleteBlacklistRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    FlappingDetectRaw, ListBlacklistReply, ListBlacklistRequest, ListFlappingDetectReply,
+    ListFlappingDetectRequest,
 };
 use std::sync::Arc;
 
@@ -28,37 +29,18 @@ use std::sync::Arc;
 pub async fn list_blacklist_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: &ListBlacklistRequest,
+    _: &ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, MqttBrokerError> {
-    let blacklists = extract_blacklist(cache_manager, client_pool).await?;
-
-    let filtered = apply_filters(blacklists, &request.options);
-    let sorted = apply_sorting(filtered, &request.options);
-    let pagination = apply_pagination(sorted, &request.options);
-
-    Ok(ListBlacklistReply {
-        blacklists: pagination.0,
-        total_count: pagination.1 as u32,
-    })
-}
-
-async fn extract_blacklist(
-    cache_manager: &Arc<MQTTCacheManager>,
-    client_pool: &Arc<ClientPool>,
-) -> Result<Vec<BlacklistRaw>, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
-    match auth_driver.read_all_blacklist().await {
-        Ok(data) => {
-            let mut blacklists = Vec::new();
-            for element in data {
-                let blacklist_raw = BlacklistRaw::from(element);
-                blacklists.push(blacklist_raw)
-            }
-            Ok(blacklists)
-        }
-        Err(e) => Err(e),
+    let data = auth_driver.read_all_blacklist().await?;
+    let mut blacklists = Vec::new();
+    for element in data {
+        let blacklist_raw = BlacklistRaw::from(element);
+        blacklists.push(blacklist_raw)
     }
+    Ok(ListBlacklistReply { blacklists })
 }
+
 // Delete blacklist entry
 pub async fn delete_blacklist_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -108,14 +90,38 @@ pub async fn create_blacklist_by_req(
     Ok(CreateBlacklistReply {})
 }
 
-impl Queryable for BlacklistRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
-        match field {
-            "blacklist_type" => Some(self.blacklist_type.to_string()),
-            "resource_name" => Some(self.resource_name.clone()),
-            "end_time" => Some(self.end_time.to_string()),
-            "desc" => Some(self.desc.clone()),
-            _ => None,
-        }
+pub async fn enable_flapping_detect_by_req(
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<MQTTCacheManager>,
+    request: &EnableFlappingDetectRequest,
+) -> Result<EnableFlappingDetectReply, MqttBrokerError> {
+    match enable_flapping_detect(client_pool, cache_manager, *request).await {
+        Ok(_) => Ok(EnableFlappingDetectReply {
+            is_enable: request.is_enable,
+        }),
+        Err(e) => Err(e),
     }
+}
+
+pub async fn list_flapping_detect_by_req(
+    cache_manager: &Arc<MQTTCacheManager>,
+    _request: &ListFlappingDetectRequest,
+) -> Result<ListFlappingDetectReply, MqttBrokerError> {
+    let flapping_detects = cache_manager
+        .acl_metadata
+        .flapping_detect_map
+        .iter()
+        .map(|entry| {
+            let flapping_detect = entry.value();
+            FlappingDetectRaw {
+                client_id: flapping_detect.client_id.clone(),
+                before_last_windows_connections: flapping_detect.before_last_window_connections,
+                first_request_time: flapping_detect.first_request_time,
+            }
+        })
+        .collect();
+
+    Ok(ListFlappingDetectReply {
+        flapping_detect_raw: flapping_detects,
+    })
 }

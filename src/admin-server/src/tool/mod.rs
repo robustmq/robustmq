@@ -11,20 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use std::fmt::Display;
-
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
-pub enum MQTTStatus {
-    #[default]
-    Idle,
-    Running,
-}
-
-impl Display for MQTTStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}

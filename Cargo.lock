@@ -2901,6 +2901,7 @@ dependencies = [
  "common-config",
  "crc32fast",
  "dashmap",
+ "lazy_static",
  "protocol",
  "serde",
  "serde_json",
@@ -4771,7 +4772,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#902f07fb1e2336f2fd020c5262cfa739ec09e46a"
+source = "git+https://github.com/socutes/robustmq-proto.git?branch=dev-7#08e882c77f12c11912630d6373a1cd93edce8aea"
 dependencies = [
  "prost-build",
  "prost-validate-build",

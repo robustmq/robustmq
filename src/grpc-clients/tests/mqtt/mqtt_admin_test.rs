@@ -17,10 +17,10 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_cluster_status, mqtt_broker_create_connector, mqtt_broker_create_schema,
-        mqtt_broker_create_user, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
-        mqtt_broker_delete_user, mqtt_broker_list_connector, mqtt_broker_list_schema,
-        mqtt_broker_list_user, mqtt_broker_update_connector, mqtt_broker_update_schema,
+        mqtt_broker_create_connector, mqtt_broker_create_schema, mqtt_broker_create_user,
+        mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_user,
+        mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_user,
+        mqtt_broker_update_connector, mqtt_broker_update_schema,
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
@@ -30,28 +30,12 @@ mod tests {
     use prost::Message;
     use protocol::broker::broker_mqtt_admin::{self, ConnectorRaw};
     use protocol::broker::broker_mqtt_admin::{
-        ClusterStatusRequest, CreateConnectorRequest, CreateSchemaRequest, CreateUserRequest,
-        DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest, ListConnectorRequest,
-        ListSchemaRequest, ListUserRequest, UpdateConnectorRequest, UpdateSchemaRequest,
+        CreateConnectorRequest, CreateSchemaRequest, CreateUserRequest, DeleteConnectorRequest,
+        DeleteSchemaRequest, DeleteUserRequest, ListConnectorRequest, ListSchemaRequest,
+        ListUserRequest, UpdateConnectorRequest, UpdateSchemaRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
-
-    #[tokio::test]
-    async fn cluster_status_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_mqtt_broker_addr()];
-
-        let request = ClusterStatusRequest {};
-        match mqtt_broker_cluster_status(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                println!("{data:?}");
-            }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
-    }
 
     #[tokio::test]
     async fn user_test() {
@@ -73,7 +57,7 @@ mod tests {
             }
         }
 
-        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest { options: None }).await {
+        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.users {
@@ -103,7 +87,7 @@ mod tests {
             }
         }
 
-        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest { options: None }).await {
+        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = true;
                 for raw in data.users {
@@ -251,7 +235,7 @@ mod tests {
 
         let create_request = CreateConnectorRequest {
             connector_name: connector_name.clone(),
-            connector_type: broker_mqtt_admin::ConnectorType::File as i32,
+            connector_type: "file".to_string(),
             config: serde_json::to_string(&LocalFileConnectorConfig {
                 local_file_path: "/tmp/test".to_string(),
             })
@@ -269,7 +253,6 @@ mod tests {
         // list connector we just created
         let list_request = ListConnectorRequest {
             connector_name: connector_name.clone(),
-            options: None,
         };
 
         let mut connector: ConnectorRaw =
@@ -286,7 +269,7 @@ mod tests {
 
         assert_eq!(&connector.connector_name, &connector_name);
         // assert_eq!(connector.connector_type.clone(), ConnectorType::LocalFile);
-        assert_eq!(connector.connector_type, ConnectorType::LocalFile as i32);
+        assert_eq!(connector.connector_type, "file");
         assert_eq!(
             &connector.config,
             &serde_json::to_string(&LocalFileConnectorConfig {
@@ -297,7 +280,7 @@ mod tests {
         assert_eq!(&connector.topic_id, "test-topic-1");
 
         // update
-        connector.connector_type = ConnectorType::Kafka as i32;
+        connector.connector_type = "kafka".to_string();
         connector.config = serde_json::to_string(&KafkaConnectorConfig {
             bootstrap_servers: "127.0.0.1:9092".to_string(),
             topic: "test-topic".to_string(),
@@ -332,10 +315,7 @@ mod tests {
             };
 
         assert_eq!(&connector.connector_name, &connector_name);
-        assert_eq!(
-            connector.connector_type.clone(),
-            ConnectorType::Kafka as i32
-        );
+        assert_eq!(connector.connector_type.clone(), "kafka".to_string());
 
         assert_eq!(
             &connector.config,

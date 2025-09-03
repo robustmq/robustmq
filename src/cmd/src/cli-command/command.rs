@@ -78,8 +78,6 @@ struct MqttArgs {
 
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
-    // cluster status
-    Status,
     // session admin
     Config(ClusterConfigArgs),
     // session admin
@@ -189,8 +187,6 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     let params = MqttCliCommandParam {
         server: args.server,
         action: match args.action {
-            // cluster status
-            MQTTAction::Status => MqttActionType::Status,
             // cluster status
             MQTTAction::Config(args) => process_config_args(args),
             // session list
