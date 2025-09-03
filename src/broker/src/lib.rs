@@ -17,7 +17,7 @@ use admin_server::{
     server::AdminServer,
     state::{HttpState, MQTTContext},
 };
-use broker_core::heartbeat::check_placement_center_status;
+use broker_core::{cache::BrokerCacheManager, heartbeat::check_placement_center_status};
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
@@ -75,6 +75,7 @@ pub struct BrokerServer {
     mqtt_params: MqttBrokerServerParams,
     journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
+    broker_cache: Arc<BrokerCacheManager>,
     config: BrokerConfig,
 }
 
@@ -89,13 +90,14 @@ impl BrokerServer {
         let config = broker_config();
         let client_pool = Arc::new(ClientPool::new(100));
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
-
+        let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
         let place_params = main_runtime
             .block_on(async { BrokerServer::build_placement_center(client_pool.clone()).await });
         let mqtt_params = BrokerServer::build_mqtt_server(client_pool.clone());
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
+            broker_cache,
             main_runtime,
             place_params,
             journal_params,
@@ -109,6 +111,7 @@ impl BrokerServer {
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
         let journal_params = self.journal_params.clone();
+        let broker_cache = self.broker_cache.clone();
         let server_runtime =
             create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
         let grpc_port = self.config.grpc_port;
@@ -117,8 +120,14 @@ impl BrokerServer {
         let grpc_ready_check = grpc_ready.clone();
 
         server_runtime.spawn(async move {
-            if let Err(e) =
-                start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
+            if let Err(e) = start_grpc_server(
+                broker_cache,
+                place_params,
+                mqtt_params,
+                journal_params,
+                grpc_port,
+            )
+            .await
             {
                 panic!("{e}")
             }

@@ -63,4 +63,13 @@ impl BrokerCacheManager {
     pub fn get_start_time(&self) -> u64 {
         self.start_time
     }
+
+    // status
+    pub fn set_status(&self, status: NodeStatus) {
+        self.status.insert(self.cluster_name.clone(), status);
+    }
+
+    pub fn get_status(&self) -> NodeStatus {
+        self.status.get(&self.cluster_name).unwrap().clone()
+    }
 }

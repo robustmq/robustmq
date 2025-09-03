@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
-use crate::{bridge::manager::ConnectorManager, common::tool::wait_cluster_running};
+use broker_core::{cache::BrokerCacheManager, tool::wait_cluster_running};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
@@ -31,6 +32,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tracing::info;
 
 pub async fn update_cache_by_req(
+    broker_cache: &Arc<BrokerCacheManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
@@ -41,7 +43,7 @@ pub async fn update_cache_by_req(
     if conf.cluster_name != req.cluster_name {
         return Ok(UpdateMqttCacheReply::default());
     }
-    wait_cluster_running(cache_manager).await;
+    wait_cluster_running(broker_cache).await;
     update_cache_metadata(
         cache_manager,
         connector_manager,
@@ -54,6 +56,7 @@ pub async fn update_cache_by_req(
 }
 
 pub async fn delete_session_by_req(
+    broker_cache: &Arc<BrokerCacheManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     req: &DeleteSessionRequest,
@@ -62,7 +65,7 @@ pub async fn delete_session_by_req(
         "Received request from Placement center to delete expired Session. Cluster name :{}, clientId count: {:?}",
         req.cluster_name, req.client_id.len()
     );
-    wait_cluster_running(cache_manager).await;
+    wait_cluster_running(broker_cache).await;
 
     if cache_manager.cluster_name != req.cluster_name {
         return Err(MqttBrokerError::ClusterNotMatch(req.cluster_name.clone()));
@@ -81,6 +84,7 @@ pub async fn delete_session_by_req(
 }
 
 pub async fn send_last_will_message_by_req(
+    broker_cache: &Arc<BrokerCacheManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     message_storage_adapter: &ArcStorageAdapter,
@@ -92,7 +96,7 @@ pub async fn send_last_will_message_by_req(
             return Err(MqttBrokerError::CommonError(e.to_string()));
         }
     };
-    wait_cluster_running(cache_manager).await;
+    wait_cluster_running(broker_cache).await;
     info!(
         "Received will message from placement center, source client id: {},data:{:?}",
         req.client_id, data.client_id

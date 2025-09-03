@@ -12,13 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
-
-use common_base::node_status::NodeStatus;
 use protocol::mqtt::common::MqttPacket;
-use tokio::time::sleep;
-
-use crate::handler::cache::MQTTCacheManager;
 
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
@@ -28,13 +22,4 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
         return true;
     }
     false
-}
-
-pub async fn wait_cluster_running(cache_manager: &Arc<MQTTCacheManager>) {
-    loop {
-        if cache_manager.get_status() == NodeStatus::Running {
-            break;
-        }
-        sleep(Duration::from_secs(1)).await;
-    }
 }
