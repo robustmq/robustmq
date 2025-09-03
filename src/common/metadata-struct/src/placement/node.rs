@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::time_util;
-use protocol::{
-    broker::broker_mqtt_admin::BrokerNodeRaw, meta::placement_center_inner::ClusterType,
-};
+use protocol::meta::placement_center_inner::ClusterType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -33,21 +30,6 @@ pub struct BrokerNode {
 impl BrokerNode {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
-    }
-}
-
-impl From<BrokerNode> for BrokerNodeRaw {
-    fn from(node: BrokerNode) -> Self {
-        Self {
-            cluster_name: node.cluster_name,
-            cluster_type: node.cluster_type,
-            extend_info: node.extend,
-            node_id: node.node_id,
-            node_ip: node.node_ip,
-            node_inner_addr: node.node_inner_addr,
-            start_time: time_util::timestamp_to_local_datetime(node.start_time as i64),
-            register_time: time_util::timestamp_to_local_datetime(node.register_time as i64),
-        }
     }
 }
 

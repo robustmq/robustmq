@@ -14,17 +14,16 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker::broker_mqtt_admin::{
-    BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
-    CreateSchemaReply, CreateSchemaRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
-    DeleteSchemaReply, DeleteSchemaRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
-    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
+    BindSchemaReply, BindSchemaRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest, CreateSchemaReply,
+    CreateSchemaRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
+    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest, DeleteSchemaReply,
+    DeleteSchemaRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListConnectorReply, ListConnectorRequest, ListFlappingDetectReply,
     ListFlappingDetectRequest, ListSchemaReply, ListSchemaRequest, ListSessionReply,
@@ -65,14 +64,6 @@ generate_mqtt_admin_service_call!(
     GetClusterConfigRequest,
     GetClusterConfigReply,
     GetClusterConfig
-);
-
-// ---- cluster ------
-generate_mqtt_admin_service_call!(
-    mqtt_broker_cluster_status,
-    ClusterStatusRequest,
-    ClusterStatusReply,
-    ClusterStatus
 );
 
 // ------ user -------
@@ -315,13 +306,6 @@ generate_mqtt_admin_service_call!(
     ListSessionRequest,
     ListSessionReply,
     ListSession
-);
-
-generate_mqtt_admin_service_call!(
-    mqtt_broker_cluster_overview_metrics,
-    ClusterOverviewMetricsRequest,
-    ClusterOverviewMetricsReply,
-    ClusterOverviewMetrics
 );
 
 generate_mqtt_admin_service_call!(

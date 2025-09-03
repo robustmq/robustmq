@@ -15,14 +15,9 @@
 #[cfg(test)]
 mod tests {
     use crate::common::get_mqtt_broker_addr;
-    use common_base::tools::now_second;
-    use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_cluster_overview_metrics, mqtt_broker_list_connection,
-    };
+    use grpc_clients::mqtt::admin::call::mqtt_broker_list_connection;
     use grpc_clients::pool::ClientPool;
-    use protocol::broker::broker_mqtt_admin::{
-        ClusterOverviewMetricsRequest, ListConnectionRequest,
-    };
+    use protocol::broker::broker_mqtt_admin::ListConnectionRequest;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -33,37 +28,6 @@ mod tests {
         match mqtt_broker_list_connection(&client_pool, &addrs, ListConnectionRequest {}).await {
             Ok(data) => {
                 println!("{data:?}");
-            }
-
-            Err(e) => {
-                eprintln!("Failed to list connections: {e:?}");
-                std::process::exit(1);
-            }
-        };
-    }
-
-    #[tokio::test]
-    async fn test_cluster_overview_metrics() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_mqtt_broker_addr()];
-
-        match mqtt_broker_cluster_overview_metrics(
-            &client_pool,
-            &addrs,
-            ClusterOverviewMetricsRequest {
-                start_time: now_second() - 360,
-                end_time: now_second() + 120,
-            },
-        )
-        .await
-        {
-            Ok(data) => {
-                println!("connection_num:{}", data.connection_num);
-                println!("topic_num: {}", data.topic_num);
-                println!("subscribe_num: {}", data.subscribe_num);
-                println!("message_in_num: {}", data.message_in_num);
-                println!("message_out_num: {}", data.message_out_num);
-                println!("message_drop_num: {}", data.message_drop_num);
             }
 
             Err(e) => {

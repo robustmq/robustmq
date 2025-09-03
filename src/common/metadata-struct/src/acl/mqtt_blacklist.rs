@@ -15,7 +15,7 @@
 use std::fmt;
 
 use common_base::error::common::CommonError;
-use protocol::broker::broker_mqtt_admin::{BlacklistRaw, BlacklistType};
+use protocol::broker::broker_mqtt_admin::BlacklistRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
@@ -63,24 +63,10 @@ impl fmt::Display for MqttAclBlackListType {
     }
 }
 
-impl From<MqttAclBlackListType> for BlacklistType {
-    fn from(type_enum: MqttAclBlackListType) -> Self {
-        match type_enum {
-            MqttAclBlackListType::ClientId => Self::ClientId,
-            MqttAclBlackListType::User => Self::Username,
-            MqttAclBlackListType::Ip => Self::IpAddress,
-            MqttAclBlackListType::ClientIdMatch => Self::ClientIdMatch,
-            MqttAclBlackListType::UserMatch => Self::Username,
-            MqttAclBlackListType::IPCIDR => Self::IpCidr,
-        }
-    }
-}
-
 impl From<MqttAclBlackList> for BlacklistRaw {
     fn from(blacklist: MqttAclBlackList) -> Self {
-        let blacklist_type_as_enum: BlacklistType = blacklist.blacklist_type.into();
         Self {
-            blacklist_type: blacklist_type_as_enum as i32,
+            blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
             end_time: blacklist.end_time,
             desc: blacklist.desc,

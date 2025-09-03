@@ -12,32 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker::broker_mqtt_admin::{ClientRaw, ListClientReply, ListClientRequest};
+use network_server::common::connection_manager::ConnectionManager;
+use protocol::broker::broker_mqtt_admin::{
+    ClientRaw, ListClientReply, ListClientRequest, ListConnectionRaw, ListConnectionReply,
+};
 use std::sync::Arc;
+
+pub async fn list_connection_by_req(
+    connection_manager: &Arc<ConnectionManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
+) -> Result<ListConnectionReply, MqttBrokerError> {
+    let mut reply = ListConnectionReply::default();
+    let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
+    for (key, value) in connection_manager.list_connect() {
+        if let Some(mqtt_value) = cache_manager.get_connection(key) {
+            let mqtt_info = serde_json::to_string(&mqtt_value)?;
+            let raw = ListConnectionRaw {
+                connection_id: value.connection_id,
+                connection_type: value.connection_type.to_string(),
+                protocol: match value.protocol {
+                    Some(protocol) => format!("{:?}", protocol),
+                    None => "None".to_string(),
+                },
+                source_addr: value.addr.to_string(),
+                info: mqtt_info,
+            };
+            list_connection_raw.push(raw);
+        }
+    }
+    reply.list_connection_raw = list_connection_raw;
+    Ok(reply)
+}
 
 // List all clients by request
 pub async fn list_client_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
-    request: &ListClientRequest,
+    _request: &ListClientRequest,
 ) -> Result<ListClientReply, MqttBrokerError> {
-    let clients = extract_clients(cache_manager);
-    let filtered = apply_filters(clients, &request.options);
-    let sorted = apply_sorting(filtered, &request.options);
-    let pagination = apply_pagination(sorted, &request.options);
-
-    Ok(ListClientReply {
-        clients: pagination.0,
-        total_count: pagination.1 as u32,
-    })
-}
-
-fn extract_clients(cache_manager: &Arc<MQTTCacheManager>) -> Vec<ClientRaw> {
-    cache_manager
+    let clients = cache_manager
         .session_info
         .iter()
         .map(|session_entry| {
@@ -48,7 +64,9 @@ fn extract_clients(cache_manager: &Arc<MQTTCacheManager>) -> Vec<ClientRaw> {
                 .map(|c| c.value().clone());
             merge_client_info(session.clone(), connection)
         })
-        .collect()
+        .collect();
+
+    Ok(ListClientReply { clients })
 }
 
 fn merge_client_info(session: MqttSession, connection: Option<MQTTConnection>) -> ClientRaw {
@@ -68,21 +86,5 @@ fn merge_client_info(session: MqttSession, connection: Option<MQTTConnection>) -
         // clean session is true when session_expiry is 0 (MQTT 5.0)
         clean_session: session.session_expiry == 0,
         session_expiry_interval: session.session_expiry,
-    }
-}
-
-impl Queryable for ClientRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
-        match field {
-            "client_id" => Some(self.client_id.clone()),
-            "username" => Some(self.username.clone()),
-            "is_online" => Some(self.is_online.to_string()),
-            "source_ip" => Some(self.source_ip.clone()),
-            "connected_at" => Some(self.connected_at.to_string()),
-            "keep_alive" => Some(self.keep_alive.to_string()),
-            "clean_session" => Some(self.clean_session.to_string()),
-            "session_expiry_interval" => Some(self.session_expiry_interval.to_string()),
-            _ => None,
-        }
     }
 }

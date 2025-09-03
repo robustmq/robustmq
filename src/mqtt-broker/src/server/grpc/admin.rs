@@ -14,9 +14,10 @@
 
 use crate::admin::acl::{create_acl_by_req, delete_acl_by_req, list_acl_by_req};
 use crate::admin::blacklist::{
-    create_blacklist_by_req, delete_blacklist_by_req, list_blacklist_by_req,
+    create_blacklist_by_req, delete_blacklist_by_req, enable_flapping_detect_by_req,
+    list_blacklist_by_req, list_flapping_detect_by_req,
 };
-use crate::admin::client::list_client_by_req;
+use crate::admin::client::{list_client_by_req, list_connection_by_req};
 use crate::admin::cluster::{get_cluster_config_by_req, set_cluster_config_by_req};
 use crate::admin::connector::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
@@ -40,10 +41,6 @@ use crate::admin::topic::{
     get_all_topic_rewrite_rule_by_req, list_topic_by_req,
 };
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
-use crate::admin::{
-    cluster_overview_metrics_by_req, cluster_status_by_req, enable_flapping_detect_by_req,
-    list_connection_by_req, list_flapping_detect_by_req,
-};
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::subscribe::manager::SubscribeManager;
@@ -51,17 +48,16 @@ use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::broker::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker::broker_mqtt_admin::{
-    BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
-    CreateSchemaReply, CreateSchemaRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
-    DeleteSchemaReply, DeleteSchemaRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
-    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
+    BindSchemaReply, BindSchemaRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest, CreateSchemaReply,
+    CreateSchemaRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
+    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest, DeleteSchemaReply,
+    DeleteSchemaRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListClientReply,
     ListClientRequest, ListConnectionReply, ListConnectionRequest, ListConnectorReply,
     ListConnectorRequest, ListFlappingDetectReply, ListFlappingDetectRequest,
@@ -122,33 +118,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _request: Request<GetClusterConfigRequest>,
     ) -> Result<Response<GetClusterConfigReply>, Status> {
         get_cluster_config_by_req(&self.cache_manager)
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
-    // --- cluster ---
-    async fn cluster_status(
-        &self,
-        _: Request<ClusterStatusRequest>,
-    ) -> Result<Response<ClusterStatusReply>, Status> {
-        cluster_status_by_req(
-            &self.client_pool,
-            &self.subscribe_manager,
-            &self.connection_manager,
-            &self.cache_manager,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
-    }
-
-    async fn cluster_overview_metrics(
-        &self,
-        request: Request<ClusterOverviewMetricsRequest>,
-    ) -> Result<Response<ClusterOverviewMetricsReply>, Status> {
-        let request = request.into_inner();
-        cluster_overview_metrics_by_req(&self.metrics_cache_manager, &request)
-            .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }

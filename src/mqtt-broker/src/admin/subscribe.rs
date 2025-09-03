@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
@@ -127,21 +126,13 @@ pub async fn list_auto_subscribe_rule_by_req(
 
 pub async fn list_subscribe_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
-    request: ListSubscribeRequest,
+    _request: ListSubscribeRequest,
 ) -> Result<ListSubscribeReply, MqttBrokerError> {
     let mut subscriptions = Vec::new();
     for (_, raw) in subscribe_manager.subscribe_list.clone() {
         subscriptions.push(MqttSubscribeRaw::from(raw));
     }
-
-    let filtered = apply_filters(subscriptions, &request.options);
-    let sorted = apply_sorting(filtered, &request.options);
-    let pagination = apply_pagination(sorted, &request.options);
-
-    Ok(ListSubscribeReply {
-        subscriptions: pagination.0,
-        total_count: pagination.1 as u32,
-    })
+    Ok(ListSubscribeReply { subscriptions })
 }
 
 pub async fn subscribe_detail_by_req(
@@ -221,14 +212,4 @@ pub async fn subscribe_detail_by_req(
     };
     let reply = mqtt_broker_subscribe_detail(client_pool, &[extend_info.grpc_addr], req).await?;
     Ok(reply)
-}
-
-impl Queryable for MqttSubscribeRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
-        match field {
-            "client_id" => Some(self.client_id.clone()),
-            "path" => Some(self.path.clone()),
-            _ => None,
-        }
-    }
 }

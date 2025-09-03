@@ -16,17 +16,16 @@ use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use protocol::broker::broker_mqtt_admin::{
-    BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
-    CreateSchemaReply, CreateSchemaRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
-    DeleteSchemaReply, DeleteSchemaRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
-    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
+    BindSchemaReply, BindSchemaRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest, CreateSchemaReply,
+    CreateSchemaRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
+    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest, DeleteSchemaReply,
+    DeleteSchemaRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListConnectorReply, ListConnectorRequest, ListFlappingDetectReply,
     ListFlappingDetectRequest, ListSchemaReply, ListSchemaRequest, ListSessionReply,
@@ -90,14 +89,6 @@ impl_retriable_request!(
     GetClusterConfigReply,
     mqtt_broker_admin_services_client,
     get_cluster_config
-);
-
-impl_retriable_request!(
-    ClusterStatusRequest,
-    MqttBrokerAdminServiceClient<Channel>,
-    ClusterStatusReply,
-    mqtt_broker_admin_services_client,
-    cluster_status
 );
 
 impl_retriable_request!(
@@ -376,14 +367,6 @@ impl_retriable_request!(
     ListSessionReply,
     mqtt_broker_admin_services_client,
     list_session
-);
-
-impl_retriable_request!(
-    ClusterOverviewMetricsRequest,
-    MqttBrokerAdminServiceClient<Channel>,
-    ClusterOverviewMetricsReply,
-    mqtt_broker_admin_services_client,
-    cluster_overview_metrics
 );
 
 impl_retriable_request!(

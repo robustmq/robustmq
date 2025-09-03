@@ -15,23 +15,23 @@
 use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
-use common_base::tools::{now_second, unique_id};
+use common_base::tools::unique_id;
 use common_config::config::BrokerConfig;
 use grpc_clients::mqtt::admin::call::{
-    mqtt_broker_bind_schema, mqtt_broker_cluster_overview_metrics, mqtt_broker_cluster_status,
-    mqtt_broker_create_acl, mqtt_broker_create_blacklist, mqtt_broker_create_connector,
-    mqtt_broker_create_schema, mqtt_broker_create_topic_rewrite_rule, mqtt_broker_create_user,
-    mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
-    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_topic_rewrite_rule,
-    mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_get_cluster_config,
-    mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
-    mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
-    mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_session,
-    mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm,
-    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
-    mqtt_broker_set_cluster_config, mqtt_broker_set_slow_subscribe_config,
-    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_bind_schema, mqtt_broker_create_acl, mqtt_broker_create_blacklist,
+    mqtt_broker_create_connector, mqtt_broker_create_schema, mqtt_broker_create_topic_rewrite_rule,
+    mqtt_broker_create_user, mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule,
+    mqtt_broker_delete_blacklist, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
+    mqtt_broker_delete_topic_rewrite_rule, mqtt_broker_delete_user,
+    mqtt_broker_enable_flapping_detect, mqtt_broker_get_cluster_config, mqtt_broker_list_acl,
+    mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist,
+    mqtt_broker_list_connection, mqtt_broker_list_connector, mqtt_broker_list_flapping_detect,
+    mqtt_broker_list_schema, mqtt_broker_list_session, mqtt_broker_list_slow_subscribe,
+    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
+    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_set_slow_subscribe_config, mqtt_broker_set_system_alarm_config,
+    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
+    mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -39,9 +39,8 @@ use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker::broker_mqtt_admin::{
-    BindSchemaRequest, ClusterOverviewMetricsRequest, ClusterStatusRequest, CreateAclRequest,
-    CreateBlacklistRequest, CreateConnectorRequest, CreateSchemaRequest,
-    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    BindSchemaRequest, CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
+    CreateSchemaRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
     EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
@@ -69,9 +68,6 @@ pub struct MqttCliCommandParam {
 pub enum MqttActionType {
     // common
     SetClusterConfig(SetClusterConfigRequest),
-
-    // cluster status
-    Status,
 
     // cluster config
     GetClusterConfig,
@@ -173,10 +169,6 @@ impl MqttBrokerCommand {
                 self.get_cluster_config(&client_pool, params.clone()).await;
             }
 
-            // cluster status
-            MqttActionType::Status => {
-                self.status(&client_pool, params.clone()).await;
-            }
             // user admin
             MqttActionType::ListUser => {
                 self.list_user(&client_pool, params.clone()).await;
@@ -533,7 +525,7 @@ impl MqttBrokerCommand {
 
     // ------------ list session ------------
     async fn list_session(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListSessionRequest { options: None };
+        let request = ListSessionRequest {};
         match mqtt_broker_list_session(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 let mut table = Table::new();
@@ -571,83 +563,7 @@ impl MqttBrokerCommand {
         }
     }
 
-    // ------------ cluster status ------------
-    async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ClusterStatusRequest {};
-        match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server.clone()), request)
-            .await
-        {
-            Ok(data) => {
-                println!("cluster_name: {}", data.cluster_name);
-                println!("message_in_rate: {}", data.message_in_rate);
-                println!("message_out_rate: {}", data.message_out_rate);
-                println!("connection_num: {}", data.connection_num);
-                println!("session_num: {}", data.session_num);
-                println!("topic_num: {}", data.topic_num);
-                println!("nodes: {:?}", data.nodes);
-                println!("placement_status: {}", data.placement_status);
-                println!("tcp_connection_num: {}", data.tcp_connection_num);
-                println!("tls_connection_num: {}", data.tls_connection_num);
-                println!(
-                    "websocket_connection_num: {}",
-                    data.websocket_connection_num
-                );
-                println!("quic_connection_num: {}", data.quic_connection_num);
-                println!("subscribe_num: {}", data.subscribe_num);
-                println!("exclusive_subscribe_num: {}", data.exclusive_subscribe_num);
-                println!(
-                    "share_subscribe_leader_num: {}",
-                    data.share_subscribe_leader_num
-                );
-                println!(
-                    "share_subscribe_resub_num: {}",
-                    data.share_subscribe_resub_num
-                );
-                println!(
-                    "exclusive_subscribe_thread_num: {}",
-                    data.exclusive_subscribe_thread_num
-                );
-                println!(
-                    "share_subscribe_leader_thread_num: {}",
-                    data.share_subscribe_leader_thread_num
-                );
-                println!(
-                    "share_subscribe_follower_thread_num: {}",
-                    data.share_subscribe_follower_thread_num
-                );
-            }
-            Err(e) => {
-                println!("MQTT broker cluster normal exception");
-                error_info(e.to_string());
-            }
-        }
-        match mqtt_broker_cluster_overview_metrics(
-            client_pool,
-            &grpc_addr(params.server),
-            ClusterOverviewMetricsRequest {
-                start_time: now_second() - 360,
-                end_time: now_second() + 120,
-            },
-        )
-        .await
-        {
-            Ok(data) => {
-                println!("connection_num:{}", data.connection_num);
-                println!("topic_num: {}", data.topic_num);
-                println!("subscribe_num: {}", data.subscribe_num);
-                println!("message_in_num: {}", data.message_in_num);
-                println!("message_out_num: {}", data.message_out_num);
-                println!("message_drop_num: {}", data.message_drop_num);
-            }
-
-            Err(e) => {
-                eprintln!("Failed to list connections: {e:?}");
-                std::process::exit(1);
-            }
-        };
-    }
     // ------------ user admin ------------
-
     async fn create_user(
         &self,
         client_pool: &ClientPool,
@@ -683,7 +599,7 @@ impl MqttBrokerCommand {
     }
 
     async fn list_user(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListUserRequest { options: None };
+        let request = ListUserRequest {};
         match mqtt_broker_list_user(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 // format table
@@ -908,7 +824,7 @@ impl MqttBrokerCommand {
     }
 
     async fn list_flapping_detect(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListFlappingDetectRequest { options: None };
+        let request = ListFlappingDetectRequest {};
         match mqtt_broker_list_flapping_detect(client_pool, &grpc_addr(params.server), request)
             .await
         {
@@ -1030,10 +946,7 @@ impl MqttBrokerCommand {
     }
 
     async fn list_topic(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListTopicRequest {
-            topic_name: None,
-            options: None,
-        };
+        let request = ListTopicRequest { topic_name: None };
         match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("topic list result:");

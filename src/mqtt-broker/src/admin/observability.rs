@@ -121,11 +121,10 @@ pub async fn list_system_alarm_by_req(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::admin::broker_config;
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
 
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
 

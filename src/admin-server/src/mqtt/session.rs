@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::{request::SessionListReq, state::HttpState};
 use axum::extract::{Query, State};
 use common_base::http_response::success_response;
-
-use crate::{request::SessionListReq, state::HttpState};
+use std::sync::Arc;
 
 pub async fn session_list(
     State(_state): State<Arc<HttpState>>,
