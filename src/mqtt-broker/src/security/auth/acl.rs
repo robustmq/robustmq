@@ -76,10 +76,6 @@ mod test {
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::local_hostname;
-    use metadata_struct::acl::mqtt_acl::{
-        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
-    };
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
