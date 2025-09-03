@@ -31,7 +31,6 @@ use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
-use broker_core::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -290,7 +289,6 @@ impl MqttBrokerServer {
 
     pub async fn awaiting_stop(&self) {
         // Wait for the stop signal
-        let client_pool = self.client_pool.clone();
         let server = self.server.clone();
         let delay_message_manager = self.delay_message_manager.clone();
         let connection_manager = self.connection_manager.clone();
@@ -305,7 +303,6 @@ impl MqttBrokerServer {
                     Ok(_) => {
                         info!("Process stop signal was sent successfully.");
                         if let Err(e) = MqttBrokerServer::stop_server(
-                            &client_pool,
                             &delay_message_manager,
                             &connection_manager,
                         )
@@ -327,18 +324,11 @@ impl MqttBrokerServer {
     }
 
     async fn stop_server(
-        client_pool: &Arc<ClientPool>,
         delay_message_manager: &Arc<DelayMessageManager>,
         connection_manager: &Arc<ConnectionManager>,
     ) -> ResultMqttBrokerError {
-        let cluster_storage = ClusterStorage::new(client_pool.clone());
         let config = broker_config();
         let _ = delay_message_manager.stop().await;
-        cluster_storage.unregister_node(config).await?;
-        info!(
-            "Node {} has been successfully unregistered",
-            config.broker_id
-        );
         connection_manager.close_all_connect().await;
         info!("All TCP, TLS, WS, and WSS network connections have been successfully closed.");
         Ok(())
