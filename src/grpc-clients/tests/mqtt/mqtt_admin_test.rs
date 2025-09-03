@@ -25,10 +25,9 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
     use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
-    use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::schema::{SchemaData, SchemaType};
     use prost::Message;
-    use protocol::broker::broker_mqtt_admin::{self, ConnectorRaw};
+    use protocol::broker::broker_mqtt_admin::ConnectorRaw;
     use protocol::broker::broker_mqtt_admin::{
         CreateConnectorRequest, CreateSchemaRequest, CreateUserRequest, DeleteConnectorRequest,
         DeleteSchemaRequest, DeleteUserRequest, ListConnectorRequest, ListSchemaRequest,

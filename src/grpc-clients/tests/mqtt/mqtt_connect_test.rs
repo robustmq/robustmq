@@ -15,7 +15,6 @@
 #[cfg(test)]
 mod tests {
     use crate::common::get_mqtt_broker_addr;
-    use common_base::tools::now_second;
     use grpc_clients::mqtt::admin::call::mqtt_broker_list_connection;
     use grpc_clients::pool::ClientPool;
     use protocol::broker::broker_mqtt_admin::ListConnectionRequest;
