@@ -74,6 +74,7 @@ use crate::observability::system_topic::sysmon::{
     SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE, SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE,
 };
 use crate::storage::message::MessageStorage;
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select};
 use common_config::broker::broker_config;
@@ -122,6 +123,7 @@ pub mod sysmon;
 
 pub struct SystemTopic {
     pub metadata_cache: Arc<MQTTCacheManager>,
+    broker_cache: Arc<BrokerCacheManager>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub client_pool: Arc<ClientPool>,
 }
@@ -130,11 +132,13 @@ impl SystemTopic {
     pub fn new(
         metadata_cache: Arc<MQTTCacheManager>,
         message_storage_adapter: ArcStorageAdapter,
+        broker_cache: Arc<BrokerCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         SystemTopic {
             metadata_cache,
             message_storage_adapter,
+            broker_cache,
             client_pool,
         }
     }
@@ -146,6 +150,7 @@ impl SystemTopic {
                 &self.client_pool,
                 &self.metadata_cache,
                 &self.message_storage_adapter,
+                &self.broker_cache,
             )
             .await;
 
@@ -288,10 +293,17 @@ pub(crate) async fn report_broker_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
+    broker_cache: &Arc<BrokerCacheManager>,
 ) {
     broker::report_cluster_status(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
-    broker::report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
+    broker::report_broker_time(
+        client_pool,
+        metadata_cache,
+        broker_cache,
+        message_storage_adapter,
+    )
+    .await;
     broker::report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
 }
 

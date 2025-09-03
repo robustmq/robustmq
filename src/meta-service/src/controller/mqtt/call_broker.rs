@@ -505,6 +505,7 @@ async fn add_call_message(
         .placement_cache_manager
         .get_broker_node_by_cluster(cluster_name)
     {
+        // todo Check whether the node is of the mqtt role
         if let Some(node_sender) = call_manager.get_node_sender(cluster_name, node.node_id) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}

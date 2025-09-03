@@ -96,7 +96,8 @@ impl BrokerServer {
         let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
         let place_params = main_runtime
             .block_on(async { BrokerServer::build_placement_center(client_pool.clone()).await });
-        let mqtt_params = BrokerServer::build_mqtt_server(client_pool.clone());
+        let mqtt_params =
+            BrokerServer::build_mqtt_server(client_pool.clone(), broker_cache.clone());
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
@@ -263,7 +264,10 @@ impl BrokerServer {
         }
     }
 
-    fn build_mqtt_server(client_pool: Arc<ClientPool>) -> MqttBrokerServerParams {
+    fn build_mqtt_server(
+        client_pool: Arc<ClientPool>,
+        broker_cache: Arc<BrokerCacheManager>,
+    ) -> MqttBrokerServerParams {
         let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
@@ -293,6 +297,7 @@ impl BrokerServer {
         let schema_manager = Arc::new(SchemaRegisterManager::new());
 
         MqttBrokerServerParams {
+            broker_cache,
             cache_manager,
             client_pool,
             message_storage_adapter: arc_storage_driver,
@@ -334,6 +339,8 @@ impl BrokerServer {
         mqtt_stop: Option<broadcast::Sender<bool>>,
         journal_stop: Option<broadcast::Sender<bool>>,
     ) {
+        self.broker_cache
+            .set_status(common_base::node_status::NodeStatus::Running);
         self.main_runtime.block_on(async {
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
@@ -341,6 +348,9 @@ impl BrokerServer {
                 "{}",
                 "When ctrl + c is received, the service starts to stop"
             );
+
+            self.broker_cache
+                .set_status(common_base::node_status::NodeStatus::Stopping);
 
             if let Some(sx) = mqtt_stop {
                 if let Err(e) = sx.send(true) {

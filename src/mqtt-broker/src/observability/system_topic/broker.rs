@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use broker_core::cluster::ClusterStorage;
+use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
@@ -66,6 +66,7 @@ pub(crate) async fn report_broker_version(
 pub(crate) async fn report_broker_time(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
+    broker_cache: &Arc<BrokerCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
     //  report system uptime
@@ -75,7 +76,7 @@ pub(crate) async fn report_broker_time(
         message_storage_adapter,
         SYSTEM_TOPIC_BROKERS_UPTIME,
         || async {
-            let start_long_time: u64 = now_second() - metadata_cache.get_start_time();
+            let start_long_time: u64 = now_second() - broker_cache.get_start_time();
             start_long_time.to_string()
         },
     )

@@ -15,8 +15,6 @@
 use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::auth::metadata::AclMetadata;
-use common_base::node_status::NodeStatus;
-use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -90,8 +88,6 @@ pub struct ClientPkidData {
 
 #[derive(Clone)]
 pub struct MQTTCacheManager {
-    pub start_time: u64,
-
     pub client_pool: Arc<ClientPool>,
 
     // node list
@@ -102,9 +98,6 @@ pub struct MQTTCacheManager {
 
     // (cluster_name, Cluster)
     pub cluster_info: DashMap<String, BrokerConfig>,
-
-    // (cluster_name, Status)
-    pub status: DashMap<String, NodeStatus>,
 
     // (username, User)
     pub user_info: DashMap<String, MqttUser>,
@@ -142,13 +135,11 @@ pub struct MQTTCacheManager {
 
 impl MQTTCacheManager {
     pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
-        let cache = MQTTCacheManager {
-            start_time: now_second(),
+        MQTTCacheManager {
             client_pool,
             cluster_name,
             node_lists: DashMap::with_capacity(2),
             cluster_info: DashMap::with_capacity(1),
-            status: DashMap::with_capacity(2),
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
             topic_info: DashMap::with_capacity(8),
@@ -160,9 +151,7 @@ impl MQTTCacheManager {
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
-        };
-        cache.set_status(NodeStatus::Starting);
-        cache
+        }
     }
 
     // node
@@ -397,16 +386,6 @@ impl MQTTCacheManager {
         self.acl_metadata.remove_mqtt_blacklist(blacklist);
     }
 
-    // status
-    pub fn set_status(&self, status: NodeStatus) {
-        self.status.insert(self.cluster_name.clone(), status);
-    }
-
-    // status
-    pub fn get_status(&self) -> NodeStatus {
-        self.status.get(&self.cluster_name).unwrap().clone()
-    }
-
     // key
     pub fn topic_rewrite_rule_key(
         &self,
@@ -442,16 +421,12 @@ impl MQTTCacheManager {
         }
         None
     }
-
-    // get start time
-    pub fn get_start_time(&self) -> u64 {
-        self.start_time
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common_base::tools::now_second;
     use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission, MqttAclResourceType};
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackListType;
     use protocol::mqtt::common::{QoS, RetainHandling};
@@ -881,21 +856,5 @@ mod tests {
             .acl_metadata
             .blacklist_client_id
             .contains_key("blacklist_client"));
-    }
-
-    #[tokio::test]
-    async fn status_operations() {
-        let cache_manager = create_cache_manager();
-        assert_eq!(cache_manager.get_status(), NodeStatus::Starting);
-        cache_manager.set_status(NodeStatus::Running);
-        assert_eq!(cache_manager.get_status(), NodeStatus::Running);
-    }
-
-    #[tokio::test]
-    async fn start_time_operations() {
-        let cache_manager = create_cache_manager();
-        let start_time = cache_manager.get_start_time();
-        assert!(start_time > 0);
-        assert!(start_time <= now_second());
     }
 }

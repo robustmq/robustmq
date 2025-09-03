@@ -73,3 +73,25 @@ impl BrokerCacheManager {
         self.status.get(&self.cluster_name).unwrap().clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::cache::BrokerCacheManager;
+    use common_base::{node_status::NodeStatus, tools::now_second};
+
+    #[tokio::test]
+    async fn status_operations() {
+        let cache_manager = BrokerCacheManager::new("test".to_string());
+        assert_eq!(cache_manager.get_status(), NodeStatus::Starting);
+        cache_manager.set_status(NodeStatus::Running);
+        assert_eq!(cache_manager.get_status(), NodeStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn start_time_operations() {
+        let cache_manager = BrokerCacheManager::new("test".to_string());
+        let start_time = cache_manager.get_start_time();
+        assert!(start_time > 0);
+        assert!(start_time <= now_second());
+    }
+}
