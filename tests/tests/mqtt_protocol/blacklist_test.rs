@@ -62,7 +62,7 @@ mod tests {
 
         let list_request = ListBlacklistRequest {};
         let mut flag = false;
-        match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
+        match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request).await {
             Ok(data) => {
                 println!("list blacklist: {:?}", data.blacklists.len());
                 for raw in data.blacklists {
@@ -87,7 +87,7 @@ mod tests {
         .await;
 
         let mut flag = false;
-        match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
+        match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request).await {
             Ok(data) => {
                 for raw in data.blacklists {
                     if raw.resource_name == blacklist.resource_name {
