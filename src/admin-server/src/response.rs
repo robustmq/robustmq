@@ -16,6 +16,21 @@ use metadata_struct::placement::node::BrokerNode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct PageReplyData<T> {
+    pub data: T,
+    pub total_count: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ClientListRow {
+    pub connection_id: u64,
+    pub connection_type: String,
+    pub protocol: String,
+    pub source_addr: String,
+    pub create_time: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SessionListResp {}
 
 #[derive(Clone, Serialize, Deserialize)]

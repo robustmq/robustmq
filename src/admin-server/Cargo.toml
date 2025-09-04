@@ -31,6 +31,7 @@ grpc-clients.workspace = true
 common-config.workspace = true
 metadata-struct.workspace = true
 broker-core.workspace = true
+protocol.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

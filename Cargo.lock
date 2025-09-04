@@ -46,6 +46,7 @@ dependencies = [
  "mockall",
  "mqtt-broker",
  "network-server",
+ "protocol",
  "serde",
  "serde_json",
  "tokio",

@@ -12,7 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::broker::broker_mqtt_admin::{MatchMode, OrderDirection, QueryOptions};
+#[derive(Clone)]
+pub struct Pagination {
+    pub limit: u32,
+    pub offset: u32,
+}
+
+#[derive(Clone)]
+pub struct Filter {
+    pub field: String,
+    pub values: Vec<String>,
+    pub exact_match: Option<MatchMode>,
+}
+
+#[derive(Clone)]
+pub enum MatchMode {
+    EXACT,
+    FUZZY,
+}
+
+#[derive(Clone)]
+pub struct Sorting {
+    pub order_by: String,
+    pub direction: OrderDirection,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum OrderDirection {
+    ASC,
+    DESC,
+}
+
+#[derive(Clone)]
+pub struct QueryOptions {
+    pub pagination: Option<Pagination>,
+    pub filters: Vec<Filter>,
+    pub sorting: Option<Sorting>,
+}
 
 /// A common interface for resource types to support generic querying logic.
 ///
@@ -34,6 +70,9 @@ use protocol::broker::broker_mqtt_admin::{MatchMode, OrderDirection, QueryOption
 ///
 /// This approach greatly reduces duplication in each endpoint handler and
 /// makes it trivial to add new queryable types—simply implement `Queryable`.
+
+pub fn build_query_params() {}
+
 pub trait Queryable {
     /// given the field name, return the field's string representation or None
     fn get_field_str(&self, field: &str) -> Option<String>;
@@ -55,10 +94,10 @@ pub fn apply_filters<T: Queryable>(items: Vec<T>, options: &Option<QueryOptions>
     let mut specs = Vec::with_capacity(qo.filters.len());
     for f in &qo.filters {
         let values = f.values.iter().map(|v| v.to_lowercase()).collect();
-        let mode = if let Some(raw_i) = f.exact_match {
-            MatchMode::try_from(raw_i).unwrap_or(MatchMode::Exact)
+        let mode = if let Some(raw_i) = f.exact_match.clone() {
+            raw_i
         } else {
-            MatchMode::Exact
+            MatchMode::EXACT
         };
         specs.push(FilterSpec {
             field: f.field.clone(),
@@ -82,8 +121,8 @@ pub fn apply_filters<T: Queryable>(items: Vec<T>, options: &Option<QueryOptions>
                             return false;
                         }
                         let ok = match spec.mode {
-                            MatchMode::Exact => spec.values.iter().any(|v| &raw == v),
-                            MatchMode::Fuzzy => spec.values.iter().any(|v| raw.contains(v)),
+                            MatchMode::EXACT => spec.values.iter().any(|v| &raw == v),
+                            MatchMode::FUZZY => spec.values.iter().any(|v| raw.contains(v)),
                         };
                         if !ok {
                             return false;
@@ -100,15 +139,15 @@ pub fn apply_sorting<T: Queryable>(mut items: Vec<T>, options: &Option<QueryOpti
     if let Some(opts) = options {
         if let Some(sorting) = &opts.sorting {
             let order_by = &sorting.order_by;
-            let raw_dir = sorting.direction;
-            let direction = OrderDirection::try_from(raw_dir).unwrap_or(OrderDirection::Asc);
+            let raw_dir = sorting.direction.clone();
+            let direction = OrderDirection::try_from(raw_dir).unwrap_or(OrderDirection::ASC);
 
             items.sort_by(|a, b| {
                 let oa = a.get_field_str(order_by);
                 let ob = b.get_field_str(order_by);
 
                 let ord = oa.cmp(&ob);
-                if direction == OrderDirection::Desc {
+                if direction == OrderDirection::DESC {
                     ord.reverse()
                 } else {
                     ord

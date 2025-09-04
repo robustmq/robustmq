@@ -14,6 +14,7 @@
 
 use crate::{
     mqtt::{
+        client::client_list,
         overview::{overview, overview_metrics},
         session::session_list,
     },
@@ -58,7 +59,7 @@ impl AdminServer {
             .route("/", get(index))
             .route("/overview", get(overview))
             .route("/overview-metrics", get(overview_metrics))
-            .route("/client-list", get(overview_metrics))
+            .route("/client-list", get(client_list))
             .route("/session-list", get(overview_metrics))
             .route("/topic-list", get(overview_metrics))
             .route("/subscribe-list", get(overview_metrics))
