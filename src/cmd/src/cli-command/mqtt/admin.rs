@@ -23,8 +23,10 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::enum_type::sort_type::SortType;
 
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use core::option::Option::Some;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::broker::broker_mqtt_admin::{
     BindSchemaRequest, CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
     CreateSchemaRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
@@ -260,8 +262,18 @@ pub enum BlackListActionType {
 pub(crate) struct CreateBlacklistArgs {
     #[arg(short, long, required = true)]
     pub(crate) cluster_name: String,
-    #[arg(short, long, required = true)]
-    pub(crate) blacklist: String,
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
+        default_missing_value = "ClientId"
+    )]
+    pub(crate) blacklist_type: MqttAclBlackListType,
+    #[arg(long, required = true)]
+    pub(crate) resource_name: String,
+    #[arg(long, required = true)]
+    pub(crate) end_time: u64,
+    #[arg(long, required = true)]
+    pub(crate) desc: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -270,8 +282,12 @@ pub(crate) struct CreateBlacklistArgs {
 pub(crate) struct DeleteBlacklistArgs {
     #[arg(short, long, required = true)]
     pub(crate) cluster_name: String,
-    #[arg(short, long, required = true)]
-    pub(crate) blacklist_type: String,
+    #[arg(
+        long,
+        value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
+        default_missing_value = "ClientId"
+    )]
+    pub(crate) blacklist_type: MqttAclBlackListType,
     #[arg(short, long, required = true)]
     pub(crate) resource_name: String,
 }
@@ -758,21 +774,29 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
     }
 }
 
-pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
+pub fn process_blacklist_args(
+    args: BlacklistArgs,
+) -> Result<MqttActionType, Box<dyn std::error::Error>> {
     match args.action {
-        BlackListActionType::List => MqttActionType::ListBlacklist,
+        BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
         BlackListActionType::Create(arg) => {
-            MqttActionType::CreateBlacklist(CreateBlacklistRequest {
-                cluster_name: arg.cluster_name,
-                blacklist: Vec::from(arg.blacklist),
-            })
-        }
-        BlackListActionType::Delete(arg) => {
-            MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
-                cluster_name: arg.cluster_name,
+            let mqtt_acl_black_list = MqttAclBlackList {
                 blacklist_type: arg.blacklist_type,
                 resource_name: arg.resource_name,
-            })
+                end_time: arg.end_time,
+                desc: arg.desc,
+            };
+            Ok(MqttActionType::CreateBlacklist(CreateBlacklistRequest {
+                cluster_name: arg.cluster_name,
+                blacklist: mqtt_acl_black_list.encode()?,
+            }))
+        }
+        BlackListActionType::Delete(arg) => {
+            Ok(MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
+                cluster_name: arg.cluster_name,
+                blacklist_type: arg.blacklist_type.to_string(),
+                resource_name: arg.resource_name,
+            }))
         }
     }
 }

@@ -204,7 +204,13 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                 }
             },
             // blacklist admin
-            MQTTAction::Blacklist(args) => process_blacklist_args(args),
+            MQTTAction::Blacklist(args) => match process_blacklist_args(args) {
+                Ok(action) => action,
+                Err(e) => {
+                    eprintln!("Error processing Blacklist args: {e}");
+                    return;
+                }
+            },
             // flapping detect
             MQTTAction::FlappingDetect(args) => {
                 MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {

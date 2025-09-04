@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod mqtt_acl_action;
+pub mod mqtt_acl_blacklist_type;
 pub mod mqtt_acl_permission;
 pub mod mqtt_acl_resource_type;

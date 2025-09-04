@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::error::common::CommonError;
 use protocol::broker::broker_mqtt_admin::BlacklistRaw;
 use serde::{Deserialize, Serialize};
@@ -33,33 +32,6 @@ impl MqttAclBlackList {
 
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         Ok(serde_json::from_slice(data)?)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MqttAclBlackListType {
-    ClientId,
-    User,
-    Ip,
-    ClientIdMatch,
-    UserMatch,
-    IPCIDR,
-}
-
-impl fmt::Display for MqttAclBlackListType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MqttAclBlackListType::ClientId => "ClientId",
-                MqttAclBlackListType::User => "User",
-                MqttAclBlackListType::Ip => "Ip",
-                MqttAclBlackListType::ClientIdMatch => "ClientIdMatch",
-                MqttAclBlackListType::UserMatch => "UserMatch",
-                MqttAclBlackListType::IPCIDR => "IPCIDR",
-            }
-        )
     }
 }
 

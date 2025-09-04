@@ -15,8 +15,9 @@
 use crate::handler::error::MqttBrokerError;
 use crate::handler::{cache::MQTTCacheManager, flapping_detect::enable_flapping_detect};
 use crate::security::AuthDriver;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::broker::broker_mqtt_admin::{
     BlacklistRaw, CreateBlacklistReply, CreateBlacklistRequest, DeleteBlacklistReply,
     DeleteBlacklistRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,

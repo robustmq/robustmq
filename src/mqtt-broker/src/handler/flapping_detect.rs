@@ -15,12 +15,13 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use common_config::config::MqttFlappingDetect;
 use common_metrics::mqtt::event_metrics;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::broker::broker_mqtt_admin::EnableFlappingDetectRequest;
 use std::sync::Arc;
 use std::time::Duration;

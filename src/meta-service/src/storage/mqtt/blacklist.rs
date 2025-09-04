@@ -67,11 +67,11 @@ impl MqttBlackListStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+    use std::sync::Arc;
 
     use crate::storage::mqtt::blacklist::MqttBlackListStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
