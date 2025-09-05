@@ -32,7 +32,7 @@ pub struct SessionListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TopicListReq {
     pub topic_name: Option<String>,
     pub limit: Option<u32>,

@@ -100,7 +100,7 @@ enum MQTTAction {
     // ---- system alarm ----
     SystemAlarm(SystemAlarmArgs),
     // list topic
-    ListTopic,
+    Topic,
     // topic rewrite rule
     TopicRewriteRule(TopicRewriteArgs),
     // connector
@@ -227,7 +227,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
-            MQTTAction::ListTopic => MqttActionType::ListTopic,
+            MQTTAction::Topic => MqttActionType::ListTopic,
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSubscribe(args) => process_slow_sub_args(args),

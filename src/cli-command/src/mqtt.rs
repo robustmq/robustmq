@@ -27,8 +27,8 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule,
     mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist, mqtt_broker_list_connector,
     mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
-    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_user,
+    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
     mqtt_broker_set_slow_subscribe_config, mqtt_broker_set_system_alarm_config,
     mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
     mqtt_broker_update_schema,
@@ -46,7 +46,7 @@ use protocol::broker::broker_mqtt_admin::{
     EnableFlappingDetectRequest, ListAclRequest, ListAutoSubscribeRuleRequest,
     ListBindSchemaRequest, ListBlacklistRequest, ListConnectorRequest, ListFlappingDetectRequest,
     ListSchemaRequest, ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
-    ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
+    ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
     SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
     UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
 };
@@ -177,6 +177,11 @@ impl MqttBrokerCommand {
                 self.list_session(params.clone()).await;
             }
 
+            // list topic
+            MqttActionType::ListTopic => {
+                self.list_topic(params.clone()).await;
+            }
+
             // user admin
             MqttActionType::ListUser => {
                 self.list_user(&client_pool, params.clone()).await;
@@ -232,6 +237,7 @@ impl MqttBrokerCommand {
                 self.update_connector(&client_pool, params.clone(), request.clone())
                     .await;
             }
+
             // topic rewrite rule
             MqttActionType::CreateTopicRewriteRule(ref request) => {
                 self.create_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
@@ -240,9 +246,6 @@ impl MqttBrokerCommand {
             MqttActionType::DeleteTopicRewriteRule(ref request) => {
                 self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
                     .await;
-            }
-            MqttActionType::ListTopic => {
-                self.list_topic(&client_pool, params.clone()).await;
             }
             MqttActionType::ListSlowSubscribe(ref request) => {
                 self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
@@ -991,25 +994,42 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_topic(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListTopicRequest { topic_name: None };
-        match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), request).await {
-            Ok(data) => {
+    async fn list_topic(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for topic list
+        let request = admin_server::request::TopicListReq {
+            topic_name: None,
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client
+            .get_topic_list::<admin_server::request::TopicListReq, Vec<admin_server::response::TopicListRow>>(
+                &request,
+            )
+            .await
+        {
+            Ok(page_data) => {
                 println!("topic list result:");
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
                     "topic_id",
                     "topic_name",
-                    "cluster_name",
                     "is_contain_retain_message",
                 ]);
-                let topics = data.topics;
-                for topic in topics {
+                for topic in page_data.data {
                     table.add_row(row![
                         topic.topic_id,
                         topic.topic_name,
-                        topic.cluster_name,
                         topic.is_contain_retain_message
                     ]);
                 }
