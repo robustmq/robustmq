@@ -261,7 +261,7 @@ pub struct DeleteSchemaBindReq {
     pub resource_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ClientListReq {
     pub source_ip: Option<String>,
     pub connection_id: Option<u64>,

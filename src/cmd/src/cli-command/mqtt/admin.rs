@@ -88,14 +88,14 @@ pub(crate) struct DetailSubscribeArgs {
 #[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct ConnectionArgs {
+pub(crate) struct ClientsArgs {
     #[command(subcommand)]
-    pub action: ConnectionActionType,
+    pub action: ClientsActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
-pub enum ConnectionActionType {
-    #[command(author = "RobustMQ", about = "action: list connection", long_about = None)]
+pub enum ClientsActionType {
+    #[command(author = "RobustMQ", about = "action: list clients", long_about = None)]
     List,
 }
 
@@ -801,9 +801,9 @@ pub fn process_blacklist_args(
     }
 }
 
-pub fn process_connection_args(args: ConnectionArgs) -> MqttActionType {
+pub fn process_connection_args(args: ClientsArgs) -> MqttActionType {
     match args.action {
-        ConnectionActionType::List => MqttActionType::ListConnection,
+        ClientsActionType::List => MqttActionType::ListClient,
     }
 }
 

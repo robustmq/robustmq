@@ -21,7 +21,7 @@ use cli_command::placement::{
 };
 use mqtt::admin::{
     process_auto_subscribe_args, process_config_args, process_connection_args,
-    process_session_args, AutoSubscribeRuleCommand, ClusterConfigArgs, ConnectionArgs, SchemaArgs,
+    process_session_args, AutoSubscribeRuleCommand, ClientsArgs, ClusterConfigArgs, SchemaArgs,
     SessionArgs,
 };
 use mqtt::publish::process_subscribe_args;
@@ -92,8 +92,8 @@ enum MQTTAction {
     Blacklist(BlacklistArgs),
     // flapping detect feat
     FlappingDetect(FlappingDetectArgs),
-    // Connections
-    Connection(ConnectionArgs),
+    // Clients
+    Clients(ClientsArgs),
     // #### observability ####
     // ---- slow subscription ----
     SlowSubscribe(SlowSubscribeArgs),
@@ -223,7 +223,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // system alarm
             MQTTAction::SystemAlarm(args) => process_system_alarm_args(args),
             // Connections
-            MQTTAction::Connection(args) => process_connection_args(args),
+            MQTTAction::Clients(args) => process_connection_args(args),
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic

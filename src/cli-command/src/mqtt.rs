@@ -25,13 +25,13 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_delete_blacklist, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
     mqtt_broker_delete_topic_rewrite_rule, mqtt_broker_delete_user,
     mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule,
-    mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist, mqtt_broker_list_connection,
-    mqtt_broker_list_connector, mqtt_broker_list_flapping_detect, mqtt_broker_list_schema,
-    mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm,
-    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
-    mqtt_broker_set_cluster_config, mqtt_broker_set_slow_subscribe_config,
-    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist, mqtt_broker_list_connector,
+    mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe,
+    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
+    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_set_slow_subscribe_config, mqtt_broker_set_system_alarm_config,
+    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
+    mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -44,11 +44,11 @@ use protocol::broker::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
     EnableFlappingDetectRequest, ListAclRequest, ListAutoSubscribeRuleRequest,
-    ListBindSchemaRequest, ListBlacklistRequest, ListConnectionRequest, ListConnectorRequest,
-    ListFlappingDetectRequest, ListSchemaRequest, ListSlowSubscribeRequest, ListSubscribeRequest,
-    ListSystemAlarmRequest, ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest,
-    SubscribeDetailRequest, UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
+    ListBindSchemaRequest, ListBlacklistRequest, ListConnectorRequest, ListFlappingDetectRequest,
+    ListSchemaRequest, ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
+    ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
+    SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
+    UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -97,8 +97,8 @@ pub enum MqttActionType {
     CreateBlacklist(CreateBlacklistRequest),
     DeleteBlacklist(DeleteBlacklistRequest),
 
-    // connection
-    ListConnection,
+    // client
+    ListClient,
 
     // #### observability ####
     // slow subscribe
@@ -167,14 +167,14 @@ impl MqttBrokerCommand {
                 self.get_cluster_config(params.clone()).await;
             }
 
+            // list connection
+            MqttActionType::ListClient => {
+                self.list_clients(params.clone()).await;
+            }
+
             // list session
             MqttActionType::ListSession => {
                 self.list_session(params.clone()).await;
-            }
-
-            // list connection
-            MqttActionType::ListConnection => {
-                self.list_connections(&client_pool, params.clone()).await;
             }
 
             // user admin
@@ -783,10 +783,31 @@ impl MqttBrokerCommand {
     }
 
     // -------------- list connections --------------
-    async fn list_connections(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListConnectionRequest {};
-        match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
-            Ok(data) => {
+    async fn list_clients(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for client list
+        let request = admin_server::request::ClientListReq {
+            source_ip: None,
+            connection_id: None,
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client
+            .get_client_list::<admin_server::request::ClientListReq, Vec<admin_server::response::ClientListRow>>(
+                &request,
+            )
+            .await
+        {
+            Ok(page_data) => {
                 let mut table = Table::new();
 
                 println!("connection list:");
@@ -795,16 +816,16 @@ impl MqttBrokerCommand {
                     "connection_type",
                     "protocol",
                     "source_addr",
-                    "info",
+                    "create_time",
                 ]);
 
-                for raw in data.list_connection_raw {
+                for client in page_data.data {
                     table.add_row(row![
-                        raw.connection_id,
-                        raw.connection_type,
-                        raw.protocol,
-                        raw.source_addr,
-                        raw.info,
+                        client.connection_id,
+                        client.connection_type,
+                        client.protocol,
+                        client.source_addr,
+                        client.create_time,
                     ]);
                 }
                 // output cmd
