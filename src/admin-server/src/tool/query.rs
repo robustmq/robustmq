@@ -107,11 +107,11 @@ fn parse_match_mode(exact_match: Option<String>) -> MatchMode {
 }
 
 fn parse_limit(page_num: Option<u32>) -> u32 {
-    if let Some(pn) = page_num {
-        if pn == 0 {
+    if let Some(num) = page_num {
+        if num == 0 {
             return 10;
         } else {
-            return pn;
+            return num;
         }
     }
     10
