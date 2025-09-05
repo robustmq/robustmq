@@ -236,34 +236,6 @@ pub async fn publish_validator(
         }
     }
 
-    if let Some(properties) = publish_properties {
-        if let Some(payload_format) = properties.payload_format_indicator {
-            if payload_format == 1
-                && std::str::from_utf8(publish.payload.to_vec().as_slice()).is_err()
-            {
-                if is_puback {
-                    return Some(build_puback(
-                        protocol,
-                        connection,
-                        publish.p_kid,
-                        PubAckReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
-                        Vec::new(),
-                    ));
-                } else {
-                    return Some(build_pubrec(
-                        protocol,
-                        connection,
-                        publish.p_kid,
-                        PubRecReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
-                        Vec::new(),
-                    ));
-                }
-            }
-        }
-    }
-
     if is_qos_message(publish.qos)
         && connection.get_recv_qos_message() >= cluster.mqtt_protocol_config.receive_max as isize
     {
@@ -295,7 +267,7 @@ pub async fn publish_validator(
                 connection,
                 publish.p_kid,
                 PubAckReason::PayloadFormatInvalid,
-                None,
+                Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                 Vec::new(),
             ));
         } else {
@@ -304,7 +276,7 @@ pub async fn publish_validator(
                 connection,
                 publish.p_kid,
                 PubRecReason::PayloadFormatInvalid,
-                None,
+                Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                 Vec::new(),
             ));
         }
