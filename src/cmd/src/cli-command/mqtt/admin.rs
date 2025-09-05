@@ -426,6 +426,21 @@ pub(crate) struct ListSlowSubscribeArgs {
     )]
     pub(crate) client_id: Option<String>,
 }
+// ---- system alarm ----
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of topic, such as setting and listing", long_about = None
+)]
+#[command(next_line_help = true)]
+pub(crate) struct TopicArgs {
+    #[command(subcommand)]
+    pub action: TopicActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum TopicActionType {
+    #[command(author = "RobustMQ", about = "action: list topic", long_about = None)]
+    List,
+}
 
 // ---- system alarm ----
 #[derive(clap::Args, Debug)]
@@ -804,6 +819,12 @@ pub fn process_blacklist_args(
 pub fn process_connection_args(args: ClientsArgs) -> MqttActionType {
     match args.action {
         ClientsActionType::List => MqttActionType::ListClient,
+    }
+}
+
+pub fn process_topic_args(args: TopicArgs) -> MqttActionType {
+    match args.action {
+        TopicActionType::List => MqttActionType::ListTopic,
     }
 }
 

@@ -122,7 +122,10 @@ pub enum MqttActionType {
     // subscribe
     Subscribe(SubscribeArgsRequest),
 
+    // Topic
     ListTopic,
+
+    // FlappingDetect
     ListFlappingDetect,
 
     // connector

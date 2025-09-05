@@ -31,10 +31,10 @@ use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembers
 
 use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_schema_args,
-    process_slow_sub_args, process_subscribes_args, process_system_alarm_args,
+    process_slow_sub_args, process_subscribes_args, process_system_alarm_args, process_topic_args,
     process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
-    FlappingDetectArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicRewriteArgs,
-    UserArgs,
+    FlappingDetectArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicArgs,
+    TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -99,8 +99,10 @@ enum MQTTAction {
     SlowSubscribe(SlowSubscribeArgs),
     // ---- system alarm ----
     SystemAlarm(SystemAlarmArgs),
+
     // list topic
-    Topic,
+    Topic(TopicArgs),
+
     // topic rewrite rule
     TopicRewriteRule(TopicRewriteArgs),
     // connector
@@ -227,7 +229,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
-            MQTTAction::Topic => MqttActionType::ListTopic,
+            MQTTAction::Topic(args) => process_topic_args(args),
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSubscribe(args) => process_slow_sub_args(args),
