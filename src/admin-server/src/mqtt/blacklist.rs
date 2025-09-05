@@ -18,10 +18,7 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::{
     enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str,
     http_response::{error_response, success_response},
@@ -33,7 +30,7 @@ use std::sync::Arc;
 
 pub async fn blacklist_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<BlackListListReq>,
+    Json(params): Json<BlackListListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

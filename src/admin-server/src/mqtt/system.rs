@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::{http_response::success_response, utils::time_util::timestamp_to_local_datetime};
 use std::sync::Arc;
 
@@ -28,7 +25,7 @@ use crate::{
 
 pub async fn system_alarm_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SystemAlarmListReq>,
+    Json(params): Json<SystemAlarmListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

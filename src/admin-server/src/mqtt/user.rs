@@ -18,10 +18,7 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::mqtt::user::MqttUser;
 use mqtt_broker::security::AuthDriver;
@@ -29,7 +26,7 @@ use std::sync::Arc;
 
 pub async fn user_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<UserListReq>,
+    Json(params): Json<UserListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

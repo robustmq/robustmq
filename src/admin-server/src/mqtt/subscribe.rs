@@ -20,10 +20,7 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::{
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,
@@ -37,7 +34,7 @@ use std::sync::Arc;
 
 pub async fn subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SubscribeListReq>,
+    Json(params): Json<SubscribeListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -87,7 +84,7 @@ impl Queryable for SubscribeListRow {
 
 pub async fn auto_subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<AutoSubscribeListReq>,
+    Json(params): Json<AutoSubscribeListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -191,7 +188,7 @@ pub async fn auto_subscribe_delete(
 
 pub async fn slow_subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<AutoSubscribeListReq>,
+    Json(params): Json<AutoSubscribeListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

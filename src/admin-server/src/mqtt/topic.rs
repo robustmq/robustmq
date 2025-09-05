@@ -18,10 +18,7 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::{
     http_response::{error_response, success_response},
     tools::now_second,
@@ -32,7 +29,7 @@ use std::sync::Arc;
 
 pub async fn topic_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<TopicListReq>,
+    Json(params): Json<TopicListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -86,7 +83,7 @@ impl Queryable for TopicListRow {
 
 pub async fn topic_rewrite_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<TopicRewriteReq>,
+    Json(params): Json<TopicRewriteReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

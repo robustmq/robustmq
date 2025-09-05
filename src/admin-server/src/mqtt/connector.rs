@@ -18,10 +18,7 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::{
     error::ResultCommonError,
     http_response::{error_response, success_response},
@@ -41,7 +38,7 @@ use std::sync::Arc;
 
 pub async fn connector_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<ConnectorListReq>,
+    Json(params): Json<ConnectorListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
 use common_config::broker::broker_config;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
@@ -34,7 +31,7 @@ use crate::{
 
 pub async fn schema_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SchemaListReq>,
+    Json(params): Json<SchemaListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -129,7 +126,7 @@ pub async fn schema_delete(
 
 pub async fn schema_bind_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SchemaBindListReq>,
+    Json(params): Json<SchemaBindListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

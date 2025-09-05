@@ -18,14 +18,14 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::extract::{Query, State};
+use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
 use mqtt_broker::security::AuthDriver;
 use std::sync::Arc;
 
 pub async fn acl_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<AclListReq>,
+    Json(params): Json<AclListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

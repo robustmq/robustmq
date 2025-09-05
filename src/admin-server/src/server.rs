@@ -78,52 +78,54 @@ impl AdminServer {
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route("/mqtt/overview", get(overview))
-            .route("/mqtt/overview/metrics", get(overview_metrics))
+            .route("/mqtt/overview", post(overview))
+            .route("/mqtt/overview/metrics", post(overview_metrics))
             // client
-            .route("/mqtt/client/list", get(client_list))
+            .route("/mqtt/client/list", post(client_list))
             // session
-            .route("/mqtt/session/list", get(session_list))
+            .route("/mqtt/session/list", post(session_list))
             // topic
-            .route("/mqtt/topic/list", get(topic_list))
+            .route("/mqtt/topic/list", post(topic_list))
             // topic-rewrite
-            .route("/mqtt/topic-rewrite/list", get(topic_rewrite_list))
+            .route("/mqtt/topic-rewrite/list", post(topic_rewrite_list))
             .route("/mqtt/topic-rewrite/create", post(topic_rewrite_create))
             .route("/mqtt/topic-rewrite/delete", post(topic_list))
             // subscribe
-            .route("/mqtt/subscribe/list", get(subscribe_list))
-            .route("/mqtt/subscribe/detail", get(subscribe_list))
+            .route("/mqtt/subscribe/list", post(subscribe_list))
+            .route("/mqtt/subscribe/detail", post(subscribe_list))
             // auto subscribe
-            .route("/mqtt/auto-subscribe/list", get(auto_subscribe_list))
+            .route("/mqtt/auto-subscribe/list", post(auto_subscribe_list))
             .route("/mqtt/auto-subscribe/create", post(auto_subscribe_create))
             .route("/mqtt/auto-subscribe/delete", post(auto_subscribe_delete))
             // slow subscribe
-            .route("/mqtt/slow-subscribe/list", get(slow_subscribe_list))
+            .route("/mqtt/slow-subscribe/list", post(slow_subscribe_list))
             // user
-            .route("/mqtt/user/list", get(user_list))
+            .route("/mqtt/user/list", post(user_list))
             .route("/mqtt/user/create", post(user_create))
             .route("/mqtt/user/delete", post(user_delete))
             // acl
-            .route("/mqtt/acl/list", get(acl_list))
+            .route("/mqtt/acl/list", post(acl_list))
+            .route("/mqtt/acl/create", post(acl_list))
+            .route("/mqtt/acl/delete", post(acl_list))
             // blacklist
-            .route("/mqtt/blacklist/list", get(blacklist_list))
+            .route("/mqtt/blacklist/list", post(blacklist_list))
             .route("/mqtt/blacklist/create", post(blacklist_create))
             .route("/mqtt/blacklist/delete", post(blacklist_delete))
             // flapping_detect
-            .route("/mqtt/flapping_detect/list", get(blacklist_list))
+            .route("/mqtt/flapping_detect/list", post(blacklist_list))
             // connector
-            .route("/mqtt/connector/list", get(connector_list))
+            .route("/mqtt/connector/list", post(connector_list))
             .route("/mqtt/connector/create", post(connector_create))
             .route("/mqtt/connector/delete", post(connector_delete))
             // schema
-            .route("/mqtt/schema/list", get(schema_list))
+            .route("/mqtt/schema/list", post(schema_list))
             .route("/mqtt/schema/create", post(schema_create))
             .route("/mqtt/schema/delete", post(schema_delete))
-            .route("/mqtt/schema-bind/list", get(schema_bind_list))
+            .route("/mqtt/schema-bind/list", post(schema_bind_list))
             .route("/mqtt/schema-bind/create", post(schema_bind_create))
             .route("/mqtt/schema-bind/delete", post(schema_bind_delete))
             // system alarm
-            .route("/mqtt/system-alarm/list", get(system_alarm_list))
+            .route("/mqtt/system-alarm/list", post(system_alarm_list))
             // config
             .route("/mqtt/cluster-config/set", post(cluster_config_set))
     }
