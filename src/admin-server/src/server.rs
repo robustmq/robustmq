@@ -62,23 +62,22 @@ impl AdminServer {
     }
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
-        Router::new()
-            .route("/", get(index))
-            .route("/overview", get(overview))
-            .route("/overview-metrics", get(overview_metrics))
-            .route("/client-list", get(client_list))
-            .route("/session-list", get(session_list))
-            .route("/topic-list", get(topic_list))
-            .route("/subscribe-list", get(subscribe_list))
-            .route("/user-list", get(user_list))
-            .route("/acl-list", get(acl_list))
-            .route("/blacklist-list", get(blacklist_list))
-            .route("/connector-list", get(connector_list))
-            .route("/schema-list", get(schema_list))
+        Router::new().route("/", get(index))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
-        Router::new().route("/session/list", get(session_list))
+        Router::new()
+            .route("/mqtt/overview", get(overview))
+            .route("/mqtt/overview-metrics", get(overview_metrics))
+            .route("/mqtt/client-list", get(client_list))
+            .route("/mqtt/session-list", get(session_list))
+            .route("/mqtt/topic-list", get(topic_list))
+            .route("/mqtt/subscribe-list", get(subscribe_list))
+            .route("/mqtt/user-list", get(user_list))
+            .route("/mqtt/acl-list", get(acl_list))
+            .route("/mqtt/blacklist-list", get(blacklist_list))
+            .route("/mqtt/connector-list", get(connector_list))
+            .route("/mqtt/schema-list", get(schema_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
