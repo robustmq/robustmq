@@ -175,6 +175,44 @@ pub struct SchemaListReq {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct CreateSchemaReq {
+    pub schema_name: String,
+    pub schema_type: String,
+    pub schema: String,
+    pub desc: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteSchemaReq {
+    pub schema_name: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SchemaBindListReq {
+    pub resource_name: Option<String>,
+    pub schema_name: Option<String>,
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateSchemaBindReq {
+    pub schema_name: String,
+    pub resource_name: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteSchemaBindReq {
+    pub schema_name: String,
+    pub resource_name: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct ClientListReq {
     pub source_ip: Option<String>,
     pub connection_id: Option<u64>,

@@ -12,11 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, ResultCommonError};
 use common_config::broker::broker_config;
-use grpc_clients::{placement::inner::call::list_schema, pool::ClientPool};
+use grpc_clients::{
+    placement::inner::call::{
+        bind_schema, create_schema, delete_schema, list_schema, un_bind_schema,
+    },
+    pool::ClientPool,
+};
 use metadata_struct::schema::SchemaData;
-use protocol::meta::placement_center_inner::ListSchemaRequest;
+use protocol::meta::placement_center_inner::{
+    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest,
+    UnBindSchemaRequest,
+};
 use std::sync::Arc;
 
 pub struct SchemaStorage {
@@ -46,5 +54,75 @@ impl SchemaStorage {
             results.push(serde_json::from_slice::<SchemaData>(raw.as_slice())?);
         }
         Ok(results)
+    }
+
+    pub async fn create(&self, schema_data: SchemaData) -> ResultCommonError {
+        let config = broker_config();
+        let request = CreateSchemaRequest {
+            cluster_name: config.cluster_name.clone(),
+            schema_name: schema_data.name.clone(),
+            schema: schema_data.encode(),
+        };
+
+        create_schema(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn delete(&self, schema_name: String) -> ResultCommonError {
+        let config = broker_config();
+        let request = DeleteSchemaRequest {
+            cluster_name: config.cluster_name.clone(),
+            schema_name,
+        };
+
+        delete_schema(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn create_bind(&self, schema_name: &str, resource_name: &str) -> ResultCommonError {
+        let config = broker_config();
+        let request = BindSchemaRequest {
+            cluster_name: config.cluster_name.clone(),
+            schema_name: schema_name.to_string(),
+            resource_name: resource_name.to_string(),
+        };
+
+        bind_schema(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn delete_bind(&self, schema_name: &str, resource_name: &str) -> ResultCommonError {
+        let config = broker_config();
+        let request = UnBindSchemaRequest {
+            cluster_name: config.cluster_name.clone(),
+            schema_name: schema_name.to_string(),
+            resource_name: resource_name.to_string(),
+        };
+
+        un_bind_schema(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
+
+        Ok(())
     }
 }

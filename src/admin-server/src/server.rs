@@ -19,7 +19,10 @@ use crate::{
         client::client_list,
         connector::connector_list,
         overview::{overview, overview_metrics},
-        schema::schema_list,
+        schema::{
+            schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
+            schema_list,
+        },
         session::session_list,
         subscribe::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, subscribe_list,
@@ -104,6 +107,11 @@ impl AdminServer {
             .route("/mqtt/connector/list", get(connector_list))
             // schema
             .route("/mqtt/schema/list", get(schema_list))
+            .route("/mqtt/schema/create", get(schema_create))
+            .route("/mqtt/schema/delete", get(schema_delete))
+            .route("/mqtt/schema-bind/list", get(schema_bind_list))
+            .route("/mqtt/schema-bind/create", get(schema_bind_create))
+            .route("/mqtt/schema-bind/delete", get(schema_bind_delete))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

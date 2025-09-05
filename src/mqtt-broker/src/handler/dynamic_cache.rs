@@ -207,15 +207,12 @@ pub async fn update_cache_metadata(
         MqttBrokerUpdateCacheResourceType::SchemaResource => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let schema_resource = serde_json::from_str::<SchemaResourceBind>(&request.data)?;
-                schema_manager.add_schema_resource(&schema_resource);
+                schema_manager.add_bind(&schema_resource);
             }
 
             MqttBrokerUpdateCacheActionType::Delete => {
                 let schema_resource = serde_json::from_str::<SchemaResourceBind>(&request.data)?;
-                schema_manager.remove_resource_schema(
-                    &schema_resource.resource_name,
-                    &schema_resource.schema_name,
-                );
+                schema_manager.remove_bind(&schema_resource);
             }
         },
 

@@ -23,28 +23,31 @@ use crate::{avro::avro_validate, json::json_validate};
 #[derive(Default)]
 pub struct SchemaRegisterManager {
     // (SchemaName, SchemaData)
-    schema_list: DashMap<String, SchemaData>,
+    pub schema_list: DashMap<String, SchemaData>,
     // (Resource, Vec<SchemaName>)
-    schema_resource_list: DashMap<String, Vec<String>>,
+    pub resource_schema_list: DashMap<String, Vec<String>>,
+    // (Schema, Vec<Resource>)
+    pub schema_resource_list: DashMap<String, Vec<String>>,
 }
 
 impl SchemaRegisterManager {
     pub fn new() -> Self {
         SchemaRegisterManager {
             schema_list: DashMap::with_capacity(2),
+            resource_schema_list: DashMap::with_capacity(2),
             schema_resource_list: DashMap::with_capacity(2),
         }
     }
 
     pub fn is_check_schema(&self, topic: &str) -> bool {
-        if let Some(list) = self.schema_resource_list.get(topic) {
+        if let Some(list) = self.resource_schema_list.get(topic) {
             return !list.is_empty();
         }
         false
     }
 
     pub fn validate(&self, resource: &str, data: &[u8]) -> Result<bool, CommonError> {
-        if let Some(schemc_list) = self.schema_resource_list.get(resource) {
+        if let Some(schemc_list) = self.resource_schema_list.get(resource) {
             for schema_name in schemc_list.iter() {
                 if let Some(schema) = self.schema_list.get(schema_name) {
                     match schema.schema_type {
@@ -88,32 +91,38 @@ impl SchemaRegisterManager {
     }
 
     // Schema Resource
-    pub fn add_schema_resource(&self, schema_resource: &SchemaResourceBind) {
-        let schema_name = &schema_resource.schema_name;
-        let resource = schema_resource.resource_name.clone();
+    pub fn add_bind(&self, schema_resource: &SchemaResourceBind) {
+        let schema_name = schema_resource.schema_name.clone();
+        let resource_name = schema_resource.resource_name.clone();
 
-        if let Some(mut list) = self.schema_resource_list.get_mut(schema_name) {
+        // resource_schema_list
+        if let Some(mut list) = self.resource_schema_list.get_mut(&resource_name) {
             if !list.contains(&schema_name.to_owned()) {
                 list.push(schema_name.to_owned());
             }
         } else {
-            self.schema_resource_list
-                .insert(resource, vec![schema_name.to_owned()]);
+            self.resource_schema_list
+                .insert(resource_name.clone(), vec![schema_name.to_owned()]);
+        }
+
+        // schema_resource_list
+        if let Some(mut list) = self.schema_resource_list.get_mut(&schema_name) {
+            if !list.contains(&schema_name.to_owned()) {
+                list.push(schema_name.to_owned());
+            }
+        } else {
+            self.resource_schema_list
+                .insert(schema_name, vec![resource_name.to_owned()]);
         }
     }
 
-    pub fn remove_resource(&self, resource: &str) {
-        self.schema_resource_list.remove(resource);
+    pub fn remove_bind(&self, bind: &SchemaResourceBind) {
+        self.resource_schema_list.remove(&bind.resource_name);
+        self.schema_resource_list.remove(&bind.schema_name);
     }
 
-    pub fn remove_resource_schema(&self, resource: &str, schema_name: &str) {
-        if let Some(mut list) = self.schema_resource_list.get_mut(resource) {
-            list.retain(|x| x != schema_name);
-        }
-    }
-
-    pub fn get_schema_resource(&self, resource: &str) -> Vec<SchemaData> {
-        if let Some(list) = self.schema_resource_list.get(resource) {
+    pub fn get_bind_schema_by_resource(&self, resource_name: &str) -> Vec<SchemaData> {
+        if let Some(list) = self.resource_schema_list.get(resource_name) {
             let mut res = Vec::new();
             for schema_name in list.iter() {
                 if let Some(schema) = self.schema_list.get(schema_name) {
@@ -121,6 +130,14 @@ impl SchemaRegisterManager {
                 }
             }
             res
+        } else {
+            vec![]
+        }
+    }
+
+    pub fn get_bind_resource_by_schema(&self, schema_name: &str) -> Vec<String> {
+        if let Some(list) = self.schema_resource_list.get(schema_name) {
+            list.clone()
         } else {
             vec![]
         }
@@ -162,7 +179,7 @@ mod test {
             resource_name: topic_name.clone(),
             schema_name: schema_name.clone(),
         };
-        schema_manager.add_schema_resource(&bind_schema);
+        schema_manager.add_bind(&bind_schema);
 
         assert!(schema_manager.is_check_schema(&topic_name));
 
@@ -233,7 +250,7 @@ mod test {
             resource_name: topic_name.clone(),
             schema_name: schema_name.clone(),
         };
-        schema_manager.add_schema_resource(&bind_schema);
+        schema_manager.add_bind(&bind_schema);
 
         assert!(schema_manager.is_check_schema(&topic_name));
 

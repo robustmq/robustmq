@@ -90,6 +90,12 @@ pub struct SchemaListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct SchemaBindListRow {
+    pub data_type: String,
+    pub data: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SubscribeListRow {
     pub client_id: String,
     pub path: String,
