@@ -80,6 +80,37 @@ pub async fn cluster_config_set(
     State(_state): State<Arc<HttpState>>,
     Json(_params): Json<ClusterConfigSetReq>,
 ) -> String {
+    // match FeatureType::from_str(params.config_type.as_str()) {
+    //     Ok(FeatureType::SlowSubscribe) => {
+    //         // let mut config = cache_manager.get_slow_sub_config();
+    //         // config.enable = request.is_enable;
+    //         // cache_manager.update_slow_sub_config(config.clone());
+    //         // save_cluster_dynamic_config(
+    //         //     client_pool,
+    //         //     ClusterDynamicConfig::MqttFlappingDetect,
+    //         //     config.encode(),
+    //         // )
+    //         // .await?;
+    //     }
+
+    //     Ok(FeatureType::OfflineMessage) => {
+    //         // let mut config = cache_manager.get_offline_message_config();
+    //         // config.enable = request.is_enable;
+    //         // cache_manager.update_offline_message_config(config.clone());
+    //         // save_cluster_dynamic_config(
+    //         //     client_pool,
+    //         //     ClusterDynamicConfig::MqttOfflineMessage,
+    //         //     config.encode(),
+    //         // )
+    //         // .await?;
+    //     }
+
+    //     Err(e) => {
+    //         return Err(MqttBrokerError::CommonError(format!(
+    //             "Failed to parse feature type: {e}"
+    //         )));
+    //     }
+    // }
     // set_slow_subscribe
     // set_system_alarm
     // OfflineMessage

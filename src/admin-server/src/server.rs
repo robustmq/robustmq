@@ -15,7 +15,7 @@
 use crate::{
     mqtt::{
         acl::acl_list,
-        blacklist::blacklist_list,
+        blacklist::{blacklist_create, blacklist_delete, blacklist_list},
         client::client_list,
         connector::{connector_create, connector_delete, connector_list},
         overview::{overview, overview_metrics},
@@ -107,10 +107,14 @@ impl AdminServer {
             .route("/mqtt/acl/list", get(acl_list))
             // blacklist
             .route("/mqtt/blacklist/list", get(blacklist_list))
+            .route("/mqtt/blacklist/create", post(blacklist_create))
+            .route("/mqtt/blacklist/delete", post(blacklist_delete))
+            // flapping_detect
+            .route("/mqtt/flapping_detect/list", get(blacklist_list))
             // connector
             .route("/mqtt/connector/list", get(connector_list))
-            .route("/mqtt/connector/create", get(connector_create))
-            .route("/mqtt/connector/delete", get(connector_delete))
+            .route("/mqtt/connector/create", post(connector_create))
+            .route("/mqtt/connector/delete", post(connector_delete))
             // schema
             .route("/mqtt/schema/list", get(schema_list))
             .route("/mqtt/schema/create", post(schema_create))

@@ -19,6 +19,8 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
 
+use crate::error::common::CommonError;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub enum MqttAclBlackListType {
     ClientId,
@@ -64,6 +66,26 @@ impl ValueEnum for MqttAclBlackListType {
             MqttAclBlackListType::IPCIDR => PossibleValue::new("IPCIDR"),
         })
     }
+}
+
+pub fn get_blacklist_type_by_str(
+    blacklist_type: &str,
+) -> Result<MqttAclBlackListType, CommonError> {
+    let blacklist_type = match blacklist_type {
+        "ClientId" => MqttAclBlackListType::ClientId,
+        "User" => MqttAclBlackListType::User,
+        "Ip" => MqttAclBlackListType::Ip,
+        "ClientIdMatch" => MqttAclBlackListType::ClientIdMatch,
+        "UserMatch" => MqttAclBlackListType::UserMatch,
+        "IPCIDR" => MqttAclBlackListType::IPCIDR,
+        _ => {
+            return Err(CommonError::CommonError(format!(
+                "Failed BlackList Type: {}",
+                blacklist_type
+            )))
+        }
+    };
+    Ok(blacklist_type)
 }
 
 impl fmt::Display for MqttAclBlackListType {

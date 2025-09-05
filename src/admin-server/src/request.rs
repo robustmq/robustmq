@@ -117,6 +117,20 @@ pub struct BlackListListReq {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct CreateBlackListReq {
+    pub blacklist_type: String,
+    pub resource_name: String,
+    pub end_time: u64,
+    pub desc: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteBlackListReq {
+    pub blacklist_type: String,
+    pub resource_name: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct TopicRewriteReq {
     pub page_num: Option<u32>,
     pub page: Option<u32>,
@@ -250,4 +264,7 @@ pub struct SystemAlarmListReq {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ClusterConfigSetReq {}
+pub struct ClusterConfigSetReq {
+    pub config_type: String,
+    pub config: String,
+}
