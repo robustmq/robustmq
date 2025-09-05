@@ -94,7 +94,7 @@ mod tests {
     use crate::common::tool::test_build_mqtt_cache_manager;
 
     use super::*;
-    use common_base::tools::{self};
+    use common_base::tools::now_second;
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -196,7 +196,7 @@ mod tests {
                 source_topic: rule.source.to_string(),
                 dest_topic: rule.destination.to_string(),
                 regex: rule.regex.to_string(),
-                timestamp: tools::now_nanos(),
+                timestamp: now_second(),
             };
             cache_manager.add_topic_rewrite_rule(rule);
             sleep(Duration::from_nanos(100)).await;

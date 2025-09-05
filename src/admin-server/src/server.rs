@@ -21,13 +21,19 @@ use crate::{
         overview::{overview, overview_metrics},
         schema::schema_list,
         session::session_list,
-        subscribe::subscribe_list,
-        topic::topic_list,
-        user::user_list,
+        subscribe::{
+            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, subscribe_list,
+        },
+        topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
+        user::{user_create, user_delete, user_list},
     },
     state::HttpState,
 };
-use axum::{extract::State, routing::get, Router};
+use axum::{
+    extract::State,
+    routing::{get, post},
+    Router,
+};
 use common_base::version::version;
 use std::sync::Arc;
 use tracing::info;
@@ -68,16 +74,36 @@ impl AdminServer {
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
             .route("/mqtt/overview", get(overview))
-            .route("/mqtt/overview-metrics", get(overview_metrics))
-            .route("/mqtt/client-list", get(client_list))
-            .route("/mqtt/session-list", get(session_list))
-            .route("/mqtt/topic-list", get(topic_list))
-            .route("/mqtt/subscribe-list", get(subscribe_list))
-            .route("/mqtt/user-list", get(user_list))
-            .route("/mqtt/acl-list", get(acl_list))
-            .route("/mqtt/blacklist-list", get(blacklist_list))
-            .route("/mqtt/connector-list", get(connector_list))
-            .route("/mqtt/schema-list", get(schema_list))
+            .route("/mqtt/overview/metrics", get(overview_metrics))
+            // client
+            .route("/mqtt/client/list", get(client_list))
+            // session
+            .route("/mqtt/session/list", get(session_list))
+            // topic
+            .route("/mqtt/topic/list", get(topic_list))
+            // topic-rewrite
+            .route("/mqtt/topic-rewrite/list", get(topic_rewrite_list))
+            .route("/mqtt/topic-rewrite/create", get(topic_rewrite_create))
+            .route("/mqtt/topic-rewrite/delete", get(topic_list))
+            // subscribe
+            .route("/mqtt/subscribe/list", get(subscribe_list))
+            .route("/mqtt/subscribe/detail", get(subscribe_list))
+            // auto subscribe
+            .route("/mqtt/auto-subscribe/list", get(auto_subscribe_list))
+            .route("/mqtt/auto-subscribe/create", get(auto_subscribe_create))
+            .route("/mqtt/auto-subscribe/delete", get(auto_subscribe_delete))
+            // user
+            .route("/mqtt/user/list", get(user_list))
+            .route("/mqtt/user/create", post(user_create))
+            .route("/mqtt/user/delete", post(user_delete))
+            // acl
+            .route("/mqtt/acl/list", get(acl_list))
+            // blacklist
+            .route("/mqtt/blacklist/list", get(blacklist_list))
+            // connector
+            .route("/mqtt/connector/list", get(connector_list))
+            // schema
+            .route("/mqtt/schema/list", get(schema_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

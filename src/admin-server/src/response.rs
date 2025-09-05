@@ -38,6 +38,14 @@ pub struct TopicListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct TopicRewriteListRow {
+    pub source_topic: String,
+    pub dest_topic: String,
+    pub regex: String,
+    pub action: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct UserListRow {
     pub username: String,
     pub is_superuser: bool,
@@ -95,6 +103,15 @@ pub struct SubscribeListRow {
     pub pk_id: u32,
     pub properties: String,
     pub is_share_sub: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AutoSubscribeListRow {
+    pub topic: String,
+    pub qos: String,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub retained_handling: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

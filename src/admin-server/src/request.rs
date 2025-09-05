@@ -57,6 +57,31 @@ pub struct SubscribeListReq {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct AutoSubscribeListReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateAutoSubscribeReq {
+    pub topic: String,
+    pub qos: u32,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub retained_handling: u32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteAutoSubscribeReq {
+    pub topic_name: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct UserListReq {
     pub user_name: Option<String>,
     pub page_num: Option<u32>,
@@ -69,6 +94,18 @@ pub struct UserListReq {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct CreateUserReq {
+    pub username: String,
+    pub password: String,
+    pub is_superuser: bool,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteUserReq {
+    pub username: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct BlackListListReq {
     pub page_num: Option<u32>,
     pub page: Option<u32>,
@@ -77,6 +114,31 @@ pub struct BlackListListReq {
     pub filter_field: Option<String>,
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TopicRewriteReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateTopicRewriteReq {
+    pub action: String,
+    pub source_topic: String,
+    pub dest_topic: String,
+    pub regex: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteTopicRewriteReq {
+    pub action: String,
+    pub source_topic: String,
 }
 
 #[derive(Deserialize, Debug)]
