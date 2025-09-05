@@ -11,7 +11,7 @@ export const sidebar = [
                 text: "版本计划",
                 collapsed: true,
                 items: [
-                    { text: "2025 年 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
+                    { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
