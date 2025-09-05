@@ -737,14 +737,14 @@ impl MqttBrokerCommand {
                     "blacklist_type",
                     "resource_name",
                     "end_time",
-                    "blacklist_type"
+                    "description"
                 ]);
                 for blacklist in data.blacklists {
                     table.add_row(row![
                         blacklist.blacklist_type,
                         blacklist.resource_name,
                         blacklist.end_time,
-                        blacklist.blacklist_type
+                        blacklist.desc
                     ]);
                 }
                 // output cmd

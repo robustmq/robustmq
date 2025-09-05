@@ -117,8 +117,9 @@ mod test {
     use super::is_blacklist;
     use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::tools::{local_hostname, now_second};
-    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;

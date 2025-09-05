@@ -22,7 +22,8 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use std::sync::Arc;
 
-    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
+    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use paho_mqtt::MessageBuilder;
     use protocol::broker::broker_mqtt_admin::{
         CreateBlacklistRequest, CreateUserRequest, DeleteBlacklistRequest, DeleteUserRequest,
