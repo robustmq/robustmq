@@ -22,6 +22,8 @@ use std::str::FromStr;
 pub enum FeatureType {
     SlowSubscribe,
     OfflineMessage,
+    SystemAlarm,
+    FlappingDetect,
 }
 
 impl FromStr for FeatureType {
@@ -54,6 +56,8 @@ impl ValueEnum for FeatureType {
         Some(match self {
             FeatureType::SlowSubscribe => PossibleValue::new("SlowSubscribe"),
             FeatureType::OfflineMessage => PossibleValue::new("OfflineMessage"),
+            FeatureType::SystemAlarm => PossibleValue::new("SystemAlarm"),
+            FeatureType::FlappingDetect => PossibleValue::new("FlappingDetect"),
         })
     }
 }

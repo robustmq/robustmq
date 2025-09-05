@@ -17,12 +17,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SlowSubscribeData {
-    pub(crate) subscribe_name: String,
-    pub(crate) client_id: String,
-    pub(crate) topic_name: String,
-    pub(crate) node_info: String,
-    pub(crate) time_span: u64,
-    pub(crate) create_time: u64,
+    pub subscribe_name: String,
+    pub client_id: String,
+    pub topic_name: String,
+    pub node_info: String,
+    pub time_span: u64,
+    pub create_time: u64,
 }
 
 impl SlowSubscribeData {

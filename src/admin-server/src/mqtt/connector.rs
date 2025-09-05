@@ -13,18 +13,32 @@
 // limitations under the License.
 
 use crate::{
-    request::ConnectorListReq,
+    request::{ConnectorListReq, CreateConnectorReq, DeleteConnectorReq},
     response::{ConnectorListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::extract::{Query, State};
-use common_base::{http_response::success_response, utils::time_util::timestamp_to_local_datetime};
+use axum::{extract::State, Json};
+use common_base::{
+    error::ResultCommonError,
+    http_response::{error_response, success_response},
+    tools::now_second,
+    utils::time_util::timestamp_to_local_datetime,
+};
+use metadata_struct::mqtt::bridge::{
+    config_greptimedb::GreptimeDBConnectorConfig,
+    config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig,
+    connector::MQTTConnector,
+    connector_type::{connector_type_for_string, ConnectorType},
+    status::MQTTStatus,
+};
+use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
 
 pub async fn connector_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<ConnectorListReq>,
+    Json(params): Json<ConnectorListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -75,4 +89,67 @@ impl Queryable for ConnectorListRow {
             _ => None,
         }
     }
+}
+
+pub async fn connector_create(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<CreateConnectorReq>,
+) -> String {
+    if let Err(e) = connector_create_inner(&state, params).await {
+        return error_response(e.to_string());
+    }
+    success_response("success")
+}
+
+pub async fn connector_delete(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<DeleteConnectorReq>,
+) -> String {
+    let storage = ConnectorStorage::new(state.client_pool.clone());
+    if let Err(e) = storage
+        .delete_connector(&state.broker_cache.cluster_name, &params.connector_name)
+        .await
+    {
+        return error_response(e.to_string());
+    }
+
+    success_response("success")
+}
+
+async fn connector_create_inner(
+    state: &Arc<HttpState>,
+    params: CreateConnectorReq,
+) -> ResultCommonError {
+    let connector_type = connector_type_for_string(params.connector_type.clone())?;
+    connector_config_validator(&connector_type, &params.config)?;
+
+    let storage = ConnectorStorage::new(state.client_pool.clone());
+    let connector = MQTTConnector {
+        cluster_name: state.broker_cache.cluster_name.clone(),
+        connector_name: params.connector_name.clone(),
+        connector_type,
+        config: params.config.clone(),
+        topic_id: params.topic_id.clone(),
+        status: MQTTStatus::Idle,
+        broker_id: None,
+        create_time: now_second(),
+        update_time: now_second(),
+    };
+
+    storage.create_connector(connector).await
+}
+
+fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> ResultCommonError {
+    match connector_type {
+        ConnectorType::LocalFile => {
+            let _file_config: LocalFileConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::Kafka => {
+            let _kafka_config: KafkaConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::GreptimeDB => {
+            let _greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
+        }
+    }
+    Ok(())
 }

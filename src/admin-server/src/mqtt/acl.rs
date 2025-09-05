@@ -13,19 +13,27 @@
 // limitations under the License.
 
 use crate::{
-    request::AclListReq,
+    request::{AclListReq, CreateAclReq, DeleteAclReq},
     response::{AclListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::extract::{Query, State};
-use common_base::http_response::{error_response, success_response};
+use axum::{extract::State, Json};
+use common_base::{
+    enum_type::mqtt::acl::{
+        mqtt_acl_action::MqttAclAction, mqtt_acl_permission::MqttAclPermission,
+        mqtt_acl_resource_type::MqttAclResourceType,
+    },
+    error::{common::CommonError, ResultCommonError},
+    http_response::{error_response, success_response},
+};
+use metadata_struct::acl::mqtt_acl::MqttAcl;
 use mqtt_broker::security::AuthDriver;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<AclListReq>,
+    Json(params): Json<AclListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -79,4 +87,104 @@ impl Queryable for AclListRow {
             _ => None,
         }
     }
+}
+
+pub async fn acl_create(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<CreateAclReq>,
+) -> String {
+    match acl_create_inner(&state, &params).await {
+        Ok(_) => success_response("success"),
+        Err(e) => error_response(e.to_string()),
+    }
+}
+
+async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> ResultCommonError {
+    let resource_type = match MqttAclResourceType::from_str(&params.resource_type) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(CommonError::CommonError(e));
+        }
+    };
+
+    let action = match MqttAclAction::from_str(&params.action) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(CommonError::CommonError(e));
+        }
+    };
+
+    let permission = match MqttAclPermission::from_str(&params.permission) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(CommonError::CommonError(e));
+        }
+    };
+
+    let mqtt_acl = MqttAcl {
+        resource_type,
+        resource_name: params.resource_name.clone(),
+        topic: params.topic.clone(),
+        ip: params.ip.clone(),
+        action,
+        permission,
+    };
+    let auth_driver = AuthDriver::new(
+        state.mqtt_context.cache_manager.clone(),
+        state.client_pool.clone(),
+    );
+    if let Err(e) = auth_driver.save_acl(mqtt_acl).await {
+        return Err(CommonError::CommonError(e.to_string()));
+    }
+    Ok(())
+}
+
+pub async fn acl_delete(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<DeleteAclReq>,
+) -> String {
+    match acl_delete_inner(&state, &params).await {
+        Ok(_) => success_response("success"),
+        Err(e) => error_response(e.to_string()),
+    }
+}
+
+async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> ResultCommonError {
+    let resource_type = match MqttAclResourceType::from_str(&params.resource_type) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(CommonError::CommonError(e));
+        }
+    };
+
+    let action = match MqttAclAction::from_str(&params.action) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(CommonError::CommonError(e));
+        }
+    };
+
+    let permission = match MqttAclPermission::from_str(&params.permission) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(CommonError::CommonError(e));
+        }
+    };
+
+    let mqtt_acl = MqttAcl {
+        resource_type,
+        resource_name: params.resource_name.clone(),
+        topic: params.topic.clone(),
+        ip: params.ip.clone(),
+        action,
+        permission,
+    };
+    let auth_driver = AuthDriver::new(
+        state.mqtt_context.cache_manager.clone(),
+        state.client_pool.clone(),
+    );
+    if let Err(e) = auth_driver.delete_acl(mqtt_acl).await {
+        return Err(CommonError::CommonError(e.to_string()));
+    }
+    Ok(())
 }

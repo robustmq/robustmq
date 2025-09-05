@@ -42,6 +42,7 @@ pub async fn set_slow_subscribe_config_by_req(
         max_store_num: slow_subscribe_config.max_store_num,
     })
 }
+
 pub async fn list_slow_subscribe_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     metrics_cache_manager: &Arc<MetricsCacheManager>,

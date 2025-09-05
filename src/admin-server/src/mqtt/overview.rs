@@ -17,7 +17,7 @@ use crate::{
     response::{OverViewMetricsResp, OverViewResp},
     state::HttpState,
 };
-use axum::extract::{Query, State};
+use axum::{extract::State, Json};
 use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
     error::common::CommonError,
@@ -50,7 +50,7 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
 
 pub async fn overview_metrics(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<OverviewMetricsReq>,
+    Json(params): Json<OverviewMetricsReq>,
 ) -> String {
     match cluster_overview_metrics_by_req(&state.mqtt_context.metrics_manager, &params).await {
         Ok(data) => success_response(data),

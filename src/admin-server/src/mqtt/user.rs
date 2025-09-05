@@ -13,19 +13,20 @@
 // limitations under the License.
 
 use crate::{
-    request::UserListReq,
+    request::{CreateUserReq, DeleteUserReq, UserListReq},
     response::{PageReplyData, UserListRow},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::extract::{Query, State};
+use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
+use metadata_struct::mqtt::user::MqttUser;
 use mqtt_broker::security::AuthDriver;
 use std::sync::Arc;
 
 pub async fn user_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<UserListReq>,
+    Json(params): Json<UserListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -73,5 +74,40 @@ impl Queryable for UserListRow {
             "username" => Some(self.username.clone()),
             _ => None,
         }
+    }
+}
+
+pub async fn user_create(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<CreateUserReq>,
+) -> String {
+    let mqtt_user = MqttUser {
+        username: params.username.clone(),
+        password: params.password.clone(),
+        is_superuser: params.is_superuser,
+    };
+
+    let auth_driver = AuthDriver::new(
+        state.mqtt_context.cache_manager.clone(),
+        state.client_pool.clone(),
+    );
+    match auth_driver.save_user(mqtt_user).await {
+        Ok(_) => success_response("success"),
+        Err(e) => error_response(e.to_string()),
+    }
+}
+
+pub async fn user_delete(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<DeleteUserReq>,
+) -> String {
+    let auth_driver = AuthDriver::new(
+        state.mqtt_context.cache_manager.clone(),
+        state.client_pool.clone(),
+    );
+
+    match auth_driver.delete_user(params.username.clone()).await {
+        Ok(_) => success_response("success"),
+        Err(e) => error_response(e.to_string()),
     }
 }

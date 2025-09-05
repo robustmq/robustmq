@@ -52,6 +52,8 @@ pub async fn set_cluster_config_by_req(
             )
             .await?;
         }
+        Ok(FeatureType::SystemAlarm) => {}
+        Ok(FeatureType::FlappingDetect) => {}
 
         Err(e) => {
             return Err(MqttBrokerError::CommonError(format!(

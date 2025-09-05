@@ -15,7 +15,7 @@
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
-use common_base::tools::now_mills;
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -82,7 +82,7 @@ pub async fn create_topic_rewrite_rule_by_req(
         source_topic: request.source_topic.clone(),
         dest_topic: request.dest_topic.clone(),
         regex: request.regex.clone(),
-        timestamp: now_mills(),
+        timestamp: now_second(),
     };
 
     let topic_storage = TopicStorage::new(client_pool.clone());

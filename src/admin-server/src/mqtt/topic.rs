@@ -13,18 +13,23 @@
 // limitations under the License.
 
 use crate::{
-    request::TopicListReq,
-    response::{PageReplyData, TopicListRow},
+    request::{CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicListReq, TopicRewriteReq},
+    response::{PageReplyData, TopicListRow, TopicRewriteListRow},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::extract::{Query, State};
-use common_base::http_response::success_response;
+use axum::{extract::State, Json};
+use common_base::{
+    http_response::{error_response, success_response},
+    tools::now_second,
+};
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+use mqtt_broker::storage::topic::TopicStorage;
 use std::sync::Arc;
 
 pub async fn topic_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<TopicListReq>,
+    Json(params): Json<TopicListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -74,4 +79,94 @@ impl Queryable for TopicListRow {
             _ => None,
         }
     }
+}
+
+pub async fn topic_rewrite_list(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<TopicRewriteReq>,
+) -> String {
+    let options = build_query_params(
+        params.page,
+        params.page_num,
+        params.sort_field,
+        params.sort_by,
+        params.filter_field,
+        params.filter_values,
+        params.exact_match,
+    );
+
+    let mut topic_rewrite_rules = Vec::new();
+    for entry in state.mqtt_context.cache_manager.topic_rewrite_rule.iter() {
+        let topic_rewrite_rule = entry.value();
+        topic_rewrite_rules.push(TopicRewriteListRow {
+            source_topic: topic_rewrite_rule.source_topic.clone(),
+            dest_topic: topic_rewrite_rule.dest_topic.clone(),
+            action: topic_rewrite_rule.action.clone(),
+            regex: topic_rewrite_rule.regex.clone(),
+        });
+    }
+
+    let filtered = apply_filters(topic_rewrite_rules, &options);
+    let sorted = apply_sorting(filtered, &options);
+    let pagination = apply_pagination(sorted, &options);
+    success_response(PageReplyData {
+        data: pagination.0,
+        total_count: pagination.1,
+    })
+}
+
+impl Queryable for TopicRewriteListRow {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "source_topic" => Some(self.source_topic.clone()),
+            "dest_topic" => Some(self.dest_topic.clone()),
+            "action" => Some(self.action.clone()),
+            _ => None,
+        }
+    }
+}
+
+pub async fn topic_rewrite_create(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<CreateTopicRewriteReq>,
+) -> String {
+    let rule = MqttTopicRewriteRule {
+        cluster: state.broker_cache.cluster_name.clone(),
+        action: params.action.clone(),
+        source_topic: params.source_topic.clone(),
+        dest_topic: params.dest_topic.clone(),
+        regex: params.regex.clone(),
+        timestamp: now_second(),
+    };
+
+    let topic_storage = TopicStorage::new(state.client_pool.clone());
+    if let Err(e) = topic_storage.create_topic_rewrite_rule(rule.clone()).await {
+        return error_response(e.to_string());
+    }
+
+    state
+        .mqtt_context
+        .cache_manager
+        .add_topic_rewrite_rule(rule);
+
+    success_response("success")
+}
+
+pub async fn topic_rewrite_delete(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<DeleteTopicRewriteReq>,
+) -> String {
+    let topic_storage = TopicStorage::new(state.client_pool.clone());
+    if let Err(e) = topic_storage
+        .delete_topic_rewrite_rule(params.action.clone(), params.source_topic.clone())
+        .await
+    {
+        return error_response(e.to_string());
+    }
+    state.mqtt_context.cache_manager.delete_topic_rewrite_rule(
+        &state.broker_cache.cluster_name,
+        &params.action,
+        &params.source_topic,
+    );
+    success_response("success")
 }

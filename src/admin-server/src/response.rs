@@ -38,6 +38,14 @@ pub struct TopicListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct TopicRewriteListRow {
+    pub source_topic: String,
+    pub dest_topic: String,
+    pub regex: String,
+    pub action: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct UserListRow {
     pub username: String,
     pub is_superuser: bool,
@@ -82,6 +90,12 @@ pub struct SchemaListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct SchemaBindListRow {
+    pub data_type: String,
+    pub data: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SubscribeListRow {
     pub client_id: String,
     pub path: String,
@@ -98,6 +112,25 @@ pub struct SubscribeListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct AutoSubscribeListRow {
+    pub topic: String,
+    pub qos: String,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub retained_handling: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SlowSubscribeListRow {
+    pub client_id: String,
+    pub topic_name: String,
+    pub time_span: u64,
+    pub node_info: String,
+    pub create_time: String,
+    pub subscribe_name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SessionListRow {
     pub client_id: String,
     pub session_expiry: u64,
@@ -108,6 +141,21 @@ pub struct SessionListRow {
     pub broker_id: Option<u64>,
     pub reconnect_time: Option<u64>,
     pub distinct_time: Option<u64>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SystemAlarmListRow {
+    pub name: String,
+    pub message: String,
+    pub activate_at: String,
+    pub activated: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct FlappingDetectListRaw {
+    pub client_id: String,
+    pub before_last_windows_connections: u64,
+    pub first_request_time: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

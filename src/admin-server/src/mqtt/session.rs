@@ -18,13 +18,13 @@ use crate::{
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
-use axum::extract::{Query, State};
+use axum::{extract::State, Json};
 use common_base::http_response::success_response;
 use std::sync::Arc;
 
 pub async fn session_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SessionListReq>,
+    Json(params): Json<SessionListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
