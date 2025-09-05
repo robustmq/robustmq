@@ -65,7 +65,7 @@ impl Sender {
         ));
         fields.push(format!(
             r#"tags="{}""#,
-            serde_json::to_string(&record.data).unwrap()
+            serde_json::to_string(&record.tags).unwrap()
         ));
         fields.push(format!("crc_num={}i", &record.crc_num));
         let fields = fields.join(",");
