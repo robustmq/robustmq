@@ -28,16 +28,13 @@ use common_base::{
     tools::now_second,
     utils::time_util::timestamp_to_local_datetime,
 };
-use metadata_struct::mqtt::{
-    bridge::{
-        config_greptimedb::GreptimeDBConnectorConfig,
-        config_kafka::KafkaConnectorConfig,
-        config_local_file::LocalFileConnectorConfig,
-        connector::MQTTConnector,
-        connector_type::{connector_type_for_string, ConnectorType},
-        status::MQTTStatus,
-    },
-    topic_rewrite_rule::MqttTopicRewriteRule,
+use metadata_struct::mqtt::bridge::{
+    config_greptimedb::GreptimeDBConnectorConfig,
+    config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig,
+    connector::MQTTConnector,
+    connector_type::{connector_type_for_string, ConnectorType},
+    status::MQTTStatus,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
