@@ -18,6 +18,8 @@ use std::time::Duration;
 pub mod mqtt;
 pub mod placement;
 pub mod template;
+pub mod admin_client;
+
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder, Properties,
     PropertyCode, SslOptionsBuilder,

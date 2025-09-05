@@ -23,12 +23,12 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_create_user, mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule,
     mqtt_broker_delete_blacklist, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
     mqtt_broker_delete_topic_rewrite_rule, mqtt_broker_delete_user,
-    mqtt_broker_enable_flapping_detect, mqtt_broker_get_cluster_config, mqtt_broker_list_acl,
-    mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist,
-    mqtt_broker_list_connection, mqtt_broker_list_connector, mqtt_broker_list_flapping_detect,
-    mqtt_broker_list_schema, mqtt_broker_list_session, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
-    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule,
+    mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist, mqtt_broker_list_connection,
+    mqtt_broker_list_connector, mqtt_broker_list_flapping_detect, mqtt_broker_list_schema,
+    mqtt_broker_list_session, mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe,
+    mqtt_broker_list_system_alarm, mqtt_broker_list_topic, mqtt_broker_list_user,
+    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
     mqtt_broker_set_slow_subscribe_config, mqtt_broker_set_system_alarm_config,
     mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
     mqtt_broker_update_schema,
@@ -43,13 +43,13 @@ use protocol::broker::broker_mqtt_admin::{
     CreateSchemaRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
-    EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
-    ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListBlacklistRequest,
-    ListConnectionRequest, ListConnectorRequest, ListFlappingDetectRequest, ListSchemaRequest,
-    ListSessionRequest, ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
-    ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
-    SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
-    UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
+    EnableFlappingDetectRequest, ListAclRequest, ListAutoSubscribeRuleRequest,
+    ListBindSchemaRequest, ListBlacklistRequest, ListConnectionRequest, ListConnectorRequest,
+    ListFlappingDetectRequest, ListSchemaRequest, ListSessionRequest, ListSlowSubscribeRequest,
+    ListSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest, ListUserRequest,
+    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SetSlowSubscribeConfigRequest,
+    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
+    UpdateConnectorRequest, UpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -159,14 +159,14 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
-            // cluster status
-            MqttActionType::ListSession => {
-                self.list_session(&client_pool, params.clone()).await;
-            }
-
             // cluster config
             MqttActionType::GetClusterConfig => {
                 self.get_cluster_config(&client_pool, params.clone()).await;
+            }
+
+            // cluster status
+            MqttActionType::ListSession => {
+                self.list_session(&client_pool, params.clone()).await;
             }
 
             // user admin
@@ -193,6 +193,7 @@ impl MqttBrokerCommand {
                 self.delete_acl(&client_pool, params.clone(), request.clone())
                     .await;
             }
+
             // blacklist admin
             MqttActionType::ListBlacklist => {
                 self.list_blacklist(&client_pool, params.clone()).await;
@@ -486,35 +487,34 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn get_cluster_config(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = GetClusterConfigRequest {};
-        match mqtt_broker_get_cluster_config(
-            client_pool,
-            &grpc_addr(params.server.clone()),
-            request,
-        )
-        .await
-        {
-            Ok(data) => {
-                let data = match serde_json::from_slice::<BrokerConfig>(
-                    &data.mqtt_broker_cluster_dynamic_config,
-                ) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        println!("MQTT broker cluster normal exception");
-                        error_info(e.to_string());
-                        return;
+    async fn get_cluster_config(&self, _client_pool: &ClientPool, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create empty request for get cluster config
+        let request = serde_json::json!({});
+
+        match admin_client.get_cluster_config(&request).await {
+            Ok(response_text) => {
+                // Try to parse the response as BrokerConfig
+                match serde_json::from_str::<BrokerConfig>(&response_text) {
+                    Ok(data) => {
+                        let json = match serde_json::to_string_pretty(&data) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                println!("MQTT broker cluster normal exception");
+                                error_info(e.to_string());
+                                return;
+                            }
+                        };
+                        println!("{json}");
                     }
-                };
-                let json = match serde_json::to_string_pretty(&data) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        println!("MQTT broker cluster normal exception");
-                        error_info(e.to_string());
-                        return;
+                    Err(_) => {
+                        // If direct parsing fails, try to parse as the original response format
+                        println!("{response_text}");
                     }
-                };
-                println!("{json}");
+                }
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");

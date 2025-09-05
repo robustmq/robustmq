@@ -859,6 +859,7 @@ dependencies = [
 name = "cli-command"
 version = "0.1.31"
 dependencies = [
+ "admin-server",
  "axum",
  "bytes",
  "common-base",
@@ -868,6 +869,8 @@ dependencies = [
  "paho-mqtt",
  "prettytable-rs",
  "protocol",
+ "reqwest",
+ "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",

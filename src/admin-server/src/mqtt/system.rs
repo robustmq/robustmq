@@ -64,6 +64,10 @@ pub async fn cluster_config_set(
     success_response("success")
 }
 
+pub async fn cluster_config_get(State(state): State<Arc<HttpState>>) -> String {
+    success_response(state.broker_cache.get_cluster_config())
+}
+
 pub async fn system_alarm_list(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<SystemAlarmListReq>,
