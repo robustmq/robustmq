@@ -44,6 +44,18 @@
         snappy
       ];
 
+      devTools = with pkgs; [
+        buf
+        python3
+        cargo-deny
+        cargo-nextest
+        typos
+        (hawkeye.overrideAttrs (_: {
+          __intentionallyOverridingVersion = true;
+          version = "5.8.1";
+        }))
+      ];
+
       commonArgs = {
         pname = "robustmq";
         inherit version;
@@ -68,14 +80,26 @@
         inputsFrom = [ cargoArtifacts ];
         inherit nativeBuildInputs;
 
-        packages = [ rustToolchain ];
+        packages = [ rustToolchain ] ++ devTools;
 
         LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
 
         shellHook = ''
           echo "Entered RobustMQ development shell. 🚀"
+
+            if [ ! -d "precommit_venv" ]; then
+                echo "Creating Python virtual environment for pre-commit..."
+                python3 -m venv precommit_venv
+            fi
+
+            if [ -z "$VIRTUAL_ENV" ]; then
+                echo "Activating Python venv and installing pre-commit dependencies..."
+                source ./precommit_venv/bin/activate
+                pip3 install -r ./.requirements-precommit.txt
+            fi
         '';
       };
     }
     );
 }
+
