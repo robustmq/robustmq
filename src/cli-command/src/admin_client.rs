@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use admin_server::response::PageReplyData;
+use common_base::http_response::AdminServerResponse;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -28,21 +30,6 @@ pub enum HttpClientError {
     ServerError { code: u64, message: String },
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
-}
-
-/// Standard API response format from admin-server
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ApiResponse<T> {
-    pub code: u64,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-/// Paginated response data
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PageReplyData<T> {
-    pub data: T,
-    pub total_count: usize,
 }
 
 /// HTTP client for RobustMQ Admin Server API
@@ -96,8 +83,8 @@ impl AdminHttpClient {
         let status = response.status();
         let response_text = response.text().await?;
 
-        println!("{:?}",status);
-        println!("{:?}",response_text);
+        println!("{:?}", status);
+        println!("{:?}", response_text);
         if !status.is_success() {
             return Err(HttpClientError::ServerError {
                 code: status.as_u16() as u64,
@@ -105,20 +92,15 @@ impl AdminHttpClient {
             });
         }
 
-        // Try to parse as ApiResponse first
-        match serde_json::from_str::<ApiResponse<R>>(&response_text) {
+        // Try to parse as AdminServerResponse first
+        match serde_json::from_str::<AdminServerResponse<R>>(&response_text) {
             Ok(api_response) => {
                 if api_response.code == 0 {
-                    api_response
-                        .data
-                        .ok_or_else(|| HttpClientError::ServerError {
-                            code: api_response.code,
-                            message: api_response.message,
-                        })
+                    Ok(api_response.data)
                 } else {
                     Err(HttpClientError::ServerError {
                         code: api_response.code,
-                        message: api_response.message,
+                        message: format!("Server error code: {}", api_response.code),
                     })
                 }
             }

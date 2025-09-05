@@ -14,6 +14,7 @@
 
 use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info, grpc_addr};
+use admin_server::response::SessionListRow;
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use common_config::config::BrokerConfig;
@@ -545,7 +546,12 @@ impl MqttBrokerCommand {
             exact_match: None,
         };
 
-        match admin_client.get_session_list::<admin_server::request::SessionListReq, Vec<admin_server::response::SessionListRow>>(&request).await {
+        match admin_client
+            .get_session_list::<admin_server::request::SessionListReq, Vec<SessionListRow>>(
+                &request,
+            )
+            .await
+        {
             Ok(page_data) => {
                 let mut table = Table::new();
                 table.set_titles(row![
