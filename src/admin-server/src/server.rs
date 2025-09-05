@@ -13,11 +13,22 @@
 // limitations under the License.
 
 use crate::{
-    cluster::{index, overview, overview_metrics},
-    mqtt::session::session_list,
+    mqtt::{
+        acl::acl_list,
+        blacklist::blacklist_list,
+        client::client_list,
+        connector::connector_list,
+        overview::{overview, overview_metrics},
+        schema::schema_list,
+        session::session_list,
+        subscribe::subscribe_list,
+        topic::topic_list,
+        user::user_list,
+    },
     state::HttpState,
 };
-use axum::{routing::get, Router};
+use axum::{extract::State, routing::get, Router};
+use common_base::version::version;
 use std::sync::Arc;
 use tracing::info;
 
@@ -51,14 +62,22 @@ impl AdminServer {
     }
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
-        Router::new()
-            .route("/", get(index))
-            .route("/overview", get(overview))
-            .route("/overview-metrics", get(overview_metrics))
+        Router::new().route("/", get(index))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
-        Router::new().route("/session/list", get(session_list))
+        Router::new()
+            .route("/mqtt/overview", get(overview))
+            .route("/mqtt/overview-metrics", get(overview_metrics))
+            .route("/mqtt/client-list", get(client_list))
+            .route("/mqtt/session-list", get(session_list))
+            .route("/mqtt/topic-list", get(topic_list))
+            .route("/mqtt/subscribe-list", get(subscribe_list))
+            .route("/mqtt/user-list", get(user_list))
+            .route("/mqtt/acl-list", get(acl_list))
+            .route("/mqtt/blacklist-list", get(blacklist_list))
+            .route("/mqtt/connector-list", get(connector_list))
+            .route("/mqtt/schema-list", get(schema_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
@@ -68,4 +87,8 @@ impl AdminServer {
     fn meta_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
+}
+
+pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
+    format!("RobustMQ {}", version())
 }

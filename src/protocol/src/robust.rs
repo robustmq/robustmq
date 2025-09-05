@@ -54,6 +54,15 @@ impl RobustMQProtocol {
         }
     }
 
+    pub fn to_str(&self) -> String {
+        match *self {
+            RobustMQProtocol::MQTT3 => "MQTT3".to_string(),
+            RobustMQProtocol::MQTT4 => "MQTT4".to_string(),
+            RobustMQProtocol::MQTT5 => "MQTT5".to_string(),
+            RobustMQProtocol::KAFKA => "KAFKA".to_string(),
+        }
+    }
+
     pub fn to_mqtt(&self) -> MqttProtocol {
         match *self {
             RobustMQProtocol::MQTT3 => MqttProtocol::Mqtt3,

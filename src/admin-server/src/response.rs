@@ -16,7 +16,99 @@ use metadata_struct::placement::node::BrokerNode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct SessionListResp {}
+pub struct PageReplyData<T> {
+    pub data: T,
+    pub total_count: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ClientListRow {
+    pub connection_id: u64,
+    pub connection_type: String,
+    pub protocol: String,
+    pub source_addr: String,
+    pub create_time: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TopicListRow {
+    pub topic_id: String,
+    pub topic_name: String,
+    pub is_contain_retain_message: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UserListRow {
+    pub username: String,
+    pub is_superuser: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AclListRow {
+    pub resource_type: String,
+    pub resource_name: String,
+    pub topic: String,
+    pub ip: String,
+    pub action: String,
+    pub permission: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BlackListListRow {
+    pub blacklist_type: String,
+    pub resource_name: String,
+    pub end_time: String,
+    pub desc: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ConnectorListRow {
+    pub connector_name: String,
+    pub connector_type: String,
+    pub config: String,
+    pub topic_id: String,
+    pub status: String,
+    pub broker_id: String,
+    pub create_time: String,
+    pub update_time: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SchemaListRow {
+    pub name: String,
+    pub schema_type: String,
+    pub desc: String,
+    pub schema: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SubscribeListRow {
+    pub client_id: String,
+    pub path: String,
+    pub broker_id: u64,
+    pub protocol: String,
+    pub qos: String,
+    pub no_local: u32,
+    pub preserve_retain: u32,
+    pub retain_handling: String,
+    pub create_time: String,
+    pub pk_id: u32,
+    pub properties: String,
+    pub is_share_sub: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SessionListRow {
+    pub client_id: String,
+    pub session_expiry: u64,
+    pub is_contain_last_will: bool,
+    pub last_will_delay_interval: Option<u64>,
+    pub create_time: u64,
+    pub connection_id: Option<u64>,
+    pub broker_id: Option<u64>,
+    pub reconnect_time: Option<u64>,
+    pub distinct_time: Option<u64>,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct OverViewResp {

@@ -12,4 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod acl;
+pub mod advanced;
+pub mod blacklist;
+pub mod client;
+pub mod connector;
+pub mod monitor;
+pub mod overview;
+pub mod schema;
 pub mod session;
+pub mod subscribe;
+pub mod topic;
+pub mod user;
