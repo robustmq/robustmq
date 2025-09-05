@@ -14,7 +14,7 @@
 
 use crate::{
     mqtt::{
-        acl::acl_list,
+        acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
         client::client_list,
         connector::{connector_create, connector_delete, connector_list},
@@ -26,9 +26,9 @@ use crate::{
         session::session_list,
         subscribe::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
-            subscribe_list,
+            subscribe_detail, subscribe_list,
         },
-        system::{cluster_config_set, system_alarm_list},
+        system::{cluster_config_set, flapping_detect_list, system_alarm_list},
         topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
@@ -78,6 +78,7 @@ impl AdminServer {
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
+            // overview
             .route("/mqtt/overview", post(overview))
             .route("/mqtt/overview/metrics", post(overview_metrics))
             // client
@@ -92,7 +93,7 @@ impl AdminServer {
             .route("/mqtt/topic-rewrite/delete", post(topic_list))
             // subscribe
             .route("/mqtt/subscribe/list", post(subscribe_list))
-            .route("/mqtt/subscribe/detail", post(subscribe_list))
+            .route("/mqtt/subscribe/detail", post(subscribe_detail))
             // auto subscribe
             .route("/mqtt/auto-subscribe/list", post(auto_subscribe_list))
             .route("/mqtt/auto-subscribe/create", post(auto_subscribe_create))
@@ -105,14 +106,14 @@ impl AdminServer {
             .route("/mqtt/user/delete", post(user_delete))
             // acl
             .route("/mqtt/acl/list", post(acl_list))
-            .route("/mqtt/acl/create", post(acl_list))
-            .route("/mqtt/acl/delete", post(acl_list))
+            .route("/mqtt/acl/create", post(acl_create))
+            .route("/mqtt/acl/delete", post(acl_delete))
             // blacklist
             .route("/mqtt/blacklist/list", post(blacklist_list))
             .route("/mqtt/blacklist/create", post(blacklist_create))
             .route("/mqtt/blacklist/delete", post(blacklist_delete))
             // flapping_detect
-            .route("/mqtt/flapping_detect/list", post(blacklist_list))
+            .route("/mqtt/flapping_detect/list", post(flapping_detect_list))
             // connector
             .route("/mqtt/connector/list", post(connector_list))
             .route("/mqtt/connector/create", post(connector_create))

@@ -152,6 +152,13 @@ pub struct SystemAlarmListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct FlappingDetectListRaw {
+    pub client_id: String,
+    pub before_last_windows_connections: u64,
+    pub first_request_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct OverViewResp {
     pub node_list: Vec<BrokerNode>,
     pub cluster_name: String,

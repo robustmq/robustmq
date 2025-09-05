@@ -55,6 +55,8 @@ pub struct SubscribeListReq {
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
 }
+#[derive(Deserialize, Debug)]
+pub struct SubscribeDetailReq {}
 
 #[derive(Deserialize, Debug)]
 pub struct AutoSubscribeListReq {
@@ -164,6 +166,26 @@ pub struct AclListReq {
     pub filter_field: Option<String>,
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateAclReq {
+    pub resource_type: String,
+    pub resource_name: String,
+    pub topic: String,
+    pub ip: String,
+    pub action: String,
+    pub permission: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteAclReq {
+    pub resource_type: String,
+    pub resource_name: String,
+    pub topic: String,
+    pub ip: String,
+    pub action: String,
+    pub permission: String,
 }
 
 #[derive(Deserialize, Debug)]

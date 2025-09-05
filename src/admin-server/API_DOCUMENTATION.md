@@ -77,29 +77,37 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 #### 2.1 集群概览信息
 - **接口**: `POST /mqtt/overview`
 - **描述**: 获取 MQTT 集群概览信息
-- **请求参数**: 无
+- **请求参数**: 无请求体（空JSON对象 `{}`）
 - **响应数据结构**:
 ```json
 {
-  "node_list": [...],
-  "cluster_name": "string",
-  "message_in_rate": 0,
-  "message_out_rate": 0,
-  "connection_num": 0,
-  "session_num": 0,
-  "topic_num": 0,
-  "placement_status": "string",
-  "tcp_connection_num": 0,
-  "tls_connection_num": 0,
-  "websocket_connection_num": 0,
-  "quic_connection_num": 0,
-  "subscribe_num": 0,
-  "exclusive_subscribe_num": 0,
-  "share_subscribe_leader_num": 0,
-  "share_subscribe_resub_num": 0,
-  "exclusive_subscribe_thread_num": 0,
-  "share_subscribe_leader_thread_num": 0,
-  "share_subscribe_follower_thread_num": 0
+  "node_list": [
+    {
+      "node_id": 1,
+      "node_ip": "192.168.1.100",
+      "node_inner_addr": "192.168.1.100:9981",
+      "extend_info": "{}",
+      "create_time": 1640995200
+    }
+  ],
+  "cluster_name": "robustmq-cluster",
+  "message_in_rate": 100,
+  "message_out_rate": 85,
+  "connection_num": 1500,
+  "session_num": 1200,
+  "topic_num": 50,
+  "placement_status": "Leader",
+  "tcp_connection_num": 800,
+  "tls_connection_num": 400,
+  "websocket_connection_num": 200,
+  "quic_connection_num": 100,
+  "subscribe_num": 2000,
+  "exclusive_subscribe_num": 1500,
+  "share_subscribe_leader_num": 300,
+  "share_subscribe_resub_num": 200,
+  "exclusive_subscribe_thread_num": 8,
+  "share_subscribe_leader_thread_num": 4,
+  "share_subscribe_follower_thread_num": 4
 }
 ```
 
@@ -116,12 +124,12 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **响应数据结构**:
 ```json
 {
-  "connection_num": "string",    // JSON格式的时间序列数据
-  "topic_num": "string",
-  "subscribe_num": "string", 
-  "message_in_num": "string",
-  "message_out_num": "string",
-  "message_drop_num": "string"
+  "connection_num": "[{\"timestamp\":1640995200,\"value\":1500}]",
+  "topic_num": "[{\"timestamp\":1640995200,\"value\":50}]",
+  "subscribe_num": "[{\"timestamp\":1640995200,\"value\":2000}]",
+  "message_in_num": "[{\"timestamp\":1640995200,\"value\":10000}]",
+  "message_out_num": "[{\"timestamp\":1640995200,\"value\":8500}]",
+  "message_drop_num": "[{\"timestamp\":1640995200,\"value\":15}]"
 }
 ```
 
@@ -139,7 +147,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "connection_id": 12345,           // 可选，按连接ID过滤
   "page_num": 1,                    // 可选，页码
   "page": 20,                       // 可选，每页大小
-  "sort_field": "connection_id",    // 可选，排序字段
+  "sort_field": "connection_id",    // 可选，排序字段：connection_id, connection_type, protocol, source_addr
   "sort_by": "desc",                // 可选，排序方式
   "filter_field": "protocol",       // 可选，过滤字段
   "filter_values": ["MQTT"],        // 可选，过滤值
@@ -175,7 +183,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "client_id": "client001",         // 可选，按客户端ID过滤
   "page_num": 1,
   "page": 20,
-  "sort_field": "create_time",
+  "sort_field": "create_time",      // 可选，排序字段：client_id
   "sort_by": "desc",
   "filter_field": "client_id",
   "filter_values": ["client001"],
@@ -215,7 +223,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "topic_name": "sensor/+",         // 可选，按主题名过滤
   "page_num": 1,
   "page": 20,
-  "sort_field": "topic_name",
+  "sort_field": "topic_name",       // 可选，排序字段：topic_name
   "sort_by": "asc",
   "filter_field": "topic_name",
   "filter_values": ["sensor"],
@@ -296,7 +304,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "page": 20,
   "sort_field": "create_time",
   "sort_by": "desc",
-  "filter_field": "client_id",
+  "filter_field": "client_id",      // 可选，过滤字段：client_id
   "filter_values": ["client001"],
   "exact_match": "false"
 }
@@ -309,11 +317,11 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
       "client_id": "client001",
       "path": "sensor/+",
       "broker_id": 1,
-      "protocol": "MQTT",
-      "qos": "1",
+      "protocol": "MQTTv4",
+      "qos": "QoS1",
       "no_local": 0,
       "preserve_retain": 0,
-      "retain_handling": "0",
+      "retain_handling": "SendAtSubscribe",
       "create_time": "2024-01-01 10:00:00",
       "pk_id": 1,
       "properties": "{}",
@@ -326,9 +334,12 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 
 #### 6.2 订阅详情查询
 - **接口**: `POST /mqtt/subscribe/detail`
-- **描述**: 查询订阅详情（与订阅列表相同）
-- **请求参数**: 与订阅列表查询相同
-- **响应数据**: 与订阅列表查询相同
+- **描述**: 查询订阅详情
+- **请求参数**:
+```json
+{}
+```
+- **响应**: 当前返回空字符串（功能待实现）
 
 #### 6.3 自动订阅列表
 - **接口**: `POST /mqtt/auto-subscribe/list`
@@ -340,10 +351,10 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "data": [
     {
       "topic": "system/+",
-      "qos": "1",
+      "qos": "QoS1",
       "no_local": false,
       "retain_as_published": false,
-      "retained_handling": "0"
+      "retained_handling": "SendAtSubscribe"
     }
   ],
   "total_count": 5
@@ -357,10 +368,10 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 ```json
 {
   "topic": "system/+",              // 主题模式
-  "qos": 1,                         // QoS 级别
+  "qos": 1,                         // QoS 级别：0, 1, 2
   "no_local": false,                // 是否本地
   "retain_as_published": false,     // 保持发布状态
-  "retained_handling": 0            // 保留消息处理方式
+  "retained_handling": 0            // 保留消息处理方式：0, 1, 2
 }
 ```
 - **响应**: 成功返回 "success"
@@ -410,7 +421,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "user_name": "admin",             // 可选，按用户名过滤
   "page_num": 1,
   "page": 20,
-  "sort_field": "username",
+  "sort_field": "username",         // 可选，排序字段：username
   "sort_by": "asc",
   "filter_field": "username",
   "filter_values": ["admin"],
@@ -467,12 +478,12 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 {
   "data": [
     {
-      "resource_type": "topic",
-      "resource_name": "sensor/+",
-      "topic": "sensor/temperature",
+      "resource_type": "ClientId",
+      "resource_name": "client001",
+      "topic": "sensor/+",
       "ip": "192.168.1.0/24",
-      "action": "publish",
-      "permission": "allow"
+      "action": "Publish",
+      "permission": "Allow"
     }
   ],
   "total_count": 15
@@ -482,13 +493,33 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 #### 8.2 创建 ACL 规则
 - **接口**: `POST /mqtt/acl/create`
 - **描述**: 创建新的 ACL 规则
-- **请求参数**: 待补充（需要查看具体实现）
+- **请求参数**:
+```json
+{
+  "resource_type": "ClientId",       // 资源类型：ClientId, Username, IpAddress, All
+  "resource_name": "client001",      // 资源名称
+  "topic": "sensor/+",               // 主题模式
+  "ip": "192.168.1.100",             // IP地址
+  "action": "Publish",               // 动作：Publish, Subscribe, All
+  "permission": "Allow"              // 权限：Allow, Deny
+}
+```
 - **响应**: 成功返回 "success"
 
 #### 8.3 删除 ACL 规则
 - **接口**: `POST /mqtt/acl/delete`
 - **描述**: 删除 ACL 规则
-- **请求参数**: 待补充（需要查看具体实现）
+- **请求参数**:
+```json
+{
+  "resource_type": "ClientId",
+  "resource_name": "client001",
+  "topic": "sensor/+",
+  "ip": "192.168.1.100",
+  "action": "Publish",
+  "permission": "Allow"
+}
+```
 - **响应**: 成功返回 "success"
 
 ---
@@ -504,7 +535,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 {
   "data": [
     {
-      "blacklist_type": "client_id",
+      "blacklist_type": "ClientId",
       "resource_name": "malicious_client",
       "end_time": "2024-12-31 23:59:59",
       "desc": "Blocked due to suspicious activity"
@@ -520,7 +551,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **请求参数**:
 ```json
 {
-  "blacklist_type": "client_id",       // 黑名单类型
+  "blacklist_type": "ClientId",        // 黑名单类型：ClientId, IpAddress, Username
   "resource_name": "bad_client",       // 资源名称
   "end_time": 1735689599,              // 结束时间（Unix时间戳）
   "desc": "Blocked for security"       // 描述
@@ -534,7 +565,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **请求参数**:
 ```json
 {
-  "blacklist_type": "client_id",
+  "blacklist_type": "ClientId",
   "resource_name": "bad_client"
 }
 ```
@@ -554,11 +585,11 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "data": [
     {
       "connector_name": "kafka_connector",
-      "connector_type": "kafka",
-      "config": "{}",
+      "connector_type": "Kafka",
+      "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
       "topic_id": "topic_001",
-      "status": "running",
-      "broker_id": "broker_1",
+      "status": "Running",
+      "broker_id": "1",
       "create_time": "2024-01-01 10:00:00",
       "update_time": "2024-01-01 11:00:00"
     }
@@ -574,11 +605,38 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 ```json
 {
   "connector_name": "new_connector",   // 连接器名称
-  "connector_type": "kafka",           // 连接器类型
-  "config": "{}",                      // 配置信息（JSON字符串）
+  "connector_type": "Kafka",           // 连接器类型：LocalFile, Kafka, GreptimeDB
+  "config": "{\"path\":\"/tmp/mqtt.log\"}",  // 配置信息（JSON字符串）
   "topic_id": "topic_001"              // 关联的主题ID
 }
 ```
+
+**连接器配置示例**：
+
+**LocalFile 连接器**:
+```json
+{
+  "connector_type": "LocalFile",
+  "config": "{\"path\":\"/tmp/mqtt_messages.log\",\"max_file_size\":\"100MB\"}"
+}
+```
+
+**Kafka 连接器**:
+```json
+{
+  "connector_type": "Kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"acks\":\"all\"}"
+}
+```
+
+**GreptimeDB 连接器**:
+```json
+{
+  "connector_type": "GreptimeDB",
+  "config": "{\"host\":\"localhost\",\"port\":4001,\"database\":\"mqtt_data\",\"table\":\"messages\"}"
+}
+```
+
 - **响应**: 成功返回 "success"
 
 #### 10.3 删除连接器
@@ -606,9 +664,9 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "data": [
     {
       "name": "temperature_schema",
-      "schema_type": "json",
+      "schema_type": "JSON",
       "desc": "Temperature sensor data schema",
-      "schema": "{\"type\":\"object\",\"properties\":{\"temp\":{\"type\":\"number\"}}}"
+      "schema": "{\"type\":\"object\",\"properties\":{\"temp\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"}}}"
     }
   ],
   "total_count": 12
@@ -621,12 +679,39 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **请求参数**:
 ```json
 {
-  "schema_name": "new_schema",          // Schema名称
-  "schema_type": "json",                // Schema类型
-  "schema": "{\"type\":\"object\"}",    // Schema定义
-  "desc": "Description of schema"       // 描述
+  "schema_name": "sensor_data_schema",   // Schema名称
+  "schema_type": "json",                 // Schema类型：json, avro, protobuf
+  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",  // Schema定义
+  "desc": "Sensor data validation schema"  // 描述
 }
 ```
+
+**Schema 类型示例**：
+
+**JSON Schema**:
+```json
+{
+  "schema_type": "json",
+  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\",\"minimum\":-50,\"maximum\":100},\"humidity\":{\"type\":\"number\",\"minimum\":0,\"maximum\":100}}}"
+}
+```
+
+**AVRO Schema**:
+```json
+{
+  "schema_type": "avro",
+  "schema": "{\"type\":\"record\",\"name\":\"SensorData\",\"fields\":[{\"name\":\"temperature\",\"type\":\"double\"},{\"name\":\"humidity\",\"type\":\"double\"}]}"
+}
+```
+
+**Protobuf Schema**:
+```json
+{
+  "schema_type": "protobuf",
+  "schema": "syntax = \"proto3\"; message SensorData { double temperature = 1; double humidity = 2; }"
+}
+```
+
 - **响应**: 成功返回 "success"
 
 #### 11.3 删除 Schema
@@ -650,10 +735,10 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "schema_name": "temp_schema",         // 可选，Schema名称过滤
   "page_num": 1,
   "page": 20,
-  "sort_field": "resource_name",
+  "sort_field": "data_type",
   "sort_by": "asc",
-  "filter_field": "schema_name",
-  "filter_values": ["temp_schema"],
+  "filter_field": "data_type",
+  "filter_values": ["resource"],
   "exact_match": "false"
 }
 ```
@@ -662,11 +747,15 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 {
   "data": [
     {
-      "data_type": "topic",
-      "data": ["topic001", "topic002"]
+      "data_type": "resource",
+      "data": ["sensor_data_schema", "device_status_schema"]
+    },
+    {
+      "data_type": "schema",
+      "data": ["sensor/temperature", "sensor/humidity", "device/status"]
     }
   ],
-  "total_count": 5
+  "total_count": 2
 }
 ```
 
@@ -676,8 +765,8 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **请求参数**:
 ```json
 {
-  "schema_name": "temp_schema",         // Schema名称
-  "resource_name": "sensor_topic"       // 资源名称
+  "schema_name": "sensor_data_schema",  // Schema名称
+  "resource_name": "sensor/temperature" // 资源名称（通常是主题名）
 }
 ```
 - **响应**: 成功返回 "success"
@@ -688,8 +777,8 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **请求参数**:
 ```json
 {
-  "schema_name": "temp_schema",
-  "resource_name": "sensor_topic"
+  "schema_name": "sensor_data_schema",
+  "resource_name": "sensor/temperature"
 }
 ```
 - **响应**: 成功返回 "success"
@@ -708,7 +797,7 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
   "data": [
     {
       "name": "High Memory Usage",
-      "message": "Memory usage exceeded 80%",
+      "message": "Memory usage exceeded 80% threshold",
       "activate_at": "2024-01-01 10:00:00",
       "activated": true
     }
@@ -723,17 +812,30 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 - **请求参数**:
 ```json
 {
-  "config_type": "mqtt_config",        // 配置类型
-  "config": "{\"max_connections\":1000}" // 配置内容（JSON字符串）
+  "config_type": "SlowSubscribe",      // 配置类型：SlowSubscribe, OfflineMessage
+  "config": "{\"enable\":true,\"threshold\":1000}" // 配置内容（JSON字符串）
 }
 ```
 - **响应**: 成功返回 "success"
+- **注意**: 当前实现中此接口功能待完善
 
 #### 12.3 连接抖动检测列表
 - **接口**: `POST /mqtt/flapping_detect/list`
 - **描述**: 查询连接抖动检测列表
 - **请求参数**: 支持通用分页和过滤参数
-- **响应数据**: 与黑名单列表相同格式
+- **响应数据结构**:
+```json
+{
+  "data": [
+    {
+      "client_id": "flapping_client",
+      "before_last_windows_connections": 15,
+      "first_request_time": 1640995200
+    }
+  ],
+  "total_count": 2
+}
+```
 
 ---
 
@@ -750,7 +852,58 @@ RobustMQ Admin Server 是基于 Axum 框架构建的 HTTP 管理接口服务，�
 
 ---
 
+## 枚举值说明
+
+### ACL 资源类型 (resource_type)
+- `ClientId`: 客户端ID
+- `Username`: 用户名
+- `IpAddress`: IP地址
+- `All`: 所有资源
+
+### ACL 动作 (action)
+- `Publish`: 发布消息
+- `Subscribe`: 订阅主题
+- `All`: 所有动作
+
+### ACL 权限 (permission)
+- `Allow`: 允许
+- `Deny`: 拒绝
+
+### 黑名单类型 (blacklist_type)
+- `ClientId`: 客户端ID
+- `IpAddress`: IP地址
+- `Username`: 用户名
+
+### 连接器类型 (connector_type)
+- `LocalFile`: 本地文件
+- `Kafka`: Kafka消息队列
+- `GreptimeDB`: GreptimeDB时序数据库
+
+### Schema 类型 (schema_type)
+- `json`: JSON Schema
+- `avro`: Apache Avro
+- `protobuf`: Protocol Buffers
+
+### QoS 级别
+- `0`: 最多一次传递
+- `1`: 至少一次传递
+- `2`: 恰好一次传递
+
+### 保留消息处理方式 (retained_handling)
+- `0`: 发送保留消息
+- `1`: 仅在新订阅时发送保留消息
+- `2`: 不发送保留消息
+
+---
+
 ## 使用示例
+
+### 查询集群概览
+```bash
+curl -X POST http://localhost:8080/mqtt/overview \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
 
 ### 查询客户端列表
 ```bash
@@ -775,25 +928,61 @@ curl -X POST http://localhost:8080/mqtt/user/create \
   }'
 ```
 
-### 查询集群概览
+### 创建ACL规则
 ```bash
-curl -X POST http://localhost:8080/mqtt/overview \
+curl -X POST http://localhost:8080/mqtt/acl/create \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{
+    "resource_type": "ClientId",
+    "resource_name": "sensor001",
+    "topic": "sensor/+",
+    "ip": "192.168.1.100",
+    "action": "Publish",
+    "permission": "Allow"
+  }'
+```
+
+### 创建连接器
+```bash
+curl -X POST http://localhost:8080/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge",
+    "connector_type": "Kafka",
+    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+    "topic_id": "sensor/+"
+  }'
+```
+
+### 创建Schema
+```bash
+curl -X POST http://localhost:8080/mqtt/schema/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "schema_name": "sensor_schema",
+    "schema_type": "json",
+    "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",
+    "desc": "Sensor data validation schema"
+  }'
 ```
 
 ---
 
 ## 注意事项
 
-1. 所有接口都需要使用 POST 方法，即使是查询操作
-2. 请求体必须是有效的 JSON 格式
-3. 时间戳使用 Unix 时间戳格式（秒）
-4. 分页参数 `page_num` 从 1 开始计数
-5. 部分接口的具体参数可能需要根据实际业务需求进行调整
-6. 建议在生产环境中添加适当的认证和授权机制
+1. **请求方法**: 除了根路径 `/` 使用 GET 方法外，所有其他接口都使用 POST 方法
+2. **请求体**: 即使是查询操作，也需要发送 JSON 格式的请求体
+3. **时间格式**: 
+   - 输入时间使用 Unix 时间戳（秒）
+   - 输出时间使用本地时间格式字符串 "YYYY-MM-DD HH:MM:SS"
+4. **分页**: 页码 `page_num` 从 1 开始计数
+5. **配置验证**: 创建连接器时会验证配置格式的正确性
+6. **Schema验证**: 创建Schema时会验证Schema语法的正确性
+7. **权限控制**: 建议在生产环境中添加适当的认证和授权机制
+8. **错误处理**: 所有错误都会返回详细的错误信息，便于调试
 
 ---
 
-*文档版本: v1.0*  
-*最后更新: 2024-01-01*
+*文档版本: v2.0*  
+*最后更新: 2024-01-01*  
+*基于代码版本: RobustMQ Admin Server*

@@ -14,7 +14,8 @@
 
 use crate::{
     request::{
-        AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq, SubscribeListReq,
+        AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq, SubscribeDetailReq,
+        SubscribeListReq,
     },
     response::{AutoSubscribeListRow, PageReplyData, SlowSubscribeListRow, SubscribeListRow},
     state::HttpState,
@@ -80,6 +81,13 @@ impl Queryable for SubscribeListRow {
             _ => None,
         }
     }
+}
+
+pub async fn subscribe_detail(
+    State(_state): State<Arc<HttpState>>,
+    Json(_params): Json<SubscribeDetailReq>,
+) -> String {
+    success_response("")
 }
 
 pub async fn auto_subscribe_list(
