@@ -152,6 +152,14 @@ export const sidebar = [
             { text: "概览", link: "" }
         ],
     },
+
+     {
+        text: "Rest API",
+        collapsed: true,
+        items: [
+            { text: "MQTT Rest API", link: "/zh/Api/MQTT-API" },
+        ],
+    },
     {
         text: "贡献指南",
         collapsed: true,

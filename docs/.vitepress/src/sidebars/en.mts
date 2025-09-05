@@ -152,6 +152,13 @@ export const sidebar = [
         ],
     },
     {
+        text: "Rest API",
+        collapsed: true,
+        items: [
+            { text: "MQTT Rest API", link: "/Api/MQTT-API" },
+        ],
+    },
+    {
         text: "ContributionGuide",
         collapsed: true,
         items: [
