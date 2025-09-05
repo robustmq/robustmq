@@ -15,10 +15,10 @@
 #![allow(clippy::result_large_err)]
 use std::process;
 use std::time::Duration;
+pub mod admin_client;
 pub mod mqtt;
 pub mod placement;
 pub mod template;
-pub mod admin_client;
 
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder, Properties,

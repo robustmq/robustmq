@@ -86,7 +86,7 @@ impl AdminHttpClient {
         R: for<'de> Deserialize<'de>,
     {
         let url = self.build_url(endpoint)?;
-        
+
         let response = self
             .client
             .post(&url)
@@ -109,10 +109,12 @@ impl AdminHttpClient {
         match serde_json::from_str::<ApiResponse<R>>(&response_text) {
             Ok(api_response) => {
                 if api_response.code == 200 {
-                    api_response.data.ok_or_else(|| HttpClientError::ServerError {
-                        code: api_response.code,
-                        message: api_response.message,
-                    })
+                    api_response
+                        .data
+                        .ok_or_else(|| HttpClientError::ServerError {
+                            code: api_response.code,
+                            message: api_response.message,
+                        })
                 } else {
                     Err(HttpClientError::ServerError {
                         code: api_response.code,
@@ -134,7 +136,7 @@ impl AdminHttpClient {
         T: Serialize,
     {
         let url = self.build_url(endpoint)?;
-        
+
         let response = self
             .client
             .post(&url)
@@ -159,12 +161,8 @@ impl AdminHttpClient {
     /// Make a GET request (for the root endpoint)
     pub async fn get(&self, endpoint: &str) -> Result<String, HttpClientError> {
         let url = self.build_url(endpoint)?;
-        
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await?;
+
+        let response = self.client.get(&url).send().await?;
 
         let status = response.status();
         let response_text = response.text().await?;
@@ -188,7 +186,7 @@ impl AdminHttpClient {
         };
 
         let url = format!("{}{}", self.base_url.trim_end_matches('/'), endpoint);
-        
+
         // Basic URL validation
         if !url.starts_with("http://") && !url.starts_with("https://") {
             return Err(HttpClientError::InvalidUrl(format!(
@@ -227,7 +225,10 @@ impl AdminHttpClient {
     }
 
     /// Get client list
-    pub async fn get_client_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_client_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -236,7 +237,10 @@ impl AdminHttpClient {
     }
 
     /// Get session list
-    pub async fn get_session_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_session_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -245,7 +249,10 @@ impl AdminHttpClient {
     }
 
     /// Get topic list
-    pub async fn get_topic_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_topic_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -254,7 +261,10 @@ impl AdminHttpClient {
     }
 
     /// Get subscription list
-    pub async fn get_subscribe_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_subscribe_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -263,7 +273,10 @@ impl AdminHttpClient {
     }
 
     /// Get user list
-    pub async fn get_user_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_user_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -313,7 +326,10 @@ impl AdminHttpClient {
     }
 
     /// Get blacklist
-    pub async fn get_blacklist<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_blacklist<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -338,7 +354,10 @@ impl AdminHttpClient {
     }
 
     /// Get connector list
-    pub async fn get_connector_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_connector_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -363,7 +382,10 @@ impl AdminHttpClient {
     }
 
     /// Get schema list
-    pub async fn get_schema_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_schema_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -388,7 +410,10 @@ impl AdminHttpClient {
     }
 
     /// Get schema binding list
-    pub async fn get_schema_bind_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_schema_bind_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -413,7 +438,10 @@ impl AdminHttpClient {
     }
 
     /// Get system alarm list
-    pub async fn get_system_alarm_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_system_alarm_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -438,7 +466,10 @@ impl AdminHttpClient {
     }
 
     /// Get flapping detection list
-    pub async fn get_flapping_detect_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_flapping_detect_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -447,7 +478,10 @@ impl AdminHttpClient {
     }
 
     /// Get topic rewrite rules list
-    pub async fn get_topic_rewrite_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_topic_rewrite_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -472,7 +506,10 @@ impl AdminHttpClient {
     }
 
     /// Get auto subscribe list
-    pub async fn get_auto_subscribe_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_auto_subscribe_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -497,7 +534,10 @@ impl AdminHttpClient {
     }
 
     /// Get slow subscribe list
-    pub async fn get_slow_subscribe_list<T, R>(&self, request: &T) -> Result<PageReplyData<R>, HttpClientError>
+    pub async fn get_slow_subscribe_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
     where
         T: Serialize,
         R: for<'de> Deserialize<'de>,
@@ -521,19 +561,19 @@ mod tests {
     #[test]
     fn test_build_url() {
         let client = AdminHttpClient::new("http://localhost:8080");
-        
+
         // Test with leading slash
         assert_eq!(
             client.build_url("/mqtt/overview").unwrap(),
             "http://localhost:8080/mqtt/overview"
         );
-        
+
         // Test without leading slash
         assert_eq!(
             client.build_url("mqtt/overview").unwrap(),
             "http://localhost:8080/mqtt/overview"
         );
-        
+
         // Test with trailing slash in base URL
         let client2 = AdminHttpClient::new("http://localhost:8080/");
         assert_eq!(
@@ -553,11 +593,9 @@ mod tests {
     async fn test_client_creation() {
         let client = AdminHttpClient::new("http://localhost:8080");
         assert_eq!(client.base_url, "http://localhost:8080");
-        
-        let client_with_timeout = AdminHttpClient::with_timeout(
-            "http://localhost:8080", 
-            Duration::from_secs(10)
-        );
+
+        let client_with_timeout =
+            AdminHttpClient::with_timeout("http://localhost:8080", Duration::from_secs(10));
         assert_eq!(client_with_timeout.base_url, "http://localhost:8080");
     }
 }
