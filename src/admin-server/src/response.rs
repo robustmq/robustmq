@@ -31,7 +31,17 @@ pub struct ClientListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct SessionListResp {}
+pub struct SessionListRow {
+    pub client_id: String,
+    pub session_expiry: u64,
+    pub is_contain_last_will: bool,
+    pub last_will_delay_interval: Option<u64>,
+    pub create_time: u64,
+    pub connection_id: Option<u64>,
+    pub broker_id: Option<u64>,
+    pub reconnect_time: Option<u64>,
+    pub distinct_time: Option<u64>,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct OverViewResp {

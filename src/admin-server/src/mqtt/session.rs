@@ -12,14 +12,81 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{request::SessionListReq, state::HttpState};
+use crate::{
+    request::SessionListReq,
+    response::{PageReplyData, SessionListRow},
+    state::HttpState,
+    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+};
 use axum::extract::{Query, State};
 use common_base::http_response::success_response;
 use std::sync::Arc;
 
 pub async fn session_list(
-    State(_state): State<Arc<HttpState>>,
+    State(state): State<Arc<HttpState>>,
     Query(params): Query<SessionListReq>,
 ) -> String {
-    success_response(params.client_id)
+    let options = build_query_params(
+        params.page,
+        params.page_num,
+        params.sort_field,
+        params.sort_by,
+        params.filter_field,
+        params.filter_values,
+        params.exact_match,
+    );
+
+    println!("{:?}", options);
+    let mut sessions = Vec::new();
+    if let Some(client_id) = params.client_id {
+        if let Some(session) = state
+            .mqtt_context
+            .cache_manager
+            .get_session_info(&client_id)
+        {
+            sessions.push(SessionListRow {
+                client_id: session.client_id.clone(),
+                session_expiry: session.session_expiry,
+                is_contain_last_will: session.is_contain_last_will,
+                last_will_delay_interval: session.last_will_delay_interval,
+                create_time: session.create_time,
+                connection_id: session.connection_id,
+                broker_id: session.broker_id,
+                reconnect_time: session.reconnect_time,
+                distinct_time: session.distinct_time,
+            });
+        }
+    } else {
+        for (_, session) in state.mqtt_context.cache_manager.session_info.clone() {
+            sessions.push(SessionListRow {
+                client_id: session.client_id.clone(),
+                session_expiry: session.session_expiry,
+                is_contain_last_will: session.is_contain_last_will,
+                last_will_delay_interval: session.last_will_delay_interval,
+                create_time: session.create_time,
+                connection_id: session.connection_id,
+                broker_id: session.broker_id,
+                reconnect_time: session.reconnect_time,
+                distinct_time: session.distinct_time,
+            });
+        }
+    }
+
+    let filtered = apply_filters(sessions, &options);
+    let sorted = apply_sorting(filtered, &options);
+    let pagination = apply_pagination(sorted, &options);
+
+    success_response(PageReplyData {
+        data: pagination.0,
+        total_count: pagination.1,
+    })
+}
+
+impl Queryable for SessionListRow {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            _ => None,
+        }
+    }
 }

@@ -20,9 +20,16 @@ pub struct OverviewMetricsReq {
     pub end_time: u64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct SessionListReq {
     pub client_id: Option<String>,
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

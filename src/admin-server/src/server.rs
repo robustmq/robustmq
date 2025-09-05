@@ -60,7 +60,7 @@ impl AdminServer {
             .route("/overview", get(overview))
             .route("/overview-metrics", get(overview_metrics))
             .route("/client-list", get(client_list))
-            .route("/session-list", get(overview_metrics))
+            .route("/session-list", get(session_list))
             .route("/topic-list", get(overview_metrics))
             .route("/subscribe-list", get(overview_metrics))
             .route("/user-list", get(overview_metrics))
