@@ -14,9 +14,16 @@
 
 use crate::{
     mqtt::{
+        acl::acl_list,
+        blacklist::blacklist_list,
         client::client_list,
+        connector::connector_list,
         overview::{overview, overview_metrics},
+        schema::schema_list,
         session::session_list,
+        subscribe::subscribe_list,
+        topic::topic_list,
+        user::user_list,
     },
     state::HttpState,
 };
@@ -61,13 +68,13 @@ impl AdminServer {
             .route("/overview-metrics", get(overview_metrics))
             .route("/client-list", get(client_list))
             .route("/session-list", get(session_list))
-            .route("/topic-list", get(overview_metrics))
-            .route("/subscribe-list", get(overview_metrics))
-            .route("/user-list", get(overview_metrics))
-            .route("/acl-list", get(overview_metrics))
-            .route("/blacklist-list", get(overview_metrics))
-            .route("/connector-list", get(overview_metrics))
-            .route("/schema-list", get(overview_metrics))
+            .route("/topic-list", get(topic_list))
+            .route("/subscribe-list", get(subscribe_list))
+            .route("/user-list", get(user_list))
+            .route("/acl-list", get(acl_list))
+            .route("/blacklist-list", get(blacklist_list))
+            .route("/connector-list", get(connector_list))
+            .route("/schema-list", get(schema_list))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {

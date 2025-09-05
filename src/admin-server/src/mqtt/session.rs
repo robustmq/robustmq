@@ -36,7 +36,6 @@ pub async fn session_list(
         params.exact_match,
     );
 
-    println!("{:?}", options);
     let mut sessions = Vec::new();
     if let Some(client_id) = params.client_id {
         if let Some(session) = state

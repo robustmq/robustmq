@@ -138,6 +138,8 @@ impl BrokerServer {
                 cache_manager: self.mqtt_params.cache_manager.clone(),
                 subscribe_manager: self.mqtt_params.subscribe_manager.clone(),
                 metrics_manager: self.mqtt_params.metrics_cache_manager.clone(),
+                connector_manager: self.mqtt_params.connector_manager.clone(),
+                schema_manager: self.mqtt_params.schema_manager.clone(),
             },
             broker_cache: broker_cache.clone(),
         });

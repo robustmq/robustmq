@@ -16,7 +16,7 @@ use crate::{
     request::ClientListReq,
     response::{ClientListRow, PageReplyData},
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, Queryable},
+    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::extract::{Query, State};
 use common_base::{http_response::success_response, utils::time_util::timestamp_to_local_datetime};
@@ -26,8 +26,16 @@ pub async fn client_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<ClientListReq>,
 ) -> String {
-    println!("{:?}", params);
-    let options = None;
+    let options = build_query_params(
+        params.page,
+        params.page_num,
+        params.sort_field,
+        params.sort_by,
+        params.filter_field,
+        params.filter_values,
+        params.exact_match,
+    );
+
     let mut clients = Vec::new();
     for (connection_id, network_connection) in state.connection_manager.list_connect() {
         let connection_flag = if let Some(id) = params.connection_id {

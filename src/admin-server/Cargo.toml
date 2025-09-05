@@ -32,6 +32,7 @@ common-config.workspace = true
 metadata-struct.workspace = true
 broker-core.workspace = true
 protocol.workspace = true
+schema-register.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

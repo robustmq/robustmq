@@ -47,6 +47,7 @@ dependencies = [
  "mqtt-broker",
  "network-server",
  "protocol",
+ "schema-register",
  "serde",
  "serde_json",
  "tokio",

@@ -33,6 +33,86 @@ pub struct SessionListReq {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct TopicListReq {
+    pub topic_name: Option<String>,
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SubscribeListReq {
+    pub client_id: Option<String>,
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UserListReq {
+    pub user_name: Option<String>,
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct BlackListListReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AclListReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ConnectorListReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SchemaListReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct ClientListReq {
     pub source_ip: Option<String>,
     pub connection_id: Option<u64>,
