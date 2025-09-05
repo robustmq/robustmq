@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{
     placement::mqtt::call::{
@@ -66,7 +67,7 @@ impl ConnectorStorage {
         self.list_connector("").await
     }
 
-    pub async fn create_connector(&self, connector: MQTTConnector) -> ResultMqttBrokerError {
+    pub async fn create_connector(&self, connector: MQTTConnector) -> ResultCommonError {
         let config = broker_config();
         let request = CreateConnectorRequest {
             cluster_name: config.cluster_name.clone(),

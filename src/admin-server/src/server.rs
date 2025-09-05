@@ -17,7 +17,7 @@ use crate::{
         acl::acl_list,
         blacklist::blacklist_list,
         client::client_list,
-        connector::connector_list,
+        connector::{connector_create, connector_delete, connector_list},
         overview::{overview, overview_metrics},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
@@ -25,8 +25,10 @@ use crate::{
         },
         session::session_list,
         subscribe::{
-            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, subscribe_list,
+            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
+            subscribe_list,
         },
+        system::{cluster_config_set, system_alarm_list},
         topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
@@ -86,15 +88,17 @@ impl AdminServer {
             .route("/mqtt/topic/list", get(topic_list))
             // topic-rewrite
             .route("/mqtt/topic-rewrite/list", get(topic_rewrite_list))
-            .route("/mqtt/topic-rewrite/create", get(topic_rewrite_create))
-            .route("/mqtt/topic-rewrite/delete", get(topic_list))
+            .route("/mqtt/topic-rewrite/create", post(topic_rewrite_create))
+            .route("/mqtt/topic-rewrite/delete", post(topic_list))
             // subscribe
             .route("/mqtt/subscribe/list", get(subscribe_list))
             .route("/mqtt/subscribe/detail", get(subscribe_list))
             // auto subscribe
             .route("/mqtt/auto-subscribe/list", get(auto_subscribe_list))
-            .route("/mqtt/auto-subscribe/create", get(auto_subscribe_create))
-            .route("/mqtt/auto-subscribe/delete", get(auto_subscribe_delete))
+            .route("/mqtt/auto-subscribe/create", post(auto_subscribe_create))
+            .route("/mqtt/auto-subscribe/delete", post(auto_subscribe_delete))
+            // slow subscribe
+            .route("/mqtt/slow-subscribe/list", get(slow_subscribe_list))
             // user
             .route("/mqtt/user/list", get(user_list))
             .route("/mqtt/user/create", post(user_create))
@@ -105,13 +109,19 @@ impl AdminServer {
             .route("/mqtt/blacklist/list", get(blacklist_list))
             // connector
             .route("/mqtt/connector/list", get(connector_list))
+            .route("/mqtt/connector/create", get(connector_create))
+            .route("/mqtt/connector/delete", get(connector_delete))
             // schema
             .route("/mqtt/schema/list", get(schema_list))
-            .route("/mqtt/schema/create", get(schema_create))
-            .route("/mqtt/schema/delete", get(schema_delete))
+            .route("/mqtt/schema/create", post(schema_create))
+            .route("/mqtt/schema/delete", post(schema_delete))
             .route("/mqtt/schema-bind/list", get(schema_bind_list))
-            .route("/mqtt/schema-bind/create", get(schema_bind_create))
-            .route("/mqtt/schema-bind/delete", get(schema_bind_delete))
+            .route("/mqtt/schema-bind/create", post(schema_bind_create))
+            .route("/mqtt/schema-bind/delete", post(schema_bind_delete))
+            // system alarm
+            .route("/mqtt/system-alarm/list", get(system_alarm_list))
+            // config
+            .route("/mqtt/cluster-config/set", post(cluster_config_set))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

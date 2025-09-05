@@ -121,6 +121,16 @@ pub struct AutoSubscribeListRow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct SlowSubscribeListRow {
+    pub client_id: String,
+    pub topic_name: String,
+    pub time_span: u64,
+    pub node_info: String,
+    pub create_time: String,
+    pub subscribe_name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SessionListRow {
     pub client_id: String,
     pub session_expiry: u64,
@@ -131,6 +141,14 @@ pub struct SessionListRow {
     pub broker_id: Option<u64>,
     pub reconnect_time: Option<u64>,
     pub distinct_time: Option<u64>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SystemAlarmListRow {
+    pub name: String,
+    pub message: String,
+    pub activate_at: String,
+    pub activated: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

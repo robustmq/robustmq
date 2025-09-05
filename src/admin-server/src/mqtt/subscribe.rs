@@ -16,7 +16,7 @@ use crate::{
     request::{
         AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq, SubscribeListReq,
     },
-    response::{AutoSubscribeListRow, PageReplyData, SubscribeListRow},
+    response::{AutoSubscribeListRow, PageReplyData, SlowSubscribeListRow, SubscribeListRow},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
@@ -187,4 +187,55 @@ pub async fn auto_subscribe_delete(
         .delete_auto_subscribe_rule(&state.broker_cache.cluster_name, &params.topic_name);
 
     success_response("success")
+}
+
+pub async fn slow_subscribe_list(
+    State(state): State<Arc<HttpState>>,
+    Query(params): Query<AutoSubscribeListReq>,
+) -> String {
+    let options = build_query_params(
+        params.page,
+        params.page_num,
+        params.sort_field,
+        params.sort_by,
+        params.filter_field,
+        params.filter_values,
+        params.exact_match,
+    );
+    let mut list_slow_subscribes = Vec::new();
+
+    for (_, slow_data) in state
+        .mqtt_context
+        .metrics_manager
+        .slow_subscribe_info
+        .iter_reverse()
+    {
+        list_slow_subscribes.push(SlowSubscribeListRow {
+            client_id: slow_data.client_id.clone(),
+            topic_name: slow_data.topic_name.clone(),
+            time_span: slow_data.time_span,
+            node_info: slow_data.node_info.clone(),
+            create_time: timestamp_to_local_datetime(slow_data.create_time as i64),
+            subscribe_name: slow_data.subscribe_name.clone(),
+        });
+    }
+
+    let filtered = apply_filters(list_slow_subscribes, &options);
+    let sorted = apply_sorting(filtered, &options);
+    let pagination = apply_pagination(sorted, &options);
+
+    success_response(PageReplyData {
+        data: pagination.0,
+        total_count: pagination.1,
+    })
+}
+
+impl Queryable for SlowSubscribeListRow {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "topic_name" => Some(self.topic_name.clone()),
+            _ => None,
+        }
+    }
 }

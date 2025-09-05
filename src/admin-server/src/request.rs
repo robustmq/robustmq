@@ -164,6 +164,19 @@ pub struct ConnectorListReq {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct CreateConnectorReq {
+    pub connector_name: String,
+    pub connector_type: String,
+    pub config: String,
+    pub topic_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteConnectorReq {
+    pub connector_name: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct SchemaListReq {
     pub page_num: Option<u32>,
     pub page: Option<u32>,
@@ -224,3 +237,17 @@ pub struct ClientListReq {
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
 }
+
+#[derive(Deserialize, Debug)]
+pub struct SystemAlarmListReq {
+    pub page_num: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ClusterConfigSetReq {}
