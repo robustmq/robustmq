@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct OverviewMetricsReq {
@@ -20,10 +20,10 @@ pub struct OverviewMetricsReq {
     pub end_time: u64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SessionListReq {
     pub client_id: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -35,7 +35,7 @@ pub struct SessionListReq {
 #[derive(Deserialize, Debug)]
 pub struct TopicListReq {
     pub topic_name: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -47,7 +47,7 @@ pub struct TopicListReq {
 #[derive(Deserialize, Debug)]
 pub struct SubscribeListReq {
     pub client_id: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -60,7 +60,7 @@ pub struct SubscribeDetailReq {}
 
 #[derive(Deserialize, Debug)]
 pub struct AutoSubscribeListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -86,7 +86,7 @@ pub struct DeleteAutoSubscribeReq {
 #[derive(Deserialize, Debug)]
 pub struct UserListReq {
     pub user_name: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -109,7 +109,7 @@ pub struct DeleteUserReq {
 
 #[derive(Deserialize, Debug)]
 pub struct BlackListListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -134,7 +134,7 @@ pub struct DeleteBlackListReq {
 
 #[derive(Deserialize, Debug)]
 pub struct TopicRewriteReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -159,7 +159,7 @@ pub struct DeleteTopicRewriteReq {
 
 #[derive(Deserialize, Debug)]
 pub struct AclListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -190,7 +190,7 @@ pub struct DeleteAclReq {
 
 #[derive(Deserialize, Debug)]
 pub struct ConnectorListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -214,7 +214,7 @@ pub struct DeleteConnectorReq {
 
 #[derive(Deserialize, Debug)]
 pub struct SchemaListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -240,7 +240,7 @@ pub struct DeleteSchemaReq {
 pub struct SchemaBindListReq {
     pub resource_name: Option<String>,
     pub schema_name: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -265,7 +265,7 @@ pub struct DeleteSchemaBindReq {
 pub struct ClientListReq {
     pub source_ip: Option<String>,
     pub connection_id: Option<u64>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -276,7 +276,7 @@ pub struct ClientListReq {
 
 #[derive(Deserialize, Debug)]
 pub struct SystemAlarmListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -284,6 +284,9 @@ pub struct SystemAlarmListReq {
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClusterConfigGetReq {}
 
 #[derive(Deserialize, Debug)]
 pub struct ClusterConfigSetReq {

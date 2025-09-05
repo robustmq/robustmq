@@ -52,7 +52,7 @@ pub struct QueryOptions {
 
 pub fn build_query_params(
     page: Option<u32>,
-    page_num: Option<u32>,
+    limit: Option<u32>,
     sort_field: Option<String>,
     sort_by: Option<String>,
     filter_field: Option<String>,
@@ -60,7 +60,7 @@ pub fn build_query_params(
     exact_match: Option<String>,
 ) -> Option<QueryOptions> {
     let pagination = Pagination {
-        limit: parse_limit(page_num),
+        limit: parse_limit(limit),
         offset: parse_page(page),
     };
     let filters = parse_filters(filter_field, filter_values, exact_match);

@@ -86,7 +86,6 @@ impl AdminHttpClient {
         R: for<'de> Deserialize<'de>,
     {
         let url = self.build_url(endpoint)?;
-
         let response = self
             .client
             .post(&url)
@@ -94,7 +93,6 @@ impl AdminHttpClient {
             .json(request)
             .send()
             .await?;
-
         let status = response.status();
         let response_text = response.text().await?;
 
@@ -108,7 +106,7 @@ impl AdminHttpClient {
         // Try to parse as ApiResponse first
         match serde_json::from_str::<ApiResponse<R>>(&response_text) {
             Ok(api_response) => {
-                if api_response.code == 200 {
+                if api_response.code == 0 {
                     api_response
                         .data
                         .ok_or_else(|| HttpClientError::ServerError {

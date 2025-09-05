@@ -26,12 +26,11 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule,
     mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist, mqtt_broker_list_connection,
     mqtt_broker_list_connector, mqtt_broker_list_flapping_detect, mqtt_broker_list_schema,
-    mqtt_broker_list_session, mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe,
-    mqtt_broker_list_system_alarm, mqtt_broker_list_topic, mqtt_broker_list_user,
-    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
-    mqtt_broker_set_slow_subscribe_config, mqtt_broker_set_system_alarm_config,
-    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
-    mqtt_broker_update_schema,
+    mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm,
+    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
+    mqtt_broker_set_cluster_config, mqtt_broker_set_slow_subscribe_config,
+    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -45,16 +44,19 @@ use protocol::broker::broker_mqtt_admin::{
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
     EnableFlappingDetectRequest, ListAclRequest, ListAutoSubscribeRuleRequest,
     ListBindSchemaRequest, ListBlacklistRequest, ListConnectionRequest, ListConnectorRequest,
-    ListFlappingDetectRequest, ListSchemaRequest, ListSessionRequest, ListSlowSubscribeRequest,
-    ListSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest, ListUserRequest,
-    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SetSlowSubscribeConfigRequest,
-    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
-    UpdateConnectorRequest, UpdateSchemaRequest,
+    ListFlappingDetectRequest, ListSchemaRequest, ListSlowSubscribeRequest, ListSubscribeRequest,
+    ListSystemAlarmRequest, ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest,
+    SubscribeDetailRequest, UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
 
 use metadata_struct::acl::mqtt_acl::MqttAcl;
+
+// Default pagination constants
+const DEFAULT_PAGE_SIZE: u32 = 10000;
+const DEFAULT_PAGE_NUM: u32 = 1;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::{select, signal};
 
@@ -161,12 +163,17 @@ impl MqttBrokerCommand {
         match params.action {
             // cluster config
             MqttActionType::GetClusterConfig => {
-                self.get_cluster_config(&client_pool, params.clone()).await;
+                self.get_cluster_config(params.clone()).await;
             }
 
-            // cluster status
+            // list session
             MqttActionType::ListSession => {
-                self.list_session(&client_pool, params.clone()).await;
+                self.list_session(params.clone()).await;
+            }
+
+            // list connection
+            MqttActionType::ListConnection => {
+                self.list_connections(&client_pool, params.clone()).await;
             }
 
             // user admin
@@ -206,10 +213,7 @@ impl MqttBrokerCommand {
                 self.delete_blacklist(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            // list connection
-            MqttActionType::ListConnection => {
-                self.list_connections(&client_pool, params.clone()).await;
-            }
+
             // connector
             MqttActionType::ListConnector(ref request) => {
                 self.list_connectors(&client_pool, params.clone(), request.clone())
@@ -487,34 +491,31 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn get_cluster_config(&self, _client_pool: &ClientPool, params: MqttCliCommandParam) {
+    async fn get_cluster_config(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
         let admin_client =
             crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
 
-        // Create empty request for get cluster config
-        let request = serde_json::json!({});
+        // Create request for get cluster config
+        let request = admin_server::request::ClusterConfigGetReq {};
 
-        match admin_client.get_cluster_config(&request).await {
-            Ok(response_text) => {
-                // Try to parse the response as BrokerConfig
-                match serde_json::from_str::<BrokerConfig>(&response_text) {
-                    Ok(data) => {
-                        let json = match serde_json::to_string_pretty(&data) {
-                            Ok(data) => data,
-                            Err(e) => {
-                                println!("MQTT broker cluster normal exception");
-                                error_info(e.to_string());
-                                return;
-                            }
-                        };
-                        println!("{json}");
+        match admin_client
+            .post::<admin_server::request::ClusterConfigGetReq, BrokerConfig>(
+                "/mqtt/cluster-config/get",
+                &request,
+            )
+            .await
+        {
+            Ok(broker_config) => {
+                let json = match serde_json::to_string_pretty(&broker_config) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        println!("MQTT broker cluster normal exception");
+                        error_info(e.to_string());
+                        return;
                     }
-                    Err(_) => {
-                        // If direct parsing fails, try to parse as the original response format
-                        println!("{response_text}");
-                    }
-                }
+                };
+                println!("{json}");
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");
@@ -524,10 +525,25 @@ impl MqttBrokerCommand {
     }
 
     // ------------ list session ------------
-    async fn list_session(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListSessionRequest {};
-        match mqtt_broker_list_session(client_pool, &grpc_addr(params.server), request).await {
-            Ok(data) => {
+    async fn list_session(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for session list
+        let request = admin_server::request::SessionListReq {
+            client_id: None,
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client.get_session_list::<admin_server::request::SessionListReq, Vec<admin_server::response::SessionListRow>>(&request).await {
+            Ok(page_data) => {
                 let mut table = Table::new();
                 table.set_titles(row![
                     "client_id",
@@ -540,17 +556,17 @@ impl MqttBrokerCommand {
                     "reconnect_time",
                     "distinct_time"
                 ]);
-                for blacklist in data.sessions {
+                for session in page_data.data {
                     table.add_row(row![
-                        blacklist.client_id,
-                        blacklist.session_expiry,
-                        blacklist.is_contain_last_will,
-                        blacklist.last_will_delay_interval.unwrap_or_default(),
-                        blacklist.create_time,
-                        blacklist.connection_id.unwrap_or_default(),
-                        blacklist.broker_id.unwrap_or_default(),
-                        blacklist.reconnect_time.unwrap_or_default(),
-                        blacklist.distinct_time.unwrap_or_default(),
+                        session.client_id,
+                        session.session_expiry,
+                        session.is_contain_last_will,
+                        session.last_will_delay_interval.unwrap_or_default(),
+                        session.create_time,
+                        session.connection_id.unwrap_or_default(),
+                        session.broker_id.unwrap_or_default(),
+                        session.reconnect_time.unwrap_or_default(),
+                        session.distinct_time.unwrap_or_default(),
                     ]);
                 }
                 // output cmd

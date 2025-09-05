@@ -28,7 +28,7 @@ pub async fn session_list(
 ) -> String {
     let options = build_query_params(
         params.page,
-        params.page_num,
+        params.limit,
         params.sort_field,
         params.sort_by,
         params.filter_field,
