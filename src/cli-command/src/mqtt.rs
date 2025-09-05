@@ -496,26 +496,29 @@ impl MqttBrokerCommand {
         let admin_client =
             crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
 
-        // Create request for get cluster config
-        let request = admin_server::request::ClusterConfigGetReq {};
+        // Create empty request for get cluster config
+        let request = serde_json::json!({});
 
-        match admin_client
-            .post::<admin_server::request::ClusterConfigGetReq, BrokerConfig>(
-                "/mqtt/cluster-config/get",
-                &request,
-            )
-            .await
-        {
-            Ok(broker_config) => {
-                let json = match serde_json::to_string_pretty(&broker_config) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        println!("MQTT broker cluster normal exception");
-                        error_info(e.to_string());
-                        return;
+        match admin_client.get_cluster_config(&request).await {
+            Ok(response_text) => {
+                // Try to parse the response as BrokerConfig
+                match serde_json::from_str::<BrokerConfig>(&response_text) {
+                    Ok(data) => {
+                        let json = match serde_json::to_string_pretty(&data) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                println!("MQTT broker cluster normal exception");
+                                error_info(e.to_string());
+                                return;
+                            }
+                        };
+                        println!("{json}");
                     }
-                };
-                println!("{json}");
+                    Err(_) => {
+                        // If direct parsing fails, try to parse as the original response format
+                        println!("{response_text}");
+                    }
+                }
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");

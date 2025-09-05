@@ -96,6 +96,8 @@ impl AdminHttpClient {
         let status = response.status();
         let response_text = response.text().await?;
 
+        println!("{:?}",status);
+        println!("{:?}",response_text);
         if !status.is_success() {
             return Err(HttpClientError::ServerError {
                 code: status.as_u16() as u64,
