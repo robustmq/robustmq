@@ -36,3 +36,4 @@ reqwest.workspace = true
 serde.workspace = true
 admin-server.workspace = true
 clap.workspace = true
+clap-cargo.workspace = true

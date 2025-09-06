@@ -15,4 +15,5 @@
 #![allow(clippy::result_large_err)]
 pub mod cluster;
 pub mod common;
+pub mod handler;
 pub mod mqtt;
