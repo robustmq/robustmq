@@ -154,10 +154,10 @@ export const sidebar = [
     },
 
      {
-        text: "Rest API",
+        text: "HTTP 接口文档",
         collapsed: true,
         items: [
-            { text: "MQTT Rest API", link: "/zh/Api/MQTT-API" },
+            { text: "MQTT 相关", link: "/zh/Api/MQTT-API" },
         ],
     },
     {

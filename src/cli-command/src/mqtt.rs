@@ -15,42 +15,26 @@
 use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info, grpc_addr};
 use admin_server::response::SessionListRow;
-use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use common_config::config::BrokerConfig;
 use grpc_clients::mqtt::admin::call::{
-    mqtt_broker_bind_schema, mqtt_broker_create_acl, mqtt_broker_create_blacklist,
-    mqtt_broker_create_connector, mqtt_broker_create_schema, mqtt_broker_create_user,
-    mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
-    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_user,
-    mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule,
-    mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist, mqtt_broker_list_connector,
-    mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_system_alarm, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
-    mqtt_broker_set_cluster_config, mqtt_broker_set_slow_subscribe_config,
-    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_bind_schema, mqtt_broker_create_connector, mqtt_broker_create_schema,
+    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_list_bind_schema,
+    mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_system_alarm,
+    mqtt_broker_set_cluster_config, mqtt_broker_set_system_alarm_config,
+    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker::broker_mqtt_admin::{
-    BindSchemaRequest, CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
-    CreateSchemaRequest, CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistRequest, DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest,
-    EnableFlappingDetectRequest, ListAclRequest, ListAutoSubscribeRuleRequest,
-    ListBindSchemaRequest, ListBlacklistRequest, ListConnectorRequest, ListFlappingDetectRequest,
-    ListSchemaRequest, ListSlowSubscribeRequest, ListSystemAlarmRequest, ListUserRequest,
-    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SetSlowSubscribeConfigRequest,
-    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
-    UpdateConnectorRequest, UpdateSchemaRequest,
+    BindSchemaRequest, CreateConnectorRequest, CreateSchemaRequest, DeleteConnectorRequest,
+    DeleteSchemaRequest, ListBindSchemaRequest, ListConnectorRequest, ListSchemaRequest,
+    ListSystemAlarmRequest, SetClusterConfigRequest, SetSystemAlarmConfigRequest,
+    SubscribeDetailRequest, UnbindSchemaRequest,
 };
-use std::str::FromStr;
 use std::sync::Arc;
-
-use metadata_struct::acl::mqtt_acl::MqttAcl;
 
 // Default pagination constants
 const DEFAULT_PAGE_SIZE: u32 = 10000;
@@ -81,29 +65,25 @@ pub enum MqttActionType {
 
     // user admin
     ListUser,
-    CreateUser(CreateUserRequest),
-    DeleteUser(DeleteUserRequest),
+    CreateUser(admin_server::request::CreateUserReq),
+    DeleteUser(admin_server::request::DeleteUserReq),
 
     // access control list admin
     ListAcl,
-    CreateAcl(CreateAclRequest),
-    DeleteAcl(DeleteAclRequest),
+    CreateAcl(admin_server::request::CreateAclReq),
+    DeleteAcl(admin_server::request::DeleteAclReq),
 
     // blacklist admin
     ListBlacklist,
-    CreateBlacklist(CreateBlacklistRequest),
-    DeleteBlacklist(DeleteBlacklistRequest),
+    CreateBlacklist(admin_server::request::CreateBlackListReq),
+    DeleteBlacklist(admin_server::request::DeleteBlackListReq),
 
     // client
     ListClient,
 
     // #### observability ####
     // slow subscribe
-    SetSlowSubscribeConfig(SetSlowSubscribeConfigRequest),
-    ListSlowSubscribe(ListSlowSubscribeRequest),
-
-    // flapping detect
-    EnableFlappingDetect(EnableFlappingDetectRequest),
+    ListSlowSubscribe,
 
     // system alarm
     SetSystemAlarmConfig(SetSystemAlarmConfigRequest),
@@ -123,28 +103,23 @@ pub enum MqttActionType {
     // Topic
     ListTopic,
 
-    // FlappingDetect
-    ListFlappingDetect,
-
     // connector
     ListConnector(ListConnectorRequest),
     CreateConnector(CreateConnectorRequest),
-    UpdateConnector(UpdateConnectorRequest),
     DeleteConnector(DeleteConnectorRequest),
 
     // schema
     ListSchema(ListSchemaRequest),
     CreateSchema(CreateSchemaRequest),
-    UpdateSchema(UpdateSchemaRequest),
     DeleteSchema(DeleteSchemaRequest),
     ListBindSchema(ListBindSchemaRequest),
     BindSchema(BindSchemaRequest),
     UnbindSchema(UnbindSchemaRequest),
 
     //auto subscribe
-    ListAutoSubscribeRule(ListAutoSubscribeRuleRequest),
-    SetAutoSubscribeRule(SetAutoSubscribeRuleRequest),
-    DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest),
+    ListAutoSubscribe,
+    CreateAutoSubscribe(admin_server::request::CreateAutoSubscribeReq),
+    DeleteAutoSubscribe(admin_server::request::DeleteAutoSubscribeReq),
 }
 
 pub struct MqttBrokerCommand {}
@@ -208,42 +183,55 @@ impl MqttBrokerCommand {
                     .await;
             }
 
-            // user admin
-            MqttActionType::ListUser => {
-                self.list_user(&client_pool, params.clone()).await;
+            //auto subscribe
+            MqttActionType::ListAutoSubscribe => {
+                self.list_auto_subscribe_rule(params_clone.clone()).await;
             }
-            MqttActionType::CreateUser(ref request) => {
-                self.create_user(&client_pool, params.clone(), request.clone())
+            MqttActionType::CreateAutoSubscribe(request) => {
+                self.set_auto_subscribe_rule(params_clone.clone(), request)
                     .await;
             }
-            MqttActionType::DeleteUser(ref request) => {
-                self.delete_user(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            // access control list admin
-            MqttActionType::ListAcl => {
-                self.list_acl(&client_pool, params.clone()).await;
-            }
-            MqttActionType::CreateAcl(ref request) => {
-                self.create_acl(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::DeleteAcl(ref request) => {
-                self.delete_acl(&client_pool, params.clone(), request.clone())
+            MqttActionType::DeleteAutoSubscribe(request) => {
+                self.delete_auto_subscribe_rule(params_clone.clone(), request)
                     .await;
             }
 
-            // blacklist admin
+            // slow subscribe
+            MqttActionType::ListSlowSubscribe => {
+                self.list_slow_subscribe(params_clone.clone()).await;
+            }
+
+            // user
+            MqttActionType::ListUser => {
+                self.list_user(params_clone.clone()).await;
+            }
+            MqttActionType::CreateUser(request) => {
+                self.create_user(params_clone.clone(), request).await;
+            }
+            MqttActionType::DeleteUser(request) => {
+                self.delete_user(params_clone.clone(), request).await;
+            }
+
+            // acl
+            MqttActionType::ListAcl => {
+                self.list_acl(params_clone.clone()).await;
+            }
+            MqttActionType::CreateAcl(request) => {
+                self.create_acl(params_clone.clone(), request).await;
+            }
+            MqttActionType::DeleteAcl(request) => {
+                self.delete_acl(params_clone.clone(), request).await;
+            }
+
+            // blacklist
             MqttActionType::ListBlacklist => {
-                self.list_blacklist(&client_pool, params.clone()).await;
+                self.list_blacklist(params_clone.clone()).await;
             }
-            MqttActionType::CreateBlacklist(ref request) => {
-                self.create_blacklist(&client_pool, params.clone(), request.clone())
-                    .await;
+            MqttActionType::CreateBlacklist(request) => {
+                self.create_blacklist(params_clone.clone(), request).await;
             }
-            MqttActionType::DeleteBlacklist(ref request) => {
-                self.delete_blacklist(&client_pool, params.clone(), request.clone())
-                    .await;
+            MqttActionType::DeleteBlacklist(request) => {
+                self.delete_blacklist(params_clone.clone(), request).await;
             }
 
             // connector
@@ -259,19 +247,7 @@ impl MqttBrokerCommand {
                 self.delete_connector(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::UpdateConnector(ref request) => {
-                self.update_connector(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
 
-            MqttActionType::ListSlowSubscribe(ref request) => {
-                self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::EnableFlappingDetect(ref request) => {
-                self.enable_flapping_detect(&client_pool, params.clone(), *request)
-                    .await;
-            }
             MqttActionType::Publish(ref request) => {
                 self.publish(params.clone(), request.clone()).await;
             }
@@ -286,10 +262,6 @@ impl MqttBrokerCommand {
             }
             MqttActionType::CreateSchema(ref request) => {
                 self.create_schema(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::UpdateSchema(ref request) => {
-                self.update_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
             MqttActionType::DeleteSchema(ref request) => {
@@ -309,23 +281,11 @@ impl MqttBrokerCommand {
                     .await;
             }
 
-            //auto subscribe
-            MqttActionType::ListAutoSubscribeRule(ref request) => {
-                self.list_auto_subscribe_rule(&client_pool, params.clone(), *request)
-                    .await;
-            }
-            MqttActionType::SetAutoSubscribeRule(ref request) => {
-                self.set_auto_subscribe_rule(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::DeleteAutoSubscribeRule(ref request) => {
-                self.delete_auto_subscribe_rule(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
             MqttActionType::SetClusterConfig(ref request) => {
                 self.set_cluster_config(&client_pool, params.clone(), request.clone())
                     .await;
             }
+            // system alarm
             MqttActionType::SetSystemAlarmConfig(ref request) => {
                 self.set_system_alarm_config(&client_pool, params.clone(), *request)
                     .await;
@@ -333,15 +293,6 @@ impl MqttBrokerCommand {
             MqttActionType::ListSystemAlarm(ref request) => {
                 self.list_system_alarm(&client_pool, params.clone(), *request)
                     .await;
-            }
-            MqttActionType::ListFlappingDetect => {
-                self.list_flapping_detect(&client_pool, params.clone())
-                    .await
-            }
-
-            MqttActionType::SetSlowSubscribeConfig(ref request) => {
-                self.set_slow_subscribe_config(&client_pool, params.clone(), request.to_owned())
-                    .await
             }
         }
     }
@@ -602,11 +553,14 @@ impl MqttBrokerCommand {
     // ------------ user admin ------------
     async fn create_user(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: CreateUserRequest,
+        cli_request: admin_server::request::CreateUserReq,
     ) {
-        match mqtt_broker_create_user(client_pool, &grpc_addr(params.server), cli_request).await {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.create_user(&cli_request).await {
             Ok(_) => {
                 println!("Created successfully!")
             }
@@ -619,11 +573,14 @@ impl MqttBrokerCommand {
 
     async fn delete_user(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: DeleteUserRequest,
+        cli_request: admin_server::request::DeleteUserReq,
     ) {
-        match mqtt_broker_delete_user(client_pool, &grpc_addr(params.server), cli_request).await {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.delete_user(&cli_request).await {
             Ok(_) => {
                 println!("Deleted successfully!");
             }
@@ -634,14 +591,35 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_user(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListUserRequest {};
-        match mqtt_broker_list_user(client_pool, &grpc_addr(params.server), request).await {
-            Ok(data) => {
+    async fn list_user(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for user list
+        let request = admin_server::request::UserListReq {
+            user_name: None,
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client
+            .get_user_list::<admin_server::request::UserListReq, Vec<admin_server::response::UserListRow>>(
+                &request,
+            )
+            .await
+        {
+            Ok(page_data) => {
+                println!("user list result:");
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row!["username", "is_superuser"]);
-                for user in data.users {
+                for user in page_data.data {
                     table.add_row(row![user.username.as_str(), user.is_superuser]);
                 }
                 // output cmd
@@ -657,11 +635,14 @@ impl MqttBrokerCommand {
 
     async fn create_acl(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: CreateAclRequest,
+        cli_request: admin_server::request::CreateAclReq,
     ) {
-        match mqtt_broker_create_acl(client_pool, &grpc_addr(params.server), cli_request).await {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.create_acl(&cli_request).await {
             Ok(_) => {
                 println!("Created successfully!")
             }
@@ -674,11 +655,14 @@ impl MqttBrokerCommand {
 
     async fn delete_acl(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: DeleteAclRequest,
+        cli_request: admin_server::request::DeleteAclReq,
     ) {
-        match mqtt_broker_delete_acl(client_pool, &grpc_addr(params.server), cli_request).await {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.delete_acl(&cli_request).await {
             Ok(_) => {
                 println!("Deleted successfully!");
             }
@@ -689,10 +673,30 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_acl(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListAclRequest::default();
-        match mqtt_broker_list_acl(client_pool, &grpc_addr(params.server), request).await {
-            Ok(data) => {
+    async fn list_acl(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for acl list
+        let request = admin_server::request::AclListReq {
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client
+            .get_acl_list::<admin_server::request::AclListReq, Vec<admin_server::response::AclListRow>>(
+                &request,
+            )
+            .await
+        {
+            Ok(page_data) => {
+                println!("acl list result:");
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
@@ -703,15 +707,14 @@ impl MqttBrokerCommand {
                     "action",
                     "permission"
                 ]);
-                for acl in data.acls {
-                    let mqtt_acl = serde_json::from_slice::<MqttAcl>(acl.as_slice()).unwrap();
+                for acl in page_data.data {
                     table.add_row(row![
-                        mqtt_acl.resource_type,
-                        mqtt_acl.resource_name,
-                        mqtt_acl.topic,
-                        mqtt_acl.ip,
-                        mqtt_acl.action,
-                        mqtt_acl.permission
+                        acl.resource_type,
+                        acl.resource_name,
+                        acl.topic,
+                        acl.ip,
+                        acl.action,
+                        acl.permission
                     ]);
                 }
                 // output cmd
@@ -727,13 +730,14 @@ impl MqttBrokerCommand {
     // -------------- blacklist admin --------------
     async fn create_blacklist(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: CreateBlacklistRequest,
+        cli_request: admin_server::request::CreateBlackListReq,
     ) {
-        match mqtt_broker_create_blacklist(client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.create_blacklist(&cli_request).await {
             Ok(_) => {
                 println!("Created successfully!")
             }
@@ -746,13 +750,14 @@ impl MqttBrokerCommand {
 
     async fn delete_blacklist(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: DeleteBlacklistRequest,
+        cli_request: admin_server::request::DeleteBlackListReq,
     ) {
-        match mqtt_broker_delete_blacklist(client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.delete_blacklist(&cli_request).await {
             Ok(_) => {
                 println!("Deleted successfully!");
             }
@@ -763,10 +768,30 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_blacklist(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListBlacklistRequest::default();
-        match mqtt_broker_list_blacklist(client_pool, &grpc_addr(params.server), request).await {
-            Ok(data) => {
+    async fn list_blacklist(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for blacklist list
+        let request = admin_server::request::BlackListListReq {
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client
+            .get_blacklist::<admin_server::request::BlackListListReq, Vec<admin_server::response::BlackListListRow>>(
+                &request,
+            )
+            .await
+        {
+            Ok(page_data) => {
+                println!("blacklist list result:");
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
@@ -775,7 +800,7 @@ impl MqttBrokerCommand {
                     "end_time",
                     "description"
                 ]);
-                for blacklist in data.blacklists {
+                for blacklist in page_data.data {
                     table.add_row(row![
                         blacklist.blacklist_type,
                         blacklist.resource_name,
@@ -849,131 +874,33 @@ impl MqttBrokerCommand {
         }
     }
 
-    // -------------- flapping detect --------------
-    async fn enable_flapping_detect(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: EnableFlappingDetectRequest,
-    ) {
-        match mqtt_broker_enable_flapping_detect(
-            client_pool,
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
-        {
-            Ok(reply) => {
-                if reply.is_enable {
-                    println!("The flapping detect feature has been successfully enabled.");
-                } else {
-                    println!("The flapping detect feature has been successfully closed.");
-                }
-            }
-
-            Err(e) => {
-                println!(
-                    "The flapping detect feature failed to enable, with the specific reason being:"
-                );
-                error_info(e.to_string());
-            }
-        }
-    }
-
-    async fn list_flapping_detect(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListFlappingDetectRequest {};
-        match mqtt_broker_list_flapping_detect(client_pool, &grpc_addr(params.server), request)
-            .await
-        {
-            Ok(data) => {
-                let mut table = Table::new();
-                table.set_titles(row![
-                    "client_id",
-                    "before_last_windows_connections",
-                    "first_request_time",
-                ]);
-                for raw in data.flapping_detect_raw {
-                    table.add_row(row![
-                        raw.client_id,
-                        raw.before_last_windows_connections,
-                        raw.first_request_time
-                    ]);
-                }
-
-                // output cmd
-                table.printstd()
-            }
-            Err(e) => {
-                println!("MQTT broker cluster normal exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-
     // #### observability ###
     // ---- slow subscribe ----
 
-    async fn set_slow_subscribe_config(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: SetSlowSubscribeConfigRequest,
-    ) {
-        match mqtt_broker_set_slow_subscribe_config(
-            client_pool,
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
-        {
-            Ok(data) => {
-                println!("Set slow subscribe config successfully! Current Config:");
-                let mut table = Table::new();
-                table.set_titles(row!["Config Options", "Value"]);
-                table.add_row(row!["enable", data.is_enable]);
-                table.add_row(row!["delay_type", data.delay_type]);
-                table.add_row(row!["max_store_num", data.max_store_num]);
-                table.printstd()
-            }
-            Err(e) => {
-                println!("MQTT broker set slow subscribe config exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-    async fn list_slow_subscribe(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: ListSlowSubscribeRequest,
-    ) {
-        let slow_subscribe_request = ListSlowSubscribeRequest {
-            sub_name: cli_request.sub_name,
-            list: cli_request.list,
-            client_id: cli_request.client_id,
-            topic: cli_request.topic,
-            sort: cli_request.sort,
+    async fn list_slow_subscribe(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for slow subscribe list
+        let request = admin_server::request::AutoSubscribeListReq {
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
         };
-        let sort = slow_subscribe_request.sort.clone();
-        match mqtt_broker_list_slow_subscribe(
-            client_pool,
-            &grpc_addr(params.server),
-            slow_subscribe_request,
-        )
-        .await
+
+        match admin_client
+            .get_slow_subscribe_list::<admin_server::request::AutoSubscribeListReq, Vec<admin_server::response::SlowSubscribeListRow>>(
+                &request,
+            )
+            .await
         {
-            Ok(data) => {
-                // sort
-                let sort_type = SortType::from_str(sort.as_str()).unwrap_or(SortType::DESC);
-                let mut list_slow_sub_raw = data.list_slow_subscribe_raw;
-                match sort_type {
-                    SortType::ASC => {
-                        list_slow_sub_raw.sort_by(|a, b| a.time_span.cmp(&b.time_span))
-                    }
-                    SortType::DESC => {
-                        list_slow_sub_raw.sort_by(|a, b| b.time_span.cmp(&a.time_span))
-                    }
-                }
+            Ok(page_data) => {
+                println!("slow subscribe list result:");
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
@@ -983,7 +910,7 @@ impl MqttBrokerCommand {
                     "time_span",
                     "create_time"
                 ]);
-                for raw in list_slow_sub_raw {
+                for raw in page_data.data {
                     table.add_row(row![
                         raw.client_id,
                         raw.topic_name,
@@ -1303,25 +1230,6 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn update_connector(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: UpdateConnectorRequest,
-    ) {
-        match mqtt_broker_update_connector(client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
-            Ok(_) => {
-                println!("Updated successfully!")
-            }
-            Err(e) => {
-                println!("MQTT broker update connector exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-
     // ------------------ topic rewrite rule ----------------
     async fn list_topic_rewrite_rule(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
@@ -1465,23 +1373,6 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn update_schema(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: UpdateSchemaRequest,
-    ) {
-        match mqtt_broker_update_schema(client_pool, &grpc_addr(params.server), cli_request).await {
-            Ok(_) => {
-                println!("Updated successfully!")
-            }
-            Err(e) => {
-                println!("MQTT broker update schema exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-
     async fn delete_schema(
         &self,
         client_pool: &ClientPool,
@@ -1572,17 +1463,14 @@ impl MqttBrokerCommand {
     // ------------------ auto subscribe ----------------
     async fn set_auto_subscribe_rule(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: SetAutoSubscribeRuleRequest,
+        cli_request: admin_server::request::CreateAutoSubscribeReq,
     ) {
-        match mqtt_broker_set_auto_subscribe_rule(
-            client_pool,
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
-        {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.create_auto_subscribe(&cli_request).await {
             Ok(_) => {
                 println!("Created successfully!")
             }
@@ -1595,17 +1483,14 @@ impl MqttBrokerCommand {
 
     async fn delete_auto_subscribe_rule(
         &self,
-        client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: DeleteAutoSubscribeRuleRequest,
+        cli_request: admin_server::request::DeleteAutoSubscribeReq,
     ) {
-        match mqtt_broker_delete_auto_subscribe_rule(
-            client_pool,
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
-        {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.delete_auto_subscribe(&cli_request).await {
             Ok(_) => {
                 println!("Deleted successfully!");
             }
@@ -1616,18 +1501,30 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_auto_subscribe_rule(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: ListAutoSubscribeRuleRequest,
-    ) {
-        let _ = cli_request;
-        let request = ListAutoSubscribeRuleRequest {};
-        match mqtt_broker_list_auto_subscribe_rule(client_pool, &grpc_addr(params.server), request)
+    async fn list_auto_subscribe_rule(&self, params: MqttCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client =
+            crate::admin_client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        // Create request for auto subscribe rule list
+        let request = admin_server::request::AutoSubscribeListReq {
+            limit: Some(DEFAULT_PAGE_SIZE),
+            page: Some(DEFAULT_PAGE_NUM),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+
+        match admin_client
+            .get_auto_subscribe_list::<admin_server::request::AutoSubscribeListReq, Vec<admin_server::response::AutoSubscribeListRow>>(
+                &request,
+            )
             .await
         {
-            Ok(data) => {
+            Ok(page_data) => {
+                println!("auto subscribe rule list result:");
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
@@ -1637,21 +1534,13 @@ impl MqttBrokerCommand {
                     "retain_as_published",
                     "retained_handling",
                 ]);
-                for rule in data.auto_subscribe_rules {
-                    let mqtt_auto_subscribe_rule =
-                        match serde_json::from_slice::<MqttAutoSubscribeRule>(rule.as_slice()) {
-                            Ok(rule) => rule,
-                            Err(e) => {
-                                error_info(e.to_string());
-                                continue;
-                            }
-                        };
+                for rule in page_data.data {
                     table.add_row(row![
-                        mqtt_auto_subscribe_rule.topic,
-                        Into::<u8>::into(mqtt_auto_subscribe_rule.qos),
-                        mqtt_auto_subscribe_rule.no_local,
-                        mqtt_auto_subscribe_rule.retain_as_published,
-                        Into::<u8>::into(mqtt_auto_subscribe_rule.retained_handling)
+                        rule.topic,
+                        rule.qos,
+                        rule.no_local,
+                        rule.retain_as_published,
+                        rule.retained_handling
                     ]);
                 }
                 // output cmd

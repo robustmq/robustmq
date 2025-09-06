@@ -12,29 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::builder::{
-    ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
-};
+use clap::builder::EnumValueParser;
 use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
-use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-use common_base::enum_type::sort_type::SortType;
 
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use core::option::Option::Some;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::broker::broker_mqtt_admin::{
-    BindSchemaRequest, CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
-    CreateSchemaRequest, CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistRequest, DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest,
-    ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListConnectorRequest, ListSchemaRequest,
-    ListSlowSubscribeRequest, ListSystemAlarmRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest,
-    SubscribeDetailRequest, UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
+    BindSchemaRequest, CreateConnectorRequest, CreateSchemaRequest, DeleteConnectorRequest,
+    DeleteSchemaRequest, ListBindSchemaRequest, ListConnectorRequest, ListSchemaRequest,
+    ListSystemAlarmRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
+    UnbindSchemaRequest,
 };
 
 // session
@@ -290,57 +281,10 @@ pub(crate) struct DeleteBlacklistArgs {
     pub(crate) resource_name: String,
 }
 
-// flapping detect feat
-#[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "action: flapping detect configuration", long_about = None)]
-#[command(next_line_help = true)]
-pub(crate) struct FlappingDetectArgs {
-    #[arg(
-        long = "enable",
-        value_parser = BoolishValueParser::new(),
-        default_missing_value = "false",
-        action = ArgAction::Set,
-        num_args = 0..=1,
-        required = true,
-        require_equals = true,
-        exclusive = true,
-        help = "Enable or disable the feature"
-    )]
-    pub(crate) is_enable: Option<bool>,
-    #[arg(
-        long = "window-time",
-        value_parser = RangedU64ValueParser::<u32>::new(),
-        default_missing_value = "1",
-        action = ArgAction::Set,
-        num_args = 0..=1,
-        require_equals = true,
-        help = "Unit is minutes"
-    )]
-    pub(crate) window_time: Option<u32>,
-    #[arg(
-        long = "max-client-connections",
-        value_parser = RangedU64ValueParser::<u32>::new(),
-        default_missing_value = "15",
-        action = ArgAction::Set,
-        num_args = 0..=1,
-        help = "Max client connections"
-    )]
-    pub(crate) max_client_connections: Option<u32>,
-    #[arg(
-        long = "ban-time",
-        value_parser = RangedU64ValueParser::<u32>::new(),
-        default_missing_value = "5",
-        action = ArgAction::Set,
-        num_args = 0..=1,
-        help = "Unit is minutes"
-    )]
-    pub(crate) ban_time: Option<u32>,
-}
-
 // #### observability ####
 // ---- slow subscribe ----
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "action: slow subscribe configuration", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of slow subscribe, such as listing", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct SlowSubscribeArgs {
     #[command(subcommand)]
@@ -349,81 +293,10 @@ pub(crate) struct SlowSubscribeArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum SlowSubscribeActionType {
-    #[command(author = "RobustMQ", about = "action: enable or disable slow subscribe", long_about = None
-    )]
-    Enable(EnableSlowSubscribeArgs),
-    #[command(author = "RobustMQ", about = "action: set slow subscribe configuration", long_about = None
-    )]
-    Set(SetSlowSubscribeArgs),
     #[command(author = "RobustMQ", about = "action: list slow subscribe", long_about = None)]
-    List(ListSlowSubscribeArgs),
+    List,
 }
 
-#[derive(Debug, clap::Args)]
-#[command(next_line_help = true)]
-pub(crate) struct EnableSlowSubscribeArgs {
-    #[arg(long, required = true)]
-    pub(crate) is_enable: Option<bool>,
-}
-
-#[derive(Debug, clap::Args)]
-#[command(next_line_help = true)]
-pub(crate) struct SetSlowSubscribeArgs {
-    #[arg(long, default_value_t = 1000, required = false)]
-    pub(crate) max_store_num: u32,
-    #[arg(long, required = true)]
-    pub(crate) delay_type: String,
-}
-
-#[derive(Debug, clap::Args)]
-#[command(next_line_help = true)]
-pub(crate) struct ListSlowSubscribeArgs {
-    #[arg(
-        long = "list",
-        value_parser = RangedU64ValueParser::<u64>::new(),
-        default_missing_value = "100",
-        help = "List the slow subscriptions"
-    )]
-    pub(crate) list: Option<u64>,
-
-    #[arg(
-        long = "sort",
-        required = false,
-        require_equals = true,
-        value_parser = EnumValueParser::<SortType>::new(),
-        default_missing_value = "DESC",
-        ignore_case = true,
-        help = "Sort the results"
-    )]
-    pub(crate) sort: Option<SortType>,
-
-    #[arg(
-        long = "topic",
-        required = false,
-        require_equals = true,
-        value_parser = NonEmptyStringValueParser::new(),
-        help = "Filter the results by topic"
-    )]
-    pub(crate) topic: Option<String>,
-
-    #[arg(
-        long = "sub-name",
-        required = false,
-        require_equals = true,
-        value_parser = NonEmptyStringValueParser::new(),
-        help = "Filter the results by subscription name"
-    )]
-    pub(crate) sub_name: Option<String>,
-
-    #[arg(
-        long = "client-id",
-        required = false,
-        require_equals = true,
-        value_parser = NonEmptyStringValueParser::new(),
-        help = "Filter the results by client ID"
-    )]
-    pub(crate) client_id: Option<String>,
-}
 // ---- system alarm ----
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of topic, such as setting and listing", long_about = None
@@ -532,8 +405,6 @@ pub enum ConnectorActionType {
     Create(CreateConnectorArgs),
     #[command(author = "RobustMQ", about = "action: delete connector", long_about = None)]
     Delete(DeleteConnectorArgs),
-    #[command(author = "RobustMQ", about = "action: update connector", long_about = None)]
-    Update(UpdateConnectorArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -563,13 +434,6 @@ pub(crate) struct DeleteConnectorArgs {
     pub(crate) connector_name: String,
 }
 
-#[derive(clap::Args, Debug)]
-#[command(next_line_help = true)]
-pub(crate) struct UpdateConnectorArgs {
-    #[arg(short, long, required = true)]
-    pub(crate) connector: String,
-}
-
 // schema
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of mqtt schemas, such as listing, creating, updating, deleting, binding and unbinding", long_about = None
@@ -586,8 +450,6 @@ pub enum SchemaActionType {
     List(ListSchemaArgs),
     #[command(author = "RobustMQ", about = "action: create schema", long_about = None)]
     Create(CreateSchemaArgs),
-    #[command(author = "RobustMQ", about = "action: update schema", long_about = None)]
-    Update(UpdateSchemaArgs),
     #[command(author = "RobustMQ", about = "action: delete schema", long_about = None)]
     Delete(DeleteSchemaArgs),
     #[command(author = "RobustMQ", about = "action: list bind schemas", long_about = None)]
@@ -610,20 +472,6 @@ pub(crate) struct ListSchemaArgs {
 #[command(author="RobustMQ", about="action: create schema", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateSchemaArgs {
-    #[arg(short = 'n', long, required = true)]
-    pub(crate) schema_name: String,
-    #[arg(short = 't', long, required = true)]
-    pub(crate) schema_type: String,
-    #[arg(short = 's', long, required = true)]
-    pub(crate) schema: String,
-    #[arg(short = 'd', long, required = true)]
-    pub(crate) desc: String,
-}
-
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="action: update schema", long_about = None)]
-#[command(next_line_help = true)]
-pub(crate) struct UpdateSchemaArgs {
     #[arg(short = 'n', long, required = true)]
     pub(crate) schema_name: String,
     #[arg(short = 't', long, required = true)]
@@ -674,30 +522,8 @@ pub(crate) struct UnbindSchemaArgs {
 
 pub fn process_slow_sub_args(args: SlowSubscribeArgs) -> MqttActionType {
     match args.action {
-        SlowSubscribeActionType::Enable(arg) => {
-            MqttActionType::SetClusterConfig(SetClusterConfigRequest {
-                feature_name: FeatureType::SlowSubscribe.to_string(),
-                is_enable: arg.is_enable.unwrap_or(false),
-            })
-        }
-        SlowSubscribeActionType::Set(arg) => {
-            MqttActionType::SetSlowSubscribeConfig(SetSlowSubscribeConfigRequest {
-                max_store_num: arg.max_store_num,
-                delay_type: arg.delay_type.parse().unwrap_or_default(),
-            })
-        }
-        SlowSubscribeActionType::List(arg) => process_list_slow_subscribe_args(arg),
+        SlowSubscribeActionType::List => MqttActionType::ListSlowSubscribe,
     }
-}
-
-fn process_list_slow_subscribe_args(args: ListSlowSubscribeArgs) -> MqttActionType {
-    MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
-        list: args.list.unwrap_or(100),
-        sub_name: args.sub_name.unwrap_or("".to_string()),
-        topic: args.topic.unwrap_or("".to_string()),
-        client_id: args.client_id.unwrap_or("".to_string()),
-        sort: args.sort.unwrap_or(SortType::DESC).to_string(),
-    })
 }
 
 pub fn process_system_alarm_args(args: SystemAlarmArgs) -> MqttActionType {
@@ -742,48 +568,44 @@ pub fn process_config_args(args: ClusterConfigArgs) -> MqttActionType {
 pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
         UserActionType::List => MqttActionType::ListUser,
-        UserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
-            username: arg.username,
-            password: arg.password,
-            is_superuser: arg.is_superuser,
-        }),
-        UserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
-            username: arg.username,
-        }),
+        UserActionType::Create(arg) => {
+            MqttActionType::CreateUser(admin_server::request::CreateUserReq {
+                username: arg.username,
+                password: arg.password,
+                is_superuser: arg.is_superuser,
+            })
+        }
+        UserActionType::Delete(arg) => {
+            MqttActionType::DeleteUser(admin_server::request::DeleteUserReq {
+                username: arg.username,
+            })
+        }
     }
 }
 
 pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::error::Error>> {
     match args.action {
         AclActionType::List => Ok(MqttActionType::ListAcl),
-        AclActionType::Create(arg) => {
-            let acl = MqttAcl {
-                resource_type: arg.resource_type,
+        AclActionType::Create(arg) => Ok(MqttActionType::CreateAcl(
+            admin_server::request::CreateAclReq {
+                resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
                 ip: arg.ip,
-                action: arg.action,
-                permission: arg.permission,
-            };
-            Ok(MqttActionType::CreateAcl(CreateAclRequest {
-                cluster_name: arg.cluster_name,
-                acl: acl.encode()?,
-            }))
-        }
-        AclActionType::Delete(arg) => {
-            let acl = MqttAcl {
-                resource_type: arg.resource_type,
+                action: arg.action.to_string(),
+                permission: arg.permission.to_string(),
+            },
+        )),
+        AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(
+            admin_server::request::DeleteAclReq {
+                resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
                 ip: arg.ip,
-                action: arg.action,
-                permission: arg.permission,
-            };
-            Ok(MqttActionType::DeleteAcl(DeleteAclRequest {
-                cluster_name: arg.cluster_name,
-                acl: acl.encode()?,
-            }))
-        }
+                action: arg.action.to_string(),
+                permission: arg.permission.to_string(),
+            },
+        )),
     }
 }
 
@@ -792,25 +614,20 @@ pub fn process_blacklist_args(
 ) -> Result<MqttActionType, Box<dyn std::error::Error>> {
     match args.action {
         BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
-        BlackListActionType::Create(arg) => {
-            let mqtt_acl_black_list = MqttAclBlackList {
-                blacklist_type: arg.blacklist_type,
+        BlackListActionType::Create(arg) => Ok(MqttActionType::CreateBlacklist(
+            admin_server::request::CreateBlackListReq {
+                blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
                 end_time: arg.end_time,
                 desc: arg.desc,
-            };
-            Ok(MqttActionType::CreateBlacklist(CreateBlacklistRequest {
-                cluster_name: arg.cluster_name,
-                blacklist: mqtt_acl_black_list.encode()?,
-            }))
-        }
-        BlackListActionType::Delete(arg) => {
-            Ok(MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
-                cluster_name: arg.cluster_name,
+            },
+        )),
+        BlackListActionType::Delete(arg) => Ok(MqttActionType::DeleteBlacklist(
+            admin_server::request::DeleteBlackListReq {
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
-            }))
-        }
+            },
+        )),
     }
 }
 
@@ -842,11 +659,6 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
         ConnectorActionType::Delete(arg) => {
             MqttActionType::DeleteConnector(DeleteConnectorRequest {
                 connector_name: arg.connector_name,
-            })
-        }
-        ConnectorActionType::Update(arg) => {
-            MqttActionType::UpdateConnector(UpdateConnectorRequest {
-                connector: Vec::from(arg.connector),
             })
         }
     }
@@ -883,12 +695,6 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
         SchemaActionType::List(arg) => MqttActionType::ListSchema(ListSchemaRequest {
             schema_name: arg.schema_name,
         }),
-        SchemaActionType::Update(arg) => MqttActionType::UpdateSchema(UpdateSchemaRequest {
-            schema_name: arg.schema_name,
-            schema_type: arg.schema_type,
-            schema: arg.schema,
-            desc: arg.desc,
-        }),
         SchemaActionType::Delete(arg) => MqttActionType::DeleteSchema(DeleteSchemaRequest {
             schema_name: arg.schema_name,
         }),
@@ -922,8 +728,8 @@ pub enum AutoSubscribeRuleActionType {
     List,
     #[command(author = "RobustMQ", about = "action: delete auto subscribe rule", long_about = None)]
     Delete(DeleteAutoSubscribeRuleArgs),
-    #[command(author = "RobustMQ", about = "action: set auto subscribe rule", long_about = None)]
-    Set(SetAutoSubscribeRuleArgs),
+    #[command(author = "RobustMQ", about = "action: create auto subscribe rule", long_about = None)]
+    Create(SetAutoSubscribeRuleArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -950,11 +756,9 @@ pub(crate) struct DeleteAutoSubscribeRuleArgs {
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
     match args.action {
-        AutoSubscribeRuleActionType::List => {
-            MqttActionType::ListAutoSubscribeRule(ListAutoSubscribeRuleRequest::default())
-        }
-        AutoSubscribeRuleActionType::Set(arg) => {
-            MqttActionType::SetAutoSubscribeRule(SetAutoSubscribeRuleRequest {
+        AutoSubscribeRuleActionType::List => MqttActionType::ListAutoSubscribe,
+        AutoSubscribeRuleActionType::Create(arg) => {
+            MqttActionType::CreateAutoSubscribe(admin_server::request::CreateAutoSubscribeReq {
                 topic: arg.topic,
                 qos: arg.qos as u32,
                 no_local: arg.no_local,
@@ -963,8 +767,8 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
             })
         }
         AutoSubscribeRuleActionType::Delete(arg) => {
-            MqttActionType::DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest {
-                topic: arg.topic,
+            MqttActionType::DeleteAutoSubscribe(admin_server::request::DeleteAutoSubscribeReq {
+                topic_name: arg.topic,
             })
         }
     }

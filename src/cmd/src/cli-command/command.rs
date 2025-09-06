@@ -15,7 +15,7 @@
 pub(crate) mod mqtt;
 
 use clap::{arg, Parser, Subcommand};
-use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
+use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
@@ -25,7 +25,6 @@ use mqtt::admin::{
     SessionArgs,
 };
 use mqtt::publish::process_subscribe_args;
-use protocol::broker::broker_mqtt_admin::EnableFlappingDetectRequest;
 
 use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembershipRequest, Node};
 
@@ -33,8 +32,7 @@ use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_schema_args,
     process_slow_sub_args, process_subscribes_args, process_system_alarm_args, process_topic_args,
     process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
-    FlappingDetectArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicArgs,
-    TopicRewriteArgs, UserArgs,
+    SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -90,8 +88,6 @@ enum MQTTAction {
     Acl(AclArgs),
     // blacklist admin
     Blacklist(BlacklistArgs),
-    // flapping detect feat
-    FlappingDetect(FlappingDetectArgs),
     // Clients
     Client(ClientsArgs),
     // #### observability ####
@@ -113,7 +109,7 @@ enum MQTTAction {
     Schema(SchemaArgs),
 
     //auto subscribe
-    AutoSubscribeRule(AutoSubscribeRuleCommand),
+    AutoSubscribe(AutoSubscribeRuleCommand),
 
     // pub/sub
     Publish(PubSubArgs),
@@ -214,15 +210,6 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     return;
                 }
             },
-            // flapping detect
-            MQTTAction::FlappingDetect(args) => {
-                MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
-                    is_enable: args.is_enable.unwrap_or(false),
-                    window_time: args.window_time.unwrap_or(1),
-                    max_client_connections: args.max_client_connections.unwrap_or(15),
-                    ban_time: args.ban_time.unwrap_or(5),
-                })
-            }
             // system alarm
             MQTTAction::SystemAlarm(args) => process_system_alarm_args(args),
             // Connections
@@ -240,7 +227,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // schema
             MQTTAction::Schema(args) => process_schema_args(args),
             // auto subscribe rule
-            MQTTAction::AutoSubscribeRule(args) => process_auto_subscribe_args(args),
+            MQTTAction::AutoSubscribe(args) => process_auto_subscribe_args(args),
         },
     };
     cmd.start(params).await;

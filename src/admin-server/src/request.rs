@@ -58,7 +58,7 @@ pub struct SubscribeListReq {
 #[derive(Deserialize, Debug)]
 pub struct SubscribeDetailReq {}
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AutoSubscribeListReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -69,7 +69,7 @@ pub struct AutoSubscribeListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateAutoSubscribeReq {
     pub topic: String,
     pub qos: u32,
@@ -78,12 +78,12 @@ pub struct CreateAutoSubscribeReq {
     pub retained_handling: u32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteAutoSubscribeReq {
     pub topic_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserListReq {
     pub user_name: Option<String>,
     pub limit: Option<u32>,
@@ -95,19 +95,19 @@ pub struct UserListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateUserReq {
     pub username: String,
     pub password: String,
     pub is_superuser: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteUserReq {
     pub username: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BlackListListReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -118,7 +118,7 @@ pub struct BlackListListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateBlackListReq {
     pub blacklist_type: String,
     pub resource_name: String,
@@ -126,7 +126,7 @@ pub struct CreateBlackListReq {
     pub desc: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteBlackListReq {
     pub blacklist_type: String,
     pub resource_name: String,
@@ -157,7 +157,7 @@ pub struct DeleteTopicRewriteReq {
     pub source_topic: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AclListReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -168,7 +168,7 @@ pub struct AclListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateAclReq {
     pub resource_type: String,
     pub resource_name: String,
@@ -178,7 +178,7 @@ pub struct CreateAclReq {
     pub permission: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteAclReq {
     pub resource_type: String,
     pub resource_name: String,
@@ -274,7 +274,7 @@ pub struct ClientListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SystemAlarmListReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
