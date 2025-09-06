@@ -170,7 +170,7 @@ impl MqttBrokerCommand {
                 self.get_cluster_config(params.clone()).await;
             }
 
-            // list connection
+            // list client
             MqttActionType::ListClient => {
                 self.list_clients(params.clone()).await;
             }
@@ -183,6 +183,17 @@ impl MqttBrokerCommand {
             // list topic
             MqttActionType::ListTopic => {
                 self.list_topic(params.clone()).await;
+            }
+
+            // topic rewrite rule
+            MqttActionType::CreateTopicRewriteRule(ref request) => {
+                self.create_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            
+            MqttActionType::DeleteTopicRewriteRule(ref request) => {
+                self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
+                    .await;
             }
 
             // user admin
@@ -241,15 +252,7 @@ impl MqttBrokerCommand {
                     .await;
             }
 
-            // topic rewrite rule
-            MqttActionType::CreateTopicRewriteRule(ref request) => {
-                self.create_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::DeleteTopicRewriteRule(ref request) => {
-                self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
+
             MqttActionType::ListSlowSubscribe(ref request) => {
                 self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
                     .await;

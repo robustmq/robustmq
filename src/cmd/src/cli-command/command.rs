@@ -93,7 +93,7 @@ enum MQTTAction {
     // flapping detect feat
     FlappingDetect(FlappingDetectArgs),
     // Clients
-    Clients(ClientsArgs),
+    Client(ClientsArgs),
     // #### observability ####
     // ---- slow subscription ----
     SlowSubscribe(SlowSubscribeArgs),
@@ -225,7 +225,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // system alarm
             MQTTAction::SystemAlarm(args) => process_system_alarm_args(args),
             // Connections
-            MQTTAction::Clients(args) => process_connection_args(args),
+            MQTTAction::Client(args) => process_connection_args(args),
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
