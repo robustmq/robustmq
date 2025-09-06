@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::error_info;
+use crate::{common::client::AdminHttpClient, mqtt::pub_sub::error_info};
 use admin_server::request::ClusterConfigSetReq;
 use common_config::config::BrokerConfig;
 
@@ -57,7 +57,7 @@ impl ClusterCommand {
         cli_request: admin_server::request::ClusterConfigSetReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.set_cluster_config(&cli_request).await {
             Ok(_) => {
@@ -72,7 +72,7 @@ impl ClusterCommand {
 
     async fn get_cluster_config(&self, params: ClusterCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create empty request for get cluster config
         let request = serde_json::json!({});

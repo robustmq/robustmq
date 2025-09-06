@@ -12,19 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct PublishArgsRequest {
-    pub topic: String,
-    pub qos: i32,
-    pub retained: bool,
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct SubscribeArgsRequest {
-    pub topic: String,
-    pub qos: i32,
-    pub username: String,
-    pub password: String,
-}
+pub mod command;
+pub mod params;
+pub mod pub_sub;

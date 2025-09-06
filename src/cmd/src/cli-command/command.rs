@@ -12,26 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(crate) mod mqtt;
-
 use clap::{arg, Parser, Subcommand};
 use cli_command::cluster::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
-use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
-use mqtt::admin::{
-    process_auto_subscribe_args, process_connection_args, process_session_args,
-    AutoSubscribeRuleCommand, ClientsArgs, ClusterConfigActionType, ClusterConfigArgs, SchemaArgs,
-    SessionArgs,
+use cli_command::mqtt::command::{MqttBrokerCommand, MqttCliCommandParam};
+use cli_command::mqtt::params::{
+    process_acl_args, process_auto_subscribe_args, process_blacklist_args, process_connection_args,
+    process_connector_args, process_flapping_detect_args, process_publish_args,
+    process_schema_args, process_session_args, process_slow_sub_args, process_subscribe_args,
+    process_subscribes_args, process_system_alarm_args, process_topic_args,
+    process_topic_rewrite_args, process_user_args, AclArgs, AutoSubscribeRuleCommand,
+    BlacklistArgs, ClientsArgs, ClusterConfigActionType, ClusterConfigArgs, ConnectorArgs,
+    FlappingDetectArgs, PubSubArgs, SchemaArgs, SessionArgs, SlowSubscribeArgs, SubscribesArgs,
+    SystemAlarmArgs, TopicArgs, TopicRewriteArgs, UserArgs,
 };
-use mqtt::publish::process_subscribe_args;
-
-use crate::mqtt::admin::{
-    process_acl_args, process_blacklist_args, process_connector_args, process_flapping_detect_args,
-    process_schema_args, process_slow_sub_args, process_subscribes_args, process_system_alarm_args,
-    process_topic_args, process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs,
-    ConnectorArgs, FlappingDetectArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs,
-    TopicArgs, TopicRewriteArgs, UserArgs,
-};
-use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]

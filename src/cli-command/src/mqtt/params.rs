@@ -14,7 +14,6 @@
 
 use clap::builder::EnumValueParser;
 use clap::{arg, Parser};
-use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
@@ -22,12 +21,15 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceTy
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use core::option::Option::Some;
 
+use crate::mqtt::command::MqttActionType;
+use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
+
 // session
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct SessionArgs {
+pub struct SessionArgs {
     #[command(subcommand)]
     pub action: SessionActionType,
 }
@@ -43,7 +45,7 @@ pub enum SessionActionType {
 #[command(author = "RobustMQ", about = "related operations of mqtt subscriptions, such as listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct SubscribesArgs {
+pub struct SubscribesArgs {
     #[command(subcommand)]
     pub action: SubscribesActionType,
 }
@@ -59,7 +61,7 @@ pub enum SubscribesActionType {
 #[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct ClientsArgs {
+pub struct ClientsArgs {
     #[command(subcommand)]
     pub action: ClientsActionType,
 }
@@ -75,7 +77,7 @@ pub enum ClientsActionType {
 #[command(author = "RobustMQ", about = "related operations of mqtt cluster, such as listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct ClusterConfigArgs {
+pub struct ClusterConfigArgs {
     #[command(subcommand)]
     pub action: ClusterConfigActionType,
 }
@@ -91,7 +93,7 @@ pub enum ClusterConfigActionType {
 #[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct UserArgs {
+pub struct UserArgs {
     #[command(subcommand)]
     pub action: UserActionType,
 }
@@ -108,21 +110,21 @@ pub enum UserActionType {
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct CreateUserArgs {
+pub struct CreateUserArgs {
     #[arg(short, long, required = true)]
-    pub(crate) username: String,
+    pub username: String,
     #[arg(short, long, required = true)]
-    pub(crate) password: String,
+    pub password: String,
     #[arg(short, long, default_value_t = false)]
-    pub(crate) is_superuser: bool,
+    pub is_superuser: bool,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "action: delete user", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteUserArgs {
+pub struct DeleteUserArgs {
     #[arg(short, long, required = true)]
-    pub(crate) username: String,
+    pub username: String,
 }
 
 // acl feat
@@ -130,7 +132,7 @@ pub(crate) struct DeleteUserArgs {
 #[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct AclArgs {
+pub struct AclArgs {
     #[command(subcommand)]
     pub action: AclActionType,
 }
@@ -147,64 +149,64 @@ pub enum AclActionType {
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct CreateAclArgs {
+pub struct CreateAclArgs {
     #[arg(short, long, required = true)]
-    pub(crate) cluster_name: String,
+    pub cluster_name: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclResourceType>::new(),
         default_missing_value = "ClientId"
     )]
-    pub(crate) resource_type: MqttAclResourceType,
+    pub resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
     #[arg(long, required = true)]
-    pub(crate) topic: String,
+    pub topic: String,
     #[arg(long, required = true)]
-    pub(crate) ip: String,
+    pub ip: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclAction>::new(),
         default_missing_value = "All",
     )]
-    pub(crate) action: MqttAclAction,
+    pub action: MqttAclAction,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclPermission>::new(),
         default_missing_value = "Allow",
     )]
-    pub(crate) permission: MqttAclPermission,
+    pub permission: MqttAclPermission,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteAclArgs {
+pub struct DeleteAclArgs {
     #[arg(short, long, required = true)]
-    pub(crate) cluster_name: String,
+    pub cluster_name: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclResourceType>::new(),
         default_missing_value = "ClientId"
     )]
-    pub(crate) resource_type: MqttAclResourceType,
+    pub resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
     #[arg(long, required = true)]
-    pub(crate) topic: String,
+    pub topic: String,
     #[arg(long, required = true)]
-    pub(crate) ip: String,
+    pub ip: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclAction>::new(),
         default_missing_value = "All",
     )]
-    pub(crate) action: MqttAclAction,
+    pub action: MqttAclAction,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclPermission>::new(),
         default_missing_value = "Allow",
     )]
-    pub(crate) permission: MqttAclPermission,
+    pub permission: MqttAclPermission,
 }
 
 // blacklist feat
@@ -212,7 +214,7 @@ pub(crate) struct DeleteAclArgs {
 #[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct BlacklistArgs {
+pub struct BlacklistArgs {
     #[command(subcommand)]
     pub action: BlackListActionType,
 }
@@ -230,37 +232,37 @@ pub enum BlackListActionType {
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "action: create blacklist", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct CreateBlacklistArgs {
+pub struct CreateBlacklistArgs {
     #[arg(short, long, required = true)]
-    pub(crate) cluster_name: String,
+    pub cluster_name: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
         default_missing_value = "ClientId"
     )]
-    pub(crate) blacklist_type: MqttAclBlackListType,
+    pub blacklist_type: MqttAclBlackListType,
     #[arg(long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
     #[arg(long, required = true)]
-    pub(crate) end_time: u64,
+    pub end_time: u64,
     #[arg(long, required = true)]
-    pub(crate) desc: String,
+    pub desc: String,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "action: delete blacklist", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteBlacklistArgs {
+pub struct DeleteBlacklistArgs {
     #[arg(short, long, required = true)]
-    pub(crate) cluster_name: String,
+    pub cluster_name: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
         default_missing_value = "ClientId"
     )]
-    pub(crate) blacklist_type: MqttAclBlackListType,
+    pub blacklist_type: MqttAclBlackListType,
     #[arg(short, long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
 }
 
 // #### observability ####
@@ -268,13 +270,13 @@ pub(crate) struct DeleteBlacklistArgs {
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "action: list flapping detect", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct FlappingDetectArgs {}
+pub struct FlappingDetectArgs {}
 
 // ---- slow subscribe ----
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of slow subscribe, such as listing", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct SlowSubscribeArgs {
+pub struct SlowSubscribeArgs {
     #[command(subcommand)]
     pub action: SlowSubscribeActionType,
 }
@@ -290,7 +292,7 @@ pub enum SlowSubscribeActionType {
 #[command(author = "RobustMQ", about = "related operations of topic, such as setting and listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct TopicArgs {
+pub struct TopicArgs {
     #[command(subcommand)]
     pub action: TopicActionType,
 }
@@ -306,7 +308,7 @@ pub enum TopicActionType {
 #[command(author = "RobustMQ", about = "related operations of system alarm, such as setting and listing", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct SystemAlarmArgs {
+pub struct SystemAlarmArgs {
     #[command(subcommand)]
     pub action: SystemAlarmActionType,
 }
@@ -322,7 +324,7 @@ pub enum SystemAlarmActionType {
 #[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct TopicRewriteArgs {
+pub struct TopicRewriteArgs {
     #[command(subcommand)]
     pub action: TopicRewriteActionType,
 }
@@ -339,23 +341,23 @@ pub enum TopicRewriteActionType {
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct CreateTopicRewriteArgs {
+pub struct CreateTopicRewriteArgs {
     #[arg(short, long, required = true)]
-    pub(crate) action: String,
+    pub action: String,
     #[arg(short, long, required = true)]
-    pub(crate) source_topic: String,
+    pub source_topic: String,
     #[arg(short, long, required = true)]
-    pub(crate) dest_topic: String,
+    pub dest_topic: String,
     #[arg(short, long, required = true)]
-    pub(crate) regex: String,
+    pub regex: String,
 }
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteTopicRewriteArgs {
+pub struct DeleteTopicRewriteArgs {
     #[arg(short, long, required = true)]
-    pub(crate) action: String,
+    pub action: String,
     #[arg(short, long, required = true)]
-    pub(crate) source_topic: String,
+    pub source_topic: String,
 }
 
 // connector feat
@@ -363,7 +365,7 @@ pub(crate) struct DeleteTopicRewriteArgs {
 #[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct ConnectorArgs {
+pub struct ConnectorArgs {
     #[command(subcommand)]
     pub action: ConnectorActionType,
 }
@@ -380,29 +382,29 @@ pub enum ConnectorActionType {
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct CreateConnectorArgs {
+pub struct CreateConnectorArgs {
     #[arg(short, long, required = true)]
-    pub(crate) connector_name: String,
+    pub connector_name: String,
     #[arg(short, long, required = true)]
-    pub(crate) connector_type: String,
+    pub connector_type: String,
     #[arg(short, long, required = true)]
-    pub(crate) config: String,
+    pub config: String,
     #[arg(short, long, required = true)]
-    pub(crate) topic_id: String,
+    pub topic_id: String,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct ListConnectorArgs {
+pub struct ListConnectorArgs {
     #[arg(short, long, required = true)]
-    pub(crate) connector_name: String,
+    pub connector_name: String,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteConnectorArgs {
+pub struct DeleteConnectorArgs {
     #[arg(short, long, required = true)]
-    pub(crate) connector_name: String,
+    pub connector_name: String,
 }
 
 // schema
@@ -410,7 +412,7 @@ pub(crate) struct DeleteConnectorArgs {
 #[command(author = "RobustMQ", about = "related operations of mqtt schemas, such as listing, creating, updating, deleting, binding and unbinding", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct SchemaArgs {
+pub struct SchemaArgs {
     #[command(subcommand)]
     pub action: SchemaActionType,
 }
@@ -434,61 +436,61 @@ pub enum SchemaActionType {
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="action: list schema", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct ListSchemaArgs {
+pub struct ListSchemaArgs {
     #[arg(short, long, required = true)]
-    pub(crate) schema_name: String,
+    pub schema_name: String,
 }
 
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="action: create schema", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct CreateSchemaArgs {
+pub struct CreateSchemaArgs {
     #[arg(short = 'n', long, required = true)]
-    pub(crate) schema_name: String,
+    pub schema_name: String,
     #[arg(short = 't', long, required = true)]
-    pub(crate) schema_type: String,
+    pub schema_type: String,
     #[arg(short = 's', long, required = true)]
-    pub(crate) schema: String,
+    pub schema: String,
     #[arg(short = 'd', long, required = true)]
-    pub(crate) desc: String,
+    pub desc: String,
 }
 
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="action: delete schema", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteSchemaArgs {
+pub struct DeleteSchemaArgs {
     #[arg(short, long, required = true)]
-    pub(crate) schema_name: String,
+    pub schema_name: String,
 }
 
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="action: list bind schema", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct ListBindSchemaArgs {
+pub struct ListBindSchemaArgs {
     #[arg(short, long, required = true)]
-    pub(crate) schema_name: String,
+    pub schema_name: String,
     #[arg(short, long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
 }
 
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="action: bind schema", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct BindSchemaArgs {
+pub struct BindSchemaArgs {
     #[arg(short, long, required = true)]
-    pub(crate) schema_name: String,
+    pub schema_name: String,
     #[arg(short, long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
 }
 
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="action: unbind schema", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct UnbindSchemaArgs {
+pub struct UnbindSchemaArgs {
     #[arg(short, long, required = true)]
-    pub(crate) schema_name: String,
+    pub schema_name: String,
     #[arg(short, long, required = true)]
-    pub(crate) resource_name: String,
+    pub resource_name: String,
 }
 
 pub fn process_slow_sub_args(args: SlowSubscribeArgs) -> MqttActionType {
@@ -672,7 +674,7 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
 #[command(author = "RobustMQ", about = "related operations of mqtt auto subscribe, such as listing, setting, and deleting", long_about = None
 )]
 #[command(next_line_help = true)]
-pub(crate) struct AutoSubscribeRuleCommand {
+pub struct AutoSubscribeRuleCommand {
     #[command(subcommand)]
     pub action: AutoSubscribeRuleActionType,
 }
@@ -689,24 +691,24 @@ pub enum AutoSubscribeRuleActionType {
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct SetAutoSubscribeRuleArgs {
+pub struct SetAutoSubscribeRuleArgs {
     #[arg(short, long, required = true)]
-    pub(crate) topic: String,
+    pub topic: String,
     #[arg(short, long, default_value_t = 0)]
-    pub(crate) qos: u8,
+    pub qos: u8,
     #[arg(short, long, default_value_t = false)]
-    pub(crate) no_local: bool,
+    pub no_local: bool,
     #[arg(short = 'r', long, default_value_t = false)]
-    pub(crate) retain_as_published: bool,
+    pub retain_as_published: bool,
     #[arg(short = 'R', long, default_value_t = 0)]
-    pub(crate) retained_handling: u8,
+    pub retained_handling: u8,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
-pub(crate) struct DeleteAutoSubscribeRuleArgs {
+pub struct DeleteAutoSubscribeRuleArgs {
     #[arg(short, long, required = true)]
-    pub(crate) topic: String,
+    pub topic: String,
 }
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
@@ -727,4 +729,45 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
             })
         }
     }
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="Command line tool for mqtt broker", long_about = None)]
+#[command(next_line_help = true)]
+pub struct PubSubArgs {
+    #[arg(help = "user name")]
+    #[arg(short, long, required = true)]
+    username: String,
+    #[arg(help = "password")]
+    #[arg(short, long, required = true)]
+    password: String,
+    #[arg(help = "topic")]
+    #[arg(short, long, required = true)]
+    topic: String,
+    #[arg(help = "qos")]
+    #[arg(short, long, default_value_t = 0)]
+    qos: i32,
+    #[arg(long = "retained")]
+    #[arg(required = false, default_value_t = false)]
+    #[arg(help = "Enable or disable the feature , If it is a subscription, ignore this item")]
+    retained: bool,
+}
+
+pub fn process_publish_args(args: PubSubArgs) -> MqttActionType {
+    MqttActionType::Publish(PublishArgsRequest {
+        username: args.username,
+        password: args.password,
+        topic: args.topic,
+        qos: args.qos,
+        retained: args.retained,
+    })
+}
+
+pub fn process_subscribe_args(args: PubSubArgs) -> MqttActionType {
+    MqttActionType::Subscribe(SubscribeArgsRequest {
+        username: args.username,
+        password: args.password,
+        topic: args.topic,
+        qos: args.qos,
+    })
 }
