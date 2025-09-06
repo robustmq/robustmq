@@ -103,8 +103,9 @@ enum MQTTAction {
     // list topic
     Topic(TopicArgs),
 
-    // topic rewrite rule
-    TopicRewriteRule(TopicRewriteArgs),
+    // topic rewrite
+    TopicRewrite(TopicRewriteArgs),
+
     // connector
     Connector(ConnectorArgs),
 
@@ -231,7 +232,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // list topic
             MQTTAction::Topic(args) => process_topic_args(args),
             // topic rewrite rule
-            MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
+            MQTTAction::TopicRewrite(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSubscribe(args) => process_slow_sub_args(args),
             // pub/sub
             MQTTAction::Publish(args) => process_publish_args(args),

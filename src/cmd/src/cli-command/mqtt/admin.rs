@@ -29,14 +29,12 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::broker::broker_mqtt_admin::{
     BindSchemaRequest, CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
-    CreateSchemaRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
-    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
-    DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
+    CreateSchemaRequest, CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistRequest, DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest,
     ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListConnectorRequest, ListSchemaRequest,
-    ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
-    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SetSlowSubscribeConfigRequest,
-    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
-    UpdateConnectorRequest, UpdateSchemaRequest,
+    ListSlowSubscribeRequest, ListSystemAlarmRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest,
+    SubscribeDetailRequest, UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
 };
 
 // session
@@ -487,6 +485,8 @@ pub(crate) struct TopicRewriteArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum TopicRewriteActionType {
+    #[command(author = "RobustMQ", about = "action: list topic rewrite rules", long_about = None)]
+    List,
     #[command(author = "RobustMQ", about = "action: create topic rewrite", long_about = None)]
     Create(CreateTopicRewriteArgs),
     #[command(author = "RobustMQ", about = "action: delete topic rewrite", long_about = None)]
@@ -723,9 +723,7 @@ pub fn process_session_args(args: SessionArgs) -> MqttActionType {
 
 pub fn process_subscribes_args(args: SubscribesArgs) -> MqttActionType {
     match args.action {
-        SubscribesActionType::List => {
-            MqttActionType::ListSubscribe(ListSubscribeRequest::default())
-        }
+        SubscribesActionType::List => MqttActionType::ListSubscribe,
         SubscribesActionType::Detail(args) => {
             MqttActionType::DetailSubscribe(SubscribeDetailRequest {
                 client_id: args.client_id,
@@ -856,8 +854,9 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
 
 pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
     match args.action {
+        TopicRewriteActionType::List => MqttActionType::ListTopicRewrite,
         TopicRewriteActionType::Create(arg) => {
-            MqttActionType::CreateTopicRewriteRule(CreateTopicRewriteRuleRequest {
+            MqttActionType::CreateTopicRewrite(admin_server::request::CreateTopicRewriteReq {
                 action: arg.action,
                 source_topic: arg.source_topic,
                 dest_topic: arg.dest_topic,
@@ -865,7 +864,7 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
             })
         }
         TopicRewriteActionType::Delete(arg) => {
-            MqttActionType::DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest {
+            MqttActionType::DeleteTopicRewrite(admin_server::request::DeleteTopicRewriteReq {
                 action: arg.action,
                 source_topic: arg.source_topic,
             })

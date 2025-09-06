@@ -45,6 +45,7 @@ protocol.workspace = true
 console-subscriber.workspace = true
 broker-server.workspace = true
 metadata-struct.workspace = true
+admin-server.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

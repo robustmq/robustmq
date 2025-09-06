@@ -44,7 +44,7 @@ pub struct TopicListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SubscribeListReq {
     pub client_id: Option<String>,
     pub limit: Option<u32>,
@@ -132,7 +132,7 @@ pub struct DeleteBlackListReq {
     pub resource_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TopicRewriteReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -143,7 +143,7 @@ pub struct TopicRewriteReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateTopicRewriteReq {
     pub action: String,
     pub source_topic: String,
@@ -151,7 +151,7 @@ pub struct CreateTopicRewriteReq {
     pub regex: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteTopicRewriteReq {
     pub action: String,
     pub source_topic: String,
