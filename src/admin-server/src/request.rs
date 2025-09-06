@@ -188,7 +188,7 @@ pub struct DeleteAclReq {
     pub permission: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ConnectorListReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -199,7 +199,7 @@ pub struct ConnectorListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateConnectorReq {
     pub connector_name: String,
     pub connector_type: String,
@@ -207,12 +207,12 @@ pub struct CreateConnectorReq {
     pub topic_id: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteConnectorReq {
     pub connector_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaListReq {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -223,7 +223,7 @@ pub struct SchemaListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateSchemaReq {
     pub schema_name: String,
     pub schema_type: String,
@@ -231,12 +231,12 @@ pub struct CreateSchemaReq {
     pub desc: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteSchemaReq {
     pub schema_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaBindListReq {
     pub resource_name: Option<String>,
     pub schema_name: Option<String>,
@@ -249,13 +249,13 @@ pub struct SchemaBindListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateSchemaBindReq {
     pub schema_name: String,
     pub resource_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteSchemaBindReq {
     pub schema_name: String,
     pub resource_name: String,

@@ -21,12 +21,7 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceTy
 
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use core::option::Option::Some;
-use protocol::broker::broker_mqtt_admin::{
-    BindSchemaRequest, CreateConnectorRequest, CreateSchemaRequest, DeleteConnectorRequest,
-    DeleteSchemaRequest, ListBindSchemaRequest, ListConnectorRequest, ListSchemaRequest,
-    ListSystemAlarmRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
-    UnbindSchemaRequest,
-};
+use protocol::broker::broker_mqtt_admin::ListSystemAlarmRequest;
 
 // session
 #[derive(clap::Args, Debug)]
@@ -58,18 +53,6 @@ pub(crate) struct SubscribesArgs {
 pub enum SubscribesActionType {
     #[command(author = "RobustMQ", about = "action: list subscriptions", long_about = None)]
     List,
-
-    #[command(author = "RobustMQ", about = "action: detail subscription", long_about = None)]
-    Detail(DetailSubscribeArgs),
-}
-
-#[derive(clap::Args, Debug)]
-#[command(next_line_help = true)]
-pub(crate) struct DetailSubscribeArgs {
-    #[arg(short, long, required = true)]
-    pub(crate) client_id: String,
-    #[arg(short, long, required = true)]
-    pub(crate) path: String,
 }
 
 // connection
@@ -282,6 +265,12 @@ pub(crate) struct DeleteBlacklistArgs {
 }
 
 // #### observability ####
+// ---- flapping detect ----
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: list flapping detect", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct FlappingDetectArgs {}
+
 // ---- slow subscribe ----
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of slow subscribe, such as listing", long_about = None)]
@@ -325,25 +314,8 @@ pub(crate) struct SystemAlarmArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum SystemAlarmActionType {
-    #[command(author = "RobustMQ", about = "action: set system alarm", long_about = None)]
-    Set(SetSystemAlarmArgs),
     #[command(author = "RobustMQ", about = "action: list system alarm", long_about = None)]
     List,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(next_line_help = true)]
-pub(crate) struct SetSystemAlarmArgs {
-    #[arg(long, required = false)]
-    pub(crate) enable: Option<bool>,
-    #[arg(long, required = false)]
-    pub(crate) cpu_high_watermark: Option<f32>,
-    #[arg(long, required = false)]
-    pub(crate) cpu_low_watermark: Option<f32>,
-    #[arg(long, required = false)]
-    pub(crate) memory_high_watermark: Option<f32>,
-    #[arg(long, required = false)]
-    pub(crate) os_cpu_check_interval_ms: Option<u64>,
 }
 
 // topic rewrite rule
@@ -526,17 +498,12 @@ pub fn process_slow_sub_args(args: SlowSubscribeArgs) -> MqttActionType {
     }
 }
 
+pub fn process_flapping_detect_args(_args: FlappingDetectArgs) -> MqttActionType {
+    MqttActionType::ListFlappingDetect
+}
+
 pub fn process_system_alarm_args(args: SystemAlarmArgs) -> MqttActionType {
     match args.action {
-        SystemAlarmActionType::Set(arg) => {
-            MqttActionType::SetSystemAlarmConfig(SetSystemAlarmConfigRequest {
-                enable: arg.enable,
-                os_cpu_high_watermark: arg.cpu_high_watermark,
-                os_cpu_low_watermark: arg.cpu_low_watermark,
-                os_memory_high_watermark: arg.memory_high_watermark,
-                os_cpu_check_interval_ms: arg.os_cpu_check_interval_ms,
-            })
-        }
         SystemAlarmActionType::List => MqttActionType::ListSystemAlarm(ListSystemAlarmRequest {}),
     }
 }
@@ -550,12 +517,6 @@ pub fn process_session_args(args: SessionArgs) -> MqttActionType {
 pub fn process_subscribes_args(args: SubscribesArgs) -> MqttActionType {
     match args.action {
         SubscribesActionType::List => MqttActionType::ListSubscribe,
-        SubscribesActionType::Detail(args) => {
-            MqttActionType::DetailSubscribe(SubscribeDetailRequest {
-                client_id: args.client_id,
-                path: args.path,
-            })
-        }
     }
 }
 
@@ -645,19 +606,17 @@ pub fn process_topic_args(args: TopicArgs) -> MqttActionType {
 
 pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
-        ConnectorActionType::List(arg) => MqttActionType::ListConnector(ListConnectorRequest {
-            connector_name: arg.connector_name,
-        }),
+        ConnectorActionType::List(_) => MqttActionType::ListConnector,
         ConnectorActionType::Create(arg) => {
-            MqttActionType::CreateConnector(CreateConnectorRequest {
+            MqttActionType::CreateConnector(admin_server::request::CreateConnectorReq {
                 connector_name: arg.connector_name,
-                connector_type: arg.connector_type.parse().unwrap(),
+                connector_type: arg.connector_type,
                 config: arg.config,
                 topic_id: arg.topic_id,
             })
         }
         ConnectorActionType::Delete(arg) => {
-            MqttActionType::DeleteConnector(DeleteConnectorRequest {
+            MqttActionType::DeleteConnector(admin_server::request::DeleteConnectorReq {
                 connector_name: arg.connector_name,
             })
         }
@@ -686,30 +645,33 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
 
 pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
     match args.action {
-        SchemaActionType::Create(arg) => MqttActionType::CreateSchema(CreateSchemaRequest {
-            schema_name: arg.schema_name,
-            schema_type: arg.schema_type,
-            schema: arg.schema,
-            desc: arg.desc,
-        }),
-        SchemaActionType::List(arg) => MqttActionType::ListSchema(ListSchemaRequest {
-            schema_name: arg.schema_name,
-        }),
-        SchemaActionType::Delete(arg) => MqttActionType::DeleteSchema(DeleteSchemaRequest {
-            schema_name: arg.schema_name,
-        }),
-        SchemaActionType::ListBind(arg) => MqttActionType::ListBindSchema(ListBindSchemaRequest {
-            schema_name: arg.schema_name,
-            resource_name: arg.resource_name,
-        }),
-        SchemaActionType::Bind(arg) => MqttActionType::BindSchema(BindSchemaRequest {
-            schema_name: arg.schema_name,
-            resource_name: arg.resource_name,
-        }),
-        SchemaActionType::Unbind(arg) => MqttActionType::UnbindSchema(UnbindSchemaRequest {
-            schema_name: arg.schema_name,
-            resource_name: arg.resource_name,
-        }),
+        SchemaActionType::Create(arg) => {
+            MqttActionType::CreateSchema(admin_server::request::CreateSchemaReq {
+                schema_name: arg.schema_name,
+                schema_type: arg.schema_type,
+                schema: arg.schema,
+                desc: arg.desc,
+            })
+        }
+        SchemaActionType::List(_) => MqttActionType::ListSchema,
+        SchemaActionType::Delete(arg) => {
+            MqttActionType::DeleteSchema(admin_server::request::DeleteSchemaReq {
+                schema_name: arg.schema_name,
+            })
+        }
+        SchemaActionType::ListBind(_) => MqttActionType::ListBindSchema,
+        SchemaActionType::Bind(arg) => {
+            MqttActionType::BindSchema(admin_server::request::CreateSchemaBindReq {
+                schema_name: arg.schema_name,
+                resource_name: arg.resource_name,
+            })
+        }
+        SchemaActionType::Unbind(arg) => {
+            MqttActionType::UnbindSchema(admin_server::request::DeleteSchemaBindReq {
+                schema_name: arg.schema_name,
+                resource_name: arg.resource_name,
+            })
+        }
     }
 }
 

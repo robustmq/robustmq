@@ -16,9 +16,7 @@ pub(crate) mod mqtt;
 
 use clap::{arg, Parser, Subcommand};
 use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
-use cli_command::placement::{
-    PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
-};
+use cli_command::placement::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
 use mqtt::admin::{
     process_auto_subscribe_args, process_config_args, process_connection_args,
     process_session_args, AutoSubscribeRuleCommand, ClientsArgs, ClusterConfigArgs, SchemaArgs,
@@ -29,10 +27,11 @@ use mqtt::publish::process_subscribe_args;
 use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembershipRequest, Node};
 
 use crate::mqtt::admin::{
-    process_acl_args, process_blacklist_args, process_connector_args, process_schema_args,
-    process_slow_sub_args, process_subscribes_args, process_system_alarm_args, process_topic_args,
-    process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
-    SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicArgs, TopicRewriteArgs, UserArgs,
+    process_acl_args, process_blacklist_args, process_connector_args, process_flapping_detect_args,
+    process_schema_args, process_slow_sub_args, process_subscribes_args, process_system_alarm_args,
+    process_topic_args, process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs,
+    ConnectorArgs, FlappingDetectArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs,
+    TopicArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -50,7 +49,7 @@ struct RobustMQCli {
 #[derive(Debug, Subcommand)]
 enum RobustMQCliCommand {
     Mqtt(MqttArgs),
-    Place(PlacementArgs),
+    Cluster(ClusterArgs),
     Journal(JournalArgs),
 }
 
@@ -91,6 +90,8 @@ enum MQTTAction {
     // Clients
     Client(ClientsArgs),
     // #### observability ####
+    // ---- flapping detect ----
+    FlappingDetect(FlappingDetectArgs),
     // ---- slow subscription ----
     SlowSubscribe(SlowSubscribeArgs),
     // ---- system alarm ----
@@ -119,16 +120,16 @@ enum MQTTAction {
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
 #[command(next_line_help = true)]
-struct PlacementArgs {
+struct ClusterArgs {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     server: String,
 
     #[clap(subcommand)]
-    action: PlacementAction,
+    action: ClusterAction,
 }
 
 #[derive(Debug, Subcommand)]
-enum PlacementAction {
+enum ClusterAction {
     Status,
     AddLearner(AddLearnerArgs),
     ChangeMembership(ChangeMembershipArgs),
@@ -175,9 +176,7 @@ async fn main() {
     let args = RobustMQCli::parse();
     match args.command {
         RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
-        RobustMQCliCommand::Place(args) => {
-            handle_placement(args, PlacementCenterCommand::new()).await
-        }
+        RobustMQCliCommand::Cluster(args) => handle_placement(args, ClusterCommand::new()).await,
         RobustMQCliCommand::Journal(args) => handle_journal(args).await,
     }
 }
@@ -210,6 +209,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     return;
                 }
             },
+            // flapping detect
+            MQTTAction::FlappingDetect(args) => process_flapping_detect_args(args),
             // system alarm
             MQTTAction::SystemAlarm(args) => process_system_alarm_args(args),
             // Connections
@@ -233,23 +234,21 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     cmd.start(params).await;
 }
 
-async fn handle_placement(args: PlacementArgs, cmd: PlacementCenterCommand) {
-    let params = PlacementCliCommandParam {
+async fn handle_placement(args: ClusterArgs, cmd: ClusterCommand) {
+    let params = ClusterCliCommandParam {
         server: args.server,
         action: match args.action {
-            PlacementAction::Status => PlacementActionType::Status,
-            PlacementAction::AddLearner(arg) => {
-                PlacementActionType::AddLearner(AddLearnerRequest {
+            ClusterAction::Status => ClusterActionType::Status,
+            ClusterAction::AddLearner(arg) => ClusterActionType::AddLearner(AddLearnerRequest {
+                node_id: arg.node_id,
+                node: Some(Node {
                     node_id: arg.node_id,
-                    node: Some(Node {
-                        node_id: arg.node_id,
-                        rpc_addr: arg.rpc_addr,
-                    }),
-                    blocking: arg.blocking,
-                })
-            }
-            PlacementAction::ChangeMembership(arg) => {
-                PlacementActionType::ChangeMembership(ChangeMembershipRequest {
+                    rpc_addr: arg.rpc_addr,
+                }),
+                blocking: arg.blocking,
+            }),
+            ClusterAction::ChangeMembership(arg) => {
+                ClusterActionType::ChangeMembership(ChangeMembershipRequest {
                     members: arg.members,
                     retain: arg.retain,
                 })
