@@ -15,8 +15,8 @@
 pub(crate) mod mqtt;
 
 use clap::{arg, Parser, Subcommand};
+use cli_command::cluster::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
 use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
-use cli_command::placement::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
 use mqtt::admin::{
     process_auto_subscribe_args, process_config_args, process_connection_args,
     process_session_args, AutoSubscribeRuleCommand, ClientsArgs, ClusterConfigArgs, SchemaArgs,

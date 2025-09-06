@@ -288,7 +288,7 @@ pub struct SystemAlarmListReq {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ClusterConfigGetReq {}
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ClusterConfigSetReq {
     pub config_type: String,
     pub config: String,

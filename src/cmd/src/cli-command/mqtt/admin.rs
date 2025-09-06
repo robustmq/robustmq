@@ -21,7 +21,6 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceTy
 
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use core::option::Option::Some;
-use protocol::broker::broker_mqtt_admin::ListSystemAlarmRequest;
 
 // session
 #[derive(clap::Args, Debug)]
@@ -504,7 +503,7 @@ pub fn process_flapping_detect_args(_args: FlappingDetectArgs) -> MqttActionType
 
 pub fn process_system_alarm_args(args: SystemAlarmArgs) -> MqttActionType {
     match args.action {
-        SystemAlarmActionType::List => MqttActionType::ListSystemAlarm(ListSystemAlarmRequest {}),
+        SystemAlarmActionType::List => MqttActionType::ListSystemAlarm,
     }
 }
 

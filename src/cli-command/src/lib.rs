@@ -15,9 +15,9 @@
 #![allow(clippy::result_large_err)]
 use std::process;
 use std::time::Duration;
-pub mod admin_client;
+pub mod client;
+pub mod cluster;
 pub mod mqtt;
-pub mod placement;
 pub mod template;
 
 use paho_mqtt::{
