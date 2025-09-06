@@ -13,7 +13,12 @@
 // limitations under the License.
 
 use axum::{extract::State, Json};
-use common_base::{http_response::success_response, utils::time_util::timestamp_to_local_datetime};
+use common_base::{
+    enum_type::feature_type::FeatureType,
+    http_response::{error_response, success_response},
+    utils::time_util::timestamp_to_local_datetime,
+};
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::{
@@ -25,42 +30,41 @@ use crate::{
 
 pub async fn cluster_config_set(
     State(_state): State<Arc<HttpState>>,
-    Json(_params): Json<ClusterConfigSetReq>,
+    Json(params): Json<ClusterConfigSetReq>,
 ) -> String {
-    // match FeatureType::from_str(params.config_type.as_str()) {
-    //     Ok(FeatureType::SlowSubscribe) => {
-    //         // let mut config = cache_manager.get_slow_sub_config();
-    //         // config.enable = request.is_enable;
-    //         // cache_manager.update_slow_sub_config(config.clone());
-    //         // save_cluster_dynamic_config(
-    //         //     client_pool,
-    //         //     ClusterDynamicConfig::MqttFlappingDetect,
-    //         //     config.encode(),
-    //         // )
-    //         // .await?;
-    //     }
+    match FeatureType::from_str(params.config_type.as_str()) {
+        Ok(FeatureType::SlowSubscribe) => {
+            // let mut config = cache_manager.get_slow_sub_config();
+            // config.enable = request.is_enable;
+            // cache_manager.update_slow_sub_config(config.clone());
+            // save_cluster_dynamic_config(
+            //     client_pool,
+            //     ClusterDynamicConfig::MqttFlappingDetect,
+            //     config.encode(),
+            // )
+            // .await?;
+        }
 
-    //     Ok(FeatureType::OfflineMessage) => {
-    //         // let mut config = cache_manager.get_offline_message_config();
-    //         // config.enable = request.is_enable;
-    //         // cache_manager.update_offline_message_config(config.clone());
-    //         // save_cluster_dynamic_config(
-    //         //     client_pool,
-    //         //     ClusterDynamicConfig::MqttOfflineMessage,
-    //         //     config.encode(),
-    //         // )
-    //         // .await?;
-    //     }
+        Ok(FeatureType::OfflineMessage) => {
+            // let mut config = cache_manager.get_offline_message_config();
+            // config.enable = request.is_enable;
+            // cache_manager.update_offline_message_config(config.clone());
+            // save_cluster_dynamic_config(
+            //     client_pool,
+            //     ClusterDynamicConfig::MqttOfflineMessage,
+            //     config.encode(),
+            // )
+            // .await?;
+        }
 
-    //     Err(e) => {
-    //         return Err(MqttBrokerError::CommonError(format!(
-    //             "Failed to parse feature type: {e}"
-    //         )));
-    //     }
-    // }
-    // set_slow_subscribe
-    // set_system_alarm
-    // OfflineMessage
+        Ok(FeatureType::SystemAlarm) => {}
+
+        Ok(FeatureType::FlappingDetect) => {}
+
+        Err(e) => {
+            return error_response(format!("Failed to parse feature type: {e}"));
+        }
+    }
     success_response("success")
 }
 

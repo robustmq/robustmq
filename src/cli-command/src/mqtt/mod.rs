@@ -12,19 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::Parser;
-use cli_command::{
-    cluster::command::ClusterCommand,
-    handler::{handle_cluster, handle_journal, handle_mqtt, RobustMQCli, RobustMQCliCommand},
-    mqtt::command::MqttBrokerCommand,
-};
-
-#[tokio::main]
-async fn main() {
-    let args = RobustMQCli::parse();
-    match args.command {
-        RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
-        RobustMQCliCommand::Cluster(args) => handle_cluster(args, ClusterCommand::new()).await,
-        RobustMQCliCommand::Journal(args) => handle_journal(args).await,
-    }
-}
+pub mod command;
+pub mod params;
+pub mod pub_sub;

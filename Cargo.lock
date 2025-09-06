@@ -862,6 +862,8 @@ dependencies = [
  "admin-server",
  "axum",
  "bytes",
+ "clap",
+ "clap-cargo",
  "common-base",
  "common-config",
  "grpc-clients",

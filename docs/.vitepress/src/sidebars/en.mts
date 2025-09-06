@@ -135,16 +135,6 @@ export const sidebar = [
         ],
     },
     {
-        text: "RobustMQ Command",
-        collapsed: true,
-        items: [
-            { text: "Overview", link: "/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/RobustMQ-Command/Mqtt-Broker" },
-            { text: "Placement Command", link: "/RobustMQ-Command/Placement-Center" },
-            { text: "Journal Command", link: "/RobustMQ-Command/Journal Server" },
-        ],
-    },
-    {
         text: "RobustMQ Dashboard",
         collapsed: true,
         items: [
@@ -152,11 +142,12 @@ export const sidebar = [
         ],
     },
     {
+        text: "RobustMQ Command",
+        link: "/RobustMQ-Command/CLI_MANUAL",
+    },
+    {
         text: "HTTP Rest API",
-        collapsed: true,
-        items: [
-            { text: "MQTT Related", link: "/Api/MQTT-API" },
-        ],
+        link: "/Api/HTTP-API"
     },
     {
         text: "ContributionGuide",

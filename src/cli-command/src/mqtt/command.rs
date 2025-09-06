@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
-use crate::{connect_server5, error_info};
+use crate::common::client::AdminHttpClient;
+use crate::mqtt::pub_sub::{connect_server5, error_info};
+use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 use admin_server::response::SessionListRow;
 use common_base::tools::unique_id;
-use common_config::config::BrokerConfig;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 
@@ -34,12 +34,6 @@ pub struct MqttCliCommandParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MqttActionType {
-    // common
-    SetClusterConfig(admin_server::request::ClusterConfigSetReq),
-
-    // cluster config
-    GetClusterConfig,
-
     // session
     ListSession,
 
@@ -123,14 +117,6 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let params_clone = params.clone();
         match params.action {
-            // cluster config
-            MqttActionType::SetClusterConfig(request) => {
-                self.set_cluster_config(params_clone.clone(), request).await;
-            }
-            MqttActionType::GetClusterConfig => {
-                self.get_cluster_config(params.clone()).await;
-            }
-
             // client
             MqttActionType::ListClient => {
                 self.list_clients(params.clone()).await;
@@ -401,65 +387,10 @@ impl MqttBrokerCommand {
         }
     }
 
-    // ------------ common -------------
-    async fn set_cluster_config(
-        &self,
-        params: MqttCliCommandParam,
-        cli_request: admin_server::request::ClusterConfigSetReq,
-    ) {
-        // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
-
-        match admin_client.set_cluster_config(&cli_request).await {
-            Ok(_) => {
-                println!("Cluster configuration set successfully!");
-            }
-            Err(e) => {
-                println!("MQTT broker set cluster config exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-
-    async fn get_cluster_config(&self, params: MqttCliCommandParam) {
-        // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
-
-        // Create empty request for get cluster config
-        let request = serde_json::json!({});
-
-        match admin_client.get_cluster_config(&request).await {
-            Ok(response_text) => {
-                // Try to parse the response as BrokerConfig
-                match serde_json::from_str::<BrokerConfig>(&response_text) {
-                    Ok(data) => {
-                        let json = match serde_json::to_string_pretty(&data) {
-                            Ok(data) => data,
-                            Err(e) => {
-                                println!("MQTT broker cluster normal exception");
-                                error_info(e.to_string());
-                                return;
-                            }
-                        };
-                        println!("{json}");
-                    }
-                    Err(_) => {
-                        // If direct parsing fails, try to parse as the original response format
-                        println!("{response_text}");
-                    }
-                }
-            }
-            Err(e) => {
-                println!("MQTT broker cluster normal exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-
     // ------------ list session ------------
     async fn list_session(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for session list
         let request = admin_server::request::SessionListReq {
@@ -522,7 +453,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateUserReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_user(&cli_request).await {
             Ok(_) => {
@@ -541,7 +472,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteUserReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_user(&cli_request).await {
             Ok(_) => {
@@ -556,7 +487,7 @@ impl MqttBrokerCommand {
 
     async fn list_user(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for user list
         let request = admin_server::request::UserListReq {
@@ -601,7 +532,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateAclReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_acl(&cli_request).await {
             Ok(_) => {
@@ -620,7 +551,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteAclReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_acl(&cli_request).await {
             Ok(_) => {
@@ -635,7 +566,7 @@ impl MqttBrokerCommand {
 
     async fn list_acl(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for acl list
         let request = admin_server::request::AclListReq {
@@ -693,7 +624,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateBlackListReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_blacklist(&cli_request).await {
             Ok(_) => {
@@ -712,7 +643,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteBlackListReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_blacklist(&cli_request).await {
             Ok(_) => {
@@ -727,7 +658,7 @@ impl MqttBrokerCommand {
 
     async fn list_blacklist(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for blacklist list
         let request = admin_server::request::BlackListListReq {
@@ -777,7 +708,7 @@ impl MqttBrokerCommand {
     // -------------- list connections --------------
     async fn list_clients(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for client list
         let request = admin_server::request::ClientListReq {
@@ -832,7 +763,7 @@ impl MqttBrokerCommand {
     // -------------- flapping detect --------------
     async fn list_flapping_detect(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for flapping detect list
         let request = admin_server::request::SystemAlarmListReq {
@@ -882,7 +813,7 @@ impl MqttBrokerCommand {
 
     async fn list_slow_subscribe(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for slow subscribe list
         let request = admin_server::request::AutoSubscribeListReq {
@@ -933,7 +864,7 @@ impl MqttBrokerCommand {
 
     async fn list_topic(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for topic list
         let request = admin_server::request::TopicListReq {
@@ -982,7 +913,7 @@ impl MqttBrokerCommand {
     // ---- system alarms ----
     async fn list_system_alarm(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for system alarm list
         let request = admin_server::request::SystemAlarmListReq {
@@ -1026,7 +957,7 @@ impl MqttBrokerCommand {
     // ------------------ subscribe ----------------
     async fn list_subscribe(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for subscribe list
         let request = admin_server::request::SubscribeListReq {
@@ -1093,7 +1024,7 @@ impl MqttBrokerCommand {
     // ------------------ connectors ----------------
     async fn list_connectors(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for connector list
         let request = admin_server::request::ConnectorListReq {
@@ -1156,7 +1087,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateConnectorReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_connector(&cli_request).await {
             Ok(_) => {
@@ -1175,7 +1106,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteConnectorReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_connector(&cli_request).await {
             Ok(_) => {
@@ -1191,7 +1122,7 @@ impl MqttBrokerCommand {
     // ------------------ topic rewrite rule ----------------
     async fn list_topic_rewrite_rule(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for topic rewrite rule list
         let request = admin_server::request::TopicRewriteReq {
@@ -1244,7 +1175,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateTopicRewriteReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_topic_rewrite(&cli_request).await {
             Ok(_) => {
@@ -1263,7 +1194,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteTopicRewriteReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_topic_rewrite(&cli_request).await {
             Ok(_) => {
@@ -1279,7 +1210,7 @@ impl MqttBrokerCommand {
     // ------------------ schema ----------------
     async fn list_schema(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for schema list
         let request = admin_server::request::SchemaListReq {
@@ -1328,7 +1259,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateSchemaReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_schema(&cli_request).await {
             Ok(_) => {
@@ -1347,7 +1278,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteSchemaReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_schema(&cli_request).await {
             Ok(_) => {
@@ -1366,7 +1297,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateSchemaBindReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_schema_bind(&cli_request).await {
             Ok(_) => {
@@ -1385,7 +1316,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteSchemaBindReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_schema_bind(&cli_request).await {
             Ok(_) => {
@@ -1400,7 +1331,7 @@ impl MqttBrokerCommand {
 
     async fn list_bind_schema(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for schema bind list
         let request = admin_server::request::SchemaBindListReq {
@@ -1444,7 +1375,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::CreateAutoSubscribeReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.create_auto_subscribe(&cli_request).await {
             Ok(_) => {
@@ -1463,7 +1394,7 @@ impl MqttBrokerCommand {
         cli_request: admin_server::request::DeleteAutoSubscribeReq,
     ) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         match admin_client.delete_auto_subscribe(&cli_request).await {
             Ok(_) => {
@@ -1478,7 +1409,7 @@ impl MqttBrokerCommand {
 
     async fn list_auto_subscribe_rule(&self, params: MqttCliCommandParam) {
         // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for auto subscribe rule list
         let request = admin_server::request::AutoSubscribeListReq {
