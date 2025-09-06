@@ -143,18 +143,11 @@ export const sidebar = [
     },
     {
         text: "RobustMQ Command",
-        collapsed: true,
-        items: [
-            { text: "Overview", link: "/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/RobustMQ-Command/Mqtt-Broker" },
-        ],
+        link: "/RobustMQ-Command/CLI_MANUAL",
     },
     {
         text: "HTTP Rest API",
-        collapsed: true,
-        items: [
-            { text: "MQTT Related", link: "/Api/MQTT-API" },
-        ],
+        link: "/Api/HTTP-API"
     },
     {
         text: "ContributionGuide",

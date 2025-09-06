@@ -145,18 +145,11 @@ export const sidebar = [
 
     {
         text: "RobustMQ 命令行",
-        collapsed: true,
-        items: [
-            { text: "概览", link: "/zh/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/zh/RobustMQ-Command/Mqtt-Broker" },
-        ],
+        link: "/zh/RobustMQ-Command/CLI_MANUAL"
     },
      {
         text: "HTTP 接口文档",
-        collapsed: true,
-        items: [
-            { text: "MQTT 相关", link: "/zh/Api/MQTT-API" },
-        ],
+        link: "/zh/Api/HTTP-API"
     },
     {
         text: "贡献指南",
