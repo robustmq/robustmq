@@ -17,7 +17,7 @@ use common_base::{http_response::success_response, utils::time_util::timestamp_t
 use std::sync::Arc;
 
 use crate::{
-    request::{ClusterConfigSetReq, SystemAlarmListReq},
+    request::{ClusterConfigGetReq, ClusterConfigSetReq, SystemAlarmListReq},
     response::{FlappingDetectListRaw, PageReplyData, SystemAlarmListRow},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
@@ -64,13 +64,21 @@ pub async fn cluster_config_set(
     success_response("success")
 }
 
+pub async fn cluster_config_get(
+    State(state): State<Arc<HttpState>>,
+    Json(_params): Json<ClusterConfigGetReq>,
+) -> String {
+    let broker_config = state.broker_cache.get_cluster_config();
+    success_response(broker_config)
+}
+
 pub async fn system_alarm_list(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<SystemAlarmListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
-        params.page_num,
+        params.limit,
         params.sort_field,
         params.sort_by,
         params.filter_field,
@@ -120,7 +128,7 @@ pub async fn flapping_detect_list(
 ) -> String {
     let options = build_query_params(
         params.page,
-        params.page_num,
+        params.limit,
         params.sort_field,
         params.sort_by,
         params.filter_field,

@@ -152,10 +152,10 @@ export const sidebar = [
         ],
     },
     {
-        text: "Rest API",
+        text: "HTTP Rest API",
         collapsed: true,
         items: [
-            { text: "MQTT Rest API", link: "/Api/MQTT-API" },
+            { text: "MQTT Related", link: "/Api/MQTT-API" },
         ],
     },
     {

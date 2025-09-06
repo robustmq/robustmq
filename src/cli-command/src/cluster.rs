@@ -25,49 +25,49 @@ use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembers
 use crate::{error_info, grpc_addr};
 
 #[derive(Clone)]
-pub struct PlacementCliCommandParam {
+pub struct ClusterCliCommandParam {
     pub server: String,
-    pub action: PlacementActionType,
+    pub action: ClusterActionType,
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum PlacementActionType {
+pub enum ClusterActionType {
     Status,
     AddLearner(AddLearnerRequest),
     ChangeMembership(ChangeMembershipRequest),
 }
 
-pub struct PlacementCenterCommand {}
+pub struct ClusterCommand {}
 
-impl Default for PlacementCenterCommand {
+impl Default for ClusterCommand {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PlacementCenterCommand {
+impl ClusterCommand {
     pub fn new() -> Self {
-        PlacementCenterCommand {}
+        ClusterCommand {}
     }
-    pub async fn start(&self, params: PlacementCliCommandParam) {
+    pub async fn start(&self, params: ClusterCliCommandParam) {
         let client_pool = Arc::new(ClientPool::new(100));
 
         match params.action {
-            PlacementActionType::Status => {
+            ClusterActionType::Status => {
                 self.status(&client_pool, params).await;
             }
-            PlacementActionType::AddLearner(ref request) => {
+            ClusterActionType::AddLearner(ref request) => {
                 self.add_learner(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            PlacementActionType::ChangeMembership(ref request) => {
+            ClusterActionType::ChangeMembership(ref request) => {
                 self.change_membership(&client_pool, params.clone(), request.clone())
                     .await;
             }
         }
     }
 
-    async fn status(&self, client_pool: &ClientPool, params: PlacementCliCommandParam) {
+    async fn status(&self, client_pool: &ClientPool, params: ClusterCliCommandParam) {
         let request = ClusterStatusRequest {};
         match cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(reply) => {
@@ -83,7 +83,7 @@ impl PlacementCenterCommand {
     async fn add_learner(
         &self,
         client_pool: &ClientPool,
-        params: PlacementCliCommandParam,
+        params: ClusterCliCommandParam,
         cli_request: AddLearnerRequest,
     ) {
         match placement_openraft_add_learner(client_pool, &grpc_addr(params.server), cli_request)
@@ -102,7 +102,7 @@ impl PlacementCenterCommand {
     async fn change_membership(
         &self,
         client_pool: &ClientPool,
-        params: PlacementCliCommandParam,
+        params: ClusterCliCommandParam,
         cli_request: ChangeMembershipRequest,
     ) {
         match placement_openraft_change_membership(

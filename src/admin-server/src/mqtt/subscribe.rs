@@ -39,7 +39,7 @@ pub async fn subscribe_list(
 ) -> String {
     let options = build_query_params(
         params.page,
-        params.page_num,
+        params.limit,
         params.sort_field,
         params.sort_by,
         params.filter_field,
@@ -96,7 +96,7 @@ pub async fn auto_subscribe_list(
 ) -> String {
     let options = build_query_params(
         params.page,
-        params.page_num,
+        params.limit,
         params.sort_field,
         params.sort_by,
         params.filter_field,
@@ -200,7 +200,7 @@ pub async fn slow_subscribe_list(
 ) -> String {
     let options = build_query_params(
         params.page,
-        params.page_num,
+        params.limit,
         params.sort_field,
         params.sort_by,
         params.filter_field,

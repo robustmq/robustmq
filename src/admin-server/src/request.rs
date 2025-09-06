@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct OverviewMetricsReq {
@@ -20,10 +20,10 @@ pub struct OverviewMetricsReq {
     pub end_time: u64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SessionListReq {
     pub client_id: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -32,10 +32,10 @@ pub struct SessionListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TopicListReq {
     pub topic_name: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -44,10 +44,10 @@ pub struct TopicListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SubscribeListReq {
     pub client_id: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -58,9 +58,9 @@ pub struct SubscribeListReq {
 #[derive(Deserialize, Debug)]
 pub struct SubscribeDetailReq {}
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AutoSubscribeListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -69,7 +69,7 @@ pub struct AutoSubscribeListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateAutoSubscribeReq {
     pub topic: String,
     pub qos: u32,
@@ -78,15 +78,15 @@ pub struct CreateAutoSubscribeReq {
     pub retained_handling: u32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteAutoSubscribeReq {
     pub topic_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserListReq {
     pub user_name: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -95,21 +95,21 @@ pub struct UserListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateUserReq {
     pub username: String,
     pub password: String,
     pub is_superuser: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteUserReq {
     pub username: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BlackListListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -118,7 +118,7 @@ pub struct BlackListListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateBlackListReq {
     pub blacklist_type: String,
     pub resource_name: String,
@@ -126,15 +126,15 @@ pub struct CreateBlackListReq {
     pub desc: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteBlackListReq {
     pub blacklist_type: String,
     pub resource_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TopicRewriteReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -143,7 +143,7 @@ pub struct TopicRewriteReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateTopicRewriteReq {
     pub action: String,
     pub source_topic: String,
@@ -151,15 +151,15 @@ pub struct CreateTopicRewriteReq {
     pub regex: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteTopicRewriteReq {
     pub action: String,
     pub source_topic: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AclListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -168,7 +168,7 @@ pub struct AclListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateAclReq {
     pub resource_type: String,
     pub resource_name: String,
@@ -178,7 +178,7 @@ pub struct CreateAclReq {
     pub permission: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteAclReq {
     pub resource_type: String,
     pub resource_name: String,
@@ -188,9 +188,9 @@ pub struct DeleteAclReq {
     pub permission: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ConnectorListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -199,7 +199,7 @@ pub struct ConnectorListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateConnectorReq {
     pub connector_name: String,
     pub connector_type: String,
@@ -207,14 +207,14 @@ pub struct CreateConnectorReq {
     pub topic_id: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteConnectorReq {
     pub connector_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -223,7 +223,7 @@ pub struct SchemaListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateSchemaReq {
     pub schema_name: String,
     pub schema_type: String,
@@ -231,16 +231,16 @@ pub struct CreateSchemaReq {
     pub desc: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteSchemaReq {
     pub schema_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaBindListReq {
     pub resource_name: Option<String>,
     pub schema_name: Option<String>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -249,23 +249,23 @@ pub struct SchemaBindListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateSchemaBindReq {
     pub schema_name: String,
     pub resource_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DeleteSchemaBindReq {
     pub schema_name: String,
     pub resource_name: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ClientListReq {
     pub source_ip: Option<String>,
     pub connection_id: Option<u64>,
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -274,9 +274,9 @@ pub struct ClientListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SystemAlarmListReq {
-    pub page_num: Option<u32>,
+    pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
@@ -285,7 +285,10 @@ pub struct SystemAlarmListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClusterConfigGetReq {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ClusterConfigSetReq {
     pub config_type: String,
     pub config: String,
