@@ -28,10 +28,6 @@ pub(crate) fn error_info(err: String) {
     println!("Exception:{err}");
 }
 
-pub(crate) fn grpc_addr(addr: String) -> Vec<String> {
-    addr.split(",").map(|raw| raw.to_owned()).collect()
-}
-
 pub fn connect_server5(
     client_id: &str,
     username: String,

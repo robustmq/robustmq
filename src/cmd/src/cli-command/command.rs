@@ -18,13 +18,11 @@ use clap::{arg, Parser, Subcommand};
 use cli_command::cluster::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
 use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
 use mqtt::admin::{
-    process_auto_subscribe_args, process_config_args, process_connection_args,
-    process_session_args, AutoSubscribeRuleCommand, ClientsArgs, ClusterConfigArgs, SchemaArgs,
+    process_auto_subscribe_args, process_connection_args, process_session_args,
+    AutoSubscribeRuleCommand, ClientsArgs, ClusterConfigActionType, ClusterConfigArgs, SchemaArgs,
     SessionArgs,
 };
 use mqtt::publish::process_subscribe_args;
-
-use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembershipRequest, Node};
 
 use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_flapping_detect_args,
@@ -75,8 +73,6 @@ struct MqttArgs {
 
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
-    // session admin
-    Config(ClusterConfigArgs),
     // session admin
     Session(SessionArgs),
     // session admin
@@ -130,34 +126,7 @@ struct ClusterArgs {
 
 #[derive(Debug, Subcommand)]
 enum ClusterAction {
-    Status,
-    AddLearner(AddLearnerArgs),
-    ChangeMembership(ChangeMembershipArgs),
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: add learner", long_about = None)]
-#[command(next_line_help = true)]
-struct AddLearnerArgs {
-    #[arg(short, long, required = true)]
-    node_id: u64,
-
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
-    rpc_addr: String,
-
-    #[arg(short, long, default_value_t = true)]
-    blocking: bool,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ",  about="action: change membership", long_about = None)]
-#[command(next_line_help = true)]
-struct ChangeMembershipArgs {
-    #[arg(short, long, num_args = 1.., required = true)]
-    members: Vec<u64>,
-
-    #[arg(short, long, default_value_t = true)]
-    retain: bool,
+    Config(ClusterConfigArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -176,7 +145,7 @@ async fn main() {
     let args = RobustMQCli::parse();
     match args.command {
         RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
-        RobustMQCliCommand::Cluster(args) => handle_placement(args, ClusterCommand::new()).await,
+        RobustMQCliCommand::Cluster(args) => handle_cluster(args, ClusterCommand::new()).await,
         RobustMQCliCommand::Journal(args) => handle_journal(args).await,
     }
 }
@@ -185,8 +154,6 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     let params = MqttCliCommandParam {
         server: args.server,
         action: match args.action {
-            // cluster status
-            MQTTAction::Config(args) => process_config_args(args),
             // session list
             MQTTAction::Session(args) => process_session_args(args),
             // subscribe list
@@ -234,25 +201,13 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     cmd.start(params).await;
 }
 
-async fn handle_placement(args: ClusterArgs, cmd: ClusterCommand) {
+async fn handle_cluster(args: ClusterArgs, cmd: ClusterCommand) {
     let params = ClusterCliCommandParam {
         server: args.server,
         action: match args.action {
-            ClusterAction::Status => ClusterActionType::Status,
-            ClusterAction::AddLearner(arg) => ClusterActionType::AddLearner(AddLearnerRequest {
-                node_id: arg.node_id,
-                node: Some(Node {
-                    node_id: arg.node_id,
-                    rpc_addr: arg.rpc_addr,
-                }),
-                blocking: arg.blocking,
-            }),
-            ClusterAction::ChangeMembership(arg) => {
-                ClusterActionType::ChangeMembership(ChangeMembershipRequest {
-                    members: arg.members,
-                    retain: arg.retain,
-                })
-            }
+            ClusterAction::Config(config_args) => match config_args.action {
+                ClusterConfigActionType::Get => ClusterActionType::GetConfig,
+            },
         },
     };
     cmd.start(params).await;

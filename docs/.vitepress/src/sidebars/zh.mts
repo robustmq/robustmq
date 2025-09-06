@@ -136,16 +136,6 @@ export const sidebar = [
     },
 
     {
-        text: "RobustMQ 命令行",
-        collapsed: true,
-        items: [
-            { text: "概览", link: "/zh/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/zh/RobustMQ-Command/Mqtt-Broker" },
-            { text: "Placement Command", link: "/zh/RobustMQ-Command/Placement-Center" },
-            { text: "Journal Command", link: "/zh/RobustMQ-Command/Journal Server" },
-        ],
-    },
-    {
         text: "RobustMQ Dashboard",
         collapsed: true,
         items: [
@@ -153,6 +143,14 @@ export const sidebar = [
         ],
     },
 
+    {
+        text: "RobustMQ 命令行",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/RobustMQ-Command/Overview" },
+            { text: "MQTT Command", link: "/zh/RobustMQ-Command/Mqtt-Broker" },
+        ],
+    },
      {
         text: "HTTP 接口文档",
         collapsed: true,

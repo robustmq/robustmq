@@ -49,7 +49,12 @@ impl fmt::Display for FeatureType {
 }
 impl ValueEnum for FeatureType {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::SlowSubscribe, Self::OfflineMessage]
+        &[
+            Self::SlowSubscribe,
+            Self::OfflineMessage,
+            Self::SlowSubscribe,
+            Self::FlappingDetect,
+        ]
     }
 
     fn to_possible_value(&self) -> Option<PossibleValue> {

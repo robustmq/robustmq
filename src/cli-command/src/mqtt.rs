@@ -16,7 +16,6 @@ use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info};
 use admin_server::response::SessionListRow;
 use common_base::tools::unique_id;
-use common_config::config::BrokerConfig;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 
@@ -34,12 +33,6 @@ pub struct MqttCliCommandParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MqttActionType {
-    // common
-    SetClusterConfig(admin_server::request::ClusterConfigSetReq),
-
-    // cluster config
-    GetClusterConfig,
-
     // session
     ListSession,
 
@@ -123,14 +116,6 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let params_clone = params.clone();
         match params.action {
-            // cluster config
-            MqttActionType::SetClusterConfig(request) => {
-                self.set_cluster_config(params_clone.clone(), request).await;
-            }
-            MqttActionType::GetClusterConfig => {
-                self.get_cluster_config(params.clone()).await;
-            }
-
             // client
             MqttActionType::ListClient => {
                 self.list_clients(params.clone()).await;
@@ -397,61 +382,6 @@ impl MqttBrokerCommand {
                     println!("End of input stream.");
                     break;
                 }
-            }
-        }
-    }
-
-    // ------------ common -------------
-    async fn set_cluster_config(
-        &self,
-        params: MqttCliCommandParam,
-        cli_request: admin_server::request::ClusterConfigSetReq,
-    ) {
-        // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
-
-        match admin_client.set_cluster_config(&cli_request).await {
-            Ok(_) => {
-                println!("Cluster configuration set successfully!");
-            }
-            Err(e) => {
-                println!("MQTT broker set cluster config exception");
-                error_info(e.to_string());
-            }
-        }
-    }
-
-    async fn get_cluster_config(&self, params: MqttCliCommandParam) {
-        // Create admin HTTP client
-        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
-
-        // Create empty request for get cluster config
-        let request = serde_json::json!({});
-
-        match admin_client.get_cluster_config(&request).await {
-            Ok(response_text) => {
-                // Try to parse the response as BrokerConfig
-                match serde_json::from_str::<BrokerConfig>(&response_text) {
-                    Ok(data) => {
-                        let json = match serde_json::to_string_pretty(&data) {
-                            Ok(data) => data,
-                            Err(e) => {
-                                println!("MQTT broker cluster normal exception");
-                                error_info(e.to_string());
-                                return;
-                            }
-                        };
-                        println!("{json}");
-                    }
-                    Err(_) => {
-                        // If direct parsing fails, try to parse as the original response format
-                        println!("{response_text}");
-                    }
-                }
-            }
-            Err(e) => {
-                println!("MQTT broker cluster normal exception");
-                error_info(e.to_string());
             }
         }
     }

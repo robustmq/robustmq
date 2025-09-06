@@ -12,17 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use grpc_clients::placement::inner::call::cluster_status;
-use grpc_clients::placement::openraft::call::{
-    placement_openraft_add_learner, placement_openraft_change_membership,
-};
-use grpc_clients::pool::ClientPool;
-use protocol::meta::placement_center_inner::ClusterStatusRequest;
-use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembershipRequest};
-
-use crate::{error_info, grpc_addr};
+use crate::error_info;
+use admin_server::request::ClusterConfigSetReq;
+use common_config::config::BrokerConfig;
 
 #[derive(Clone)]
 pub struct ClusterCliCommandParam {
@@ -32,9 +24,8 @@ pub struct ClusterCliCommandParam {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum ClusterActionType {
-    Status,
-    AddLearner(AddLearnerRequest),
-    ChangeMembership(ChangeMembershipRequest),
+    GetConfig,
+    SetConfig(ClusterConfigSetReq),
 }
 
 pub struct ClusterCommand {}
@@ -50,73 +41,65 @@ impl ClusterCommand {
         ClusterCommand {}
     }
     pub async fn start(&self, params: ClusterCliCommandParam) {
-        let client_pool = Arc::new(ClientPool::new(100));
-
-        match params.action {
-            ClusterActionType::Status => {
-                self.status(&client_pool, params).await;
+        match params.action.clone() {
+            ClusterActionType::GetConfig => {
+                self.get_cluster_config(params).await;
             }
-            ClusterActionType::AddLearner(ref request) => {
-                self.add_learner(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            ClusterActionType::ChangeMembership(ref request) => {
-                self.change_membership(&client_pool, params.clone(), request.clone())
-                    .await;
+            ClusterActionType::SetConfig(request) => {
+                self.set_cluster_config(params, request.clone()).await;
             }
         }
     }
 
-    async fn status(&self, client_pool: &ClientPool, params: ClusterCliCommandParam) {
-        let request = ClusterStatusRequest {};
-        match cluster_status(client_pool, &grpc_addr(params.server), request).await {
-            Ok(reply) => {
-                println!("{}", reply.content);
+    async fn set_cluster_config(
+        &self,
+        params: ClusterCliCommandParam,
+        cli_request: admin_server::request::ClusterConfigSetReq,
+    ) {
+        // Create admin HTTP client
+        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
+
+        match admin_client.set_cluster_config(&cli_request).await {
+            Ok(_) => {
+                println!("Cluster configuration set successfully!");
             }
             Err(e) => {
-                println!("Placement center cluster normal exception");
+                println!("MQTT broker set cluster config exception");
                 error_info(e.to_string());
             }
         }
     }
 
-    async fn add_learner(
-        &self,
-        client_pool: &ClientPool,
-        params: ClusterCliCommandParam,
-        cli_request: AddLearnerRequest,
-    ) {
-        match placement_openraft_add_learner(client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
-            Ok(_) => {
-                println!("Placement center add leaner successfully");
-            }
-            Err(e) => {
-                println!("Placement center add leaner normal exception");
-                error_info(e.to_string());
-            }
-        }
-    }
+    async fn get_cluster_config(&self, params: ClusterCliCommandParam) {
+        // Create admin HTTP client
+        let admin_client = crate::client::AdminHttpClient::new(format!("http://{}", params.server));
 
-    async fn change_membership(
-        &self,
-        client_pool: &ClientPool,
-        params: ClusterCliCommandParam,
-        cli_request: ChangeMembershipRequest,
-    ) {
-        match placement_openraft_change_membership(
-            client_pool,
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
-        {
-            Ok(_) => {
-                println!("Placement center change membership successfully");
+        // Create empty request for get cluster config
+        let request = serde_json::json!({});
+
+        match admin_client.get_cluster_config(&request).await {
+            Ok(response_text) => {
+                // Try to parse the response as BrokerConfig
+                match serde_json::from_str::<BrokerConfig>(&response_text) {
+                    Ok(data) => {
+                        let json = match serde_json::to_string_pretty(&data) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                println!("MQTT broker cluster normal exception");
+                                error_info(e.to_string());
+                                return;
+                            }
+                        };
+                        println!("{json}");
+                    }
+                    Err(_) => {
+                        // If direct parsing fails, try to parse as the original response format
+                        println!("{response_text}");
+                    }
+                }
             }
             Err(e) => {
-                println!("Placement center cluster normal exception");
+                println!("MQTT broker cluster normal exception");
                 error_info(e.to_string());
             }
         }

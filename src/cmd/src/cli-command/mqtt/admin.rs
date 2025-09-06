@@ -519,12 +519,6 @@ pub fn process_subscribes_args(args: SubscribesArgs) -> MqttActionType {
     }
 }
 
-pub fn process_config_args(args: ClusterConfigArgs) -> MqttActionType {
-    match args.action {
-        ClusterConfigActionType::Get => MqttActionType::GetClusterConfig,
-    }
-}
-
 pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
         UserActionType::List => MqttActionType::ListUser,
