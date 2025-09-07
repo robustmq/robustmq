@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::placement::mqtt::call::{
+use grpc_clients::meta::mqtt::call::{
     placement_create_session, placement_delete_session, placement_list_session,
     placement_save_last_will_message, placement_update_session,
 };

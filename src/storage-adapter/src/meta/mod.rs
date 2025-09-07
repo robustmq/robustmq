@@ -18,7 +18,7 @@ use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use grpc_clients::{
-    placement::kv::call::{placement_delete, placement_get, placement_get_prefix, placement_set},
+    meta::kv::call::{placement_delete, placement_get, placement_get_prefix, placement_set},
     pool::ClientPool,
 };
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};

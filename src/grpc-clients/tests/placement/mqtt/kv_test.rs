@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::placement::kv::call::{
+    use grpc_clients::meta::kv::call::{
         placement_delete, placement_exists, placement_get, placement_set,
     };
     use grpc_clients::pool::ClientPool;

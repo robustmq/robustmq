@@ -16,7 +16,7 @@
 mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::tools::now_second;
-    use grpc_clients::placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
+    use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use protocol::meta::placement_center_mqtt::{

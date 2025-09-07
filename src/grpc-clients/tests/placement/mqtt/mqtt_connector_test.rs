@@ -17,7 +17,7 @@ mod test {
     use std::sync::Arc;
 
     use grpc_clients::{
-        placement::mqtt::call::{
+        meta::mqtt::call::{
             placement_create_connector, placement_delete_connector, placement_list_connector,
             placement_update_connector,
         },

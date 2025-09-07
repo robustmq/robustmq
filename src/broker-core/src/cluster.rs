@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
-use grpc_clients::placement::inner::call::{
+use grpc_clients::meta::inner::call::{
     cluster_status, delete_resource_config, get_resource_config, heartbeat, node_list,
     register_node, set_resource_config, unregister_node,
 };

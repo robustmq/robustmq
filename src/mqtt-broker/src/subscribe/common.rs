@@ -20,7 +20,7 @@ use crate::storage::message::MessageStorage;
 use common_base::error::common::CommonError;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use common_config::broker::broker_config;
-use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
+use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
 use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};

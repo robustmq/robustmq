@@ -18,7 +18,7 @@ use std::time::Duration;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::placement::journal::call::create_next_segment;
+use grpc_clients::meta::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::placement_center_journal::CreateNextSegmentRequest;
 use tokio::time::sleep;

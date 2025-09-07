@@ -18,7 +18,7 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::unique_id;
-    use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
+    use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use protocol::meta::placement_center_mqtt::{

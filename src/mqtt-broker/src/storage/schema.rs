@@ -15,7 +15,7 @@
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_config::broker::broker_config;
 use grpc_clients::{
-    placement::inner::call::{
+    meta::inner::call::{
         bind_schema, create_schema, delete_schema, list_schema, un_bind_schema,
     },
     pool::ClientPool,

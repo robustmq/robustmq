@@ -122,7 +122,7 @@ pub async fn create_shard_to_place(
         shard_name: shard_name.to_string(),
         shard_config: serde_json::to_vec(&config)?,
     };
-    grpc_clients::placement::journal::call::create_shard(
+    grpc_clients::meta::journal::call::create_shard(
         client_pool,
         &conf.get_placement_center_addr(),
         request,
@@ -164,7 +164,7 @@ pub async fn delete_shard_to_place(
         shard_name: shard_name.to_string(),
     };
 
-    grpc_clients::placement::journal::call::delete_shard(
+    grpc_clients::meta::journal::call::delete_shard(
         &client_pool,
         &conf.get_placement_center_addr(),
         request,

@@ -17,7 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::placement::mqtt::call::{
+    use grpc_clients::meta::mqtt::call::{
         placement_create_topic_rewrite_rule, placement_delete_topic_rewrite_rule,
         placement_list_topic_rewrite_rule,
     };
