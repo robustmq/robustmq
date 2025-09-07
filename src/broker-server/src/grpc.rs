@@ -28,9 +28,7 @@ use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::server::service_raft::GrpcOpenRaftServices;
 use meta_service::PlacementCenterServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
-use mqtt_broker::server::grpc::admin::GrpcAdminServices;
-use mqtt_broker::server::grpc::inner::GrpcInnerServices;
-use protocol::broker::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
+use mqtt_broker::server::inner::GrpcInnerServices;
 use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
 use protocol::cluster::cluster_status::cluster_service_server::ClusterServiceServer;
 use protocol::journal::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
@@ -96,15 +94,10 @@ pub async fn start_grpc_server(
     }
 
     if config.is_start_broker() {
-        route = route
-            .add_service(
-                MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
-                    .max_decoding_message_size(grpc_max_decoding_message_size),
-            )
-            .add_service(
-                MqttBrokerAdminServiceServer::new(get_mqtt_admin_handler(&mqtt_params))
-                    .max_decoding_message_size(grpc_max_decoding_message_size),
-            );
+        route = route.add_service(
+            MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        );
     }
 
     if config.is_start_journal() {
@@ -173,16 +166,6 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
         mqtt_params.schema_manager.clone(),
         mqtt_params.client_pool.clone(),
         mqtt_params.message_storage_adapter.clone(),
-    )
-}
-
-fn get_mqtt_admin_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcAdminServices {
-    GrpcAdminServices::new(
-        mqtt_params.client_pool.clone(),
-        mqtt_params.cache_manager.clone(),
-        mqtt_params.connection_manager.clone(),
-        mqtt_params.subscribe_manager.clone(),
-        mqtt_params.metrics_cache_manager.clone(),
     )
 }
 

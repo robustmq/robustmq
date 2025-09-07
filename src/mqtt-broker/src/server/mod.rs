@@ -34,7 +34,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
 use tracing::error;
 
-pub mod grpc;
+pub mod inner;
 
 pub struct Server {
     tcp_server: TcpServer,

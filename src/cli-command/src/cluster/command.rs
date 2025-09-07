@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{common::client::AdminHttpClient, mqtt::pub_sub::error_info};
-use admin_server::request::ClusterConfigSetReq;
+use crate::mqtt::pub_sub::error_info;
+use admin_server::{client::AdminHttpClient, request::ClusterConfigSetReq};
 use common_config::config::BrokerConfig;
 
 #[derive(Clone)]

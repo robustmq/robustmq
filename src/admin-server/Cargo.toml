@@ -33,6 +33,7 @@ metadata-struct.workspace = true
 broker-core.workspace = true
 protocol.workspace = true
 schema-register.workspace = true
-
+reqwest.workspace = true
+thiserror.workspace = true
 [dev-dependencies]
 mockall.workspace = true

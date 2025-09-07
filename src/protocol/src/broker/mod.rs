@@ -14,11 +14,6 @@
 
 #![cfg_attr(any(), rustfmt::skip)]
 #![allow(clippy::all)]
-
-pub mod broker_mqtt_admin {
-    tonic::include_proto!("broker.mqtt.admin");
-}
-
 pub mod broker_mqtt_inner {
     tonic::include_proto!("broker.mqtt.inner");
 }

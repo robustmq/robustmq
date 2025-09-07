@@ -14,7 +14,6 @@
 
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::error::common::CommonError;
-use protocol::broker::broker_mqtt_admin::BlacklistRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
@@ -32,16 +31,5 @@ impl MqttAclBlackList {
 
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         Ok(serde_json::from_slice(data)?)
-    }
-}
-
-impl From<MqttAclBlackList> for BlacklistRaw {
-    fn from(blacklist: MqttAclBlackList) -> Self {
-        Self {
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name,
-            end_time: blacklist.end_time,
-            desc: blacklist.desc,
-        }
     }
 }

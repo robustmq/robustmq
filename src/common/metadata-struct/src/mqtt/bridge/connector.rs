@@ -15,7 +15,6 @@
 use serde::{Deserialize, Serialize};
 
 use super::{connector_type::ConnectorType, status::MQTTStatus};
-use protocol::broker::broker_mqtt_admin::ConnectorRaw;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct MQTTConnector {
@@ -37,21 +36,5 @@ impl MQTTConnector {
 
     pub fn decode(data: &[u8]) -> Self {
         serde_json::from_slice(data).unwrap()
-    }
-}
-
-impl From<MQTTConnector> for ConnectorRaw {
-    fn from(connector: MQTTConnector) -> Self {
-        Self {
-            cluster_name: connector.cluster_name,
-            connector_name: connector.connector_name,
-            connector_type: connector.connector_type.to_string(),
-            config: connector.config,
-            topic_id: connector.topic_id,
-            status: connector.status.to_string(),
-            broker_id: connector.broker_id,
-            create_time: connector.create_time,
-            update_time: connector.update_time,
-        }
     }
 }
