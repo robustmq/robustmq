@@ -22,7 +22,7 @@ mod tests {
     use protocol::meta::placement_center_inner::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;
 
-    use crate::place_server::common::{cluster_name, extend_info, node_id, node_ip, pc_addr};
+    use crate::meta::common::{cluster_name, extend_info, node_id, node_ip, pc_addr};
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {

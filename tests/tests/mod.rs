@@ -14,5 +14,5 @@
 
 pub mod journal_client;
 pub mod journal_server;
+pub mod meta;
 pub mod mqtt_protocol;
-pub mod place_server;

@@ -19,7 +19,7 @@ mod tests {
         DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
 
-    use crate::place_server::common::pc_addr;
+    use crate::meta::common::pc_addr;
 
     #[tokio::test]
     async fn kv_storage() {

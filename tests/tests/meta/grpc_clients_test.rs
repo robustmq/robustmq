@@ -26,7 +26,7 @@ mod tests {
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
 
-    use crate::place_server::common::{
+    use crate::meta::common::{
         cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, producer_id, seq_num,
         shard_name,
     };
