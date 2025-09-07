@@ -12,41 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Temporarily disabled due to gRPC to HTTP migration
-// TODO: Implement HTTP-based topic rewrite tests
-#[cfg(disabled)]
+#[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::{
         common::{
-            broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,
-            publish_data, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+            ssl_by_type, subscribe_data_by_qos, ws_by_type,
         },
         ClientTestProperties,
     };
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::CreateTopicRewriteReq;
     use common_base::tools::unique_id;
-    use grpc_clients::mqtt::admin::call::mqtt_broker_create_topic_rewrite_rule;
-    use grpc_clients::pool::ClientPool;
     use paho_mqtt::{Message, MessageBuilder};
-    use protocol::broker::broker_mqtt_admin::CreateTopicRewriteRuleRequest;
-    use std::sync::Arc;
 
     #[tokio::test]
     async fn pub_sub_rewrite_test() {
-        let client_pool = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
         let action: String = "All".to_string();
 
         let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
         let client_id = build_client_id(&prefix);
 
-        let req = CreateTopicRewriteRuleRequest {
+        let req = CreateTopicRewriteReq {
             action: action.clone(),
             source_topic: format!("{prefix}y/+/z/#"),
             dest_topic: format!("{prefix}y/z/$2"),
             regex: format!("^{prefix}y/(.+)/z/(.+)$"),
         };
-        let res = mqtt_broker_create_topic_rewrite_rule(&client_pool, &grpc_addr, req).await;
+        let res = admin_client.create_topic_rewrite(&req).await;
         assert!(res.is_ok());
 
         let source_topic = format!("{prefix}y/a/z/b");
@@ -111,20 +106,19 @@ mod tests {
 
     #[tokio::test]
     async fn un_sub_rewrite_test() {
-        let client_pool = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
         let action: String = "All".to_string();
 
         let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
 
-        let req = CreateTopicRewriteRuleRequest {
+        let req = CreateTopicRewriteReq {
             action: action.clone(),
             source_topic: format!("{prefix}y/+/z/#"),
             dest_topic: format!("{prefix}y/z/$2"),
             regex: format!("^{prefix}y/(.+)/z/(.+)$"),
         };
-        let res = mqtt_broker_create_topic_rewrite_rule(&client_pool, &grpc_addr, req).await;
+        let res = admin_client.create_topic_rewrite(&req).await;
         assert!(res.is_ok());
 
         let source_topic = format!("{prefix}y/a/z/b");

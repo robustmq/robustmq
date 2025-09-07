@@ -12,38 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Temporarily disabled due to gRPC to HTTP migration
-// TODO: Implement HTTP-based schema tests
-#[cfg(disabled)]
+#[cfg(test)]
 mod tests {
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::{
+        CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
+    };
     use apache_avro::{Schema, Writer};
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, QOS_1};
     use serde::{Deserialize, Serialize};
     use serde_json::json;
-    use std::sync::Arc;
-
-    use common_base::tools::unique_id;
-    use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_bind_schema, mqtt_broker_create_schema, mqtt_broker_delete_schema,
-        mqtt_broker_unbind_schema,
-    };
-    use grpc_clients::pool::ClientPool;
-    use paho_mqtt::{Message, QOS_1};
-    use protocol::broker::broker_mqtt_admin::{
-        BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, UnbindSchemaRequest,
-    };
 
     use crate::mqtt_protocol::common::{
-        broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,
-        publish_data, ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+        ssl_by_type, ws_by_type,
     };
     use crate::mqtt_protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn schema_json_test() {
         let network = "tcp";
-        let qos = 1;
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let _qos = 1;
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
         let schema_name = unique_id();
         let schema_type = "json".to_string();
@@ -58,8 +49,7 @@ mod tests {
         let topic_name = format!("/test/v1/{}", unique_id());
 
         create_schema(
-            client_pool.clone(),
-            grpc_addr.clone(),
+            &admin_client,
             schema_name.clone(),
             schema_type.clone(),
             schema_content.to_string(),
@@ -68,7 +58,7 @@ mod tests {
         .await;
 
         // Publish
-        let client_id = build_client_id(format!("schema_json_test_{network}_{qos}").as_str());
+        let client_id = build_client_id(format!("schema_json_test_{network}_1").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -89,13 +79,7 @@ mod tests {
         let msg = Message::new(topic_name.clone(), message_content, QOS_1);
         publish_data(&cli, msg, false);
 
-        delete_schema(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            schema_name.clone(),
-            topic_name.clone(),
-        )
-        .await;
+        delete_schema(&admin_client, schema_name.clone(), topic_name.clone()).await;
 
         let message_content = "schema_json_test mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
@@ -106,9 +90,8 @@ mod tests {
     #[tokio::test]
     async fn schema_avro_test() {
         let network: &str = "tcp";
-        let qos = 1;
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let _qos = 1;
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
         let schema_name = unique_id();
         let schema_type = "avro".to_string();
@@ -126,8 +109,7 @@ mod tests {
         let topic_name = format!("/test/v1/{}", unique_id());
 
         create_schema(
-            client_pool.clone(),
-            grpc_addr.clone(),
+            &admin_client,
             schema_name.clone(),
             schema_type.clone(),
             schema_content.to_string(),
@@ -136,7 +118,7 @@ mod tests {
         .await;
 
         // Publish
-        let client_id = build_client_id(format!("schema_avro_test_{network}_{qos}").as_str());
+        let client_id = build_client_id(format!("schema_avro_test_{network}_1").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -166,13 +148,7 @@ mod tests {
         let msg = Message::new(topic_name.clone(), encoded_data, QOS_1);
         publish_data(&cli, msg, false);
 
-        delete_schema(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            schema_name.clone(),
-            topic_name.clone(),
-        )
-        .await;
+        delete_schema(&admin_client, schema_name.clone(), topic_name.clone()).await;
 
         let message_content = "schema_avro_test mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
@@ -181,47 +157,45 @@ mod tests {
     }
 
     async fn create_schema(
-        client_pool: Arc<ClientPool>,
-        addrs: Vec<String>,
+        admin_client: &AdminHttpClient,
         schema_name: String,
         schema_type: String,
         schema: String,
         topic_name: String,
     ) {
-        let user = CreateSchemaRequest {
+        let create_request = CreateSchemaReq {
             schema_name: schema_name.clone(),
             schema_type,
             schema,
-            desc: "".to_string(),
+            desc: "Test schema".to_string(),
         };
-        let res = mqtt_broker_create_schema(&client_pool, &addrs, user.clone()).await;
+        let res = admin_client.create_schema(&create_request).await;
         assert!(res.is_ok());
 
-        let request = BindSchemaRequest {
+        let bind_request = CreateSchemaBindReq {
             schema_name: schema_name.clone(),
             resource_name: topic_name,
         };
-        let res = mqtt_broker_bind_schema(&client_pool, &addrs, request).await;
+        let res = admin_client.create_schema_bind(&bind_request).await;
         assert!(res.is_ok());
     }
 
     async fn delete_schema(
-        client_pool: Arc<ClientPool>,
-        addrs: Vec<String>,
+        admin_client: &AdminHttpClient,
         schema_name: String,
         topic_name: String,
     ) {
-        let user = DeleteSchemaRequest {
-            schema_name: schema_name.clone(),
-        };
-        let res = mqtt_broker_delete_schema(&client_pool, &addrs, user.clone()).await;
-        assert!(res.is_ok());
-
-        let request = UnbindSchemaRequest {
+        let unbind_request = DeleteSchemaBindReq {
             schema_name: schema_name.clone(),
             resource_name: topic_name,
         };
-        let res = mqtt_broker_unbind_schema(&client_pool, &addrs, request).await;
+        let res = admin_client.delete_schema_bind(&unbind_request).await;
+        assert!(res.is_ok());
+
+        let delete_request = DeleteSchemaReq {
+            schema_name: schema_name.clone(),
+        };
+        let res = admin_client.delete_schema(&delete_request).await;
         assert!(res.is_ok());
     }
 

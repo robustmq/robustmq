@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Temporarily disabled due to gRPC to HTTP migration
-// TODO: Implement HTTP-based session expire tests
-#[cfg(disabled)]
+#[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
+    use std::time::Duration;
 
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::SessionListReq;
+    use admin_server::response::SessionListRow;
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::{mqtt::admin::call::mqtt_broker_list_session, pool::ClientPool};
     use paho_mqtt::{Message, QOS_1};
-    use protocol::broker::broker_mqtt_admin::{ListSessionRequest, SessionRaw};
     use tokio::time::{sleep, timeout};
 
     use crate::mqtt_protocol::{
         common::{
-            broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn,
             distinct_conn_close, publish_data, session_expiry_interval, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
@@ -54,15 +53,25 @@ mod tests {
         publish_data(&cli, msg, false);
         distinct_conn(cli);
 
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
         let check_fn = async {
             loop {
-                let request = ListSessionRequest {};
-                let res = mqtt_broker_list_session(&client_pool, &grpc_addr, request).await;
+                let request = SessionListReq {
+                    client_id: None,
+                    limit: Some(10000),
+                    page: Some(1),
+                    sort_field: None,
+                    sort_by: None,
+                    filter_field: None,
+                    filter_values: None,
+                    exact_match: None,
+                };
+                let res = admin_client
+                    .get_session_list::<SessionListReq, Vec<SessionListRow>>(&request)
+                    .await;
                 assert!(res.is_ok());
-                let sessions = res.unwrap().sessions;
+                let sessions = res.unwrap().data;
                 if !contain_session(&sessions, &client_id) {
                     return;
                 }
@@ -101,20 +110,30 @@ mod tests {
         publish_data(&cli, msg, false);
         distinct_conn_close(cli);
 
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
-        let request = ListSessionRequest {};
-        let res = mqtt_broker_list_session(&client_pool, &grpc_addr, request).await;
+        let request = SessionListReq {
+            client_id: None,
+            limit: Some(10000),
+            page: Some(1),
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+        let res = admin_client
+            .get_session_list::<SessionListReq, Vec<SessionListRow>>(&request)
+            .await;
         assert!(res.is_ok());
-        let sessions = res.unwrap().sessions;
+        let sessions = res.unwrap().data;
         assert!(!contain_session(&sessions, &client_id));
     }
 
-    fn contain_session(sessions: &Vec<SessionRaw>, client_id: &str) -> bool {
+    fn contain_session(sessions: &Vec<SessionListRow>, client_id: &str) -> bool {
         let mut flag = false;
-        for raw in sessions {
-            if raw.client_id == *client_id {
+        for session in sessions {
+            if session.client_id == *client_id {
                 flag = true;
             }
         }

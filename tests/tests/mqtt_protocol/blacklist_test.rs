@@ -18,7 +18,7 @@ mod tests {
     use admin_server::request::{
         BlackListListReq, CreateBlackListReq, CreateUserReq, DeleteBlackListReq, DeleteUserReq,
     };
-    use admin_server::response::{BlackListListRow, PageReplyData};
+    use admin_server::response::BlackListListRow;
     use common_base::tools::{now_second, unique_id};
 
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;

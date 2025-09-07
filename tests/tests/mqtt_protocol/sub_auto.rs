@@ -12,36 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Temporarily disabled due to gRPC to HTTP migration
-// TODO: Implement HTTP-based auto subscribe tests
-#[cfg(disabled)]
+#[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
+    use std::time::Duration;
 
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::{CreateAutoSubscribeReq, DeleteAutoSubscribeReq};
     use common_base::tools::unique_id;
-    use grpc_clients::{
-        mqtt::admin::call::{
-            mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_set_auto_subscribe_rule,
-        },
-        pool::ClientPool,
-    };
     use paho_mqtt::{Message, QOS_1};
-    use protocol::broker::broker_mqtt_admin::{
-        DeleteAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
-    };
 
     use crate::mqtt_protocol::{
         common::{
-            broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,
-            publish_data, ssl_by_type, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+            ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
 
     #[tokio::test]
     async fn sub_auto_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
         let uniq = unique_id();
         let topic = format!("/tests/v1/v2/{uniq}");
@@ -50,7 +40,7 @@ mod tests {
         let qos = 2;
 
         // create_auto_subscribe_rule
-        create_auto_subscribe_rule(&client_pool, grpc_addr.clone(), &topic).await;
+        create_auto_subscribe_rule(&admin_client, &topic).await;
 
         // publish
         let client_id = build_client_id(format!("sub_auto_test_{network}_{qos}").as_str());
@@ -84,34 +74,26 @@ mod tests {
         distinct_conn(cli);
 
         // delete_auto_subscribe_rule
-        delete_auto_subscribe_rule(&client_pool, grpc_addr.clone(), &topic).await;
+        delete_auto_subscribe_rule(&admin_client, &topic).await;
     }
 
-    async fn create_auto_subscribe_rule(
-        client_pool: &Arc<ClientPool>,
-        grpc_addr: Vec<String>,
-        topic: &str,
-    ) {
-        let request = SetAutoSubscribeRuleRequest {
+    async fn create_auto_subscribe_rule(admin_client: &AdminHttpClient, topic: &str) {
+        let request = CreateAutoSubscribeReq {
             topic: topic.to_string(),
             qos: 1,
             no_local: false,
             retain_as_published: false,
             retained_handling: 0,
         };
-        let res = mqtt_broker_set_auto_subscribe_rule(client_pool, &grpc_addr, request).await;
+        let res = admin_client.create_auto_subscribe(&request).await;
         assert!(res.is_ok());
     }
 
-    async fn delete_auto_subscribe_rule(
-        client_pool: &Arc<ClientPool>,
-        grpc_addr: Vec<String>,
-        topic: &str,
-    ) {
-        let request = DeleteAutoSubscribeRuleRequest {
-            topic: topic.to_string(),
+    async fn delete_auto_subscribe_rule(admin_client: &AdminHttpClient, topic: &str) {
+        let request = DeleteAutoSubscribeReq {
+            topic_name: topic.to_string(),
         };
-        let res = mqtt_broker_delete_auto_subscribe_rule(client_pool, &grpc_addr, request).await;
+        let res = admin_client.delete_auto_subscribe(&request).await;
         assert!(res.is_ok());
     }
 }
