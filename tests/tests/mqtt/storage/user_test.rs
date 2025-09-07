@@ -16,9 +16,8 @@
 mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
+    use mqtt_broker::storage::user::UserStorage;
     use std::sync::Arc;
-
-    use crate::storage::user::UserStorage;
 
     #[tokio::test]
     async fn user_test() {
