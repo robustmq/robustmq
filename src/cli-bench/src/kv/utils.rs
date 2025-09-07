@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use grpc_clients::{
-    placement::kv::call::{placement_get, placement_set},
+    meta::kv::call::{placement_get, placement_set},
     pool::ClientPool,
 };
 use prettytable::{row, Table};

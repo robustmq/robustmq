@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::placement::openraft::call::{
+    use grpc_clients::meta::openraft::call::{
         placement_openraft_add_learner, placement_openraft_change_membership,
     };
     use grpc_clients::pool::ClientPool;

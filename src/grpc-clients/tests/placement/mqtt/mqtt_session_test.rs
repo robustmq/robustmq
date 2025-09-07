@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::placement::mqtt::call::{
+    use grpc_clients::meta::mqtt::call::{
         placement_create_session, placement_delete_session, placement_list_session,
         placement_update_session,
     };

@@ -15,8 +15,8 @@
 #[cfg(test)]
 mod tests {
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::placement::inner::call::register_node;
-    use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
+    use grpc_clients::meta::inner::call::register_node;
+    use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::meta::placement_center_inner::RegisterNodeRequest;

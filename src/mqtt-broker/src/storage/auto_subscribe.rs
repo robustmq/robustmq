@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::mqtt::call::{
+use grpc_clients::meta::mqtt::call::{
     placement_delete_auto_subscribe_rule, placement_list_auto_subscribe_rule,
     placement_set_auto_subscribe_rule,
 };

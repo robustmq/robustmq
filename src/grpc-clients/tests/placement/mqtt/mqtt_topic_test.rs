@@ -18,7 +18,7 @@ mod tests {
 
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::placement::mqtt::call::{
+    use grpc_clients::meta::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
         placement_set_topic_retain_message,
     };

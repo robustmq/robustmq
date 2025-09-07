@@ -17,7 +17,7 @@ mod test {
     use std::sync::Arc;
 
     use grpc_clients::{
-        placement::inner::call::{create_schema, delete_schema, list_schema, update_schema},
+        meta::inner::call::{create_schema, delete_schema, list_schema, update_schema},
         pool::ClientPool,
     };
     use metadata_struct::schema::{SchemaData, SchemaType};

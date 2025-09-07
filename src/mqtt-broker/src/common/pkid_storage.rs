@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::inner::call::{
+use grpc_clients::meta::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
 use grpc_clients::pool::ClientPool;

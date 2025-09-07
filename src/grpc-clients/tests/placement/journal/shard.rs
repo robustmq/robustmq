@@ -17,8 +17,8 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::{get_local_ip, now_second, unique_id};
-    use grpc_clients::placement::inner::call::register_node;
-    use grpc_clients::placement::journal::call::{
+    use grpc_clients::meta::inner::call::register_node;
+    use grpc_clients::meta::journal::call::{
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
         list_segment_meta, list_shard, update_segment_meta, update_segment_status,
     };

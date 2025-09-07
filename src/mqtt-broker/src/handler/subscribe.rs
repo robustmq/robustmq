@@ -19,7 +19,7 @@ use common_base::{
     utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
 };
 use common_config::broker::broker_config;
-use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
+use grpc_clients::{meta::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::{
     subscribe_data::{is_mqtt_share_subscribe, MqttSubscribe},
     topic::MQTTTopic,

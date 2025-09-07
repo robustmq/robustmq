@@ -16,8 +16,8 @@
 mod tests {
 
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::placement::inner::call::register_node;
-    use grpc_clients::placement::journal::call::{create_next_segment, create_shard};
+    use grpc_clients::meta::inner::call::register_node;
+    use grpc_clients::meta::journal::call::{create_next_segment, create_shard};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::shard::JournalShardConfig;

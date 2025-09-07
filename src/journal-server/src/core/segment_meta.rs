@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::journal::call::update_segment_meta;
+use grpc_clients::meta::journal::call::update_segment_meta;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::placement_center_journal::UpdateSegmentMetaRequest;
 use tracing::warn;
