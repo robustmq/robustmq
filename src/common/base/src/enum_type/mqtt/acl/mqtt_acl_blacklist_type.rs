@@ -80,8 +80,7 @@ pub fn get_blacklist_type_by_str(
         "IPCIDR" => MqttAclBlackListType::IPCIDR,
         _ => {
             return Err(CommonError::CommonError(format!(
-                "Failed BlackList Type: {}",
-                blacklist_type
+                "Failed BlackList Type: {blacklist_type}",
             )))
         }
     };
