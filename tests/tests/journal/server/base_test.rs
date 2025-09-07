@@ -27,7 +27,7 @@ mod tests {
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
 
-    use crate::journal_client::common::journal_tcp_addr;
+    use crate::journal::client::common::journal_tcp_addr;
 
     #[tokio::test]
     async fn get_cluster_metadata_base_test() {

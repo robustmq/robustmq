@@ -31,7 +31,7 @@ mod tests {
     use tokio::time::sleep;
     use tokio_util::codec::Framed;
 
-    use crate::journal_client::common::journal_tcp_addr;
+    use crate::journal::client::common::journal_tcp_addr;
 
     #[tokio::test]
     async fn base_rw_test() {

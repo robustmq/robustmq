@@ -18,7 +18,7 @@ mod tests {
     use journal_client::client::{JournalClient, JournalClientWriteData};
     use metadata_struct::adapter::read_config::ReadConfig;
 
-    use crate::journal_client::common::journal_tcp_addr_vec;
+    use crate::journal::client::common::journal_tcp_addr_vec;
 
     #[tokio::test]
     async fn write_data_test() {

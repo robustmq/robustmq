@@ -22,7 +22,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use protocol::journal::journal_admin::{ListSegmentRequest, ListShardRequest};
 
-    use crate::journal_server::common::journal_grpc_addr;
+    use crate::journal::server::common::journal_grpc_addr;
 
     #[tokio::test]
     async fn list_shard_list() {

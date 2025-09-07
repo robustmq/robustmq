@@ -17,7 +17,7 @@ mod tests {
     use common_base::tools::unique_id;
     use journal_client::client::{JournalClient, JournalClientWriteData};
 
-    use crate::journal_client::common::journal_tcp_addr_vec;
+    use crate::journal::client::common::journal_tcp_addr_vec;
 
     #[tokio::test]
     async fn write_scroll_test() {
