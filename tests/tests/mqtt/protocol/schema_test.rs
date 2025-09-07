@@ -24,11 +24,11 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use serde_json::json;
 
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
         ssl_by_type, ws_by_type,
     };
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn schema_json_test() {

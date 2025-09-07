@@ -26,7 +26,7 @@ mod tests {
     use tokio_util::codec::Framed;
     use tokio_util::time::FutureExt;
 
-    use crate::mqtt_protocol::common::{build_client_id, password};
+    use crate::mqtt::protocol::common::{build_client_id, password};
 
     #[tokio::test]
     async fn mqtt4_keep_alive_test() {

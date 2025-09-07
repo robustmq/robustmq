@@ -14,7 +14,7 @@
 
 use std::time::Duration;
 
-use crate::mqtt_protocol::ClientTestProperties;
+use crate::mqtt::protocol::ClientTestProperties;
 use common_base::tools::{now_nanos, unique_id};
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,

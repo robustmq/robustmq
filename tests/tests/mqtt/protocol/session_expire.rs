@@ -23,7 +23,7 @@ mod tests {
     use paho_mqtt::{Message, QOS_1};
     use tokio::time::{sleep, timeout};
 
-    use crate::mqtt_protocol::{
+    use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn,
             distinct_conn_close, publish_data, session_expiry_interval, ssl_by_type, ws_by_type,

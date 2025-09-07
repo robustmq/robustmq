@@ -16,7 +16,7 @@
 mod tests {
     use std::time::Duration;
 
-    use crate::mqtt_protocol::{
+    use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
             publish_data, qos_list, ssl_by_type, ws_by_type,

@@ -14,10 +14,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr, build_conn_pros, build_create_conn_pros, distinct_conn,
     };
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
     use admin_server::request::ClusterConfigSetReq;
     use common_base::tools::unique_id;

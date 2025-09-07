@@ -18,7 +18,7 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, SubscribeOptions, QOS_1};
 
-    use crate::mqtt_protocol::{
+    use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
             publish_data, qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type,

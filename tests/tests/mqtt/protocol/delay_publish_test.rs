@@ -17,7 +17,7 @@ mod tests {
     use common_base::tools::now_second;
     use paho_mqtt::{Message, PropertyCode, SubscribeOptions, QOS_1};
 
-    use crate::mqtt_protocol::{
+    use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
             ssl_by_type, subscribe_data_with_options, uniq_topic, ws_by_type, SubscribeTestData,

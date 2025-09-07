@@ -14,12 +14,12 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr, broker_addr_by_type, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
         build_client_id, build_conn_pros, build_create_conn_pros, distinct_conn, network_types,
         protocol_versions, ssl_by_type, ws_by_type,
     };
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
     use paho_mqtt::{Client, ReasonCode};
 
     #[tokio::test]

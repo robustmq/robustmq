@@ -16,12 +16,12 @@
 // I didn't know why
 #[cfg(test)]
 mod tests {
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
         publish_data, qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type,
         SubscribeTestData,
     };
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
     use common_base::tools::unique_id;
     use mqtt_broker::handler::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,

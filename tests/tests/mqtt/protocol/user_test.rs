@@ -18,11 +18,11 @@ mod tests {
     use admin_server::request::{CreateUserReq, DeleteUserReq};
     use common_base::tools::unique_id;
 
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
         ssl_by_type, ws_by_type,
     };
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn login_auth_test() {

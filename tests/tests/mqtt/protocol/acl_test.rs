@@ -14,12 +14,12 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
         protocol_versions, qos_list, ssl_by_type, ws_by_type,
     };
 
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
     use admin_server::request::{
         AclListReq, CreateAclReq, CreateUserReq, DeleteAclReq, DeleteUserReq,

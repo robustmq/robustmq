@@ -19,7 +19,7 @@ mod tests {
     use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
 
-    use crate::mqtt_protocol::{
+    use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
             distinct_conn, kee_alive_interval, network_types, session_expiry_interval, ssl_by_type,

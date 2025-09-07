@@ -25,11 +25,11 @@ mod tests {
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use paho_mqtt::MessageBuilder;
 
-    use crate::mqtt_protocol::common::{
+    use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
         ws_by_type,
     };
-    use crate::mqtt_protocol::ClientTestProperties;
+    use crate::mqtt::protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn blacklist_storage_test() {
