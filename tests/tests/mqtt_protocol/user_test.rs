@@ -14,24 +14,20 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::{CreateUserReq, DeleteUserReq};
     use common_base::tools::unique_id;
-    use grpc_clients::mqtt::admin::call::{mqtt_broker_create_user, mqtt_broker_delete_user};
-    use grpc_clients::pool::ClientPool;
-    use protocol::broker::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 
     use crate::mqtt_protocol::common::{
-        broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,
-        network_types, ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+        ssl_by_type, ws_by_type,
     };
     use crate::mqtt_protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn login_auth_test() {
         for network in network_types() {
-            let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-            let grpc_addr = vec![broker_grpc_addr()];
+            let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
             let qos = 1;
             let client_id = build_client_id(format!("login_auth_test_{network}_{qos}").as_str());
@@ -52,13 +48,7 @@ mod tests {
             };
             connect_server(&client_properties);
 
-            create_user(
-                client_pool.clone(),
-                grpc_addr.clone(),
-                username.clone(),
-                password.clone(),
-            )
-            .await;
+            create_user(&admin_client, username.clone(), password.clone()).await;
 
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
@@ -74,7 +64,7 @@ mod tests {
             let cli = connect_server(&client_properties);
             distinct_conn(cli);
 
-            delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+            delete_user(&admin_client, username.clone()).await;
 
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
@@ -91,24 +81,19 @@ mod tests {
         }
     }
 
-    async fn create_user(
-        client_pool: Arc<ClientPool>,
-        addrs: Vec<String>,
-        username: String,
-        password: String,
-    ) {
-        let user = CreateUserRequest {
+    async fn create_user(admin_client: &AdminHttpClient, username: String, password: String) {
+        let user = CreateUserReq {
             username,
             password,
             is_superuser: false,
         };
-        let res = mqtt_broker_create_user(&client_pool, &addrs, user.clone()).await;
+        let res = admin_client.create_user(&user).await;
         assert!(res.is_ok());
     }
 
-    async fn delete_user(client_pool: Arc<ClientPool>, addrs: Vec<String>, username: String) {
-        let user = DeleteUserRequest { username };
-        let res = mqtt_broker_delete_user(&client_pool, &addrs, user.clone()).await;
+    async fn delete_user(admin_client: &AdminHttpClient, username: String) {
+        let user = DeleteUserReq { username };
+        let res = admin_client.delete_user(&user).await;
         assert!(res.is_ok());
     }
 }

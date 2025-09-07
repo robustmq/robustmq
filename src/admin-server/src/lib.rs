@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
+pub mod client;
 pub mod mqtt;
 pub mod request;
 pub mod response;

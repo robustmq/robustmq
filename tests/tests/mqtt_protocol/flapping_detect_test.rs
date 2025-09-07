@@ -15,16 +15,15 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_grpc_addr, build_conn_pros, build_create_conn_pros, distinct_conn,
+        broker_addr, build_conn_pros, build_create_conn_pros, distinct_conn,
     };
     use crate::mqtt_protocol::ClientTestProperties;
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::ClusterConfigSetReq;
     use common_base::tools::unique_id;
-    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_flapping_detect;
-    use grpc_clients::pool::ClientPool;
+    use common_config::config::BrokerConfig;
     use paho_mqtt::Client;
-    use protocol::broker::broker_mqtt_admin::EnableFlappingDetectRequest;
     use std::process;
-    use std::sync::Arc;
 
     #[ignore = "reason"]
     #[tokio::test]
@@ -82,32 +81,40 @@ mod tests {
     }
 
     async fn open_flapping_detect() {
-        let client_pool = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
-        let request = EnableFlappingDetectRequest {
-            is_enable: true,
-            window_time: 60,
-            max_client_connections: 20,
-            ban_time: 1,
+        let mut config = BrokerConfig::default();
+        config.mqtt_flapping_detect.enable = true;
+        config.mqtt_flapping_detect.window_time = 60;
+        config.mqtt_flapping_detect.max_client_connections = 20;
+        config.mqtt_flapping_detect.ban_time = 1;
+
+        let config_json = serde_json::to_string(&config).unwrap();
+        let request = ClusterConfigSetReq {
+            config_type: "broker".to_string(),
+            config: config_json,
         };
 
-        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await;
+        let reply = admin_client.set_cluster_config(&request).await;
         assert!(reply.is_ok());
     }
 
     async fn close_flapping_detect() {
-        let client_pool = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
+        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
 
-        let request = EnableFlappingDetectRequest {
-            is_enable: false,
-            window_time: 60,
-            max_client_connections: 20,
-            ban_time: 1,
+        let mut config = BrokerConfig::default();
+        config.mqtt_flapping_detect.enable = false;
+        config.mqtt_flapping_detect.window_time = 60;
+        config.mqtt_flapping_detect.max_client_connections = 20;
+        config.mqtt_flapping_detect.ban_time = 1;
+
+        let config_json = serde_json::to_string(&config).unwrap();
+        let request = ClusterConfigSetReq {
+            config_type: "broker".to_string(),
+            config: config_json,
         };
 
-        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await;
+        let reply = admin_client.set_cluster_config(&request).await;
         assert!(reply.is_ok());
     }
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use admin_server::response::PageReplyData;
+use crate::response::PageReplyData;
 use common_base::http_response::AdminServerResponse;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
