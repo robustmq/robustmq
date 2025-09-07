@@ -15,8 +15,8 @@
 mod macros;
 
 pub mod journal;
-pub mod mqtt;
 pub mod meta;
+pub mod mqtt;
 pub mod pool;
 mod utils;
 // const MAX_RETRY_TIMES: usize = 10;

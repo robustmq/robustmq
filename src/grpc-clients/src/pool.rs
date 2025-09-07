@@ -16,12 +16,12 @@ use std::time::Duration;
 
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
-use crate::mqtt::inner::MqttBrokerPlacementServiceManager;
 use crate::meta::inner::PlacementServiceManager;
 use crate::meta::journal::JournalServiceManager;
 use crate::meta::kv::KvServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
 use crate::meta::openraft::OpenRaftServiceManager;
+use crate::mqtt::inner::MqttBrokerPlacementServiceManager;
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
