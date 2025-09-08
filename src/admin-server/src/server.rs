@@ -62,7 +62,6 @@ impl AdminServer {
             .merge(self.common_route())
             .merge(self.mqtt_route())
             .merge(self.kafka_route())
-            .merge(self.meta_route())
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
@@ -135,10 +134,6 @@ impl AdminServer {
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
-        Router::new()
-    }
-
-    fn meta_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
 }

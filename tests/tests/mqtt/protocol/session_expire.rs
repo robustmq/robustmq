@@ -17,8 +17,8 @@ mod tests {
     use std::time::Duration;
 
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::SessionListReq;
-    use admin_server::response::SessionListRow;
+    use admin_server::request::mqtt::SessionListReq;
+    use admin_server::response::mqtt::SessionListRow;
     use common_base::tools::{now_second, unique_id};
     use paho_mqtt::{Message, QOS_1};
     use tokio::time::{sleep, timeout};

@@ -22,7 +22,7 @@ mod tests {
         ClientTestProperties,
     };
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::CreateTopicRewriteReq;
+    use admin_server::request::mqtt::CreateTopicRewriteReq;
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, MessageBuilder};
 
