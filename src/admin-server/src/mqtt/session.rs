@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    request::SessionListReq,
-    response::{PageReplyData, SessionListRow},
+    request::mqtt::SessionListReq,
+    response::{mqtt::SessionListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

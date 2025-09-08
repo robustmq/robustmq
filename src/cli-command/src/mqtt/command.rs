@@ -15,7 +15,7 @@
 use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 use admin_server::client::AdminHttpClient;
-use admin_server::response::SessionListRow;
+use admin_server::response::mqtt::SessionListRow;
 use common_base::tools::unique_id;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
@@ -42,18 +42,18 @@ pub enum MqttActionType {
 
     // user admin
     ListUser,
-    CreateUser(admin_server::request::CreateUserReq),
-    DeleteUser(admin_server::request::DeleteUserReq),
+    CreateUser(admin_server::request::mqtt::CreateUserReq),
+    DeleteUser(admin_server::request::mqtt::DeleteUserReq),
 
     // access control list admin
     ListAcl,
-    CreateAcl(admin_server::request::CreateAclReq),
-    DeleteAcl(admin_server::request::DeleteAclReq),
+    CreateAcl(admin_server::request::mqtt::CreateAclReq),
+    DeleteAcl(admin_server::request::mqtt::DeleteAclReq),
 
     // blacklist admin
     ListBlacklist,
-    CreateBlacklist(admin_server::request::CreateBlackListReq),
-    DeleteBlacklist(admin_server::request::DeleteBlackListReq),
+    CreateBlacklist(admin_server::request::mqtt::CreateBlackListReq),
+    DeleteBlacklist(admin_server::request::mqtt::DeleteBlackListReq),
 
     // client
     ListClient,
@@ -67,8 +67,8 @@ pub enum MqttActionType {
 
     // topic rewrite rule
     ListTopicRewrite,
-    CreateTopicRewrite(admin_server::request::CreateTopicRewriteReq),
-    DeleteTopicRewrite(admin_server::request::DeleteTopicRewriteReq),
+    CreateTopicRewrite(admin_server::request::mqtt::CreateTopicRewriteReq),
+    DeleteTopicRewrite(admin_server::request::mqtt::DeleteTopicRewriteReq),
 
     // publish
     Publish(PublishArgsRequest),
@@ -84,21 +84,21 @@ pub enum MqttActionType {
 
     // connector
     ListConnector,
-    CreateConnector(admin_server::request::CreateConnectorReq),
-    DeleteConnector(admin_server::request::DeleteConnectorReq),
+    CreateConnector(admin_server::request::mqtt::CreateConnectorReq),
+    DeleteConnector(admin_server::request::mqtt::DeleteConnectorReq),
 
     // schema
     ListSchema,
-    CreateSchema(admin_server::request::CreateSchemaReq),
-    DeleteSchema(admin_server::request::DeleteSchemaReq),
+    CreateSchema(admin_server::request::mqtt::CreateSchemaReq),
+    DeleteSchema(admin_server::request::mqtt::DeleteSchemaReq),
     ListBindSchema,
-    BindSchema(admin_server::request::CreateSchemaBindReq),
-    UnbindSchema(admin_server::request::DeleteSchemaBindReq),
+    BindSchema(admin_server::request::mqtt::CreateSchemaBindReq),
+    UnbindSchema(admin_server::request::mqtt::DeleteSchemaBindReq),
 
     //auto subscribe
     ListAutoSubscribe,
-    CreateAutoSubscribe(admin_server::request::CreateAutoSubscribeReq),
-    DeleteAutoSubscribe(admin_server::request::DeleteAutoSubscribeReq),
+    CreateAutoSubscribe(admin_server::request::mqtt::CreateAutoSubscribeReq),
+    DeleteAutoSubscribe(admin_server::request::mqtt::DeleteAutoSubscribeReq),
 }
 
 pub struct MqttBrokerCommand {}
@@ -393,7 +393,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for session list
-        let request = admin_server::request::SessionListReq {
+        let request = admin_server::request::mqtt::SessionListReq {
             client_id: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
@@ -405,7 +405,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_session_list::<admin_server::request::SessionListReq, Vec<SessionListRow>>(
+            .get_session_list::<admin_server::request::mqtt::SessionListReq, Vec<SessionListRow>>(
                 &request,
             )
             .await
@@ -450,7 +450,7 @@ impl MqttBrokerCommand {
     async fn create_user(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateUserReq,
+        cli_request: admin_server::request::mqtt::CreateUserReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -469,7 +469,7 @@ impl MqttBrokerCommand {
     async fn delete_user(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteUserReq,
+        cli_request: admin_server::request::mqtt::DeleteUserReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -490,7 +490,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for user list
-        let request = admin_server::request::UserListReq {
+        let request = admin_server::request::mqtt::UserListReq {
             user_name: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
@@ -502,7 +502,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_user_list::<admin_server::request::UserListReq, Vec<admin_server::response::UserListRow>>(
+            .get_user_list::<admin_server::request::mqtt::UserListReq, Vec<admin_server::response::mqtt::UserListRow>>(
                 &request,
             )
             .await
@@ -529,7 +529,7 @@ impl MqttBrokerCommand {
     async fn create_acl(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateAclReq,
+        cli_request: admin_server::request::mqtt::CreateAclReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -548,7 +548,7 @@ impl MqttBrokerCommand {
     async fn delete_acl(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteAclReq,
+        cli_request: admin_server::request::mqtt::DeleteAclReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -569,7 +569,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for acl list
-        let request = admin_server::request::AclListReq {
+        let request = admin_server::request::mqtt::AclListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -580,7 +580,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_acl_list::<admin_server::request::AclListReq, Vec<admin_server::response::AclListRow>>(
+            .get_acl_list::<admin_server::request::mqtt::AclListReq, Vec<admin_server::response::mqtt::AclListRow>>(
                 &request,
             )
             .await
@@ -621,7 +621,7 @@ impl MqttBrokerCommand {
     async fn create_blacklist(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateBlackListReq,
+        cli_request: admin_server::request::mqtt::CreateBlackListReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -640,7 +640,7 @@ impl MqttBrokerCommand {
     async fn delete_blacklist(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteBlackListReq,
+        cli_request: admin_server::request::mqtt::DeleteBlackListReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -661,7 +661,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for blacklist list
-        let request = admin_server::request::BlackListListReq {
+        let request = admin_server::request::mqtt::BlackListListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -672,7 +672,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_blacklist::<admin_server::request::BlackListListReq, Vec<admin_server::response::BlackListListRow>>(
+            .get_blacklist::<admin_server::request::mqtt::BlackListListReq, Vec<admin_server::response::mqtt::BlackListListRow>>(
                 &request,
             )
             .await
@@ -711,7 +711,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for client list
-        let request = admin_server::request::ClientListReq {
+        let request = admin_server::request::mqtt::ClientListReq {
             source_ip: None,
             connection_id: None,
             limit: Some(DEFAULT_PAGE_SIZE),
@@ -724,7 +724,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_client_list::<admin_server::request::ClientListReq, Vec<admin_server::response::ClientListRow>>(
+            .get_client_list::<admin_server::request::mqtt::ClientListReq, Vec<admin_server::response::mqtt::ClientListRow>>(
                 &request,
             )
             .await
@@ -766,7 +766,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for flapping detect list
-        let request = admin_server::request::SystemAlarmListReq {
+        let request = admin_server::request::mqtt::SystemAlarmListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -777,7 +777,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_flapping_detect_list::<admin_server::request::SystemAlarmListReq, Vec<admin_server::response::FlappingDetectListRaw>>(
+            .get_flapping_detect_list::<admin_server::request::mqtt::SystemAlarmListReq, Vec<admin_server::response::mqtt::FlappingDetectListRaw>>(
                 &request,
             )
             .await
@@ -816,7 +816,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for slow subscribe list
-        let request = admin_server::request::AutoSubscribeListReq {
+        let request = admin_server::request::mqtt::AutoSubscribeListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -827,7 +827,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_slow_subscribe_list::<admin_server::request::AutoSubscribeListReq, Vec<admin_server::response::SlowSubscribeListRow>>(
+            .get_slow_subscribe_list::<admin_server::request::mqtt::AutoSubscribeListReq, Vec<admin_server::response::mqtt::SlowSubscribeListRow>>(
                 &request,
             )
             .await
@@ -867,7 +867,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for topic list
-        let request = admin_server::request::TopicListReq {
+        let request = admin_server::request::mqtt::TopicListReq {
             topic_name: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
@@ -879,7 +879,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_topic_list::<admin_server::request::TopicListReq, Vec<admin_server::response::TopicListRow>>(
+            .get_topic_list::<admin_server::request::mqtt::TopicListReq, Vec<admin_server::response::mqtt::TopicListRow>>(
                 &request,
             )
             .await
@@ -916,7 +916,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for system alarm list
-        let request = admin_server::request::SystemAlarmListReq {
+        let request = admin_server::request::mqtt::SystemAlarmListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -927,7 +927,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_system_alarm_list::<admin_server::request::SystemAlarmListReq, Vec<admin_server::response::SystemAlarmListRow>>(
+            .get_system_alarm_list::<admin_server::request::mqtt::SystemAlarmListReq, Vec<admin_server::response::mqtt::SystemAlarmListRow>>(
                 &request,
             )
             .await
@@ -960,7 +960,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for subscribe list
-        let request = admin_server::request::SubscribeListReq {
+        let request = admin_server::request::mqtt::SubscribeListReq {
             client_id: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
@@ -972,7 +972,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_subscribe_list::<admin_server::request::SubscribeListReq, Vec<admin_server::response::SubscribeListRow>>(
+            .get_subscribe_list::<admin_server::request::mqtt::SubscribeListReq, Vec<admin_server::response::mqtt::SubscribeListRow>>(
                 &request,
             )
             .await
@@ -1027,7 +1027,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for connector list
-        let request = admin_server::request::ConnectorListReq {
+        let request = admin_server::request::mqtt::ConnectorListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -1038,7 +1038,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_connector_list::<admin_server::request::ConnectorListReq, Vec<admin_server::response::ConnectorListRow>>(
+            .get_connector_list::<admin_server::request::mqtt::ConnectorListReq, Vec<admin_server::response::mqtt::ConnectorListRow>>(
                 &request,
             )
             .await
@@ -1084,7 +1084,7 @@ impl MqttBrokerCommand {
     async fn create_connector(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateConnectorReq,
+        cli_request: admin_server::request::mqtt::CreateConnectorReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1103,7 +1103,7 @@ impl MqttBrokerCommand {
     async fn delete_connector(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteConnectorReq,
+        cli_request: admin_server::request::mqtt::DeleteConnectorReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1125,7 +1125,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for topic rewrite rule list
-        let request = admin_server::request::TopicRewriteReq {
+        let request = admin_server::request::mqtt::TopicRewriteReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -1136,7 +1136,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_topic_rewrite_list::<admin_server::request::TopicRewriteReq, Vec<admin_server::response::TopicRewriteListRow>>(
+            .get_topic_rewrite_list::<admin_server::request::mqtt::TopicRewriteReq, Vec<admin_server::response::mqtt::TopicRewriteListRow>>(
                 &request,
             )
             .await
@@ -1172,7 +1172,7 @@ impl MqttBrokerCommand {
     async fn create_topic_rewrite_rule(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateTopicRewriteReq,
+        cli_request: admin_server::request::mqtt::CreateTopicRewriteReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1191,7 +1191,7 @@ impl MqttBrokerCommand {
     async fn delete_topic_rewrite_rule(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteTopicRewriteReq,
+        cli_request: admin_server::request::mqtt::DeleteTopicRewriteReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1213,7 +1213,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for schema list
-        let request = admin_server::request::SchemaListReq {
+        let request = admin_server::request::mqtt::SchemaListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -1224,7 +1224,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_schema_list::<admin_server::request::SchemaListReq, Vec<admin_server::response::SchemaListRow>>(
+            .get_schema_list::<admin_server::request::mqtt::SchemaListReq, Vec<admin_server::response::mqtt::SchemaListRow>>(
                 &request,
             )
             .await
@@ -1256,7 +1256,7 @@ impl MqttBrokerCommand {
     async fn create_schema(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateSchemaReq,
+        cli_request: admin_server::request::mqtt::CreateSchemaReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1275,7 +1275,7 @@ impl MqttBrokerCommand {
     async fn delete_schema(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteSchemaReq,
+        cli_request: admin_server::request::mqtt::DeleteSchemaReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1294,7 +1294,7 @@ impl MqttBrokerCommand {
     async fn bind_schema(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateSchemaBindReq,
+        cli_request: admin_server::request::mqtt::CreateSchemaBindReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1313,7 +1313,7 @@ impl MqttBrokerCommand {
     async fn unbind_schema(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteSchemaBindReq,
+        cli_request: admin_server::request::mqtt::DeleteSchemaBindReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1334,7 +1334,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for schema bind list
-        let request = admin_server::request::SchemaBindListReq {
+        let request = admin_server::request::mqtt::SchemaBindListReq {
             resource_name: None,
             schema_name: None,
             limit: Some(DEFAULT_PAGE_SIZE),
@@ -1347,7 +1347,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_schema_bind_list::<admin_server::request::SchemaBindListReq, Vec<admin_server::response::SchemaBindListRow>>(
+            .get_schema_bind_list::<admin_server::request::mqtt::SchemaBindListReq, Vec<admin_server::response::mqtt::SchemaBindListRow>>(
                 &request,
             )
             .await
@@ -1372,7 +1372,7 @@ impl MqttBrokerCommand {
     async fn set_auto_subscribe_rule(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::CreateAutoSubscribeReq,
+        cli_request: admin_server::request::mqtt::CreateAutoSubscribeReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1391,7 +1391,7 @@ impl MqttBrokerCommand {
     async fn delete_auto_subscribe_rule(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::request::DeleteAutoSubscribeReq,
+        cli_request: admin_server::request::mqtt::DeleteAutoSubscribeReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1412,7 +1412,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for auto subscribe rule list
-        let request = admin_server::request::AutoSubscribeListReq {
+        let request = admin_server::request::mqtt::AutoSubscribeListReq {
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -1423,7 +1423,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_auto_subscribe_list::<admin_server::request::AutoSubscribeListReq, Vec<admin_server::response::AutoSubscribeListRow>>(
+            .get_auto_subscribe_list::<admin_server::request::mqtt::AutoSubscribeListReq, Vec<admin_server::response::mqtt::AutoSubscribeListRow>>(
                 &request,
             )
             .await

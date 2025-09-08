@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod client;
-pub mod cluster;
-pub mod journal;
-pub mod meta;
-pub mod mqtt;
-pub mod request;
-pub mod response;
-pub mod server;
-pub mod state;
-pub mod tool;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClusterConfigGetReq {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ClusterConfigSetReq {
+    pub config_type: String,
+    pub config: String,
+}

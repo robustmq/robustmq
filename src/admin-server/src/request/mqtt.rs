@@ -284,12 +284,3 @@ pub struct SystemAlarmListReq {
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ClusterConfigGetReq {}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct ClusterConfigSetReq {
-    pub config_type: String,
-    pub config: String,
-}

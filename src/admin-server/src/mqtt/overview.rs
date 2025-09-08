@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    request::OverviewMetricsReq,
-    response::{OverViewMetricsResp, OverViewResp},
+    request::mqtt::OverviewMetricsReq,
+    response::mqtt::{OverViewMetricsResp, OverViewResp},
     state::HttpState,
 };
 use axum::{extract::State, Json};

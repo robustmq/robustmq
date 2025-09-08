@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    request::{BlackListListReq, CreateBlackListReq, DeleteBlackListReq},
-    response::{BlackListListRow, PageReplyData},
+    request::mqtt::{BlackListListReq, CreateBlackListReq, DeleteBlackListReq},
+    response::{mqtt::BlackListListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

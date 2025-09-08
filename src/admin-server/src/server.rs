@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    cluster::{cluster_config_get, cluster_config_set},
     mqtt::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
@@ -28,7 +29,7 @@ use crate::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
             subscribe_detail, subscribe_list,
         },
-        system::{cluster_config_get, cluster_config_set, flapping_detect_list, system_alarm_list},
+        system::{flapping_detect_list, system_alarm_list},
         topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
@@ -73,7 +74,11 @@ impl AdminServer {
     }
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
-        Router::new().route("/", get(index))
+        Router::new()
+            .route("/", get(index))
+            // config
+            .route("/cluster/config/set", post(cluster_config_set))
+            .route("/cluster/config/get", post(cluster_config_get))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
@@ -127,9 +132,6 @@ impl AdminServer {
             .route("/mqtt/schema-bind/delete", post(schema_bind_delete))
             // system alarm
             .route("/mqtt/system-alarm/list", post(system_alarm_list))
-            // config
-            .route("/mqtt/cluster-config/set", post(cluster_config_set))
-            .route("/mqtt/cluster-config/get", post(cluster_config_get))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

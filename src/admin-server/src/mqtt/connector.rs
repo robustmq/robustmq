@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    request::{ConnectorListReq, CreateConnectorReq, DeleteConnectorReq},
-    response::{ConnectorListRow, PageReplyData},
+    request::mqtt::{ConnectorListReq, CreateConnectorReq, DeleteConnectorReq},
+    response::{mqtt::ConnectorListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
