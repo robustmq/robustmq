@@ -13,8 +13,10 @@
 // limitations under the License.
 
 use kafka_protocol::messages::{
-    ApiVersionsRequest, ApiVersionsResponse, FetchRequest, FetchResponse, ListOffsetsRequest,
-    ListOffsetsResponse, MetadataRequest, MetadataResponse, ProduceRequest, ProduceResponse,
+    ApiVersionsRequest, ApiVersionsResponse, FetchRequest, FetchResponse, FindCoordinatorRequest,
+    FindCoordinatorResponse, JoinGroupRequest, JoinGroupResponse, ListOffsetsRequest,
+    ListOffsetsResponse, MetadataRequest, MetadataResponse, OffsetCommitRequest,
+    OffsetCommitResponse, OffsetFetchRequest, OffsetFetchResponse, ProduceRequest, ProduceResponse,
     RequestHeader, ResponseHeader,
 };
 
@@ -41,6 +43,14 @@ pub enum KafkaPacket {
     ListOffsetsResponse(ListOffsetsResponse),
     MetadataReq(MetadataRequest),
     MetadataResponse(MetadataResponse),
+    OffsetCommitReq(OffsetCommitRequest),
+    OffsetCommitResponse(OffsetCommitResponse),
+    OffsetFetchReq(OffsetFetchRequest),
+    OffsetFetchResponse(OffsetFetchResponse),
+    FindCoordinatorReq(FindCoordinatorRequest),
+    FindCoordinatorResponse(FindCoordinatorResponse),
+    JoinGroupReq(JoinGroupRequest),
+    JoinGroupResponse(JoinGroupResponse),
     ApiVersionReq(ApiVersionsRequest),
     ApiVersionResponse(ApiVersionsResponse),
 }

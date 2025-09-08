@@ -17,8 +17,9 @@ use bytes::{Buf, BufMut, BytesMut};
 use common_base::error::common::CommonError;
 use kafka_protocol::{
     messages::{
-        ApiVersionsRequest, FetchRequest, ListOffsetsRequest, MetadataRequest, ProduceRequest,
-        RequestHeader,
+        ApiVersionsRequest, FetchRequest, FindCoordinatorRequest, JoinGroupRequest,
+        ListOffsetsRequest, MetadataRequest, OffsetCommitRequest, OffsetFetchRequest,
+        ProduceRequest, RequestHeader,
     },
     protocol::{Decodable, Encodable},
 };
@@ -82,6 +83,26 @@ impl KafkaCodec {
                 KafkaPacket::MetadataReq(req)
             }
 
+            8 => {
+                let req = OffsetCommitRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::OffsetCommitReq(req)
+            }
+
+            9 => {
+                let req = OffsetFetchRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::OffsetFetchReq(req)
+            }
+
+            10 => {
+                let req = FindCoordinatorRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::FindCoordinatorReq(req)
+            }
+
+            11 => {
+                let req = JoinGroupRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::JoinGroupReq(req)
+            }
+
             18 => {
                 let req = ApiVersionsRequest::decode(&mut buf, header.request_api_version)?;
                 KafkaPacket::ApiVersionReq(req)
@@ -116,6 +137,18 @@ impl KafkaCodec {
                     KafkaPacket::MetadataReq(rep) => {
                         rep.encode(&mut body_bytes, header.request_api_version)?;
                     }
+                    KafkaPacket::OffsetCommitReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::OffsetFetchReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::FindCoordinatorReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::JoinGroupReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
                     _ => {
                         return Err(CommonError::NotSupportKafkaEncodePacket(format!(
                             "{:?}",
@@ -137,6 +170,18 @@ impl KafkaCodec {
                         rep.encode(&mut body_bytes, wrapper.api_version)?;
                     }
                     KafkaPacket::MetadataResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::OffsetCommitResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::OffsetFetchResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::FindCoordinatorResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::JoinGroupResponse(rep) => {
                         rep.encode(&mut body_bytes, wrapper.api_version)?;
                     }
                     KafkaPacket::ApiVersionResponse(rep) => {
@@ -189,7 +234,10 @@ mod tests {
     };
     use bytes::BytesMut;
     use kafka_protocol::{
-        messages::{ApiKey, ProduceRequest, RequestHeader},
+        messages::{
+            ApiKey, FindCoordinatorRequest, GroupId, JoinGroupRequest, OffsetCommitRequest,
+            OffsetFetchRequest, ProduceRequest, RequestHeader,
+        },
         protocol::StrBytes,
     };
 
@@ -215,5 +263,157 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         println!("{wrap:?}");
+    }
+
+    #[tokio::test]
+    async fn offset_commit_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode OffsetCommit request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::OffsetCommit as i16)
+            .with_request_api_version(3);
+
+        let packet = OffsetCommitRequest::default()
+            .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
+
+        let wrapper = KafkaPacketWrapper {
+            api_version: 3,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::OffsetCommitReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        println!("OffsetCommit decode result: {wrap:?}");
+        assert!(wrap.is_some());
+
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::OffsetCommitReq(req) => {
+                    assert_eq!(
+                        req.group_id,
+                        GroupId(StrBytes::from_static_str("test-group"))
+                    );
+                }
+                _ => panic!("Expected OffsetCommitReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn offset_fetch_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode OffsetFetch request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::OffsetFetch as i16)
+            .with_request_api_version(6);
+
+        let packet = OffsetFetchRequest::default()
+            .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
+
+        let wrapper = KafkaPacketWrapper {
+            api_version: 6,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::OffsetFetchReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::OffsetFetchReq(req) => {
+                    assert_eq!(
+                        req.group_id,
+                        GroupId(StrBytes::from_static_str("test-group"))
+                    );
+                }
+                _ => panic!("Expected OffsetFetchReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn find_coordinator_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode FindCoordinator request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::FindCoordinator as i16)
+            .with_request_api_version(3);
+
+        let packet =
+            FindCoordinatorRequest::default().with_key(StrBytes::from_static_str("test-group"));
+
+        let wrapper = KafkaPacketWrapper {
+            api_version: 3,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::FindCoordinatorReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::FindCoordinatorReq(req) => {
+                    assert_eq!(req.key, StrBytes::from_static_str("test-group"));
+                }
+                _ => panic!("Expected FindCoordinatorReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn join_group_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode JoinGroup request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::JoinGroup as i16)
+            .with_request_api_version(7);
+
+        let packet = JoinGroupRequest::default()
+            .with_group_id(GroupId(StrBytes::from_static_str("test-group")))
+            .with_member_id(StrBytes::from_static_str("test-member"));
+
+        let wrapper = KafkaPacketWrapper {
+            api_version: 7,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::JoinGroupReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::JoinGroupReq(req) => {
+                    assert_eq!(
+                        req.group_id,
+                        GroupId(StrBytes::from_static_str("test-group"))
+                    );
+                    assert_eq!(req.member_id, StrBytes::from_static_str("test-member"));
+                }
+                _ => panic!("Expected JoinGroupReq packet"),
+            }
+        }
     }
 }
