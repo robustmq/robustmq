@@ -168,6 +168,7 @@ async fn access_log_middleware(
     let response = next.run(request).await;
     let duration = start.elapsed();
     let status = response.status();
+
     info!(
         "http request log: {} {} {} - {} - \"{}\" \"{}\" {}ms",
         method,
