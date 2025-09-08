@@ -155,5 +155,5 @@ payload: robustmq!
 
 从以下页面了解更多 RobustMQ 概念、配置和使用方式:
 * [RobustMQ 系统架构概念](../../Architect/Overview.md)
-* [RobustMQ Mqtt 配置](../../Architect/Configuration/Mqtt-Server.md)
-* [RobustMQ Mqtt 组件](../../RobustMQ-MQTT/Overview.md)
+* [RobustMQ MQTT 配置](../../Configuration/MQTT.md)
+* [RobustMQ MQTT 组件](../../RobustMQ-MQTT/Overview.md)
