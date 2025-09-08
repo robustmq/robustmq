@@ -111,6 +111,6 @@ cli-command-6fbf8b6cc-7ldqp          1/1     Running   0          16m
  ^C Ctrl+C detected,  Please press ENTER to end the program.
  End of input stream.
  ```
-有关更多命令，请参考 [cli-command](../../RobustMQ-Command/Mqtt-Broker.md)
+有关更多命令，请参考 [cli-command](../../RobustMQ-Command/CLI_COMMON.md)
 
 查看文档执行测试：[MQTT 功能测试](./MQTT-test.md)

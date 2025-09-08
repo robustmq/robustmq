@@ -61,4 +61,4 @@ RobustMQ MQTT 目标是基于 Rust 打造一个高性能、高可用、高可扩
 RobustMQ MQTT Dashboard 正在加紧开发中
 
 ## 命令行工具
-RobustMQ MQTT 支持 robust-ctl mqtt 工具。详细文档请参考：[robustmq-ctl mqtt](../RobustMQ-Command/Mqtt-Broker.md)
+RobustMQ MQTT 支持 robust-ctl mqtt 工具。详细文档请参考：[robustmq-ctl mqtt](../RobustMQ-Command/CLI_COMMON.md)

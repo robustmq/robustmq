@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    request::{CreateUserReq, DeleteUserReq, UserListReq},
-    response::{PageReplyData, UserListRow},
+    request::mqtt::{CreateUserReq, DeleteUserReq, UserListReq},
+    response::{mqtt::UserListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

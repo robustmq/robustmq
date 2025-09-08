@@ -13,8 +13,11 @@
 // limitations under the License.
 
 use crate::{
-    request::{CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicListReq, TopicRewriteReq},
-    response::{PageReplyData, TopicListRow, TopicRewriteListRow},
+    request::mqtt::{CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicListReq, TopicRewriteReq},
+    response::{
+        mqtt::{TopicListRow, TopicRewriteListRow},
+        PageReplyData,
+    },
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

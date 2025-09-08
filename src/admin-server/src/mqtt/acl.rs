@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    request::{AclListReq, CreateAclReq, DeleteAclReq},
-    response::{AclListRow, PageReplyData},
+    request::mqtt::{AclListReq, CreateAclReq, DeleteAclReq},
+    response::{mqtt::AclListRow, PageReplyData},
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

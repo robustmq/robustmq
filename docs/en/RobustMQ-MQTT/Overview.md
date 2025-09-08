@@ -62,4 +62,4 @@ RobustMQ MQTT goal is to build a high-performance, highly available, and scalabl
 RobustMQ MQTT Dashboard is under intensive development.
 
 ## Command-line tools
-RobustMQ MQTT supports the robust-ctl mqtt tool. For more information, please refer to: [robustmq-ctl mqtt](../RobustMQ-Command/Mqtt-Broker.md)
+RobustMQ MQTT supports the robust-ctl mqtt tool. For more information, please refer to: [robustmq-ctl mqtt](../RobustMQ-Command/CLI_COMMON.md)

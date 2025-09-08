@@ -108,6 +108,6 @@ Publish messages
  ^C Ctrl+C detected,  Please press ENTER to end the program.
  End of input stream.
  ```
-For more commands, please refer to [cli-command](../../RobustMQ-Command/Mqtt-Broker.md)
+For more commands, please refer to [cli-command](../../RobustMQ-Command/CLI_COMMON.md)
 
 Check the documentation to run the test：[MQTT functional tests](./MQTT-test.md)

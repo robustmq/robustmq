@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use crate::{
-    request::{
+    request::mqtt::{
         AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq, SubscribeDetailReq,
         SubscribeListReq,
     },
-    response::{AutoSubscribeListRow, PageReplyData, SlowSubscribeListRow, SubscribeListRow},
+    response::{
+        mqtt::{AutoSubscribeListRow, SlowSubscribeListRow, SubscribeListRow},
+        PageReplyData,
+    },
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

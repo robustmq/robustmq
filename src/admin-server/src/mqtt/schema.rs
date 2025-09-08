@@ -20,11 +20,14 @@ use mqtt_broker::{handler::error::MqttBrokerError, storage::schema::SchemaStorag
 use std::sync::Arc;
 
 use crate::{
-    request::{
+    request::mqtt::{
         CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
         SchemaBindListReq, SchemaListReq,
     },
-    response::{PageReplyData, SchemaBindListRow, SchemaListRow},
+    response::{
+        mqtt::{SchemaBindListRow, SchemaListRow},
+        PageReplyData,
+    },
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };

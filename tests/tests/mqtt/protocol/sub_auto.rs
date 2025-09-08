@@ -17,7 +17,7 @@ mod tests {
     use std::time::Duration;
 
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::{CreateAutoSubscribeReq, DeleteAutoSubscribeReq};
+    use admin_server::request::mqtt::{CreateAutoSubscribeReq, DeleteAutoSubscribeReq};
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
 
