@@ -37,15 +37,7 @@ export const sidebar = [
             { text: "Storage Adapter", link: "/Architect/Storage-Adapter" },
             { text: "Journal Server", link: "/Architect/Journal-Server" },
             { text: "Detailed design document", link: "/Architect/Design-Documentation" },
-            { text: "Ig Test", link: "/Architect/Test-Case" },
-            {
-                text: "Configuration",
-                collapsed: true,
-                items: [
-                    { text: "Placement Center", link: "/Architect/Configuration/Placement-Center" },
-                    { text: "MQTT Broker", link: "/Architect/Configuration/Mqtt-Server" },
-                ],
-            },
+            { text: "Ig Test", link: "/Architect/Test-Case" }
         ],
     },
     {

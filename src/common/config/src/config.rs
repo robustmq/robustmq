@@ -18,7 +18,7 @@ use super::default::{
     default_mqtt_auth_storage, default_mqtt_message_storage, default_mqtt_offline_message,
     default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
     default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
-    default_network, default_place_runtime, default_placement_center, default_rocksdb,
+    default_network, default_place_runtime, default_meta_addrs, default_rocksdb,
     default_roles, default_runtime,
 };
 use crate::common::Log;
@@ -43,10 +43,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
 
-    #[serde(default = "default_placement_center")]
-    pub placement_center: Table,
+    #[serde(default = "default_meta_addrs")]
+    pub meta_addrs: Table,
 
-    // Common
     #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
 
@@ -62,9 +61,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_pprof")]
     pub p_prof: PProf,
 
-    // Placement
+    // meta
     #[serde(default = "default_place_runtime")]
-    pub place_runtime: PlaceRuntime,
+    pub meta_runtime: MetaRuntime,
 
     #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
@@ -116,7 +115,7 @@ pub struct BrokerConfig {
 
 impl BrokerConfig {
     pub fn get_placement_center_addr(&self) -> Vec<String> {
-        self.placement_center
+        self.meta_addrs
             .values()
             .filter_map(|v| v.as_str().map(String::from))
             .collect()
@@ -178,7 +177,7 @@ pub struct Rocksdb {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct PlaceRuntime {
+pub struct MetaRuntime {
     pub heartbeat_timeout_ms: u64,
     pub heartbeat_check_time_ms: u64,
 }

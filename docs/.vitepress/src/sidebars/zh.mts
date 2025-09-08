@@ -38,14 +38,6 @@ export const sidebar = [
             { text: "Journal Server", link: "/zh/Architect/Journal-Server" },
             { text: "集成测试", link: "/zh/Architect/Test-Case" },
             { text: "详细设计文档", link: "/zh/Architect/Design-Documentation" },
-            {
-                text: "配置说明",
-                collapsed: true,
-                items: [
-                    { text: "Placement Center", link: "/zh/Architect/Configuration/Placement-Center" },
-                    { text: "MQTT Broker", link: "/zh/Architect/Configuration/Mqtt-Server" },
-                ],
-            },
         ],
     },
     {

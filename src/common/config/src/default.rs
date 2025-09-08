@@ -15,7 +15,7 @@
 use crate::config::{
     JournalRuntime, JournalServer, JournalStorage, MqttAuthStorage, MqttFlappingDetect,
     MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema,
-    MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, PlaceRuntime,
+    MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, MetaRuntime,
     Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
 use common_base::enum_type::delay_type::DelayType;
@@ -38,7 +38,7 @@ pub fn default_grpc_port() -> u32 {
     1228
 }
 
-pub fn default_placement_center() -> Table {
+pub fn default_meta_addrs() -> Table {
     let mut nodes = Table::new();
     nodes.insert(
         default_broker_id().to_string(),
@@ -73,8 +73,8 @@ pub fn default_rocksdb() -> Rocksdb {
     }
 }
 
-pub fn default_place_runtime() -> PlaceRuntime {
-    PlaceRuntime {
+pub fn default_place_runtime() -> MetaRuntime {
+    MetaRuntime {
         heartbeat_check_time_ms: 1000,
         heartbeat_timeout_ms: 30000,
     }

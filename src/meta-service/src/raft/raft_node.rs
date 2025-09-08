@@ -51,7 +51,7 @@ pub mod types {
 pub async fn start_raft_node(raft_node: Raft<TypeConfig>) {
     let conf = broker_config();
     let mut nodes = BTreeMap::new();
-    for (node_id, addr) in conf.placement_center.clone() {
+    for (node_id, addr) in conf.meta_addrs.clone() {
         let mut addr = addr.to_string();
         addr = addr.replace("\"", "");
         let node = Node {
