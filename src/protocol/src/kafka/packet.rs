@@ -17,10 +17,11 @@ use kafka_protocol::messages::{
     DeleteTopicsRequest, DeleteTopicsResponse, DescribeGroupsRequest, DescribeGroupsResponse,
     FetchRequest, FetchResponse, FindCoordinatorRequest, FindCoordinatorResponse, HeartbeatRequest,
     HeartbeatResponse, JoinGroupRequest, JoinGroupResponse, LeaveGroupRequest, LeaveGroupResponse,
-    ListGroupsRequest, ListGroupsResponse, ListOffsetsRequest, ListOffsetsResponse, MetadataRequest,
-    MetadataResponse, OffsetCommitRequest, OffsetCommitResponse, OffsetFetchRequest,
-    OffsetFetchResponse, ProduceRequest, ProduceResponse, RequestHeader, ResponseHeader,
-    SaslHandshakeRequest, SaslHandshakeResponse, SyncGroupRequest, SyncGroupResponse,
+    ListGroupsRequest, ListGroupsResponse, ListOffsetsRequest, ListOffsetsResponse,
+    MetadataRequest, MetadataResponse, OffsetCommitRequest, OffsetCommitResponse,
+    OffsetFetchRequest, OffsetFetchResponse, ProduceRequest, ProduceResponse, RequestHeader,
+    ResponseHeader, SaslHandshakeRequest, SaslHandshakeResponse, SyncGroupRequest,
+    SyncGroupResponse,
 };
 
 #[derive(Debug, Clone, PartialEq)]

@@ -523,7 +523,7 @@ mod tests {
         let packet = HeartbeatRequest::default()
             .with_group_id(GroupId(StrBytes::from_static_str("test-group")))
             .with_member_id(StrBytes::from_static_str("test-member"));
-        
+
         let wrapper = KafkaPacketWrapper {
             api_version: 4,
             header: KafkaHeader::Request(header),
@@ -534,11 +534,14 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::HeartbeatReq(req) => {
-                    assert_eq!(req.group_id, GroupId(StrBytes::from_static_str("test-group")));
+                    assert_eq!(
+                        req.group_id,
+                        GroupId(StrBytes::from_static_str("test-group"))
+                    );
                     assert_eq!(req.member_id, StrBytes::from_static_str("test-member"));
                 }
                 _ => panic!("Expected HeartbeatReq packet"),
@@ -559,7 +562,7 @@ mod tests {
 
         let packet = LeaveGroupRequest::default()
             .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
-        
+
         let wrapper = KafkaPacketWrapper {
             api_version: 0,
             header: KafkaHeader::Request(header),
@@ -570,11 +573,14 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::LeaveGroupReq(req) => {
-                    assert_eq!(req.group_id, GroupId(StrBytes::from_static_str("test-group")));
+                    assert_eq!(
+                        req.group_id,
+                        GroupId(StrBytes::from_static_str("test-group"))
+                    );
                 }
                 _ => panic!("Expected LeaveGroupReq packet"),
             }
@@ -595,7 +601,7 @@ mod tests {
         let packet = SyncGroupRequest::default()
             .with_group_id(GroupId(StrBytes::from_static_str("test-group")))
             .with_member_id(StrBytes::from_static_str("test-member"));
-        
+
         let wrapper = KafkaPacketWrapper {
             api_version: 5,
             header: KafkaHeader::Request(header),
@@ -606,11 +612,14 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::SyncGroupReq(req) => {
-                    assert_eq!(req.group_id, GroupId(StrBytes::from_static_str("test-group")));
+                    assert_eq!(
+                        req.group_id,
+                        GroupId(StrBytes::from_static_str("test-group"))
+                    );
                     assert_eq!(req.member_id, StrBytes::from_static_str("test-member"));
                 }
                 _ => panic!("Expected SyncGroupReq packet"),
@@ -630,7 +639,7 @@ mod tests {
             .with_request_api_version(4);
 
         let packet = ListGroupsRequest::default();
-        
+
         let wrapper = KafkaPacketWrapper {
             api_version: 4,
             header: KafkaHeader::Request(header),
@@ -641,7 +650,7 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::ListGroupsReq(_) => {
@@ -663,9 +672,9 @@ mod tests {
             .with_request_api_key(ApiKey::SaslHandshake as i16)
             .with_request_api_version(1);
 
-        let packet = SaslHandshakeRequest::default()
-            .with_mechanism(StrBytes::from_static_str("PLAIN"));
-        
+        let packet =
+            SaslHandshakeRequest::default().with_mechanism(StrBytes::from_static_str("PLAIN"));
+
         let wrapper = KafkaPacketWrapper {
             api_version: 1,
             header: KafkaHeader::Request(header),
@@ -676,7 +685,7 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::SaslHandshakeReq(req) => {
@@ -699,7 +708,7 @@ mod tests {
             .with_request_api_version(7);
 
         let packet = CreateTopicsRequest::default();
-        
+
         let wrapper = KafkaPacketWrapper {
             api_version: 7,
             header: KafkaHeader::Request(header),
@@ -710,7 +719,7 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::CreateTopicsReq(_) => {
@@ -733,7 +742,7 @@ mod tests {
             .with_request_api_version(6);
 
         let packet = DeleteTopicsRequest::default();
-        
+
         let wrapper = KafkaPacketWrapper {
             api_version: 6,
             header: KafkaHeader::Request(header),
@@ -744,7 +753,7 @@ mod tests {
         // decode
         let wrap = codec.decode_data(&mut buffer).unwrap();
         assert!(wrap.is_some());
-        
+
         if let Some(wrapper) = wrap {
             match wrapper.packet {
                 KafkaPacket::DeleteTopicsReq(_) => {
