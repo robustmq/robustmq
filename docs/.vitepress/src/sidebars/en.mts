@@ -153,6 +153,16 @@ export const sidebar = [
         ],
     },
     {
+        text: "Configuration",
+        collapsed: true,
+        items: [
+            { text: "Common Configuration", link: "/Configuration/COMMON" },
+            { text: "MQTT Configuration", link: "/Configuration/MQTT" },
+            { text: "Meta Configuration", link: "/Configuration/META" },
+            { text: "Journal Configuration", link: "/Configuration/JOURNAL" },
+        ],
+    },
+    {
         text: "ContributionGuide",
         collapsed: true,
         items: [

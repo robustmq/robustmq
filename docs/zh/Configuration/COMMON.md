@@ -44,7 +44,7 @@ roles = ["meta", "broker", "journal"]
 grpc_port = 1228
 
 # 元数据中心地址
-[placement_center]
+[meta_addrs]
 1 = "127.0.0.1:1228"
 ```
 
@@ -56,7 +56,7 @@ grpc_port = 1228
 | `broker_id` | `u64` | `1` | 节点唯一标识符 |
 | `roles` | `array` | `["meta", "broker"]` | 节点角色：meta(元数据)、broker(MQTT)、journal(日志) |
 | `grpc_port` | `u32` | `1228` | gRPC 服务端口 |
-| `placement_center` | `table` | `{1 = "127.0.0.1:1228"}` | 元数据中心节点地址映射 |
+| `meta_addrs` | `table` | `{1 = "127.0.0.1:1228"}` | 元数据中心节点地址映射 |
 
 ---
 
