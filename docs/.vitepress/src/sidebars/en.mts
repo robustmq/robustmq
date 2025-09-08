@@ -143,7 +143,13 @@ export const sidebar = [
     },
     {
         text: "RobustMQ Command",
-        link: "/RobustMQ-Command/CLI_MANUAL",
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/RobustMQ-Command/CLI_COMMON" },
+            { text: "Cluster Manager", link: "/RobustMQ-Command/CLI_CLUSTER" },
+            { text: "MQTT Manager", link: "/RobustMQ-Command/CLI_MQTT" },
+            { text: "Journal Manager", link: "/RobustMQ-Command/CLI_JOURNAL" },
+        ],
     },
     {
         text: "HTTP Rest API",

@@ -1,47 +1,20 @@
-# RobustMQ CLI Command Line Manual
+# MQTT Broker Management Commands
 
-## Overview
-
-`robust-ctl` is the command-line management tool for RobustMQ, built with Rust clap library, providing management capabilities for MQTT broker, cluster configuration, and journal engine.
-
-## Installation and Build
-
-```bash
-# Build the project
-cargo build --release
-
-# Run the tool
-./target/release/robust-ctl --help
-```
-
-## Basic Syntax
-
-```bash
-robust-ctl [OPTIONS] <COMMAND>
-```
-
-## Global Options
-
-- `--help, -h`: Show help information
-- `--version, -V`: Show version information
-
-## Main Commands
-
-### 1. MQTT Broker Management (`mqtt`)
+## MQTT Broker Management (`mqtt`)
 
 MQTT broker related operations, including session management, user management, ACL, blacklist, etc.
 
-#### Basic Syntax
+### Basic Syntax
 ```bash
 robust-ctl mqtt [OPTIONS] <ACTION>
 ```
 
-#### Options
+### Options
 - `--server, -s <SERVER>`: Server address (default: 127.0.0.1:8080)
 
 ---
 
-#### 1.1 Session Management (`session`)
+### 1.1 Session Management (`session`)
 
 Manage MQTT sessions.
 
@@ -52,7 +25,7 @@ robust-ctl mqtt session list
 
 ---
 
-#### 1.2 Subscription Management (`subscribes`)
+### 1.2 Subscription Management (`subscribes`)
 
 Manage MQTT subscriptions.
 
@@ -63,7 +36,7 @@ robust-ctl mqtt subscribes list
 
 ---
 
-#### 1.3 User Management (`user`)
+### 1.3 User Management (`user`)
 
 Manage MQTT user accounts.
 
@@ -88,7 +61,7 @@ robust-ctl mqtt user delete --username <USERNAME>
 
 ---
 
-#### 1.4 Access Control List (`acl`)
+### 1.4 Access Control List (`acl`)
 
 Manage MQTT access control rules.
 
@@ -128,7 +101,7 @@ robust-ctl mqtt acl delete \
 
 ---
 
-#### 1.5 Blacklist Management (`blacklist`)
+### 1.5 Blacklist Management (`blacklist`)
 
 Manage MQTT blacklist.
 
@@ -160,7 +133,7 @@ robust-ctl mqtt blacklist delete \
 
 ---
 
-#### 1.6 Client Connection Management (`client`)
+### 1.6 Client Connection Management (`client`)
 
 Manage MQTT client connections.
 
@@ -171,7 +144,7 @@ robust-ctl mqtt client list
 
 ---
 
-#### 1.7 Topic Management (`topic`)
+### 1.7 Topic Management (`topic`)
 
 Manage MQTT topics.
 
@@ -182,7 +155,7 @@ robust-ctl mqtt topic list
 
 ---
 
-#### 1.8 Topic Rewrite Rules (`topic-rewrite`)
+### 1.8 Topic Rewrite Rules (`topic-rewrite`)
 
 Manage topic rewrite rules.
 
@@ -211,7 +184,7 @@ robust-ctl mqtt topic-rewrite delete \
 
 ---
 
-#### 1.9 Connector Management (`connector`)
+### 1.9 Connector Management (`connector`)
 
 Manage MQTT connectors.
 
@@ -238,7 +211,7 @@ robust-ctl mqtt connector delete --connector-name <CONNECTOR_NAME>
 
 ---
 
-#### 1.10 Schema Management (`schema`)
+### 1.10 Schema Management (`schema`)
 
 Manage MQTT message schemas.
 
@@ -281,7 +254,7 @@ robust-ctl mqtt schema unbind \
 
 ---
 
-#### 1.11 Auto Subscribe Rules (`auto-subscribe`)
+### 1.11 Auto Subscribe Rules (`auto-subscribe`)
 
 Manage auto subscribe rules.
 
@@ -310,7 +283,7 @@ robust-ctl mqtt auto-subscribe delete --topic <TOPIC>
 
 ---
 
-#### 1.12 Publish Messages (`publish`)
+### 1.12 Publish Messages (`publish`)
 
 Publish MQTT messages.
 
@@ -333,7 +306,7 @@ robust-ctl mqtt publish \
 
 ---
 
-#### 1.13 Subscribe Messages (`subscribe`)
+### 1.13 Subscribe Messages (`subscribe`)
 
 Subscribe to MQTT messages.
 
@@ -354,179 +327,22 @@ robust-ctl mqtt subscribe \
 
 ---
 
-#### 1.14 Observability Features
+### 1.14 Observability Features
 
-##### Slow Subscribe Monitoring (`slow-subscribe`)
+#### Slow Subscribe Monitoring (`slow-subscribe`)
 ```bash
 # List slow subscriptions
 robust-ctl mqtt slow-subscribe list
 ```
 
-##### Flapping Detection (`flapping-detect`)
+#### Flapping Detection (`flapping-detect`)
 ```bash
 # List flapping detection results
 robust-ctl mqtt flapping-detect
 ```
 
-##### System Alarms (`system-alarm`)
+#### System Alarms (`system-alarm`)
 ```bash
 # List system alarms
 robust-ctl mqtt system-alarm list
 ```
-
----
-
-### 2. Cluster Management (`cluster`)
-
-Cluster configuration management.
-
-#### Basic Syntax
-```bash
-robust-ctl cluster [OPTIONS] <ACTION>
-```
-
-#### Options
-- `--server, -s <SERVER>`: Server address (default: 127.0.0.1:8080)
-
-#### Configuration Management (`config`)
-
-```bash
-# Get cluster configuration
-robust-ctl cluster config get
-```
-
----
-
-### 3. Journal Engine Management (`journal`)
-
-Journal engine related operations (currently under development).
-
-#### Basic Syntax
-```bash
-robust-ctl journal [OPTIONS]
-```
-
-#### Options
-- `--server, -s <SERVER>`: Server address (default: 127.0.0.1:8080)
-- `--action, -a <ACTION>`: Action type (default: status)
-
----
-
-## Usage Examples
-
-### Basic Operation Examples
-
-```bash
-# 1. View help
-robust-ctl --help
-robust-ctl mqtt --help
-robust-ctl mqtt user --help
-
-# 2. Connect to specified server
-robust-ctl mqtt --server 192.168.1.100:8080 session list
-
-# 3. User management
-robust-ctl mqtt user create --username testuser --password testpass
-robust-ctl mqtt user list
-robust-ctl mqtt user delete --username testuser
-
-# 4. ACL management
-robust-ctl mqtt acl create \
-  --cluster-name mycluster \
-  --resource-type ClientId \
-  --resource-name client001 \
-  --topic "sensor/+" \
-  --ip "192.168.1.0/24" \
-  --action Publish \
-  --permission Allow
-
-# 5. Publish and subscribe
-robust-ctl mqtt publish \
-  --username testuser \
-  --password testpass \
-  --topic "test/topic" \
-  --qos 1
-
-robust-ctl mqtt subscribe \
-  --username testuser \
-  --password testpass \
-  --topic "test/topic" \
-  --qos 1
-
-# 6. Cluster configuration
-robust-ctl cluster config get
-```
-
-### Advanced Management Examples
-
-```bash
-# 1. Blacklist management
-robust-ctl mqtt blacklist create \
-  --cluster-name mycluster \
-  --blacklist-type ClientId \
-  --resource-name malicious_client \
-  --end-time 1735689600 \
-  --desc "Blocked due to suspicious activity"
-
-# 2. Topic rewrite rules
-robust-ctl mqtt topic-rewrite create \
-  --action redirect \
-  --source-topic "old/topic/+" \
-  --dest-topic "new/topic/+" \
-  --regex "old/(.*)"
-
-# 3. Auto subscribe rules
-robust-ctl mqtt auto-subscribe create \
-  --topic "system/alerts/+" \
-  --qos 2 \
-  --no-local \
-  --retain-as-published
-
-# 4. Schema management
-robust-ctl mqtt schema create \
-  --schema-name temperature_schema \
-  --schema-type json \
-  --schema '{"type":"object","properties":{"temp":{"type":"number"}}}' \
-  --desc "Temperature sensor data schema"
-```
-
----
-
-## Error Handling
-
-The tool provides detailed error information and help:
-
-- Use `--help` or `-h` to get command help
-- Check server connection status
-- Validate parameter format and permissions
-- View detailed error messages and suggestions
-
----
-
-## Configuration
-
-The tool connects to `127.0.0.1:8080` by default. You can specify a different server address using the `--server` parameter.
-
----
-
-## Notes
-
-1. **Permission Requirements**: Some operations require administrator privileges
-2. **Network Connection**: Ensure access to RobustMQ server
-3. **Parameter Validation**: The tool validates parameter format and validity
-4. **Interactive Mode**: Publish and subscribe commands support interactive mode
-5. **Pagination Support**: List commands support paginated display (default 10000 items per page)
-
----
-
-## Version Information
-
-- Tool Version: 0.0.1
-- Author: RobustMQ Team
-- Based on: Rust clap library
-
----
-
-## More Information
-
-For more detailed information, please refer to [RobustMQ Official Documentation](https://robustmq.com).

@@ -142,10 +142,15 @@ export const sidebar = [
             { text: "概览", link: "" }
         ],
     },
-
     {
         text: "RobustMQ 命令行",
-        link: "/zh/RobustMQ-Command/CLI_MANUAL"
+        collapsed: true,
+        items: [
+            { text: "概览", link: "zh/RobustMQ-Command/CLI_COMMON" },
+            { text: "集群管理", link: "zh/RobustMQ-Command/CLI_CLUSTER" },
+            { text: "MQTT 管理", link: "zh/RobustMQ-Command/CLI_MQTT" },
+            { text: "Journal 管理", link: "zh/RobustMQ-Command/CLI_JOURNAL" },
+        ],
     },
      {
         text: "HTTP 接口文档",
