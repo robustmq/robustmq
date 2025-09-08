@@ -17,9 +17,11 @@ use bytes::{Buf, BufMut, BytesMut};
 use common_base::error::common::CommonError;
 use kafka_protocol::{
     messages::{
-        ApiVersionsRequest, FetchRequest, FindCoordinatorRequest, JoinGroupRequest,
-        ListOffsetsRequest, MetadataRequest, OffsetCommitRequest, OffsetFetchRequest,
-        ProduceRequest, RequestHeader,
+        ApiVersionsRequest, CreateTopicsRequest, DeleteTopicsRequest, DescribeGroupsRequest,
+        FetchRequest, FindCoordinatorRequest, HeartbeatRequest, JoinGroupRequest,
+        LeaveGroupRequest, ListGroupsRequest, ListOffsetsRequest, MetadataRequest,
+        OffsetCommitRequest, OffsetFetchRequest, ProduceRequest, RequestHeader,
+        SaslHandshakeRequest, SyncGroupRequest,
     },
     protocol::{Decodable, Encodable},
 };
@@ -103,9 +105,49 @@ impl KafkaCodec {
                 KafkaPacket::JoinGroupReq(req)
             }
 
+            12 => {
+                let req = HeartbeatRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::HeartbeatReq(req)
+            }
+
+            13 => {
+                let req = LeaveGroupRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::LeaveGroupReq(req)
+            }
+
+            14 => {
+                let req = SyncGroupRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::SyncGroupReq(req)
+            }
+
+            15 => {
+                let req = DescribeGroupsRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::DescribeGroupsReq(req)
+            }
+
+            16 => {
+                let req = ListGroupsRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::ListGroupsReq(req)
+            }
+
+            17 => {
+                let req = SaslHandshakeRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::SaslHandshakeReq(req)
+            }
+
             18 => {
                 let req = ApiVersionsRequest::decode(&mut buf, header.request_api_version)?;
                 KafkaPacket::ApiVersionReq(req)
+            }
+
+            19 => {
+                let req = CreateTopicsRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::CreateTopicsReq(req)
+            }
+
+            20 => {
+                let req = DeleteTopicsRequest::decode(&mut buf, header.request_api_version)?;
+                KafkaPacket::DeleteTopicsReq(req)
             }
 
             _ => {
@@ -149,6 +191,30 @@ impl KafkaCodec {
                     KafkaPacket::JoinGroupReq(rep) => {
                         rep.encode(&mut body_bytes, header.request_api_version)?;
                     }
+                    KafkaPacket::HeartbeatReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::LeaveGroupReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::SyncGroupReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::DescribeGroupsReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::ListGroupsReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::SaslHandshakeReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::CreateTopicsReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::DeleteTopicsReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
                     _ => {
                         return Err(CommonError::NotSupportKafkaEncodePacket(format!(
                             "{:?}",
@@ -184,7 +250,31 @@ impl KafkaCodec {
                     KafkaPacket::JoinGroupResponse(rep) => {
                         rep.encode(&mut body_bytes, wrapper.api_version)?;
                     }
+                    KafkaPacket::HeartbeatResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::LeaveGroupResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::SyncGroupResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::DescribeGroupsResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::ListGroupsResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::SaslHandshakeResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
                     KafkaPacket::ApiVersionResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::CreateTopicsResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::DeleteTopicsResponse(rep) => {
                         rep.encode(&mut body_bytes, wrapper.api_version)?;
                     }
                     _ => {
@@ -235,8 +325,10 @@ mod tests {
     use bytes::BytesMut;
     use kafka_protocol::{
         messages::{
-            ApiKey, FindCoordinatorRequest, GroupId, JoinGroupRequest, OffsetCommitRequest,
-            OffsetFetchRequest, ProduceRequest, RequestHeader,
+            ApiKey, CreateTopicsRequest, DeleteTopicsRequest, FindCoordinatorRequest, GroupId,
+            HeartbeatRequest, JoinGroupRequest, LeaveGroupRequest, ListGroupsRequest,
+            OffsetCommitRequest, OffsetFetchRequest, ProduceRequest, RequestHeader,
+            SaslHandshakeRequest, SyncGroupRequest,
         },
         protocol::StrBytes,
     };
@@ -413,6 +505,252 @@ mod tests {
                     assert_eq!(req.member_id, StrBytes::from_static_str("test-member"));
                 }
                 _ => panic!("Expected JoinGroupReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn heartbeat_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode Heartbeat request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::Heartbeat as i16)
+            .with_request_api_version(4);
+
+        let packet = HeartbeatRequest::default()
+            .with_group_id(GroupId(StrBytes::from_static_str("test-group")))
+            .with_member_id(StrBytes::from_static_str("test-member"));
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 4,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::HeartbeatReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::HeartbeatReq(req) => {
+                    assert_eq!(req.group_id, GroupId(StrBytes::from_static_str("test-group")));
+                    assert_eq!(req.member_id, StrBytes::from_static_str("test-member"));
+                }
+                _ => panic!("Expected HeartbeatReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn leave_group_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode LeaveGroup request (use version 0 for basic support)
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::LeaveGroup as i16)
+            .with_request_api_version(0);
+
+        let packet = LeaveGroupRequest::default()
+            .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 0,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::LeaveGroupReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::LeaveGroupReq(req) => {
+                    assert_eq!(req.group_id, GroupId(StrBytes::from_static_str("test-group")));
+                }
+                _ => panic!("Expected LeaveGroupReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn sync_group_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode SyncGroup request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::SyncGroup as i16)
+            .with_request_api_version(5);
+
+        let packet = SyncGroupRequest::default()
+            .with_group_id(GroupId(StrBytes::from_static_str("test-group")))
+            .with_member_id(StrBytes::from_static_str("test-member"));
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 5,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::SyncGroupReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::SyncGroupReq(req) => {
+                    assert_eq!(req.group_id, GroupId(StrBytes::from_static_str("test-group")));
+                    assert_eq!(req.member_id, StrBytes::from_static_str("test-member"));
+                }
+                _ => panic!("Expected SyncGroupReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn list_groups_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode ListGroups request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::ListGroups as i16)
+            .with_request_api_version(4);
+
+        let packet = ListGroupsRequest::default();
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 4,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::ListGroupsReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::ListGroupsReq(_) => {
+                    // ListGroups request has no specific fields to verify
+                }
+                _ => panic!("Expected ListGroupsReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn sasl_handshake_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode SaslHandshake request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::SaslHandshake as i16)
+            .with_request_api_version(1);
+
+        let packet = SaslHandshakeRequest::default()
+            .with_mechanism(StrBytes::from_static_str("PLAIN"));
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 1,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::SaslHandshakeReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::SaslHandshakeReq(req) => {
+                    assert_eq!(req.mechanism, StrBytes::from_static_str("PLAIN"));
+                }
+                _ => panic!("Expected SaslHandshakeReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn create_topics_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode CreateTopics request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::CreateTopics as i16)
+            .with_request_api_version(7);
+
+        let packet = CreateTopicsRequest::default();
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 7,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::CreateTopicsReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::CreateTopicsReq(_) => {
+                    // CreateTopics request verification
+                }
+                _ => panic!("Expected CreateTopicsReq packet"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_topics_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode DeleteTopics request
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("test-client")))
+            .with_request_api_key(ApiKey::DeleteTopics as i16)
+            .with_request_api_version(6);
+
+        let packet = DeleteTopicsRequest::default();
+        
+        let wrapper = KafkaPacketWrapper {
+            api_version: 6,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::DeleteTopicsReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        assert!(wrap.is_some());
+        
+        if let Some(wrapper) = wrap {
+            match wrapper.packet {
+                KafkaPacket::DeleteTopicsReq(_) => {
+                    // DeleteTopics request verification
+                }
+                _ => panic!("Expected DeleteTopicsReq packet"),
             }
         }
     }

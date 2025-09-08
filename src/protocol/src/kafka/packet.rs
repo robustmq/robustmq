@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use kafka_protocol::messages::{
-    ApiVersionsRequest, ApiVersionsResponse, FetchRequest, FetchResponse, FindCoordinatorRequest,
-    FindCoordinatorResponse, JoinGroupRequest, JoinGroupResponse, ListOffsetsRequest,
-    ListOffsetsResponse, MetadataRequest, MetadataResponse, OffsetCommitRequest,
-    OffsetCommitResponse, OffsetFetchRequest, OffsetFetchResponse, ProduceRequest, ProduceResponse,
-    RequestHeader, ResponseHeader,
+    ApiVersionsRequest, ApiVersionsResponse, CreateTopicsRequest, CreateTopicsResponse,
+    DeleteTopicsRequest, DeleteTopicsResponse, DescribeGroupsRequest, DescribeGroupsResponse,
+    FetchRequest, FetchResponse, FindCoordinatorRequest, FindCoordinatorResponse, HeartbeatRequest,
+    HeartbeatResponse, JoinGroupRequest, JoinGroupResponse, LeaveGroupRequest, LeaveGroupResponse,
+    ListGroupsRequest, ListGroupsResponse, ListOffsetsRequest, ListOffsetsResponse, MetadataRequest,
+    MetadataResponse, OffsetCommitRequest, OffsetCommitResponse, OffsetFetchRequest,
+    OffsetFetchResponse, ProduceRequest, ProduceResponse, RequestHeader, ResponseHeader,
+    SaslHandshakeRequest, SaslHandshakeResponse, SyncGroupRequest, SyncGroupResponse,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -51,6 +54,22 @@ pub enum KafkaPacket {
     FindCoordinatorResponse(FindCoordinatorResponse),
     JoinGroupReq(JoinGroupRequest),
     JoinGroupResponse(JoinGroupResponse),
+    HeartbeatReq(HeartbeatRequest),
+    HeartbeatResponse(HeartbeatResponse),
+    LeaveGroupReq(LeaveGroupRequest),
+    LeaveGroupResponse(LeaveGroupResponse),
+    SyncGroupReq(SyncGroupRequest),
+    SyncGroupResponse(SyncGroupResponse),
+    DescribeGroupsReq(DescribeGroupsRequest),
+    DescribeGroupsResponse(DescribeGroupsResponse),
+    ListGroupsReq(ListGroupsRequest),
+    ListGroupsResponse(ListGroupsResponse),
+    SaslHandshakeReq(SaslHandshakeRequest),
+    SaslHandshakeResponse(SaslHandshakeResponse),
     ApiVersionReq(ApiVersionsRequest),
     ApiVersionResponse(ApiVersionsResponse),
+    CreateTopicsReq(CreateTopicsRequest),
+    CreateTopicsResponse(CreateTopicsResponse),
+    DeleteTopicsReq(DeleteTopicsRequest),
+    DeleteTopicsResponse(DeleteTopicsResponse),
 }
