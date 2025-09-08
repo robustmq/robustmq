@@ -38,14 +38,6 @@ export const sidebar = [
             { text: "Journal Server", link: "/zh/Architect/Journal-Server" },
             { text: "集成测试", link: "/zh/Architect/Test-Case" },
             { text: "详细设计文档", link: "/zh/Architect/Design-Documentation" },
-            {
-                text: "配置说明",
-                collapsed: true,
-                items: [
-                    { text: "Placement Center", link: "/zh/Architect/Configuration/Placement-Center" },
-                    { text: "MQTT Broker", link: "/zh/Architect/Configuration/Mqtt-Server" },
-                ],
-            },
         ],
     },
     {
@@ -146,15 +138,30 @@ export const sidebar = [
         text: "RobustMQ 命令行",
         collapsed: true,
         items: [
-            { text: "概览", link: "zh/RobustMQ-Command/CLI_COMMON" },
-            { text: "集群管理", link: "zh/RobustMQ-Command/CLI_CLUSTER" },
-            { text: "MQTT 管理", link: "zh/RobustMQ-Command/CLI_MQTT" },
-            { text: "Journal 管理", link: "zh/RobustMQ-Command/CLI_JOURNAL" },
+            { text: "概览", link: "/zh/RobustMQ-Command/CLI_COMMON" },
+            { text: "集群管理", link: "/zh/RobustMQ-Command/CLI_CLUSTER" },
+            { text: "MQTT 管理", link: "/zh/RobustMQ-Command/CLI_MQTT" },
+            { text: "Journal 管理", link: "/zh/RobustMQ-Command/CLI_JOURNAL" },
         ],
     },
-     {
+    {
         text: "HTTP 接口文档",
-        link: "/zh/Api/HTTP-API"
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/Api/COMMON" },
+            { text: "Cluster API", link: "/zh/Api/CLUSTER" },
+            { text: "MQTT API", link: "/zh/Api/MQTT" },
+        ],
+    },
+    {
+        text: "配置说明",
+        collapsed: true,
+        items: [
+            { text: "通用配置", link: "/zh/Configuration/COMMON" },
+            { text: "MQTT 配置", link: "/zh/Configuration/MQTT" },
+            { text: "Meta 配置", link: "/zh/Configuration/META" },
+            { text: "Journal 配置", link: "/zh/Configuration/JOURNAL" },
+        ],
     },
     {
         text: "贡献指南",

@@ -37,15 +37,7 @@ export const sidebar = [
             { text: "Storage Adapter", link: "/Architect/Storage-Adapter" },
             { text: "Journal Server", link: "/Architect/Journal-Server" },
             { text: "Detailed design document", link: "/Architect/Design-Documentation" },
-            { text: "Ig Test", link: "/Architect/Test-Case" },
-            {
-                text: "Configuration",
-                collapsed: true,
-                items: [
-                    { text: "Placement Center", link: "/Architect/Configuration/Placement-Center" },
-                    { text: "MQTT Broker", link: "/Architect/Configuration/Mqtt-Server" },
-                ],
-            },
+            { text: "Ig Test", link: "/Architect/Test-Case" }
         ],
     },
     {
@@ -153,7 +145,22 @@ export const sidebar = [
     },
     {
         text: "HTTP Rest API",
-        link: "/Api/HTTP-API"
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/Api/COMMON" },
+            { text: "Cluster API", link: "/Api/CLUSTER" },
+            { text: "MQTT API", link: "/Api/MQTT" },
+        ],
+    },
+    {
+        text: "Configuration",
+        collapsed: true,
+        items: [
+            { text: "Common Configuration", link: "/Configuration/COMMON" },
+            { text: "MQTT Configuration", link: "/Configuration/MQTT" },
+            { text: "Meta Configuration", link: "/Configuration/META" },
+            { text: "Journal Configuration", link: "/Configuration/JOURNAL" },
+        ],
     },
     {
         text: "ContributionGuide",

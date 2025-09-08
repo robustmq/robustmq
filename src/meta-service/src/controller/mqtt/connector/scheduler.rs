@@ -93,7 +93,7 @@ async fn check_heartbeat(
         };
 
         if now_second() - heartbeat.last_heartbeat
-            > config.place_runtime.heartbeat_timeout_ms / 1000
+            > config.meta_runtime.heartbeat_timeout_ms / 1000
         {
             info!(
                 "cluster:{},Connector {} heartbeat expired, rescheduled, new node: {}",
