@@ -169,7 +169,7 @@ async fn access_log_middleware(
     let duration = start.elapsed();
     let status = response.status();
     info!(
-        "http request Log: {} {} {} - {} - \"{}\" \"{}\" {}ms",
+        "http request log: {} {} {} - {} - \"{}\" \"{}\" {}ms",
         method,
         uri,
         status.as_u16(),
@@ -181,7 +181,7 @@ async fn access_log_middleware(
 
     if status.is_client_error() || status.is_server_error() {
         warn!(
-            "HTTP {} {} {} - {} - FAILED",
+            "http request log: {} {} {} - {} - FAILED",
             method,
             uri,
             status.as_u16(),
