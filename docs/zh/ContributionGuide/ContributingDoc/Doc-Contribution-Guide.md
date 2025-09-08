@@ -39,8 +39,8 @@ export const sidebar = [
                 text: "Configuration",
                 collapsed: true,
                 items: [
-                    {text: "Placement Center", link: "/Architect/Configuration/Placement-Center"},
-                    {text: "MQTT Broker", link: "/Architect/Configuration/Mqtt-Server"},
+                    {text: "Placement Center", link: "/zh/Configuration/META"},
+                    {text: "MQTT Broker", link: "/zh/Configuration/MQTT"},
                 ],
             },
         ],
@@ -74,8 +74,8 @@ export const sidebar = [
                 text: "Configuration",
                 collapsed: true,
                 items: [
-                    {text: "Placement Center", link: "/Architect/Configuration/Placement-Center"},
-                    {text: "MQTT Broker", link: "/Architect/Configuration/Mqtt-Server"},
+                    {text: "Placement Center", link: "/zh/Configuration/META"},
+                    {text: "MQTT Broker", link: "/zh/Configuration/MQTT"},
                 ],
             },
         ],
