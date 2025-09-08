@@ -42,7 +42,7 @@ mod flapping_detect_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod qos_test;
-pub mod quic_test;
+mod quic_server;
 pub mod req_resp_test;
 pub mod retain_message_test;
 pub mod schema_test;

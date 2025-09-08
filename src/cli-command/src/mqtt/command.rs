@@ -1357,7 +1357,7 @@ impl MqttBrokerCommand {
                 for bind in page_data.data {
                     println!("data type: {}", bind.data_type);
                     for data_item in bind.data {
-                        println!("  - {}", data_item);
+                        println!("  - {data_item}");
                     }
                 }
             }

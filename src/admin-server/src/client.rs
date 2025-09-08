@@ -162,16 +162,16 @@ impl AdminHttpClient {
         let endpoint = if endpoint.starts_with('/') {
             endpoint
         } else {
-            &format!("/{}", endpoint)
+            &format!("/{endpoint}")
         };
+        let base_url = self.base_url.trim_end_matches('/');
 
-        let url = format!("{}{}", self.base_url.trim_end_matches('/'), endpoint);
+        let url = format!("{base_url}{endpoint}");
 
         // Basic URL validation
         if !url.starts_with("http://") && !url.starts_with("https://") {
             return Err(HttpClientError::InvalidUrl(format!(
-                "URL must start with http:// or https://, got: {}",
-                url
+                "URL must start with http:// or https://, got: {url}",
             )));
         }
 
