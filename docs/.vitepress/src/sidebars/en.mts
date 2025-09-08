@@ -153,7 +153,12 @@ export const sidebar = [
     },
     {
         text: "HTTP Rest API",
-        link: "/Api/HTTP-API"
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/Api/COMMON" },
+            { text: "Cluster API", link: "/Api/CLUSTER" },
+            { text: "MQTT API", link: "/Api/MQTT" },
+        ],
     },
     {
         text: "ContributionGuide",

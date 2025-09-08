@@ -152,9 +152,14 @@ export const sidebar = [
             { text: "Journal 管理", link: "zh/RobustMQ-Command/CLI_JOURNAL" },
         ],
     },
-     {
+    {
         text: "HTTP 接口文档",
-        link: "/zh/Api/HTTP-API"
+        collapsed: true,
+        items: [
+            { text: "概览", link: "zh/Api/COMMON" },
+            { text: "Cluster API", link: "zh/Api/CLUSTER" },
+            { text: "MQTT API", link: "zh/Api/MQTT" },
+        ],
     },
     {
         text: "贡献指南",
