@@ -18,7 +18,7 @@
 </p>
 
 <h3 align="center">
-    A high-performance distributed message queue built with Rust.
+    New generation of cloud-native and AI-native messaging infrastructure
 </h3>
 
 <p align="center">
