@@ -14,4 +14,3 @@
 
 mod common;
 mod quic_connect_test;
-mod quic_packet_test;

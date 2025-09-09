@@ -45,6 +45,7 @@ fi
 
 # mqtt
 cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
+cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt
 
 
 if [ $? -ne 0 ]; then
