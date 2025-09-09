@@ -21,7 +21,7 @@ pub struct MqttTopicRewriteRule {
     pub source_topic: String,
     pub dest_topic: String,
     pub regex: String,
-    pub timestamp: u64,
+    pub timestamp: u128,
 }
 
 impl MqttTopicRewriteRule {
