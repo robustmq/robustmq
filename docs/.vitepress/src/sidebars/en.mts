@@ -104,9 +104,8 @@ export const sidebar = [
                     { text: "Integrate OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
             { text: "MQTTX Testing Guide", link: "/RobustMQ-MQTT/MQTTX-Guide" },
-            { text: "Performance Bench", link: "" },
+            { text: "Performance", link: "" },
             {
                 text: "Client SDK",
                 collapsed: true,

@@ -103,9 +103,8 @@ export const sidebar = [
                     { text: "集成 OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
             { text: "MQTTX 测试指南", link: "/zh/RobustMQ-MQTT/MQTTX-Guide" },
-            { text: "Bench 性能压测", link: "" },
+            { text: "性能指标", link: "" },
             {
                 text: "客户端 SDK",
                 collapsed: true,
