@@ -14,4 +14,4 @@
 
 pub mod common;
 mod journal;
-mod placement;
+mod meta;

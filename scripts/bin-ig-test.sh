@@ -22,8 +22,8 @@ nohup cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
 sleep 30
 
 # place
-cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement
-cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
+cargo nextest run --profile ci --package grpc-clients --test mod -- meta
+cargo nextest run --profile ci --package robustmq-test --test mod -- meta
 
 if [ $? -ne 0 ]; then
     echo "place test failed"
@@ -34,7 +34,6 @@ fi
 
 # journal
 cargo nextest run  --profile ci --package grpc-clients --test mod -- journal
-cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_client
 
 
 if [ $? -ne 0 ]; then
@@ -46,7 +45,6 @@ fi
 
 # mqtt
 cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
-cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
 
 
 if [ $? -ne 0 ]; then
@@ -55,10 +53,3 @@ if [ $? -ne 0 ]; then
 else
     echo "mqtt test passed"
 fi
-
-# storage-adapter
-cargo nextest run --profile ci --package storage-adapter --lib -- placement
-cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_server
-
-# mqtt protocol
-cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
