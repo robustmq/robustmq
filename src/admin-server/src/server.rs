@@ -36,13 +36,16 @@ use crate::{
     state::HttpState,
 };
 use axum::{
-    extract::State,
+    extract::{ConnectInfo, Request, State},
+    http::{HeaderMap, Method, Uri},
+    middleware::{self, Next},
+    response::Response,
     routing::{get, post},
     Router,
 };
 use common_base::version::version;
-use std::sync::Arc;
-use tracing::info;
+use std::{net::SocketAddr, sync::Arc, time::Instant};
+use tracing::{info, warn};
 
 pub struct AdminServer {}
 
@@ -62,14 +65,20 @@ impl AdminServer {
             .merge(self.common_route())
             .merge(self.mqtt_route())
             .merge(self.kafka_route())
-            .with_state(state);
+            .with_state(state)
+            .layer(middleware::from_fn(access_log_middleware));
 
-        let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(&ip).await.unwrap();
         info!(
-            "Admin HTTP Server started successfully, listening port: {}",
+            "Admin HTTP Server started successfully, listening port: {}, access logging enabled",
             port
         );
-        axum::serve(listener, route).await.unwrap();
+        axum::serve(
+            listener,
+            route.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
     }
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
@@ -136,6 +145,79 @@ impl AdminServer {
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
+}
+
+async fn access_log_middleware(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+    request: Request,
+    next: Next,
+) -> Response {
+    let start = Instant::now();
+    let client_ip = extract_client_ip(&headers, addr);
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("unknown");
+    let referer = headers
+        .get("referer")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("-");
+    let response = next.run(request).await;
+    let duration = start.elapsed();
+    let status = response.status();
+
+    info!(
+        "http request log: {} {} {} - {} - \"{}\" \"{}\" {}ms",
+        method,
+        uri,
+        status.as_u16(),
+        client_ip,
+        user_agent,
+        referer,
+        duration.as_millis()
+    );
+
+    if status.is_client_error() || status.is_server_error() {
+        warn!(
+            "http request log: {} {} {} - {} - FAILED",
+            method,
+            uri,
+            status.as_u16(),
+            client_ip
+        );
+    }
+
+    response
+}
+
+fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
+    if let Some(forwarded_for) = headers.get("x-forwarded-for") {
+        if let Ok(forwarded_str) = forwarded_for.to_str() {
+            if let Some(first_ip) = forwarded_str.split(',').next() {
+                return first_ip.trim().to_string();
+            }
+        }
+    }
+
+    if let Some(real_ip) = headers.get("x-real-ip") {
+        if let Ok(real_ip_str) = real_ip.to_str() {
+            return real_ip_str.to_string();
+        }
+    }
+
+    if let Some(forwarded) = headers.get("forwarded") {
+        if let Ok(forwarded_str) = forwarded.to_str() {
+            for part in forwarded_str.split(';') {
+                if let Some(for_part) = part.trim().strip_prefix("for=") {
+                    return for_part.to_string();
+                }
+            }
+        }
+    }
+    socket_addr.ip().to_string()
 }
 
 pub async fn index(State(_state): State<Arc<HttpState>>) -> String {

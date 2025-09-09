@@ -105,7 +105,7 @@ pub async fn get_topic_name(
 
     // topic rewrite
     if let Some(rewrite_topic_name) =
-        convert_publish_topic_by_rewrite_rule(cache_manager, &topic_name)?
+        convert_publish_topic_by_rewrite_rule(cache_manager, topic_name.clone())?
     {
         topic_name_validator(rewrite_topic_name.as_str())?;
         return Ok(rewrite_topic_name);

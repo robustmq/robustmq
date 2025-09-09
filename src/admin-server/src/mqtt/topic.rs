@@ -24,7 +24,7 @@ use crate::{
 use axum::{extract::State, Json};
 use common_base::{
     http_response::{error_response, success_response},
-    tools::now_second,
+    tools::now_mills,
 };
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use mqtt_broker::storage::topic::TopicStorage;
@@ -139,7 +139,7 @@ pub async fn topic_rewrite_create(
         source_topic: params.source_topic.clone(),
         dest_topic: params.dest_topic.clone(),
         regex: params.regex.clone(),
-        timestamp: now_second(),
+        timestamp: now_mills(),
     };
 
     let topic_storage = TopicStorage::new(state.client_pool.clone());

@@ -25,6 +25,15 @@ prefix = "server"
 suffix = "log"
 max_log_files = 50
 
+[http_request]
+kind = "rolling_file"
+targets = [{ path = "admin_server::server", level = "info" }]
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "http_request"
+suffix = "log"
+max_log_files = 50
+
 [raft]
 kind = "rolling_file"
 targets = [{ path = "openraft", level = "info" }]
