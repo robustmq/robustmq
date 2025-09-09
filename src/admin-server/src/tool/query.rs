@@ -59,9 +59,10 @@ pub fn build_query_params(
     filter_values: Option<Vec<String>>,
     exact_match: Option<String>,
 ) -> Option<QueryOptions> {
+    let page_num = parse_limit(limit);
     let pagination = Pagination {
-        limit: parse_limit(limit),
-        offset: parse_page(page),
+        limit: page_num,
+        offset: parse_offset(page, page_num),
     };
     let filters = parse_filters(filter_field, filter_values, exact_match);
     let sorting = parse_sorting(sort_field, sort_by);
@@ -117,15 +118,15 @@ fn parse_limit(page_num: Option<u32>) -> u32 {
     10
 }
 
-fn parse_page(page: Option<u32>) -> u32 {
+fn parse_offset(page: Option<u32>, limit: u32) -> u32 {
     if let Some(pg) = page {
         if pg == 0 {
-            return 1;
+            return 0;
         } else {
-            return pg;
+            return (pg - 1) * limit;
         }
     }
-    1
+    0
 }
 
 fn parse_sorting(sort_field: Option<String>, sort_by: Option<String>) -> Option<Sorting> {

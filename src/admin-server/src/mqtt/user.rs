@@ -51,6 +51,7 @@ pub async fn user_list(
     };
 
     let mut users = Vec::new();
+
     for ele in data {
         let user_raw = UserListRow {
             username: ele.1.username,
@@ -58,6 +59,7 @@ pub async fn user_list(
         };
         users.push(user_raw);
     }
+
     let filtered = apply_filters(users, &options);
     let sorted = apply_sorting(filtered, &options);
     let pagination = apply_pagination(sorted, &options);
