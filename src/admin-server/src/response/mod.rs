@@ -19,7 +19,7 @@ pub mod journal;
 pub mod meta;
 pub mod mqtt;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PageReplyData<T> {
     pub data: T,
     pub total_count: usize,

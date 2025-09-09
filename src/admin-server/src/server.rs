@@ -45,6 +45,7 @@ use axum::{
 };
 use common_base::version::version;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
+use tower_http::cors::CorsLayer;
 use tracing::{info, warn};
 
 pub struct AdminServer {}
@@ -66,11 +67,12 @@ impl AdminServer {
             .merge(self.mqtt_route())
             .merge(self.kafka_route())
             .with_state(state)
-            .layer(middleware::from_fn(access_log_middleware));
+            .layer(middleware::from_fn(access_log_middleware))
+            .layer(CorsLayer::permissive());
 
         let listener = tokio::net::TcpListener::bind(&ip).await.unwrap();
         info!(
-            "Admin HTTP Server started successfully, listening port: {}, access logging enabled",
+            "Admin HTTP Server started successfully, listening port: {}, access logging and CORS enabled",
             port
         );
         axum::serve(
