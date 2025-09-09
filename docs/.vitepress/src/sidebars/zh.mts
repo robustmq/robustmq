@@ -189,5 +189,12 @@ export const sidebar = [
                 ]
             }
         ],
+    },
+    {
+        text: "博客文章",
+        collapsed: true,
+        items: [
+            { text: "用 Rust 重新定义云原生消息队列的未来", link: "/zh/Blogs/01" },
+        ],
     }
 ];

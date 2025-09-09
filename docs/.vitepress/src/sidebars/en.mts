@@ -188,5 +188,12 @@ export const sidebar = [
                 ],
             }
         ],
+    },
+    {
+        text: "Blog Articles",
+        collapsed: true,
+        items: [
+            { text: "Redefining Cloud-Native Message Queues with Rust", link: "/Blogs/01" },
+        ],
     }
 ];
