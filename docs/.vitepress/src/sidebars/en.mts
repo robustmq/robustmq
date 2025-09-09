@@ -105,16 +105,17 @@ export const sidebar = [
                 ]
             },
             { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
+            { text: "MQTTX Testing Guide", link: "/RobustMQ-MQTT/MQTTX-Guide" },
             { text: "Performance Bench", link: "" },
             {
                 text: "Client SDK",
                 collapsed: true,
                 items: [
-                    { text: "C SDK", link: "" },
-                    { text: "Java SDK", link: "" },
-                    { text: "Go SDK", link: "" },
-                    { text: "Python SDK", link: "" },
-                    { text: "JavaScript SDK", link: "" },
+                    { text: "C SDK", link: "/RobustMQ-MQTT/SDK/c-sdk" },
+                    { text: "Java SDK", link: "/RobustMQ-MQTT/SDK/java-sdk" },
+                    { text: "Go SDK", link: "/RobustMQ-MQTT/SDK/go-sdk" },
+                    { text: "Python SDK", link: "/RobustMQ-MQTT/SDK/python-sdk" },
+                    { text: "JavaScript SDK", link: "/RobustMQ-MQTT/SDK/javascript-sdk" },
                 ]
             },
         ],
