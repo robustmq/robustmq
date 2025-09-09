@@ -103,17 +103,17 @@ export const sidebar = [
                     { text: "集成 OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
-            { text: "Bench 性能压测", link: "" },
+            { text: "MQTTX 测试指南", link: "/zh/RobustMQ-MQTT/MQTTX-Guide" },
+            { text: "性能指标", link: "" },
             {
                 text: "客户端 SDK",
                 collapsed: true,
                 items: [
-                    { text: "使用 C SDK 连接", link: "" },
-                    { text: "使用 Java SDK 连接", link: "" },
-                    { text: "使用 Go SDK 连接", link: "" },
-                    { text: "使用 Python SDK 连接", link: "" },
-                    { text: "使用 JavaScript SDK 连接", link: "" },
+                    { text: "使用 C SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/c-sdk" },
+                    { text: "使用 Java SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/java-sdk" },
+                    { text: "使用 Go SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/go-sdk" },
+                    { text: "使用 Python SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/python-sdk" },
+                    { text: "使用 JavaScript SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/javascript-sdk" },
                 ]
             },
         ],
