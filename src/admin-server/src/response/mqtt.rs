@@ -45,7 +45,7 @@ pub struct UserListRow {
     pub is_superuser: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct AclListRow {
     pub resource_type: String,
     pub resource_name: String,
