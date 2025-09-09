@@ -26,9 +26,9 @@ use super::cache::MQTTCacheManager;
 
 pub fn convert_publish_topic_by_rewrite_rule(
     cache_manager: &Arc<MQTTCacheManager>,
-    topic_name: &str,
+    topic_name: String,
 ) -> Result<Option<String>, MqttBrokerError> {
-    gen_convert_rewrite_name(cache_manager, topic_name)
+    gen_convert_rewrite_name(cache_manager, &topic_name)
 }
 
 pub fn convert_sub_path_by_rewrite_rule(
@@ -54,7 +54,7 @@ fn gen_convert_rewrite_name(
         }
 
         if is_match_sub_and_topic(&rule.source_topic, name).is_ok() {
-            new_topic_name = gen_rewrite_topic(name, &rule.regex, &rule.dest_topic)?;
+            new_topic_name = gen_rewrite_topic(name.to_string(), &rule.regex, &rule.dest_topic)?;
         }
     }
 
@@ -69,12 +69,12 @@ fn gen_convert_rewrite_name(
 }
 
 fn gen_rewrite_topic(
-    input: &str,
+    input: String,
     pattern: &str,
     template: &str,
 ) -> Result<String, MqttBrokerError> {
     let prefix = String::new();
-    let topic = decode_sub_path(input);
+    let topic = decode_sub_path(&input);
     let re = Regex::new(pattern)?;
     let mut rewrite_topic = template.to_string();
     if let Some(captures) = re.captures(topic.as_str()) {
@@ -91,11 +91,12 @@ fn gen_rewrite_topic(
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::common::tool::test_build_mqtt_cache_manager;
 
     use super::*;
     use common_base::tools::now_second;
-    use std::time::Duration;
     use tokio::time::sleep;
 
     /// * Assume that the following topic rewrite rules have been added to the conf file:
@@ -153,12 +154,13 @@ mod tests {
 
         for (index, input) in SRC_TOPICS.iter().enumerate() {
             let d1 = DST_TOPICS[index].to_string();
-            let mut t1 = input.to_string();
+            let mut t1: String = input.to_string();
             let mut rules = cache_manager.get_all_topic_rewrite_rule();
             rules.sort_by_key(|rule| rule.timestamp);
             for rule in rules.iter() {
                 if is_match_sub_and_topic(&rule.source_topic, input).is_ok() {
-                    let rewrite_topic = gen_rewrite_topic(input, &rule.regex, &rule.dest_topic);
+                    let rewrite_topic =
+                        gen_rewrite_topic(input.to_string(), &rule.regex, &rule.dest_topic);
                     assert!(rewrite_topic.is_ok());
                     t1 = rewrite_topic.unwrap();
                 }
@@ -171,7 +173,8 @@ mod tests {
     async fn gen_convert_rewrite_name_test() {
         let cache_manager = build_rules().await;
         for (index, src_topic) in SRC_TOPICS.iter().enumerate() {
-            let result = convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic);
+            let result =
+                convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic.to_string());
             assert!(result.is_ok());
             if let Some(dst_topic) = result.unwrap() {
                 assert_eq!(dst_topic, DST_TOPICS[index]);
@@ -199,7 +202,7 @@ mod tests {
                 timestamp: now_second(),
             };
             cache_manager.add_topic_rewrite_rule(rule);
-            sleep(Duration::from_nanos(100)).await;
+            sleep(Duration::from_millis(100)).await;
         }
         cache_manager
     }
