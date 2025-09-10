@@ -41,13 +41,11 @@ export const sidebar = [
         text: "系统架构",
         collapsed: true,
         items: [
-            { text: "概览", link: "/zh/Architect/Overview" },
-            { text: "Placement Center", link: "/zh/Architect/Placement-Center" },
-            { text: "Broker Server", link: "/zh/Architect/Broker-Server" },
-            { text: "Storage Adapter", link: "/zh/Architect/Storage-Adapter" },
-            { text: "Journal Server", link: "/zh/Architect/Journal-Server" },
-            { text: "集成测试", link: "/zh/Architect/Test-Case" },
-            { text: "详细设计文档", link: "/zh/Architect/Design-Documentation" },
+            { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
+            { text: "Broker Server", link: "" },
+            { text: "Storage Adapter", link: "" },
+            { text: "Journal Server", link: "" },
         ],
     },
     {

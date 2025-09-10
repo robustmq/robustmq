@@ -41,13 +41,8 @@ export const sidebar = [
         text: "Architect",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/Architect/Overview" },
-            { text: "Placement Center", link: "/Architect/Placement-Center" },
-            { text: "Broker Server", link: "/Architect/Broker-Server" },
-            { text: "Storage Adapter", link: "/Architect/Storage-Adapter" },
-            { text: "Journal Server", link: "/Architect/Journal-Server" },
-            { text: "Detailed design document", link: "/Architect/Design-Documentation" },
-            { text: "Ig Test", link: "/Architect/Test-Case" }
+            { text: "Overview", link: "/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/Architect/MetaService-Architecture" },
         ],
     },
     {
