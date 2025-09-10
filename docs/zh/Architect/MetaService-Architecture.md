@@ -16,7 +16,7 @@ MetaService 基于以下核心原则设计：
 
 ## 架构概述
 
-![MetaService 架构](../../images/metaservice-architecture.png)
+![MetaService 架构](../../images/robustmq-architecture.png)
 
 MetaService 采用分层架构，职责分离清晰：
 
