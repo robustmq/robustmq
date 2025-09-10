@@ -22,9 +22,9 @@ export const sidebar = [
         text: "QuickGuide",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/QuickGuide/Overview" },
-            { text: "Build", link: "/QuickGuide/mqtt/Build" },
-            { text: "First Task", link: "/QuickGuide/mqtt/First-Task" },
+            { text: "Public Server", link: "/QuickGuide/PublicMqttServer" },
+            { text: "Build && Package", link: "/QuickGuide/Build-and-Package" },
+            { text: "Experience RobustMQ MQTT", link: "/QuickGuide/Experience-MQTT" },
         ],
     },
     {
