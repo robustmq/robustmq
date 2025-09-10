@@ -31,11 +31,10 @@ export const sidebar = [
         text: "安装部署",
         collapsed: true,
         items: [
-            { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
-            { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
-            { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
-            { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
-            { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
+            { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Docker-Deployment" },
+            { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
+            { text: "Docker 模式", link: "/zh/InstallationDeployment/Docker-Deployment" },
+            { text: "K8S 模式", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
         ],
     },
     {
