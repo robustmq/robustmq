@@ -22,9 +22,20 @@ export const sidebar = [
         text: "快速启动",
         collapsed: true,
         items: [
-            { text: "概览", link: "/zh/QuickGuide/Overview" },
+            { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
+            { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
+            { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
+        ],
+    },
+    {
+        text: "安装部署",
+        collapsed: true,
+        items: [
             { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
-            { text: "第一个任务", link: "/zh/QuickGuide/mqtt/First-Task" },
+            { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
+            { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
+            { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
+            { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
         ],
     },
     {
@@ -45,18 +56,6 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
-            {
-                text: "安装部署",
-                collapsed: true,
-                items: [
-                    { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
-                    { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
-                    { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
-                    { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
-                ],
-            },
-            { text: "公共 MQTT Server", link: "/zh/RobustMQ-MQTT/PublicMqttServer" },
-            { text: "系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture.md" },
             {
                 text: "核心功能",
                 collapsed: true,
@@ -104,7 +103,6 @@ export const sidebar = [
                 ]
             },
             { text: "MQTTX 测试指南", link: "/zh/RobustMQ-MQTT/MQTTX-Guide" },
-            { text: "性能指标", link: "" },
             {
                 text: "客户端 SDK",
                 collapsed: true,
@@ -164,6 +162,14 @@ export const sidebar = [
         ],
     },
     {
+        text: "性能指标",
+        collapsed: true,
+        items: [
+            { text: "RobustMQ MQTT", link: "" },
+            { text: "RobustMQ Kafka", link: "" },
+        ],
+    },
+    {
         text: "贡献指南",
         collapsed: true,
         items: [
@@ -194,7 +200,7 @@ export const sidebar = [
         text: "博客文章",
         collapsed: true,
         items: [
-            { text: "用 Rust 重新定义云原生消息队列的未来", link: "/zh/Blogs/01" },
+            { text: "01: 用 Rust 重新定义消息队列", link: "/zh/Blogs/01" },
         ],
     }
 ];
