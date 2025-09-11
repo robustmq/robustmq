@@ -8,13 +8,13 @@ RobustMQ 是一个用 Rust 构建的下一代高性能多协议消息队列，�
 
 RobustMQ 基于以下核心设计原则构建：
 
-- **AI 就绪**：针对 AI 工作流优化，提供微秒级延迟
+- **AI Ready**：针对 AI 工作流优化，提供微秒级延迟
 - **云原生**：容器优先设计，支持 Kubernetes
 - **多协议统一**：单一平台支持 MQTT、Kafka 和 AMQP
 - **计算存储分离**：无状态计算层支持 Serverless
 - **可插拔存储**：灵活存储后端适应不同使用场景
 
-## 高层架构
+## 整体架构
 
 ![RobustMQ 架构](../../images/robustmq-architecture.png)
 

@@ -43,9 +43,6 @@ export const sidebar = [
         items: [
             { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
             { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
-            { text: "Broker Server", link: "" },
-            { text: "Storage Adapter", link: "" },
-            { text: "Journal Server", link: "" },
         ],
     },
     {
