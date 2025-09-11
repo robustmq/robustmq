@@ -28,16 +28,21 @@ export const sidebar = [
         ],
     },
     {
+        text: "Install and Deployment",
+        collapsed: true,
+        items: [
+            { text: "StandaloneMode", link: "/InstallationDeployment/Single-Machine-Cluster" },
+            { text: "ClusterMode", link: "/InstallationDeployment/Multi-Node-Cluster" },
+            { text: "DockerMode", link: "/InstallationDeployment/Docker-Deployment" },
+            { text: "K8SMode", link: "/InstallationDeployment/Kubernetes-Operator" },
+        ],
+    },
+    {
         text: "Architect",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/Architect/Overview" },
-            { text: "Placement Center", link: "/Architect/Placement-Center" },
-            { text: "Broker Server", link: "/Architect/Broker-Server" },
-            { text: "Storage Adapter", link: "/Architect/Storage-Adapter" },
-            { text: "Journal Server", link: "/Architect/Journal-Server" },
-            { text: "Detailed design document", link: "/Architect/Design-Documentation" },
-            { text: "Ig Test", link: "/Architect/Test-Case" }
+            { text: "Overview", link: "/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/Architect/MetaService-Architecture" },
         ],
     },
     {
@@ -45,17 +50,6 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
-            {
-                text: "Install and Deployment",
-                collapsed: true,
-                items: [
-                    { text: "StandaloneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
-                    { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
-                    { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
-                    { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
-                ],
-            },
-
             { text: "Public MQTT Server", link: "/RobustMQ-MQTT/PublicMqttServer" },
             { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
