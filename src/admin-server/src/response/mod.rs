@@ -14,7 +14,6 @@
 
 use serde::{Deserialize, Serialize};
 
-pub mod cluster;
 pub mod journal;
 pub mod meta;
 pub mod mqtt;
