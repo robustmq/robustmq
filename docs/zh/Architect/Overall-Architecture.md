@@ -52,7 +52,7 @@ RobustMQ 采用分布式分层架构，职责分离清晰：
 
 ## 核心组件
 
-### Broker 服务器 (`src/broker-server/`)
+### Broker 服务器 (`crates/broker-server/`)
 
 协调所有协议 broker 并提供统一服务管理的主入口点。
 
@@ -67,7 +67,7 @@ RobustMQ 采用分布式分层架构，职责分离清晰：
 - `grpc.rs`：gRPC 服务接口
 - `common.rs`：共享工具和配置
 
-### 元数据服务 (`src/meta-service/`)
+### 元数据服务 (`crates/meta-service/`)
 
 负责集群协调和元数据存储的元数据管理中心。
 
@@ -83,7 +83,7 @@ RobustMQ 采用分布式分层架构，职责分离清晰：
 - `storage/`：元数据存储引擎
 - `controller/`：协议特定控制器
 
-### 日志服务器 (`src/journal-server/`)
+### 日志服务器 (`crates/journal-server/`)
 
 负责消息持久化和检索的持久化存储层。
 
@@ -101,25 +101,25 @@ RobustMQ 采用分布式分层架构，职责分离清晰：
 
 ### 协议 Broker
 
-#### MQTT Broker (`src/mqtt-broker/`)
+#### MQTT Broker (`crates/mqtt-broker/`)
 - **协议支持**：MQTT 3.1.1、3.1 和 5.0
 - **传输**：TCP (1883)、SSL/TLS (1884)、WebSocket (8083)、WebSocket SSL (8084)
 - **特性**：QoS 级别、保留消息、遗嘱消息、共享订阅
 - **性能**：百万级并发连接
 
-#### Kafka Broker (`src/kafka-broker/`)
+#### Kafka Broker (`crates/kafka-broker/`)
 - **协议支持**：Kafka 2.8+ 兼容
 - **传输**：TCP (9092)
 - **特性**：主题分区、消费者组、偏移量管理
 - **使用场景**：大数据流处理、AI 训练管道
 
-#### AMQP Broker (`src/amqp-broker/`)
+#### AMQP Broker (`crates/amqp-broker/`)
 - **协议支持**：AMQP 0.9.1 和 1.0
 - **传输**：TCP (5672)
 - **特性**：交换机、队列、路由、确认机制
 - **使用场景**：企业集成、微服务通信
 
-### 存储适配器 (`src/storage-adapter/`)
+### 存储适配器 (`crates/storage-adapter/`)
 
 为不同存储后端提供统一接口。
 
@@ -132,19 +132,19 @@ RobustMQ 采用分布式分层架构，职责分离清晰：
 
 ### 通用组件
 
-#### 网络服务器 (`src/common/network-server/`)
+#### 网络服务器 (`crates/common/network-server/`)
 - **连接管理**：高效的连接池和管理
 - **协议解析**：高性能协议解析
 - **安全**：TLS/SSL 支持和身份验证
 - **监控**：连接指标和健康检查
 
-#### 指标 (`src/common/metrics/`)
+#### 指标 (`crates/common/metrics/`)
 - **Prometheus 集成**：全面的指标收集
 - **自定义指标**：应用特定的性能指标
 - **实时监控**：实时性能仪表板
 - **告警**：可配置的告警规则
 
-#### 安全 (`src/common/security/`)
+#### 安全 (`crates/common/security/`)
 - **身份验证**：多种身份验证机制
 - **授权**：基于角色的访问控制
 - **加密**：端到端加密支持

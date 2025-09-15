@@ -1,7 +1,7 @@
 # VSCode运行
 下载项目代码
 初始化环境
-进入src/cmd/src目录，可以看到
+进入crates/cmd/src目录，可以看到
 ```
 .
 ├── journal-server

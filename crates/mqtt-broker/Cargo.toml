@@ -13,38 +13,67 @@
 # limitations under the License.
 
 [package]
-name = "robustmq-test"
+name = "mqtt-broker"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-admin-server.workspace = true
-apache-avro.workspace = true
+anyhow.workspace = true
+async-stream.workspace = true
 axum.workspace = true
-bincode.workspace = true
+axum-extra.workspace = true
+axum-server.workspace = true
 broker-core.workspace = true
 bytes.workspace = true
+chrono.workspace = true
 common-base.workspace = true
 common-config.workspace = true
+common-metrics.workspace = true
 dashmap.workspace = true
+delay-message.workspace = true
 futures.workspace = true
+futures-util.workspace = true
+grep.workspace = true
 grpc-clients.workspace = true
-journal-client.workspace = true
+humantime.workspace = true
+ipnet.workspace = true
+lazy_static.workspace = true
 metadata-struct.workspace = true
-mqtt-broker.workspace = true
-opentelemetry.workspace = true
-opentelemetry-otlp.workspace = true
-opentelemetry_sdk.workspace = true
-paho-mqtt.workspace = true
+mysql.workspace = true
+network-server.workspace = true
+os_info.workspace = true
+# observability
+prometheus-client.workspace = true
 protocol.workspace = true
 quinn.workspace = true
+rcgen.workspace = true
+rdkafka.workspace = true
+regex.workspace = true
+reqwest.workspace = true
 rustls.workspace = true
 rustls-pemfile.workspace = true
+rustls-pki-types.workspace = true
+schema-register.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+storage-adapter.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+sysinfo.workspace = true
+third-driver.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-rustls.workspace = true
 tokio-util.workspace = true
 tonic.workspace = true
+tonic-web.workspace = true
+tower-http = { workspace = true, features = ["cors"] }
 tracing.workspace = true
+tracing-appender.workspace = true
+
+[dev-dependencies]
+# test
+googletest.workspace = true
+robustmq-test.workspace = true
+tempfile.workspace = true
