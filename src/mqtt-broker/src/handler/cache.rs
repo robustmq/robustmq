@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::common::pkid_manager::PkidManager;
-use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::auth::metadata::AclMetadata;
 use broker_core::cache::BrokerCacheManager;
 use dashmap::DashMap;
@@ -122,9 +121,6 @@ pub struct MQTTCacheManager {
 
     // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
-
-    // Alarm Info
-    pub alarm_events: DashMap<String, SystemAlarmEventMessage>,
 }
 
 impl MQTTCacheManager {
@@ -142,7 +138,6 @@ impl MQTTCacheManager {
             pkid_metadata: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
-            alarm_events: DashMap::with_capacity(8),
         }
     }
 
@@ -386,17 +381,6 @@ impl MQTTCacheManager {
     pub fn delete_auto_subscribe_rule(&self, cluster: &str, topic: &str) {
         let key = self.auto_subscribe_rule_key(cluster, topic);
         self.auto_subscribe_rule.remove(&key);
-    }
-
-    pub fn add_alarm_event(&self, alarm_name: String, event: SystemAlarmEventMessage) {
-        self.alarm_events.insert(alarm_name, event);
-    }
-
-    pub fn get_alarm_event(&self, name: &str) -> Option<SystemAlarmEventMessage> {
-        if let Some(event) = self.alarm_events.get(name) {
-            return Some(event.clone());
-        }
-        None
     }
 }
 
@@ -693,28 +677,6 @@ mod tests {
         // get again
         let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&key);
         assert!(rule_info_after_remove.is_none());
-    }
-
-    #[tokio::test]
-    async fn alarm_event_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
-        let event_name = "test_event";
-
-        // get empty
-        let event = cache_manager.get_alarm_event(event_name);
-        assert!(event.is_none());
-
-        // add and get
-        let event_message = SystemAlarmEventMessage {
-            name: event_name.to_string(),
-            message: "This is a test event".to_string(),
-            activate_at: chrono::Utc::now().timestamp(),
-            activated: true,
-        };
-        cache_manager.add_alarm_event(event_name.to_string(), event_message.clone());
-        let retrieved_event = cache_manager.get_alarm_event(event_name);
-        assert!(retrieved_event.is_some());
-        assert_eq!(event_message.name, retrieved_event.unwrap().name);
     }
 
     #[tokio::test]
