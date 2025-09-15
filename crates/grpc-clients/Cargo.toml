@@ -13,38 +13,25 @@
 # limitations under the License.
 
 [package]
-name = "robustmq-test"
+name = "grpc-clients"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-admin-server.workspace = true
-apache-avro.workspace = true
 axum.workspace = true
-bincode.workspace = true
-broker-core.workspace = true
 bytes.workspace = true
 common-base.workspace = true
-common-config.workspace = true
 dashmap.workspace = true
-futures.workspace = true
-grpc-clients.workspace = true
-journal-client.workspace = true
+lazy_static.workspace = true
 metadata-struct.workspace = true
-mqtt-broker.workspace = true
-opentelemetry.workspace = true
-opentelemetry-otlp.workspace = true
-opentelemetry_sdk.workspace = true
-paho-mqtt.workspace = true
+mobc.workspace = true
+prost.workspace = true
 protocol.workspace = true
-quinn.workspace = true
-rustls.workspace = true
-rustls-pemfile.workspace = true
-serde.workspace = true
+regex.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
 tonic.workspace = true
 tracing.workspace = true
+validator.workspace = true

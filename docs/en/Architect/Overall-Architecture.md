@@ -52,7 +52,7 @@ RobustMQ adopts a distributed, layered architecture with clear separation of con
 
 ## Core Components
 
-### Broker Server (`src/broker-server/`)
+### Broker Server (`crates/broker-server/`)
 
 The main entry point that coordinates all protocol brokers and provides unified service management.
 
@@ -67,7 +67,7 @@ The main entry point that coordinates all protocol brokers and provides unified 
 - `grpc.rs`: gRPC service interfaces
 - `common.rs`: Shared utilities and configurations
 
-### Meta Service (`src/meta-service/`)
+### Meta Service (`crates/meta-service/`)
 
 The metadata management center responsible for cluster coordination and metadata storage.
 
@@ -83,7 +83,7 @@ The metadata management center responsible for cluster coordination and metadata
 - `storage/`: Metadata storage engine
 - `controller/`: Protocol-specific controllers
 
-### Journal Server (`src/journal-server/`)
+### Journal Server (`crates/journal-server/`)
 
 The persistent storage layer responsible for message durability and retrieval.
 
@@ -101,25 +101,25 @@ The persistent storage layer responsible for message durability and retrieval.
 
 ### Protocol Brokers
 
-#### MQTT Broker (`src/mqtt-broker/`)
+#### MQTT Broker (`crates/mqtt-broker/`)
 - **Protocol Support**: MQTT 3.1.1, 3.1, and 5.0
 - **Transport**: TCP (1883), SSL/TLS (1884), WebSocket (8083), WebSocket SSL (8084)
 - **Features**: QoS levels, retained messages, will messages, shared subscriptions
 - **Performance**: Million-level concurrent connections
 
-#### Kafka Broker (`src/kafka-broker/`)
+#### Kafka Broker (`crates/kafka-broker/`)
 - **Protocol Support**: Kafka 2.8+ compatible
 - **Transport**: TCP (9092)
 - **Features**: Topic partitioning, consumer groups, offset management
 - **Use Cases**: Big data streaming, AI training pipelines
 
-#### AMQP Broker (`src/amqp-broker/`)
+#### AMQP Broker (`crates/amqp-broker/`)
 - **Protocol Support**: AMQP 0.9.1 and 1.0
 - **Transport**: TCP (5672)
 - **Features**: Exchanges, queues, routing, acknowledgments
 - **Use Cases**: Enterprise integration, microservices communication
 
-### Storage Adapter (`src/storage-adapter/`)
+### Storage Adapter (`crates/storage-adapter/`)
 
 Provides a unified interface for different storage backends.
 
@@ -132,19 +132,19 @@ Provides a unified interface for different storage backends.
 
 ### Common Components
 
-#### Network Server (`src/common/network-server/`)
+#### Network Server (`crates/common/network-server/`)
 - **Connection Management**: Efficient connection pooling and management
 - **Protocol Parsing**: High-performance protocol parsing
 - **Security**: TLS/SSL support and authentication
 - **Monitoring**: Connection metrics and health checks
 
-#### Metrics (`src/common/metrics/`)
+#### Metrics (`crates/common/metrics/`)
 - **Prometheus Integration**: Comprehensive metrics collection
 - **Custom Metrics**: Application-specific performance indicators
 - **Real-time Monitoring**: Live performance dashboards
 - **Alerting**: Configurable alerting rules
 
-#### Security (`src/common/security/`)
+#### Security (`crates/common/security/`)
 - **Authentication**: Multiple authentication mechanisms
 - **Authorization**: Role-based access control
 - **Encryption**: End-to-end encryption support

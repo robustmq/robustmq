@@ -6,7 +6,7 @@
 2. **Initialize the Environment**
     - Ensure that all necessary dependencies and tools are installed and configured.
 
-3. **Navigate to the `src/cmd/src` Directory**
+3. **Navigate to the `crates/cmd/src` Directory**
     - You will see the following structure:
    ```
    .

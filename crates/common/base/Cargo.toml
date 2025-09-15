@@ -13,38 +13,57 @@
 # limitations under the License.
 
 [package]
-name = "robustmq-test"
+name = "common-base"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+embed_version = []
+
 [dependencies]
-admin-server.workspace = true
+anyhow.workspace = true
 apache-avro.workspace = true
 axum.workspace = true
 bincode.workspace = true
-broker-core.workspace = true
-bytes.workspace = true
-common-base.workspace = true
-common-config.workspace = true
-dashmap.workspace = true
-futures.workspace = true
-grpc-clients.workspace = true
-journal-client.workspace = true
-metadata-struct.workspace = true
-mqtt-broker.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+clap.workspace = true
+console-subscriber = { workspace = true, features = ["grpc-web"] }
+crc32fast.workspace = true
+env_logger = "0.10.0"
+humantime-serde.workspace = true
+lazy_static.workspace = true
+local-ip-address = "0.6.1"
+mysql.workspace = true
+opendal.workspace = true
 opentelemetry.workspace = true
 opentelemetry-otlp.workspace = true
 opentelemetry_sdk.workspace = true
-paho-mqtt.workspace = true
-protocol.workspace = true
+prometheus.workspace = true
+prometheus-client.workspace = true
+prost.workspace = true
 quinn.workspace = true
+regex.workspace = true
+rocksdb.workspace = true
 rustls.workspace = true
-rustls-pemfile.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
+snowflake.workspace = true
+temp-env.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
+toml.workspace = true
 tonic.workspace = true
 tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+valico.workspace = true
+
+# A custom cfg for enabling tokio-console in tracing-subscriber
+# Enable this by running with `RUSTFLAGS="--cfg tokio_console"`
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_console)'] }

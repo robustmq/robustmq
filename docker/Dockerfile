@@ -43,14 +43,14 @@ WORKDIR /robustmq
 
 # Copy dependency files first for better cache utilization
 COPY Cargo.toml Cargo.lock ./
-COPY src/*/Cargo.toml ./src/*/
-COPY src/common/*/Cargo.toml ./src/common/*/
+COPY crates/*/Cargo.toml ./crates/*/
+COPY crates/common/*/Cargo.toml ./crates/common/*/
 COPY tests/Cargo.toml ./tests/
 
 # Create dummy source files to build dependencies
-RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
-RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} touch {}/src/lib.rs
-RUN touch src/cmd/src/main.rs
+RUN find crates -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
+RUN find crates -name "Cargo.toml" -exec dirname {} \; | xargs -I {} touch {}/src/lib.rs
+RUN touch crates/cmd/src/main.rs
 
 # Build dependencies (this will be cached unless Cargo.toml changes)
 RUN cargo build --release || true

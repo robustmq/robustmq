@@ -1,11 +1,11 @@
 target
-src/cmd/target
+crates/cmd/target
 build
 .vscode
 ./log
 .DS_Store
 log/*
-src/rlog/log/server.log
+crates/rlog/log/server.log
 logs
 nohup.out
 .idea
@@ -22,4 +22,4 @@ pc-1.log
 config/log-config/mqtt-tracing.toml
 config/log-config/place-tracing.toml
 .cargo
-src/meta-service/data
+crates/meta-service/data

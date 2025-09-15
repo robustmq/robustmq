@@ -23,7 +23,7 @@
 
 2. 创建了 CustomContext 接收传递的 parent_id   ，用于存储分布式其他程序传递的 Context
 
-3. 创建 `src/common/base/src/telemetry/trace.rs` 文件,实现 `init_tracer_provider` 和 `stop_tracer_provider` 方法
+3. 创建 `crates/common/base/src/telemetry/trace.rs` 文件,实现 `init_tracer_provider` 和 `stop_tracer_provider` 方法
 
 4. 在 start 方法中调用 `init_tracer_provider`。在 stop 方法中调用 `stop_tracer_provider`
 

@@ -13,38 +13,38 @@
 # limitations under the License.
 
 [package]
-name = "robustmq-test"
+name = "meta-service"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-admin-server.workspace = true
-apache-avro.workspace = true
+async-stream.workspace = true
 axum.workspace = true
 bincode.workspace = true
-broker-core.workspace = true
-bytes.workspace = true
+byteorder.workspace = true
 common-base.workspace = true
 common-config.workspace = true
 dashmap.workspace = true
-futures.workspace = true
 grpc-clients.workspace = true
-journal-client.workspace = true
 metadata-struct.workspace = true
-mqtt-broker.workspace = true
-opentelemetry.workspace = true
-opentelemetry-otlp.workspace = true
-opentelemetry_sdk.workspace = true
-paho-mqtt.workspace = true
+mobc.workspace = true
+openraft.workspace = true
+prometheus-client.workspace = true
+prost.workspace = true
+prost-validate = { workspace = true, features = ["derive"] }
 protocol.workspace = true
-quinn.workspace = true
-rustls.workspace = true
-rustls-pemfile.workspace = true
+rand.workspace = true
+rocksdb.workspace = true
+rocksdb-engine.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
 tonic.workspace = true
+tonic-web.workspace = true
+tower.workspace = true
+tower-http = { workspace = true, features = ["cors"] }
 tracing.workspace = true
+tracing-appender.workspace = true
