@@ -52,40 +52,57 @@ edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-ahash = "0.8.7"
 anyhow = { version = "1.0.98" }
-apache-avro = { version = "0.17.0" }
+bindgen = { version = "0.69.5" }
+rustls-pki-types = { version = "1.11.0" }
+
+## async lib
+futures = "0.3"
+rustls = { version = "0.23.23", default-features = false }
+rustls-pemfile = "2"
+tokio = { version = "1.45.1", features = ["full"] }
+tokio-rustls = { version = "0.26", default-features = false, features = [
+    "logging",
+    "tls12",
+    "ring",
+] }
+tokio-util = { version = "0.7.15", features = ["full"] }
+
 ## axum
 axum = { version = "0.7.2", features = ["ws", "http1", "http2"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
-bincode = "1.3.3"
-bindgen = { version = "0.69.5" }
-byteorder = "1.5.0"
-bytes = { version = "1", features = ["serde"] }
-clap = { version = "4.4.7", features = ["derive"] }
-## cmd lib
-clap-cargo = "0.14.1"
-console-subscriber = "0.4.1"
-crc32fast = "1.4.2"
-dashmap = { version = "6.1.0", features = ["serde"] }
-## async lib
-futures = "0.3"
-futures-util = "0.3.30"
-googletest = "0.13.0"
-grep = "0.3.2"
-humantime-serde = "1.1.1"
-ipnet = "2.3.0"
-lazy_static = "^1.4"
-mobc = "0.9.0"
-## unit test lib
-mockall = "0.13.1"
 mysql = "*"
-opendal = { version = "0.51", features = ["services-s3"] }
-openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
-    "serde",
-    "type-alias",
-] }
+
+## serde lib
+humantime-serde = "1.1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+## cmd lib
+clap = { version = "4.4.7", features = ["derive"] }
+clap-cargo = "0.14.1"
+
+## unit test lib
+googletest = "0.13.0"
+mockall = "0.13.1"
+temp-env = "0.3.6"
+
+## text handle lib
+grep = "0.3.2"
+regex = "1.10.4"
+
+## observability
+prometheus = "0.14.0"
+prometheus-client = "0.23.1"
+prometheus_exporter = "0.8"
+
+## logging
+tracing = "0.1.40"
+tracing-appender = { version = "0.2.0" }
+tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
+
 # opentelemetry
 opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "trace",
@@ -96,71 +113,69 @@ opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-ru
 opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "rt-tokio",
 ] }
-os_info = "3.8.2"
-paho-mqtt = { version = "0.13.3", default-features = false, features = [
-    "bundled",
-    "ssl",
-] }
-## observability
-prometheus = "0.14.0"
-prometheus-client = "0.23.1"
-prometheus_exporter = "0.8"
+
 # prost
 prost = "0.13.2"
 prost-build = "0.13.2"
 prost-validate = { version = "0.2.6", features = ["derive"] }
 prost-validate-build = "0.2.6"
-protobuf = "3.7.1"
-protobuf-codegen = "3.7.1"
-protofish = { version = "0.5.2" }
-# quic
-quinn = "0.11.6"
-rand = "0.8.5"
-rcgen = "0.13.2"
-rdkafka = { version = "0.37.0" }
-rdkafka-sys = "4.8.0"
-## text handle lib
-regex = "1.10.4"
-reqwest = { version = "0.12.23", features = ["json"] }
-rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
-rumqttc = "0.24.0"
-rustls = { version = "0.23.23", default-features = false }
-rustls-pemfile = "2"
-rustls-pki-types = { version = "1.11.0" }
-## serde lib
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-## other
-signal-hook = "0.3.17"
-snowflake = "1.3.0"
-temp-env = "0.3.6"
-thiserror = "1"
-tokio = { version = "1.45.1", features = ["full"] }
-tokio-rustls = { version = "0.26", default-features = false, features = [
-    "logging",
-    "tls12",
-    "ring",
-] }
-tokio-util = { version = "0.7.15", features = ["full"] }
-toml = "0.8.8"
+
 # tonic
 tonic = "0.12.3"
 tonic-build = "0.12.3"
 tonic-web = "0.12.3"
 tower = "0.5.2"
 tower-http = "0.5.2"
-## logging
-tracing = "0.1.40"
-tracing-appender = { version = "0.2.0" }
-tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
+
+# quic
+quinn = "0.11.6"
+rcgen = "0.13.2"
+
+## other
+ahash = "0.8.7"
+apache-avro = { version = "0.17.0" }
+bincode = "1.3.3"
+byteorder = "1.5.0"
+bytes = { version = "1", features = ["serde"] }
+console-subscriber = "0.4.1"
+crc32fast = "1.4.2"
+dashmap = { version = "6.1.0", features = ["serde"] }
+futures-util = "0.3.30"
+ipnet = "2.3.0"
+lazy_static = "^1.4"
+mobc = "0.9.0"
+opendal = { version = "0.51", features = ["services-s3"] }
+openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
+    "serde",
+    "type-alias",
+] }
+os_info = "3.8.2"
+paho-mqtt = { version = "0.13.3", default-features = false, features = [
+    "bundled",
+    "ssl",
+] }
+protobuf = "3.7.1"
+protobuf-codegen = "3.7.1"
+protofish = { version = "0.5.2" }
+rand = "0.8.5"
+rdkafka = { version = "0.37.0" }
+rdkafka-sys = "4.8.0"
+reqwest = { version = "0.12.23", features = ["json"] }
+rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
+rumqttc = "0.24.0"
+signal-hook = "0.3.17"
+snowflake = "1.3.0"
+thiserror = "1"
+toml = "0.8.8"
 uuid = { version = "1.7.0", features = ["v4"] }
 valico = "4.0.0"
 validator = { version = "0.19", features = ["derive"] }
 
 #format
+prettytable-rs = "^0.10"
+
+## workspaces members
 admin-server = { path = "crates/admin-server" }
-async-stream = "0.3.6"
 broker-core = { path = "crates/broker-core" }
 broker-server = { path = "crates/broker-server" }
 chrono = "0.4.41"
@@ -175,31 +190,31 @@ common-security = { path = "crates/common/security" }
 core- = { path = "crates/amqp-broker" }
 delay-message = { path = "crates/delay-message" }
 grpc-clients = { path = "crates/grpc-clients" }
-humantime = "2.2.0"
 journal-client = { path = "crates/journal-client" }
 journal-server = { path = "crates/journal-server" }
 kafka-broker = { path = "crates/kafka-broker" }
-kafka-protocol = "0.15.1"
 message-expire = { path = "crates/message-expire" }
 meta-service = { path = "crates/meta-service" }
 metadata-struct = { path = "crates/common/metadata-struct" }
-## workspaces members
 mqtt-broker = { path = "crates/mqtt-broker" }
 network-server = { path = "crates/common/network-server" }
 pprof-monitor = { path = "crates/common/pprof-monitor" }
-prettytable-rs = "^0.10"
 protocol = { path = "crates/protocol" }
 robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
 robustmq-test = { path = "tests" }
 rocksdb-engine = { path = "crates/common/rocksdb-engine" }
 schema-register = { path = "crates/schema-register" }
 storage-adapter = { path = "crates/storage-adapter" }
+sysinfo = "0.29.10"
+third-driver = { path = "crates/common/third-driver" }
+
+# other
+async-stream = "0.3.6"
+humantime = "2.2.0"
+kafka-protocol = "0.15.1"
 strum = "0.27"
 strum_macros = "0.27"
-sysinfo = "0.29.10"
-# other
 tempfile = "3.9.0"
-third-driver = { path = "crates/common/third-driver" }
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }
