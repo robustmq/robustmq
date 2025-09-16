@@ -132,6 +132,7 @@ impl SegmentStorage {
 mod test {
     use std::sync::Arc;
 
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::unique_id;
     use metadata_struct::journal::segment::JournalSegment;
     use rocksdb_engine::RocksDBEngine;
@@ -144,7 +145,7 @@ mod test {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
 
         let segs_per_shard = 5;
