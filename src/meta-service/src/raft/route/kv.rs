@@ -19,7 +19,7 @@ use protocol::meta::placement_center_kv::{DeleteRequest, SetRequest};
 
 use crate::core::error::PlacementCenterError;
 use crate::storage::placement::kv::KvStorage;
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteKv {

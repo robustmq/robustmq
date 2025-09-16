@@ -25,7 +25,7 @@ use crate::storage::keys::{
     key_all_segment, key_segment, key_segment_cluster_prefix, key_segment_namespace_prefix,
     key_segment_shard_prefix,
 };
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 #[allow(dead_code)]
 pub fn is_seal_up_segment(status: &SegmentStatus) -> bool {

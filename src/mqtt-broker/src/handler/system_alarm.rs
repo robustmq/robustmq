@@ -14,6 +14,7 @@
 
 use crate::handler::cache::MQTTCacheManager;
 use crate::observability::system_topic::sysmon::st_report_system_alarm_event;
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use serde::{Deserialize, Serialize};
@@ -27,26 +28,14 @@ use tokio::time::sleep;
 #[allow(clippy::enum_variant_names)]
 enum AlarmType {
     HighCpuUsage,
-    LowCpuUsage,
-    MemoryUsage,
-}
-
-impl AlarmType {
-    fn as_str(&self) -> &str {
-        match self {
-            AlarmType::HighCpuUsage => "HighCpuUsage",
-            AlarmType::LowCpuUsage => "LowCpuUsage",
-            AlarmType::MemoryUsage => "MemoryUsage",
-        }
-    }
+    HighMemoryUsage,
 }
 
 impl fmt::Display for AlarmType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AlarmType::HighCpuUsage => write!(f, "HighCpuUsage"),
-            AlarmType::LowCpuUsage => write!(f, "LowCpuUsage"),
-            AlarmType::MemoryUsage => write!(f, "MemoryUsage"),
+            AlarmType::HighMemoryUsage => write!(f, "HighMemoryUsage"),
         }
     }
 }
@@ -56,95 +45,70 @@ impl fmt::Display for AlarmType {
 pub struct SystemAlarmEventMessage {
     pub name: String,
     pub message: String,
-    pub activate_at: i64,
-    pub activated: bool,
+    pub create_time: u64,
 }
 
-#[derive(Default)]
-pub struct SystemMonitor {}
+pub struct SystemMonitor {
+    client_pool: Arc<ClientPool>,
+    metadata_cache: Arc<MQTTCacheManager>,
+    message_storage_adapter: ArcStorageAdapter,
+}
 
 impl SystemMonitor {
-    pub fn new() -> Self {
-        SystemMonitor {}
-    }
-
-    pub fn start(&self) {}
-}
-
-pub async fn start_system_monitor() {}
-
-pub async fn st_check_system_alarm(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-) {
-    let mqtt_conf = broker_config();
-    let cpu_usage =
-        get_process_every_cpu_usage(mqtt_conf.mqtt_system_monitor.os_cpu_check_interval_ms).await;
-
-    is_send_a_new_system_event(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        AlarmType::HighCpuUsage,
-        cpu_usage,
-        mqtt_conf.mqtt_system_monitor.os_cpu_high_watermark,
-    )
-    .await;
-
-    is_send_a_new_system_event(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        AlarmType::LowCpuUsage,
-        cpu_usage,
-        mqtt_conf.mqtt_system_monitor.os_cpu_low_watermark,
-    )
-    .await;
-
-    let memory_usage = get_process_memory_usage();
-    is_send_a_new_system_event(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        AlarmType::MemoryUsage,
-        memory_usage,
-        mqtt_conf.mqtt_system_monitor.os_memory_high_watermark,
-    )
-    .await;
-}
-
-async fn is_send_a_new_system_event(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-    alarm_type: AlarmType,
-    current_usage: f32,
-    config_usage: f32,
-) {
-    let mut message = SystemAlarmEventMessage {
-        name: alarm_type.to_string(),
-        message: format!("{alarm_type} is {current_usage}%, but config is {config_usage}%"),
-        activate_at: chrono::Utc::now().timestamp(),
-        activated: false,
-    };
-
-    if AlarmType::LowCpuUsage.as_str() == alarm_type.as_str() {
-        // For LowCpuUsage, we want to activate the alarm when the usage is below the threshold
-        message.activated = current_usage < config_usage;
-    } else {
-        // For HighCpuUsage and MemoryUsage, we want to activate the alarm when the usage exceeds the threshold
-        message.activated = current_usage > config_usage;
-    }
-
-    if current_usage > config_usage {
-        let _ = st_report_system_alarm_event(
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        metadata_cache: Arc<MQTTCacheManager>,
+        message_storage_adapter: ArcStorageAdapter,
+    ) -> Self {
+        SystemMonitor {
             client_pool,
             metadata_cache,
             message_storage_adapter,
-            &message,
+        }
+    }
+
+    pub async fn start(&self) {
+        let mqtt_conf = broker_config();
+        let cpu_usage =
+            get_process_every_cpu_usage(mqtt_conf.mqtt_system_monitor.os_cpu_check_interval_ms)
+                .await;
+
+        self.try_send_a_new_system_event(
+            AlarmType::HighCpuUsage,
+            cpu_usage,
+            mqtt_conf.mqtt_system_monitor.os_cpu_high_watermark,
         )
         .await;
+
+        let memory_usage = get_process_memory_usage();
+        self.try_send_a_new_system_event(
+            AlarmType::HighMemoryUsage,
+            memory_usage,
+            mqtt_conf.mqtt_system_monitor.os_memory_high_watermark,
+        )
+        .await;
+    }
+
+    async fn try_send_a_new_system_event(
+        &self,
+        alarm_type: AlarmType,
+        current_usage: f32,
+        config_usage: f32,
+    ) {
+        if current_usage > config_usage {
+            let message = SystemAlarmEventMessage {
+                name: alarm_type.to_string(),
+                message: format!("{alarm_type} is {current_usage}%, but config is {config_usage}%"),
+                create_time: now_second(),
+            };
+            let _ = st_report_system_alarm_event(
+                &self.client_pool,
+                &self.metadata_cache,
+                &self.message_storage_adapter,
+                &message,
+            )
+            .await;
+        }
     }
 }
 

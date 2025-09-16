@@ -20,6 +20,7 @@ use admin_server::{
 use broker_core::{
     cache::BrokerCacheManager,
     heartbeat::{check_placement_center_status, register_node, report_heartbeat},
+    rocksdb::{column_family_list, storage_data_fold, RocksDBEngine},
 };
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
@@ -40,7 +41,6 @@ use meta_service::{
         route::{apply::StorageDriver, DataRoute},
         type_config::TypeConfig,
     },
-    storage::rocksdb::{column_family_list, RocksDBEngine},
     PlacementCenterServer, PlacementCenterServerParams,
 };
 use mqtt_broker::{
@@ -95,7 +95,7 @@ impl BrokerServer {
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
         let place_params = main_runtime
-            .block_on(async { BrokerServer::build_placement_center(client_pool.clone()).await });
+            .block_on(async { BrokerServer::build_meta_service(client_pool.clone()).await });
         let mqtt_params =
             BrokerServer::build_mqtt_server(client_pool.clone(), broker_cache.clone());
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
@@ -230,10 +230,10 @@ impl BrokerServer {
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
     }
 
-    async fn build_placement_center(client_pool: Arc<ClientPool>) -> PlacementCenterServerParams {
+    async fn build_meta_service(client_pool: Arc<ClientPool>) -> PlacementCenterServerParams {
         let config = broker_config();
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
-            &meta_service::storage::rocksdb::storage_data_fold(&config.rocksdb.data_path),
+            &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
             column_family_list(),
         ));

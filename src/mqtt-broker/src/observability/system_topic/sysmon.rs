@@ -24,8 +24,6 @@ use storage_adapter::storage::ArcStorageAdapter;
 // sysmon topic
 pub(crate) const SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE: &str =
     "$SYS/brokers/${node}/alarms/activate";
-pub(crate) const SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE: &str =
-    "$SYS/brokers/${node}/alarms/deactivate";
 
 pub async fn st_report_system_alarm_event(
     client_pool: &Arc<ClientPool>,
@@ -34,11 +32,7 @@ pub async fn st_report_system_alarm_event(
     message_event: &SystemAlarmEventMessage,
 ) -> ResultMqttBrokerError {
     let data = serde_json::to_string(message_event)?;
-    let mut topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
-
-    if !message_event.activated {
-        topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE.to_string());
-    }
+    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
         write_topic_data(
