@@ -10,8 +10,9 @@ RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的�
 
 
 ## 很高兴遇见过你们
-@socutes @huichungka
-
+@socutes 
+@huichungka
+@PorterZhang 日拱一卒
 
 ## 怎么给我们签名呢
 如果你不知道如何提交分支并发起合并请求，请参考文档[《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) 加上你的名字。
