@@ -16,6 +16,7 @@ export const sidebar = [
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
             },
+            { text: "给我们签个名吧", link: "/zh/OverView/SignYourName" },
         ],
     },
     {
@@ -43,9 +44,6 @@ export const sidebar = [
         items: [
             { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
             { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
-            { text: "Broker Server", link: "" },
-            { text: "Storage Adapter", link: "" },
-            { text: "Journal Server", link: "" },
         ],
     },
     {
@@ -198,6 +196,8 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "01: 用 Rust 重新定义消息队列", link: "/zh/Blogs/01" },
+            { text: "02: RobustMQ: 技术设计理念综述", link: "/zh/Blogs/02" },
+            { text: "03: 介绍 RobustMQ 的 Roles", link: "/zh/Blogs/03" },
         ],
     }
 ];

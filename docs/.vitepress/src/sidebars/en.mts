@@ -16,6 +16,7 @@ export const sidebar = [
                     { text: "Good First Issue", link: "/OverView/Good-First-Issue" },
                 ],
             },
+            { text: "Sign Your Name", link: "/OverView/SignYourName" },
         ],
     },
     {
@@ -188,6 +189,8 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Redefining Cloud-Native Message Queues with Rust", link: "/Blogs/01" },
+            { text: "RobustMQ: Overview of Technical Design Philosophy", link: "/Blogs/02" },
+            { text: "Introduction to RobustMQ Roles", link: "/Blogs/03" },
         ],
     }
 ];

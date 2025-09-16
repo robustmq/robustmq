@@ -37,6 +37,7 @@ pub mod sub_exclusive;
 pub mod sub_option;
 pub mod sub_parse_topic;
 pub mod subscribe;
+pub mod system_alarm;
 pub mod topic;
 mod topic_rewrite;
 pub mod unsubscribe;

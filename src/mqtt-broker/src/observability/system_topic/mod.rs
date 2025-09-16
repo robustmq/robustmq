@@ -76,7 +76,6 @@ use crate::observability::system_topic::sysmon::{
 use crate::storage::message::MessageStorage;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select};
-use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -170,12 +169,6 @@ impl SystemTopic {
             )
             .await;
 
-            report_alarm_info(
-                &self.client_pool,
-                &self.metadata_cache,
-                &self.message_storage_adapter,
-            )
-            .await;
             Ok(())
         };
 
@@ -270,17 +263,6 @@ impl SystemTopic {
             SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string(),
             SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE.to_string(),
         ]
-    }
-}
-
-pub(crate) async fn report_alarm_info(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-) {
-    let conf = broker_config();
-    if conf.mqtt_system_monitor.enable {
-        sysmon::st_check_system_alarm(client_pool, metadata_cache, message_storage_adapter).await;
     }
 }
 
