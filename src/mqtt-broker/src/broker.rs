@@ -22,6 +22,7 @@ use crate::handler::dynamic_cache::load_metadata_cache;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
+use crate::handler::system_alarm::SystemAlarm;
 use crate::observability::start_observability;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
@@ -31,6 +32,7 @@ use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
+use broker_core::rocksdb::RocksDBEngine;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -53,6 +55,7 @@ pub struct MqttBrokerServerParams {
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MetricsCacheManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 pub struct MqttBrokerServer {
@@ -66,6 +69,7 @@ pub struct MqttBrokerServer {
     delay_message_manager: Arc<DelayMessageManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     metrics_cache_manager: Arc<MetricsCacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
@@ -100,6 +104,7 @@ impl MqttBrokerServer {
             schema_manager: params.schema_manager,
             server,
             metrics_cache_manager: params.metrics_cache_manager,
+            rocksdb_engine_handler: params.rocksdb_engine_handler,
         }
     }
 
@@ -179,6 +184,20 @@ impl MqttBrokerServer {
             );
 
             metrics_gc_thread(metrics_cache_manager.clone(), raw_stop_send.clone());
+        });
+
+        // system alarm
+        let system_alarm = SystemAlarm::new(
+            self.client_pool.clone(),
+            self.cache_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.rocksdb_engine_handler.clone(),
+            self.inner_stop.clone(),
+        );
+        tokio::spawn(async move {
+            if let Err(e) = system_alarm.start().await {
+                error!("system alarm error:{}", e);
+            }
         });
     }
 

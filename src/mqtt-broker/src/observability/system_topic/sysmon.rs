@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::system_alarm::SystemAlarmEventMessage;
 use crate::observability::system_topic::{replace_topic_name, write_topic_data};
+use common_base::error::ResultCommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
@@ -30,7 +30,7 @@ pub async fn st_report_system_alarm_event(
     metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
     message_event: &SystemAlarmEventMessage,
-) -> ResultMqttBrokerError {
+) -> ResultCommonError {
     let data = serde_json::to_string(message_event)?;
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
 
