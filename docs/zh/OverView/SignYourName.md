@@ -14,12 +14,13 @@ RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的�
 
 
 ## 怎么给我们签名呢
-参考文档[《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) 加上你的名字。
+如果你不知道如何提交分支并发起合并请求，请参考文档[《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) 加上你的名字。
 
 很简单的一步：
 1. Fork 我们的项目
 2. 打开docs/zh/OverView/SignYourName.md和docs/en/OverView/SignYourName.md 这两个文件，加上你的的github名称。
 3. 给我们提交个PR，PR Title：
 ```
-docs: @socutes Nice to meet you
+PR title: 'docs: @yourname Nice to meet you'
+PR description: ‘relate #1380’
 ```
