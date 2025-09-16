@@ -1,11 +1,21 @@
-use crate::common::types::ResultMqttBrokerError;
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::handler::cache::MQTTCacheManager;
 use crate::observability::system_topic::sysmon::st_report_system_alarm_event;
-use crate::observability::system_topic::{replace_topic_name, write_topic_data};
 use common_config::broker::broker_config;
-use common_config::config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
@@ -50,6 +60,7 @@ pub struct SystemAlarmEventMessage {
     pub activated: bool,
 }
 
+#[derive(Default)]
 pub struct SystemMonitor {}
 
 impl SystemMonitor {
@@ -57,9 +68,7 @@ impl SystemMonitor {
         SystemMonitor {}
     }
 
-    pub fn start(&self){
-        
-    }
+    pub fn start(&self) {}
 }
 
 pub async fn start_system_monitor() {}
@@ -129,7 +138,7 @@ async fn is_send_a_new_system_event(
     }
 
     if current_usage > config_usage {
-        st_report_system_alarm_event(
+        let _ = st_report_system_alarm_event(
             client_pool,
             metadata_cache,
             message_storage_adapter,

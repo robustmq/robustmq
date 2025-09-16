@@ -266,7 +266,6 @@ impl SystemTopic {
     }
 }
 
-
 pub(crate) async fn report_broker_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
