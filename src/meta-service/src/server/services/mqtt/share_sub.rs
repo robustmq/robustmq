@@ -16,9 +16,9 @@ use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use common_base::error::common::CommonError;
 use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
+use rocksdb_engine::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -222,11 +222,12 @@ pub fn get_share_sub_leader_by_req(
 mod tests {
     use super::ShareSubLeader;
     use crate::core::cache::CacheManager;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::placement::node::BrokerNode;
+    use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
 
     #[test]

@@ -16,7 +16,7 @@ use super::network::network::Network;
 use super::store::new_storage;
 use super::type_config::TypeConfig;
 use crate::raft::route::DataRoute;
-use crate::storage::rocksdb::storage_raft_fold;
+use broker_core::rocksdb::storage_raft_fold;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use openraft::{Config, Raft};

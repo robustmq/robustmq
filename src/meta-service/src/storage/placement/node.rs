@@ -22,7 +22,7 @@ use crate::storage::engine::{
     engine_save_by_cluster,
 };
 use crate::storage::keys::{key_node, key_node_prefix, key_node_prefix_all};
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct NodeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,

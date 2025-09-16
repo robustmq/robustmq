@@ -22,7 +22,6 @@ use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::node::NodeStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use crate::{
     controller::mqtt::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
 };
@@ -36,6 +35,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
+use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

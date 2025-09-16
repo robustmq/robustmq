@@ -22,7 +22,7 @@ use crate::storage::engine::{
     engine_save_by_cluster,
 };
 use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct MqttUserStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -71,14 +71,13 @@ impl MqttUserStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::storage::mqtt::user::MqttUserStorage;
+    use broker_core::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::user::MqttUser;
-
-    use crate::storage::mqtt::user::MqttUserStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
+    use rocksdb_engine::RocksDBEngine;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn user_storage_test() {

@@ -27,7 +27,7 @@ use crate::storage::keys::{
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
 use crate::storage::mqtt::metrics::{metrics_topic_num_desc, metrics_topic_num_inc, TopicType};
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct MqttTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -150,13 +150,13 @@ impl MqttTopicStorage {
 mod tests {
     use std::sync::Arc;
 
+    use crate::storage::mqtt::topic::MqttTopicStorage;
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::topic::MQTTTopic;
-
-    use crate::storage::mqtt::topic::MqttTopicStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
+    use rocksdb_engine::RocksDBEngine;
 
     #[tokio::test]
     async fn topic_storage_test() {

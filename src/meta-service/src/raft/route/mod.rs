@@ -18,9 +18,10 @@ use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::journal::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
-use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
 use bincode::{deserialize, serialize};
+use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use data::{StorageData, StorageDataType};
+use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
@@ -263,17 +264,12 @@ impl DataRoute {
 
     pub fn build_snapshot(&self) -> Vec<u8> {
         info!("Start building snapshots");
-        let cf = if let Some(cf) = self
-            .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
-        {
+        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
             cf
         } else {
             error!(
                 "{}",
-                PlacementCenterError::RocksDBFamilyNotAvailable(
-                    DB_COLUMN_FAMILY_CLUSTER.to_string(),
-                )
+                PlacementCenterError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string(),)
             );
             return Vec::new();
         };
@@ -307,14 +303,11 @@ impl DataRoute {
             }
         };
 
-        let cf = if let Some(cf) = self
-            .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
-        {
+        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
             cf
         } else {
             return Err(PlacementCenterError::RocksDBFamilyNotAvailable(
-                DB_COLUMN_FAMILY_CLUSTER.to_string(),
+                DB_COLUMN_FAMILY_META.to_string(),
             ));
         };
 
@@ -334,9 +327,10 @@ impl DataRoute {
 
 #[cfg(test)]
 mod test {
-    use crate::{core::cache::CacheManager, storage::rocksdb::DB_COLUMN_FAMILY_CLUSTER};
+    use crate::core::cache::CacheManager;
 
     use super::DataRoute;
+    use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
@@ -346,10 +340,10 @@ mod test {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec![DB_COLUMN_FAMILY_CLUSTER.to_string()],
+            vec![DB_COLUMN_FAMILY_META.to_string()],
         ));
 
-        let cf = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_CLUSTER).unwrap();
+        let cf = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
 
         for i in 0..10 {
             rocksdb_engine
@@ -366,16 +360,14 @@ mod test {
         let new_rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec![DB_COLUMN_FAMILY_CLUSTER.to_string()],
+            vec![DB_COLUMN_FAMILY_META.to_string()],
         ));
 
         let new_data_route = DataRoute::new(new_rocksdb_engine.clone(), cache_manager);
 
         new_data_route.recover_snapshot(snapshot).unwrap();
 
-        let cf = new_rocksdb_engine
-            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
-            .unwrap();
+        let cf = new_rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
 
         // check value again
         for i in 0..10 {

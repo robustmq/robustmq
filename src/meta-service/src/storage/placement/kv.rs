@@ -20,7 +20,7 @@ use crate::storage::engine::{
     engine_delete_by_cluster, engine_exists_by_cluster, engine_get_by_cluster,
     engine_prefix_list_by_cluster, engine_save_by_cluster,
 };
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct KvStorage {

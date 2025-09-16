@@ -12,8 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod engine;
-pub mod journal;
-pub mod keys;
-pub mod mqtt;
-pub mod placement;
+use crate::handler::system_alarm::SystemAlarmEventMessage;
+
+pub fn system_event_key(alarm: &SystemAlarmEventMessage) -> String {
+    prefix_key(format!(
+        "/system_alarm/{}/{}",
+        alarm.name, alarm.create_time
+    ))
+}
+
+pub fn system_event_prefix_key() -> String {
+    prefix_key("/system_alarm/".to_string())
+}
+
+fn prefix_key(key: String) -> String {
+    format!("/broker/mqtt/{}", key)
+}

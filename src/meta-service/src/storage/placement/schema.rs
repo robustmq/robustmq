@@ -22,8 +22,8 @@ use crate::storage::keys::{
     storage_key_mqtt_schema_bind_prefix_by_cluster,
     storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
 };
-use crate::storage::rocksdb::RocksDBEngine;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 pub struct SchemaStorage {
@@ -163,7 +163,7 @@ mod tests {
     use tempfile::tempdir;
 
     use crate::storage::placement::schema::SchemaStorage;
-    use crate::storage::rocksdb::RocksDBEngine;
+    use rocksdb_engine::RocksDBEngine;
 
     #[tokio::test]
     async fn schema_storage_test() {

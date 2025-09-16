@@ -14,10 +14,14 @@
 
 pub use rocksdb_engine::RocksDBEngine;
 
-pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
+pub const DB_COLUMN_FAMILY_META: &str = "meta";
+pub const DB_COLUMN_FAMILY_BROKER: &str = "broker";
 
 pub fn column_family_list() -> Vec<String> {
-    vec![DB_COLUMN_FAMILY_CLUSTER.to_string()]
+    vec![
+        DB_COLUMN_FAMILY_META.to_string(),
+        DB_COLUMN_FAMILY_BROKER.to_string(),
+    ]
 }
 
 pub fn storage_data_fold(path: &str) -> String {
@@ -30,13 +34,13 @@ pub fn storage_raft_fold(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::rocksdb::{column_family_list, storage_data_fold, storage_raft_fold};
+    use crate::rocksdb::{column_family_list, storage_data_fold, storage_raft_fold};
 
     #[tokio::test]
     async fn column_family_list_test() {
         let list = column_family_list();
-        assert_eq!(list.len(), 1);
-        assert_eq!(list[0], "cluster");
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0], "meta");
     }
 
     #[tokio::test]

@@ -24,7 +24,7 @@ use crate::storage::engine::{
 use crate::storage::keys::{
     key_all_shard, key_shard, key_shard_cluster_prefix, key_shard_namespace_prefix,
 };
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct ShardStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
