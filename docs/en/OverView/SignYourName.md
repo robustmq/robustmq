@@ -10,16 +10,17 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 
 
 ## So glad to have met you all
-@socutes
+@socutes @huichungka
 
 
 ## How to sign your name for us
-Refer to the documentation [《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) to add your name.
+If you don't know how to pull your request, please refer to the documentation [《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) to add your name.
 
 It's a simple step:
 1. Fork our project
 2. Open both docs/zh/OverView/SignYourName.md and docs/en/OverView/SignYourName.md files, and add your GitHub username.
 3. Submit a PR to us with the PR Title:
 ```
-docs: @socutes Nice to meet you
+PR title: 'docs: @yourname Nice to meet you'
+PR description: ‘relate #1380’
 ```
