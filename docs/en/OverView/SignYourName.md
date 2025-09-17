@@ -9,8 +9,7 @@ We know that on this long journey of RobustMQ, we'll meet many people, many peop
 RobustMQ wants to invite you to sign your name for us, and this signature will always be displayed on our official website. Because we want to know that you once looked at us seriously. Maybe one day in the distant future, you'll suddenly remember that you once saw us, once left us a signature, and we've already traveled far. Maybe one day, we'll suddenly discover that so many people have signed for us, and we'll be very happy because of it. We'll know that we're not alone on this journey.
 
 ## So glad to have met you all
-
-@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995 @NuclEnergy
+@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995 @WaterWhisperer @NuclEnergy
 
 ## How to sign your name for us
 
