@@ -10,7 +10,7 @@ RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的�
 
 
 ## 很高兴遇见过你们
-@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995
+@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995 @WaterWhisperer
 
 
 ## 怎么给我们签名呢
