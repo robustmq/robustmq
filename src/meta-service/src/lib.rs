@@ -24,8 +24,8 @@ use crate::raft::type_config::TypeConfig;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use storage::rocksdb::RocksDBEngine;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 

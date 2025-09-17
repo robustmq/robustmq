@@ -22,7 +22,6 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::now_mills;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -44,6 +43,7 @@ use protocol::meta::placement_center_mqtt::{
     SetAutoSubscribeRuleRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

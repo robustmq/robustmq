@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
 pub mod cache;
 pub mod cluster;
+pub mod engine;
 pub mod heartbeat;
+pub mod rocksdb;
 pub mod tool;

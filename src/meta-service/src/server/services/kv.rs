@@ -16,12 +16,12 @@ use crate::core::error::PlacementCenterError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use prost::Message;
 use protocol::meta::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn set_by_req(

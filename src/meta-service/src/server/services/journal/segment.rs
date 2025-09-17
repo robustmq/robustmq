@@ -535,7 +535,7 @@ pub async fn sync_delete_segment_metadata_info(
 mod tests {
     use super::calc_node_fold;
     use crate::core::cache::CacheManager;
-    use crate::storage::rocksdb::{column_family_list, storage_data_fold};
+    use broker_core::rocksdb::{column_family_list, storage_data_fold};
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;

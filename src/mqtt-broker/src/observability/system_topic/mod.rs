@@ -70,9 +70,7 @@ use crate::observability::system_topic::stats::subscription::{
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
 };
-use crate::observability::system_topic::sysmon::{
-    SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE, SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE,
-};
+use crate::observability::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
 use crate::storage::message::MessageStorage;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select};
@@ -261,7 +259,6 @@ impl SystemTopic {
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH.to_string(),
             // ALARM
             SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string(),
-            SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE.to_string(),
         ]
     }
 }

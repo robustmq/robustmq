@@ -21,6 +21,7 @@ use protocol::meta::placement_center_inner::{
     DeleteResourceConfigRequest, DeleteSchemaRequest, SaveOffsetDataRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
 };
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
@@ -31,7 +32,6 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::node::NodeStorage;
 use crate::storage::placement::offset::OffsetStorage;
 use crate::storage::placement::schema::SchemaStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Clone)]
 pub struct DataRouteCluster {
@@ -168,15 +168,16 @@ impl DataRouteCluster {
 mod tests {
     use std::sync::Arc;
 
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
     use metadata_struct::placement::node::BrokerNode;
+    use rocksdb_engine::RocksDBEngine;
 
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
     use crate::storage::placement::node::NodeStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn register_unregister_node() {

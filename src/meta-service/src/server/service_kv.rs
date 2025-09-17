@@ -25,7 +25,7 @@ use protocol::meta::placement_center_kv::{
 use tonic::{Request, Response, Status};
 
 use crate::raft::route::apply::StorageDriver;
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct GrpcKvService {
     raft_machine_apply: Arc<StorageDriver>,

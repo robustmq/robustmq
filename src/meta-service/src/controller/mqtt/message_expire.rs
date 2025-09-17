@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use rocksdb_engine::warp::StorageDataWrap;
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 use tokio::time::{self, Duration, Interval};
 use tracing::error;
@@ -26,7 +28,6 @@ use crate::storage::keys::{
 };
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
-use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
 
 pub struct MessageExpire {
     cluster_name: String,
@@ -49,15 +50,12 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = if let Some(cf) = self
-            .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
-        {
+        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
             cf
         } else {
             error!(
                 "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string())
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string())
             );
             return;
         };
@@ -113,18 +111,16 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
-            .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
-        {
-            cf
-        } else {
-            error!(
-                "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string())
-            );
-            return;
-        };
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> =
+            if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
+                cf
+            } else {
+                error!(
+                    "{}",
+                    CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string())
+                );
+                return;
+            };
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
@@ -173,6 +169,7 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::lastwill::LastWillData;
@@ -180,6 +177,7 @@ mod tests {
     use metadata_struct::mqtt::session::MqttSession;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{LastWillProperties, Publish};
+    use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -188,7 +186,6 @@ mod tests {
     use crate::storage::mqtt::lastwill::MqttLastWillStorage;
     use crate::storage::mqtt::session::MqttSessionStorage;
     use crate::storage::mqtt::topic::MqttTopicStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn retain_message_expire_test() {

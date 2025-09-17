@@ -10,7 +10,7 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 
 
 ## So glad to have met you all
-@socutes @huichungka
+@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer
 
 
 ## How to sign your name for us
