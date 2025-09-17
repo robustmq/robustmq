@@ -8,18 +8,27 @@ We know that on this long journey of RobustMQ, we'll meet many people, many peop
 
 RobustMQ wants to invite you to sign your name for us, and this signature will always be displayed on our official website. Because we want to know that you once looked at us seriously. Maybe one day in the distant future, you'll suddenly remember that you once saw us, once left us a signature, and we've already traveled far. Maybe one day, we'll suddenly discover that so many people have signed for us, and we'll be very happy because of it. We'll know that we're not alone on this journey.
 
-
 ## So glad to have met you all
-@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995 @hzbnb
-
+@socutes 
+@huichungka 
+@Ayanokoji-li 
+@patwrall 
+@flyswimmer 
+@satori1995 
+@WaterWhisperer 
+@NuclEnergy
+@hzbnb
 
 ## How to sign your name for us
+
 If you don't know how to pull your request, please refer to the documentation [《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) to add your name.
 
 It's a simple step:
+
 1. Fork our project
 2. Open both docs/zh/OverView/SignYourName.md and docs/en/OverView/SignYourName.md files, and add your GitHub username.
 3. Submit a PR to us with the PR Title:
+
 ```
 PR title: 'docs: @yourname Nice to meet you'
 PR description: ‘relate #1380’
