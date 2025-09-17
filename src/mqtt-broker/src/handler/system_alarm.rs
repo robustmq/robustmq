@@ -79,6 +79,11 @@ impl SystemAlarm {
     }
 
     pub async fn start(&self) -> ResultMqttBrokerError {
+        let config = broker_config();
+        if !config.mqtt_system_monitor.enable {
+            return Ok(());
+        }
+
         let record_func = async || -> ResultCommonError {
             let mqtt_conf = broker_config();
             let cpu_usage =
