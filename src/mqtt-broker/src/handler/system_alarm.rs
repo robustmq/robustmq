@@ -86,9 +86,7 @@ impl SystemAlarm {
 
         let record_func = async || -> ResultCommonError {
             let mqtt_conf = broker_config();
-            let cpu_usage =
-                get_process_every_cpu_usage(mqtt_conf.mqtt_system_monitor.os_cpu_check_interval_ms)
-                    .await;
+            let cpu_usage = get_process_every_cpu_usage().await;
 
             self.try_send_a_new_system_event(
                 AlarmType::HighCpuUsage,
@@ -139,13 +137,13 @@ impl SystemAlarm {
 }
 
 // Get CPU usage percentage of the current process
-pub async fn get_process_every_cpu_usage(check_interval: u64) -> f32 {
+pub async fn get_process_every_cpu_usage() -> f32 {
     let mut system = System::new_all();
     let pid = Pid::from(std::process::id() as usize);
 
     system.refresh_all();
 
-    sleep(Duration::from_millis(check_interval)).await;
+    sleep(Duration::from_millis(1000)).await;
 
     system.refresh_all();
 
