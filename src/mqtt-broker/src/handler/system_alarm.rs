@@ -211,7 +211,7 @@ mod tests {
 
     // #[tokio::test]
     // async fn test_alarm_type_to_string() {
-    //     let high_cpu_alarm = AlarmTyp::HighCpuUsage;
+    //     let high_cpu_alarm = AlarmType::HighCpuUsage;
     //     let low_cpu_alarm = AlarmType::LowCpuUsage;
     //     let memory_alarm = AlarmType::MemoryUsage;
 

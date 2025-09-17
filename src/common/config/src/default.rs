@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthStorage,
+    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttAuthStorage,
     MqttFlappingDetect, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
     MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
     Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
@@ -95,6 +96,14 @@ pub fn default_mqtt_auth_storage() -> MqttAuthStorage {
         storage_type: "placement".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
+    }
+}
+
+pub fn default_mqtt_auth_config() -> MqttAuthConfig {
+    MqttAuthConfig {
+        auth_type: "placement".to_string(),
+        authn_config: AuthnConfig::default(),
+        authz_config: AuthzConfig::default(),
     }
 }
 
