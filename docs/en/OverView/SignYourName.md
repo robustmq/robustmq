@@ -10,7 +10,7 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 
 
 ## So glad to have met you all
-@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995
+@socutes @huichungka @Ayanokoji-li @patwrall @flyswimmer @satori1995 @qiu121
 
 
 ## How to sign your name for us
@@ -24,3 +24,4 @@ It's a simple step:
 PR title: 'docs: @yourname Nice to meet you'
 PR description: ‘relate #1380’
 ```
+4. Wait for us to merge
