@@ -18,6 +18,7 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 @WaterWhisperer 
 @NuclEnergy
 @hzbnb
+@qiu121
 
 ## How to sign your name for us
 
@@ -33,3 +34,4 @@ It's a simple step:
 PR title: 'docs: @yourname Nice to meet you'
 PR description: ‘relate #1380’
 ```
+4. Wait for us to merge
