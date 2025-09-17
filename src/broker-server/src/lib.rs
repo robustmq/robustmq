@@ -78,6 +78,7 @@ pub struct BrokerServer {
     mqtt_params: MqttBrokerServerParams,
     journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     broker_cache: Arc<BrokerCacheManager>,
     config: BrokerConfig,
 }
@@ -92,7 +93,7 @@ impl BrokerServer {
     pub fn new() -> Self {
         let config = broker_config();
         let client_pool = Arc::new(ClientPool::new(100));
-        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
             column_family_list(),
@@ -118,6 +119,7 @@ impl BrokerServer {
             config: config.clone(),
             mqtt_params,
             client_pool,
+            rocksdb_engine_handler,
         }
     }
     pub fn start(&self) {
@@ -151,6 +153,7 @@ impl BrokerServer {
                 connector_manager: self.mqtt_params.connector_manager.clone(),
                 schema_manager: self.mqtt_params.schema_manager.clone(),
             },
+            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache: broker_cache.clone(),
         });
         server_runtime.spawn(async move {

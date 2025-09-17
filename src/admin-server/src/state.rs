@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use broker_core::cache::BrokerCacheManager;
+use broker_core::{cache::BrokerCacheManager, rocksdb::RocksDBEngine};
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     bridge::manager::ConnectorManager, common::metrics_cache::MetricsCacheManager,
@@ -28,6 +28,7 @@ pub struct HttpState {
     pub client_pool: Arc<ClientPool>,
     pub broker_cache: Arc<BrokerCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub mqtt_context: MQTTContext,
 }
 

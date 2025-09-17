@@ -141,8 +141,7 @@ pub struct SessionListRow {
 pub struct SystemAlarmListRow {
     pub name: String,
     pub message: String,
-    pub activate_at: String,
-    pub activated: bool,
+    pub create_time: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

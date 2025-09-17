@@ -22,11 +22,12 @@ use crate::{
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
-use common_base::http_response::success_response;
+use common_base::http_response::{error_response, success_response};
+use mqtt_broker::storage::local::LocalStorage;
 use std::sync::Arc;
 
 pub async fn system_alarm_list(
-    State(_state): State<Arc<HttpState>>,
+    State(state): State<Arc<HttpState>>,
     Json(params): Json<SystemAlarmListReq>,
 ) -> String {
     let options = build_query_params(
@@ -39,23 +40,22 @@ pub async fn system_alarm_list(
         params.exact_match,
     );
 
-    // let results = state
-    //     .mqtt_context
-    //     .cache_manager
-    //     .alarm_events
-    //     .iter()
-    //     .map(|entry| {
-    //         let system_alarm_message = entry.value();
-    //         SystemAlarmListRow {
-    //             name: system_alarm_message.name.clone(),
-    //             message: system_alarm_message.message.clone(),
-    //             activate_at: timestamp_to_local_datetime(system_alarm_message.activate_at),
-    //             activated: system_alarm_message.activated,
-    //         }
-    //     })
-    //     .collect();
+    let log_storage = LocalStorage::new(state.rocksdb_engine_handler.clone());
+    let data_list = match log_storage.list_system_event().await {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
 
-    let results: Vec<SystemAlarmListRow> = Vec::new();
+    let results = data_list
+        .iter()
+        .map(|entry| SystemAlarmListRow {
+            name: entry.name.clone(),
+            message: entry.message.clone(),
+            create_time: entry.create_time,
+        })
+        .collect();
 
     let filtered = apply_filters(results, &options);
     let sorted = apply_sorting(filtered, &options);
