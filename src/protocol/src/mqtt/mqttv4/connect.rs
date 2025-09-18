@@ -313,31 +313,35 @@ mod tests {
     fn test_display() {
         use super::*;
 
-        let client_id = String::from("test_client_id");
-
-        let login: Login = Login {
-            username: String::from("test_user"),
-            password: String::from("test_password"),
+        let login = Login {
+            username: "test_username".to_string(),
+            password: "test_password".to_string(),
         };
 
-        let will_topic = Bytes::from("will_topic");
-        let will_message = Bytes::from("will_message");
-        let lastwill: LastWill = LastWill {
-            topic: will_topic,
-            message: will_message,
+        let lastwill = LastWill {
+            topic: Bytes::from("will_topic"),
+            message: Bytes::from("will_message"),
             qos: QoS::AtLeastOnce,
             retain: true,
         };
 
-        let connect: Connect = Connect {
-            keep_alive: 30u16, // 30 seconds
-            client_id,
+        let connect = Connect {
+            keep_alive: 30u16,
+            client_id: "test_client_id".to_string(),
             clean_session: true,
         };
-        println!("connect display starts...........................");
-        print!("{login}");
-        print!("{connect}");
-        println!("{lastwill}");
-        println!("connect display ends.............................");
+
+        assert_eq!(
+            login.to_string(),
+            "username:\"test_username\", password:\"test_password\" "
+        );
+        assert_eq!(
+            lastwill.to_string(),
+            "will_topic:b\"will_topic\", qos:AtLeastOnce, will_message:b\"will_message\", retain:true "
+        );
+        assert_eq!(
+            connect.to_string(),
+            "client_id:\"test_client_id\", clean_session:true, keep_alive:30s "
+        );
     }
 }
