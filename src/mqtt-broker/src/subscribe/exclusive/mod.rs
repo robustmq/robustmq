@@ -257,7 +257,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         };
 
         let send_time = now_second();
-        
+
         // publish data to client
         send_publish_packet_to_client(
             &context.connection_manager,

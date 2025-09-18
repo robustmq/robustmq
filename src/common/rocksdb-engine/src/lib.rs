@@ -35,13 +35,14 @@ impl RocksDBEngine {
         let opts: Options = Self::open_db_opts(max_open_files);
         let path = data_path.to_string();
         let mut cf_column_family = Vec::new();
+        println!("{:?}",cf_list);
         for cf in cf_list {
             cf_column_family.push(ColumnFamilyDescriptor::new(cf, Options::default()));
         }
         let instance = match DB::open_cf_descriptors(&opts, path, cf_column_family) {
             Ok(instance) => instance,
             Err(e) => {
-                panic!("{}", e.to_string());
+                panic!("Open RocksDB Fail,{}", e.to_string());
             }
         };
 
