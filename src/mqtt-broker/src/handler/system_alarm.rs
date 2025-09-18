@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::observability::system_topic::sysmon::st_report_system_alarm_event;
 use crate::storage::local::LocalStorage;
+use crate::system_topic::sysmon::st_report_system_alarm_event;
 use crate::{common::types::ResultMqttBrokerError, handler::cache::MQTTCacheManager};
 use broker_core::rocksdb::RocksDBEngine;
 use common_base::error::ResultCommonError;

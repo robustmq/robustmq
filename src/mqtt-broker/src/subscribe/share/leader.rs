@@ -323,7 +323,7 @@ async fn read_message_process(
             };
 
             let send_time = now_second();
-            
+
             if let Err(e) = send_publish_packet_to_client(
                 &context.connection_manager,
                 &context.cache_manager,
