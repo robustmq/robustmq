@@ -127,7 +127,7 @@ pub fn default_mqtt_offline_message() -> MqttOfflineMessage {
 pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
     MqttSlowSubscribeConfig {
         enable: false,
-        max_store_num: 1000,
+        record_time: 1000,
         delay_type: DelayType::Whole,
     }
 }

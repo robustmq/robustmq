@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::{flapping_detect::BanLog, system_alarm::SystemAlarmEventMessage};
+use crate::handler::{
+    flapping_detect::BanLog, slow_subscribe::SlowSubscribeData,
+    system_alarm::SystemAlarmEventMessage,
+};
 
 pub fn system_event_key(alarm: &SystemAlarmEventMessage) -> String {
     prefix_key(format!(
@@ -34,6 +37,17 @@ pub fn ban_log_key(log: &BanLog) -> String {
 
 pub fn ban_log_prefix_key() -> String {
     prefix_key("/ban_log/".to_string())
+}
+
+pub fn slow_sub_log_key(data: &SlowSubscribeData) -> String {
+    prefix_key(format!(
+        "/slow_sub_log/{}/{}",
+        data.client_id, data.topic_name
+    ))
+}
+
+pub fn slow_sub_log_prefix_key() -> String {
+    prefix_key("/slow_sub_log/".to_string())
 }
 
 fn prefix_key(key: String) -> String {

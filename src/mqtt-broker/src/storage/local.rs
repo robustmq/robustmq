@@ -22,9 +22,13 @@ use common_base::error::ResultCommonError;
 
 use crate::{
     handler::{
-        error::MqttBrokerError, flapping_detect::BanLog, system_alarm::SystemAlarmEventMessage,
+        error::MqttBrokerError, flapping_detect::BanLog, slow_subscribe::SlowSubscribeData,
+        system_alarm::SystemAlarmEventMessage,
     },
-    storage::keys::{ban_log_key, ban_log_prefix_key, system_event_key, system_event_prefix_key},
+    storage::keys::{
+        ban_log_key, ban_log_prefix_key, slow_sub_log_key, slow_sub_log_prefix_key,
+        system_event_key, system_event_prefix_key,
+    },
 };
 
 pub struct LocalStorage {
@@ -64,6 +68,22 @@ impl LocalStorage {
         let mut results = Vec::new();
         for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), prefix_key)? {
             if let Ok(data) = serde_json::from_str::<BanLog>(&raw.data) {
+                results.push(data);
+            }
+        }
+        Ok(results)
+    }
+
+    pub async fn save_slow_sub_log(&self, log: SlowSubscribeData) -> ResultCommonError {
+        let key = slow_sub_log_key(&log);
+        engine_save_by_broker(self.rocksdb_engine_handler.clone(), key, log)
+    }
+
+    pub async fn list_slow_sub_log(&self) -> Result<Vec<SlowSubscribeData>, MqttBrokerError> {
+        let prefix_key = slow_sub_log_prefix_key();
+        let mut results = Vec::new();
+        for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), prefix_key)? {
+            if let Ok(data) = serde_json::from_str::<SlowSubscribeData>(&raw.data) {
                 results.push(data);
             }
         }

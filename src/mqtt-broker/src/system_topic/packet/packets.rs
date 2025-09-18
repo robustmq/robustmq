@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::MQTTCacheManager;
-use crate::observability::system_topic::report_system_data;
+use crate::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;

@@ -36,6 +36,7 @@ members = [
     "src/common/network-server",
     "src/common/metrics",
     "src/common/security",
+    "src/common/rate-limit",
     "src/protocol",
     "src/journal-server",
     "src/journal-client",
@@ -185,6 +186,7 @@ third-driver = { path = "src/common/third-driver" }
 network-server = { path = "src/common/network-server" }
 common-metrics = { path = "src/common/metrics" }
 common-security = { path = "src/common/security" }
+rate-limit = { path = "src/common/rate-limit" }
 admin-server = { path = "src/admin-server" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
@@ -200,6 +202,7 @@ strum = "0.27"
 strum_macros = "0.27"
 async-stream = "0.3.6"
 kafka-protocol = "0.15.1"
+governor = "0.10.1"
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }

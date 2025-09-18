@@ -14,10 +14,11 @@
 
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::topic::try_init_topic;
-use crate::observability::system_topic::packet::bytes::{
+use crate::storage::message::MessageStorage;
+use crate::system_topic::packet::bytes::{
     SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
 };
-use crate::observability::system_topic::packet::messages::{
+use crate::system_topic::packet::messages::{
     SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED, SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED,
     SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD,
     SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED,
@@ -31,7 +32,7 @@ use crate::observability::system_topic::packet::messages::{
     SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED,
     SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT,
 };
-use crate::observability::system_topic::packet::packets::{
+use crate::system_topic::packet::packets::{
     SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK,
     SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT,
     SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
@@ -56,22 +57,21 @@ use crate::observability::system_topic::packet::packets::{
     SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
     SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
 };
-use crate::observability::system_topic::stats::client::{
+use crate::system_topic::stats::client::{
     SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX,
 };
-use crate::observability::system_topic::stats::route::{
+use crate::system_topic::stats::route::{
     report_broker_stat_routes, SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT,
     SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
 };
-use crate::observability::system_topic::stats::subscription::{
+use crate::system_topic::stats::subscription::{
     SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
 };
-use crate::observability::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
-use crate::storage::message::MessageStorage;
+use crate::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select};
 use grpc_clients::pool::ClientPool;
@@ -407,8 +407,8 @@ pub(crate) async fn write_topic_data(
 #[cfg(test)]
 mod test {
     use crate::common::tool::test_build_mqtt_cache_manager;
-    use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
+    use crate::system_topic::write_topic_data;
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;

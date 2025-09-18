@@ -23,7 +23,6 @@ use crate::handler::flapping_detect::clean_flapping_detect;
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::handler::system_alarm::SystemAlarm;
-use crate::observability::start_observability;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
@@ -32,6 +31,7 @@ use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
+use crate::system_topic::SystemTopic;
 use broker_core::rocksdb::RocksDBEngine;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
@@ -154,18 +154,14 @@ impl MqttBrokerServer {
         });
 
         // observability
-        let cache_manager = self.cache_manager.clone();
-        let message_storage_adapter = self.message_storage_adapter.clone();
-        let client_pool = self.client_pool.clone();
         let raw_stop_send = self.inner_stop.clone();
+        let system_topic = SystemTopic::new(
+            self.cache_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.client_pool.clone(),
+        );
         tokio::spawn(async move {
-            start_observability(
-                cache_manager,
-                message_storage_adapter,
-                client_pool,
-                raw_stop_send,
-            )
-            .await;
+            system_topic.start_thread(raw_stop_send).await;
         });
 
         // metrics record
@@ -242,6 +238,7 @@ impl MqttBrokerServer {
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.metrics_cache_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
 
         tokio::spawn(async move {
@@ -253,6 +250,7 @@ impl MqttBrokerServer {
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
 
         tokio::spawn(async move {
