@@ -67,7 +67,7 @@ pub async fn record_slow_subscribe_data(
     let finish_time = now_second();
     let calculate_time = calc_time(send_time, finish_time, record_time);
 
-    if calculate_time <= 1000 {
+    if calculate_time <= cache_manager.get_slow_sub_config().record_time {
         return Ok(());
     }
 

@@ -294,6 +294,7 @@ impl MqttFlappingDetect {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
+    pub record_time: u64,
     pub delay_type: DelayType,
 }
 
