@@ -15,9 +15,32 @@
 use bytes::Bytes;
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, Login, MqttPacket};
+use uuid::Uuid;
+
+pub fn build_test_mqtt4_connect_packet_wrapper() -> MqttPacketWrapper {
+    MqttPacketWrapper {
+        protocol_version: 4,
+        packet: build_test_mqtt4_connect_packet(),
+    }
+}
+pub fn build_test_mqtt4_connect_packet() -> MqttPacket {
+    let random_client_id = create_random_client_id();
+    let connect = Connect {
+        keep_alive: 0,
+        client_id: random_client_id,
+        clean_session: false,
+    };
+    MqttPacket::Connect(4, connect, None, None, None, None)
+}
+
+fn create_random_client_id() -> String {
+    let uuid = Uuid::new_v4();
+    let client_id = format!("test_client_id_{uuid}");
+    client_id
+}
 
 /// Build the connect content package for the mqtt4 protocol
-pub fn build_mqtt4_pg_connect() -> MqttPacket {
+pub fn build_mqtt4_connect_packet() -> MqttPacket {
     let client_id = String::from("test_client_id");
     let login = Some(Login {
         username: "lobo".to_string(),

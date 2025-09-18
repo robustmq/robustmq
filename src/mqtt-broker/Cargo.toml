@@ -72,6 +72,7 @@ common-metrics.workspace = true
 reqwest.workspace = true
 broker-core.workspace = true
 
+
 [dev-dependencies]
 # test
 googletest.workspace = true
