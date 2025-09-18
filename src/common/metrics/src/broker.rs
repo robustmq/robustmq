@@ -12,13 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use lazy_static::lazy_static;
-use prometheus::{register_int_gauge_vec, IntGaugeVec};
-
-use super::{SERVER_LABEL_GRPC, SERVER_LABEL_HTTP, SERVER_LABEL_MQTT};
-
-const SERVER_MODULE: &str = "server_module";
-
 lazy_static! {
     static ref BROKER_STATUS: IntGaugeVec =
         register_int_gauge_vec!("broker_status", "broker status", &[SERVER_MODULE,]).unwrap();

@@ -27,9 +27,9 @@ pub type FamilyGauge<L> = Arc<RwLock<Family<L, Gauge>>>;
 #[macro_export]
 macro_rules! register_gauge_metric {
     ($name:ident, $metric_name:expr, $help:expr,$label:ty) => {
-        static $name: std::sync::LazyLock<common_base::metrics::gauge::FamilyGauge<$label>> =
+        static $name: std::sync::LazyLock<crate::core::gauge::FamilyGauge<$label>> =
             std::sync::LazyLock::new(|| {
-                common_base::metrics::gauge::register_int_gauge_family($metric_name, $help)
+                crate::core::gauge::register_int_gauge_family($metric_name, $help)
             });
     };
 }

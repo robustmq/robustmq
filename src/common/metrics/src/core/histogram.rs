@@ -86,24 +86,24 @@ macro_rules! register_histogram_metric {
     ($name:ident, $metric_name:expr, $help:expr, $label:ty, [$($val:expr),* $(,)?]) => {
         const BUCKETS: &[f64] = &[$($val as f64),*];
         static $name: std::sync::LazyLock<
-            $crate::metrics::histogram::FamilyHistogram<$label>,
+            $crate::core::histogram::FamilyHistogram<$label>,
         > = std::sync::LazyLock::new(|| {
-            $crate::metrics::histogram::register_histogram_family(
+            $crate::core::histogram::register_histogram_family(
                 $metric_name,
                 $help,
-                $crate::metrics::histogram::BucketType::PlaintextBucket(BUCKETS),
+                $crate::core::histogram::BucketType::PlaintextBucket(BUCKETS),
             )
         });
 
     };
     ($name:ident, $metric_name:expr, $help:expr, $label:ty, $start:expr, $factor:expr, $length:expr) => {
         static $name: std::sync::LazyLock<
-            $crate::metrics::histogram::FamilyHistogram<$label>,
+            $crate::core::histogram::FamilyHistogram<$label>,
         > = std::sync::LazyLock::new(|| {
-            $crate::metrics::histogram::register_histogram_family(
+            $crate::core::histogram::register_histogram_family(
                 $metric_name,
                 $help,
-                $crate::metrics::histogram::BucketType::ExponentialBuckets{
+                $crate::core::histogram::BucketType::ExponentialBuckets{
                     start: $start,
                     factor: $factor,
                     length: $length,

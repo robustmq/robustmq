@@ -14,9 +14,6 @@
 
 use std::sync::Arc;
 
-use metadata_struct::mqtt::topic::MQTTTopic;
-use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-
 use crate::core::error::PlacementCenterError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
@@ -26,7 +23,8 @@ use crate::storage::keys::{
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
-use crate::storage::mqtt::metrics::{metrics_topic_num_desc, metrics_topic_num_inc, TopicType};
+use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use rocksdb_engine::RocksDBEngine;
 
 pub struct MqttTopicStorage {
@@ -46,16 +44,8 @@ impl MqttTopicStorage {
         topic_name: &str,
         topic: MQTTTopic,
     ) -> Result<(), PlacementCenterError> {
-        let topic_type = if self.is_system_topic(topic_name) {
-            TopicType::System
-        } else {
-            TopicType::Normal
-        };
-
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)?;
-
-        metrics_topic_num_inc(cluster_name, topic_type);
         Ok(())
     }
 
@@ -85,17 +75,8 @@ impl MqttTopicStorage {
     }
 
     pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), PlacementCenterError> {
-        let topic_type = if self.is_system_topic(topic_name) {
-            TopicType::System
-        } else {
-            TopicType::Normal
-        };
-
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
-
-        metrics_topic_num_desc(cluster_name, topic_type);
-
         Ok(())
     }
 

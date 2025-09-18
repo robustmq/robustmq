@@ -18,7 +18,6 @@ pub mod error;
 pub mod http_error;
 pub mod http_response;
 pub mod logging;
-pub mod metrics;
 pub mod network;
 pub mod node_status;
 pub mod runtime;

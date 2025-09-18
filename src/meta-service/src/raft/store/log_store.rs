@@ -15,12 +15,7 @@
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::sync::Arc;
-
 use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
-use crate::core::metrics::{
-    metrics_rocksdb_storage_err_inc, metrics_rocksdb_storage_total_inc,
-    metrics_rocksdb_stroge_total_ms, RocksDBLabels,
-};
 use crate::raft::store::bin_to_id;
 use crate::raft::type_config::TypeConfig;
 use common_base::tools::now_mills;
