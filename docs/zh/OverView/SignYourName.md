@@ -20,6 +20,7 @@ RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的�
 @hzbnb
 @qiu121
 @linyihai
+@yqingyu
 
 ## 怎么给我们签名呢
 
