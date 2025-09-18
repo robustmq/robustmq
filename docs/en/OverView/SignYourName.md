@@ -19,6 +19,7 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 @NuclEnergy
 @hzbnb
 @qiu121
+@linyihai
 
 ## How to sign your name for us
 
