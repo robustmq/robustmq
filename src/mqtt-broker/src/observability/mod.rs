@@ -19,7 +19,6 @@ use storage_adapter::storage::ArcStorageAdapter;
 use system_topic::SystemTopic;
 use tokio::sync::broadcast;
 
-pub mod slow;
 pub mod system_topic;
 
 pub async fn start_observability(

@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::common::concurrent_btree_map::ShardedConcurrentBTreeMap;
-use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
-use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
+use crate::handler::slow_subscribe::{SlowSubscribeData, SlowSubscribeKey};
 use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select, now_second};
@@ -313,10 +312,9 @@ pub fn metrics_gc_thread(
 
 #[cfg(test)]
 mod test {
-    use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
     use crate::{
         common::tool::test_build_mqtt_cache_manager,
-        observability::slow::slow_subscribe_data::SlowSubscribeData,
+        handler::slow_subscribe::{SlowSubscribeData, SlowSubscribeKey},
     };
     use std::{
         net::{Ipv4Addr, SocketAddrV4},
