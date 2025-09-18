@@ -96,6 +96,7 @@ impl OffsetStorage {
 mod test {
 
     use crate::storage::placement::offset::OffsetStorage;
+    use broker_core::rocksdb::column_family_list;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
@@ -105,7 +106,7 @@ mod test {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
         let offset_storage = OffsetStorage::new(rocksdb_engine);
 

@@ -143,7 +143,7 @@ mod test {
         // Create a temporary directory for the database
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().to_str().unwrap();
-        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec!["cluster".to_string()]);
+        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec!["meta".to_string()]);
         let rocksdb_engine_handler = Arc::new(rocksdb_engine);
         SegmentMetadataStorage::new(rocksdb_engine_handler)
     }

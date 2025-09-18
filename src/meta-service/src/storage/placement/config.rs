@@ -68,6 +68,7 @@ impl ResourceConfigStorage {
 #[cfg(test)]
 mod test {
     use super::ResourceConfigStorage;
+    use broker_core::rocksdb::column_family_list;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
@@ -77,7 +78,7 @@ mod test {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
         let resource_storage = ResourceConfigStorage::new(rocksdb_engine);
 

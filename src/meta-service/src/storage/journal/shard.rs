@@ -109,6 +109,7 @@ impl ShardStorage {
 
 #[cfg(test)]
 mod tests {
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::unique_id;
     use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
     use rocksdb_engine::RocksDBEngine;
@@ -122,7 +123,7 @@ mod tests {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
 
         let num_clusters = 5;
