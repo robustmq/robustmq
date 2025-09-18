@@ -15,21 +15,14 @@
 use crate::handler::cache::MQTTCacheManager;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::time_unit_enum::TimeUnit;
-use common_base::tools::{convert_seconds, now_second};
+use common_base::error::ResultCommonError;
+use common_base::tools::{convert_seconds, loop_select, now_second};
 use common_config::config::MqttFlappingDetect;
 use common_metrics::mqtt::event_metrics;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{debug, error, info};
-
-pub struct UpdateFlappingDetectCache {
-    stop_send: broadcast::Sender<bool>,
-    cache_manager: Arc<MQTTCacheManager>,
-}
+use tracing::debug;
 
 #[derive(Clone, Debug)]
 pub struct FlappingDetectCondition {
@@ -38,54 +31,20 @@ pub struct FlappingDetectCondition {
     pub first_request_time: u64,
 }
 
-impl UpdateFlappingDetectCache {
-    pub fn new(stop_send: broadcast::Sender<bool>, cache_manager: Arc<MQTTCacheManager>) -> Self {
-        Self {
-            stop_send,
-            cache_manager,
-        }
-    }
-
-    pub async fn start_update(&self) {
-        loop {
-            let mut stop_rx = self.stop_send.subscribe();
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("{}","Flapping detect cache updating thread stopped successfully.");
-                            break;
-                        }
-                    }
-                }
-                _ = self.update_flapping_detect_cache()=>{
-                }
-            }
-        }
-    }
-
-    async fn update_flapping_detect_cache(&self) {
-        let config = self.cache_manager.get_flapping_detect_config().clone();
-        let window_time = config.window_time as u64;
-        match self
-            .cache_manager
+pub async fn clean_flapping_detect(
+    cache_manager: Arc<MQTTCacheManager>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        let config = cache_manager.get_flapping_detect_config().clone();
+        cache_manager
             .acl_metadata
             .remove_flapping_detect_conditions(config)
-            .await
-        {
-            Ok(_) => {
-                debug!("Updating Flapping detect cache norm exception");
-            }
-            Err(e) => {
-                error!("{}", e);
-            }
-        }
-        sleep(Duration::from_secs(convert_seconds(
-            window_time,
-            TimeUnit::Minutes,
-        )))
-        .await;
-    }
+            .await;
+        Ok(())
+    };
+
+    loop_select(ac_fn, 10, &stop_send).await;
 }
 
 pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<MQTTCacheManager>) {

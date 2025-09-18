@@ -19,7 +19,7 @@ use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, Met
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::load_metadata_cache;
-use crate::handler::flapping_detect::UpdateFlappingDetectCache;
+use crate::handler::flapping_detect::clean_flapping_detect;
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::handler::system_alarm::SystemAlarm;
@@ -146,10 +146,10 @@ impl MqttBrokerServer {
         });
 
         // flapping detect
-        let update_flapping_detect_cache =
-            UpdateFlappingDetectCache::new(self.inner_stop.clone(), self.cache_manager.clone());
+        let stop_send = self.inner_stop.clone();
+        let cache_manager = self.cache_manager.clone();
         tokio::spawn(async move {
-            update_flapping_detect_cache.start_update().await;
+            clean_flapping_detect(cache_manager, stop_send).await;
         });
 
         // observability
