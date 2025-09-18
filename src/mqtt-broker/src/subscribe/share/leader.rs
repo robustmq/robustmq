@@ -323,6 +323,7 @@ async fn read_message_process(
             };
 
             let send_time = now_second();
+            
             if let Err(e) = send_publish_packet_to_client(
                 &context.connection_manager,
                 &context.cache_manager,
@@ -343,6 +344,7 @@ async fn read_message_process(
                     send it to the next client. Error message :{}, offset: {:?}",
                     subscriber.client_id, e, record.offset
                 );
+
                 continue;
             };
 
@@ -366,6 +368,7 @@ async fn read_message_process(
             record_offset,
         )
         .await?;
+
         Ok(())
     };
 
