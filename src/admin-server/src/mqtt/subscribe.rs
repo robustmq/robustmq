@@ -32,7 +32,7 @@ use common_base::{
 use metadata_struct::mqtt::{
     auto_subscribe_rule::MqttAutoSubscribeRule, subscribe_data::is_mqtt_share_subscribe,
 };
-use mqtt_broker::storage::auto_subscribe::AutoSubscribeStorage;
+use mqtt_broker::storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage};
 use protocol::mqtt::common::{qos, retain_forward_rule};
 use std::sync::Arc;
 
@@ -212,12 +212,15 @@ pub async fn slow_subscribe_list(
     );
     let mut list_slow_subscribes = Vec::new();
 
-    for (_, slow_data) in state
-        .mqtt_context
-        .metrics_manager
-        .slow_subscribe_info
-        .iter_reverse()
-    {
+    let local_storage = LocalStorage::new(state.rocksdb_engine_handler.clone());
+    let data_list = match local_storage.list_slow_sub_log().await {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+
+    for slow_data in data_list {
         list_slow_subscribes.push(SlowSubscribeListRow {
             client_id: slow_data.client_id.clone(),
             topic_name: slow_data.topic_name.clone(),

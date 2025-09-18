@@ -28,6 +28,7 @@ use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
+use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
@@ -47,6 +48,7 @@ pub struct ExclusivePush {
     connection_manager: Arc<ConnectionManager>,
     message_storage: ArcStorageAdapter,
     metrics_cache_manager: Arc<MetricsCacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl ExclusivePush {
@@ -56,6 +58,7 @@ impl ExclusivePush {
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         metrics_cache_manager: Arc<MetricsCacheManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         ExclusivePush {
             message_storage,
@@ -63,6 +66,7 @@ impl ExclusivePush {
             subscribe_manager,
             connection_manager,
             metrics_cache_manager,
+            rocksdb_engine_handler,
         }
     }
 
@@ -115,6 +119,7 @@ impl ExclusivePush {
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
             let metrics_cache_manager = self.metrics_cache_manager.clone();
+            let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager.exclusive_push_thread.insert(
@@ -174,6 +179,7 @@ impl ExclusivePush {
                                 metrics_cache_manager: metrics_cache_manager.clone(),
                                 subscriber: subscriber.clone(),
                                 group_id: group_id.clone(),
+                                rocksdb_engine_handler: rocksdb_engine_handler.clone(),
                                 qos,
                                 sub_ids: sub_ids.clone(),
                                 offset,
@@ -214,6 +220,7 @@ pub struct ExclusivePushContext {
     pub message_storage: MessageStorage,
     pub cache_manager: Arc<MQTTCacheManager>,
     pub metrics_cache_manager: Arc<MetricsCacheManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub subscriber: Subscriber,
     pub group_id: String,
     pub qos: QoS,
@@ -273,13 +280,12 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             let receive_time = record.timestamp;
             let calculate_time =
                 get_calculate_time_from_broker_config(send_time, finish_time, receive_time);
-            let config_num = &context.cache_manager.get_slow_sub_config().max_store_num;
             record_slow_subscribe_data(
-                &context.metrics_cache_manager,
-                calculate_time,
-                *config_num,
+                &context.rocksdb_engine_handler,
                 &context.subscriber,
-            );
+                calculate_time,
+            )
+            .await?;
         }
 
         // commit offset
