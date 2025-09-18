@@ -22,7 +22,6 @@ use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::handler::slow_subscribe::get_calculate_time_from_broker_config;
 use crate::handler::slow_subscribe::record_slow_subscribe_data;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
@@ -274,19 +273,15 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             &context.sub_thread_stop_sx,
         )
         .await?;
-        let finish_time = now_second();
 
-        if context.cache_manager.get_slow_sub_config().enable {
-            let receive_time = record.timestamp;
-            let calculate_time =
-                get_calculate_time_from_broker_config(send_time, finish_time, receive_time);
-            record_slow_subscribe_data(
-                &context.rocksdb_engine_handler,
-                &context.subscriber,
-                calculate_time,
-            )
-            .await?;
-        }
+        record_slow_subscribe_data(
+            &context.cache_manager,
+            &context.rocksdb_engine_handler,
+            &context.subscriber,
+            send_time,
+            record.timestamp,
+        )
+        .await?;
 
         // commit offset
         loop_commit_offset(

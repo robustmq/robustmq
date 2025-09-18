@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::cache::MQTTCacheManager;
 use crate::storage::local::LocalStorage;
 use crate::subscribe::common::Subscriber;
 use broker_core::rocksdb::RocksDBEngine;
@@ -53,21 +54,27 @@ impl SlowSubscribeData {
 }
 
 pub async fn record_slow_subscribe_data(
+    cache_manager: &Arc<MQTTCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     subscriber: &Subscriber,
-    calculate_time: u64,
+    send_time: u64,
+    record_time: u64,
 ) -> ResultCommonError {
+    if !cache_manager.get_slow_sub_config().enable {
+        return Ok(());
+    }
+
+    let finish_time = now_second();
+    let calculate_time = calc_time(send_time, finish_time, record_time);
+
     if calculate_time <= 1000 {
         return Ok(());
     }
-    let client_id = subscriber.client_id.clone();
-    let topic_name = subscriber.topic_name.clone();
-    let subscribe_name = subscriber.sub_path.clone();
 
     let log = SlowSubscribeData::build(
-        subscribe_name,
-        client_id.clone(),
-        topic_name.clone(),
+        subscriber.sub_path.clone(),
+        subscriber.client_id.clone(),
+        subscriber.topic_name.clone(),
         calculate_time,
     );
 
@@ -76,11 +83,7 @@ pub async fn record_slow_subscribe_data(
     Ok(())
 }
 
-pub fn get_calculate_time_from_broker_config(
-    send_time: u64,
-    finish_time: u64,
-    receive_time: u64,
-) -> u64 {
+fn calc_time(send_time: u64, finish_time: u64, receive_time: u64) -> u64 {
     let broker_config = broker_config();
 
     let whole_time = finish_time - receive_time;

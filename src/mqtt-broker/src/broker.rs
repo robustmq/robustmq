@@ -254,6 +254,7 @@ impl MqttBrokerServer {
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
 
         tokio::spawn(async move {

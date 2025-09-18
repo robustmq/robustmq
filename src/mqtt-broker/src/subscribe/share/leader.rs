@@ -15,6 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::slow_subscribe::record_slow_subscribe_data;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;
@@ -25,6 +26,7 @@ use crate::subscribe::push::{
     build_pub_qos, build_publish_message, build_sub_ids, send_publish_packet_to_client,
     BuildPublishMessageContext,
 };
+use broker_core::rocksdb::RocksDBEngine;
 use common_base::network::broker_not_available;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
@@ -44,6 +46,7 @@ pub struct ShareLeaderPush {
     pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: ArcStorageAdapter,
     connection_manager: Arc<ConnectionManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MQTTCacheManager>,
 }
 
@@ -53,12 +56,14 @@ impl ShareLeaderPush {
         message_storage: ArcStorageAdapter,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<MQTTCacheManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         ShareLeaderPush {
             subscribe_manager,
             message_storage,
             connection_manager,
             cache_manager,
+            rocksdb_engine_handler,
         }
     }
 
@@ -161,6 +166,7 @@ impl ShareLeaderPush {
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
 
         tokio::spawn(async move {
             info!(
@@ -189,6 +195,7 @@ impl ShareLeaderPush {
                             message_storage: message_storage.clone(),
                             subscribe_manager: subscribe_manager.clone(),
                             share_leader_key: share_leader_key.clone(),
+                            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
                             sub_data: sub_data.clone(),
                             group_id: group_id.clone(),
                             offset,
@@ -235,6 +242,7 @@ impl ShareLeaderPush {
 pub struct ShareLeaderPushContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub cache_manager: Arc<MQTTCacheManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub message_storage: MessageStorage,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub share_leader_key: String,
@@ -314,6 +322,7 @@ async fn read_message_process(
                 }
             };
 
+            let send_time = now_second();
             if let Err(e) = send_publish_packet_to_client(
                 &context.connection_manager,
                 &context.cache_manager,
@@ -336,6 +345,15 @@ async fn read_message_process(
                 );
                 continue;
             };
+
+            record_slow_subscribe_data(
+                &context.cache_manager,
+                &context.rocksdb_engine_handler,
+                &sub_pub_param.subscribe,
+                send_time,
+                record.timestamp,
+            )
+            .await?;
 
             break;
         }
