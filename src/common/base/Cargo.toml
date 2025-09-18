@@ -58,6 +58,7 @@ chrono.workspace = true
 chrono-tz.workspace = true
 anyhow.workspace = true
 quinn.workspace = true
+rustls.workspace = true
 
 # A custom cfg for enabling tokio-console in tracing-subscriber
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`

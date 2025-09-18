@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
-use grpc_clients::placement::openraft::OpenRaftServiceManager;
+use grpc_clients::meta::openraft::OpenRaftServiceManager;
 use grpc_clients::pool::ClientPool;
 use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
@@ -26,7 +26,7 @@ use openraft::raft::{
     VoteRequest, VoteResponse,
 };
 use openraft::RaftNetwork;
-use protocol::placement_center::placement_center_openraft::{AppendRequest, SnapshotRequest};
+use protocol::meta::placement_center_openraft::{AppendRequest, SnapshotRequest};
 
 use crate::raft::error::to_error;
 use crate::raft::type_config::TypeConfig;
@@ -127,7 +127,7 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
-        let request = protocol::placement_center::placement_center_openraft::VoteRequest { value };
+        let request = protocol::meta::placement_center_openraft::VoteRequest { value };
 
         let reply = match c.vote(request).await {
             Ok(reply) => reply.into_inner(),

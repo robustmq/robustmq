@@ -22,28 +22,29 @@ use tracing::info;
 use crate::handler::error::MqttBrokerError;
 use crate::subscribe::common::{decode_sub_path, is_match_sub_and_topic};
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 
 pub fn convert_publish_topic_by_rewrite_rule(
-    cache_manager: &Arc<CacheManager>,
-    topic_name: &str,
+    cache_manager: &Arc<MQTTCacheManager>,
+    topic_name: String,
 ) -> Result<Option<String>, MqttBrokerError> {
-    gen_convert_rewrite_name(cache_manager, topic_name)
+    gen_convert_rewrite_name(cache_manager, &topic_name)
 }
 
 pub fn convert_sub_path_by_rewrite_rule(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     path: &str,
 ) -> Result<Option<String>, MqttBrokerError> {
     gen_convert_rewrite_name(cache_manager, path)
 }
 
 fn gen_convert_rewrite_name(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     name: &str,
 ) -> Result<Option<String>, MqttBrokerError> {
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
+    println!("{:?}", rules);
     let mut new_topic_name = "".to_string();
     for rule in rules.iter() {
         let allow = rule.action != TopicRewriteActionEnum::All.to_string()
@@ -54,7 +55,7 @@ fn gen_convert_rewrite_name(
         }
 
         if is_match_sub_and_topic(&rule.source_topic, name).is_ok() {
-            new_topic_name = gen_rewrite_topic(name, &rule.regex, &rule.dest_topic)?;
+            new_topic_name = gen_rewrite_topic(name.to_string(), &rule.regex, &rule.dest_topic)?;
         }
     }
 
@@ -69,12 +70,12 @@ fn gen_convert_rewrite_name(
 }
 
 fn gen_rewrite_topic(
-    input: &str,
+    input: String,
     pattern: &str,
     template: &str,
 ) -> Result<String, MqttBrokerError> {
     let prefix = String::new();
-    let topic = decode_sub_path(input);
+    let topic = decode_sub_path(&input);
     let re = Regex::new(pattern)?;
     let mut rewrite_topic = template.to_string();
     if let Some(captures) = re.captures(topic.as_str()) {
@@ -91,10 +92,12 @@ fn gen_rewrite_topic(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use common_base::tools::{self, unique_id};
-    use grpc_clients::pool::ClientPool;
     use std::time::Duration;
+
+    use crate::common::tool::test_build_mqtt_cache_manager;
+
+    use super::*;
+    use common_base::tools::now_mills;
     use tokio::time::sleep;
 
     /// * Assume that the following topic rewrite rules have been added to the conf file:
@@ -152,12 +155,13 @@ mod tests {
 
         for (index, input) in SRC_TOPICS.iter().enumerate() {
             let d1 = DST_TOPICS[index].to_string();
-            let mut t1 = input.to_string();
+            let mut t1: String = input.to_string();
             let mut rules = cache_manager.get_all_topic_rewrite_rule();
             rules.sort_by_key(|rule| rule.timestamp);
             for rule in rules.iter() {
                 if is_match_sub_and_topic(&rule.source_topic, input).is_ok() {
-                    let rewrite_topic = gen_rewrite_topic(input, &rule.regex, &rule.dest_topic);
+                    let rewrite_topic =
+                        gen_rewrite_topic(input.to_string(), &rule.regex, &rule.dest_topic);
                     assert!(rewrite_topic.is_ok());
                     t1 = rewrite_topic.unwrap();
                 }
@@ -170,9 +174,11 @@ mod tests {
     async fn gen_convert_rewrite_name_test() {
         let cache_manager = build_rules().await;
         for (index, src_topic) in SRC_TOPICS.iter().enumerate() {
-            let result = convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic);
+            let result =
+                convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic.to_string());
             assert!(result.is_ok());
             if let Some(dst_topic) = result.unwrap() {
+                println!("{:?}", src_topic);
                 assert_eq!(dst_topic, DST_TOPICS[index]);
             } else {
                 assert_eq!(src_topic.to_owned(), DST_TOPICS[index]);
@@ -180,15 +186,14 @@ mod tests {
         }
     }
 
-    async fn build_rules() -> Arc<CacheManager> {
+    async fn build_rules() -> Arc<MQTTCacheManager> {
         let rules = vec![
             SimpleRule::new(r"y/+/z/#", r"y/z/$2", r"^y/(.+)/z/(.+)$"),
             SimpleRule::new(r"x/#", r"z/y/x/$1", r"^x/y/(.+)$"),
             SimpleRule::new(r"x/y/+", r"z/y/$1", r"^x/y/(\d+)$"),
         ];
 
-        let client_pool = Arc::new(ClientPool::new(100));
-        let cache_manager = Arc::new(CacheManager::new(client_pool, unique_id()));
+        let cache_manager = test_build_mqtt_cache_manager();
         for rule in rules.iter() {
             let rule = MqttTopicRewriteRule {
                 cluster: "default".to_string(),
@@ -196,10 +201,10 @@ mod tests {
                 source_topic: rule.source.to_string(),
                 dest_topic: rule.destination.to_string(),
                 regex: rule.regex.to_string(),
-                timestamp: tools::now_nanos(),
+                timestamp: now_mills(),
             };
             cache_manager.add_topic_rewrite_rule(rule);
-            sleep(Duration::from_nanos(100)).await;
+            sleep(Duration::from_millis(200)).await;
         }
         cache_manager
     }

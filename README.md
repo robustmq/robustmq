@@ -18,7 +18,7 @@
 </p>
 
 <h3 align="center">
-    A high-performance distributed message queue built with Rust.
+    New generation of cloud-native and AI-native messaging infrastructure
 </h3>
 
 <p align="center">
@@ -242,7 +242,7 @@ Join our growing community of developers, users, and contributors:
 - **微信群**: Join our WeChat group for Chinese-speaking users
 
   <div align="center">
-    <img src="docs/images/wechat-group.png" alt="WeChat Group QR Code" width="200" />
+    <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
   </div>
 
 - **个人微信**: If the group QR code has expired, add the developer's personal WeChat:

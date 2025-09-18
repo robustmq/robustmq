@@ -14,18 +14,18 @@
 
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
     engine_save_by_cluster,
 };
+use common_base::error::common::CommonError;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
+use rocksdb_engine::RocksDBEngine;
+
 use crate::storage::keys::{
     key_all_segment_metadata, key_segment_metadata, key_segment_metadata_cluster_prefix,
     key_segment_metadata_namespace_prefix, key_segment_metadata_shard_prefix,
 };
-use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct SegmentMetadataStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -134,8 +134,8 @@ impl SegmentMetadataStorage {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::storage::rocksdb::RocksDBEngine;
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
+    use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
 
@@ -143,7 +143,7 @@ mod test {
         // Create a temporary directory for the database
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().to_str().unwrap();
-        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec!["cluster".to_string()]);
+        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec!["meta".to_string()]);
         let rocksdb_engine_handler = Arc::new(rocksdb_engine);
         SegmentMetadataStorage::new(rocksdb_engine_handler)
     }

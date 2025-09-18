@@ -22,7 +22,6 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::now_mills;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -35,8 +34,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
-use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
@@ -44,6 +42,8 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetAutoSubscribeRuleRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
+use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

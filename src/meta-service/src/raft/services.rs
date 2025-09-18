@@ -17,7 +17,7 @@ use crate::raft::raft_node::Node;
 use crate::raft::type_config::TypeConfig;
 use bincode::{deserialize, serialize};
 use openraft::Raft;
-use protocol::placement_center::placement_center_openraft::{
+use protocol::meta::placement_center_openraft::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };

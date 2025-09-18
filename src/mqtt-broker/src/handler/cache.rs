@@ -13,11 +13,8 @@
 // limitations under the License.
 
 use crate::common::pkid_manager::PkidManager;
-use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::auth::metadata::AclMetadata;
-use common_base::node_status::NodeStatus;
-use common_base::tools::now_second;
-use common_config::config::BrokerConfig;
+use broker_core::cache::BrokerCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -28,7 +25,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
-use metadata_struct::placement::node::BrokerNode;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -89,22 +85,12 @@ pub struct ClientPkidData {
 }
 
 #[derive(Clone)]
-pub struct CacheManager {
-    pub start_time: u64,
+pub struct MQTTCacheManager {
+    // broker cache
+    pub broker_cache: Arc<BrokerCacheManager>,
 
+    // client pool
     pub client_pool: Arc<ClientPool>,
-
-    // node list
-    pub node_lists: DashMap<u64, BrokerNode>,
-
-    // cluster_name
-    pub cluster_name: String,
-
-    // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, BrokerConfig>,
-
-    // (cluster_name, Status)
-    pub status: DashMap<String, NodeStatus>,
 
     // (username, User)
     pub user_info: DashMap<String, MqttUser>,
@@ -135,20 +121,13 @@ pub struct CacheManager {
 
     // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
-
-    // Alarm Info
-    pub alarm_events: DashMap<String, SystemAlarmEventMessage>,
 }
 
-impl CacheManager {
-    pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
-        let cache = CacheManager {
-            start_time: now_second(),
+impl MQTTCacheManager {
+    pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<BrokerCacheManager>) -> Self {
+        MQTTCacheManager {
             client_pool,
-            cluster_name,
-            node_lists: DashMap::with_capacity(2),
-            cluster_info: DashMap::with_capacity(1),
-            status: DashMap::with_capacity(2),
+            broker_cache,
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
             topic_info: DashMap::with_capacity(8),
@@ -159,26 +138,7 @@ impl CacheManager {
             pkid_metadata: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
-            alarm_events: DashMap::with_capacity(8),
-        };
-        cache.set_status(NodeStatus::Starting);
-        cache
-    }
-
-    // node
-    pub fn add_node(&self, node: BrokerNode) {
-        self.node_lists.insert(node.node_id, node);
-    }
-
-    pub fn remove_node(&self, node: BrokerNode) {
-        self.node_lists.remove(&node.node_id);
-    }
-
-    pub fn node_list(&self) -> Vec<BrokerNode> {
-        self.node_lists
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect()
+        }
     }
 
     // session
@@ -295,7 +255,7 @@ impl CacheManager {
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
         let key = self.topic_rewrite_rule_key(
-            &self.cluster_name,
+            &self.broker_cache.cluster_name,
             &topic_rewrite_rule.action,
             &topic_rewrite_rule.source_topic,
         );
@@ -397,16 +357,6 @@ impl CacheManager {
         self.acl_metadata.remove_mqtt_blacklist(blacklist);
     }
 
-    // status
-    pub fn set_status(&self, status: NodeStatus) {
-        self.status.insert(self.cluster_name.clone(), status);
-    }
-
-    // status
-    pub fn get_status(&self) -> NodeStatus {
-        self.status.get(&self.cluster_name).unwrap().clone()
-    }
-
     // key
     pub fn topic_rewrite_rule_key(
         &self,
@@ -423,7 +373,8 @@ impl CacheManager {
     }
 
     pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
-        let key = self.auto_subscribe_rule_key(&self.cluster_name, &auto_subscribe_rule.topic);
+        let key = self
+            .auto_subscribe_rule_key(&self.broker_cache.cluster_name, &auto_subscribe_rule.topic);
         self.auto_subscribe_rule.insert(key, auto_subscribe_rule);
     }
 
@@ -431,52 +382,419 @@ impl CacheManager {
         let key = self.auto_subscribe_rule_key(cluster, topic);
         self.auto_subscribe_rule.remove(&key);
     }
-
-    pub fn add_alarm_event(&self, alarm_name: String, event: SystemAlarmEventMessage) {
-        self.alarm_events.insert(alarm_name, event);
-    }
-
-    pub fn get_alarm_event(&self, name: &str) -> Option<SystemAlarmEventMessage> {
-        if let Some(event) = self.alarm_events.get(name) {
-            return Some(event.clone());
-        }
-        None
-    }
-
-    // get start time
-    pub fn get_start_time(&self) -> u64 {
-        self.start_time
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn test_get_a_alarm_event_is_empty() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cache_manager = CacheManager::new(client_pool, "test_cluster".to_string());
+    use crate::common::tool::test_build_mqtt_cache_manager;
 
-        let event = cache_manager.get_alarm_event("test_event");
-        assert!(event.is_none());
+    use super::*;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+    use common_base::tools::now_second;
+    use metadata_struct::placement::node::BrokerNode;
+    use protocol::mqtt::common::{QoS, RetainHandling};
+
+    #[tokio::test]
+    async fn node_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let node = BrokerNode {
+            node_id: 1,
+            node_ip: "127.0.0.1".to_string(),
+            ..Default::default()
+        };
+
+        // add
+        cache_manager.broker_cache.add_node(node.clone());
+
+        // get
+        let nodes = cache_manager.broker_cache.node_list();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].node_id, node.node_id);
+        assert_eq!(nodes[0].node_ip, node.node_ip);
+
+        // remove
+        cache_manager.broker_cache.remove_node(node.clone());
+
+        // get again
+        let nodes = cache_manager.broker_cache.node_list();
+        assert!(nodes.is_empty());
     }
 
     #[tokio::test]
-    async fn test_add_and_get_alarm_event() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cache_manager = CacheManager::new(client_pool, "test_cluster".to_string());
 
-        let event = SystemAlarmEventMessage {
-            name: "test_event".to_string(),
-            message: "This is a test event".to_string(),
-            activate_at: chrono::Utc::now().timestamp(),
-            activated: true,
+    async fn user_info_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let user1 = MqttUser {
+            username: "user1".to_string(),
+            password: "password1".to_string(),
+            is_superuser: false,
+        };
+        let user2 = MqttUser {
+            username: "user2".to_string(),
+            password: "password2".to_string(),
+            is_superuser: false,
         };
 
-        cache_manager.add_alarm_event("test_event".to_string(), event.clone());
-        let retrieved_event = cache_manager.get_alarm_event("test_event");
+        // add
+        cache_manager.add_user(user1.clone());
+        cache_manager.add_user(user2.clone());
 
-        assert!(retrieved_event.is_some());
-        assert_eq!(event.name, retrieved_event.unwrap().name);
+        // get
+        let user_info = cache_manager.user_info.get(&user1.username);
+        assert!(user_info.is_some());
+        assert_eq!(user_info.unwrap().username, user1.username);
+
+        // retain
+        let mut usernames_to_retain = HashSet::new();
+        usernames_to_retain.insert("user1".to_string());
+        cache_manager.retain_users(usernames_to_retain);
+        assert!(cache_manager.user_info.contains_key("user1"));
+        assert!(!cache_manager.user_info.contains_key("user2"));
+
+        // remove
+        cache_manager.del_user(user1.username.clone());
+
+        // get again
+        let user_info = cache_manager.user_info.get(&user1.username);
+        assert!(user_info.is_none());
+    }
+
+    #[tokio::test]
+    async fn session_info_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let client_id = "test_client_session";
+        let session = MqttSession {
+            client_id: client_id.to_string(),
+            ..Default::default()
+        };
+
+        // add
+        cache_manager.add_session(client_id, &session);
+
+        // get
+        let session_info = cache_manager.get_session_info(client_id);
+        assert!(session_info.is_some());
+        assert_eq!(session_info.unwrap().client_id, client_id);
+
+        // update connect_id
+        let new_connect_id = Some(12345);
+        cache_manager.update_session_connect_id(client_id, new_connect_id);
+        let updated_session = cache_manager.get_session_info(client_id).unwrap();
+        assert_eq!(updated_session.connection_id, new_connect_id);
+
+        // set connect_id to None
+        cache_manager.update_session_connect_id(client_id, None);
+        let updated_session_none = cache_manager.get_session_info(client_id).unwrap();
+        assert!(updated_session_none.connection_id.is_none());
+
+        // remove
+        cache_manager.remove_session(client_id);
+
+        // get again
+        let session_info_after_remove = cache_manager.get_session_info(client_id);
+        assert!(session_info_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn connection_info_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let connect_id = 12345;
+        let client_id = "test_client_connection";
+        let session = MqttSession {
+            client_id: client_id.to_string(),
+            ..Default::default()
+        };
+        let conn = MQTTConnection {
+            client_id: client_id.to_string(),
+            ..Default::default()
+        };
+
+        // add
+        cache_manager.add_session(client_id, &session);
+        assert_eq!(cache_manager.get_connection_count(), 0);
+        cache_manager.add_connection(connect_id, conn.clone());
+
+        // get
+        assert_eq!(cache_manager.get_connection_count(), 1);
+        assert_eq!(cache_manager.get_connect_id(client_id), Some(connect_id));
+        let conn_info = cache_manager.get_connection(connect_id);
+        assert!(conn_info.is_some());
+        assert_eq!(conn_info.unwrap().client_id, client_id);
+
+        // login status
+        assert!(!cache_manager.is_login(connect_id));
+        cache_manager.login_success(connect_id, "test_user".to_string());
+        assert!(cache_manager.is_login(connect_id));
+
+        // remove
+        cache_manager.remove_connection(connect_id);
+        assert_eq!(cache_manager.get_connection_count(), 0);
+
+        // get again
+        let conn_info_after_remove = cache_manager.get_connection(connect_id);
+        assert!(conn_info_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn topic_info_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let topic_name = "test/topic";
+        let topic = MQTTTopic {
+            topic_id: "topic_1".to_string(),
+            ..Default::default()
+        };
+
+        // add
+        cache_manager.add_topic(topic_name, &topic);
+        assert!(cache_manager.topic_exists(topic_name));
+
+        // get
+        let topic_info = cache_manager.get_topic_by_name(topic_name);
+        assert!(topic_info.is_some());
+        assert_eq!(topic_info.unwrap().topic_id, topic.topic_id);
+
+        // update retain message
+        let retain_message = Some(vec![1, 2, 3]);
+        cache_manager.update_topic_retain_message(topic_name, retain_message.clone());
+        let updated_topic = cache_manager.get_topic_by_name(topic_name).unwrap();
+        assert_eq!(updated_topic.retain_message, retain_message);
+
+        // remove
+        cache_manager.delete_topic(&topic_name.to_string(), &topic);
+
+        // get again
+        let topic_info_after_remove = cache_manager.get_topic_by_name(topic_name);
+        assert!(topic_info_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn topic_id_name_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let topic_name = "test/topic";
+        let topic = MQTTTopic {
+            topic_id: "topic_1".to_string(),
+            ..Default::default()
+        };
+
+        // add
+        cache_manager.add_topic(topic_name, &topic);
+
+        // get
+        let topic_name_from_id = cache_manager.topic_name_by_id(&topic.topic_id);
+        assert!(topic_name_from_id.is_some());
+        assert_eq!(topic_name_from_id.unwrap(), topic_name);
+
+        // remove
+        cache_manager.delete_topic(&topic_name.to_string(), &topic);
+
+        // get again
+        let topic_name_from_id_after_remove = cache_manager.topic_name_by_id(&topic.topic_id);
+        assert!(topic_name_from_id_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn heartbeat_data_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let client_id = "test_client_heartbeat";
+        let live_time = ConnectionLiveTime {
+            protocol: MqttProtocol::Mqtt3,
+            keep_live: 60,
+            heartbeat: now_second(),
+        };
+
+        // add
+        cache_manager.report_heartbeat(client_id.to_string(), live_time);
+
+        // get
+        let heartbeat = cache_manager.heartbeat_data.get(client_id);
+        assert!(heartbeat.is_some());
+        assert_eq!(heartbeat.unwrap().keep_live, 60);
+
+        // remove
+        cache_manager.remove_heartbeat(client_id);
+
+        // get again
+        let heartbeat_after_remove = cache_manager.heartbeat_data.get(client_id);
+        assert!(heartbeat_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn topic_rewrite_rule_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let rule = MqttTopicRewriteRule {
+            cluster: cache_manager.broker_cache.cluster_name.clone(),
+            action: "publish".to_string(),
+            source_topic: "source/topic".to_string(),
+            dest_topic: "target/topic".to_string(),
+            regex: "".to_string(),
+            timestamp: 0,
+        };
+
+        // add
+        cache_manager.add_topic_rewrite_rule(rule.clone());
+
+        // get
+        let rules = cache_manager.get_all_topic_rewrite_rule();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].source_topic, rule.source_topic);
+
+        // remove
+        cache_manager.delete_topic_rewrite_rule(&rule.cluster, &rule.action, &rule.source_topic);
+
+        // get again
+        let rules_after_remove = cache_manager.get_all_topic_rewrite_rule();
+        assert!(rules_after_remove.is_empty());
+    }
+
+    #[tokio::test]
+    async fn auto_subscribe_rule_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let rule = MqttAutoSubscribeRule {
+            cluster: cache_manager.broker_cache.cluster_name.clone(),
+            topic: "auto/sub/topic".to_string(),
+            qos: QoS::AtLeastOnce,
+            no_local: false,
+            retain_as_published: false,
+            retained_handling: RetainHandling::OnEverySubscribe,
+        };
+
+        // add
+        cache_manager.add_auto_subscribe_rule(rule.clone());
+
+        // get
+        let key = cache_manager.auto_subscribe_rule_key(&rule.cluster, &rule.topic);
+        let rule_info = cache_manager.auto_subscribe_rule.get(&key);
+        println!("{rule_info:?}");
+        assert!(rule_info.is_some());
+        assert_eq!(rule_info.unwrap().topic, rule.topic);
+
+        // remove
+        cache_manager.delete_auto_subscribe_rule(&rule.cluster, &rule.topic);
+
+        // get again
+        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&key);
+        assert!(rule_info_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn topic_alias_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let client_id = "test_client_alias";
+        let connect_id = 1;
+        let session = MqttSession {
+            client_id: client_id.to_string(),
+            ..Default::default()
+        };
+        let conn = MQTTConnection {
+            client_id: client_id.to_string(),
+            ..Default::default()
+        };
+        cache_manager.add_session(client_id, &session);
+        cache_manager.add_connection(connect_id, conn);
+
+        let topic_name = "test/alias/topic";
+        let topic_alias = 10;
+
+        // get non-existent
+        assert!(!cache_manager.topic_alias_exists(connect_id, topic_alias));
+        assert!(cache_manager
+            .get_topic_alias(connect_id, topic_alias)
+            .is_none());
+
+        // add
+        let properties = Some(PublishProperties {
+            topic_alias: Some(topic_alias),
+            ..Default::default()
+        });
+        cache_manager.add_topic_alias(connect_id, topic_name, &properties);
+
+        // get existent
+        assert!(cache_manager.topic_alias_exists(connect_id, topic_alias));
+        assert_eq!(
+            cache_manager.get_topic_alias(connect_id, topic_alias),
+            Some(topic_name.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn acl_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let user_acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
+            resource_name: "test_user_acl".to_string(),
+            topic: "#".to_string(),
+            ip: "127.0.0.1".to_string(),
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Allow,
+        };
+        let client_acl = MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
+            resource_name: "test_client_acl".to_string(),
+            topic: "test/topic".to_string(),
+            ip: "127.0.0.1".to_string(),
+            action: MqttAclAction::Subscribe,
+            permission: MqttAclPermission::Allow,
+        };
+
+        // add
+        cache_manager.add_acl(user_acl.clone());
+        cache_manager.add_acl(client_acl.clone());
+        assert!(cache_manager
+            .acl_metadata
+            .acl_user
+            .contains_key("test_user_acl"));
+        assert!(cache_manager
+            .acl_metadata
+            .acl_client_id
+            .contains_key("test_client_acl"));
+
+        // retain
+        let mut user_to_retain = HashSet::new();
+        user_to_retain.insert("test_user_acl".to_string());
+        let client_to_retain = HashSet::new(); // Retain none
+        cache_manager.retain_acls(user_to_retain, client_to_retain);
+        assert!(cache_manager
+            .acl_metadata
+            .acl_user
+            .contains_key("test_user_acl"));
+        assert!(!cache_manager
+            .acl_metadata
+            .acl_client_id
+            .contains_key("test_client_acl"));
+
+        // remove
+        cache_manager.remove_acl(user_acl);
+        assert!(!cache_manager
+            .acl_metadata
+            .acl_user
+            .contains_key("test_user_acl"));
+    }
+
+    #[tokio::test]
+    async fn blacklist_operations() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::ClientId,
+            resource_name: "blacklist_client".to_string(),
+            end_time: 0,
+            desc: "".to_string(),
+        };
+
+        // add
+        cache_manager.add_blacklist(blacklist.clone());
+        assert!(cache_manager
+            .acl_metadata
+            .blacklist_client_id
+            .contains_key("blacklist_client"));
+
+        // remove
+        cache_manager.remove_blacklist(blacklist);
+        assert!(!cache_manager
+            .acl_metadata
+            .blacklist_client_id
+            .contains_key("blacklist_client"));
     }
 }

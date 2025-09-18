@@ -18,7 +18,7 @@ use std::time::Duration;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::segment_name;
 use metadata_struct::journal::shard::shard_name_iden;
-use protocol::journal_server::journal_engine::{
+use protocol::journal::journal_engine::{
     ClientSegmentMetadata, GetClusterMetadataNode, GetShardMetadataReqShard,
     GetShardMetadataRespShard,
 };

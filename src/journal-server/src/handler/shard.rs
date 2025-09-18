@@ -15,14 +15,14 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::journal::call::update_segment_status;
+use grpc_clients::meta::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
-use protocol::journal_server::journal_engine::{
+use protocol::journal::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard, ListShardReq,
 };
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::{
     CreateNextSegmentRequest, UpdateSegmentStatusRequest,
 };
 
@@ -239,7 +239,7 @@ impl ShardHandler {
             namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
         };
-        grpc_clients::placement::journal::call::create_next_segment(
+        grpc_clients::meta::journal::call::create_next_segment(
             &self.client_pool,
             &conf.get_placement_center_addr(),
             request,

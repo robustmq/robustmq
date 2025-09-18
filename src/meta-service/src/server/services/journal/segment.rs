@@ -30,7 +30,7 @@ use metadata_struct::journal::segment::{
 };
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
     UpdateSegmentMetaReply, UpdateSegmentMetaRequest, UpdateSegmentStatusReply,
@@ -535,12 +535,11 @@ pub async fn sync_delete_segment_metadata_info(
 mod tests {
     use super::calc_node_fold;
     use crate::core::cache::CacheManager;
-    use crate::storage::rocksdb::{column_family_list, storage_data_fold};
+    use broker_core::rocksdb::{column_family_list, storage_data_fold};
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::placement_center::placement_center_inner::ClusterType;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
 
@@ -561,7 +560,7 @@ mod tests {
 
         let node = BrokerNode {
             cluster_name: config.cluster_name.clone(),
-            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+            roles: Vec::new(),
             register_time: now_second(),
             start_time: now_second(),
             extend: serde_json::to_string(&extend_info).unwrap(),

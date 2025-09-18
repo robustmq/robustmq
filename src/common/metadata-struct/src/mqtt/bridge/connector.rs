@@ -15,9 +15,6 @@
 use serde::{Deserialize, Serialize};
 
 use super::{connector_type::ConnectorType, status::MQTTStatus};
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ConnectorRaw, ConnectorType as ProtoConnectorType, MqttStatus as ProtoMQTTStatus,
-};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct MQTTConnector {
@@ -39,32 +36,5 @@ impl MQTTConnector {
 
     pub fn decode(data: &[u8]) -> Self {
         serde_json::from_slice(data).unwrap()
-    }
-}
-
-impl From<ConnectorType> for ProtoConnectorType {
-    fn from(type_enum: ConnectorType) -> Self {
-        match type_enum {
-            ConnectorType::Kafka => ProtoConnectorType::Kafka,
-            ConnectorType::LocalFile => ProtoConnectorType::File,
-        }
-    }
-}
-
-impl From<MQTTConnector> for ConnectorRaw {
-    fn from(connector: MQTTConnector) -> Self {
-        let connector_type: ProtoConnectorType = connector.connector_type.into();
-        let connector_status: ProtoMQTTStatus = connector.status.into();
-        Self {
-            cluster_name: connector.cluster_name,
-            connector_name: connector.connector_name,
-            connector_type: connector_type as i32,
-            config: connector.config,
-            topic_id: connector.topic_id,
-            status: connector_status as i32,
-            broker_id: connector.broker_id,
-            create_time: connector.create_time,
-            update_time: connector.update_time,
-        }
     }
 }

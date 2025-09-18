@@ -15,11 +15,11 @@
 use std::sync::Arc;
 
 use prost::Message as _;
-use protocol::placement_center::placement_center_kv::{DeleteRequest, SetRequest};
+use protocol::meta::placement_center_kv::{DeleteRequest, SetRequest};
 
 use crate::core::error::PlacementCenterError;
 use crate::storage::placement::kv::KvStorage;
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteKv {

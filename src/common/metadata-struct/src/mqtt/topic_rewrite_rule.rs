@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::broker_mqtt::broker_mqtt_admin::MqttTopicRewriteRuleRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -28,17 +27,5 @@ pub struct MqttTopicRewriteRule {
 impl MqttTopicRewriteRule {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
-    }
-}
-
-impl From<MqttTopicRewriteRule> for MqttTopicRewriteRuleRaw {
-    fn from(value: MqttTopicRewriteRule) -> Self {
-        MqttTopicRewriteRuleRaw {
-            source_topic: value.source_topic,
-            cluster_name: value.cluster,
-            dest_topic: value.dest_topic,
-            action: value.action,
-            regex: value.regex,
-        }
     }
 }

@@ -23,7 +23,7 @@ use protocol::mqtt::common::{
 use std::cmp::min;
 use std::sync::Arc;
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::content_type::{
     payload_format_indicator_check_by_lastwill, payload_format_indicator_check_by_publish,
 };
@@ -160,7 +160,7 @@ pub fn connect_validator(
 
 pub async fn publish_validator(
     protocol: &MqttProtocol,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     connection: &MQTTConnection,
     publish: &Publish,
@@ -202,7 +202,7 @@ pub async fn publish_validator(
         };
     }
 
-    let cluster = cache_manager.get_cluster_config();
+    let cluster = cache_manager.broker_cache.get_cluster_config();
 
     let max_packet_size = min(
         cluster.mqtt_protocol_config.max_packet_size,
@@ -233,34 +233,6 @@ pub async fn publish_validator(
                 ),
                 Vec::new(),
             ));
-        }
-    }
-
-    if let Some(properties) = publish_properties {
-        if let Some(payload_format) = properties.payload_format_indicator {
-            if payload_format == 1
-                && std::str::from_utf8(publish.payload.to_vec().as_slice()).is_err()
-            {
-                if is_puback {
-                    return Some(build_puback(
-                        protocol,
-                        connection,
-                        publish.p_kid,
-                        PubAckReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
-                        Vec::new(),
-                    ));
-                } else {
-                    return Some(build_pubrec(
-                        protocol,
-                        connection,
-                        publish.p_kid,
-                        PubRecReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
-                        Vec::new(),
-                    ));
-                }
-            }
         }
     }
 
@@ -295,7 +267,7 @@ pub async fn publish_validator(
                 connection,
                 publish.p_kid,
                 PubAckReason::PayloadFormatInvalid,
-                None,
+                Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                 Vec::new(),
             ));
         } else {
@@ -304,7 +276,7 @@ pub async fn publish_validator(
                 connection,
                 publish.p_kid,
                 PubRecReason::PayloadFormatInvalid,
-                None,
+                Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                 Vec::new(),
             ));
         }
@@ -312,7 +284,7 @@ pub async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
-            let cluster = cache_manager.get_cluster_config();
+            let cluster = cache_manager.broker_cache.get_cluster_config();
             if alias > cluster.mqtt_protocol_config.topic_alias_max {
                 if is_puback {
                     return Some(build_puback(

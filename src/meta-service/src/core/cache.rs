@@ -22,7 +22,6 @@ use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::node::NodeStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use crate::{
     controller::mqtt::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
 };
@@ -36,7 +35,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
-use protocol::placement_center::placement_center_inner::ClusterType;
+use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -207,7 +206,7 @@ impl CacheManager {
 
     pub fn load_cache(&mut self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
         let cluster = ClusterStorage::new(rocksdb_engine_handler.clone());
-        if let Ok(result) = cluster.list(None) {
+        if let Ok(result) = cluster.list() {
             for cluster in result {
                 self.add_broker_cluster(&cluster);
             }
@@ -253,27 +252,25 @@ pub fn load_cache(
 
     // mqtt
     for cluster in cache_manager.get_all_cluster() {
-        if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
-            // Topic
-            let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-            let data = topic.list(&cluster.cluster_name)?;
-            for topic in data {
-                cache_manager.add_topic(&cluster.cluster_name, topic);
-            }
+        // Topic
+        let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+        let data = topic.list(&cluster.cluster_name)?;
+        for topic in data {
+            cache_manager.add_topic(&cluster.cluster_name, topic);
+        }
 
-            // User
-            let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
-            let data = user.list_by_cluster(&cluster.cluster_name)?;
-            for user in data {
-                cache_manager.add_user(&cluster.cluster_name, user);
-            }
+        // User
+        let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
+        let data = user.list_by_cluster(&cluster.cluster_name)?;
+        for user in data {
+            cache_manager.add_user(&cluster.cluster_name, user);
+        }
 
-            // connector
-            let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
-            let data = connector.list(&cluster.cluster_name)?;
-            for connector in data {
-                cache_manager.add_connector(&cluster.cluster_name, &connector);
-            }
+        // connector
+        let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+        let data = connector.list(&cluster.cluster_name)?;
+        for connector in data {
+            cache_manager.add_connector(&cluster.cluster_name, &connector);
         }
     }
     Ok(())

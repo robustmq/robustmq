@@ -15,13 +15,13 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::mqtt::call::{
+use grpc_clients::meta::mqtt::call::{
     placement_delete_auto_subscribe_rule, placement_list_auto_subscribe_rule,
     placement_set_auto_subscribe_rule,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
 };
 

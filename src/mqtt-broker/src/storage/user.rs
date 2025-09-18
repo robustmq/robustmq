@@ -16,12 +16,12 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::placement::mqtt::call::{
+use grpc_clients::meta::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
 

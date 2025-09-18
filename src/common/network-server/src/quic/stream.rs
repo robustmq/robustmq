@@ -15,25 +15,26 @@
 use bytes::BytesMut;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::MqttPacket;
+use protocol::codec::RobustMQCodec;
+use protocol::codec::RobustMQCodecWrapper;
 use quinn::{RecvStream, SendStream};
 use tokio_util::codec::{Decoder, Encoder};
 
-pub struct QuicMQTTFramedWriteStream {
+// Write Stream
+pub struct QuicFramedWriteStream {
     write_stream: SendStream,
-    codec: MqttCodec,
+    codec: RobustMQCodec,
 }
 
-impl QuicMQTTFramedWriteStream {
-    pub fn new(write_stream: SendStream, codec: MqttCodec) -> Self {
+impl QuicFramedWriteStream {
+    pub fn new(write_stream: SendStream, codec: RobustMQCodec) -> Self {
         Self {
             write_stream,
             codec,
         }
     }
 
-    pub async fn send(&mut self, packet: MqttPacketWrapper) -> ResultCommonError {
+    pub async fn send(&mut self, packet: RobustMQCodecWrapper) -> ResultCommonError {
         let mut bytes_mut = BytesMut::new();
         self.codec.encode(packet, &mut bytes_mut)?;
 
@@ -46,22 +47,25 @@ impl QuicMQTTFramedWriteStream {
     }
 }
 
+// Read Stream
 pub struct QuicFramedReadStream {
     read_stream: RecvStream,
-    codec: MqttCodec,
+    codec: RobustMQCodec,
 }
 
 impl QuicFramedReadStream {
-    pub fn new(read_stream: RecvStream, codec: MqttCodec) -> Self {
+    pub fn new(read_stream: RecvStream, codec: RobustMQCodec) -> Self {
         Self { read_stream, codec }
     }
-    pub async fn receive(&mut self) -> Result<Option<MqttPacket>, CommonError> {
+
+    #[allow(clippy::result_large_err)]
+    pub async fn receive(&mut self) -> Result<Option<RobustMQCodecWrapper>, CommonError> {
         let mut decode_bytes = BytesMut::with_capacity(0);
         let vec = self.read_stream.read_to_end(1024).await?;
         decode_bytes.extend(vec);
 
         if !decode_bytes.is_empty() {
-            return Ok(self.codec.decode(&mut decode_bytes)?);
+            return self.codec.decode(&mut decode_bytes);
         }
 
         Ok(None)

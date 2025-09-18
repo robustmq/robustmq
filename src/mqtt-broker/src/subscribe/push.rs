@@ -15,7 +15,9 @@
 use super::common::min_qos;
 use super::common::Subscriber;
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::cache::{
+    MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
@@ -26,14 +28,14 @@ use common_base::network::broker_not_available;
 use common_base::tools::now_mills;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::protocol::RobustMQProtocol;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
-use network_server::common::packet::RobustMQPacket;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::qos;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
+use protocol::robust::RobustMQPacket;
+use protocol::robust::RobustMQProtocol;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
@@ -44,7 +46,7 @@ use tracing::{debug, warn};
 
 #[derive(Clone)]
 pub struct BuildPublishMessageContext {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub client_id: String,
     pub record: Record,
@@ -151,7 +153,7 @@ pub async fn build_publish_message(
 
 pub async fn send_publish_packet_to_client(
     connection_manager: &Arc<ConnectionManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     sub_pub_param: &SubPublishParam,
     qos: &QoS,
     stop_sx: &Sender<bool>,
@@ -219,8 +221,9 @@ pub async fn send_publish_packet_to_client(
     Ok(())
 }
 
-pub fn build_pub_qos(cache_manager: &Arc<CacheManager>, subscriber: &Subscriber) -> QoS {
+pub fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
     let cluster_qos = cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .max_qos;
@@ -238,7 +241,7 @@ pub fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {
 // When the subscription QOS is 0,
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
 pub async fn push_packet_to_client(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
@@ -269,7 +272,7 @@ pub async fn push_packet_to_client(
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
 pub async fn exclusive_publish_message_qos1(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
@@ -296,7 +299,7 @@ pub async fn exclusive_publish_message_qos1(
 // send pubrel message
 // wait pubcomp message
 pub async fn exclusive_publish_message_qos2(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
@@ -382,7 +385,7 @@ pub async fn send_message_to_client(
 }
 
 pub async fn wait_pub_ack(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
@@ -418,7 +421,7 @@ pub async fn wait_pub_ack(
 }
 
 pub async fn wait_pub_rec(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
@@ -454,7 +457,7 @@ pub async fn wait_pub_rec(
 }
 
 pub async fn wait_pub_comp(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
@@ -491,7 +494,7 @@ pub async fn wait_pub_comp(
 }
 
 pub async fn qos2_send_pubrel(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,

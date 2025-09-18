@@ -13,13 +13,12 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-pub mod admin;
 pub mod bridge;
 pub mod broker;
 pub mod common;
 pub mod handler;
-pub mod observability;
 pub mod security;
 pub mod server;
 pub mod storage;
 pub mod subscribe;
+pub mod system_topic;

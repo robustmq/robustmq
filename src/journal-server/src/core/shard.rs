@@ -20,12 +20,8 @@ use std::time::{Duration, Instant};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
-use protocol::journal_server::journal_inner::{
-    DeleteShardFileRequest, GetShardDeleteStatusRequest,
-};
-use protocol::placement_center::placement_center_journal::{
-    CreateShardRequest, DeleteShardRequest,
-};
+use protocol::journal::journal_inner::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
+use protocol::meta::placement_center_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::RocksDBEngine;
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -126,7 +122,7 @@ pub async fn create_shard_to_place(
         shard_name: shard_name.to_string(),
         shard_config: serde_json::to_vec(&config)?,
     };
-    grpc_clients::placement::journal::call::create_shard(
+    grpc_clients::meta::journal::call::create_shard(
         client_pool,
         &conf.get_placement_center_addr(),
         request,
@@ -168,7 +164,7 @@ pub async fn delete_shard_to_place(
         shard_name: shard_name.to_string(),
     };
 
-    grpc_clients::placement::journal::call::delete_shard(
+    grpc_clients::meta::journal::call::delete_shard(
         &client_pool,
         &conf.get_placement_center_addr(),
         request,

@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::protocol::RobustMQProtocol;
+use common_base::tools::now_second;
 use protocol::mqtt::common::MqttProtocol;
+use protocol::robust::RobustMQProtocol;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::net::SocketAddr;
@@ -53,6 +54,7 @@ pub struct NetworkConnection {
     pub connection_id: u64,
     pub protocol: Option<RobustMQProtocol>,
     pub addr: SocketAddr,
+    pub create_time: u64,
     #[serde(skip_serializing, skip_deserializing)]
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
@@ -69,6 +71,7 @@ impl NetworkConnection {
             connection_id,
             protocol: None,
             addr,
+            create_time: now_second(),
             connection_stop_sx,
         }
     }

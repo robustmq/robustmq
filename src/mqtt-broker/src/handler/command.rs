@@ -14,7 +14,7 @@
 
 use super::flow_control::is_qos_message;
 use super::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
@@ -22,12 +22,13 @@ use crate::handler::response::{
 use crate::security::AuthDriver;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
+use broker_core::rocksdb::RocksDBEngine;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::packet::{ResponsePackage, RobustMQPacket};
+use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, Connect, ConnectProperties, ConnectReturnCode, Disconnect,
     DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket,
@@ -35,6 +36,7 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, Subscribe,
     SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
+use protocol::robust::RobustMQPacket;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -47,7 +49,7 @@ pub struct MQTTHandlerCommand {
     mqtt3_service: MqttService,
     mqtt4_service: MqttService,
     mqtt5_service: MqttService,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     pub client_pool: Arc<ClientPool>,
@@ -55,7 +57,7 @@ pub struct MQTTHandlerCommand {
 
 #[derive(Clone)]
 pub struct CommandContext {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub message_storage_adapter: ArcStorageAdapter,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
@@ -63,6 +65,7 @@ pub struct CommandContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub auth_driver: Arc<AuthDriver>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 #[async_trait]
@@ -646,6 +649,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -658,6 +662,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -670,6 +675,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {

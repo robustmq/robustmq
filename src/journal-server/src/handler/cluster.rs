@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use metadata_struct::journal::node_extend::JournalNodeExtend;
-use protocol::journal_server::journal_engine::GetClusterMetadataNode;
+use protocol::journal::journal_engine::GetClusterMetadataNode;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;

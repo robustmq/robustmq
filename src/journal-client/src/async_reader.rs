@@ -20,7 +20,7 @@ use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::journal::segment::segment_name;
 use metadata_struct::journal::shard::shard_name_iden;
-use protocol::journal_server::journal_engine::{
+use protocol::journal::journal_engine::{
     FetchOffsetReqBody, FetchOffsetShard, ReadReqBody, ReadReqFilter, ReadReqMessage,
     ReadReqOptions, ReadType,
 };

@@ -15,11 +15,9 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::{common::decode_share_group_and_path, manager::SubscribeManager};
 use common_config::broker::broker_config;
-use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
+use grpc_clients::{meta::mqtt::call::placement_delete_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
-use protocol::{
-    mqtt::common::Unsubscribe, placement_center::placement_center_mqtt::DeleteSubscribeRequest,
-};
+use protocol::{meta::placement_center_mqtt::DeleteSubscribeRequest, mqtt::common::Unsubscribe};
 use std::sync::Arc;
 
 pub async fn remove_subscribe(

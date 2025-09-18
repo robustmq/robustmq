@@ -16,7 +16,7 @@ use std::{sync::Arc, time::Duration};
 
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use protocol::placement_center::placement_center_mqtt::ConnectorHeartbeatRaw;
+use protocol::meta::placement_center_mqtt::ConnectorHeartbeatRaw;
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
@@ -68,5 +68,79 @@ async fn report_heartbeat(
 
     if let Err(e) = storage.connector_heartbeat(heatbeats).await {
         error!("report connector heartbeat error:{}", e);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bridge::manager::ConnectorManager;
+    use common_base::tools::unique_id;
+    use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
+
+    async fn setup() -> (Arc<ClientPool>, Arc<ConnectorManager>) {
+        let namespace = unique_id();
+        let config = BrokerConfig {
+            cluster_name: namespace,
+            broker_id: 1,
+            ..Default::default()
+        };
+        init_broker_conf_by_config(config);
+
+        let client_pool = Arc::new(ClientPool::new(1));
+        let connector_manager = Arc::new(ConnectorManager::new());
+
+        (client_pool, connector_manager)
+    }
+
+    #[tokio::test]
+    async fn test_start_connector_report_heartbeat_thread() {
+        let (client_pool, connector_manager) = setup().await;
+        let (stop_send, _) = broadcast::channel::<bool>(1);
+
+        connector_manager.report_heartbeat("test_connector_1");
+        connector_manager.report_heartbeat("test_connector_2");
+
+        let heartbeat_handle = tokio::spawn({
+            let client_pool = client_pool.clone();
+            let connector_manager = connector_manager.clone();
+            let stop_send = stop_send.clone();
+            async move {
+                start_connector_report_heartbeat_thread(client_pool, connector_manager, stop_send)
+                    .await;
+            }
+        });
+
+        sleep(Duration::from_millis(100)).await;
+
+        stop_send.send(true).unwrap();
+
+        assert!(heartbeat_handle.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_report_heartbeat() {
+        let (client_pool, connector_manager) = setup().await;
+
+        connector_manager.report_heartbeat("test_connector");
+
+        assert!(connector_manager
+            .connector_heartbeat
+            .contains_key("test_connector"));
+
+        report_heartbeat(&client_pool, &connector_manager).await;
+
+        // Verify that the heartbeat data still exists
+        assert!(connector_manager
+            .connector_heartbeat
+            .contains_key("test_connector"));
+
+        // With no data
+        let (client_pool, connector_manager) = setup().await;
+
+        report_heartbeat(&client_pool, &connector_manager).await;
+
+        // Verify that no heartbeat data exists
+        assert!(connector_manager.connector_heartbeat.is_empty());
     }
 }

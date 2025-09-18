@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    common::{tool::loop_select, types::ResultMqttBrokerError},
-    security::AuthDriver,
+use crate::security::AuthDriver;
+use common_base::{
+    error::{common::CommonError, ResultCommonError},
+    tools::loop_select,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -27,8 +28,10 @@ pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast
 
 fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        let ac_fn = async || -> ResultMqttBrokerError {
-            auth_driver.update_user_cache().await?;
+        let ac_fn = async || -> ResultCommonError {
+            if let Err(e) = auth_driver.update_user_cache().await {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
             Ok(())
         };
         loop_select(ac_fn, 1, &stop_send).await;
@@ -37,8 +40,10 @@ fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bo
 
 fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        let ac_fn = async || -> ResultMqttBrokerError {
-            auth_driver.update_acl_cache().await?;
+        let ac_fn = async || -> ResultCommonError {
+            if let Err(e) = auth_driver.update_acl_cache().await {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
             Ok(())
         };
         loop_select(ac_fn, 1, &stop_send).await;
@@ -47,8 +52,10 @@ fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<boo
 
 fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        let ac_fn = async || -> ResultMqttBrokerError {
-            auth_driver.update_blacklist_cache().await?;
+        let ac_fn = async || -> ResultCommonError {
+            if let Err(e) = auth_driver.update_blacklist_cache().await {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
             Ok(())
         };
         loop_select(ac_fn, 1, &stop_send).await;

@@ -17,4 +17,3 @@ pub mod journal;
 pub mod keys;
 pub mod mqtt;
 pub mod placement;
-pub mod rocksdb;

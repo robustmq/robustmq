@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::config::{
-    JournalRuntime, JournalServer, JournalStorage, MqttAuthStorage, MqttFlappingDetect,
-    MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema,
-    MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, PlaceRuntime,
+    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthStorage,
+    MqttFlappingDetect, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
+    MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
     Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
 use common_base::enum_type::delay_type::DelayType;
@@ -23,7 +23,7 @@ use common_base::runtime::get_runtime_worker_threads;
 use toml::Table;
 
 pub fn default_roles() -> Vec<String> {
-    vec!["place".to_string(), "broker".to_string()]
+    vec!["meta".to_string(), "broker".to_string()]
 }
 
 pub fn default_cluster_name() -> String {
@@ -38,7 +38,7 @@ pub fn default_grpc_port() -> u32 {
     1228
 }
 
-pub fn default_placement_center() -> Table {
+pub fn default_meta_addrs() -> Table {
     let mut nodes = Table::new();
     nodes.insert(
         default_broker_id().to_string(),
@@ -73,8 +73,8 @@ pub fn default_rocksdb() -> Rocksdb {
     }
 }
 
-pub fn default_place_runtime() -> PlaceRuntime {
-    PlaceRuntime {
+pub fn default_place_runtime() -> MetaRuntime {
+    MetaRuntime {
         heartbeat_check_time_ms: 1000,
         heartbeat_timeout_ms: 30000,
     }
@@ -127,7 +127,7 @@ pub fn default_mqtt_offline_message() -> MqttOfflineMessage {
 pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
     MqttSlowSubscribeConfig {
         enable: false,
-        max_store_num: 1000,
+        record_time: 1000,
         delay_type: DelayType::Whole,
     }
 }
@@ -176,10 +176,7 @@ pub fn default_mqtt_schema() -> MqttSchema {
 pub fn default_mqtt_system_monitor() -> MqttSystemMonitor {
     MqttSystemMonitor {
         enable: false,
-        os_cpu_check_interval_ms: 60000,
         os_cpu_high_watermark: 70.0,
-        os_cpu_low_watermark: 50.0,
-        os_memory_check_interval_ms: 60,
         os_memory_high_watermark: 80.0,
     }
 }

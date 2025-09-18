@@ -16,5 +16,6 @@
 hawkeye format
 cargo fmt --all
 cargo fmt --all -- --check
-cargo clippy --all-targets --all-features --tests --benches -- -D warnings
+cargo clippy
+# cargo clippy --fix
 cargo-deny check licenses

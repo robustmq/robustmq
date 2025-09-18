@@ -22,7 +22,7 @@ use crate::storage::engine::{
     engine_save_by_cluster,
 };
 use crate::storage::keys::{key_node, key_node_prefix, key_node_prefix_all};
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct NodeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -73,16 +73,13 @@ impl NodeStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::placement_center::placement_center_inner::ClusterType;
+    use broker_core::rocksdb::column_family_list;
     use tempfile::tempdir;
 
     fn setup_kv_storage() -> NodeStorage {
         let temp_dir = tempdir().unwrap();
-        let engine = RocksDBEngine::new(
-            temp_dir.path().to_str().unwrap(),
-            100,
-            vec!["cluster".to_string()],
-        );
+        let engine =
+            RocksDBEngine::new(temp_dir.path().to_str().unwrap(), 100, column_family_list());
         NodeStorage::new(Arc::new(engine))
     }
 
@@ -91,7 +88,6 @@ mod tests {
             cluster_name: "test_cluster".to_string(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
-            cluster_type: ClusterType::PlacementCenter.as_str_name().to_string(),
             ..Default::default()
         }
     }

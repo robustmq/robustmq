@@ -34,7 +34,7 @@ use crate::storage::engine::{
     engine_save_by_cluster,
 };
 use crate::storage::keys::{storage_key_mqtt_connector, storage_key_mqtt_connector_prefix};
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct MqttConnectorStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -89,12 +89,13 @@ impl MqttConnectorStorage {
 mod tests {
     use std::sync::Arc;
 
+    use broker_core::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+    use rocksdb_engine::RocksDBEngine;
 
     use crate::storage::mqtt::connector::MqttConnectorStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn connector_storage_test() {

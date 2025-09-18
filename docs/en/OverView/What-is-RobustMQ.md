@@ -1,39 +1,72 @@
-## 一、RobustMQ
-### 1.1 Logo
+## Logo
+
 ![image](../../../docs/images/robustmq-logo.png)
 
-### 1.2 Definition
-Next-generation high performance cloud-native converged message queues.
+## Vision
+To become the next-generation cloud-native and AI-native messaging infrastructure.
 
-### 1.3 Vision
-Use Rust to build a high-performance, stable, fully functional message queue that is compatible with a variety of mainstream message queue protocols, and has complete Serverless architecture.
+## Background & Motivation: Why Build RobustMQ
 
-### 1.4 Features
-- 100% Rust: A message queuing kernel implemented entirely in Rust.
-- Multi-protocol: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessaging, JNS, SQS and other mainstream message protocols.
-- Layered architecture: computing, storage, scheduling independent three-tier architecture, each layer has the ability of cluster deployment, rapid horizontal scaling capacity.
-- Plug-in storage: Standalone plug-in storage layer implementation, you can choose the appropriate storage layer according to your needs. It is compatible with traditional and cloud-native architectures, and supports cloud and IDC deployment patterns.
-- High cohesion architecture: It provides built-in metadata storage components, distributed Journal storage services, and has the ability to deploy quickly, easily and cohesively.
-- Rich functions: support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
+Traditional message queues face new challenges in the AI era: protocol fragmentation requiring multiple system maintenance, latency jitter unable to meet real-time AI demands, compute-storage coupling struggling with Serverless support, and high costs lacking elastic scaling.
 
-### 1.5 Why
+RobustMQ was born specifically redesigned for the AI era and cloud-native environments.
 
-Explore the application of Rust in the field of message queue, and build a message queue product with better performance, functionality and stability based on Rust.
-- Build a message queue that is compatible with all major message queuing protocols to reduce usage, learning, and maintenance costs.
-- Create a full Serverless message queue to reduce resource costs.
-- Build a message queue that can meet the needs of various scenarios.
+---
 
+## Core Features
 
-## 二、Long term planning
+**Design Philosophy**: AI-Ready, Cloud-Native, Multi-Protocol Unification, Compute-Storage Separation, Pluggable Storage
 
-RobustMQ vision is multi-protocol support and a fully Serverless architecture. The overall development effort is heavy, so it is divided into several phases:
+### 🦀 Rust High-Performance Core
+- Zero-cost abstractions, memory safety, no GC pauses
+- Tokio-based async runtime, supporting million-level concurrent connections
+- Microsecond-level latency, meeting real-time AI application requirements
 
-- Phase 1: Development of the cluster infrastructure (such as metadata storage service, storage adaptation layer, self-contained storage layer, etc.).
+### 🔌 Multi-Protocol Unified Platform
+- **MQTT** (1883/8083) - IoT devices, real-time communication
+- **Kafka** (9092) - Big data stream processing, AI training
+- **AMQP** (5672) - Enterprise integration, microservices
+- One deployment, multi-protocol availability
 
-- Phase 2: Complete the development of MQTT protocol-related functions, with the goal of building RobustMQ, verifying its feasibility, and adapting the MQTT protocol. Functionally align EMQX and finally implement RobustMQ MQTT for production availability.
+### ☁️ Compute-Storage Separation Architecture
+- **Broker Server**: Stateless protocol processing, Serverless support
+- **Meta Service**: Raft-based high-availability metadata management
+- **Journal Server**: Pluggable storage, supporting local files, S3, HDFS, etc.
 
-- Phase 3: We will start development of Kafka protocol-related features, align them functionally, and make Kafka RobustMQ production-ready for Kafka.
+### 💾 Pluggable Storage
+- Memory storage: Microsecond latency, ultimate performance
+- SSD storage: Millisecond latency, high-frequency access
+- Object storage: Second-level latency, ultra-low cost
+- WAL mechanism support, ensuring consistency
 
-- Phase 4: initiates development of protocols such as AMQP/RocketMQ.
+---
 
->  We are currently in the second phase, with the goal of completing the RobustMQ MQTT and making the RobustMQ MQTT production-ready by mid-2025.
+## Development Roadmap
+
+- **2025 Q4**: MQTT protocol production-ready, release version 0.2.0
+- **2026**: Enhance Kafka compatibility, support AI training data pipelines
+- **Long-term Goal**: Become an Apache top-level project
+
+---
+
+## Core Advantages
+
+- **🚀 Ultimate Performance**: Rust zero-cost abstractions, microsecond latency, zero GC pauses
+- **🔌 Multi-Protocol Unification**: MQTT/Kafka/AMQP integration, avoiding system fragmentation
+- **☁️ Compute-Storage Separation**: Stateless compute layer, supporting Serverless and elastic scaling
+- **💾 Pluggable Storage**: Memory/SSD/Object storage intelligent tiering
+- **🎯 AI-Native**: Optimized for AI workflows, supporting massive data and real-time inference
+- **🌐 Cloud-Native**: Containerization, K8s Operator, visual management
+- **🤝 Open Source Driven**: Apache 2.0 license, active global community
+
+---
+
+📌 **RobustMQ** — Next-generation cloud-native and AI-native messaging infrastructure
+
+---
+
+## 📖 Learn More
+
+Want to dive deeper into RobustMQ's technical details and design philosophy? Read our comprehensive blog article:
+**[Redefining Cloud-Native Message Queues with Rust](../Blogs/01.md)**
+

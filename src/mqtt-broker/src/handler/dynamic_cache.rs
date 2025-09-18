@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::cache::MQTTCacheManager;
+use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
@@ -29,18 +31,15 @@ use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use protocol::broker_mqtt::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use tracing::info;
 
-use super::cache::CacheManager;
-use super::dynamic_config::build_cluster_config;
-
 pub async fn load_metadata_cache(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     auth_driver: &Arc<AuthDriver>,
     connector_manager: &Arc<ConnectorManager>,
@@ -48,7 +47,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     // load cluster config
     let cluster = build_cluster_config(client_pool).await?;
-    cache_manager.set_cluster_config(cluster);
+    cache_manager.broker_cache.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
@@ -119,7 +118,7 @@ pub async fn load_metadata_cache(
 }
 
 pub async fn update_cache_metadata(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
@@ -133,7 +132,7 @@ pub async fn update_cache_metadata(
                     "Node {} is online. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.add_node(node);
+                cache_manager.broker_cache.add_node(node);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
@@ -141,7 +140,7 @@ pub async fn update_cache_metadata(
                     "Node {} has been taken offline. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.remove_node(node);
+                cache_manager.broker_cache.remove_node(node);
             }
         },
 
@@ -208,15 +207,12 @@ pub async fn update_cache_metadata(
         MqttBrokerUpdateCacheResourceType::SchemaResource => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let schema_resource = serde_json::from_str::<SchemaResourceBind>(&request.data)?;
-                schema_manager.add_schema_resource(&schema_resource);
+                schema_manager.add_bind(&schema_resource);
             }
 
             MqttBrokerUpdateCacheActionType::Delete => {
                 let schema_resource = serde_json::from_str::<SchemaResourceBind>(&request.data)?;
-                schema_manager.remove_resource_schema(
-                    &schema_resource.resource_name,
-                    &schema_resource.schema_name,
-                );
+                schema_manager.remove_bind(&schema_resource);
             }
         },
 

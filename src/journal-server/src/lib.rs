@@ -18,9 +18,6 @@
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use core::cache::{load_metadata_cache, CacheManager};
-use core::cluster::{
-    register_journal_node, report_heartbeat, report_monitor, unregister_journal_node,
-};
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
@@ -31,9 +28,7 @@ use server::connection_manager::ConnectionManager;
 use server::tcp::server::start_tcp_server;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::broadcast::{self, Sender};
-use tokio::time::sleep;
 use tracing::{error, info};
 
 pub mod admin;
@@ -113,17 +108,6 @@ impl JournalServer {
     }
 
     fn start_daemon_thread(&self) {
-        let (heartbeat_sx, monitor_sx) = (self.inner_stop.clone(), self.inner_stop.clone());
-        let (heartbeat_client_pool, monitor_client_pool) =
-            (self.client_pool.clone(), self.client_pool.clone());
-
-        let cache_manager = self.cache_manager.clone();
-        tokio::spawn(async move {
-            report_heartbeat(&heartbeat_client_pool, &cache_manager, heartbeat_sx);
-
-            report_monitor(monitor_client_pool, monitor_sx)
-        });
-
         let segment_scroll = SegmentScrollManager::new(
             self.cache_manager.clone(),
             self.client_pool.clone(),
@@ -176,23 +160,10 @@ impl JournalServer {
 
         metadata_and_local_segment_diff_check();
 
-        // todo
-        sleep(Duration::from_secs(1)).await;
-        match register_journal_node(&self.client_pool, &self.cache_manager).await {
-            Ok(()) => {}
-            Err(e) => {
-                panic!("{}", e);
-            }
-        }
-
         info!("Journal Node was initialized successfully");
     }
 
-    async fn stop_server(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) {
-        let config = broker_config();
+    async fn stop_server(cache_manager: Arc<CacheManager>, _client_pool: Arc<ClientPool>) {
         cache_manager.stop_all_build_index_thread();
-        if let Err(e) = unregister_journal_node(client_pool.clone(), config.clone()).await {
-            error!("{}", e);
-        }
     }
 }

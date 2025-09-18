@@ -35,7 +35,7 @@ use crate::storage::engine::{
     engine_save_by_cluster,
 };
 use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct MqttSessionStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -84,12 +84,12 @@ impl MqttSessionStorage {
 mod tests {
     use std::sync::Arc;
 
+    use crate::storage::mqtt::session::MqttSessionStorage;
+    use broker_core::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::session::MqttSession;
-
-    use crate::storage::mqtt::session::MqttSessionStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
+    use rocksdb_engine::RocksDBEngine;
 
     #[tokio::test]
     async fn session_storage_test() {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
 use super::message::build_message_expire;
 use crate::common::types::ResultMqttBrokerError;
@@ -27,11 +27,11 @@ use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
+use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
-use observability::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use protocol::mqtt::common::{
     qos, MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };
@@ -57,7 +57,7 @@ pub async fn is_new_sub(
 }
 
 pub async fn save_retain_message(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
     client_id: &str,
@@ -97,7 +97,7 @@ pub struct TrySendRetainMessageContext {
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub is_new_subs: DashMap<String, bool>,
 }
@@ -140,7 +140,7 @@ pub struct SendRetainMessageContext {
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub stop_sx: broadcast::Sender<bool>,
     pub is_new_subs: DashMap<String, bool>,
@@ -166,7 +166,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
         let topic_id_list = get_sub_topic_id_list(&context.cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(context.client_pool.clone());
-        let cluster = context.cache_manager.get_cluster_config();
+        let cluster = context.cache_manager.broker_cache.get_cluster_config();
 
         for topic_id in topic_id_list.iter() {
             let topic_name =

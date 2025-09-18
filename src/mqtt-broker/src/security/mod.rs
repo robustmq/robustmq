@@ -13,18 +13,20 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::subscribe::common::get_sub_topic_id_list;
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_config::broker::broker_config;
 use common_config::config::MqttAuthStorage;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
+use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
@@ -43,12 +45,12 @@ pub mod storage;
 
 #[derive(Clone)]
 pub struct AuthDriver {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
 }
 
 impl AuthDriver {
-    pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
+    pub fn new(cache_manager: Arc<MQTTCacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_config();
 
         let driver = match build_driver(client_pool.clone(), conf.mqtt_auth_storage.clone()) {
@@ -71,7 +73,7 @@ impl AuthDriver {
         _connect_properties: &Option<ConnectProperties>,
         _socket_addr: &SocketAddr,
     ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config();
 
         if cluster.mqtt_security.secret_free_login {
             return Ok(true);

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod cache;
-pub mod cluster;
 pub mod cluster_config;
 pub mod consts;
 pub mod error;

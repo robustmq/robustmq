@@ -19,14 +19,14 @@ use common_base::{
     utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
 };
 use common_config::broker::broker_config;
-use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
+use grpc_clients::{meta::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::{
     subscribe_data::{is_mqtt_share_subscribe, MqttSubscribe},
     topic::MQTTTopic,
 };
 use protocol::{
+    meta::placement_center_mqtt::SetSubscribeRequest,
     mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
-    placement_center::placement_center_mqtt::SetSubscribeRequest,
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -39,7 +39,8 @@ use crate::subscribe::{
 };
 
 use super::{
-    cache::CacheManager, error::MqttBrokerError, topic_rewrite::convert_sub_path_by_rewrite_rule,
+    cache::MQTTCacheManager, error::MqttBrokerError,
+    topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
 use crate::common::types::ResultMqttBrokerError;
 
@@ -48,7 +49,7 @@ pub struct SaveSubscribeContext {
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,

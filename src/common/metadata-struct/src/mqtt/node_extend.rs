@@ -15,6 +15,11 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize)]
+pub struct NodeExtend {
+    pub mqtt: MqttNodeExtend,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct MqttNodeExtend {
     pub grpc_addr: String,
     pub mqtt_addr: String,
@@ -24,7 +29,7 @@ pub struct MqttNodeExtend {
     pub quic_addr: String,
 }
 
-impl MqttNodeExtend {
+impl NodeExtend {
     pub fn encode(&self) -> String {
         serde_json::to_string(&self).unwrap()
     }

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use super::{
-    cache::CacheManager,
+    cache::MQTTCacheManager,
     delay_message::{
         DelayPublishTopic, DELAY_MESSAGE_FLAG, DELAY_MESSAGE_RECV_MS, DELAY_MESSAGE_TARGET_MS,
     },
@@ -25,10 +25,10 @@ use super::{
 };
 use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
 use common_base::tools::now_second;
+use common_metrics::mqtt::packets::record_messages_dropped_discard_metrics;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
-use observability::mqtt::packets::record_messages_dropped_discard_metrics;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::ArcStorageAdapter;
 
@@ -40,7 +40,7 @@ pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str
 pub struct SaveMessageContext {
     pub message_storage_adapter: ArcStorageAdapter,
     pub delay_message_manager: Arc<DelayMessageManager>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub publish: Publish,
     pub publish_properties: Option<PublishProperties>,
@@ -53,6 +53,7 @@ pub struct SaveMessageContext {
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
     let offline_message_disabled = !context
         .cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_offline_message
         .enable;

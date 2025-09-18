@@ -22,8 +22,8 @@ use crate::storage::keys::{
     storage_key_mqtt_schema_bind_prefix_by_cluster,
     storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
 };
-use crate::storage::rocksdb::RocksDBEngine;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 pub struct SchemaStorage {
@@ -158,19 +158,20 @@ impl SchemaStorage {
 mod tests {
     use std::sync::Arc;
 
+    use broker_core::rocksdb::column_family_list;
     use metadata_struct::schema::SchemaType;
     use metadata_struct::schema::{SchemaData, SchemaResourceBind};
     use tempfile::tempdir;
 
     use crate::storage::placement::schema::SchemaStorage;
-    use crate::storage::rocksdb::RocksDBEngine;
+    use rocksdb_engine::RocksDBEngine;
 
     #[tokio::test]
     async fn schema_storage_test() {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
 
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
@@ -217,7 +218,7 @@ mod tests {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
 
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());

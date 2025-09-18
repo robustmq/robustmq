@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use grpc_clients::pool::ClientPool;
-use protocol::placement_center::placement_center_journal::engine_service_server::EngineService;
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::engine_service_server::EngineService;
+use protocol::meta::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,

@@ -20,7 +20,7 @@ use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
 };
 use crate::storage::keys::key_resource_config;
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 pub struct ResourceConfigStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -68,7 +68,8 @@ impl ResourceConfigStorage {
 #[cfg(test)]
 mod test {
     use super::ResourceConfigStorage;
-    use crate::storage::rocksdb::RocksDBEngine;
+    use broker_core::rocksdb::column_family_list;
+    use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
 
@@ -77,7 +78,7 @@ mod test {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
         let resource_storage = ResourceConfigStorage::new(rocksdb_engine);
 

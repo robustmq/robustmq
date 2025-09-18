@@ -88,6 +88,8 @@ ignore = [
     #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
     #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
     #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
+    "RUSTSEC-2024-0436", # paste crate is unmaintained but still functional
+    "RUSTSEC-2024-0370", # proc-macro-error is unmaintained but still functional
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
@@ -221,6 +223,12 @@ deny = [
 skip = [
     #"ansi_term@0.11.0",
     #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason why it can't be updated/removed" },
+    { name = "windows_x86_64_msvc", reason = "Windows system library with multiple versions (expected)" },
+    { name = "windows_x86_64_gnullvm", reason = "Windows system library with multiple versions (expected)" },
+    { name = "windows_x86_64_gnu", reason = "Windows system library with multiple versions (expected)" },
+    { name = "windows_i686_msvc", reason = "Windows system library with multiple versions (expected)" },
+    { name = "windows_i686_gnullvm", reason = "Windows system library with multiple versions (expected)" },
+    { name = "windows_i686_gnu", reason = "Windows system library with multiple versions (expected)" },
 ]
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
@@ -248,7 +256,11 @@ allow-registry = [
     "https://rsproxy.cn/crates.io-index"
 ]
 # List of URLs for allowed Git repositories
-allow-git = []
+allow-git = [
+    "https://github.com/databendlabs/openraft.git",
+    "https://github.com/open-telemetry/opentelemetry-rust.git",
+    "https://github.com/robustmq/robustmq-proto.git",
+]
 
 [sources.allow-org]
 # github.com organizations to allow git sources for

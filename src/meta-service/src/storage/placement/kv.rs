@@ -20,7 +20,7 @@ use crate::storage::engine::{
     engine_delete_by_cluster, engine_exists_by_cluster, engine_get_by_cluster,
     engine_prefix_list_by_cluster, engine_save_by_cluster,
 };
-use crate::storage::rocksdb::RocksDBEngine;
+use rocksdb_engine::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct KvStorage {
@@ -70,15 +70,13 @@ impl KvStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use broker_core::rocksdb::column_family_list;
     use tempfile::tempdir;
 
     fn setup_kv_storage() -> KvStorage {
         let temp_dir = tempdir().unwrap();
-        let engine = RocksDBEngine::new(
-            temp_dir.path().to_str().unwrap(),
-            100,
-            vec!["cluster".to_string()],
-        );
+        let engine =
+            RocksDBEngine::new(temp_dir.path().to_str().unwrap(), 100, column_family_list());
         KvStorage::new(Arc::new(engine))
     }
 

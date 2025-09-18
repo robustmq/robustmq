@@ -97,3 +97,103 @@ impl ConnectorManager {
             .insert(connector_name.to_owned(), now_second());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use metadata_struct::mqtt::bridge::{connector_type::ConnectorType, status::MQTTStatus};
+    use tokio::sync::broadcast;
+
+    fn create_test_connector() -> MQTTConnector {
+        MQTTConnector {
+            connector_name: "test_connector".to_string(),
+            connector_type: ConnectorType::LocalFile,
+            topic_id: "test_topic".to_string(),
+            config: "{}".to_string(),
+            status: MQTTStatus::Running,
+            broker_id: Some(1),
+            cluster_name: "test_cluster".to_string(),
+            create_time: now_second(),
+            update_time: now_second(),
+        }
+    }
+
+    fn create_test_thread() -> BridgePluginThread {
+        let (stop_send, _) = broadcast::channel::<bool>(1);
+        BridgePluginThread {
+            connector_name: "test_connector".to_string(),
+            stop_send,
+        }
+    }
+
+    #[test]
+    fn connector_operations() {
+        let manager = ConnectorManager::new();
+        let mut connector1 = create_test_connector();
+        connector1.connector_name = "connector1".to_string();
+        let mut connector2 = create_test_connector();
+        connector2.connector_name = "connector2".to_string();
+
+        // add
+        manager.add_connector(&connector1);
+
+        // get
+        let retrieved = manager.get_connector("connector1");
+        assert!(retrieved.is_some());
+        let retrieved_connector = retrieved.unwrap();
+        assert_eq!(retrieved_connector.connector_name, "connector1");
+        assert_eq!(retrieved_connector.topic_id, "test_topic");
+        assert!(manager.get_connector("non_existent").is_none());
+
+        // remove
+        manager.remove_connector("connector1");
+        assert!(manager.get_all_connector().is_empty());
+
+        // add again
+        manager.add_connector(&connector1);
+        manager.add_connector(&connector2);
+
+        // get all connectors
+        assert_eq!(manager.get_all_connector().len(), 2);
+    }
+
+    #[test]
+    fn connector_thread_operations() {
+        let manager = ConnectorManager::new();
+        let thread1 = create_test_thread();
+        let thread2 = create_test_thread();
+
+        // add
+        manager.add_connector_thread("connector1", thread1);
+
+        // get
+        let retrieved = manager.get_connector_thread("connector1");
+        assert_eq!(retrieved.unwrap().connector_name, "test_connector");
+        assert!(manager.get_connector_thread("non_existent").is_none());
+
+        // remove
+        manager.remove_connector_thread("connector1");
+        assert!(manager.get_all_connector_thread().is_empty());
+
+        // add again
+        manager.add_connector_thread("connector2", thread2);
+
+        // get all connectors
+        let all = manager.get_all_connector_thread();
+        assert_eq!(all.len(), 1);
+    }
+
+    #[test]
+    fn connector_heartbeat_operations() {
+        let manager = ConnectorManager::new();
+
+        manager.report_heartbeat("test_connector");
+
+        assert!(manager.connector_heartbeat.contains_key("test_connector"));
+        let heartbeat_time = manager.connector_heartbeat.get("test_connector").unwrap();
+
+        let current_time = now_second();
+        assert!(heartbeat_time.value() <= &current_time);
+        assert!(heartbeat_time.value() > &(current_time - 10));
+    }
+}

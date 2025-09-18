@@ -13,17 +13,16 @@
 // limitations under the License.
 
 use crate::{
-    handler::cache::CacheManager,
+    handler::cache::MQTTCacheManager,
     security::auth::common::{ip_match, topic_match},
 };
-use metadata_struct::{
-    acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclPermission},
-    mqtt::connection::MQTTConnection,
-};
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+use metadata_struct::{acl::mqtt_acl::MqttAcl, mqtt::connection::MQTTConnection};
 use std::sync::Arc;
 
 pub fn is_acl_deny(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connection: &MQTTConnection,
     topic_name: &str,
     action: MqttAclAction,
@@ -70,29 +69,28 @@ fn check_for_deny(
 #[cfg(test)]
 mod test {
     use super::is_acl_deny;
-    use crate::handler::cache::CacheManager;
+    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::cache::MQTTCacheManager;
     use crate::handler::constant::WILDCARD_RESOURCE;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::local_hostname;
-    use grpc_clients::pool::ClientPool;
-    use metadata_struct::acl::mqtt_acl::{
-        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
-    };
+    use metadata_struct::acl::mqtt_acl::MqttAcl;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;
 
     struct TestFixture {
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         connection: MQTTConnection,
         user: MqttUser,
         topic_name: String,
     }
 
     fn setup() -> TestFixture {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let cache_manager = test_build_mqtt_cache_manager();
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -137,7 +135,7 @@ mod test {
             resource_name,
             topic: topic.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: action.clone(),
+            action,
             permission: MqttAclPermission::Deny,
         };
         fixture.cache_manager.add_acl(acl);

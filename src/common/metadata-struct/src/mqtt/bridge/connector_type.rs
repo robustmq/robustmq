@@ -12,19 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Display;
-
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
 pub enum ConnectorType {
     #[default]
     Kafka,
     LocalFile,
+    GreptimeDB,
 }
+
+pub const CONNECTOR_TYPE_FILE: &str = "file";
+pub const CONNECTOR_TYPE_KAFKA: &str = "kafka";
+pub const CONNECTOR_TYPE_GREPTIMEDB: &str = "greptime";
 
 impl Display for ConnectorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
+}
+
+pub fn connector_type_for_string(connector_type: String) -> Result<ConnectorType, CommonError> {
+    if CONNECTOR_TYPE_FILE == connector_type {
+        return Ok(ConnectorType::LocalFile);
+    }
+
+    if CONNECTOR_TYPE_KAFKA == connector_type {
+        return Ok(ConnectorType::Kafka);
+    }
+
+    if CONNECTOR_TYPE_GREPTIMEDB == connector_type {
+        return Ok(ConnectorType::GreptimeDB);
+    }
+    Err(CommonError::IneligibleConnectorType(connector_type))
 }

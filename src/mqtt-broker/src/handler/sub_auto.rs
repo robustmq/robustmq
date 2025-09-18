@@ -12,26 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::{
+    cache::MQTTCacheManager,
+    subscribe::{save_subscribe, SaveSubscribeContext},
+};
+use crate::common::types::ResultMqttBrokerError;
+use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
-
-use crate::common::types::ResultMqttBrokerError;
-use crate::subscribe::manager::SubscribeManager;
-
-use super::{
-    cache::CacheManager,
-    subscribe::{save_subscribe, SaveSubscribeContext},
-};
+use std::sync::Arc;
 
 pub async fn try_auto_subscribe(
     client_id: String,
     login: &Option<Login>,
     protocol: &MqttProtocol,
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> ResultMqttBrokerError {
     let auto_subscribe_rules: Vec<MqttAutoSubscribeRule> = cache_manager

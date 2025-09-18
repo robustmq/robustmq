@@ -13,21 +13,19 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use common_base::error::common::CommonError;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use common_config::broker::broker_config;
-use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
+use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
+use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
 use protocol::mqtt::common::{MqttPacket, QoS};
-use protocol::placement_center::placement_center_mqtt::{
-    GetShareSubLeaderReply, GetShareSubLeaderRequest,
-};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -193,7 +191,7 @@ pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
 }
 
 pub async fn get_sub_topic_id_list(
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     sub_path: &str,
 ) -> Vec<String> {
     let mut result = Vec::new();
@@ -267,19 +265,15 @@ pub async fn loop_commit_offset(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_base::tools::unique_id;
-    use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
-    use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::common::QoS;
-
-    use crate::handler::cache::CacheManager;
+    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::{
         build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
         get_sub_topic_id_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,
     };
+    use common_base::tools::unique_id;
+    use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
+    use metadata_struct::mqtt::topic::MQTTTopic;
+    use protocol::mqtt::common::QoS;
 
     #[tokio::test]
     async fn is_wildcards_test() {
@@ -453,8 +447,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(client_pool, "test-cluster".to_string()));
+        let metadata_cache = test_build_mqtt_cache_manager();
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

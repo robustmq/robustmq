@@ -16,15 +16,16 @@ use crate::core::cache::CacheManager;
 use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
-use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
+use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will_message};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
+use protocol::broker::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
 use rocksdb_engine::warp::StorageDataWrap;
+use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -81,15 +82,12 @@ impl SessionExpire {
 
     async fn get_expire_session_list(&self) -> Vec<MqttSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
-        let cf = if let Some(cf) = self
-            .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
-        {
+        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
             cf
         } else {
             error!(
                 "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string())
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string())
             );
             return Vec::new();
         };
@@ -294,10 +292,12 @@ pub async fn send_last_will(
 
 #[cfg(test)]
 mod tests {
+    use broker_core::rocksdb::column_family_list;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
+    use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -307,7 +307,6 @@ mod tests {
     use crate::core::cache::CacheManager;
 
     use crate::storage::mqtt::session::MqttSessionStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]
     fn is_session_expire_test() {

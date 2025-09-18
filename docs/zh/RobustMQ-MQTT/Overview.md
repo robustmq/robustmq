@@ -1,44 +1,17 @@
 # 概览
-RobustMQ MQTT 是融合型消息队列 RobustMQ 对 MQTT 协议的完整实现，它完整支持 MQTT 3.1/3.1.1/5.0 的全部特性和功能。支持集群化模式部署，单集群可承载百亿级连接，同时支持 TCP、SSL、WebSocket、WebSockets 、QUIC 等多种访问方式。
+RobustMQ MQTT 是RobustMQ 对 MQTT 协议的完整实现。它已 100% 支持标准的MQTT 协议。因此可兼容业界所有MQTT 命令行、SDK、Web 工具等。因此业务使用RobustMQ MQTT，完全不需改动。百分百兼容当前MQTT的生态。 
 
-RobustMQ MQTT 目标是基于 Rust 打造一个高性能、高可用、高可扩展的、支持标准 MQTT 协议的 Broker Server。
+从功能上看，已对齐 EMQX 90% 以上的功能。所有MQTT 相关核心功能已100%覆盖。
 
-## 功能清单
+## RobustMQ MQTT 特性列表
+
 | 特性 | 描述 |
 | --- | --- |
 | 集群化部署 | Broker 节点无状态部署，单集群最多支持几百上千台Broker 节点 |
 | 单机最大连接 | 单机可承载百万连接。 |
 | 集群最大连接 | 集群可承载百亿级别的连接。 |
 | MQTT 协议 | 完整支持MQTT 3.1/3.1.1/5.0 的所有特性 |
-| 网络协议 | 支持TCP、SSL、WebSocket、WebSockets协议接入 |
-| 保留消息 | 支持 |
-| 遗嘱消息 | 支持 |
-| 共享订阅 | 支持 |
-| 系统主题 | 支持 |
-| 排他订阅 | 支持 |
-| 延迟发布 | 支持 |
-| 自动订阅 | 支持 |
-| 主题重写 | 支持 |
-| 通配符订阅 | 支持 |
-| Session | 支持 Session，以及 Session 持久化和过期。 |
-| 认证 | 支持内置数据库、MySQL、Redis 的密码认证 |
-| 授权 | 支持内置数据库、MySQL、Redis的认证实现 |
-| 黑名单 | 支持 |
-| 连接抖动 | 支持 |
-| 消息存储 | 当 Topic 没有订阅时，消息会被自动被丢弃 |
-| 离线消息 | 支持基于 Memory、RocksDB、MySQL、Journal Engine、S3、Minio 等存储引擎来存储离线消息 |
-| 数据集成 | 支持File、Kafka 的桥接连接器 |
-| 指标(Metrics) | 支持集群/Topic等维度的监控指标 |
-| Prometheus | 支持 |
-| Trace | 支持 |
-| 系统主题 | 支持 |
-| 慢订阅统计 | 支持 |
-| Schema | Json、Protobuf、AVRO |
-| QUIC 协议 | 支持 |
-
-## MQTT 5 特性清单
-| 特性 | 描述 |
-| --- | --- |
+| 网络协议 | 支持TCP、SSL、WebSocket、WebSockets、Quic协议接入 |
 | MQTT 发布/订阅 | 支持 |
 | 订阅 QOS 0,1,2 | 支持 |
 | 发布 QOS 0,1,2 | 支持 |
@@ -56,9 +29,61 @@ RobustMQ MQTT 目标是基于 Rust 打造一个高性能、高可用、高可扩
 | 保持连接（Keep Alive）  | 支持 |
 | 消息过期间隔（Message Expiry Interval） | 支持 |
 | 最大报文大小（Maximum Packet Size） | 支持 |
+| 保留消息 | 支持 |
+| 遗嘱消息 | 支持 |
+| 共享订阅 | 支持 |
+| 系统主题 | 支持 |
+| 排他订阅 | 支持 |
+| 延迟发布 | 支持 |
+| 自动订阅 | 支持 |
+| 主题重写 | 支持 |
+| 通配符订阅 | 支持 |
+|  系统主题 | 支持 |
+| 慢订阅统计 | 支持 |
+| Session | 支持 Session，以及 Session 持久化和过期。 |
+| 认证 | 支持内置数据库、MySQL、Redis 的密码认证 |
+| 授权 | 支持内置数据库、MySQL、Redis的认证实现 |
+| 黑名单 | 支持 |
+| 连接抖动 | 支持 |
+| 数据集成 | 支持File、Kafka 的桥接连接器 |
+| Schema | Json、Protobuf、AVRO |
+| 消息存储 | 当 Topic 没有订阅时，消息会被自动被丢弃 |
+| 离线消息 | 支持基于 Memory、RocksDB、MySQL、Journal Engine、S3、Minio 等存储引擎来存储离线消息 |
+| 指标(Metrics) | 支持集群/Topic等维度的监控指标 |
+| Prometheus | 支持 |
+| Trace | 支持 |
 
+## EMQX 特性对比
+
+### 核心能力
+| 特性 | EMQX |RobustMQ MQTT |
+| --- | --- |--- |
+| MQTT 5.0 Broker | 支持 | 支持 |
+| MQTT over QUIC | 支持 | 支持 |
+| MQTT 扩展 | 支持 | 支持 |
+| 多协议网关 | 支持 | 不支持 |
+| 多租户 | 支持 | 不支持 |
+| 集群连接 | 支持 | 不支持 |
+| 事件历史 | 支持 | 支持 |
+| 数据持久化 | 支持 | 支持 |
+| Schema Registry | 支持 | 支持 |
+| 消息编解码 | 支持 | 支持 |
+| 消息验证 | 支持 | 支持 |
+| 规则引擎 | 支持 | 不支持 |
+| Flow 设计器 | 支持 | 不支持 |
+| 文件传输 | 支持 | 不支持 |
+| Kafka 集成 | 支持 | 支持 |
+| 企业级数据集成 | 支持（40+） | 支持（2+） |
+| 故障排查 | 支持 | 支持 |
+| Cloud-Native & K8s | 支持 | 支持 |
+| 边缘计算 | 支持 | 不支持 |
+
+
+
+## 支持中的特性
 ## Dashboard
-RobustMQ MQTT Dashboard 正在加紧开发中
+RobustMQ Dashboard 已完成对RobustMQ MQTT 协议功能的支持。详细文档请参考：
+
 
 ## 命令行工具
-RobustMQ MQTT 支持 robust-ctl mqtt 工具。详细文档请参考：[robustmq-ctl mqtt](../RobustMQ-Command/Mqtt-Broker.md)
+RobustMQ MQTT 支持 robust-ctl mqtt 工具。详细文档请参考：[robustmq-ctl mqtt](../RobustMQ-Command/CLI_COMMON.md)

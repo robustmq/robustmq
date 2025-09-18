@@ -27,11 +27,10 @@ use crate::server::services::inner::{
     heartbeat_by_req, node_list_by_req, save_offset_data_by_req, set_idempotent_data_by_req,
     set_resource_config_by_req,
 };
-use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
-use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::placement_center_service_server::PlacementCenterService;
+use protocol::meta::placement_center_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
@@ -44,6 +43,7 @@ use protocol::placement_center::placement_center_inner::{
     SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
     UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 

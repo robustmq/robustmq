@@ -15,25 +15,26 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::inner::call::{
+use grpc_clients::meta::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
 use grpc_clients::pool::ClientPool;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 
 pub async fn pkid_save(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
 ) -> ResultMqttBrokerError {
     if cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .client_pkid_persistent
@@ -59,12 +60,13 @@ pub async fn pkid_save(
 }
 
 pub async fn pkid_exists(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
 ) -> Result<bool, MqttBrokerError> {
     if cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .client_pkid_persistent
@@ -89,12 +91,13 @@ pub async fn pkid_exists(
 }
 
 pub async fn pkid_delete(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
 ) -> ResultMqttBrokerError {
     if cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .client_pkid_persistent
@@ -124,21 +127,20 @@ pub async fn pkid_delete(
 
 #[cfg(test)]
 mod test {
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use grpc_clients::pool::ClientPool;
     use std::sync::Arc;
 
     use super::{pkid_delete, pkid_exists, pkid_save};
-    use crate::handler::cache::CacheManager;
+    use crate::common::tool::test_build_mqtt_cache_manager;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
     #[ignore]
     pub async fn pkid_test() {
         init_broker_conf_by_config(default_broker_config());
 
-        let cluster_name = "test".to_string();
-        let client_pool = Arc::new(ClientPool::new(10));
-        let cache_manager = Arc::new(CacheManager::new(client_pool.clone(), cluster_name));
+        let client_pool = Arc::new(ClientPool::new(2));
+        let cache_manager = test_build_mqtt_cache_manager();
         let client_id = "test".to_string();
         let pkid = 15;
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)
@@ -163,9 +165,9 @@ mod test {
             .await
             .unwrap();
         assert!(!flag);
-        let mut cluset_info = cache_manager.get_cluster_config();
+        let mut cluset_info = cache_manager.broker_cache.get_cluster_config();
         cluset_info.mqtt_protocol_config.client_pkid_persistent = true;
-        cache_manager.set_cluster_config(cluset_info);
+        cache_manager.broker_cache.set_cluster_config(cluset_info);
 
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)
             .await

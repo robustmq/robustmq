@@ -14,5 +14,4 @@
 
 pub mod common;
 mod journal;
-mod mqtt;
-mod placement;
+mod meta;

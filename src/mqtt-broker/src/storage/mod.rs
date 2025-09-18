@@ -15,8 +15,9 @@
 pub mod acl;
 pub mod auto_subscribe;
 pub mod blacklist;
-pub mod cluster;
 pub mod connector;
+pub mod keys;
+pub mod local;
 pub mod message;
 pub mod schema;
 pub mod session;

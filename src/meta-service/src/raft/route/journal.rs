@@ -17,10 +17,10 @@ use crate::core::error::PlacementCenterError;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
+use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 #[derive(Clone)]

@@ -14,12 +14,11 @@
 
 use super::default::{
     default_broker_id, default_cluster_name, default_flapping_detect, default_grpc_port,
-    default_journal_runtime, default_journal_server, default_journal_storage,
+    default_journal_runtime, default_journal_server, default_journal_storage, default_meta_addrs,
     default_mqtt_auth_storage, default_mqtt_message_storage, default_mqtt_offline_message,
     default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
     default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
-    default_network, default_place_runtime, default_placement_center, default_rocksdb,
-    default_roles, default_runtime,
+    default_network, default_place_runtime, default_rocksdb, default_roles, default_runtime,
 };
 use crate::common::Log;
 use crate::common::Prometheus;
@@ -43,10 +42,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
 
-    #[serde(default = "default_placement_center")]
-    pub placement_center: Table,
+    #[serde(default = "default_meta_addrs")]
+    pub meta_addrs: Table,
 
-    // Common
     #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
 
@@ -62,9 +60,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_pprof")]
     pub p_prof: PProf,
 
-    // Placement
+    // meta
     #[serde(default = "default_place_runtime")]
-    pub place_runtime: PlaceRuntime,
+    pub meta_runtime: MetaRuntime,
 
     #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
@@ -116,7 +114,7 @@ pub struct BrokerConfig {
 
 impl BrokerConfig {
     pub fn get_placement_center_addr(&self) -> Vec<String> {
-        self.placement_center
+        self.meta_addrs
             .values()
             .filter_map(|v| v.as_str().map(String::from))
             .collect()
@@ -136,10 +134,6 @@ impl BrokerConfig {
 
     pub fn is_enable_slow_subscribe_record(&self) -> bool {
         self.mqtt_slow_subscribe_config.enable
-    }
-
-    pub fn get_slow_subscribe_max_store_num(&self) -> u32 {
-        self.mqtt_slow_subscribe_config.max_store_num
     }
 
     pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
@@ -178,7 +172,7 @@ pub struct Rocksdb {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct PlaceRuntime {
+pub struct MetaRuntime {
     pub heartbeat_timeout_ms: u64,
     pub heartbeat_check_time_ms: u64,
 }
@@ -226,13 +220,7 @@ pub struct MqttRuntime {
 pub struct MqttSystemMonitor {
     pub enable: bool,
 
-    pub os_cpu_check_interval_ms: u64,
-
     pub os_cpu_high_watermark: f32,
-
-    pub os_cpu_low_watermark: f32,
-
-    pub os_memory_check_interval_ms: u64,
 
     pub os_memory_high_watermark: f32,
 }
@@ -306,7 +294,7 @@ impl MqttFlappingDetect {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
-    pub max_store_num: u32,
+    pub record_time: u64,
     pub delay_type: DelayType,
 }
 

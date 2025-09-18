@@ -16,7 +16,7 @@ use super::network::network::Network;
 use super::store::new_storage;
 use super::type_config::TypeConfig;
 use crate::raft::route::DataRoute;
-use crate::storage::rocksdb::storage_raft_fold;
+use broker_core::rocksdb::storage_raft_fold;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use openraft::{Config, Raft};
@@ -51,7 +51,7 @@ pub mod types {
 pub async fn start_raft_node(raft_node: Raft<TypeConfig>) {
     let conf = broker_config();
     let mut nodes = BTreeMap::new();
-    for (node_id, addr) in conf.placement_center.clone() {
+    for (node_id, addr) in conf.meta_addrs.clone() {
         let mut addr = addr.to_string();
         addr = addr.replace("\"", "");
         let node = Node {

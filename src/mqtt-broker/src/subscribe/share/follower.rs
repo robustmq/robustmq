@@ -37,7 +37,9 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info, warn};
 
 use crate::common::tool::is_ignore_print;
-use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::cache::{
+    MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
 use crate::subscribe::common::get_share_sub_leader;
@@ -55,7 +57,7 @@ use super::write::WriteStream;
 
 #[derive(Clone)]
 pub struct ProcessPacketContext {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub share_sub: ShareSubShareSub,
     pub stop_sx: Sender<bool>,
     pub connection_manager: Arc<ConnectionManager>,
@@ -84,7 +86,7 @@ pub struct ConnAckContext {
 
 #[derive(Clone)]
 pub struct PublishContext {
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub write_stream: Arc<WriteStream>,
     pub mqtt_client_id: String,
@@ -95,7 +97,7 @@ pub struct PublishContext {
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct Qos2Context {
-    pub metadata_cache: Arc<CacheManager>,
+    pub metadata_cache: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub stop_sx: broadcast::Sender<bool>,
     pub wait_client_ack_sx: broadcast::Sender<QosAckPackageData>,
@@ -110,7 +112,7 @@ pub struct Qos2Context {
 pub struct ShareFollowerResub {
     pub subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -118,7 +120,7 @@ impl ShareFollowerResub {
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MQTTCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         ShareFollowerResub {
@@ -253,7 +255,7 @@ impl ShareFollowerResub {
 
 async fn resub_sub_mqtt5(
     leader_addr: String,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
@@ -628,7 +630,7 @@ async fn start_ping_thread(
 // 3. Follower receive cli puback
 // 4. Follower send puback to Leader
 async fn resub_publish_message_qos1(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,

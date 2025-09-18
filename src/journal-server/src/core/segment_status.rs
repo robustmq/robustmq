@@ -15,10 +15,10 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::placement::journal::call::update_segment_status;
+use grpc_clients::meta::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
-use protocol::placement_center::placement_center_journal::UpdateSegmentStatusRequest;
+use protocol::meta::placement_center_journal::UpdateSegmentStatusRequest;
 use tracing::warn;
 
 use super::cache::CacheManager;

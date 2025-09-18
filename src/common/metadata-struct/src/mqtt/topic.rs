@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use common_base::tools::now_second;
-use protocol::broker_mqtt::broker_mqtt_admin::MqttTopicRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
@@ -40,16 +39,5 @@ impl MQTTTopic {
 
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
-    }
-}
-
-impl From<MQTTTopic> for MqttTopicRaw {
-    fn from(topic: MQTTTopic) -> Self {
-        Self {
-            topic_id: topic.topic_id,
-            cluster_name: topic.cluster_name,
-            topic_name: topic.topic_name,
-            is_contain_retain_message: topic.retain_message.is_some(),
-        }
     }
 }

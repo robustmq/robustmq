@@ -14,11 +14,11 @@
 
 use crate::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
-use metadata_struct::connection::NetworkConnectionType;
-use observability::mqtt::server::{
+use common_metrics::mqtt::server::{
     metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
     metrics_request_response_queue_ms, metrics_request_total_ms,
 };
+use metadata_struct::connection::NetworkConnectionType;
 use tracing::info;
 
 pub fn record_packet_handler_info_no_response(

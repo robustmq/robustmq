@@ -21,7 +21,7 @@ use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
-use protocol::journal_server::journal_inner::{
+use protocol::journal::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
 use std::sync::Arc;
@@ -133,40 +133,6 @@ pub async fn journal_call_thread_manager(
         }
         sleep(Duration::from_secs(1)).await;
     }
-}
-
-pub async fn update_cache_by_add_journal_node(
-    cluster_name: &str,
-    call_manager: &Arc<JournalInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
-    node: BrokerNode,
-) -> Result<(), PlacementCenterError> {
-    let data = serde_json::to_string(&node)?;
-    let message = JournalInnerCallMessage {
-        action_type: JournalUpdateCacheActionType::Set,
-        resource_type: JournalUpdateCacheResourceType::JournalNode,
-        cluster_name: cluster_name.to_string(),
-        data,
-    };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
-    Ok(())
-}
-
-pub async fn update_cache_by_delete_journal_node(
-    cluster_name: &str,
-    call_manager: &Arc<JournalInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
-    node: BrokerNode,
-) -> Result<(), PlacementCenterError> {
-    let data = serde_json::to_string(&node)?;
-    let message = JournalInnerCallMessage {
-        action_type: JournalUpdateCacheActionType::Delete,
-        resource_type: JournalUpdateCacheResourceType::JournalNode,
-        cluster_name: cluster_name.to_string(),
-        data,
-    };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
-    Ok(())
 }
 
 pub async fn update_cache_by_set_shard(
@@ -288,6 +254,7 @@ async fn add_call_message(
         .placement_cache_manager
         .get_broker_node_by_cluster(cluster_name)
     {
+        // todo Check whether the node is of the journal role
         if let Some(node_sender) = call_manager.get_node_sender(cluster_name, node.node_id) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}

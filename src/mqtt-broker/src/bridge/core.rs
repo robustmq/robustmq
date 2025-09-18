@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
+use common_base::{error::ResultCommonError, tools::loop_select};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
@@ -50,7 +50,7 @@ pub async fn start_connector_thread(
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let ac_fn = async || -> ResultMqttBrokerError {
+    let ac_fn = async || -> ResultCommonError {
         check_connector(&message_storage, &connector_manager).await;
         sleep(Duration::from_secs(1)).await;
         Ok(())
@@ -170,6 +170,7 @@ fn start_thread(
                 }
             }
             ConnectorType::Kafka => {}
+            ConnectorType::GreptimeDB => {}
         }
     });
 }
@@ -177,4 +178,119 @@ fn start_thread(
 fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
     thread.stop_send.send(true)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bridge::manager::ConnectorManager;
+    use common_base::tools::{now_second, unique_id};
+    use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
+    use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter, ShardInfo};
+
+    fn setup() -> (ArcStorageAdapter, Arc<ConnectorManager>) {
+        let namespace = unique_id();
+        let config = BrokerConfig {
+            cluster_name: namespace.clone(),
+            broker_id: 1,
+            ..Default::default()
+        };
+        init_broker_conf_by_config(config);
+
+        let storage_adapter = build_memory_storage_driver();
+        let connector_manager = Arc::new(ConnectorManager::new());
+        (storage_adapter, connector_manager)
+    }
+
+    fn create_test_connector() -> MQTTConnector {
+        MQTTConnector {
+            connector_name: "test_connector".to_string(),
+            connector_type: ConnectorType::LocalFile,
+            topic_id: "test_topic".to_string(),
+            config: "{}".to_string(),
+            status: MQTTStatus::Running,
+            broker_id: Some(1),
+            cluster_name: "test_cluster".to_string(),
+            create_time: now_second(),
+            update_time: now_second(),
+        }
+    }
+
+    #[test]
+    fn test_bridge_plugin_read_config_creation() {
+        let config = BridgePluginReadConfig {
+            topic_id: "test_topic".to_string(),
+            record_num: 100,
+        };
+
+        assert_eq!(config.topic_id, "test_topic");
+        assert_eq!(config.record_num, 100);
+    }
+
+    #[test]
+    fn test_bridge_plugin_thread_creation() {
+        let (stop_send, _) = broadcast::channel::<bool>(1);
+        let thread = BridgePluginThread {
+            connector_name: "test_connector".to_string(),
+            stop_send: stop_send.clone(),
+        };
+
+        assert_eq!(thread.connector_name, "test_connector");
+        assert!(thread.stop_send.same_channel(&stop_send));
+    }
+
+    #[tokio::test]
+    async fn test_start_connector_thread() {
+        let (storage_adapter, connector_manager) = setup();
+        let (stop_send, _) = broadcast::channel::<bool>(1);
+
+        let start_handle = tokio::spawn(async move {
+            start_connector_thread(storage_adapter, connector_manager, stop_send).await;
+        });
+
+        sleep(Duration::from_millis(100)).await;
+
+        start_handle.abort();
+        assert!(start_handle.await.unwrap_err().is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn test_check_connector() {
+        let (storage_adapter, connector_manager) = setup();
+
+        let mut connector = create_test_connector();
+        connector.broker_id = Some(1);
+        connector.config = r#"{"local_file_path": "/tmp/test.txt"}"#.to_string();
+        connector_manager.add_connector(&connector);
+
+        let shard_name = connector.topic_id.clone();
+        storage_adapter
+            .create_shard(ShardInfo {
+                namespace: "default".to_string(),
+                shard_name,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        check_connector(&storage_adapter, &connector_manager).await;
+
+        sleep(Duration::from_millis(100)).await;
+
+        assert!(connector_manager
+            .get_connector_thread(&connector.connector_name)
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_stop_thread() {
+        let (stop_send, mut stop_recv) = broadcast::channel::<bool>(1);
+        let thread = BridgePluginThread {
+            connector_name: "test_connector".to_string(),
+            stop_send: stop_send.clone(),
+        };
+
+        assert!(stop_thread(thread).is_ok());
+        assert!(stop_recv.recv().await.unwrap());
+    }
 }

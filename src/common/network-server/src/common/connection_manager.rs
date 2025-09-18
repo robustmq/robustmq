@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::packet::{RobustMQPacket, RobustMQPacketWrapper};
 use crate::common::tool::is_ignore_print;
-use crate::quic::stream::QuicMQTTFramedWriteStream;
+use crate::quic::stream::QuicFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
@@ -22,8 +21,9 @@ use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use metadata_struct::protocol::RobustMQProtocol;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::mqtt::codec::MqttPacketWrapper;
+use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
@@ -33,19 +33,17 @@ pub struct ConnectionManager {
     pub connections: DashMap<u64, NetworkConnection>,
     pub lock_max_try_mut_times: i32,
     pub lock_try_mut_sleep_time_ms: u64,
-    // MQTT
-    pub mqtt_tcp_write_list:
-        DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>>,
-    pub mqtt_tcp_tls_write_list: DashMap<
+    pub tcp_write_list:
+        DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>,
+    pub tcp_tls_write_list: DashMap<
         u64,
         FramedWrite<
             tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-            MqttCodec,
+            RobustMQCodec,
         >,
     >,
-    pub mqtt_websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
-    pub mqtt_quic_write_list: DashMap<u64, QuicMQTTFramedWriteStream>,
-    // Kafka
+    pub websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
+    pub quic_write_list: DashMap<u64, QuicFramedWriteStream>,
 }
 
 impl ConnectionManager {
@@ -57,10 +55,10 @@ impl ConnectionManager {
         let quic_write_list = DashMap::with_capacity(64);
         ConnectionManager {
             connections,
-            mqtt_tcp_write_list: tcp_write_list,
-            mqtt_tcp_tls_write_list: tcp_tls_write_list,
-            mqtt_websocket_write_list: websocket_write_list,
-            mqtt_quic_write_list: quic_write_list,
+            tcp_write_list,
+            tcp_tls_write_list,
+            websocket_write_list,
+            quic_write_list,
             lock_max_try_mut_times,
             lock_try_mut_sleep_time_ms,
         }
@@ -87,7 +85,7 @@ impl ConnectionManager {
             connection.stop_connection().await;
         }
 
-        if let Some((id, mut stream)) = self.mqtt_tcp_write_list.remove(&connection_id) {
+        if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
@@ -96,7 +94,7 @@ impl ConnectionManager {
             }
         }
 
-        if let Some((id, mut stream)) = self.mqtt_tcp_tls_write_list.remove(&connection_id) {
+        if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
@@ -105,7 +103,7 @@ impl ConnectionManager {
             }
         }
 
-        if let Some((id, mut stream)) = self.mqtt_websocket_write_list.remove(&connection_id) {
+        if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the websocket connection actively, connection id [{}]",
@@ -216,39 +214,35 @@ impl ConnectionManager {
 }
 
 impl ConnectionManager {
-    pub fn add_mqtt_tcp_write(
+    pub fn add_tcp_write(
         &self,
         connection_id: u64,
-        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>,
     ) {
-        self.mqtt_tcp_write_list.insert(connection_id, write);
+        self.tcp_write_list.insert(connection_id, write);
     }
 
-    pub fn add_mqtt_tcp_tls_write(
+    pub fn add_tcp_tls_write(
         &self,
         connection_id: u64,
         write: FramedWrite<
             tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-            MqttCodec,
+            RobustMQCodec,
         >,
     ) {
-        self.mqtt_tcp_tls_write_list.insert(connection_id, write);
+        self.tcp_tls_write_list.insert(connection_id, write);
     }
 
-    pub fn add_mqtt_websocket_write(
-        &self,
-        connection_id: u64,
-        write: SplitSink<WebSocket, Message>,
-    ) {
-        self.mqtt_websocket_write_list.insert(connection_id, write);
+    pub fn add_websocket_write(&self, connection_id: u64, write: SplitSink<WebSocket, Message>) {
+        self.websocket_write_list.insert(connection_id, write);
     }
 
     pub fn add_mqtt_quic_write(
         &self,
         connection_id: u64,
-        quic_framed_write_stream: QuicMQTTFramedWriteStream,
+        quic_framed_write_stream: QuicFramedWriteStream,
     ) {
-        self.mqtt_quic_write_list
+        self.quic_write_list
             .insert(connection_id, quic_framed_write_stream);
     }
 
@@ -259,7 +253,7 @@ impl ConnectionManager {
     ) -> ResultCommonError {
         let mut times = 0;
         loop {
-            match self.mqtt_websocket_write_list.try_get_mut(&connection_id) {
+            match self.websocket_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
@@ -309,9 +303,9 @@ impl ConnectionManager {
 
         let mut times = 0;
         loop {
-            match self.mqtt_tcp_write_list.try_get_mut(&connection_id) {
+            match self.tcp_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
+                    match da.send(RobustMQCodecWrapper::MQTT(resp.clone())).await {
                         Ok(_) => {
                             break;
                         }
@@ -352,9 +346,9 @@ impl ConnectionManager {
     ) -> ResultCommonError {
         let mut times = 0;
         loop {
-            match self.mqtt_tcp_tls_write_list.try_get_mut(&connection_id) {
+            match self.tcp_tls_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
+                    match da.send(RobustMQCodecWrapper::MQTT(resp.clone())).await {
                         Ok(_) => {
                             break;
                         }

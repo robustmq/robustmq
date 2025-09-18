@@ -28,7 +28,7 @@ use tokio::time::sleep;
 
 use super::error::MqttBrokerError;
 use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::MQTTCacheManager;
 use crate::handler::topic_rewrite::convert_publish_topic_by_rewrite_rule;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
@@ -78,7 +78,7 @@ pub fn topic_name_validator(topic_name: &str) -> ResultMqttBrokerError {
 }
 
 pub async fn get_topic_name(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connect_id: u64,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
@@ -105,7 +105,7 @@ pub async fn get_topic_name(
 
     // topic rewrite
     if let Some(rewrite_topic_name) =
-        convert_publish_topic_by_rewrite_rule(cache_manager, &topic_name)?
+        convert_publish_topic_by_rewrite_rule(cache_manager, topic_name.clone())?
     {
         topic_name_validator(rewrite_topic_name.as_str())?;
         return Ok(rewrite_topic_name);
@@ -115,7 +115,7 @@ pub async fn get_topic_name(
 }
 
 pub async fn get_topic_alias(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connect_id: u64,
     topic_alias: Option<u16>,
 ) -> Result<String, MqttBrokerError> {
@@ -142,7 +142,7 @@ pub async fn get_topic_alias(
 
 pub async fn try_init_topic(
     topic_name: &str,
-    metadata_cache: &Arc<CacheManager>,
+    metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
     client_pool: &Arc<ClientPool>,
 ) -> Result<MQTTTopic, MqttBrokerError> {

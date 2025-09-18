@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use network_server::quic::server::QuicServer;
+
 use crate::server::quic::client::QuicClient;
-use mqtt_broker::server::quic::server::QuicServer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 fn create_client() -> QuicClient {
@@ -22,12 +23,9 @@ fn create_client() -> QuicClient {
 }
 
 fn create_server() -> QuicServer {
-    let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-    let mut server = QuicServer::new(ip_server);
-
-    server.start();
-
+    // let context = 
+    let server = QuicServer::new(context);
+    server.start(8888);
     server
 }
 

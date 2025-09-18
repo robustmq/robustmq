@@ -11,41 +11,39 @@ export const sidebar = [
                 text: "Version planning",
                 collapsed: true,
                 items: [
-                    { text: "2025 RoadMamp", link: "/OverView/RoadMap-2025" },
+                    { text: "2025 RoadMap", link: "/OverView/RoadMap-2025" },
                     { text: "MQTT Release Planning", link: "/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/OverView/Good-First-Issue" },
                 ],
             },
+            { text: "Sign Your Name", link: "/OverView/SignYourName" },
         ],
     },
     {
         text: "QuickGuide",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/QuickGuide/Overview" },
-            { text: "Build", link: "/QuickGuide/mqtt/Build" },
-            { text: "First Task", link: "/QuickGuide/mqtt/First-Task" },
+            { text: "Public Server", link: "/QuickGuide/PublicMqttServer" },
+            { text: "Build && Package", link: "/QuickGuide/Build-and-Package" },
+            { text: "Experience RobustMQ MQTT", link: "/QuickGuide/Experience-MQTT" },
+        ],
+    },
+    {
+        text: "Install and Deployment",
+        collapsed: true,
+        items: [
+            { text: "StandaloneMode", link: "/InstallationDeployment/Single-Machine-Cluster" },
+            { text: "ClusterMode", link: "/InstallationDeployment/Multi-Node-Cluster" },
+            { text: "DockerMode", link: "/InstallationDeployment/Docker-Deployment" },
+            { text: "K8SMode", link: "/InstallationDeployment/Kubernetes-Operator" },
         ],
     },
     {
         text: "Architect",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/Architect/Overview" },
-            { text: "Placement Center", link: "/Architect/Placement-Center" },
-            { text: "Broker Server", link: "/Architect/Broker-Server" },
-            { text: "Storage Adapter", link: "/Architect/Storage-Adapter" },
-            { text: "Journal Server", link: "/Architect/Journal-Server" },
-            { text: "Detailed design document", link: "/Architect/Design-Documentation" },
-            { text: "Ig Test", link: "/Architect/Test-Case" },
-            {
-                text: "Configuration",
-                collapsed: true,
-                items: [
-                    { text: "Placement Center", link: "/Architect/Configuration/Placement-Center" },
-                    { text: "MQTT Broker", link: "/Architect/Configuration/Mqtt-Server" },
-                ],
-            },
+            { text: "Overview", link: "/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/Architect/MetaService-Architecture" },
         ],
     },
     {
@@ -53,17 +51,6 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
-            {
-                text: "Install and Deployment",
-                collapsed: true,
-                items: [
-                    { text: "StandaloneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
-                    { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
-                    { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
-                    { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
-                ],
-            },
-
             { text: "Public MQTT Server", link: "/RobustMQ-MQTT/PublicMqttServer" },
             { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
@@ -112,17 +99,17 @@ export const sidebar = [
                     { text: "Integrate OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
-            { text: "Performance Bench", link: "" },
+            { text: "MQTTX Testing Guide", link: "/RobustMQ-MQTT/MQTTX-Guide" },
+            { text: "Performance", link: "" },
             {
                 text: "Client SDK",
                 collapsed: true,
                 items: [
-                    { text: "C SDK", link: "" },
-                    { text: "Java SDK", link: "" },
-                    { text: "Go SDK", link: "" },
-                    { text: "Python SDK", link: "" },
-                    { text: "JavaScript SDK", link: "" },
+                    { text: "C SDK", link: "/RobustMQ-MQTT/SDK/c-sdk" },
+                    { text: "Java SDK", link: "/RobustMQ-MQTT/SDK/java-sdk" },
+                    { text: "Go SDK", link: "/RobustMQ-MQTT/SDK/go-sdk" },
+                    { text: "Python SDK", link: "/RobustMQ-MQTT/SDK/python-sdk" },
+                    { text: "JavaScript SDK", link: "/RobustMQ-MQTT/SDK/javascript-sdk" },
                 ]
             },
         ],
@@ -135,20 +122,39 @@ export const sidebar = [
         ],
     },
     {
-        text: "RobustMQ Command",
-        collapsed: true,
-        items: [
-            { text: "Overview", link: "/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/RobustMQ-Command/Mqtt-Broker" },
-            { text: "Placement Command", link: "/RobustMQ-Command/Placement-Center" },
-            { text: "Journal Command", link: "/RobustMQ-Command/Journal Server" },
-        ],
-    },
-    {
         text: "RobustMQ Dashboard",
         collapsed: true,
         items: [
             { text: "Overview", link: "" },
+        ],
+    },
+    {
+        text: "RobustMQ Command",
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/RobustMQ-Command/CLI_COMMON" },
+            { text: "Cluster Manager", link: "/RobustMQ-Command/CLI_CLUSTER" },
+            { text: "MQTT Manager", link: "/RobustMQ-Command/CLI_MQTT" },
+            { text: "Journal Manager", link: "/RobustMQ-Command/CLI_JOURNAL" },
+        ],
+    },
+    {
+        text: "HTTP Rest API",
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/Api/COMMON" },
+            { text: "Cluster API", link: "/Api/CLUSTER" },
+            { text: "MQTT API", link: "/Api/MQTT" },
+        ],
+    },
+    {
+        text: "Configuration",
+        collapsed: true,
+        items: [
+            { text: "Common Configuration", link: "/Configuration/COMMON" },
+            { text: "MQTT Configuration", link: "/Configuration/MQTT" },
+            { text: "Meta Configuration", link: "/Configuration/META" },
+            { text: "Journal Configuration", link: "/Configuration/JOURNAL" },
         ],
     },
     {
@@ -176,6 +182,15 @@ export const sidebar = [
                     { text: "Doc Contribution Guide", link: "/ContributionGuide/ContributingDoc/Doc-Contribution-Guide" },
                 ],
             }
+        ],
+    },
+    {
+        text: "Blog Articles",
+        collapsed: true,
+        items: [
+            { text: "Redefining Cloud-Native Message Queues with Rust", link: "/Blogs/01" },
+            { text: "RobustMQ: Overview of Technical Design Philosophy", link: "/Blogs/02" },
+            { text: "Introduction to RobustMQ Roles", link: "/Blogs/03" },
         ],
     }
 ];

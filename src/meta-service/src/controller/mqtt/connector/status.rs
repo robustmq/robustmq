@@ -23,7 +23,7 @@ use crate::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 use prost::Message;
-use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
+use protocol::meta::placement_center_mqtt::CreateConnectorRequest;
 use std::sync::Arc;
 
 pub async fn update_connector_status_to_idle(

@@ -16,8 +16,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use protocol::journal_server::codec::JournalEnginePacket;
-use protocol::journal_server::journal_engine::{
+use protocol::journal::codec::JournalEnginePacket;
+use protocol::journal::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
     FetchOffsetResp, FetchOffsetRespBody, GetClusterMetadataResp, GetClusterMetadataRespBody,
     GetShardMetadataResp, GetShardMetadataRespBody, JournalEngineError, ListShardResp,

@@ -14,7 +14,7 @@
 
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::placement::mqtt::call::{
+use grpc_clients::meta::mqtt::call::{
     placement_create_topic, placement_create_topic_rewrite_rule, placement_delete_topic,
     placement_delete_topic_rewrite_rule, placement_list_topic, placement_list_topic_rewrite_rule,
     placement_set_topic_retain_message,
@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
     SetTopicRetainMessageRequest,

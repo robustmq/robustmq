@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
-use super::cache::CacheManager;
+use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::last_will::last_will_delay_interval;
 use crate::common::types::ResultMqttBrokerError;
@@ -35,7 +35,7 @@ pub struct BuildSessionContext {
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
     pub client_pool: Arc<ClientPool>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MQTTCacheManager>,
 }
 
 pub async fn build_session(
@@ -105,14 +105,16 @@ pub async fn save_session(
 }
 
 fn session_expiry_interval(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
     let default_session_expiry_interval = cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .default_session_expiry_interval;
     let max_session_expiry_interval = cache_manager
+        .broker_cache
         .get_cluster_config()
         .mqtt_protocol_config
         .max_session_expiry_interval;
@@ -136,12 +138,10 @@ fn session_expiry_interval(
 #[cfg(test)]
 mod test {
     use super::session_expiry_interval;
-    use crate::handler::cache::CacheManager;
-    use common_config::{broker::default_broker_config, config::BrokerConfig};
-    use grpc_clients::pool::ClientPool;
+    use crate::common::tool::test_build_mqtt_cache_manager;
+    use common_config::broker::default_broker_config;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
-    use std::sync::Arc;
 
     #[tokio::test]
     pub async fn build_session_test() {
@@ -160,20 +160,15 @@ mod test {
 
     #[test]
     pub fn session_expiry_interval_test() {
-        let conf = BrokerConfig {
-            cluster_name: "test".to_string(),
-            ..Default::default()
-        };
-        let client_pool = Arc::new(ClientPool::new(100));
-        let cache_manager = Arc::new(CacheManager::new(
-            client_pool.clone(),
-            conf.cluster_name.clone(),
-        ));
-        cache_manager.set_cluster_config(default_broker_config());
+        let cache_manager = test_build_mqtt_cache_manager();
+        cache_manager
+            .broker_cache
+            .set_cluster_config(default_broker_config());
         let res = session_expiry_interval(&cache_manager, &None);
         assert_eq!(
             res,
             cache_manager
+                .broker_cache
                 .get_cluster_config()
                 .mqtt_protocol_config
                 .default_session_expiry_interval as u64

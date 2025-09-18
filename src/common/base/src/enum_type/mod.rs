@@ -14,6 +14,7 @@
 
 pub mod delay_type;
 pub mod feature_type;
+pub mod mqtt;
 pub mod sort_type;
 pub mod time_unit_enum;
 pub mod topic_rewrite_action_enum;

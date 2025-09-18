@@ -16,13 +16,12 @@ use std::time::Duration;
 
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
-use crate::mqtt::admin::MqttBrokerAdminServiceManager;
+use crate::meta::inner::PlacementServiceManager;
+use crate::meta::journal::JournalServiceManager;
+use crate::meta::kv::KvServiceManager;
+use crate::meta::mqtt::MqttServiceManager;
+use crate::meta::openraft::OpenRaftServiceManager;
 use crate::mqtt::inner::MqttBrokerPlacementServiceManager;
-use crate::placement::inner::PlacementServiceManager;
-use crate::placement::journal::JournalServiceManager;
-use crate::placement::kv::KvServiceManager;
-use crate::placement::mqtt::MqttServiceManager;
-use crate::placement::openraft::OpenRaftServiceManager;
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
@@ -43,7 +42,6 @@ pub struct ClientPool {
 
     // modules: mqtt broker
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
-    mqtt_broker_admin_service_pools: DashMap<String, Pool<MqttBrokerAdminServiceManager>>,
 
     // modules: journal engine
     journal_admin_service_pools: DashMap<String, Pool<JournalAdminServiceManager>>,
@@ -63,7 +61,6 @@ impl ClientPool {
             placement_center_leader_addr_caches: DashMap::with_capacity(2),
             // modules: mqtt_broker
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
-            mqtt_broker_admin_service_pools: DashMap::with_capacity(2),
             // modules: journal_engine
             journal_admin_service_pools: DashMap::with_capacity(2),
             journal_inner_service_pools: DashMap::with_capacity(2),
@@ -282,42 +279,6 @@ impl ClientPool {
         }
         Err(CommonError::NoAvailableGrpcConnection(
             "MQTTBrokerPlacementServices".to_string(),
-            "connection pool is not initialized".to_string(),
-        ))
-    }
-
-    pub async fn mqtt_broker_admin_services_client(
-        &self,
-        addr: &str,
-    ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
-        if !self.mqtt_broker_admin_service_pools.contains_key(addr) {
-            let manager = MqttBrokerAdminServiceManager::new(addr.to_owned());
-            let pool = Pool::builder()
-                .max_open(self.max_open_connection)
-                .build(manager);
-            self.mqtt_broker_admin_service_pools
-                .insert(addr.to_owned(), pool);
-        }
-
-        if let Some(pool) = self.mqtt_broker_admin_service_pools.get(addr) {
-            match pool.get_timeout(Duration::from_secs(3)).await {
-                Ok(conn) => {
-                    return Ok(conn);
-                }
-                Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(
-                        "BrokerAdminServices".to_string(),
-                        format!(
-                            "get mqtt broker admin service client failed, err: {}, state: {:?}",
-                            e,
-                            pool.state().await
-                        ),
-                    ));
-                }
-            };
-        }
-        Err(CommonError::NoAvailableGrpcConnection(
-            "BrokerAdminServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }

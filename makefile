@@ -54,6 +54,35 @@ place-ig-test:  ## Integration testing for Placement Center
 journal-ig-test:  ## Integration testing for Journal Engine
 	/bin/bash ./scripts/journal-ig-test.sh dev
 
+##@ Install
+.PHONY: install
+install: ## Install RobustMQ server (latest version)
+	/bin/bash scripts/install.sh
+
+.PHONY: install-server
+install-server: ## Install RobustMQ server component
+	COMPONENT=server /bin/bash scripts/install.sh
+
+.PHONY: install-operator
+install-operator: ## Install RobustMQ Kubernetes operator
+	COMPONENT=operator /bin/bash scripts/install.sh
+
+.PHONY: install-all
+install-all: ## Install all RobustMQ components
+	COMPONENT=all /bin/bash scripts/install.sh
+
+.PHONY: install-version
+install-version: ## Install specific version (usage: make install-version VERSION=v0.1.0)
+	VERSION=$(VERSION) /bin/bash scripts/install.sh
+
+.PHONY: install-dir
+install-dir: ## Install to custom directory (usage: make install-dir INSTALL_DIR=/usr/local/bin)
+	INSTALL_DIR=$(INSTALL_DIR) /bin/bash scripts/install.sh
+
+.PHONY: install-dry-run
+install-dry-run: ## Show what would be installed without actually installing
+	DRY_RUN=true /bin/bash scripts/install.sh
+
 ##@ Other
 .PHONY: clean
 clean:  ## Clean the project.

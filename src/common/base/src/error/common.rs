@@ -66,6 +66,9 @@ pub enum CommonError {
     FromMQTTProtocolError(#[from] MQTTProtocolError),
 
     #[error("{0}")]
+    FromRustlsError(#[from] rustls::Error),
+
+    #[error("{0}")]
     AnyHowError(#[from] anyhow::Error),
 
     #[error("{0}")]
@@ -85,6 +88,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     CommonError(String),
+
+    #[error("Connection ID [0] information not found in cache.")]
+    NotFoundConnectionInCache(u64),
 
     #[error("Grpc call of the node failed,Grpc status was {0}")]
     GrpcServerStatus(#[from] Status),
@@ -124,6 +130,9 @@ pub enum CommonError {
 
     #[error("[write_frame]Connection management could not obtain an available {0} connection. Connection ID: {1}")]
     NotObtainAvailableConnection(String, u64),
+
+    #[error("{0} is an unavailable type of Connector.")]
+    IneligibleConnectorType(String),
 
     #[error("{0}")]
     OpenDALError(#[from] opendal::Error),

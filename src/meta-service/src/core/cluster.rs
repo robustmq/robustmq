@@ -14,9 +14,7 @@
 
 use super::cache::CacheManager;
 use super::error::PlacementCenterError;
-use crate::controller::journal::call_node::{
-    update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
-};
+use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::{
     update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
 };
@@ -27,8 +25,8 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
-use protocol::placement_center::placement_center_inner::{
-    ClusterType, RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+use protocol::meta::placement_center_inner::{
+    RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
 
@@ -36,7 +34,7 @@ pub async fn register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
     raft_machine_apply: &Arc<StorageDriver>,
     client_pool: &Arc<ClientPool>,
-    journal_call_manager: &Arc<JournalInnerCallManager>,
+    _journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, PlacementCenterError> {
@@ -47,30 +45,18 @@ pub async fn register_node_by_req(
     if cluster_cache.get_cluster(&node.cluster_name).is_none() {
         let cluster = ClusterInfo {
             cluster_name: node.cluster_name.clone(),
-            cluster_type: node.cluster_type.clone(),
             create_time: now_mills(),
         };
         sync_save_cluster(raft_machine_apply, &cluster).await?;
     }
 
-    if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
-        update_cache_by_add_journal_node(
-            &node.cluster_name,
-            journal_call_manager,
-            client_pool,
-            node.clone(),
-        )
-        .await?;
-    }
-    if node.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
-        update_cache_by_add_node(
-            &node.cluster_name,
-            mqtt_call_manager,
-            client_pool,
-            node.clone(),
-        )
-        .await?;
-    }
+    update_cache_by_add_node(
+        &node.cluster_name,
+        mqtt_call_manager,
+        client_pool,
+        node.clone(),
+    )
+    .await?;
 
     Ok(RegisterNodeReply::default())
 }
@@ -79,32 +65,21 @@ pub async fn un_register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
     raft_machine_apply: &Arc<StorageDriver>,
     client_pool: &Arc<ClientPool>,
-    journal_call_manager: &Arc<JournalInnerCallManager>,
+    _journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, PlacementCenterError> {
     if let Some(node) = cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
         sync_delete_node(raft_machine_apply, &req).await?;
-        if req.cluster_type() == ClusterType::JournalServer {
-            update_cache_by_delete_journal_node(
-                &req.cluster_name,
-                journal_call_manager,
-                client_pool,
-                node.clone(),
-            )
-            .await?;
-            journal_call_manager.remove_node(&req.cluster_name, req.node_id);
-        }
-        if req.cluster_type() == ClusterType::MqttBrokerServer {
-            update_cache_by_delete_node(
-                &req.cluster_name,
-                mqtt_call_manager,
-                client_pool,
-                node.clone(),
-            )
-            .await?;
-            mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
-        }
+
+        update_cache_by_delete_node(
+            &req.cluster_name,
+            mqtt_call_manager,
+            client_pool,
+            node.clone(),
+        )
+        .await?;
+        mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
     }
     Ok(UnRegisterNodeReply::default())
 }

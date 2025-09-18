@@ -68,7 +68,9 @@ strum.workspace = true
 strum_macros.workspace = true
 async-stream.workspace = true
 network-server.workspace = true
-observability.workspace = true
+common-metrics.workspace = true
+reqwest.workspace = true
+broker-core.workspace = true
 
 [dev-dependencies]
 # test

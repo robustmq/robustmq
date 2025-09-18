@@ -11,41 +11,39 @@ export const sidebar = [
                 text: "版本计划",
                 collapsed: true,
                 items: [
-                    { text: "2025 年 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
+                    { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
             },
+            { text: "给我们签个名吧", link: "/zh/OverView/SignYourName" },
         ],
     },
     {
         text: "快速启动",
         collapsed: true,
         items: [
-            { text: "概览", link: "/zh/QuickGuide/Overview" },
-            { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
-            { text: "第一个任务", link: "/zh/QuickGuide/mqtt/First-Task" },
+            { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
+            { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
+            { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
+        ],
+    },
+    {
+        text: "安装部署",
+        collapsed: true,
+        items: [
+            { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Docker-Deployment" },
+            { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
+            { text: "Docker 模式", link: "/zh/InstallationDeployment/Docker-Deployment" },
+            { text: "K8S 模式", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
         ],
     },
     {
         text: "系统架构",
         collapsed: true,
         items: [
-            { text: "概览", link: "/zh/Architect/Overview" },
-            { text: "Placement Center", link: "/zh/Architect/Placement-Center" },
-            { text: "Broker Server", link: "/zh/Architect/Broker-Server" },
-            { text: "Storage Adapter", link: "/zh/Architect/Storage-Adapter" },
-            { text: "Journal Server", link: "/zh/Architect/Journal-Server" },
-            { text: "集成测试", link: "/zh/Architect/Test-Case" },
-            { text: "详细设计文档", link: "/zh/Architect/Design-Documentation" },
-            {
-                text: "配置说明",
-                collapsed: true,
-                items: [
-                    { text: "Placement Center", link: "/zh/Architect/Configuration/Placement-Center" },
-                    { text: "MQTT Broker", link: "/zh/Architect/Configuration/Mqtt-Server" },
-                ],
-            },
+            { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
         ],
     },
     {
@@ -53,18 +51,6 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
-            {
-                text: "安装部署",
-                collapsed: true,
-                items: [
-                    { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
-                    { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
-                    { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
-                    { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
-                ],
-            },
-            { text: "公共 MQTT Server", link: "/zh/RobustMQ-MQTT/PublicMqttServer" },
-            { text: "系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture.md" },
             {
                 text: "核心功能",
                 collapsed: true,
@@ -111,17 +97,16 @@ export const sidebar = [
                     { text: "集成 OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
-            { text: "Bench 性能压测", link: "" },
+            { text: "MQTTX 测试指南", link: "/zh/RobustMQ-MQTT/MQTTX-Guide" },
             {
                 text: "客户端 SDK",
                 collapsed: true,
                 items: [
-                    { text: "使用 C SDK 连接", link: "" },
-                    { text: "使用 Java SDK 连接", link: "" },
-                    { text: "使用 Go SDK 连接", link: "" },
-                    { text: "使用 Python SDK 连接", link: "" },
-                    { text: "使用 JavaScript SDK 连接", link: "" },
+                    { text: "使用 C SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/c-sdk" },
+                    { text: "使用 Java SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/java-sdk" },
+                    { text: "使用 Go SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/go-sdk" },
+                    { text: "使用 Python SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/python-sdk" },
+                    { text: "使用 JavaScript SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/javascript-sdk" },
                 ]
             },
         ],
@@ -136,20 +121,47 @@ export const sidebar = [
     },
 
     {
-        text: "RobustMQ 命令行",
-        collapsed: true,
-        items: [
-            { text: "概览", link: "/zh/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/zh/RobustMQ-Command/Mqtt-Broker" },
-            { text: "Placement Command", link: "/zh/RobustMQ-Command/Placement-Center" },
-            { text: "Journal Command", link: "/zh/RobustMQ-Command/Journal Server" },
-        ],
-    },
-    {
         text: "RobustMQ Dashboard",
         collapsed: true,
         items: [
             { text: "概览", link: "" }
+        ],
+    },
+    {
+        text: "RobustMQ 命令行",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/RobustMQ-Command/CLI_COMMON" },
+            { text: "集群管理", link: "/zh/RobustMQ-Command/CLI_CLUSTER" },
+            { text: "MQTT 管理", link: "/zh/RobustMQ-Command/CLI_MQTT" },
+            { text: "Journal 管理", link: "/zh/RobustMQ-Command/CLI_JOURNAL" },
+        ],
+    },
+    {
+        text: "HTTP 接口文档",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/Api/COMMON" },
+            { text: "Cluster API", link: "/zh/Api/CLUSTER" },
+            { text: "MQTT API", link: "/zh/Api/MQTT" },
+        ],
+    },
+    {
+        text: "配置说明",
+        collapsed: true,
+        items: [
+            { text: "通用配置", link: "/zh/Configuration/COMMON" },
+            { text: "MQTT 配置", link: "/zh/Configuration/MQTT" },
+            { text: "Meta 配置", link: "/zh/Configuration/META" },
+            { text: "Journal 配置", link: "/zh/Configuration/JOURNAL" },
+        ],
+    },
+    {
+        text: "性能指标",
+        collapsed: true,
+        items: [
+            { text: "RobustMQ MQTT", link: "" },
+            { text: "RobustMQ Kafka", link: "" },
         ],
     },
     {
@@ -177,6 +189,15 @@ export const sidebar = [
                     { text: "文档贡献指导", link: "/zh/ContributionGuide/ContributingDoc/Doc-Contribution-Guide" },
                 ]
             }
+        ],
+    },
+    {
+        text: "博客文章",
+        collapsed: true,
+        items: [
+            { text: "01: 用 Rust 重新定义消息队列", link: "/zh/Blogs/01" },
+            { text: "02: RobustMQ: 技术设计理念综述", link: "/zh/Blogs/02" },
+            { text: "03: 介绍 RobustMQ 的 Roles", link: "/zh/Blogs/03" },
         ],
     }
 ];
