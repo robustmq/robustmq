@@ -57,6 +57,9 @@ pub async fn record_slow_subscribe_data(
     subscriber: &Subscriber,
     calculate_time: u64,
 ) -> ResultCommonError {
+    if calculate_time <= 1000 {
+        return Ok(());
+    }
     let client_id = subscriber.client_id.clone();
     let topic_name = subscriber.topic_name.clone();
     let subscribe_name = subscriber.sub_path.clone();
