@@ -21,8 +21,10 @@ use broker_core::{
 use common_base::error::ResultCommonError;
 
 use crate::{
-    handler::{error::MqttBrokerError, system_alarm::SystemAlarmEventMessage},
-    storage::keys::{system_event_key, system_event_prefix_key},
+    handler::{
+        error::MqttBrokerError, flapping_detect::BanLog, system_alarm::SystemAlarmEventMessage,
+    },
+    storage::keys::{ban_log_key, ban_log_prefix_key, system_event_key, system_event_prefix_key},
 };
 
 pub struct LocalStorage {
@@ -46,6 +48,22 @@ impl LocalStorage {
         let mut results = Vec::new();
         for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), prefix_key)? {
             if let Ok(data) = serde_json::from_str::<SystemAlarmEventMessage>(&raw.data) {
+                results.push(data);
+            }
+        }
+        Ok(results)
+    }
+
+    pub async fn save_ban_log(&self, log: BanLog) -> ResultCommonError {
+        let key = ban_log_key(&log);
+        engine_save_by_broker(self.rocksdb_engine_handler.clone(), key, log)
+    }
+
+    pub async fn list_ban_log(&self) -> Result<Vec<BanLog>, MqttBrokerError> {
+        let prefix_key = ban_log_prefix_key();
+        let mut results = Vec::new();
+        for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), prefix_key)? {
+            if let Ok(data) = serde_json::from_str::<BanLog>(&raw.data) {
                 results.push(data);
             }
         }

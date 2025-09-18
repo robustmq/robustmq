@@ -32,6 +32,7 @@ pub mod offline_message;
 pub mod response;
 pub mod retain;
 pub mod session;
+pub mod slow_subscribe;
 pub mod sub_auto;
 pub mod sub_exclusive;
 pub mod sub_option;

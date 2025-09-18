@@ -224,13 +224,7 @@ pub struct MqttRuntime {
 pub struct MqttSystemMonitor {
     pub enable: bool,
 
-    pub os_cpu_check_interval_ms: u64,
-
     pub os_cpu_high_watermark: f32,
-
-    pub os_cpu_low_watermark: f32,
-
-    pub os_memory_check_interval_ms: u64,
 
     pub os_memory_high_watermark: f32,
 }

@@ -52,6 +52,7 @@ impl ClusterStorage {
 
 #[cfg(test)]
 mod test {
+    use broker_core::rocksdb::column_family_list;
     use metadata_struct::placement::cluster::ClusterInfo;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
@@ -64,7 +65,7 @@ mod test {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["cluster".to_string()],
+            column_family_list(),
         ));
         let cluster_storage = ClusterStorage::new(rocksdb_engine);
 

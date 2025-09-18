@@ -73,15 +73,13 @@ impl NodeStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use broker_core::rocksdb::column_family_list;
     use tempfile::tempdir;
 
     fn setup_kv_storage() -> NodeStorage {
         let temp_dir = tempdir().unwrap();
-        let engine = RocksDBEngine::new(
-            temp_dir.path().to_str().unwrap(),
-            100,
-            vec!["cluster".to_string()],
-        );
+        let engine =
+            RocksDBEngine::new(temp_dir.path().to_str().unwrap(), 100, column_family_list());
         NodeStorage::new(Arc::new(engine))
     }
 

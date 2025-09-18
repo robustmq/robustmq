@@ -257,6 +257,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         };
 
         let send_time = now_second();
+
         // publish data to client
         send_publish_packet_to_client(
             &context.connection_manager,
@@ -268,9 +269,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         .await?;
         let finish_time = now_second();
 
-        let is_enable = &context.cache_manager.get_slow_sub_config().enable;
-
-        if *is_enable {
+        if context.cache_manager.get_slow_sub_config().enable {
             let receive_time = record.timestamp;
             let calculate_time =
                 get_calculate_time_from_broker_config(send_time, finish_time, receive_time);
