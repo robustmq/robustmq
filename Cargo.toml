@@ -36,6 +36,7 @@ members = [
     "src/common/network-server",
     "src/common/metrics",
     "src/common/security",
+    "src/common/rate-limit",
     "src/protocol",
     "src/journal-server",
     "src/journal-client",
@@ -185,6 +186,7 @@ third-driver = { path = "src/common/third-driver" }
 network-server = { path = "src/common/network-server" }
 common-metrics = { path = "src/common/metrics" }
 common-security = { path = "src/common/security" }
+rate-limit = { path = "src/common/rate-limit" }
 admin-server = { path = "src/admin-server" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }

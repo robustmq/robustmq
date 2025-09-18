@@ -4508,6 +4508,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rate-limit"
+version = "0.1.32"
+
+[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
