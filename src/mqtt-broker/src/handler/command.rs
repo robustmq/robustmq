@@ -22,6 +22,7 @@ use crate::handler::response::{
 use crate::security::AuthDriver;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
+use broker_core::rocksdb::RocksDBEngine;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
@@ -64,6 +65,7 @@ pub struct CommandContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub auth_driver: Arc<AuthDriver>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 #[async_trait]
@@ -647,6 +649,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -659,6 +662,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -671,6 +675,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {

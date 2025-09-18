@@ -88,6 +88,7 @@ impl MqttBrokerServer {
             client_pool: params.client_pool.clone(),
             stop_sx: inner_stop.clone(),
             auth_driver: params.auth_driver.clone(),
+            rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
         }));
 
         MqttBrokerServer {

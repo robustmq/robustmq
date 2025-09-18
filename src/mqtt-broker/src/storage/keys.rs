@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::system_alarm::SystemAlarmEventMessage;
+use crate::handler::{flapping_detect::BanLog, system_alarm::SystemAlarmEventMessage};
 
 pub fn system_event_key(alarm: &SystemAlarmEventMessage) -> String {
     prefix_key(format!(
@@ -23,6 +23,17 @@ pub fn system_event_key(alarm: &SystemAlarmEventMessage) -> String {
 
 pub fn system_event_prefix_key() -> String {
     prefix_key("/system_alarm/".to_string())
+}
+
+pub fn ban_log_key(log: &BanLog) -> String {
+    prefix_key(format!(
+        "/ban_log/{}/{}/{}",
+        log.ban_type, log.resource_name, log.create_time
+    ))
+}
+
+pub fn ban_log_prefix_key() -> String {
+    prefix_key("/ban_log/".to_string())
 }
 
 fn prefix_key(key: String) -> String {
