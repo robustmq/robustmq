@@ -152,6 +152,15 @@ pub struct FlappingDetectListRaw {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct BanLogListRaw {
+    pub ban_type: String,
+    pub resource_name: String,
+    pub ban_source: String,
+    pub end_time: String,
+    pub create_time: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct OverViewResp {
     pub node_list: Vec<BrokerNode>,
     pub cluster_name: String,

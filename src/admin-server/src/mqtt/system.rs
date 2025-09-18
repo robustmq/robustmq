@@ -15,14 +15,17 @@
 use crate::{
     request::mqtt::SystemAlarmListReq,
     response::{
-        mqtt::{FlappingDetectListRaw, SystemAlarmListRow},
+        mqtt::{BanLogListRaw, FlappingDetectListRaw, SystemAlarmListRow},
         PageReplyData,
     },
     state::HttpState,
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
-use common_base::http_response::{error_response, success_response};
+use common_base::{
+    http_response::{error_response, success_response},
+    utils::time_util::timestamp_to_local_datetime,
+};
 use mqtt_broker::storage::local::LocalStorage;
 use std::sync::Arc;
 
@@ -121,6 +124,57 @@ impl Queryable for FlappingDetectListRaw {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "client_id" => Some(self.client_id.clone()),
+            _ => None,
+        }
+    }
+}
+
+pub async fn ban_log_list(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<SystemAlarmListReq>,
+) -> String {
+    let options = build_query_params(
+        params.page,
+        params.limit,
+        params.sort_field,
+        params.sort_by,
+        params.filter_field,
+        params.filter_values,
+        params.exact_match,
+    );
+
+    let log_storage = LocalStorage::new(state.rocksdb_engine_handler.clone());
+    let data_list = match log_storage.list_ban_log().await {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+    let results = data_list
+        .iter()
+        .map(|entry| BanLogListRaw {
+            ban_source: entry.ban_source.clone(),
+            ban_type: entry.ban_type.clone(),
+            resource_name: entry.resource_name.clone(),
+            end_time: timestamp_to_local_datetime(entry.end_time as i64),
+            create_time: timestamp_to_local_datetime(entry.create_time as i64),
+        })
+        .collect();
+
+    let filtered = apply_filters(results, &options);
+    let sorted = apply_sorting(filtered, &options);
+    let pagination = apply_pagination(sorted, &options);
+
+    success_response(PageReplyData {
+        data: pagination.0,
+        total_count: pagination.1,
+    })
+}
+
+impl Queryable for BanLogListRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "resource_name" => Some(self.resource_name.clone()),
             _ => None,
         }
     }
