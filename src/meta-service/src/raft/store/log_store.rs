@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Debug;
-use std::ops::RangeBounds;
-use std::sync::Arc;
 use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
 use crate::raft::store::bin_to_id;
 use crate::raft::type_config::TypeConfig;
 use common_base::tools::now_mills;
+use common_metrics::meta::raft::{
+    metrics_rocksdb_storage_err_inc, metrics_rocksdb_storage_total_inc,
+    metrics_rocksdb_stroge_total_ms, RocksDBLabels,
+};
 use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{
     AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
     StorageError, Vote,
 };
 use rocksdb::{BoundColumnFamily, Direction, DB};
+use std::fmt::Debug;
+use std::ops::RangeBounds;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct LogStore {

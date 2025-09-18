@@ -28,9 +28,9 @@ pub type FamilyCounter<L> = Arc<RwLock<Family<L, Counter>>>;
 #[macro_export]
 macro_rules! register_counter_metric {
     ($name:ident, $metric_name:expr, $help:expr,$label:ty) => {
-        static $name: std::sync::LazyLock<crate::core::counter::FamilyCounter<$label>> =
+        static $name: std::sync::LazyLock<$crate::core::counter::FamilyCounter<$label>> =
             std::sync::LazyLock::new(|| {
-                crate::core::counter::register_int_counter_family($metric_name, $help)
+                $crate::core::counter::register_int_counter_family($metric_name, $help)
             });
     };
 }

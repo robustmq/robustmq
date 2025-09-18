@@ -14,7 +14,10 @@
 
 use prometheus_client::encoding::EncodeLabelSet;
 
-use crate::{register_counter_metric, register_histogram_metric};
+use crate::{
+    counter_metric_inc, gauge_metric_inc, histogram_metric_observe, register_counter_metric,
+    register_histogram_metric,
+};
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
 pub struct MetricsLabel {
@@ -95,25 +98,25 @@ register_histogram_metric!(
     12
 );
 
-pub fn metrics_raft_storage_total_incr(storage_type: &StorageDataType) {
+pub fn metrics_raft_storage_total_incr(storage_type: String) {
     let label = MetricsLabel {
-        raft_storage_type: format!("{storage_type:?}"),
+        raft_storage_type: storage_type,
         ..Default::default()
     };
     gauge_metric_inc!(RAFT_STORAGE_TOTAL_NUM, label)
 }
 
-pub fn metrics_raft_storage_error_incr(storage_type: &StorageDataType) {
+pub fn metrics_raft_storage_error_incr(storage_type: String) {
     let label = MetricsLabel {
-        raft_storage_type: format!("{storage_type:?}"),
+        raft_storage_type: storage_type,
         ..Default::default()
     };
     gauge_metric_inc!(RAFT_STORAGE_ERROR_NUM, label)
 }
 
-pub fn metrics_raft_storage_total_ms(storage_type: &StorageDataType, ms: f64) {
+pub fn metrics_raft_storage_total_ms(storage_type: String, ms: f64) {
     let label = MetricsLabel {
-        raft_storage_type: format!("{storage_type:?}"),
+        raft_storage_type: storage_type,
         ..Default::default()
     };
 

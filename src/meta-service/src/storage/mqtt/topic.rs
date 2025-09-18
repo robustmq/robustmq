@@ -116,15 +116,6 @@ impl MqttTopicStorage {
         }
         Ok(results)
     }
-
-    fn is_system_topic(&self, topic_name: &str) -> bool {
-        // todo: At this stage, we do not want to destroy this dependency,
-        //       but seek a simple way to hard-code it in the function.
-        //       We will need to refactor later.
-        const SYSTEM_TOPIC_PREFIX: &str = "$SYS";
-
-        topic_name.to_uppercase().starts_with(SYSTEM_TOPIC_PREFIX)
-    }
 }
 
 #[cfg(test)]

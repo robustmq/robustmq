@@ -212,13 +212,6 @@ register_gauge_metric!(
 );
 
 register_gauge_metric!(
-    PACKETS_AUTH_SENT,
-    "packets_auth_sent",
-    "Number of packets auth sent",
-    NetworkQosLabel
-);
-
-register_gauge_metric!(
     BYTES_RECEIVED,
     "bytes_received",
     "Number of bytes received",
