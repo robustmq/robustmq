@@ -87,7 +87,8 @@ pub fn write(
     buffer: &mut BytesMut,
 ) -> Result<usize, MQTTProtocolError> {
     let len = self::len(connect, login, will);
-    buffer.put_u8(0b0001_0000); // fixheader byte1 0x10
+    let fix_header = 0b0001_0000;
+    buffer.put_u8(fix_header); // fixheader byte1 0x10
     let count = write_remaining_length(buffer, len)?;
     write_mqtt_string(buffer, "MQTT");
 
@@ -98,11 +99,11 @@ pub fn write(
     if connect.clean_session {
         connect_flags |= 0x02;
     }
-
     buffer.put_u8(connect_flags);
+    
     buffer.put_u16(connect.keep_alive);
+    
     write_mqtt_string(buffer, &connect.client_id);
-
     if let Some(w) = &will {
         connect_flags |= will::write(w, buffer)?;
     }
