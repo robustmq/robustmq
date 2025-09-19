@@ -168,20 +168,6 @@ We welcome contributions from the community! RobustMQ is an open-source project,
 5. **✅ Make your changes with tests**
 6. **📤 Submit a pull request**
 
-### Development Setup
-
-```bash
-# Clone and setup
-git clone https://github.com/robustmq/robustmq.git
-cd robustmq
-
-# Run tests
-cargo test
-
-# Check code style
-cargo clippy
-cargo fmt
-```
 
 ## 🌐 Community
 
