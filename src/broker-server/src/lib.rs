@@ -22,8 +22,9 @@ use broker_core::{
     heartbeat::{check_placement_center_status, register_node, report_heartbeat},
     rocksdb::{column_family_list, storage_data_fold, RocksDBEngine},
 };
-use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
+use common_base::runtime::create_runtime;
 use common_config::{broker::broker_config, config::BrokerConfig};
+use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use journal_server::{
@@ -70,7 +71,6 @@ use tracing::{error, info};
 mod cluster_service;
 pub mod common;
 mod grpc;
-mod metrics;
 
 pub struct BrokerServer {
     main_runtime: Runtime,

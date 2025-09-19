@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::cluster_service::ClusterInnerService;
-use crate::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
 use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
+use common_metrics::grpc::{metrics_grpc_request_incr, metrics_grpc_request_ms};
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
 use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
@@ -231,6 +231,7 @@ where
                 paths.1.as_str(),
                 (now_mills() - start_time) as f64,
             );
+
             metrics_grpc_request_incr(paths.0.as_str(), paths.1.as_str());
             Ok(response)
         })

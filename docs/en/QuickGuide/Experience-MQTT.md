@@ -18,13 +18,13 @@ First, we need to download and extract the RobustMQ binary package:
 
 ```bash
 # Download the latest version binary package (using v1.0.0 as example)
-wget https://github.com/robustmq/robustmq/releases/download/v1.0.0/robustmq-v1.0.0-linux-amd64.tar.gz
+wget https://github.com/robustmq/robustmq/releases/download/v0.1.33/robustmq-v0.1.33-linux-amd64.tar.gz
 
 # Extract the binary package
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
+tar -xzf robustmq-v0.1.33-linux-amd64.tar.gz
 
 # Enter the extracted directory
-cd robustmq-v1.0.0-linux-amd64
+cd robustmq-v0.1.33-linux-amd64
 ```
 
 ### 2. Start RobustMQ Broker
