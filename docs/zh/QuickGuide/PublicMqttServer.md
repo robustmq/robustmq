@@ -16,7 +16,7 @@
 
 ### 认证信息
 
-- **用户名**: `robustmq`
+- **用户名**: `admin`
 - **密码**: `robustmq`
 
 ### 管理界面
@@ -33,40 +33,40 @@
 
 ```bash
 # 发送简单消息
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/topic" -m "Hello RobustMQ!"
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/topic" -m "Hello RobustMQ!"
 
 # 发送 QoS 1 消息
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/qos1" -m "QoS 1 message" -q 1
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/qos1" -m "QoS 1 message" -q 1
 
 # 发送保留消息
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/retained" -m "Retained message" -r
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/retained" -m "Retained message" -r
 
 # 发送 JSON 格式消息
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "sensors/temperature" -m '{"value": 25.5, "unit": "celsius"}'
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "sensors/temperature" -m '{"value": 25.5, "unit": "celsius"}'
 ```
 
 #### 2. 订阅消息
 
 ```bash
 # 订阅单个主题
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/topic"
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/topic"
 
 # 订阅通配符主题
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/+"  # 单级通配符
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/#"  # 多级通配符
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/+"  # 单级通配符
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/#"  # 多级通配符
 
 # 订阅并显示详细信息
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/topic" --verbose
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/topic" --verbose
 ```
 
 #### 3. 性能测试
 
 ```bash
 # 发布性能测试
-mqttx bench pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench" -c 10 -C 100
+mqttx bench pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/bench" -c 10 -C 100
 
 # 订阅性能测试
-mqttx bench sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench" -c 50
+mqttx bench sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/bench" -c 50
 ```
 
 ### 使用 MQTTX GUI 客户端
@@ -75,7 +75,7 @@ mqttx bench sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench"
 
 - **Host**: 117.72.92.117
 - **Port**: 1883
-- **Username**: robustmq
+- **Username**: admin
 - **Password**: robustmq
 - **Client ID**: 自定义
 
@@ -97,14 +97,14 @@ mqttx bench sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench"
 
 ```bash
 # 终端 1: 订阅温度传感器数据
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "sensors/temperature" --verbose
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "sensors/temperature" --verbose
 ```
 
 ### 步骤 2: 发送消息
 
 ```bash
 # 终端 2: 发送温度数据
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "sensors/temperature" -m '{"sensor": "temp-001", "value": 23.5, "unit": "celsius", "timestamp": "2024-01-01T12:00:00Z"}'
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "sensors/temperature" -m '{"sensor": "temp-001", "value": 23.5, "unit": "celsius", "timestamp": "2024-01-01T12:00:00Z"}'
 ```
 
 ### 步骤 3: 查看 Dashboard
