@@ -14,7 +14,7 @@
 
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::system_alarm::SystemAlarmEventMessage;
-use crate::observability::system_topic::{replace_topic_name, write_topic_data};
+use crate::system_topic::{replace_topic_name, write_topic_data};
 use common_base::error::ResultCommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;

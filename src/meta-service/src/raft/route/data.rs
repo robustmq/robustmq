@@ -88,3 +88,60 @@ pub enum StorageDataType {
     MqttSetAutoSubscribeRule,
     MqttDeleteAutoSubscribeRule,
 }
+
+impl fmt::Display for StorageDataType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StorageDataType::ClusterAddNode => write!(f, "ClusterAddNode"),
+            StorageDataType::ClusterDeleteNode => write!(f, "ClusterDeleteNode"),
+            StorageDataType::ClusterAddCluster => write!(f, "ClusterAddCluster"),
+            StorageDataType::ClusterDeleteCluster => write!(f, "ClusterDeleteCluster"),
+
+            StorageDataType::KvSet => write!(f, "KvSet"),
+            StorageDataType::KvDelete => write!(f, "KvDelete"),
+
+            StorageDataType::SchemaSet => write!(f, "SchemaSet"),
+            StorageDataType::SchemaDelete => write!(f, "SchemaDelete"),
+            StorageDataType::SchemaBindSet => write!(f, "SchemaBindSet"),
+            StorageDataType::SchemaBindDelete => write!(f, "SchemaBindDelete"),
+            StorageDataType::ResourceConfigSet => write!(f, "ResourceConfigSet"),
+            StorageDataType::ResourceConfigDelete => write!(f, "ResourceConfigDelete"),
+            StorageDataType::IdempotentDataSet => write!(f, "IdempotentDataSet"),
+            StorageDataType::IdempotentDataDelete => write!(f, "IdempotentDataDelete"),
+            StorageDataType::OffsetSet => write!(f, "OffsetSet"),
+            StorageDataType::OffsetDelete => write!(f, "OffsetDelete"),
+
+            StorageDataType::JournalSetShard => write!(f, "JournalSetShard"),
+            StorageDataType::JournalDeleteShard => write!(f, "JournalDeleteShard"),
+            StorageDataType::JournalSetSegment => write!(f, "JournalSetSegment"),
+            StorageDataType::JournalDeleteSegment => write!(f, "JournalDeleteSegment"),
+            StorageDataType::JournalSetSegmentMetadata => write!(f, "JournalSetSegmentMetadata"),
+            StorageDataType::JournalDeleteSegmentMetadata => {
+                write!(f, "JournalDeleteSegmentMetadata")
+            }
+
+            StorageDataType::MqttSetUser => write!(f, "MqttSetUser"),
+            StorageDataType::MqttDeleteUser => write!(f, "MqttDeleteUser"),
+            StorageDataType::MqttSetTopic => write!(f, "MqttSetTopic"),
+            StorageDataType::MqttDeleteTopic => write!(f, "MqttDeleteTopic"),
+            StorageDataType::MqttSetSession => write!(f, "MqttSetSession"),
+            StorageDataType::MqttDeleteSession => write!(f, "MqttDeleteSession"),
+            StorageDataType::MqttUpdateSession => write!(f, "MqttUpdateSession"),
+            StorageDataType::MqttSaveLastWillMessage => write!(f, "MqttSaveLastWillMessage"),
+            StorageDataType::MqttSetAcl => write!(f, "MqttSetAcl"),
+            StorageDataType::MqttDeleteAcl => write!(f, "MqttDeleteAcl"),
+            StorageDataType::MqttSetBlacklist => write!(f, "MqttSetBlacklist"),
+            StorageDataType::MqttDeleteBlacklist => write!(f, "MqttDeleteBlacklist"),
+            StorageDataType::MqttCreateTopicRewriteRule => write!(f, "MqttCreateTopicRewriteRule"),
+            StorageDataType::MqttDeleteTopicRewriteRule => write!(f, "MqttDeleteTopicRewriteRule"),
+            StorageDataType::MqttSetSubscribe => write!(f, "MqttSetSubscribe"),
+            StorageDataType::MqttDeleteSubscribe => write!(f, "MqttDeleteSubscribe"),
+            StorageDataType::MqttSetConnector => write!(f, "MqttSetConnector"),
+            StorageDataType::MqttDeleteConnector => write!(f, "MqttDeleteConnector"),
+            StorageDataType::MqttSetAutoSubscribeRule => write!(f, "MqttSetAutoSubscribeRule"),
+            StorageDataType::MqttDeleteAutoSubscribeRule => {
+                write!(f, "MqttDeleteAutoSubscribeRule")
+            }
+        }
+    }
+}

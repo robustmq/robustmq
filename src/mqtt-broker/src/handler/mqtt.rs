@@ -15,6 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::{now_mills, now_second};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -58,14 +59,14 @@ use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
-use crate::observability::system_topic::event::{
+use crate::security::AuthDriver;
+use crate::subscribe::common::min_qos;
+use crate::subscribe::manager::SubscribeManager;
+use crate::system_topic::event::{
     st_report_connected_event, st_report_disconnected_event, st_report_subscribed_event,
     st_report_unsubscribed_event, StReportConnectedEventContext, StReportDisconnectedEventContext,
     StReportSubscribedEventContext, StReportUnsubscribedEventContext,
 };
-use crate::security::AuthDriver;
-use crate::subscribe::common::min_qos;
-use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Clone)]
 pub struct MqttService {
@@ -78,6 +79,7 @@ pub struct MqttService {
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 #[derive(Clone)]
@@ -91,6 +93,7 @@ pub struct MqttServiceContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub client_pool: Arc<ClientPool>,
     pub auth_driver: Arc<AuthDriver>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 #[derive(Clone)]
@@ -116,6 +119,7 @@ impl MqttService {
             client_pool: context.client_pool,
             auth_driver: context.auth_driver,
             schema_manager: context.schema_manager,
+            rocksdb_engine_handler: context.rocksdb_engine_handler,
         }
     }
 
@@ -183,7 +187,20 @@ impl MqttService {
 
         // flapping detect check
         if cluster.mqtt_flapping_detect.enable {
-            check_flapping_detect(context.connect.client_id.clone(), &self.cache_manager);
+            if let Err(e) = check_flapping_detect(
+                context.connect.client_id.clone(),
+                &self.cache_manager,
+                &self.rocksdb_engine_handler,
+            )
+            .await
+            {
+                return response_packet_mqtt_connect_fail(
+                    &self.protocol,
+                    ConnectReturnCode::UnspecifiedError,
+                    &context.connect_properties,
+                    Some(e.to_string()),
+                );
+            }
         }
 
         let (session, new_session) = match build_session(BuildSessionContext {

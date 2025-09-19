@@ -13,16 +13,19 @@
 // limitations under the License.
 
 use crate::handler::cache::MQTTCacheManager;
-use crate::observability::system_topic::report_system_data;
+use crate::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 
-// topics
-pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT: &str = "$SYS/brokers/${node}/stats/topics/count";
-pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX: &str = "$SYS/brokers/${node}/stats/topics/max";
+// Stats
+// connections
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT: &str =
+    "$SYS/brokers/${node}/stats/connections/count";
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX: &str =
+    "$SYS/brokers/${node}/stats/connections/max";
 
-pub(crate) async fn report_broker_stat_topics(
+pub(crate) async fn report_broker_stat_connections(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
@@ -31,10 +34,10 @@ pub(crate) async fn report_broker_stat_topics(
         client_pool,
         metadata_cache,
         message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT,
+        SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT,
         || async {
             "".to_string()
-            //  metadata_cache.get_topics_count().to_string()
+            // metadata_cache.get_connection_count().to_string()
         },
     )
     .await;
@@ -43,10 +46,10 @@ pub(crate) async fn report_broker_stat_topics(
         client_pool,
         metadata_cache,
         message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
+        SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX,
         || async {
             "".to_string()
-            //  metadata_cache.get_topics_max().to_string()
+            // metadata_cache.get_connection_max().to_string()
         },
     )
     .await;

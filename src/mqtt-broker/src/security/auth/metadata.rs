@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
@@ -88,10 +87,7 @@ impl AclMetadata {
         self.flapping_detect_map.remove(client_id);
     }
 
-    pub async fn remove_flapping_detect_conditions(
-        &self,
-        config: MqttFlappingDetect,
-    ) -> ResultMqttBrokerError {
+    pub async fn remove_flapping_detect_conditions(&self, config: MqttFlappingDetect) {
         let current_time = now_second();
         let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
         self.flapping_detect_map
@@ -100,7 +96,6 @@ impl AclMetadata {
                 // so now_seconds - first_request_time must less than window_time
                 current_time - flapping_detect_condition.first_request_time < window_time
             });
-        Ok(())
     }
 
     // ACL
@@ -284,8 +279,7 @@ mod test {
 
         acl_metadata
             .remove_flapping_detect_conditions(jitter_config)
-            .await
-            .expect("TODO: panic message");
+            .await;
 
         assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
         assert!(!acl_metadata.flapping_detect_map.contains_key("test_id_2"));

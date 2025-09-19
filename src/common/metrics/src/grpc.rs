@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use meta_service::core::metrics::MetricsLabel;
+use crate::{
+    gauge_metric_inc, histogram_metric_observe, meta::raft::MetricsLabel, register_counter_metric,
+    register_histogram_metric,
+};
 
-common_base::register_counter_metric!(
+register_counter_metric!(
     GRPC_REQUEST_NUM,
     "grpc_request_num",
     "Number of calls to the grpc request",
     MetricsLabel
 );
 
-common_base::register_histogram_metric!(
+register_histogram_metric!(
     GRPC_REQUEST_TOTAL_MS,
     "grpc_request_total_ms",
     "TotalMs of calls to the grpc request",
@@ -37,7 +40,7 @@ pub fn metrics_grpc_request_incr(service: &str, path: &str) {
         grpc_path: path.to_string(),
         ..Default::default()
     };
-    common_base::gauge_metric_inc!(GRPC_REQUEST_NUM, label)
+    gauge_metric_inc!(GRPC_REQUEST_NUM, label)
 }
 
 pub fn metrics_grpc_request_ms(service: &str, path: &str, ms: f64) {
@@ -47,5 +50,5 @@ pub fn metrics_grpc_request_ms(service: &str, path: &str, ms: f64) {
         ..Default::default()
     };
 
-    common_base::histogram_metric_observe!(GRPC_REQUEST_TOTAL_MS, ms, label)
+    histogram_metric_observe!(GRPC_REQUEST_TOTAL_MS, ms, label)
 }

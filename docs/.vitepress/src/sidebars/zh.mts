@@ -24,7 +24,6 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
-            { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
             { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
         ],
     },
@@ -32,6 +31,7 @@ export const sidebar = [
         text: "安装部署",
         collapsed: true,
         items: [
+            { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
             { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Docker-Deployment" },
             { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
             { text: "Docker 模式", link: "/zh/InstallationDeployment/Docker-Deployment" },

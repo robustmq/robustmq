@@ -19,6 +19,7 @@ use crate::{
     security::AuthDriver,
     subscribe::manager::SubscribeManager,
 };
+use broker_core::rocksdb::RocksDBEngine;
 use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -54,6 +55,7 @@ pub struct TcpServerContext {
     pub client_pool: Arc<ClientPool>,
     pub stop_sx: broadcast::Sender<bool>,
     pub auth_driver: Arc<AuthDriver>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl Server {
@@ -68,6 +70,7 @@ impl Server {
             connection_manager: context.connection_manager.clone(),
             schema_manager: context.schema_manager.clone(),
             auth_driver: context.auth_driver.clone(),
+            rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
         };
         let command = create_command(command_context);
 

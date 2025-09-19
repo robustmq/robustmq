@@ -136,7 +136,7 @@ pub fn default_mqtt_offline_message() -> MqttOfflineMessage {
 pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
     MqttSlowSubscribeConfig {
         enable: false,
-        max_store_num: 1000,
+        record_time: 1000,
         delay_type: DelayType::Whole,
     }
 }
@@ -185,10 +185,7 @@ pub fn default_mqtt_schema() -> MqttSchema {
 pub fn default_mqtt_system_monitor() -> MqttSystemMonitor {
     MqttSystemMonitor {
         enable: false,
-        os_cpu_check_interval_ms: 60000,
         os_cpu_high_watermark: 70.0,
-        os_cpu_low_watermark: 50.0,
-        os_memory_check_interval_ms: 60,
         os_memory_high_watermark: 80.0,
     }
 }

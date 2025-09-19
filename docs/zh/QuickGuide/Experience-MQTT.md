@@ -18,13 +18,13 @@
 
 ```bash
 # 下载最新版本的二进制包（以 v1.0.0 为例）
-wget https://github.com/robustmq/robustmq/releases/download/v1.0.0/robustmq-v1.0.0-linux-amd64.tar.gz
+wget https://github.com/robustmq/robustmq/releases/download/v0.1.33/robustmq-v0.1.33-linux-amd64.tar.gz
 
 # 解压二进制包
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
+tar -xzf robustmq-v0.1.33-linux-amd64.tar.gz
 
 # 进入解压后的目录
-cd robustmq-v1.0.0-linux-amd64
+cd robustmq-v0.1.33-linux-amd64
 ```
 
 ### 2. 启动 RobustMQ Broker

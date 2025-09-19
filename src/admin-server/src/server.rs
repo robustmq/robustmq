@@ -29,7 +29,7 @@ use crate::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
             subscribe_detail, subscribe_list,
         },
-        system::{flapping_detect_list, system_alarm_list},
+        system::{ban_log_list, flapping_detect_list, system_alarm_list},
         topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
@@ -142,6 +142,7 @@ impl AdminServer {
             .route("/mqtt/schema-bind/delete", post(schema_bind_delete))
             // system alarm
             .route("/mqtt/system-alarm/list", post(system_alarm_list))
+            .route("/mqtt/ban-log/list", post(ban_log_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

@@ -141,8 +141,7 @@ pub struct SessionListRow {
 pub struct SystemAlarmListRow {
     pub name: String,
     pub message: String,
-    pub activate_at: String,
-    pub activated: bool,
+    pub create_time: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -150,6 +149,15 @@ pub struct FlappingDetectListRaw {
     pub client_id: String,
     pub before_last_windows_connections: u64,
     pub first_request_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BanLogListRaw {
+    pub ban_type: String,
+    pub resource_name: String,
+    pub ban_source: String,
+    pub end_time: String,
+    pub create_time: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

@@ -141,10 +141,6 @@ impl BrokerConfig {
         self.mqtt_slow_subscribe_config.enable
     }
 
-    pub fn get_slow_subscribe_max_store_num(&self) -> u32 {
-        self.mqtt_slow_subscribe_config.max_store_num
-    }
-
     pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
         self.mqtt_slow_subscribe_config.delay_type
     }
@@ -236,13 +232,7 @@ pub struct MqttRuntime {
 pub struct MqttSystemMonitor {
     pub enable: bool,
 
-    pub os_cpu_check_interval_ms: u64,
-
     pub os_cpu_high_watermark: f32,
-
-    pub os_cpu_low_watermark: f32,
-
-    pub os_memory_check_interval_ms: u64,
 
     pub os_memory_high_watermark: f32,
 }
@@ -316,7 +306,7 @@ impl MqttFlappingDetect {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
-    pub max_store_num: u32,
+    pub record_time: u64,
     pub delay_type: DelayType,
 }
 
