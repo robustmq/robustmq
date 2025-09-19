@@ -1,11 +1,10 @@
 # 体验 RobustMQ MQTT
 
-本指南将带您快速体验 RobustMQ 的 MQTT 功能，包括启动 Broker、查看集群配置、发送和消费 MQTT 消息。
+本指南将带您快速体验 RobustMQ 的 MQTT 功能，包括启动 Broker、查看集群状态、发送和消费 MQTT 消息。
 
 ## 目录
 
 - [运行 Broker](#运行-broker)
-- [查看集群配置](#查看集群配置)
 - [发送 MQTT 消息](#发送-mqtt-消息)
 - [消费 MQTT 消息](#消费-mqtt-消息)
 - [高级功能](#高级功能)
@@ -51,59 +50,20 @@ Broker 启动成功后，您应该看到类似以下的输出：
 [INFO] Broker started successfully
 ```
 
-### 4. 检查服务状态
+### 4. 查看集群状态
+
+RobustMQ 提供了强大的命令行管理工具 `robust-ctl`，让我们来查看集群运行状态：
 
 ```bash
-# 检查 MQTT 端口是否监听
-netstat -tlnp | grep 1883
+# 查看集群运行状态
+$ ./bin/robust-ctl status
 
-# 检查管理端口是否监听
-netstat -tlnp | grep 8080
-
-# 或者使用 ss 命令
-ss -tlnp | grep :1883
-ss -tlnp | grep :8080
+🚀 Checking RobustMQ status...
+✅ RobustMQ Status: Online
+📋 Version: RobustMQ 0.1.33
+🌐 Server: 127.0.0.1:8080
 ```
-
-## 查看集群配置
-
-### 使用 robust-ctl 命令行工具
-
-RobustMQ 提供了强大的命令行管理工具 `robust-ctl`，让我们来查看集群配置：
-
-```bash
-# 查看集群配置
-./bin/robust-ctl cluster config get
-```
-
-### 配置信息解读
-
-执行 `robust-ctl cluster config get` 后，您将看到类似以下的配置信息：
-
-```json
-{
-  "cluster": {
-    "name": "robustmq-cluster",
-    "nodes": [
-      {
-        "id": "node-1",
-        "address": "127.0.0.1:9090",
-        "role": "leader",
-        "status": "active"
-      }
-    ],
-    "replication_factor": 1,
-    "consensus": "raft"
-  },
-  "mqtt": {
-    "port": 1883,
-    "max_connections": 10000,
-    "keep_alive": 60,
-    "retain_available": true,
-    "wildcard_subscription_available": true
-  }
-}
-```
+现实如上信息，表示节点启动成功。
 
 ## 发送 MQTT 消息
 
@@ -168,8 +128,8 @@ mqttx bench sub -h localhost -p 1883 -t "test/bench" -c 50
 ### 步骤 2: 查看集群配置
 
 ```bash
-# 终端 2: 查看配置
-./bin/robust-ctl cluster config get
+# 终端 2: 查看集群状态
+./bin/robust-ctl status
 ```
 
 ### 步骤 3: 订阅消息
