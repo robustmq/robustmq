@@ -211,14 +211,14 @@ pub async fn handle_journal(args: JournalArgs) {
 }
 
 pub async fn handle_status(args: StatusArgs) {
-    use admin_server::client::AdminHttpClient;
     use crate::mqtt::pub_sub::error_info;
-    
+    use admin_server::client::AdminHttpClient;
+
     // Create admin HTTP client
     let admin_client = AdminHttpClient::new(format!("http://{}", args.server));
-    
+
     println!("🚀 Checking RobustMQ status...");
-    
+
     match admin_client.get_version().await {
         Ok(version_info) => {
             println!("✅ RobustMQ Status: Online");

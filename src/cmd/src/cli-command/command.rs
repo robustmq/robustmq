@@ -15,7 +15,9 @@
 use clap::Parser;
 use cli_command::{
     cluster::command::ClusterCommand,
-    handler::{handle_cluster, handle_journal, handle_mqtt, handle_status, RobustMQCli, RobustMQCliCommand},
+    handler::{
+        handle_cluster, handle_journal, handle_mqtt, handle_status, RobustMQCli, RobustMQCliCommand,
+    },
     mqtt::command::MqttBrokerCommand,
 };
 
