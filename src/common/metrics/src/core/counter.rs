@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::metrics_register_default;
 use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::{Arc, RwLock};
+
+use crate::core::server::metrics_register_default;
 
 pub type FamilyCounter<L> = Arc<RwLock<Family<L, Counter>>>;
 

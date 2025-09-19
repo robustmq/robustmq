@@ -24,7 +24,7 @@ use broker_core::{
 };
 use common_base::runtime::create_runtime;
 use common_config::{broker::broker_config, config::BrokerConfig};
-use common_metrics::core::register_prometheus_export;
+use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use journal_server::{

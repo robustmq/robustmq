@@ -16,11 +16,10 @@ use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::metrics::gauge::Gauge;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::sync::{Arc, RwLock};
 
-use std::hash::Hash;
-
-use super::metrics_register_default;
+use crate::core::server::metrics_register_default;
 
 pub type FamilyGauge<L> = Arc<RwLock<Family<L, Gauge>>>;
 

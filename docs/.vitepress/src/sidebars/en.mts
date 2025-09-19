@@ -24,7 +24,6 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Public Server", link: "/QuickGuide/PublicMqttServer" },
-            { text: "Build && Package", link: "/QuickGuide/Build-and-Package" },
             { text: "Experience RobustMQ MQTT", link: "/QuickGuide/Experience-MQTT" },
         ],
     },
@@ -32,6 +31,7 @@ export const sidebar = [
         text: "Install and Deployment",
         collapsed: true,
         items: [
+            { text: "Build && Package", link: "/QuickGuide/Build-and-Package" },
             { text: "StandaloneMode", link: "/InstallationDeployment/Single-Machine-Cluster" },
             { text: "ClusterMode", link: "/InstallationDeployment/Multi-Node-Cluster" },
             { text: "DockerMode", link: "/InstallationDeployment/Docker-Deployment" },

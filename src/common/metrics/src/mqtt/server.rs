@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::NoLabelSet, gauge_metric_get, gauge_metric_inc_by, gauge_metrics_set,
+    core::server::NoLabelSet, gauge_metric_get, gauge_metric_inc_by, gauge_metrics_set,
     histogram_metric_observe, register_gauge_metric, register_histogram_metric,
 };
 use common_base::tools::now_mills;

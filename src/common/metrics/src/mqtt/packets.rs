@@ -390,7 +390,7 @@ pub fn record_messages_dropped_discard_metrics(qos: QoS) {
 
 #[cfg(test)]
 mod test {
-    use crate::core::metrics_register_default;
+    use crate::core::server::metrics_register_default;
 
     use super::*;
     use common_base::tools::{get_addr_by_local_hostname, now_second};
