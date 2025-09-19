@@ -1,6 +1,6 @@
 # Experience RobustMQ MQTT
 
-This guide will take you through a quick experience of RobustMQ's MQTT functionality, including starting the Broker, viewing cluster configuration, sending and consuming MQTT messages.
+This guide will take you through a quick experience of RobustMQ's MQTT functionality, including starting the Broker, viewing cluster status, sending and consuming MQTT messages.
 
 ## Table of Contents
 
