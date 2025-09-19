@@ -27,6 +27,8 @@
 
 ## 快速体验
 
+> **📦 MQTTX 安装**: 如果您还没有安装 MQTTX CLI，请参考我们的 [MQTTX 安装指南](../RobustMQ-MQTT/MQTTX-Guide.md#安装-mqttx-cli) 获取不同平台的详细安装说明。
+
 ### 使用 MQTTX 命令行工具
 
 #### 1. 发送消息

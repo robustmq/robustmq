@@ -27,6 +27,8 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 
 ## Quick Experience
 
+> **📦 MQTTX Installation**: If you haven't installed MQTTX CLI yet, please refer to our [MQTTX Installation Guide](../RobustMQ-MQTT/MQTTX-Guide.md#installing-mqttx-cli) for detailed installation instructions on different platforms.
+
 ### Using MQTTX Command Line Tool
 
 #### 1. Send Messages
