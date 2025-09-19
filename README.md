@@ -73,13 +73,6 @@ RobustMQ is a next-generation, high-performance, multi-protocol message queue bu
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- **Rust**: 1.70 or later
-- **Operating System**: Linux, macOS, or Windows
-- **Memory**: Minimum 2GB RAM
-- **Storage**: At least 1GB available disk space
-
 ### Installation Options
 
 #### Option 1: Build from Source
@@ -141,53 +134,16 @@ You can verify the installation by connecting with any MQTT client to `localhost
 
 ## 🔧 Build Script
 
-RobustMQ provides a powerful build script (`scripts/build.sh`) for creating distribution packages:
-
-### Quick Usage
+RobustMQ provides a build script to automatically package installation packages for your local system:
 
 ```bash
-# Build for current platform (default: server component only)
+# Build for current platform (includes server binaries and web UI)
 ./scripts/build.sh
-
-# Build for specific platform
-./scripts/build.sh --platform linux-amd64
-
-# Build for all platforms
-./scripts/build.sh --platform all
-
-# Build specific component
-./scripts/build.sh --component operator
-
-# Build with custom version
-./scripts/build.sh --version v1.0.0
-
-# Show all options
-./scripts/build.sh --help
 ```
 
-### Available Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-p, --platform` | Target platform | auto-detect |
-| `-c, --component` | Component to build | server |
-| `-v, --version` | Build version | git describe |
-| `-t, --build-type` | Build type (release/debug) | release |
-| `-o, --output` | Output directory | build/ |
-| `--all-platforms` | Build for all supported platforms | - |
-
-### Supported Platforms
-
-- **Linux**: `linux-amd64`, `linux-arm64`, `linux-386`, `linux-armv7`
-- **macOS**: `darwin-amd64`, `darwin-arm64`
-- **Windows**: `windows-amd64`, `windows-386`
-- **FreeBSD**: `freebsd-amd64`
-
-### Output
-
-Built packages are saved to `build/` directory with format:
-- **Server**: `robustmq-{version}-{platform}.tar.gz`
-- **Operator**: `robustmq-operator-{version}-{platform}.tar.gz`
+📚 **For advanced build options, cross-platform compilation, and detailed instructions, please refer to our documentation:**
+- **🇺🇸 [Build and Package Guide (English)](https://robustmq.com/en/QuickGuide/Build-and-Package.html)**
+- **🇨🇳 [构建和打包指南 (中文)](https://robustmq.com/zh/QuickGuide/Build-and-Package.html)**
 
 ## 📚 Documentation
 
