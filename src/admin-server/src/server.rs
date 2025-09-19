@@ -35,6 +35,8 @@ use crate::{
     },
     state::HttpState,
 };
+use axum::response::Html;
+use axum::response::IntoResponse;
 use axum::{
     extract::{ConnectInfo, Request, State},
     http::{HeaderMap, Method, Uri},
@@ -44,8 +46,11 @@ use axum::{
     Router,
 };
 use common_base::version::version;
+use reqwest::StatusCode;
+use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
-use tower_http::cors::CorsLayer;
+use tokio::fs;
+use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::{info, warn};
 
 pub struct AdminServer {}
@@ -63,6 +68,7 @@ impl AdminServer {
     pub async fn start(&self, port: u32, state: Arc<HttpState>) {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new()
+            .merge(self.static_route())
             .merge(self.common_route())
             .merge(self.mqtt_route())
             .merge(self.kafka_route())
@@ -83,9 +89,17 @@ impl AdminServer {
         .unwrap();
     }
 
+    fn static_route(&self) -> Router<Arc<HttpState>> {
+        let static_dir = PathBuf::from("../docs");
+
+        Router::new()
+            .nest_service("/", ServeDir::new(static_dir))
+            .fallback(serve_spa_fallback)
+    }
+
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route("/", get(index))
+            .route("/api", get(index))
             // config
             .route("/cluster/config/set", post(cluster_config_set))
             .route("/cluster/config/get", post(cluster_config_get))
@@ -147,6 +161,19 @@ impl AdminServer {
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
+    }
+}
+
+async fn serve_spa_fallback() -> impl IntoResponse {
+    let index_path = PathBuf::from("../docs/index.html");
+
+    match fs::read_to_string(&index_path).await {
+        Ok(content) => Html(content).into_response(),
+        Err(_) => (
+            StatusCode::NOT_FOUND,
+            "404 - Page not found. Missing the admin dashboard page",
+        )
+            .into_response(),
     }
 }
 
@@ -224,5 +251,5 @@ fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
 }
 
 pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
-    format!("RobustMQ {}", version())
+    format!("RobustMQ API {}", version())
 }
