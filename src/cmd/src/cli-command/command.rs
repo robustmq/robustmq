@@ -15,7 +15,7 @@
 use clap::Parser;
 use cli_command::{
     cluster::command::ClusterCommand,
-    handler::{handle_cluster, handle_journal, handle_mqtt, RobustMQCli, RobustMQCliCommand},
+    handler::{handle_cluster, handle_journal, handle_mqtt, handle_status, RobustMQCli, RobustMQCliCommand},
     mqtt::command::MqttBrokerCommand,
 };
 
@@ -26,5 +26,6 @@ async fn main() {
         RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
         RobustMQCliCommand::Cluster(args) => handle_cluster(args, ClusterCommand::new()).await,
         RobustMQCliCommand::Journal(args) => handle_journal(args).await,
+        RobustMQCliCommand::Status(args) => handle_status(args).await,
     }
 }
