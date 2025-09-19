@@ -162,6 +162,13 @@ r2d2_postgres = "0.18.2"
 r2d2_mysql = "25.0.0"
 r2d2 = "0.8.10"
 r2d2_redis = "0.14.0"
+md5 = "0.8.0"
+sha1 = "0.10.6"
+sha2 = "0.10.9"
+bcrypt = "0.17.1"
+pbkdf2 = "0.12.2"
+hmac = "0.12.1"
+hex = "0.4.3"
 
 #format
 prettytable-rs = "^0.10"

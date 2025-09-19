@@ -11,3 +11,391 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use super::Authentication;
+use crate::handler::cache::MQTTCacheManager;
+use crate::handler::error::MqttBrokerError;
+use crate::security::storage::storage_trait::AuthStorageAdapter;
+use axum::async_trait;
+use common_config::security::PasswordConfig;
+use std::sync::Arc;
+
+// Hash algorithm imports
+use bcrypt;
+use hex;
+use hmac::Hmac;
+use md5;
+use pbkdf2::pbkdf2;
+use sha1::{Digest as Sha1Digest, Sha1};
+#[allow(unused_imports)]
+use sha2::{Digest as Sha2Digest, Sha256, Sha512};
+
+pub struct MySQL {
+    username: String,
+    password: String,
+    password_config: PasswordConfig,
+    cache_manager: Arc<MQTTCacheManager>,
+}
+
+impl MySQL {
+    pub fn new(
+        username: String,
+        password: String,
+        password_config: PasswordConfig,
+        cache_manager: Arc<MQTTCacheManager>,
+    ) -> Self {
+        MySQL {
+            username,
+            password,
+            password_config,
+            cache_manager,
+        }
+    }
+
+    /// 验证密码
+    fn verify_password(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+        salt: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        match self.password_config.algorithm.as_str() {
+            "plain" => Ok(stored_hash == input_password),
+            "md5" => self.verify_md5(stored_hash, input_password, salt),
+            "sha" | "sha1" => self.verify_sha1(stored_hash, input_password, salt),
+            "sha256" => self.verify_sha256(stored_hash, input_password, salt),
+            "sha512" => self.verify_sha512(stored_hash, input_password, salt),
+            "bcrypt" => self.verify_bcrypt(stored_hash, input_password),
+            "pbkdf2" => self.verify_pbkdf2(stored_hash, input_password, salt),
+            _ => Err(MqttBrokerError::UnsupportedHashAlgorithm(
+                self.password_config.algorithm.clone(),
+            )),
+        }
+    }
+
+    /// 准备带salt的密码
+    fn prepare_password_with_salt(&self, password: &str, salt: &str) -> String {
+        match self.password_config.salt_position.as_deref() {
+            Some("prefix") => format!("{}{}", salt, password),
+            Some("suffix") => format!("{}{}", password, salt),
+            _ => password.to_string(), // disable or None
+        }
+    }
+
+    /// MD5 验证
+    fn verify_md5(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+        salt: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        let password_with_salt = self.prepare_password_with_salt(input_password, salt);
+        let hash = format!("{:x}", md5::compute(password_with_salt.as_bytes()));
+        Ok(hash == stored_hash)
+    }
+
+    /// SHA1 验证
+    fn verify_sha1(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+        salt: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        let password_with_salt = self.prepare_password_with_salt(input_password, salt);
+        let mut hasher = Sha1::new();
+        hasher.update(password_with_salt.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        Ok(hash == stored_hash)
+    }
+
+    /// SHA256 验证
+    fn verify_sha256(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+        salt: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        let password_with_salt = self.prepare_password_with_salt(input_password, salt);
+        let mut hasher = Sha256::new();
+        hasher.update(password_with_salt.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        Ok(hash == stored_hash)
+    }
+
+    /// SHA512 验证
+    fn verify_sha512(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+        salt: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        let password_with_salt = self.prepare_password_with_salt(input_password, salt);
+        let mut hasher = Sha512::new();
+        hasher.update(password_with_salt.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        Ok(hash == stored_hash)
+    }
+
+    /// bcrypt 验证
+    fn verify_bcrypt(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        bcrypt::verify(input_password, stored_hash)
+            .map_err(|e| MqttBrokerError::PasswordVerificationError(e.to_string()))
+    }
+
+    /// PBKDF2 验证
+    #[allow(unused_must_use)]
+    fn verify_pbkdf2(
+        &self,
+        stored_hash: &str,
+        input_password: &str,
+        salt: &str,
+    ) -> Result<bool, MqttBrokerError> {
+        let iterations = self.password_config.iterations.unwrap_or(4096);
+        let dk_length = self.password_config.dk_length.unwrap_or(32) as usize;
+
+        // 使用指定的MAC函数，默认为SHA256
+        let mac_fun = self.password_config.mac_fun.as_deref().unwrap_or("sha256");
+
+        match mac_fun {
+            "sha256" => {
+                let mut derived_key = vec![0u8; dk_length];
+                pbkdf2::<Hmac<Sha256>>(
+                    input_password.as_bytes(),
+                    salt.as_bytes(),
+                    iterations,
+                    &mut derived_key,
+                );
+                let computed_hash = hex::encode(derived_key);
+                Ok(computed_hash == stored_hash)
+            }
+            "sha1" => {
+                let mut derived_key = vec![0u8; dk_length];
+                pbkdf2::<Hmac<Sha1>>(
+                    input_password.as_bytes(),
+                    salt.as_bytes(),
+                    iterations,
+                    &mut derived_key,
+                );
+                let computed_hash = hex::encode(derived_key);
+                Ok(computed_hash == stored_hash)
+            }
+            "sha512" => {
+                let mut derived_key = vec![0u8; dk_length];
+                pbkdf2::<Hmac<Sha512>>(
+                    input_password.as_bytes(),
+                    salt.as_bytes(),
+                    iterations,
+                    &mut derived_key,
+                );
+                let computed_hash = hex::encode(derived_key);
+                Ok(computed_hash == stored_hash)
+            }
+            _ => Err(MqttBrokerError::UnsupportedMacFunction(mac_fun.to_string())),
+        }
+    }
+}
+
+/// MySQL 认证检查入口函数
+pub async fn mysql_check_login(
+    driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
+    cache_manager: &Arc<MQTTCacheManager>,
+    password_config: &PasswordConfig,
+    username: &str,
+    password: &str,
+) -> Result<bool, MqttBrokerError> {
+    let mysql_auth = MySQL::new(
+        username.to_owned(),
+        password.to_owned(),
+        password_config.clone(),
+        cache_manager.clone(),
+    );
+
+    match mysql_auth.apply().await {
+        Ok(flag) => {
+            if flag {
+                return Ok(true);
+            }
+        }
+        Err(e) => {
+            // 如果用户不存在，尝试从存储层获取用户信息
+            if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
+                return try_get_check_user_by_driver(
+                    driver,
+                    cache_manager,
+                    password_config,
+                    username,
+                    password,
+                )
+                .await;
+            }
+            return Err(e);
+        }
+    }
+    Ok(false)
+}
+
+/// 尝试从存储驱动获取用户并验证
+async fn try_get_check_user_by_driver(
+    driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
+    cache_manager: &Arc<MQTTCacheManager>,
+    password_config: &PasswordConfig,
+    username: &str,
+    password: &str,
+) -> Result<bool, MqttBrokerError> {
+    if let Some(user) = driver.get_user(username.to_owned()).await? {
+        cache_manager.add_user(user.clone());
+
+        let mysql_auth = MySQL::new(
+            username.to_owned(),
+            password.to_owned(),
+            password_config.clone(),
+            cache_manager.clone(),
+        );
+
+        if mysql_auth.apply().await? {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+#[async_trait]
+impl Authentication for MySQL {
+    async fn apply(&self) -> Result<bool, MqttBrokerError> {
+        if let Some(user) = self.cache_manager.user_info.get(&self.username) {
+            // 从用户数据中获取存储的哈希和salt
+            let stored_hash = &user.password;
+            let salt = ""; // 注意：这里salt通常应该从数据库的salt字段获取，但当前MqttUser结构体中没有salt字段
+
+            return self.verify_password(stored_hash, &self.password, salt);
+        }
+        Err(MqttBrokerError::UserDoesNotExist)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::tool::test_build_mqtt_cache_manager;
+    use common_config::security::PasswordConfig;
+    use metadata_struct::mqtt::user::MqttUser;
+
+    #[tokio::test]
+    async fn test_mysql_plain_authentication() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let username = "test_user".to_string();
+        let password = "test_password".to_string();
+
+        // 创建用户
+        let user = MqttUser {
+            username: username.clone(),
+            password: password.clone(),
+            is_superuser: false,
+        };
+        cache_manager.add_user(user);
+
+        // 配置为明文验证
+        let password_config = PasswordConfig {
+            auth_type: "password".to_string(),
+            algorithm: "plain".to_string(),
+            salt_position: Some("disable".to_string()),
+            salt_rounds: None,
+            mac_fun: None,
+            iterations: None,
+            dk_length: None,
+        };
+
+        let mysql_auth = MySQL::new(
+            username.clone(),
+            password.clone(),
+            password_config,
+            cache_manager.clone(),
+        );
+
+        let result = mysql_auth.apply().await.unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_mysql_md5_authentication() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let username = "test_user".to_string();
+        let plain_password = "test_password";
+
+        // 预先计算MD5哈希
+        let stored_hash = format!("{:x}", md5::compute(plain_password.as_bytes()));
+
+        // 创建用户（存储哈希后的密码）
+        let user = MqttUser {
+            username: username.clone(),
+            password: stored_hash,
+            is_superuser: false,
+        };
+        cache_manager.add_user(user);
+
+        // 配置为MD5验证
+        let password_config = PasswordConfig {
+            auth_type: "password".to_string(),
+            algorithm: "md5".to_string(),
+            salt_position: Some("disable".to_string()),
+            salt_rounds: None,
+            mac_fun: None,
+            iterations: None,
+            dk_length: None,
+        };
+
+        let mysql_auth = MySQL::new(
+            username.clone(),
+            plain_password.to_string(),
+            password_config,
+            cache_manager.clone(),
+        );
+
+        let result = mysql_auth.apply().await.unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_mysql_bcrypt_authentication() {
+        let cache_manager = test_build_mqtt_cache_manager();
+        let username = "test_user".to_string();
+        let plain_password = "test_password";
+
+        // 预先计算bcrypt哈希
+        let stored_hash = bcrypt::hash(plain_password, bcrypt::DEFAULT_COST).unwrap();
+
+        // 创建用户（存储哈希后的密码）
+        let user = MqttUser {
+            username: username.clone(),
+            password: stored_hash,
+            is_superuser: false,
+        };
+        cache_manager.add_user(user);
+
+        // 配置为bcrypt验证
+        let password_config = PasswordConfig {
+            auth_type: "password".to_string(),
+            algorithm: "bcrypt".to_string(),
+            salt_position: None,
+            salt_rounds: Some(12),
+            mac_fun: None,
+            iterations: None,
+            dk_length: None,
+        };
+
+        let mysql_auth = MySQL::new(
+            username.clone(),
+            plain_password.to_string(),
+            password_config,
+            cache_manager.clone(),
+        );
+
+        let result = mysql_auth.apply().await.unwrap();
+        assert!(result);
+    }
+}

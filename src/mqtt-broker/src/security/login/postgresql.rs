@@ -11,21 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use crate::handler::error::MqttBrokerError;
-use axum::async_trait;
-
-pub mod http;
-pub mod jwt;
-pub mod mysql;
-pub mod plaintext;
-pub mod postgresql;
-pub mod redis;
-
-#[async_trait]
-pub trait Authentication {
-    async fn apply(&self) -> Result<bool, MqttBrokerError>;
-}
-
-#[cfg(test)]
-mod test {}

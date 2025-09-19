@@ -76,6 +76,13 @@ r2d2.workspace = true
 r2d2_mysql.workspace = true
 r2d2_postgres.workspace = true
 r2d2_redis.workspace = true
+md5.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+bcrypt.workspace = true
+pbkdf2.workspace = true
+hmac.workspace = true
+hex.workspace = true
 
 [dev-dependencies]
 # test

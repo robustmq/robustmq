@@ -205,6 +205,15 @@ pub enum MqttBrokerError {
 
     #[error("gRPC error: {0}")]
     RpcError(#[from] Status),
+
+    #[error("Unsupported hash algorithm: {0}")]
+    UnsupportedHashAlgorithm(String),
+
+    #[error("Password verification error: {0}")]
+    PasswordVerificationError(String),
+
+    #[error("Unsupported MAC function: {0}")]
+    UnsupportedMacFunction(String),
 }
 
 impl From<MqttBrokerError> for Status {
