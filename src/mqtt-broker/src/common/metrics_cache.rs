@@ -270,7 +270,7 @@ mod test {
                 break;
             }
             let now = now_second();
-            if now % 60 == 0 {
+            if now.is_multiple_of(60) {
                 println!("{now}");
                 times += 1;
             }
