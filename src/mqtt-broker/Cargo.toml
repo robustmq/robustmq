@@ -71,6 +71,11 @@ network-server.workspace = true
 common-metrics.workspace = true
 reqwest.workspace = true
 broker-core.workspace = true
+#security
+r2d2.workspace = true
+r2d2_mysql.workspace = true
+r2d2_postgres.workspace = true
+r2d2_redis.workspace = true
 
 [dev-dependencies]
 # test

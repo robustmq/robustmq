@@ -96,6 +96,8 @@ pub fn default_mqtt_auth_storage() -> MqttAuthStorage {
         storage_type: "placement".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
+        postgres_addr: "".to_string(),
+        redis_addr: "".to_string(),
     }
 }
 

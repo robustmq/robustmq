@@ -198,6 +198,10 @@ pub struct MqttAuthStorage {
     pub journal_addr: String,
 
     pub mysql_addr: String,
+
+    pub postgres_addr: String,
+
+    pub redis_addr: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

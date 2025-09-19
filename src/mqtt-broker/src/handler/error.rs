@@ -16,6 +16,7 @@ use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
 use quinn::{ReadToEndError, StoppedError, WriteError};
+use r2d2;
 use rdkafka::error::KafkaError;
 use reqwest::Error as RequestError;
 use thiserror::Error;
@@ -39,7 +40,16 @@ pub enum MqttBrokerError {
     ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
-    FromMysqlError(#[from] mysql::Error),
+    R2d2PoolError(#[from] r2d2::Error),
+
+    #[error("{0}")]
+    FromR2d2MysqlError(#[from] r2d2_mysql::mysql::Error),
+
+    #[error("{0}")]
+    FromR2d2PostgresError(#[from] r2d2_postgres::postgres::Error),
+
+    #[error("{0}")]
+    FromR2d2RedisError(#[from] r2d2_redis::redis::RedisError),
 
     #[error("{0}")]
     FromRustlsError(#[from] rustls::Error),

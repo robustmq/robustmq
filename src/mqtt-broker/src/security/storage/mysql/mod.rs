@@ -23,13 +23,12 @@ use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
-use mysql::prelude::Queryable;
-use mysql::Pool;
-use third_driver::mysql::build_mysql_conn_pool;
+use r2d2_mysql::mysql::prelude::Queryable;
+use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
 mod schema;
 pub struct MySQLAuthStorageAdapter {
-    pool: Pool,
+    pool: MysqlPool,
 }
 
 impl MySQLAuthStorageAdapter {
@@ -55,7 +54,7 @@ impl MySQLAuthStorageAdapter {
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = format!(
             "select username,password,salt,is_superuser,created from {}",
             self.table_user()
@@ -74,9 +73,9 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = format!(
-            "select allow, ipaddr, username, clientid, access, topic from {}",
+            "select permission, ipaddr, username, clientid, access, topic from {}",
             self.table_acl()
         );
         let data: Vec<(u8, String, String, String, u8, Option<String>)> = conn.query(sql)?;
@@ -118,7 +117,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = format!(
             "select username,password,salt,is_superuser,created from {} where username='{}'",
             self.table_user(),
@@ -136,7 +135,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = format!(
             "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', null);",
             self.table_user(),
@@ -149,7 +148,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = format!(
             "delete from {} where username = '{}';",
             self.table_user(),
@@ -160,7 +159,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let allow: u8 = match acl.permission {
+        let permission: u8 = match acl.permission {
             MqttAclPermission::Allow => 1,
             MqttAclPermission::Deny => 0,
         };
@@ -177,11 +176,11 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             MqttAclAction::Qos => 5,
         };
 
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = format!(
-            "insert into {} (allow, ipaddr, username, clientid, access, topic) values ('{}', '{}', '{}', '{}', '{}', '{}');",
+            "insert into {} (permission, ipaddr, username, clientid, access, topic) values ('{}', '{}', '{}', '{}', '{}', '{}');",
             self.table_acl(),
-            allow,
+            permission,
             acl.ip,
             username,
             clientid,
@@ -202,7 +201,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
         let sql = match acl.resource_type {
             MqttAclResourceType::ClientId => format!(
                 "delete from {} where clientid = '{}';",
@@ -235,8 +234,8 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use mysql::params;
-    use mysql::prelude::Queryable;
+    use r2d2_mysql::mysql::params;
+    use r2d2_mysql::mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;
 
     use super::schema::TAuthUser;
@@ -273,7 +272,7 @@ mod tests {
 
     fn init_user(addr: &str) {
         let pool = build_mysql_conn_pool(addr).unwrap();
-        let mut conn = pool.get_conn().unwrap();
+        let mut conn = pool.get().unwrap();
         let values = [TAuthUser {
             username: username(),
             password: password(),

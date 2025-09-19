@@ -19,6 +19,7 @@ use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
+use crate::security::storage::AuthType;
 use crate::subscribe::common::get_sub_topic_id_list;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
@@ -37,7 +38,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use storage::mysql::MySQLAuthStorageAdapter;
 use storage::placement::PlacementAuthStorageAdapter;
-use storage_adapter::StorageType;
+use storage::postgresql::PostgresqlAuthStorageAdapter;
+use storage::redis::RedisAuthStorageAdapter;
 
 pub mod auth;
 pub mod login;
@@ -243,15 +245,25 @@ pub fn build_driver(
     client_pool: Arc<ClientPool>,
     auth: MqttAuthStorage,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
-    let storage_type = StorageType::from_str(&auth.storage_type)
+    let storage_type = AuthType::from_str(&auth.storage_type)
         .map_err(|_| MqttBrokerError::UnavailableStorageType)?;
-    if matches!(storage_type, StorageType::Placement) {
+    if matches!(storage_type, AuthType::Placement) {
         let driver = PlacementAuthStorageAdapter::new(client_pool);
         return Ok(Arc::new(driver));
     }
 
-    if matches!(storage_type, StorageType::Mysql) {
+    if matches!(storage_type, AuthType::Mysql) {
         let driver = MySQLAuthStorageAdapter::new(auth.mysql_addr.clone());
+        return Ok(Arc::new(driver));
+    }
+
+    if matches!(storage_type, AuthType::Postgresql) {
+        let driver = PostgresqlAuthStorageAdapter::new(auth.postgres_addr.clone());
+        return Ok(Arc::new(driver));
+    }
+
+    if matches!(storage_type, AuthType::Redis) {
+        let driver = RedisAuthStorageAdapter::new(auth.redis_addr.clone());
         return Ok(Arc::new(driver));
     }
 

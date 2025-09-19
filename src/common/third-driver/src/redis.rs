@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
-use axum::async_trait;
+use common_base::error::common::CommonError;
+use r2d2_redis::{r2d2::Pool, RedisConnectionManager};
 
-pub mod http;
-pub mod jwt;
-pub mod mysql;
-pub mod plaintext;
+pub type RedisPool = Pool<RedisConnectionManager>;
 
-#[async_trait]
-pub trait Authentication {
-    async fn apply(&self) -> Result<bool, MqttBrokerError>;
+pub fn build_redis_conn_pool(addr: &str) -> Result<RedisPool, CommonError> {
+    let manager = RedisConnectionManager::new(addr)
+        .map_err(|e| CommonError::CommonError(format!("Invalid Redis connection string: {}", e)))?;
+
+    match Pool::new(manager) {
+        Ok(pool) => Ok(pool),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
+    }
 }
-
-#[cfg(test)]
-mod test {}

@@ -17,18 +17,6 @@ use serde::{Deserialize, Serialize};
 /// TODO: add validator
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub enum AuthType {
-    #[default]
-    Placement,
-    Journal,
-    Mysql,
-    Postgresql,
-    Redis,
-    Jwt,
-    Http,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct AuthnConfig {
     pub jwt_config: Option<JwtConfig>,
     pub password_config: Option<PasswordConfig>,

@@ -158,6 +158,10 @@ rdkafka-sys = "4.8.0"
 rdkafka = { version = "0.37.0" }
 crc32fast = "1.4.2"
 console-subscriber = "0.4.1"
+r2d2_postgres = "0.18.2"
+r2d2_mysql = "25.0.0"
+r2d2 = "0.8.10"
+r2d2_redis = "0.14.0"
 
 #format
 prettytable-rs = "^0.10"
