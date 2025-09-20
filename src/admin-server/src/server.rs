@@ -89,7 +89,7 @@ impl AdminServer {
     }
 
     fn static_route(&self) -> Router<Arc<HttpState>> {
-        let static_dir = PathBuf::from("../docs");
+        let static_dir = PathBuf::from("./dist");
 
         Router::new()
             .nest_service("/", ServeDir::new(static_dir))
@@ -171,7 +171,7 @@ impl AdminServer {
 }
 
 async fn serve_spa_fallback() -> impl IntoResponse {
-    let index_path = PathBuf::from("../dist/index.html");
+    let index_path = PathBuf::from("index.html");
 
     match fs::read_to_string(&index_path).await {
         Ok(content) => Html(content).into_response(),
