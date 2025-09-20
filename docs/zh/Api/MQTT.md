@@ -7,7 +7,7 @@
 ### 1. 集群概览
 
 #### 1.1 集群概览信息
-- **接口**: `POST /mqtt/overview`
+- **接口**: `POST /api/mqtt/overview`
 - **描述**: 获取 MQTT 集群概览信息
 - **请求参数**: 空 JSON 对象
 ```json
@@ -52,7 +52,7 @@
 ```
 
 #### 1.2 集群监控指标
-- **接口**: `POST /mqtt/overview/metrics`
+- **接口**: `POST /api/mqtt/overview/metrics`
 - **描述**: 获取指定时间范围内的集群监控指标
 - **请求参数**:
 ```json
@@ -83,7 +83,7 @@
 ### 2. 客户端管理
 
 #### 2.1 客户端列表查询
-- **接口**: `POST /mqtt/client/list`
+- **接口**: `POST /api/mqtt/client/list`
 - **描述**: 查询连接到集群的客户端列表
 - **请求参数**:
 ```json
@@ -125,7 +125,7 @@
 ### 3. 会话管理
 
 #### 3.1 会话列表查询
-- **接口**: `POST /mqtt/session/list`
+- **接口**: `POST /api/mqtt/session/list`
 - **描述**: 查询 MQTT 会话列表
 - **请求参数**:
 ```json
@@ -170,7 +170,7 @@
 ### 4. 主题管理
 
 #### 4.1 主题列表查询
-- **接口**: `POST /mqtt/topic/list`
+- **接口**: `POST /api/mqtt/topic/list`
 - **描述**: 查询 MQTT 主题列表
 - **请求参数**:
 ```json
@@ -205,7 +205,7 @@
 ```
 
 #### 4.2 主题重写规则列表
-- **接口**: `POST /mqtt/topic-rewrite/list`
+- **接口**: `POST /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -228,7 +228,7 @@
 ```
 
 #### 4.3 创建主题重写规则
-- **接口**: `POST /mqtt/topic-rewrite/create`
+- **接口**: `POST /api/mqtt/topic-rewrite/create`
 - **描述**: 创建新的主题重写规则
 - **请求参数**:
 ```json
@@ -243,7 +243,7 @@
 - **响应**: 成功返回 "success"
 
 #### 4.4 删除主题重写规则
-- **接口**: `POST /mqtt/topic-rewrite/delete`
+- **接口**: `POST /api/mqtt/topic-rewrite/delete`
 - **描述**: 删除主题重写规则
 - **请求参数**:
 ```json
@@ -260,7 +260,7 @@
 ### 5. 订阅管理
 
 #### 5.1 订阅列表查询
-- **接口**: `POST /mqtt/subscribe/list`
+- **接口**: `POST /api/mqtt/subscribe/list`
 - **描述**: 查询订阅列表
 - **请求参数**:
 ```json
@@ -304,7 +304,7 @@
 ```
 
 #### 5.2 订阅详情查询
-- **接口**: `POST /mqtt/subscribe/detail`
+- **接口**: `POST /api/mqtt/subscribe/detail`
 - **描述**: 查询订阅详情
 - **请求参数**: 空 JSON 对象
 - **响应**: 当前返回空字符串（功能待实现）
@@ -312,7 +312,7 @@
 #### 5.3 自动订阅规则管理
 
 ##### 5.3.1 自动订阅列表
-- **接口**: `POST /mqtt/auto-subscribe/list`
+- **接口**: `POST /api/mqtt/auto-subscribe/list`
 - **描述**: 查询自动订阅规则列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -336,7 +336,7 @@
 ```
 
 ##### 5.3.2 创建自动订阅规则
-- **接口**: `POST /mqtt/auto-subscribe/create`
+- **接口**: `POST /api/mqtt/auto-subscribe/create`
 - **描述**: 创建新的自动订阅规则
 - **请求参数**:
 ```json
@@ -352,7 +352,7 @@
 - **响应**: 成功返回 "success"
 
 ##### 5.3.3 删除自动订阅规则
-- **接口**: `POST /mqtt/auto-subscribe/delete`
+- **接口**: `POST /api/mqtt/auto-subscribe/delete`
 - **描述**: 删除自动订阅规则
 - **请求参数**:
 ```json
@@ -366,7 +366,7 @@
 #### 5.4 慢订阅监控
 
 ##### 5.4.1 慢订阅列表
-- **接口**: `POST /mqtt/slow-subscribe/list`
+- **接口**: `POST /api/mqtt/slow-subscribe/list`
 - **描述**: 查询慢订阅列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -395,7 +395,7 @@
 ### 6. 用户管理
 
 #### 6.1 用户列表查询
-- **接口**: `POST /mqtt/user/list`
+- **接口**: `POST /api/mqtt/user/list`
 - **描述**: 查询 MQTT 用户列表
 - **请求参数**:
 ```json
@@ -429,7 +429,7 @@
 ```
 
 #### 6.2 创建用户
-- **接口**: `POST /mqtt/user/create`
+- **接口**: `POST /api/mqtt/user/create`
 - **描述**: 创建新的 MQTT 用户
 - **请求参数**:
 ```json
@@ -443,7 +443,7 @@
 - **响应**: 成功返回 "Created successfully!"
 
 #### 6.3 删除用户
-- **接口**: `POST /mqtt/user/delete`
+- **接口**: `POST /api/mqtt/user/delete`
 - **描述**: 删除 MQTT 用户
 - **请求参数**:
 ```json
@@ -459,7 +459,7 @@
 ### 7. ACL 管理
 
 #### 7.1 ACL 列表查询
-- **接口**: `POST /mqtt/acl/list`
+- **接口**: `POST /api/mqtt/acl/list`
 - **描述**: 查询访问控制列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -484,7 +484,7 @@
 ```
 
 #### 7.2 创建 ACL 规则
-- **接口**: `POST /mqtt/acl/create`
+- **接口**: `POST /api/mqtt/acl/create`
 - **描述**: 创建新的 ACL 规则
 - **请求参数**:
 ```json
@@ -501,7 +501,7 @@
 - **响应**: 成功返回 "Created successfully!"
 
 #### 7.3 删除 ACL 规则
-- **接口**: `POST /mqtt/acl/delete`
+- **接口**: `POST /api/mqtt/acl/delete`
 - **描述**: 删除 ACL 规则
 - **请求参数**:
 ```json
@@ -522,7 +522,7 @@
 ### 8. 黑名单管理
 
 #### 8.1 黑名单列表查询
-- **接口**: `POST /mqtt/blacklist/list`
+- **接口**: `POST /api/mqtt/blacklist/list`
 - **描述**: 查询黑名单列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -545,7 +545,7 @@
 ```
 
 #### 8.2 创建黑名单
-- **接口**: `POST /mqtt/blacklist/create`
+- **接口**: `POST /api/mqtt/blacklist/create`
 - **描述**: 添加新的黑名单项
 - **请求参数**:
 ```json
@@ -560,7 +560,7 @@
 - **响应**: 成功返回 "Created successfully!"
 
 #### 8.3 删除黑名单
-- **接口**: `POST /mqtt/blacklist/delete`
+- **接口**: `POST /api/mqtt/blacklist/delete`
 - **描述**: 删除黑名单项
 - **请求参数**:
 ```json
@@ -577,7 +577,7 @@
 ### 9. 连接器管理
 
 #### 9.1 连接器列表查询
-- **接口**: `POST /mqtt/connector/list`
+- **接口**: `POST /api/mqtt/connector/list`
 - **描述**: 查询连接器列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -604,7 +604,7 @@
 ```
 
 #### 9.2 创建连接器
-- **接口**: `POST /mqtt/connector/create`
+- **接口**: `POST /api/mqtt/connector/create`
 - **描述**: 创建新的连接器
 - **请求参数**:
 ```json
@@ -637,7 +637,7 @@
 - **响应**: 成功返回 "Created successfully!"
 
 #### 9.3 删除连接器
-- **接口**: `POST /mqtt/connector/delete`
+- **接口**: `POST /api/mqtt/connector/delete`
 - **描述**: 删除连接器
 - **请求参数**:
 ```json
@@ -653,7 +653,7 @@
 ### 10. Schema 管理
 
 #### 10.1 Schema 列表查询
-- **接口**: `POST /mqtt/schema/list`
+- **接口**: `POST /api/mqtt/schema/list`
 - **描述**: 查询 Schema 列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -676,7 +676,7 @@
 ```
 
 #### 10.2 创建 Schema
-- **接口**: `POST /mqtt/schema/create`
+- **接口**: `POST /api/mqtt/schema/create`
 - **描述**: 创建新的 Schema
 - **请求参数**:
 ```json
@@ -709,7 +709,7 @@
 - **响应**: 成功返回 "Created successfully!"
 
 #### 10.3 删除 Schema
-- **接口**: `POST /mqtt/schema/delete`
+- **接口**: `POST /api/mqtt/schema/delete`
 - **描述**: 删除 Schema
 - **请求参数**:
 ```json
@@ -723,7 +723,7 @@
 #### 10.4 Schema 绑定管理
 
 ##### 10.4.1 Schema 绑定列表查询
-- **接口**: `POST /mqtt/schema-bind/list`
+- **接口**: `POST /api/mqtt/schema-bind/list`
 - **描述**: 查询 Schema 绑定关系列表
 - **请求参数**:
 ```json
@@ -758,7 +758,7 @@
 ```
 
 ##### 10.4.2 创建 Schema 绑定
-- **接口**: `POST /mqtt/schema-bind/create`
+- **接口**: `POST /api/mqtt/schema-bind/create`
 - **描述**: 创建 Schema 与资源的绑定关系
 - **请求参数**:
 ```json
@@ -771,7 +771,7 @@
 - **响应**: 成功返回 "Created successfully!"
 
 ##### 10.4.3 删除 Schema 绑定
-- **接口**: `POST /mqtt/schema-bind/delete`
+- **接口**: `POST /api/mqtt/schema-bind/delete`
 - **描述**: 删除 Schema 绑定关系
 - **请求参数**:
 ```json
@@ -788,7 +788,7 @@
 ### 11. 系统监控
 
 #### 11.1 系统告警列表
-- **接口**: `POST /mqtt/system-alarm/list`
+- **接口**: `POST /api/mqtt/system-alarm/list`
 - **描述**: 查询系统告警列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -811,7 +811,7 @@
 ```
 
 #### 11.2 连接抖动检测列表
-- **接口**: `POST /mqtt/flapping_detect/list`
+- **接口**: `POST /api/mqtt/flapping_detect/list`
 - **描述**: 查询连接抖动检测列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -880,14 +880,14 @@
 
 ### 查询集群概览
 ```bash
-curl -X POST http://localhost:8080/mqtt/overview \
+curl -X POST http://localhost:8080/api/mqtt/overview \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
 
 ### 查询客户端列表
 ```bash
-curl -X POST http://localhost:8080/mqtt/client/list \
+curl -X POST http://localhost:8080/api/mqtt/client/list \
   -H "Content-Type: application/json" \
   -d '{
     "limit": 10,
@@ -899,7 +899,7 @@ curl -X POST http://localhost:8080/mqtt/client/list \
 
 ### 创建用户
 ```bash
-curl -X POST http://localhost:8080/mqtt/user/create \
+curl -X POST http://localhost:8080/api/mqtt/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -910,7 +910,7 @@ curl -X POST http://localhost:8080/mqtt/user/create \
 
 ### 创建ACL规则
 ```bash
-curl -X POST http://localhost:8080/mqtt/acl/create \
+curl -X POST http://localhost:8080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "ClientId",
@@ -924,7 +924,7 @@ curl -X POST http://localhost:8080/mqtt/acl/create \
 
 ### 创建连接器
 ```bash
-curl -X POST http://localhost:8080/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "connector_name": "kafka_bridge",
@@ -936,7 +936,7 @@ curl -X POST http://localhost:8080/mqtt/connector/create \
 
 ### 创建Schema
 ```bash
-curl -X POST http://localhost:8080/mqtt/schema/create \
+curl -X POST http://localhost:8080/api/mqtt/schema/create \
   -H "Content-Type: application/json" \
   -d '{
     "schema_name": "sensor_schema",
@@ -948,6 +948,6 @@ curl -X POST http://localhost:8080/mqtt/schema/create \
 
 ---
 
-*文档版本: v3.0*  
-*最后更新: 2024-01-01*  
-*基于代码版本: RobustMQ Admin Server v0.1.31*
+*文档版本: v4.0*  
+*最后更新: 2025-09-20*  
+*基于代码版本: RobustMQ Admin Server v0.1.34*

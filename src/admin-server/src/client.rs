@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::response::PageReplyData;
+use crate::{path::*, response::PageReplyData};
 use common_base::http_response::AdminServerResponse;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -192,7 +192,8 @@ impl AdminHttpClient {
         T: for<'de> Deserialize<'de>,
     {
         let empty_request = serde_json::json!({});
-        self.post("/mqtt/overview", &empty_request).await
+        self.post(&api_path(MQTT_OVERVIEW_PATH), &empty_request)
+            .await
     }
 
     /// Get cluster metrics
@@ -201,7 +202,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/overview/metrics", request).await
+        self.post(&api_path(MQTT_OVERVIEW_METRICS_PATH), request)
+            .await
     }
 
     /// Get client list
@@ -213,7 +215,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/client/list", request).await
+        self.post(&api_path(MQTT_CLIENT_LIST_PATH), request).await
     }
 
     /// Get session list
@@ -225,7 +227,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/session/list", request).await
+        self.post(&api_path(MQTT_SESSION_LIST_PATH), request).await
     }
 
     /// Get topic list
@@ -237,7 +239,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/topic/list", request).await
+        self.post(&api_path(MQTT_TOPIC_LIST_PATH), request).await
     }
 
     /// Get subscription list
@@ -249,7 +251,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/subscribe/list", request).await
+        self.post(&api_path(MQTT_SUBSCRIBE_LIST_PATH), request)
+            .await
     }
 
     /// Get user list
@@ -261,7 +264,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/user/list", request).await
+        self.post(&api_path(MQTT_USER_LIST_PATH), request).await
     }
 
     /// Create user
@@ -269,7 +272,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/user/create", request).await
+        self.post_raw(&api_path(MQTT_USER_CREATE_PATH), request)
+            .await
     }
 
     /// Delete user
@@ -277,7 +281,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/user/delete", request).await
+        self.post_raw(&api_path(MQTT_USER_DELETE_PATH), request)
+            .await
     }
 
     /// Get ACL list
@@ -286,7 +291,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/acl/list", request).await
+        self.post(&api_path(MQTT_ACL_LIST_PATH), request).await
     }
 
     /// Create ACL rule
@@ -294,7 +299,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/acl/create", request).await
+        self.post_raw(&api_path(MQTT_ACL_CREATE_PATH), request)
+            .await
     }
 
     /// Delete ACL rule
@@ -302,7 +308,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/acl/delete", request).await
+        self.post_raw(&api_path(MQTT_ACL_DELETE_PATH), request)
+            .await
     }
 
     /// Get blacklist
@@ -314,7 +321,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/blacklist/list", request).await
+        self.post(&api_path(MQTT_BLACKLIST_LIST_PATH), request)
+            .await
     }
 
     /// Create blacklist entry
@@ -322,7 +330,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/blacklist/create", request).await
+        self.post_raw(&api_path(MQTT_BLACKLIST_CREATE_PATH), request)
+            .await
     }
 
     /// Delete blacklist entry
@@ -330,7 +339,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/blacklist/delete", request).await
+        self.post_raw(&api_path(MQTT_BLACKLIST_DELETE_PATH), request)
+            .await
     }
 
     /// Get connector list
@@ -342,7 +352,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/connector/list", request).await
+        self.post(&api_path(MQTT_CONNECTOR_LIST_PATH), request)
+            .await
     }
 
     /// Create connector
@@ -350,7 +361,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/connector/create", request).await
+        self.post_raw(&api_path(MQTT_CONNECTOR_CREATE_PATH), request)
+            .await
     }
 
     /// Delete connector
@@ -358,7 +370,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/connector/delete", request).await
+        self.post_raw(&api_path(MQTT_CONNECTOR_DELETE_PATH), request)
+            .await
     }
 
     /// Get schema list
@@ -370,7 +383,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/schema/list", request).await
+        self.post(&api_path(MQTT_SCHEMA_LIST_PATH), request).await
     }
 
     /// Create schema
@@ -378,7 +391,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/schema/create", request).await
+        self.post_raw(&api_path(MQTT_SCHEMA_CREATE_PATH), request)
+            .await
     }
 
     /// Delete schema
@@ -386,7 +400,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/schema/delete", request).await
+        self.post_raw(&api_path(MQTT_SCHEMA_DELETE_PATH), request)
+            .await
     }
 
     /// Get schema binding list
@@ -398,7 +413,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/schema-bind/list", request).await
+        self.post(&api_path(MQTT_SCHEMA_BIND_LIST_PATH), request)
+            .await
     }
 
     /// Create schema binding
@@ -406,7 +422,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/schema-bind/create", request).await
+        self.post_raw(&api_path(MQTT_SCHEMA_BIND_CREATE_PATH), request)
+            .await
     }
 
     /// Delete schema binding
@@ -414,7 +431,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/schema-bind/delete", request).await
+        self.post_raw(&api_path(MQTT_SCHEMA_BIND_DELETE_PATH), request)
+            .await
     }
 
     /// Get system alarm list
@@ -426,7 +444,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/system-alarm/list", request).await
+        self.post(&api_path(MQTT_SYSTEM_ALARM_LIST_PATH), request)
+            .await
     }
 
     /// Set cluster configuration
@@ -434,7 +453,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/cluster-config/set", request).await
+        self.post_raw(&api_path(CLUSTER_CONFIG_SET_PATH), request)
+            .await
     }
 
     /// Set cluster configuration
@@ -442,7 +462,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/cluster-config/get", request).await
+        self.post_raw(&api_path(CLUSTER_CONFIG_GET_PATH), request)
+            .await
     }
 
     /// Get flapping detection list
@@ -454,7 +475,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/flapping_detect/list", request).await
+        self.post(&api_path(MQTT_FLAPPING_DETECT_LIST_PATH), request)
+            .await
     }
 
     /// Get topic rewrite rules list
@@ -466,7 +488,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/topic-rewrite/list", request).await
+        self.post(&api_path(MQTT_TOPIC_REWRITE_LIST_PATH), request)
+            .await
     }
 
     /// Create topic rewrite rule
@@ -474,7 +497,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/topic-rewrite/create", request).await
+        self.post_raw(&api_path(MQTT_TOPIC_REWRITE_CREATE_PATH), request)
+            .await
     }
 
     /// Delete topic rewrite rule
@@ -482,7 +506,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/topic-rewrite/delete", request).await
+        self.post_raw(&api_path(MQTT_TOPIC_REWRITE_DELETE_PATH), request)
+            .await
     }
 
     /// Get auto subscribe list
@@ -494,7 +519,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/auto-subscribe/list", request).await
+        self.post(&api_path(MQTT_AUTO_SUBSCRIBE_LIST_PATH), request)
+            .await
     }
 
     /// Create auto subscribe rule
@@ -502,7 +528,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/auto-subscribe/create", request).await
+        self.post_raw(&api_path(MQTT_AUTO_SUBSCRIBE_CREATE_PATH), request)
+            .await
     }
 
     /// Delete auto subscribe rule
@@ -510,7 +537,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/auto-subscribe/delete", request).await
+        self.post_raw(&api_path(MQTT_AUTO_SUBSCRIBE_DELETE_PATH), request)
+            .await
     }
 
     /// Get slow subscribe list
@@ -522,7 +550,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post("/mqtt/slow-subscribe/list", request).await
+        self.post(&api_path(MQTT_SLOW_SUBSCRIBE_LIST_PATH), request)
+            .await
     }
 
     /// Get subscribe detail
@@ -530,7 +559,8 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw("/mqtt/subscribe/detail", request).await
+        self.post_raw(&api_path(MQTT_SUBSCRIBE_DETAIL_PATH), request)
+            .await
     }
 }
 
@@ -544,21 +574,23 @@ mod tests {
 
         // Test with leading slash
         assert_eq!(
-            client.build_url("/mqtt/overview").unwrap(),
-            "http://localhost:8080/mqtt/overview"
+            client.build_url(&api_path(MQTT_OVERVIEW_PATH)).unwrap(),
+            "http://localhost:8080/api/mqtt/overview"
         );
 
         // Test without leading slash
         assert_eq!(
-            client.build_url("mqtt/overview").unwrap(),
-            "http://localhost:8080/mqtt/overview"
+            client
+                .build_url(&api_path(MQTT_OVERVIEW_PATH)[1..])
+                .unwrap(),
+            "http://localhost:8080/api/mqtt/overview"
         );
 
         // Test with trailing slash in base URL
         let client2 = AdminHttpClient::new("http://localhost:8080/");
         assert_eq!(
-            client2.build_url("/mqtt/overview").unwrap(),
-            "http://localhost:8080/mqtt/overview"
+            client2.build_url(&api_path(MQTT_OVERVIEW_PATH)).unwrap(),
+            "http://localhost:8080/api/mqtt/overview"
         );
     }
 

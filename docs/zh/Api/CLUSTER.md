@@ -6,7 +6,7 @@
 
 ### 1. 获取集群配置
 
-- **接口**: `POST /cluster/config/get`
+- **接口**: `POST /api/cluster/config/get`
 - **描述**: 获取当前集群的配置信息
 - **请求参数**:
 ```json
@@ -65,7 +65,7 @@
 
 ### 2. 设置集群配置
 
-- **接口**: `POST /cluster/config/set`
+- **接口**: `POST /api/cluster/config/set`
 - **描述**: 设置集群配置
 - **请求参数**:
 ```json
@@ -90,7 +90,7 @@
 
 ### 获取集群配置
 ```bash
-curl -X POST http://localhost:8080/cluster/config/get \
+curl -X POST http://localhost:8080/api/cluster/config/get \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
@@ -98,7 +98,7 @@ curl -X POST http://localhost:8080/cluster/config/get \
 ### 设置集群配置
 ```bash
 # 设置离线消息功能
-curl -X POST http://localhost:8080/cluster/config/set \
+curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "broker",
@@ -108,7 +108,7 @@ curl -X POST http://localhost:8080/cluster/config/set \
 
 ### 启用系统监控
 ```bash
-curl -X POST http://localhost:8080/cluster/config/set \
+curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "broker", 
@@ -118,7 +118,7 @@ curl -X POST http://localhost:8080/cluster/config/set \
 
 ### 配置连接抖动检测
 ```bash
-curl -X POST http://localhost:8080/cluster/config/set \
+curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "broker",
@@ -172,6 +172,6 @@ curl -X POST http://localhost:8080/cluster/config/set \
 
 ---
 
-*文档版本: v3.0*  
-*最后更新: 2024-01-01*  
-*基于代码版本: RobustMQ Admin Server v0.1.31*
+*文档版本: v4.0*  
+*最后更新: 2025-09-20*  
+*基于代码版本: RobustMQ Admin Server v0.1.34*

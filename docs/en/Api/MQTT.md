@@ -7,7 +7,7 @@
 ### 1. Cluster Overview
 
 #### 1.1 Cluster Overview Information
-- **Endpoint**: `POST /mqtt/overview`
+- **Endpoint**: `POST /api/mqtt/overview`
 - **Description**: Get MQTT cluster overview information
 - **Request Parameters**: Empty JSON object
 ```json
@@ -52,7 +52,7 @@
 ```
 
 #### 1.2 Cluster Monitoring Metrics
-- **Endpoint**: `POST /mqtt/overview/metrics`
+- **Endpoint**: `POST /api/mqtt/overview/metrics`
 - **Description**: Get cluster monitoring metrics for specified time range
 - **Request Parameters**:
 ```json
@@ -83,7 +83,7 @@
 ### 2. Client Management
 
 #### 2.1 Client List Query
-- **Endpoint**: `POST /mqtt/client/list`
+- **Endpoint**: `POST /api/mqtt/client/list`
 - **Description**: Query list of clients connected to the cluster
 - **Request Parameters**:
 ```json
@@ -125,7 +125,7 @@
 ### 3. Session Management
 
 #### 3.1 Session List Query
-- **Endpoint**: `POST /mqtt/session/list`
+- **Endpoint**: `POST /api/mqtt/session/list`
 - **Description**: Query MQTT session list
 - **Request Parameters**:
 ```json
@@ -170,7 +170,7 @@
 ### 4. Topic Management
 
 #### 4.1 Topic List Query
-- **Endpoint**: `POST /mqtt/topic/list`
+- **Endpoint**: `POST /api/mqtt/topic/list`
 - **Description**: Query MQTT topic list
 - **Request Parameters**:
 ```json
@@ -205,7 +205,7 @@
 ```
 
 #### 4.2 Topic Rewrite Rules List
-- **Endpoint**: `POST /mqtt/topic-rewrite/list`
+- **Endpoint**: `POST /api/mqtt/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -228,7 +228,7 @@
 ```
 
 #### 4.3 Create Topic Rewrite Rule
-- **Endpoint**: `POST /mqtt/topic-rewrite/create`
+- **Endpoint**: `POST /api/mqtt/topic-rewrite/create`
 - **Description**: Create new topic rewrite rule
 - **Request Parameters**:
 ```json
@@ -243,7 +243,7 @@
 - **Response**: Returns "success" on success
 
 #### 4.4 Delete Topic Rewrite Rule
-- **Endpoint**: `POST /mqtt/topic-rewrite/delete`
+- **Endpoint**: `POST /api/mqtt/topic-rewrite/delete`
 - **Description**: Delete topic rewrite rule
 - **Request Parameters**:
 ```json
@@ -260,7 +260,7 @@
 ### 5. Subscription Management
 
 #### 5.1 Subscription List Query
-- **Endpoint**: `POST /mqtt/subscribe/list`
+- **Endpoint**: `POST /api/mqtt/subscribe/list`
 - **Description**: Query subscription list
 - **Request Parameters**:
 ```json
@@ -304,7 +304,7 @@
 ```
 
 #### 5.2 Subscription Detail Query
-- **Endpoint**: `POST /mqtt/subscribe/detail`
+- **Endpoint**: `POST /api/mqtt/subscribe/detail`
 - **Description**: Query subscription details
 - **Request Parameters**: Empty JSON object
 - **Response**: Currently returns empty string (feature to be implemented)
@@ -312,7 +312,7 @@
 #### 5.3 Auto Subscribe Rule Management
 
 ##### 5.3.1 Auto Subscribe List
-- **Endpoint**: `POST /mqtt/auto-subscribe/list`
+- **Endpoint**: `POST /api/mqtt/auto-subscribe/list`
 - **Description**: Query auto subscribe rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -336,7 +336,7 @@
 ```
 
 ##### 5.3.2 Create Auto Subscribe Rule
-- **Endpoint**: `POST /mqtt/auto-subscribe/create`
+- **Endpoint**: `POST /api/mqtt/auto-subscribe/create`
 - **Description**: Create new auto subscribe rule
 - **Request Parameters**:
 ```json
@@ -352,7 +352,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 ##### 5.3.3 Delete Auto Subscribe Rule
-- **Endpoint**: `POST /mqtt/auto-subscribe/delete`
+- **Endpoint**: `POST /api/mqtt/auto-subscribe/delete`
 - **Description**: Delete auto subscribe rule
 - **Request Parameters**:
 ```json
@@ -366,7 +366,7 @@
 #### 5.4 Slow Subscribe Monitoring
 
 ##### 5.4.1 Slow Subscribe List
-- **Endpoint**: `POST /mqtt/slow-subscribe/list`
+- **Endpoint**: `POST /api/mqtt/slow-subscribe/list`
 - **Description**: Query slow subscribe list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -395,7 +395,7 @@
 ### 6. User Management
 
 #### 6.1 User List Query
-- **Endpoint**: `POST /mqtt/user/list`
+- **Endpoint**: `POST /api/mqtt/user/list`
 - **Description**: Query MQTT user list
 - **Request Parameters**:
 ```json
@@ -429,7 +429,7 @@
 ```
 
 #### 6.2 Create User
-- **Endpoint**: `POST /mqtt/user/create`
+- **Endpoint**: `POST /api/mqtt/user/create`
 - **Description**: Create new MQTT user
 - **Request Parameters**:
 ```json
@@ -443,7 +443,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 #### 6.3 Delete User
-- **Endpoint**: `POST /mqtt/user/delete`
+- **Endpoint**: `POST /api/mqtt/user/delete`
 - **Description**: Delete MQTT user
 - **Request Parameters**:
 ```json
@@ -459,7 +459,7 @@
 ### 7. ACL Management
 
 #### 7.1 ACL List Query
-- **Endpoint**: `POST /mqtt/acl/list`
+- **Endpoint**: `POST /api/mqtt/acl/list`
 - **Description**: Query access control list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -484,7 +484,7 @@
 ```
 
 #### 7.2 Create ACL Rule
-- **Endpoint**: `POST /mqtt/acl/create`
+- **Endpoint**: `POST /api/mqtt/acl/create`
 - **Description**: Create new ACL rule
 - **Request Parameters**:
 ```json
@@ -501,7 +501,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 #### 7.3 Delete ACL Rule
-- **Endpoint**: `POST /mqtt/acl/delete`
+- **Endpoint**: `POST /api/mqtt/acl/delete`
 - **Description**: Delete ACL rule
 - **Request Parameters**:
 ```json
@@ -522,7 +522,7 @@
 ### 8. Blacklist Management
 
 #### 8.1 Blacklist List Query
-- **Endpoint**: `POST /mqtt/blacklist/list`
+- **Endpoint**: `POST /api/mqtt/blacklist/list`
 - **Description**: Query blacklist
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -545,7 +545,7 @@
 ```
 
 #### 8.2 Create Blacklist Entry
-- **Endpoint**: `POST /mqtt/blacklist/create`
+- **Endpoint**: `POST /api/mqtt/blacklist/create`
 - **Description**: Add new blacklist entry
 - **Request Parameters**:
 ```json
@@ -560,7 +560,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 #### 8.3 Delete Blacklist Entry
-- **Endpoint**: `POST /mqtt/blacklist/delete`
+- **Endpoint**: `POST /api/mqtt/blacklist/delete`
 - **Description**: Delete blacklist entry
 - **Request Parameters**:
 ```json
@@ -577,7 +577,7 @@
 ### 9. Connector Management
 
 #### 9.1 Connector List Query
-- **Endpoint**: `POST /mqtt/connector/list`
+- **Endpoint**: `POST /api/mqtt/connector/list`
 - **Description**: Query connector list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -604,7 +604,7 @@
 ```
 
 #### 9.2 Create Connector
-- **Endpoint**: `POST /mqtt/connector/create`
+- **Endpoint**: `POST /api/mqtt/connector/create`
 - **Description**: Create new connector
 - **Request Parameters**:
 ```json
@@ -637,7 +637,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 #### 9.3 Delete Connector
-- **Endpoint**: `POST /mqtt/connector/delete`
+- **Endpoint**: `POST /api/mqtt/connector/delete`
 - **Description**: Delete connector
 - **Request Parameters**:
 ```json
@@ -653,7 +653,7 @@
 ### 10. Schema Management
 
 #### 10.1 Schema List Query
-- **Endpoint**: `POST /mqtt/schema/list`
+- **Endpoint**: `POST /api/mqtt/schema/list`
 - **Description**: Query Schema list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -676,7 +676,7 @@
 ```
 
 #### 10.2 Create Schema
-- **Endpoint**: `POST /mqtt/schema/create`
+- **Endpoint**: `POST /api/mqtt/schema/create`
 - **Description**: Create new Schema
 - **Request Parameters**:
 ```json
@@ -709,7 +709,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 #### 10.3 Delete Schema
-- **Endpoint**: `POST /mqtt/schema/delete`
+- **Endpoint**: `POST /api/mqtt/schema/delete`
 - **Description**: Delete Schema
 - **Request Parameters**:
 ```json
@@ -723,7 +723,7 @@
 #### 10.4 Schema Binding Management
 
 ##### 10.4.1 Schema Binding List Query
-- **Endpoint**: `POST /mqtt/schema-bind/list`
+- **Endpoint**: `POST /api/mqtt/schema-bind/list`
 - **Description**: Query Schema binding relationship list
 - **Request Parameters**:
 ```json
@@ -758,7 +758,7 @@
 ```
 
 ##### 10.4.2 Create Schema Binding
-- **Endpoint**: `POST /mqtt/schema-bind/create`
+- **Endpoint**: `POST /api/mqtt/schema-bind/create`
 - **Description**: Create Schema binding relationship with resource
 - **Request Parameters**:
 ```json
@@ -771,7 +771,7 @@
 - **Response**: Returns "Created successfully!" on success
 
 ##### 10.4.3 Delete Schema Binding
-- **Endpoint**: `POST /mqtt/schema-bind/delete`
+- **Endpoint**: `POST /api/mqtt/schema-bind/delete`
 - **Description**: Delete Schema binding relationship
 - **Request Parameters**:
 ```json
@@ -788,7 +788,7 @@
 ### 11. System Monitoring
 
 #### 11.1 System Alarm List
-- **Endpoint**: `POST /mqtt/system-alarm/list`
+- **Endpoint**: `POST /api/mqtt/system-alarm/list`
 - **Description**: Query system alarm list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -811,7 +811,7 @@
 ```
 
 #### 11.2 Flapping Detection List
-- **Endpoint**: `POST /mqtt/flapping_detect/list`
+- **Endpoint**: `POST /api/mqtt/flapping_detect/list`
 - **Description**: Query flapping detection list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -880,14 +880,14 @@
 
 ### Query Cluster Overview
 ```bash
-curl -X POST http://localhost:8080/mqtt/overview \
+curl -X POST http://localhost:8080/api/mqtt/overview \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
 
 ### Query Client List
 ```bash
-curl -X POST http://localhost:8080/mqtt/client/list \
+curl -X POST http://localhost:8080/api/mqtt/client/list \
   -H "Content-Type: application/json" \
   -d '{
     "limit": 10,
@@ -899,7 +899,7 @@ curl -X POST http://localhost:8080/mqtt/client/list \
 
 ### Create User
 ```bash
-curl -X POST http://localhost:8080/mqtt/user/create \
+curl -X POST http://localhost:8080/api/mqtt/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -910,7 +910,7 @@ curl -X POST http://localhost:8080/mqtt/user/create \
 
 ### Create ACL Rule
 ```bash
-curl -X POST http://localhost:8080/mqtt/acl/create \
+curl -X POST http://localhost:8080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "ClientId",
@@ -924,7 +924,7 @@ curl -X POST http://localhost:8080/mqtt/acl/create \
 
 ### Create Connector
 ```bash
-curl -X POST http://localhost:8080/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "connector_name": "kafka_bridge",
@@ -936,7 +936,7 @@ curl -X POST http://localhost:8080/mqtt/connector/create \
 
 ### Create Schema
 ```bash
-curl -X POST http://localhost:8080/mqtt/schema/create \
+curl -X POST http://localhost:8080/api/mqtt/schema/create \
   -H "Content-Type: application/json" \
   -d '{
     "schema_name": "sensor_schema",
@@ -948,6 +948,6 @@ curl -X POST http://localhost:8080/mqtt/schema/create \
 
 ---
 
-*Documentation Version: v3.0*  
-*Last Updated: 2024-01-01*  
-*Based on Code Version: RobustMQ Admin Server v0.1.31*
+*Documentation Version: v4.0*  
+*Last Updated: 2025-09-20*  
+*Based on Code Version: RobustMQ Admin Server v0.1.34*
