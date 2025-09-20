@@ -292,7 +292,7 @@ build_frontend() {
     
     log_step "Building frontend web UI"
     
-    local copilot_dir="${PROJECT_ROOT}/../robustmq-copilot"
+    local copilot_dir="${PROJECT_ROOT}/build/robustmq-copilot"
     local dist_dir="${copilot_dir}/packages/web-ui/dist"
     
     # Check if robustmq-copilot directory exists
@@ -342,7 +342,7 @@ build_frontend() {
                 exit 1
             fi
         fi
-        
+        git pull
         # Build the frontend
         log_info "Running: pnpm ui:build"
         if ! pnpm ui:build; then
