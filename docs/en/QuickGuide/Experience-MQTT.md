@@ -1,23 +1,22 @@
 # Experience RobustMQ MQTT
 
-This guide will help you quickly experience RobustMQ's MQTT functionality, including starting the Broker, viewing cluster configuration, and sending and consuming MQTT messages.
+This guide will take you through a quick experience of RobustMQ's MQTT functionality, including starting the Broker, viewing cluster status, sending and consuming MQTT messages.
 
 ## Table of Contents
 
-- [Run Broker](#run-broker)
-- [View Cluster Configuration](#view-cluster-configuration)
+- [Running the Broker](#running-the-broker)
 - [Send MQTT Messages](#send-mqtt-messages)
 - [Consume MQTT Messages](#consume-mqtt-messages)
 - [Advanced Features](#advanced-features)
 
-## Run Broker
+## Running the Broker
 
 ### 1. Download and Extract Binary Package
 
 First, we need to download and extract the RobustMQ binary package:
 
 ```bash
-# Download the latest version binary package (using v1.0.0 as example)
+# Download the latest version binary package (using v1.0.0 as an example)
 wget https://github.com/robustmq/robustmq/releases/download/v0.1.33/robustmq-v0.1.33-linux-amd64.tar.gz
 
 # Extract the binary package
@@ -51,59 +50,20 @@ After the Broker starts successfully, you should see output similar to the follo
 [INFO] Broker started successfully
 ```
 
-### 4. Check Service Status
+### 4. View Cluster Status
+
+RobustMQ provides a powerful command line management tool `robust-ctl`, let's view the cluster running status:
 
 ```bash
-# Check if MQTT port is listening
-netstat -tlnp | grep 1883
+# View cluster running status
+$ ./bin/robust-ctl status
 
-# Check if admin port is listening
-netstat -tlnp | grep 8080
-
-# Or use ss command
-ss -tlnp | grep :1883
-ss -tlnp | grep :8080
+🚀 Checking RobustMQ status...
+✅ RobustMQ Status: Online
+📋 Version: RobustMQ 0.1.33
+🌐 Server: 127.0.0.1:8080
 ```
-
-## View Cluster Configuration
-
-### Using robust-ctl Command Line Tool
-
-RobustMQ provides a powerful command-line management tool `robust-ctl`. Let's view the cluster configuration:
-
-```bash
-# View cluster configuration
-./bin/robust-ctl cluster config get
-```
-
-### Configuration Information Interpretation
-
-After executing `robust-ctl cluster config get`, you will see configuration information similar to the following:
-
-```json
-{
-  "cluster": {
-    "name": "robustmq-cluster",
-    "nodes": [
-      {
-        "id": "node-1",
-        "address": "127.0.0.1:9090",
-        "role": "leader",
-        "status": "active"
-      }
-    ],
-    "replication_factor": 1,
-    "consensus": "raft"
-  },
-  "mqtt": {
-    "port": 1883,
-    "max_connections": 10000,
-    "keep_alive": 60,
-    "retain_available": true,
-    "wildcard_subscription_available": true
-  }
-}
-```
+Displaying the above information indicates that the node has started successfully.
 
 ## Send MQTT Messages
 
@@ -168,8 +128,8 @@ Let's experience RobustMQ MQTT functionality through a complete example:
 ### Step 2: View Cluster Configuration
 
 ```bash
-# Terminal 2: View configuration
-./bin/robust-ctl cluster config get
+# Terminal 2: View cluster status
+./bin/robust-ctl status
 ```
 
 ### Step 3: Subscribe to Messages
