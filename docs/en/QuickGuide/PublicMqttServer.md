@@ -16,7 +16,7 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 
 ### Authentication
 
-- **Username**: `robustmq`
+- **Username**: `admin`
 - **Password**: `robustmq`
 
 ### Management Interface
@@ -27,46 +27,48 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 
 ## Quick Experience
 
+> **📦 MQTTX Installation**: If you haven't installed MQTTX CLI yet, please refer to our [MQTTX Installation Guide](../RobustMQ-MQTT/MQTTX-Guide.md#installing-mqttx-cli) for detailed installation instructions on different platforms.
+
 ### Using MQTTX Command Line Tool
 
 #### 1. Send Messages
 
 ```bash
 # Send simple message
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/topic" -m "Hello RobustMQ!"
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/topic" -m "Hello RobustMQ!"
 
 # Send QoS 1 message
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/qos1" -m "QoS 1 message" -q 1
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/qos1" -m "QoS 1 message" -q 1
 
 # Send retained message
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/retained" -m "Retained message" -r
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/retained" -m "Retained message" -r
 
 # Send JSON format message
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "sensors/temperature" -m '{"value": 25.5, "unit": "celsius"}'
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "sensors/temperature" -m '{"value": 25.5, "unit": "celsius"}'
 ```
 
 #### 2. Subscribe to Messages
 
 ```bash
 # Subscribe to single topic
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/topic"
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/topic"
 
 # Subscribe to wildcard topics
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/+"  # Single-level wildcard
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/#"  # Multi-level wildcard
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/+"  # Single-level wildcard
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/#"  # Multi-level wildcard
 
 # Subscribe and display detailed information
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/topic" --verbose
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/topic" --verbose
 ```
 
 #### 3. Performance Testing
 
 ```bash
 # Publish performance test
-mqttx bench pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench" -c 10 -C 100
+mqttx bench pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/bench" -c 10 -C 100
 
 # Subscribe performance test
-mqttx bench sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench" -c 50
+mqttx bench sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "test/bench" -c 50
 ```
 
 ### Using MQTTX GUI Client
@@ -75,7 +77,7 @@ mqttx bench sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "test/bench"
 
 - **Host**: 117.72.92.117
 - **Port**: 1883
-- **Username**: robustmq
+- **Username**: admin
 - **Password**: robustmq
 - **Client ID**: Custom
 
@@ -97,14 +99,14 @@ After connecting successfully, you can:
 
 ```bash
 # Terminal 1: Subscribe to temperature sensor data
-mqttx sub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "sensors/temperature" --verbose
+mqttx sub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "sensors/temperature" --verbose
 ```
 
 ### Step 2: Send Messages
 
 ```bash
 # Terminal 2: Send temperature data
-mqttx pub -h 117.72.92.117 -p 1883 -u robustmq -P robustmq -t "sensors/temperature" -m '{"sensor": "temp-001", "value": 23.5, "unit": "celsius", "timestamp": "2024-01-01T12:00:00Z"}'
+mqttx pub -h 117.72.92.117 -p 1883 -u admin -P robustmq -t "sensors/temperature" -m '{"sensor": "temp-001", "value": 23.5, "unit": "celsius", "timestamp": "2024-01-01T12:00:00Z"}'
 ```
 
 ### Step 3: View Dashboard
