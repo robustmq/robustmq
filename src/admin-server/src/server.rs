@@ -33,6 +33,7 @@ use crate::{
         topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
+    path::*,
     state::HttpState,
 };
 use axum::response::Html;
@@ -69,9 +70,7 @@ impl AdminServer {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new()
             .merge(self.static_route())
-            .merge(self.common_route())
-            .merge(self.mqtt_route())
-            .merge(self.kafka_route())
+            .nest("/api", self.api_route())
             .with_state(state)
             .layer(middleware::from_fn(access_log_middleware))
             .layer(CorsLayer::permissive());
@@ -97,66 +96,73 @@ impl AdminServer {
             .fallback(serve_spa_fallback)
     }
 
+    fn api_route(&self) -> Router<Arc<HttpState>> {
+        Router::new()
+            .merge(self.common_route())
+            .merge(self.mqtt_route())
+            .merge(self.kafka_route())
+    }
+
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route("/api", get(index))
+            .route(STATUS_PATH, get(index))
             // config
-            .route("/cluster/config/set", post(cluster_config_set))
-            .route("/cluster/config/get", post(cluster_config_get))
+            .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
+            .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
             // overview
-            .route("/mqtt/overview", post(overview))
-            .route("/mqtt/overview/metrics", post(overview_metrics))
+            .route(MQTT_OVERVIEW_PATH, post(overview))
+            .route(MQTT_OVERVIEW_METRICS_PATH, post(overview_metrics))
             // client
-            .route("/mqtt/client/list", post(client_list))
+            .route(MQTT_CLIENT_LIST_PATH, post(client_list))
             // session
-            .route("/mqtt/session/list", post(session_list))
+            .route(MQTT_SESSION_LIST_PATH, post(session_list))
             // topic
-            .route("/mqtt/topic/list", post(topic_list))
+            .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
             // topic-rewrite
-            .route("/mqtt/topic-rewrite/list", post(topic_rewrite_list))
-            .route("/mqtt/topic-rewrite/create", post(topic_rewrite_create))
-            .route("/mqtt/topic-rewrite/delete", post(topic_list))
+            .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
+            .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
+            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_list))
             // subscribe
-            .route("/mqtt/subscribe/list", post(subscribe_list))
-            .route("/mqtt/subscribe/detail", post(subscribe_detail))
+            .route(MQTT_SUBSCRIBE_LIST_PATH, post(subscribe_list))
+            .route(MQTT_SUBSCRIBE_DETAIL_PATH, post(subscribe_detail))
             // auto subscribe
-            .route("/mqtt/auto-subscribe/list", post(auto_subscribe_list))
-            .route("/mqtt/auto-subscribe/create", post(auto_subscribe_create))
-            .route("/mqtt/auto-subscribe/delete", post(auto_subscribe_delete))
+            .route(MQTT_AUTO_SUBSCRIBE_LIST_PATH, post(auto_subscribe_list))
+            .route(MQTT_AUTO_SUBSCRIBE_CREATE_PATH, post(auto_subscribe_create))
+            .route(MQTT_AUTO_SUBSCRIBE_DELETE_PATH, post(auto_subscribe_delete))
             // slow subscribe
-            .route("/mqtt/slow-subscribe/list", post(slow_subscribe_list))
+            .route(MQTT_SLOW_SUBSCRIBE_LIST_PATH, post(slow_subscribe_list))
             // user
-            .route("/mqtt/user/list", post(user_list))
-            .route("/mqtt/user/create", post(user_create))
-            .route("/mqtt/user/delete", post(user_delete))
+            .route(MQTT_USER_LIST_PATH, post(user_list))
+            .route(MQTT_USER_CREATE_PATH, post(user_create))
+            .route(MQTT_USER_DELETE_PATH, post(user_delete))
             // acl
-            .route("/mqtt/acl/list", post(acl_list))
-            .route("/mqtt/acl/create", post(acl_create))
-            .route("/mqtt/acl/delete", post(acl_delete))
+            .route(MQTT_ACL_LIST_PATH, post(acl_list))
+            .route(MQTT_ACL_CREATE_PATH, post(acl_create))
+            .route(MQTT_ACL_DELETE_PATH, post(acl_delete))
             // blacklist
-            .route("/mqtt/blacklist/list", post(blacklist_list))
-            .route("/mqtt/blacklist/create", post(blacklist_create))
-            .route("/mqtt/blacklist/delete", post(blacklist_delete))
+            .route(MQTT_BLACKLIST_LIST_PATH, post(blacklist_list))
+            .route(MQTT_BLACKLIST_CREATE_PATH, post(blacklist_create))
+            .route(MQTT_BLACKLIST_DELETE_PATH, post(blacklist_delete))
             // flapping_detect
-            .route("/mqtt/flapping_detect/list", post(flapping_detect_list))
+            .route(MQTT_FLAPPING_DETECT_LIST_PATH, post(flapping_detect_list))
             // connector
-            .route("/mqtt/connector/list", post(connector_list))
-            .route("/mqtt/connector/create", post(connector_create))
-            .route("/mqtt/connector/delete", post(connector_delete))
+            .route(MQTT_CONNECTOR_LIST_PATH, post(connector_list))
+            .route(MQTT_CONNECTOR_CREATE_PATH, post(connector_create))
+            .route(MQTT_CONNECTOR_DELETE_PATH, post(connector_delete))
             // schema
-            .route("/mqtt/schema/list", post(schema_list))
-            .route("/mqtt/schema/create", post(schema_create))
-            .route("/mqtt/schema/delete", post(schema_delete))
-            .route("/mqtt/schema-bind/list", post(schema_bind_list))
-            .route("/mqtt/schema-bind/create", post(schema_bind_create))
-            .route("/mqtt/schema-bind/delete", post(schema_bind_delete))
+            .route(MQTT_SCHEMA_LIST_PATH, post(schema_list))
+            .route(MQTT_SCHEMA_CREATE_PATH, post(schema_create))
+            .route(MQTT_SCHEMA_DELETE_PATH, post(schema_delete))
+            .route(MQTT_SCHEMA_BIND_LIST_PATH, post(schema_bind_list))
+            .route(MQTT_SCHEMA_BIND_CREATE_PATH, post(schema_bind_create))
+            .route(MQTT_SCHEMA_BIND_DELETE_PATH, post(schema_bind_delete))
             // system alarm
-            .route("/mqtt/system-alarm/list", post(system_alarm_list))
-            .route("/mqtt/ban-log/list", post(ban_log_list))
+            .route(MQTT_SYSTEM_ALARM_LIST_PATH, post(system_alarm_list))
+            .route(MQTT_BAN_LOG_LIST_PATH, post(ban_log_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
@@ -165,7 +171,7 @@ impl AdminServer {
 }
 
 async fn serve_spa_fallback() -> impl IntoResponse {
-    let index_path = PathBuf::from("../docs/index.html");
+    let index_path = PathBuf::from("../dist/index.html");
 
     match fs::read_to_string(&index_path).await {
         Ok(content) => Html(content).into_response(),

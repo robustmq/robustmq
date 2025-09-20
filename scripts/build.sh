@@ -506,9 +506,6 @@ EOF
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
 
-    # Calculate checksum
-    (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
-
     # Clean up directory
     rm -rf "$package_path"
 
@@ -615,9 +612,6 @@ EOF
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Calculate checksum
-    (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
 
     # Clean up directory
     rm -rf "$package_path"
