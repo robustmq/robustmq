@@ -17,7 +17,10 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
+use crate::security::login::mysql::mysql_check_login;
 use crate::security::login::plaintext::plaintext_check_login;
+use crate::security::login::postgresql::postgresql_check_login;
+use crate::security::login::redis::redis_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::security::storage::AuthType;
 use crate::subscribe::common::get_sub_topic_id_list;
@@ -82,16 +85,76 @@ impl AuthDriver {
         }
 
         if let Some(info) = login {
-            return plaintext_check_login(
-                &self.driver,
-                &self.cache_manager,
-                &info.username,
-                &info.password,
-            )
-            .await;
-        }
+            let conf = broker_config();
 
-        Ok(false)
+            // according to auth_type to select authentication method
+            match conf.mqtt_auth_config.auth_type.as_str() {
+                "password" => {
+                    // get password configuration
+                    if let Some(password_config) =
+                        &conf.mqtt_auth_config.authn_config.password_config
+                    {
+                        // according to storage type to select corresponding verification function
+                        match conf.mqtt_auth_storage.storage_type.as_str() {
+                            "mysql" => {
+                                mysql_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    password_config,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            "postgresql" => {
+                                postgresql_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    password_config,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            "redis" => {
+                                redis_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    password_config,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            "placement" => {
+                                plaintext_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            _ => Err(MqttBrokerError::UnavailableStorageType),
+                        }
+                    } else {
+                        Err(MqttBrokerError::PasswordConfigNotFound)
+                    }
+                }
+                "jwt" | "http" => {
+                    // JWT authentication or HTTP authentication
+                    // TODO: implement JWT and http authentication logic
+                    Err(MqttBrokerError::UnsupportedAuthType(
+                        "JWT or HTTP authentication not implemented yet".to_string(),
+                    ))
+                }
+                _ => Err(MqttBrokerError::UnsupportedAuthType(
+                    conf.mqtt_auth_config.auth_type.clone(),
+                )),
+            }
+        } else {
+            Ok(false)
+        }
     }
 
     pub async fn auth_connect_check(&self, connection: &MQTTConnection) -> bool {

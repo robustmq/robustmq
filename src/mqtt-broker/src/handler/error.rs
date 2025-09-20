@@ -146,6 +146,12 @@ pub enum MqttBrokerError {
     #[error("Unavailable storage type")]
     UnavailableStorageType,
 
+    #[error("Unsupported authentication type: {0}")]
+    UnsupportedAuthType(String),
+
+    #[error("Password configuration not found")]
+    PasswordConfigNotFound,
+
     #[error("{0}")]
     CommonError(String),
 
