@@ -1,0 +1,10 @@
+# mqtt user storage
+# HSET mqtt:user:{username} password {password} salt {salt} is_superuser {0|1}
+# SADD mqtt:users {username}
+
+HSET mqtt:user:robustmq password "robustmq@2024" salt "" is_superuser 0
+SADD mqtt:users robustmq
+
+# mqtt acl storage
+# HSET mqtt:acl:{id} username {username} permission {0|1} ipaddr {ip} clientid {clientid} access {access} topic {topic}
+# SADD mqtt:acls {id}

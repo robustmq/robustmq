@@ -114,6 +114,7 @@ mod test {
         let user = MqttUser {
             username: username.clone(),
             password: password.clone(),
+            salt: None,
             is_superuser: true,
         };
         cache_manager.add_user(user);

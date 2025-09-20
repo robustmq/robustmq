@@ -13,20 +13,20 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use r2d2_mysql::{
-    mysql::{Opts, OptsBuilder},
+use r2d2_postgres::{
+    postgres::{Config, NoTls},
     r2d2::Pool,
-    MySqlConnectionManager,
+    PostgresConnectionManager,
 };
 
-pub type MysqlPool = Pool<MySqlConnectionManager>;
+pub type PostgresPool = Pool<PostgresConnectionManager<NoTls>>;
 
-pub fn build_mysql_conn_pool(addr: &str) -> Result<MysqlPool, CommonError> {
-    let opts = Opts::from_url(addr)
-        .map_err(|e| CommonError::CommonError(format!("Invalid MySQL connection string: {}", e)))?;
+pub fn build_postgresql_conn_pool(addr: &str) -> Result<PostgresPool, CommonError> {
+    let config = addr.parse::<Config>().map_err(|e| {
+        CommonError::CommonError(format!("Invalid PostgreSQL connection string: {}", e))
+    })?;
 
-    let builder = OptsBuilder::from_opts(opts);
-    let manager = MySqlConnectionManager::new(builder);
+    let manager = PostgresConnectionManager::new(config, NoTls);
 
     match Pool::new(manager) {
         Ok(pool) => Ok(pool),

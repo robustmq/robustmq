@@ -13,20 +13,13 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use r2d2_mysql::{
-    mysql::{Opts, OptsBuilder},
-    r2d2::Pool,
-    MySqlConnectionManager,
-};
+use r2d2_redis::{r2d2::Pool, RedisConnectionManager};
 
-pub type MysqlPool = Pool<MySqlConnectionManager>;
+pub type RedisPool = Pool<RedisConnectionManager>;
 
-pub fn build_mysql_conn_pool(addr: &str) -> Result<MysqlPool, CommonError> {
-    let opts = Opts::from_url(addr)
-        .map_err(|e| CommonError::CommonError(format!("Invalid MySQL connection string: {}", e)))?;
-
-    let builder = OptsBuilder::from_opts(opts);
-    let manager = MySqlConnectionManager::new(builder);
+pub fn build_redis_conn_pool(addr: &str) -> Result<RedisPool, CommonError> {
+    let manager = RedisConnectionManager::new(addr)
+        .map_err(|e| CommonError::CommonError(format!("Invalid Redis connection string: {}", e)))?;
 
     match Pool::new(manager) {
         Ok(pool) => Ok(pool),

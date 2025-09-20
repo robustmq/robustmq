@@ -31,6 +31,7 @@ mod tests {
         let user_info = metadata_struct::mqtt::user::MqttUser {
             username: username.clone(),
             password: password.clone(),
+            salt: None,
             is_superuser,
         };
         user_storage.save_user(user_info).await.unwrap();

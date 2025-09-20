@@ -28,6 +28,7 @@ pub async fn init_system_user(
     let system_user_info = MqttUser {
         username: conf.mqtt_runtime.default_user.clone(),
         password: conf.mqtt_runtime.default_password.clone(),
+        salt: None,
         is_superuser: true,
     };
     let user_storage = UserStorage::new(client_pool.clone());
@@ -64,6 +65,7 @@ mod test {
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
+            salt: None,
             is_superuser: true,
         };
         cache_manager.add_user(user.clone());
@@ -79,6 +81,7 @@ mod test {
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
+            salt: None,
             is_superuser: false,
         };
         cache_manager.add_user(user.clone());

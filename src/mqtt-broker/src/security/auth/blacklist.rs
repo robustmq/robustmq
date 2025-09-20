@@ -136,6 +136,7 @@ mod test {
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
+            salt: None,
             is_superuser: true,
         };
 

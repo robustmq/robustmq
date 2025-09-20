@@ -83,6 +83,18 @@ pub enum CommonError {
     #[error("{0}")]
     FromMysqlError(#[from] mysql::Error),
 
+    #[error("R2D2 Pool Error: {0}")]
+    R2d2PoolError(#[from] r2d2::Error),
+
+    #[error("{0}")]
+    FromR2d2MysqlError(#[from] r2d2_mysql::mysql::Error),
+
+    #[error("{0}")]
+    FromR2d2PostgresError(#[from] r2d2_postgres::postgres::Error),
+
+    #[error("{0}")]
+    RedisError(#[from] r2d2_redis::redis::RedisError),
+
     #[error("{0}")]
     FromParseIntError(#[from] ParseIntError),
 

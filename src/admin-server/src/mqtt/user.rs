@@ -86,6 +86,7 @@ pub async fn user_create(
     let mqtt_user = MqttUser {
         username: params.username.clone(),
         password: params.password.clone(),
+        salt: None,
         is_superuser: params.is_superuser,
     };
 

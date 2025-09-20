@@ -430,11 +430,13 @@ mod tests {
         let user1 = MqttUser {
             username: "user1".to_string(),
             password: "password1".to_string(),
+            salt: None,
             is_superuser: false,
         };
         let user2 = MqttUser {
             username: "user2".to_string(),
             password: "password2".to_string(),
+            salt: None,
             is_superuser: false,
         };
 
