@@ -67,6 +67,11 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                         let user = MqttUser {
                             username: redis_user.username.clone(),
                             password: redis_user.password,
+                            salt: if redis_user.salt.is_empty() {
+                                None
+                            } else {
+                                Some(redis_user.salt)
+                            },
                             is_superuser: redis_user.is_superuser == 1,
                         };
                         results.insert(redis_user.username, user);
@@ -146,6 +151,11 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             Ok(redis_user) => Ok(Some(MqttUser {
                 username: redis_user.username,
                 password: redis_user.password,
+                salt: if redis_user.salt.is_empty() {
+                    None
+                } else {
+                    Some(redis_user.salt)
+                },
                 is_superuser: redis_user.is_superuser == 1,
             })),
             Err(_) => Ok(None),
@@ -158,7 +168,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let redis_user = RedisAuthUser {
             username: user_info.username.clone(),
             password: user_info.password,
-            salt: String::new(),
+            salt: user_info.salt.unwrap_or_default(),
             is_superuser: if user_info.is_superuser { 1 } else { 0 },
         };
 
@@ -296,6 +306,7 @@ mod tests {
         let user = MqttUser {
             username: "robustmq".to_string(),
             password: "robustmq@2024".to_string(),
+            salt: None,
             is_superuser: false,
         };
         let _ = auth_redis.save_user(user).await;

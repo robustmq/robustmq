@@ -64,10 +64,12 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
         for row in rows {
             let username: String = row.get(0);
             let password: String = row.get(1);
+            let salt: Option<String> = row.get(2);
             let is_superuser: i32 = row.get(3);
             let user = MqttUser {
                 username: username.clone(),
                 password,
+                salt,
                 is_superuser: is_superuser == 1,
             };
             results.insert(username, user);
@@ -136,10 +138,12 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
         if let Some(row) = rows.first() {
             let username: String = row.get(0);
             let password: String = row.get(1);
+            let salt: Option<String> = row.get(2);
             let is_superuser: i32 = row.get(3);
             return Ok(Some(MqttUser {
                 username,
                 password,
+                salt,
                 is_superuser: is_superuser == 1,
             }));
         }
@@ -149,7 +153,7 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
     async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let mut conn = self.pool.get()?;
         let sql = format!(
-            "insert into {} (username, password, is_superuser, salt) values ($1, $2, $3, null)",
+            "insert into {} (username, password, is_superuser, salt) values ($1, $2, $3, $4)",
             self.table_user()
         );
         conn.execute(
@@ -158,6 +162,7 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
                 &user_info.username,
                 &user_info.password,
                 &(user_info.is_superuser as i32),
+                &user_info.salt,
             ],
         )?;
         return Ok(());

@@ -39,6 +39,7 @@ mod tests {
         let mqtt_user: MqttUser = MqttUser {
             username: user_name.clone(),
             password: password.clone(),
+            salt: None,
             is_superuser: false,
         };
 

@@ -17,11 +17,8 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
-use common_config::security::PasswordConfig;
-use std::sync::Arc;
-
-// Hash algorithm imports
 use bcrypt;
+use common_config::security::PasswordConfig;
 use hex;
 use hmac::Hmac;
 use md5;
@@ -29,6 +26,7 @@ use pbkdf2::pbkdf2;
 use sha1::{Digest as Sha1Digest, Sha1};
 #[allow(unused_imports)]
 use sha2::{Digest as Sha2Digest, Sha256, Sha512};
+use std::sync::Arc;
 
 pub struct MySQL {
     username: String,
@@ -52,7 +50,6 @@ impl MySQL {
         }
     }
 
-    /// 验证密码
     fn verify_password(
         &self,
         stored_hash: &str,
@@ -73,7 +70,7 @@ impl MySQL {
         }
     }
 
-    /// 准备带salt的密码
+    /// prepare password with salt
     fn prepare_password_with_salt(&self, password: &str, salt: &str) -> String {
         match self.password_config.salt_position.as_deref() {
             Some("prefix") => format!("{}{}", salt, password),
@@ -82,7 +79,7 @@ impl MySQL {
         }
     }
 
-    /// MD5 验证
+    /// verify MD5
     fn verify_md5(
         &self,
         stored_hash: &str,
@@ -94,7 +91,7 @@ impl MySQL {
         Ok(hash == stored_hash)
     }
 
-    /// SHA1 验证
+    /// verify SHA1
     fn verify_sha1(
         &self,
         stored_hash: &str,
@@ -108,7 +105,7 @@ impl MySQL {
         Ok(hash == stored_hash)
     }
 
-    /// SHA256 验证
+    /// verify SHA256
     fn verify_sha256(
         &self,
         stored_hash: &str,
@@ -122,7 +119,7 @@ impl MySQL {
         Ok(hash == stored_hash)
     }
 
-    /// SHA512 验证
+    /// verify SHA512
     fn verify_sha512(
         &self,
         stored_hash: &str,
@@ -136,7 +133,7 @@ impl MySQL {
         Ok(hash == stored_hash)
     }
 
-    /// bcrypt 验证
+    /// verify bcrypt
     fn verify_bcrypt(
         &self,
         stored_hash: &str,
@@ -146,7 +143,7 @@ impl MySQL {
             .map_err(|e| MqttBrokerError::PasswordVerificationError(e.to_string()))
     }
 
-    /// PBKDF2 验证
+    /// verify PBKDF2
     #[allow(unused_must_use)]
     fn verify_pbkdf2(
         &self,
@@ -157,7 +154,7 @@ impl MySQL {
         let iterations = self.password_config.iterations.unwrap_or(4096);
         let dk_length = self.password_config.dk_length.unwrap_or(32) as usize;
 
-        // 使用指定的MAC函数，默认为SHA256
+        // use specified MAC function, default is SHA256
         let mac_fun = self.password_config.mac_fun.as_deref().unwrap_or("sha256");
 
         match mac_fun {
@@ -199,7 +196,7 @@ impl MySQL {
     }
 }
 
-/// MySQL 认证检查入口函数
+/// MySQL authentication check entry function
 pub async fn mysql_check_login(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -221,7 +218,7 @@ pub async fn mysql_check_login(
             }
         }
         Err(e) => {
-            // 如果用户不存在，尝试从存储层获取用户信息
+            // if user does not exist, try to get user information from storage layer
             if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
                 return try_get_check_user_by_driver(
                     driver,
@@ -238,7 +235,7 @@ pub async fn mysql_check_login(
     Ok(false)
 }
 
-/// 尝试从存储驱动获取用户并验证
+/// try to get user from storage driver and verify
 async fn try_get_check_user_by_driver(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -268,9 +265,9 @@ async fn try_get_check_user_by_driver(
 impl Authentication for MySQL {
     async fn apply(&self) -> Result<bool, MqttBrokerError> {
         if let Some(user) = self.cache_manager.user_info.get(&self.username) {
-            // 从用户数据中获取存储的哈希和salt
+            // get stored hash and salt from user data
             let stored_hash = &user.password;
-            let salt = ""; // 注意：这里salt通常应该从数据库的salt字段获取，但当前MqttUser结构体中没有salt字段
+            let salt = user.salt.as_deref().unwrap_or("");
 
             return self.verify_password(stored_hash, &self.password, salt);
         }
@@ -291,15 +288,16 @@ mod tests {
         let username = "test_user".to_string();
         let password = "test_password".to_string();
 
-        // 创建用户
+        // create user
         let user = MqttUser {
             username: username.clone(),
             password: password.clone(),
+            salt: None,
             is_superuser: false,
         };
         cache_manager.add_user(user);
 
-        // 配置为明文验证
+        // configure to plaintext verification
         let password_config = PasswordConfig {
             auth_type: "password".to_string(),
             algorithm: "plain".to_string(),
@@ -327,18 +325,19 @@ mod tests {
         let username = "test_user".to_string();
         let plain_password = "test_password";
 
-        // 预先计算MD5哈希
+        // pre-calculate MD5 hash
         let stored_hash = format!("{:x}", md5::compute(plain_password.as_bytes()));
 
-        // 创建用户（存储哈希后的密码）
+        // create user (stored hash password)
         let user = MqttUser {
             username: username.clone(),
             password: stored_hash,
+            salt: None,
             is_superuser: false,
         };
         cache_manager.add_user(user);
 
-        // 配置为MD5验证
+        // configure to MD5 verification
         let password_config = PasswordConfig {
             auth_type: "password".to_string(),
             algorithm: "md5".to_string(),
@@ -366,18 +365,19 @@ mod tests {
         let username = "test_user".to_string();
         let plain_password = "test_password";
 
-        // 预先计算bcrypt哈希
+        // pre-calculate bcrypt hash
         let stored_hash = bcrypt::hash(plain_password, bcrypt::DEFAULT_COST).unwrap();
 
-        // 创建用户（存储哈希后的密码）
+        // create user (stored hash password)
         let user = MqttUser {
             username: username.clone(),
             password: stored_hash,
+            salt: None,
             is_superuser: false,
         };
         cache_manager.add_user(user);
 
-        // 配置为bcrypt验证
+        // configure to bcrypt verification
         let password_config = PasswordConfig {
             auth_type: "password".to_string(),
             algorithm: "bcrypt".to_string(),

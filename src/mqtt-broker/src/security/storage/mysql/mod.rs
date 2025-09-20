@@ -65,6 +65,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             let user = MqttUser {
                 username: raw.0.clone(),
                 password: raw.1.clone(),
+                salt: raw.2.clone(),
                 is_superuser: raw.3 == 1,
             };
             results.insert(raw.0.clone(), user);
@@ -128,6 +129,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             return Ok(Some(MqttUser {
                 username: value.0.clone(),
                 password: value.1.clone(),
+                salt: value.2.clone(),
                 is_superuser: value.3 == 1,
             }));
         }
@@ -136,12 +138,17 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
     async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let mut conn = self.pool.get()?;
+        let salt_value = match &user_info.salt {
+            Some(salt) => format!("'{}'", salt),
+            None => "null".to_string(),
+        };
         let sql = format!(
-            "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', null);",
+            "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', {});",
             self.table_user(),
             user_info.username,
             user_info.password,
             user_info.is_superuser as i32,
+            salt_value,
         );
         let _data: Vec<(String, String, Option<String>, u8)> = conn.query(sql)?;
         return Ok(());
