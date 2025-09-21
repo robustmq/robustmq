@@ -51,5 +51,5 @@ pub fn slow_sub_log_prefix_key() -> String {
 }
 
 fn prefix_key(key: String) -> String {
-    format!("/broker/mqtt/{}", key)
+    format!("/broker/mqtt/{key}")
 }
