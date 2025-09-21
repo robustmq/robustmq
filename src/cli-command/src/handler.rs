@@ -222,13 +222,13 @@ pub async fn handle_status(args: StatusArgs) {
     match admin_client.get_version().await {
         Ok(version_info) => {
             println!("✅ RobustMQ Status: Online");
-            println!("📋 Version: {}", version_info);
+            println!("📋 Version: {version_info}");
             println!("🌐 Server: {}", args.server);
         }
         Err(e) => {
             println!("❌ RobustMQ Status: Offline or unreachable");
             println!("🌐 Server: {}", args.server);
-            error_info(format!("Connection error: {}", e));
+            error_info(format!("Connection error: {e}"));
         }
     }
 }

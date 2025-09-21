@@ -12,14 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-pub mod journal;
-pub mod meta;
-pub mod mqtt;
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PageReplyData<T> {
-    pub data: T,
-    pub total_count: usize,
-}
+mod utils;

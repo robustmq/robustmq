@@ -19,9 +19,10 @@ mod tests {
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
-    use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
-    use robustmq_test::mqtt_build_tool::build_connect::{
-        build_mqtt4_pg_connect, build_mqtt5_pg_connect,
+
+    use robustmq_test::mqtt::protocol::build_connack::build_mqtt5_pg_connect_ack_wrapper;
+    use robustmq_test::mqtt::protocol::build_connect::{
+        build_mqtt4_connect_packet, build_mqtt5_pg_connect,
     };
     use std::time::Duration;
     use tokio::io;
@@ -32,7 +33,7 @@ mod tests {
     #[tokio::test]
     async fn try_encode_data_from_mqtt_encoder() {
         let mut mqtt_codec = MqttCodec::new(None);
-        let connect = build_mqtt4_pg_connect();
+        let connect = build_mqtt4_connect_packet();
         let mqtt_packet_wrapper = MqttPacketWrapper {
             protocol_version: 4,
             packet: connect,
@@ -47,7 +48,7 @@ mod tests {
     #[tokio::test]
     async fn try_decode_data_from_mqtt_decoder() {
         let mut mqtt_codec = MqttCodec::new(None);
-        let connect = build_mqtt4_pg_connect();
+        let connect = build_mqtt4_connect_packet();
         let mqtt_packet_wrapper = MqttPacketWrapper {
             protocol_version: 4,
             packet: connect,
@@ -64,7 +65,7 @@ mod tests {
     #[tokio::test]
 
     async fn mqtt_frame_server() {
-        let req_packet = build_mqtt4_pg_connect();
+        let req_packet = build_mqtt4_connect_packet();
         let resp_packet = build_mqtt5_pg_connect_ack_wrapper();
 
         let resp = resp_packet.clone();
@@ -80,9 +81,6 @@ mod tests {
                 while let Some(Ok(data)) = read_frame_stream.next().await {
                     println!("Got: {data:?}");
 
-                    // 发送的消息也只需要发送消息主体，不需要提供长度
-                    // Framed/LengthDelimitedCodec 会自动计算并添加
-                    //    let response = &data[0..5];
                     write_frame_stream.send(resp.clone()).await.unwrap();
                 }
             }
@@ -100,7 +98,7 @@ mod tests {
         if let Some(data) = stream.next().await {
             match data {
                 Ok(da) => {
-                    // assert_eq!(da, resp_packet.packet)
+                    //assert_eq!(da, resp_packet.packet)
                     println!("{da:?}");
                 }
                 Err(e) => {
@@ -119,7 +117,7 @@ mod tests {
         if let Some(data) = stream.next().await {
             match data {
                 Ok(da) => {
-                    // assert_eq!(da, resp_packet.packet)
+                    //assert_eq!(da, resp_packet.packet)
                     println!("{da:?}");
                 }
                 Err(e) => {

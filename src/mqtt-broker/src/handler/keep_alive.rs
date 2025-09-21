@@ -129,6 +129,14 @@ impl ClientKeepAlive {
                         RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
                     )
                     .await;
+            } else if context.network.is_quic() {
+                let _ = context
+                    .connection_manager
+                    .write_quic_frame(
+                        context.connection.connect_id,
+                        RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+                    )
+                    .await;
             } else {
                 let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
                 let mut buff = BytesMut::new();
