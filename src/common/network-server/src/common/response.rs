@@ -135,7 +135,7 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                                 };
 
                                 match &network_type.clone() {
-                                    NetworkConnectionType::Tcp => {
+                                    NetworkConnectionType::Tcp | NetworkConnectionType::Tls | NetworkConnectionType::WebSocket |  NetworkConnectionType::WebSockets => {
                                          if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
                                             error!("{}",e);
                                          };
@@ -145,10 +145,6 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                                             error!("{}",e);
                                          };
                                     }
-                                    NetworkConnectionType::Tls => {}
-                                    NetworkConnectionType::WebSocket => {}
-                                    NetworkConnectionType::WebSockets => {}
-
                                 }
                                 response_ms = now_mills();
                                 record_response_and_total_ms(&network_type.clone(),response_package.get_receive_ms(),out_response_queue_ms);
