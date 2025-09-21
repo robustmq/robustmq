@@ -276,7 +276,10 @@ mod tests {
 
         // test the read function of pubrec packet and check the result of write function in MQTT v5
         let (auth_read, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(auth_read.reason.unwrap(), AuthReason::ContinueAuthentication);
+        assert_eq!(
+            auth_read.reason.unwrap(),
+            AuthReason::ContinueAuthentication
+        );
 
         let auth_properties = y.unwrap();
         assert_eq!(

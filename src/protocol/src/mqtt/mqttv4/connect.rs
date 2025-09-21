@@ -100,9 +100,9 @@ pub fn write(
         connect_flags |= 0x02;
     }
     buffer.put_u8(connect_flags);
-    
+
     buffer.put_u16(connect.keep_alive);
-    
+
     write_mqtt_string(buffer, &connect.client_id);
     if let Some(w) = &will {
         connect_flags |= will::write(w, buffer)?;
