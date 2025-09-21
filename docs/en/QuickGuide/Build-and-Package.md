@@ -47,6 +47,28 @@ sudo apt-get install curl jq git tar  # Ubuntu/Debian
 brew install curl jq git  # macOS
 ```
 
+install `protoc`
+
+```bash
+# Ubuntu(has been verified)
+PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+curl -LO $PB_REL/download/v26.1/protoc-26.1-linux-x86_64.zip
+# Replace the local version
+unzip protoc-26.1-linux-x86_64.zip -d $HOME/.local
+```
+
+resolve: `failed to run custom build command for zstd-sysv2.0.15+zstd.1.5.7`
+
+```bash
+# resolve: failed to run custom build command for zstd-sysv2.0.15+zstd.1.5.7
+# Ubuntu(has been verified)
+sudo apt install build-essential clang pkg-config libssl-dev
+# Fedora/RHEL
+sudo dnf install clang pkg-config zstd-devel # Fedora/RHEL
+# macOS
+brew install zstd pkg-config 
+```
+
 ### Optional Dependencies
 
 #### Cross-platform Compilation Toolchain
