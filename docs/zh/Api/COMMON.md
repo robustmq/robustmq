@@ -5,6 +5,7 @@
 RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的全面管理功能。
 
 - **基础地址**: `http://localhost:8080`
+- **API 前缀**: `/api` (所有管理接口都使用此前缀)
 - **请求方法**: 主要使用 `POST` 方法
 - **数据格式**: JSON
 - **响应格式**: JSON
@@ -82,12 +83,21 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 ## 基础接口
 
 ### 服务状态查询
-- **接口**: `GET /`
-- **描述**: 获取服务版本信息
+- **接口**: `GET /api/status`
+- **描述**: 获取服务状态和版本信息
 - **请求参数**: 无
 - **响应示例**:
 ```json
-"RobustMQ v0.1.31"
+"RobustMQ API v0.1.34"
+```
+
+### 服务版本查询
+- **接口**: `GET /`
+- **描述**: 获取服务版本信息（向后兼容接口）
+- **请求参数**: 无
+- **响应示例**:
+```json
+"RobustMQ API v0.1.34"
 ```
 
 ---
@@ -113,7 +123,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 curl -X GET http://localhost:8080/
 
 # 带分页的列表查询
-curl -X POST http://localhost:8080/mqtt/user/list \
+curl -X POST http://localhost:8080/api/mqtt/user/list \
   -H "Content-Type: application/json" \
   -d '{
     "limit": 10,
@@ -175,6 +185,6 @@ curl -X GET http://localhost:8080/
 
 ---
 
-*文档版本: v3.0*  
-*最后更新: 2024-01-01*  
-*基于代码版本: RobustMQ Admin Server v0.1.31*
+*文档版本: v4.0*  
+*最后更新: 2025-09-20*  
+*基于代码版本: RobustMQ Admin Server v0.1.34*

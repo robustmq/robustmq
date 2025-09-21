@@ -5,6 +5,7 @@
 RobustMQ Admin Server is an HTTP management interface service, providing comprehensive management capabilities for RobustMQ clusters.
 
 - **Base URL**: `http://localhost:8080`
+- **API Prefix**: `/api` (all management interfaces use this prefix)
 - **Request Method**: Mainly uses `POST` method
 - **Data Format**: JSON
 - **Response Format**: JSON
@@ -82,12 +83,21 @@ Most list query interfaces support the following common parameters:
 ## Basic Interface
 
 ### Service Status Query
-- **Endpoint**: `GET /`
-- **Description**: Get service version information
+- **Endpoint**: `GET /api/status`
+- **Description**: Get service status and version information
 - **Request Parameters**: None
 - **Response Example**:
 ```json
-"RobustMQ v0.1.31"
+"RobustMQ API v0.1.34"
+```
+
+### Service Version Query
+- **Endpoint**: `GET /`
+- **Description**: Get service version information (backward compatibility interface)
+- **Request Parameters**: None
+- **Response Example**:
+```json
+"RobustMQ API v0.1.34"
 ```
 
 ---
@@ -113,7 +123,7 @@ Most list query interfaces support the following common parameters:
 curl -X GET http://localhost:8080/
 
 # List query with pagination
-curl -X POST http://localhost:8080/mqtt/user/list \
+curl -X POST http://localhost:8080/api/mqtt/user/list \
   -H "Content-Type: application/json" \
   -d '{
     "limit": 10,
@@ -175,6 +185,6 @@ The service outputs detailed log information during runtime, including:
 
 ---
 
-*Documentation Version: v3.0*  
-*Last Updated: 2024-01-01*  
-*Based on Code Version: RobustMQ Admin Server v0.1.31*
+*Documentation Version: v4.0*  
+*Last Updated: 2025-09-20*  
+*Based on Code Version: RobustMQ Admin Server v0.1.34*
