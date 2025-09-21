@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 /// TODO: add validator
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AuthnConfig {
     pub jwt_config: Option<JwtConfig>,
     pub password_config: Option<PasswordConfig>,
@@ -25,7 +25,7 @@ pub struct AuthnConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct AuthzConfig {}
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct JwtConfig {
     pub jwt_source: String,                  // password/username
     pub jwt_encryption: String,              // hmac-based/public-key
@@ -34,13 +34,48 @@ pub struct JwtConfig {
     pub public_key: Option<String>,          // public-key need
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PasswordConfig {
-    pub auth_type: String,             // password/username
+    pub credential_type: String,       // password/username
     pub algorithm: String,             // plain/md5/sha/sha256/sha512/bcrypt/pbkdf2
     pub salt_position: Option<String>, // disable/prefix/suffix
     pub salt_rounds: Option<u32>,      // bcrypt need
     pub mac_fun: Option<String>,       // pbkdf2 need
     pub iterations: Option<u32>,       // pbkdf2 need
     pub dk_length: Option<u32>,        // pbkdf2 need
+}
+
+impl Default for AuthnConfig {
+    fn default() -> Self {
+        Self {
+            jwt_config: None,
+            password_config: Some(PasswordConfig::default()),
+        }
+    }
+}
+
+impl Default for PasswordConfig {
+    fn default() -> Self {
+        Self {
+            credential_type: "password".to_string(),
+            algorithm: "plain".to_string(),
+            salt_position: None,
+            salt_rounds: None,
+            mac_fun: None,
+            iterations: None,
+            dk_length: None,
+        }
+    }
+}
+
+impl Default for JwtConfig {
+    fn default() -> Self {
+        Self {
+            jwt_source: "password".to_string(),
+            jwt_encryption: "hmac-based".to_string(),
+            secret: None,
+            secret_base64_encoded: None,
+            public_key: None,
+        }
+    }
 }

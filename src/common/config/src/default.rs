@@ -103,7 +103,7 @@ pub fn default_mqtt_auth_storage() -> MqttAuthStorage {
 
 pub fn default_mqtt_auth_config() -> MqttAuthConfig {
     MqttAuthConfig {
-        auth_type: "placement".to_string(),
+        auth_type: "password".to_string(), // password or jwt or psk ...
         authn_config: AuthnConfig::default(),
         authz_config: AuthzConfig::default(),
     }

@@ -300,7 +300,7 @@ mod tests {
 
         // configure to plaintext verification
         let password_config = PasswordConfig {
-            auth_type: "password".to_string(),
+            credential_type: "password".to_string(),
             algorithm: "plain".to_string(),
             salt_position: Some("disable".to_string()),
             salt_rounds: None,
@@ -340,7 +340,7 @@ mod tests {
 
         // configure to MD5 verification
         let password_config = PasswordConfig {
-            auth_type: "password".to_string(),
+            credential_type: "password".to_string(),
             algorithm: "md5".to_string(),
             salt_position: Some("disable".to_string()),
             salt_rounds: None,
@@ -380,7 +380,7 @@ mod tests {
 
         // configure to bcrypt verification
         let password_config = PasswordConfig {
-            auth_type: "password".to_string(),
+            credential_type: "password".to_string(),
             algorithm: "bcrypt".to_string(),
             salt_position: None,
             salt_rounds: Some(12),
@@ -424,7 +424,7 @@ mod tests {
 
         // configure to SHA256 verification with salt suffix
         let password_config = PasswordConfig {
-            auth_type: "password".to_string(),
+            credential_type: "password".to_string(),
             algorithm: "sha256".to_string(),
             salt_position: Some("suffix".to_string()),
             salt_rounds: None,
@@ -475,7 +475,7 @@ mod tests {
 
         // configure to PBKDF2 verification
         let password_config = PasswordConfig {
-            auth_type: "password".to_string(),
+            credential_type: "password".to_string(),
             algorithm: "pbkdf2".to_string(),
             salt_position: Some("suffix".to_string()),
             salt_rounds: None,
