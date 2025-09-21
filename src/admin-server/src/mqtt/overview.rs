@@ -73,24 +73,12 @@ async fn cluster_overview_metrics_by_req(
         request.end_time
     };
     let reply = OverViewMetricsResp {
-        connection_num: serde_json::to_string(
-            &metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
-        )?,
-        topic_num: serde_json::to_string(
-            &metrics_cache_manager.get_topic_num_by_time(start_time, end_time),
-        )?,
-        subscribe_num: serde_json::to_string(
-            &metrics_cache_manager.get_subscribe_num_by_time(start_time, end_time),
-        )?,
-        message_in_num: serde_json::to_string(
-            &metrics_cache_manager.get_message_in_num_by_time(start_time, end_time),
-        )?,
-        message_out_num: serde_json::to_string(
-            &metrics_cache_manager.get_message_out_num_by_time(start_time, end_time),
-        )?,
-        message_drop_num: serde_json::to_string(
-            &metrics_cache_manager.get_message_drop_num_by_time(start_time, end_time),
-        )?,
+        connection_num: metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
+        topic_num: metrics_cache_manager.get_topic_num_by_time(start_time, end_time),
+        subscribe_num: metrics_cache_manager.get_subscribe_num_by_time(start_time, end_time),
+        message_in_num: metrics_cache_manager.get_message_in_num_by_time(start_time, end_time),
+        message_out_num: metrics_cache_manager.get_message_out_num_by_time(start_time, end_time),
+        message_drop_num: metrics_cache_manager.get_message_drop_num_by_time(start_time, end_time),
     };
 
     Ok(reply)

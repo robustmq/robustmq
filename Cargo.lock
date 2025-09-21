@@ -39,9 +39,12 @@ version = "0.1.34"
 dependencies = [
  "axum",
  "broker-core",
+ "chrono",
  "common-base",
  "common-config",
+ "common-metrics",
  "grpc-clients",
+ "lazy_static",
  "metadata-struct",
  "mockall",
  "mqtt-broker",

@@ -47,6 +47,9 @@ use axum::{
     Router,
 };
 use common_base::version::version;
+use common_metrics::http::{
+    metrics_http_request_error_incr, metrics_http_request_incr, metrics_http_request_success_incr,
+};
 use reqwest::StatusCode;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
@@ -72,7 +75,7 @@ impl AdminServer {
             .merge(self.static_route())
             .nest("/api", self.api_route())
             .with_state(state)
-            .layer(middleware::from_fn(access_log_middleware))
+            .layer(middleware::from_fn(base_middleware))
             .layer(CorsLayer::permissive());
 
         let listener = tokio::net::TcpListener::bind(&ip).await.unwrap();
@@ -183,7 +186,7 @@ async fn serve_spa_fallback() -> impl IntoResponse {
     }
 }
 
-async fn access_log_middleware(
+async fn base_middleware(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     method: Method,
     uri: Uri,
@@ -216,6 +219,8 @@ async fn access_log_middleware(
         duration.as_millis()
     );
 
+    metrics_http_request_incr(uri.to_string());
+
     if status.is_client_error() || status.is_server_error() {
         warn!(
             "http request log: {} {} {} - {} - FAILED",
@@ -224,6 +229,9 @@ async fn access_log_middleware(
             status.as_u16(),
             client_ip
         );
+        metrics_http_request_error_incr(uri.to_string());
+    } else {
+        metrics_http_request_success_incr(uri.to_string());
     }
 
     response
