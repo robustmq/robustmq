@@ -128,7 +128,7 @@ docker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:latest
 
 Once RobustMQ is running, you should see output similar to:
 
-![Console Start](docs/images/console-start.png)
+<img src="docs/images/console-start.png" alt="Console Start" width="600">
 
 You can verify the installation by connecting with any MQTT client to `localhost:1883` or using the web console.
 
@@ -153,7 +153,7 @@ RobustMQ provides a build script to automatically package installation packages 
 - **💻 [Command Reference](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)** - CLI commands and usage
 - **🎛️ [Web Console](https://github.com/robustmq/robustmq-copilot)** - Management interface
 
-![Web UI](docs/images/web-ui.png)
+<img src="docs/images/web-ui.png" alt="Web UI" width="600">
 
 ## 🤝 Contributing
 
