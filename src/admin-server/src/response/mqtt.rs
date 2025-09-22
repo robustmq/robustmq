@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use metadata_struct::placement::node::BrokerNode;
 use serde::{Deserialize, Serialize};
 
@@ -185,10 +187,10 @@ pub struct OverViewResp {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct OverViewMetricsResp {
-    pub connection_num: String,
-    pub topic_num: String,
-    pub subscribe_num: String,
-    pub message_in_num: String,
-    pub message_out_num: String,
-    pub message_drop_num: String,
+    pub connection_num: Vec<HashMap<String, u64>>,
+    pub topic_num: Vec<HashMap<String, u64>>,
+    pub subscribe_num: Vec<HashMap<String, u64>>,
+    pub message_in_num: Vec<HashMap<String, u64>>,
+    pub message_out_num: Vec<HashMap<String, u64>>,
+    pub message_drop_num: Vec<HashMap<String, u64>>,
 }
