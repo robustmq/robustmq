@@ -19,20 +19,11 @@ use prometheus_client::registry::Registry;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 use tracing::info;
 
-pub mod broker;
-pub mod counter;
-pub mod gauge;
-pub mod histogram;
-
 static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(|| Mutex::new(Registry::default()));
 
 pub fn metrics_register_default() -> MutexGuard<'static, Registry> {
     REGISTRY.lock().unwrap()
 }
-
-const SERVER_LABEL_MQTT: &str = "mqtt4";
-const SERVER_LABEL_GRPC: &str = "grpc";
-const SERVER_LABEL_HTTP: &str = "http";
 
 pub fn dump_metrics() -> String {
     let mut buffer = String::new();
@@ -62,9 +53,10 @@ pub async fn route_metrics() -> String {
 pub struct NoLabelSet;
 
 mod impl_encode_label_set {
-    use crate::metrics::NoLabelSet;
     use prometheus_client::encoding::{EncodeLabelSet, LabelSetEncoder};
     use std::fmt::Error;
+
+    use crate::core::server::NoLabelSet;
 
     impl EncodeLabelSet for NoLabelSet {
         fn encode(&self, _: LabelSetEncoder) -> Result<(), Error> {

@@ -42,6 +42,7 @@ pub enum RobustMQCliCommand {
     Mqtt(MqttArgs),
     Cluster(ClusterArgs),
     Journal(JournalArgs),
+    Status(StatusArgs),
 }
 
 pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
@@ -133,6 +134,14 @@ pub struct JournalArgs {
     action: String,
 }
 
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="Show RobustMQ status and version information", long_about = None)]
+#[command(next_line_help = true)]
+pub struct StatusArgs {
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+    server: String,
+}
+
 pub async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     let params = MqttCliCommandParam {
         server: args.server,
@@ -199,4 +208,27 @@ pub async fn handle_cluster(args: ClusterArgs, cmd: ClusterCommand) {
 // TODO: implement journal engine
 pub async fn handle_journal(args: JournalArgs) {
     println!("{args:?}");
+}
+
+pub async fn handle_status(args: StatusArgs) {
+    use crate::mqtt::pub_sub::error_info;
+    use admin_server::client::AdminHttpClient;
+
+    // Create admin HTTP client
+    let admin_client = AdminHttpClient::new(format!("http://{}", args.server));
+
+    println!("🚀 Checking RobustMQ status...");
+
+    match admin_client.get_version().await {
+        Ok(version_info) => {
+            println!("✅ RobustMQ Status: Online");
+            println!("📋 Version: {version_info}");
+            println!("🌐 Server: {}", args.server);
+        }
+        Err(e) => {
+            println!("❌ RobustMQ Status: Offline or unreachable");
+            println!("🌐 Server: {}", args.server);
+            error_info(format!("Connection error: {e}"));
+        }
+    }
 }

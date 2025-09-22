@@ -22,6 +22,8 @@ RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的�
 @linyihai
 @yqingyu
 @chenxi2015
+@codenohup
+@dwsio
 
 ## 怎么给我们签名呢
 

@@ -55,6 +55,9 @@ VERBOSE="${VERBOSE:-false}"
 DRY_RUN="${DRY_RUN:-false}"
 PARALLEL="${PARALLEL:-true}"
 
+# Global state variables
+FRONTEND_BUILT="${FRONTEND_BUILT:-false}"
+
 # Platform mappings (compatible with bash 3.2+)
 get_rust_target() {
     case "$1" in
@@ -160,9 +163,9 @@ show_help() {
     echo "    freebsd-amd64             FreeBSD x86_64"
     echo
     echo -e "${BOLD}COMPONENTS:${NC}"
-    echo "    server                    RobustMQ server binaries (Rust)"
+    echo "    server                    RobustMQ server binaries (Rust) with embedded web UI"
     echo "    operator                  RobustMQ Kubernetes operator (Go)"
-    echo "    all                       Both server and operator"
+    echo "    all                       Both server and operator components"
     echo
     echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
     echo "    VERSION                   Build version"
@@ -263,6 +266,8 @@ check_dependencies() {
         fi
     fi
 
+    # Frontend dependencies are checked in build_frontend function when needed
+
     if ! command -v tar >/dev/null 2>&1; then
         missing_deps+=("tar")
     fi
@@ -274,6 +279,86 @@ check_dependencies() {
     if [ ${#missing_deps[@]} -ne 0 ]; then
         log_error "Missing required dependencies: ${missing_deps[*]}"
         log_info "Please install the missing dependencies and try again."
+        return 1
+    fi
+}
+
+build_frontend() {
+    # Check if frontend is already built
+    if [ "$FRONTEND_BUILT" = "true" ]; then
+        log_info "Frontend already built, skipping..."
+        return 0
+    fi
+    
+    log_step "Building frontend web UI"
+    
+    local copilot_dir="${PROJECT_ROOT}/build/robustmq-copilot"
+    local dist_dir="${copilot_dir}/packages/web-ui/dist"
+    
+    # Check if robustmq-copilot directory exists
+    if [ ! -d "$copilot_dir" ]; then
+        log_warning "Frontend directory does not exist, will clone from GitHub"
+        log_info "Cloning RobustMQ Copilot from GitHub..."
+        
+        if [ "$DRY_RUN" = "true" ]; then
+            log_debug "[DRY RUN] Would clone: git clone https://github.com/robustmq/robustmq-copilot.git $copilot_dir"
+            FRONTEND_BUILT="true"
+            return 0
+        fi
+        
+        if ! git clone https://github.com/robustmq/robustmq-copilot.git "$copilot_dir"; then
+            log_error "Failed to clone robustmq-copilot repository"
+            return 1
+        fi
+        
+        log_success "Successfully cloned robustmq-copilot"
+    else
+        log_info "Found existing robustmq-copilot directory"
+    fi
+    
+    # Check if pnpm is available
+    if ! command -v pnpm >/dev/null 2>&1; then
+        log_error "pnpm is required to build the frontend. Please install pnpm first."
+        log_info "Install pnpm: npm install -g pnpm"
+        return 1
+    fi
+    
+    if [ "$DRY_RUN" = "true" ]; then
+        log_debug "[DRY RUN] Would build frontend in: $copilot_dir"
+        FRONTEND_BUILT="true"
+        return 0
+    fi
+    
+    # Change to copilot directory and build
+    log_info "Building frontend with pnpm..."
+    (
+        cd "$copilot_dir" || exit 1
+        
+        # Install dependencies if node_modules doesn't exist
+        if [ ! -d "node_modules" ]; then
+            log_info "Installing frontend dependencies..."
+            if ! pnpm install; then
+                log_error "Failed to install frontend dependencies"
+                exit 1
+            fi
+        fi
+        git pull
+        # Build the frontend
+        log_info "Running: pnpm ui:build"
+        if ! pnpm ui:build; then
+            log_error "Failed to build frontend"
+            exit 1
+        fi
+    )
+    
+    # Check if build was successful
+    if [ -d "$dist_dir" ]; then
+        log_success "Frontend build completed successfully"
+        log_info "Frontend build output: $dist_dir"
+        FRONTEND_BUILT="true"
+        return 0
+    else
+        log_error "Frontend build failed - dist directory not found: $dist_dir"
         return 1
     fi
 }
@@ -311,7 +396,16 @@ build_server_component() {
 
     if [ "$DRY_RUN" = "true" ]; then
         log_info "[DRY RUN] Would build server for $platform using target $rust_target"
+        log_info "[DRY RUN] Would build frontend web UI"
+        # Mark frontend as built in dry-run mode to avoid duplicate builds
+        FRONTEND_BUILT="true"
         return 0
+    fi
+
+    # Build frontend first
+    if ! build_frontend; then
+        log_error "Failed to build frontend for server component"
+        return 1
     fi
 
     # Prepare Rust target
@@ -331,7 +425,7 @@ build_server_component() {
     fi
 
     # Create package structure
-    mkdir -p "$package_path"/{bin,libs,config,docs}
+    mkdir -p "$package_path"/{bin,libs,config,docs,dist}
 
     # Copy binaries
     local target_dir="target/$rust_target"
@@ -374,10 +468,25 @@ build_server_component() {
         cp -r "$PROJECT_ROOT/config/"* "$package_path/config/" 2>/dev/null || true
     fi
 
+    # Copy frontend build results
+    local copilot_dist_dir="${PROJECT_ROOT}/../robustmq-copilot/packages/web-ui/dist"
+    if [ -d "$copilot_dist_dir" ]; then
+        log_info "Copying frontend build results to package..."
+        cp -r "$copilot_dist_dir/"* "$package_path/dist/" 2>/dev/null || true
+        log_success "Frontend assets copied to dist directory"
+    else
+        log_warning "Frontend build directory not found: $copilot_dist_dir"
+    fi
+
     # Create version file
     echo "$VERSION" > "$package_path/config/version.txt"
 
     # Create package info
+    local frontend_status="Not included"
+    if [ -d "$package_path/dist" ] && [ "$(ls -A "$package_path/dist" 2>/dev/null)" ]; then
+        frontend_status="Included"
+    fi
+    
     cat > "$package_path/package-info.txt" << EOF
 Package: robustmq-server
 Version: $VERSION
@@ -386,6 +495,7 @@ Target: $rust_target
 Build Type: $BUILD_TYPE
 Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 Binaries: ${found_binaries[*]}
+Frontend Web UI: $frontend_status
 EOF
 
     # Set permissions
@@ -395,9 +505,6 @@ EOF
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Calculate checksum
-    (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
 
     # Clean up directory
     rm -rf "$package_path"
@@ -505,9 +612,6 @@ EOF
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Calculate checksum
-    (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
 
     # Clean up directory
     rm -rf "$package_path"

@@ -14,12 +14,14 @@
 
 use prometheus_client::encoding::EncodeLabelSet;
 
+use crate::{counter_metric_get, counter_metric_inc, register_counter_metric};
+
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct ClientConnectionLabels {
     client_id: String,
 }
 
-common_base::register_counter_metric!(
+register_counter_metric!(
     CLIENT_CONNECTION_COUNTER,
     "client_connections",
     "The number of client connections, regardless of success or failure.",
@@ -28,13 +30,13 @@ common_base::register_counter_metric!(
 
 pub fn incr_client_connection_counter(client_id: String) {
     let labels = ClientConnectionLabels { client_id };
-    common_base::counter_metric_inc!(CLIENT_CONNECTION_COUNTER, labels)
+    counter_metric_inc!(CLIENT_CONNECTION_COUNTER, labels)
 }
 
 pub fn get_client_connection_counter(client_id: String) -> u64 {
     let labels = ClientConnectionLabels { client_id };
     let mut res = 0;
-    common_base::counter_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
+    counter_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
     res
 }
 

@@ -13,45 +13,47 @@
 // limitations under the License.
 
 use prometheus_client::encoding::EncodeLabelSet;
+use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
-use prometheus_client::metrics::gauge::Gauge;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::sync::{Arc, RwLock};
 
-use std::hash::Hash;
+use crate::core::server::metrics_register_default;
 
-use super::metrics_register_default;
+pub type FamilyCounter<L> = Arc<RwLock<Family<L, Counter>>>;
 
-pub type FamilyGauge<L> = Arc<RwLock<Family<L, Gauge>>>;
+// https://docs.rs/prometheus-client/0.23.1/prometheus_client/index.html
 
+// Counter
 #[macro_export]
-macro_rules! register_gauge_metric {
+macro_rules! register_counter_metric {
     ($name:ident, $metric_name:expr, $help:expr,$label:ty) => {
-        static $name: std::sync::LazyLock<common_base::metrics::gauge::FamilyGauge<$label>> =
+        static $name: std::sync::LazyLock<$crate::core::counter::FamilyCounter<$label>> =
             std::sync::LazyLock::new(|| {
-                common_base::metrics::gauge::register_int_gauge_family($metric_name, $help)
+                $crate::core::counter::register_int_counter_family($metric_name, $help)
             });
     };
 }
 
-pub fn register_int_gauge_family<L>(name: &str, help: &str) -> Arc<RwLock<Family<L, Gauge>>>
+pub fn register_int_counter_family<L>(name: &str, help: &str) -> Arc<RwLock<Family<L, Counter>>>
 where
     L: EncodeLabelSet + Eq + Clone + Hash + Debug + Sync + Send + 'static,
 {
-    let family = Family::<L, Gauge>::default();
+    let family = Family::<L, Counter>::default();
     metrics_register_default().register(name, help, family.clone());
     Arc::new(RwLock::new(family))
 }
 
 #[macro_export]
-macro_rules! gauge_metric_inc {
+macro_rules! counter_metric_inc {
     ($family:ident,$label:ident) => {{
         let family = $family.clone();
         let mut found = false;
         {
             let family_r = family.read().unwrap();
-            if let Some(gauge) = family_r.get(&$label) {
-                gauge.inc();
+            if let Some(counter) = family_r.get(&$label) {
+                counter.inc();
                 found = true;
             };
         }
@@ -63,33 +65,14 @@ macro_rules! gauge_metric_inc {
 }
 
 #[macro_export]
-macro_rules! gauge_metric_inc_by {
-    ($family:ident,$label:ident,$v:expr) => {{
-        let family = $family.clone();
-        let mut found = false;
-        {
-            let family_r = family.read().unwrap();
-            if let Some(gauge) = family_r.get(&$label) {
-                gauge.inc_by($v);
-                found = true;
-            };
-        }
-        if !found {
-            let family_w = family.write().unwrap();
-            family_w.get_or_create(&$label).inc_by($v);
-        }
-    }};
-}
-
-#[macro_export]
-macro_rules! gauge_metric_get {
+macro_rules! counter_metric_get {
     ($family:ident,$label:ident, $res:ident) => {{
         let family = $family.clone();
         let mut found = false;
         {
             let family_r = family.read().unwrap();
-            if let Some(gauge) = family_r.get(&$label) {
-                $res = gauge.get();
+            if let Some(counter) = family_r.get(&$label) {
+                $res = counter.get();
                 found = true;
             };
         }
@@ -98,25 +81,6 @@ macro_rules! gauge_metric_get {
             $res = family_w.get_or_create(&$label).get();
         }
     }};
-}
-
-#[macro_export]
-macro_rules! gauge_metrics_set {
-    ($family:ident,$label:ident,$value:expr) => {
-        let family = $family.clone();
-        let mut found = false;
-        {
-            let family_r = family.read().unwrap();
-            if let Some(gauge) = family_r.get(&$label) {
-                gauge.set($value);
-                found = true;
-            };
-        }
-        if !found {
-            let family_w = family.write().unwrap();
-            family_w.get_or_create(&$label).set($value);
-        }
-    };
 }
 
 #[cfg(test)]
@@ -130,8 +94,8 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_gauge() {
-        let family = register_int_gauge_family::<ClientConnectionLabels>(
+    async fn test_counter() {
+        let family = register_int_counter_family::<ClientConnectionLabels>(
             "client_connection",
             "client connection",
         );
@@ -140,26 +104,18 @@ mod test {
             let family = family.clone();
             let task = tokio::spawn(async move {
                 let family = family.write().unwrap();
-                let gauge = family.get_or_create(&ClientConnectionLabels {
+                let counter = family.get_or_create(&ClientConnectionLabels {
                     client_id: format!("client-{tid}"),
                 });
-                gauge.inc();
+                counter.inc();
             });
             tasks.push(task);
         }
 
+        // 逐个 `await` 任务
         while let Some(task) = tasks.pop() {
             let _ = task.await;
         }
-
-        let family = family.read().unwrap();
-
-        let gauge = family.get_or_create(&ClientConnectionLabels {
-            client_id: format!("client-{}", 0),
-        });
-
-        gauge.inc();
-        assert_eq!(gauge.get(), 2);
 
         let mut buffer = String::new();
 

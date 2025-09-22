@@ -48,7 +48,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.32"
+version = "0.1.34"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -115,7 +115,7 @@ tonic = "0.12.3"
 tonic-build = "0.12.3"
 tonic-web = "0.12.3"
 tower = "0.5.2"
-tower-http = "0.5.2"
+tower-http = { version = "0.5.2", features = ["fs", "cors"] }
 # quic
 quinn = "0.11.6"
 rcgen = "0.13.2"
@@ -209,6 +209,14 @@ pprof = { version = "0.14.0", features = ["flamegraph"] }
 
 #http
 hyper = { version = "1.6.0", features = ["server", "http1"] }
+async-trait = "0.1.88"
+env_logger = "0.10.0"
+local-ip-address = "0.6.1"
+macrotest = "1.1.0"
+proc-macro2 = "1"
+quote = "1"
+syn = "2"
+trybuild = "1.0"
 
 [profile.dev]
 overflow-checks = false

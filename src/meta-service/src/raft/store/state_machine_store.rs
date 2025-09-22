@@ -12,28 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Cursor;
-use std::sync::Arc;
-
+use super::{cf_raft_store, StorageResult, StoredSnapshot};
+use crate::raft::raft_node::types;
+use crate::raft::route::AppResponseData;
+use crate::raft::route::DataRoute;
+use crate::raft::type_config::{SnapshotData, TypeConfig};
 use common_base::tools::now_mills;
+use common_metrics::meta::raft::metrics_raft_storage_error_incr;
+use common_metrics::meta::raft::metrics_raft_storage_total_incr;
+use common_metrics::meta::raft::metrics_raft_storage_total_ms;
+use common_metrics::meta::raft::metrics_rocksdb_stroge_total_ms;
+use common_metrics::meta::raft::{
+    metrics_rocksdb_storage_err_inc, metrics_rocksdb_storage_total_inc, RocksDBLabels,
+};
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
     Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
 use rocksdb::{BoundColumnFamily, DB};
+use std::io::Cursor;
+use std::sync::Arc;
 use tracing::warn;
-
-use super::{cf_raft_store, StorageResult, StoredSnapshot};
-use crate::core::metrics::{
-    metrics_raft_storage_error_incr, metrics_raft_storage_total_incr,
-    metrics_raft_storage_total_ms, metrics_rocksdb_storage_err_inc,
-    metrics_rocksdb_storage_total_inc, metrics_rocksdb_stroge_total_ms, RocksDBLabels,
-};
-use crate::raft::raft_node::types;
-use crate::raft::route::AppResponseData;
-use crate::raft::route::DataRoute;
-use crate::raft::type_config::{SnapshotData, TypeConfig};
 
 #[derive(Clone)]
 pub struct StateMachineStore {
@@ -219,21 +219,24 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             match ent.payload {
                 EntryPayload::Blank => {}
                 EntryPayload::Normal(req) => {
-                    metrics_raft_storage_total_incr(&req.data_type);
+                    metrics_raft_storage_total_incr(req.data_type.to_string());
                     let start_ms = now_mills();
                     match self.data.route.route(req.clone()).await {
                         Ok(data) => {
                             resp_value = data;
                         }
                         Err(e) => {
-                            metrics_raft_storage_error_incr(&req.data_type);
+                            metrics_raft_storage_error_incr(req.data_type.to_string());
                             warn!(
                                 "Raft route failed to process message with error message: {},req:{:?}",
                                 e, req.data_type
                             );
                         }
                     }
-                    metrics_raft_storage_total_ms(&req.data_type, (now_mills() - start_ms) as f64);
+                    metrics_raft_storage_total_ms(
+                        req.data_type.to_string(),
+                        (now_mills() - start_ms) as f64,
+                    );
                 }
                 EntryPayload::Membership(mem) => {
                     self.data.last_membership = StoredMembership::new(Some(ent.log_id), mem);

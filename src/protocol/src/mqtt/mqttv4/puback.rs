@@ -72,6 +72,6 @@ mod tests {
         assert_eq!(puback_read.reason, puback.reason);
 
         // test the display function of puback
-        println!("puback display: {puback_read}");
+        assert_eq!(puback.to_string(), puback_read.to_string());
     }
 }
