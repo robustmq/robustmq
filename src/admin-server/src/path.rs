@@ -95,7 +95,7 @@ pub const API_PREFIX: &str = "/api";
 
 /// Build full API path with prefix
 pub fn api_path(path: &str) -> String {
-    format!("{}{}", API_PREFIX, path)
+    format!("{API_PREFIX}{path}")
 }
 
 #[cfg(test)]

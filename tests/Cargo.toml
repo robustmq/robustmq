@@ -51,4 +51,4 @@ rustls-pemfile.workspace = true
 admin-server.workspace = true
 uuid.workspace = true
 network-server.workspace = true
-futures-util = "0.3.31"
+futures-util = { workspace = true }

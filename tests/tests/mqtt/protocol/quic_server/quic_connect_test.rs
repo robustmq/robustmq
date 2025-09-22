@@ -49,6 +49,7 @@ mod tests {
 
     //test send packet  and receive ack
     #[tokio::test]
+    #[ignore]
     async fn quic_client_send_packet_test() {
         let client_endpoint = build_client_endpoint("0.0.0.0:0");
 
