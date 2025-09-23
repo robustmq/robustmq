@@ -1009,6 +1009,7 @@ dependencies = [
  "prometheus-client",
  "protocol",
  "tokio",
+ "tonic",
  "tracing",
 ]
 

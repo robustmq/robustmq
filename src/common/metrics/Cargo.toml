@@ -25,6 +25,7 @@ hyper.workspace = true
 axum.workspace = true
 bytes.workspace = true
 tracing.workspace = true
+tonic.workspace = true
 common-base.workspace = true
 prometheus-client.workspace = true
 protocol.workspace = true

@@ -17,7 +17,10 @@ use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
-use common_metrics::grpc::{metrics_grpc_request_incr, metrics_grpc_request_ms};
+use common_metrics::grpc::{
+    extract_grpc_status_code, parse_grpc_path, record_grpc_connection_end, 
+    record_grpc_connection_start, record_grpc_request,
+};
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
 use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
@@ -215,7 +218,20 @@ where
     }
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
-        let paths = parse_path(req.uri().path());
+        // Record connection start
+        record_grpc_connection_start();
+        
+        // Parse gRPC path safely
+        let (service, method) = parse_grpc_path(req.uri().path())
+            .unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
+        
+        // Extract request size if available
+        let request_size = req
+            .headers()
+            .get("content-length")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|s| s.parse::<f64>().ok());
+        
         // See: https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
@@ -223,40 +239,81 @@ where
         Box::pin(async move {
             let start_time = now_mills();
 
-            // call
-            let response = inner.call(req).await?;
+            // Process the request
+            let response = inner.call(req).await;
+            let duration_ms = (now_mills() - start_time) as f64;
 
-            metrics_grpc_request_ms(
-                paths.0.as_str(),
-                paths.1.as_str(),
-                (now_mills() - start_time) as f64,
-            );
-
-            metrics_grpc_request_incr(paths.0.as_str(), paths.1.as_str());
-            Ok(response)
+            match response {
+                Ok(resp) => {
+                    // Extract response size if available
+                    let response_size = resp
+                        .headers()
+                        .get("content-length")
+                        .and_then(|h| h.to_str().ok())
+                        .and_then(|s| s.parse::<f64>().ok());
+                    
+                    // Extract gRPC status code from response headers
+                    let status_code = extract_grpc_status_code(resp.headers());
+                    
+                    // Record comprehensive gRPC metrics
+                    record_grpc_request(
+                        service,
+                        method,
+                        status_code,
+                        duration_ms,
+                        request_size,
+                        response_size,
+                    );
+                    
+                    // Record connection end
+                    record_grpc_connection_end();
+                    
+                    Ok(resp)
+                }
+                Err(err) => {
+                    // Record error metrics
+                    record_grpc_request(
+                        service,
+                        method,
+                        "INTERNAL".to_string(),
+                        duration_ms,
+                        request_size,
+                        None,
+                    );
+                    
+                    // Record connection end
+                    record_grpc_connection_end();
+                    
+                    Err(err)
+                }
+            }
         })
     }
 }
 
-fn parse_path(uri: &str) -> (String, String) {
-    let paths: Vec<&str> = uri.split("/").collect();
-    (paths[1].to_string(), paths[2].to_string())
-}
 
 #[cfg(test)]
 mod test {
-    use crate::grpc::parse_path;
+    use super::*;
 
     #[tokio::test]
     async fn parse_path_test() {
-        let path = "/placement.center.kv.KvService/exists";
-        let paths = parse_path(path);
-        assert_eq!(paths.0, "placement.center.kv.KvService");
-        assert_eq!(paths.1, "exists");
+        // Test the new parse_grpc_path function
+        let result = parse_grpc_path("/placement.center.kv.KvService/exists");
+        assert!(result.is_ok());
+        let (service, method) = result.unwrap();
+        assert_eq!(service, "placement.center.kv.KvService");
+        assert_eq!(method, "exists");
 
-        let path = "/placement.center.kv.KvService/get";
-        let paths = parse_path(path);
-        assert_eq!(paths.0, "placement.center.kv.KvService");
-        assert_eq!(paths.1, "get");
+        let result = parse_grpc_path("/placement.center.kv.KvService/get");
+        assert!(result.is_ok());
+        let (service, method) = result.unwrap();
+        assert_eq!(service, "placement.center.kv.KvService");
+        assert_eq!(method, "get");
+        
+        // Test error cases
+        let result = parse_grpc_path("/invalid");
+        assert!(result.is_err());
     }
+
 }
