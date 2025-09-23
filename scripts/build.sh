@@ -498,7 +498,7 @@ build_server_component() {
     fi
 
     # Copy frontend build results
-    local copilot_dist_dir="${PROJECT_ROOT}/../robustmq-copilot/packages/web-ui/dist"
+    local copilot_dist_dir="${PROJECT_ROOT}/build/robustmq-copilot/packages/web-ui/dist"
     if [ -d "$copilot_dist_dir" ]; then
         log_info "Copying frontend build results to package..."
         cp -r "$copilot_dist_dir/"* "$package_path/dist/" 2>/dev/null || true
