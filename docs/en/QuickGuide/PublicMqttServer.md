@@ -21,7 +21,7 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 
 ### Management Interface
 
-- **Dashboard**: <http://117.72.92.117:3000/>
+- **Dashboard**: <http://117.72.92.117:8080/>
 
 ![Dashboard](../../images/dashboard.png)
 

@@ -21,7 +21,7 @@
 
 ### 管理界面
 
-- **Dashboard**: <http://117.72.92.117:3000/>
+- **Dashboard**: <http://117.72.92.117:8080/>
 
 ![Dashboard](../../images/dashboard.png)
 
