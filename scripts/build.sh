@@ -292,7 +292,7 @@ build_frontend() {
     
     log_step "Building frontend web UI"
     
-    local copilot_dir="${PROJECT_ROOT}/../robustmq-copilot"
+    local copilot_dir="${PROJECT_ROOT}/build/robustmq-copilot"
     local dist_dir="${copilot_dir}/packages/web-ui/dist"
     
     # Check if robustmq-copilot directory exists
@@ -334,19 +334,48 @@ build_frontend() {
     (
         cd "$copilot_dir" || exit 1
         
-        # Install dependencies if node_modules doesn't exist
-        if [ ! -d "node_modules" ]; then
-            log_info "Installing frontend dependencies..."
-            if ! pnpm install; then
-                log_error "Failed to install frontend dependencies"
-                exit 1
+        # Update to latest code first
+        log_info "Updating robustmq-copilot to latest version..."
+        if ! git pull; then
+            log_warning "Failed to update robustmq-copilot, continuing with current version"
+        fi
+        
+        # Update submodules if they exist
+        if [ -f ".gitmodules" ]; then
+            log_info "Updating git submodules..."
+            if ! git submodule update --init --recursive; then
+                log_warning "Failed to update submodules, continuing anyway"
             fi
         fi
         
-        # Build the frontend
-        log_info "Running: pnpm ui:build"
+        # Clean all caches first to ensure fresh build
+        log_info "Cleaning all build caches and artifacts..."
+        rm -rf packages/web-ui/dist
+        rm -rf packages/web-ui/node_modules/.cache
+        rm -rf packages/web-ui/.rsbuild
+        rm -rf node_modules/.cache
+        
+        # Always install/update dependencies to ensure they match the latest code
+        log_info "Installing/updating frontend dependencies..."
+        if ! pnpm install --frozen-lockfile=false; then
+            log_error "Failed to install frontend dependencies"
+            exit 1
+        fi
+        
+        # Force clean install for web-ui package specifically
+        log_info "Force reinstalling web-ui dependencies..."
+        (cd packages/web-ui && pnpm install --force)
+        
+        # Build the frontend with clean slate
+        log_info "Running: pnpm ui:build (clean build)"
         if ! pnpm ui:build; then
             log_error "Failed to build frontend"
+            log_error "Build failed. Common issues:"
+            log_error "  - Node.js version incompatibility (requires >= 20.0)"
+            log_error "  - TypeScript compilation errors"
+            log_error "  - Missing environment variables"
+            log_error "  - Build configuration issues"
+            log_error "Debug: Check packages/web-ui/rsbuild.config.ts"
             exit 1
         fi
     )
@@ -469,7 +498,7 @@ build_server_component() {
     fi
 
     # Copy frontend build results
-    local copilot_dist_dir="${PROJECT_ROOT}/../robustmq-copilot/packages/web-ui/dist"
+    local copilot_dist_dir="${PROJECT_ROOT}/build/robustmq-copilot/packages/web-ui/dist"
     if [ -d "$copilot_dist_dir" ]; then
         log_info "Copying frontend build results to package..."
         cp -r "$copilot_dist_dir/"* "$package_path/dist/" 2>/dev/null || true
@@ -505,9 +534,6 @@ EOF
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Calculate checksum
-    (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
 
     # Clean up directory
     rm -rf "$package_path"
@@ -615,9 +641,6 @@ EOF
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Calculate checksum
-    (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
 
     # Clean up directory
     rm -rf "$package_path"

@@ -220,6 +220,14 @@ pprof = { version = "0.14.0", features = ["flamegraph"] }
 
 #http
 hyper = { version = "1.6.0", features = ["server", "http1"] }
+async-trait = "0.1.88"
+env_logger = "0.10.0"
+local-ip-address = "0.6.1"
+macrotest = "1.1.0"
+proc-macro2 = "1"
+quote = "1"
+syn = "2"
+trybuild = "1.0"
 
 [profile.dev]
 overflow-checks = false

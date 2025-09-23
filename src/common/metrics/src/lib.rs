@@ -13,8 +13,10 @@
 // limitations under the License.
 
 pub mod broker;
+pub mod common;
 pub mod core;
 pub mod grpc;
+pub mod http;
 pub mod meta;
 pub mod mqtt;
 pub mod network;

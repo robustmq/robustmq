@@ -122,6 +122,10 @@ impl NetworkConnection {
             || self.connection_type == NetworkConnectionType::Tls
     }
 
+    pub fn is_quic(&self) -> bool {
+        self.connection_type == NetworkConnectionType::QUIC
+    }
+
     pub async fn stop_connection(&self) {
         if let Some(sx) = self.connection_stop_sx.clone() {
             match sx.send(true).await {

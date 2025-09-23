@@ -6,7 +6,7 @@
 
 ### 1. Get Cluster Configuration
 
-- **Endpoint**: `POST /cluster/config/get`
+- **Endpoint**: `POST /api/cluster/config/get`
 - **Description**: Get current cluster configuration information
 - **Request Parameters**:
 ```json
@@ -65,7 +65,7 @@
 
 ### 2. Set Cluster Configuration
 
-- **Endpoint**: `POST /cluster/config/set`
+- **Endpoint**: `POST /api/cluster/config/set`
 - **Description**: Set cluster configuration
 - **Request Parameters**:
 ```json
@@ -90,7 +90,7 @@
 
 ### Get Cluster Configuration
 ```bash
-curl -X POST http://localhost:8080/cluster/config/get \
+curl -X POST http://localhost:8080/api/cluster/config/get \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
@@ -98,7 +98,7 @@ curl -X POST http://localhost:8080/cluster/config/get \
 ### Set Cluster Configuration
 ```bash
 # Set offline message feature
-curl -X POST http://localhost:8080/cluster/config/set \
+curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "broker",
@@ -108,7 +108,7 @@ curl -X POST http://localhost:8080/cluster/config/set \
 
 ### Enable System Monitoring
 ```bash
-curl -X POST http://localhost:8080/cluster/config/set \
+curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "broker", 
@@ -118,7 +118,7 @@ curl -X POST http://localhost:8080/cluster/config/set \
 
 ### Configure Flapping Detection
 ```bash
-curl -X POST http://localhost:8080/cluster/config/set \
+curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "broker",
@@ -172,6 +172,6 @@ curl -X POST http://localhost:8080/cluster/config/set \
 
 ---
 
-*Documentation Version: v3.0*  
-*Last Updated: 2024-01-01*  
-*Based on Code Version: RobustMQ Admin Server v0.1.31*
+*Documentation Version: v4.0*  
+*Last Updated: 2025-09-20*  
+*Based on Code Version: RobustMQ Admin Server v0.1.34*

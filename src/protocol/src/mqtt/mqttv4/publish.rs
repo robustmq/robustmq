@@ -95,6 +95,6 @@ mod tests {
         assert_eq!(publish_msg.payload, "test_payload");
 
         // test the display of publish packet
-        println!("publish display: {publish}");
+        assert_eq!(publish.to_string(), publish_msg.to_string());
     }
 }

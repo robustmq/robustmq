@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod counter;
-pub mod gauge;
-pub mod histogram;
-pub mod server;
+#[cfg(test)]
+mod codec_test {
+
+    // 1. 构建基本的测试内容
+    // 2. 对
+    #[tokio::test]
+    async fn test_decode_data_by_mqtt_4() {}
+}

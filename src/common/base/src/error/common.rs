@@ -51,6 +51,12 @@ pub enum CommonError {
     QuinnReadToEndError(#[from] ReadToEndError),
 
     #[error("{0}")]
+    QuinnReadError(#[from] quinn::ReadError),
+
+    #[error("{0}")]
+    QuinnReadExactError(#[from] quinn::ReadExactError),
+
+    #[error("{0}")]
     FromSerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod counter;
-pub mod gauge;
-pub mod histogram;
-pub mod server;
+pub fn histogram_default_ms() -> Vec<f64> {
+    vec![
+        1.0, 5.0, 10.0, 30.0, 50.0, 100.0, 200.0, 500.0, 700.0, 1000.0, 1500.0, 2000.0, 5000.0,
+        10000.0, 200000.0, 30000.0, 60000.0,
+    ]
+}

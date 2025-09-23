@@ -44,7 +44,7 @@ fn gen_convert_rewrite_name(
 ) -> Result<Option<String>, MqttBrokerError> {
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    println!("{:?}", rules);
+    println!("{rules:?}");
     let mut new_topic_name = "".to_string();
     for rule in rules.iter() {
         let allow = rule.action != TopicRewriteActionEnum::All.to_string()
@@ -178,7 +178,7 @@ mod tests {
                 convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic.to_string());
             assert!(result.is_ok());
             if let Some(dst_topic) = result.unwrap() {
-                println!("{:?}", src_topic);
+                println!("{src_topic:?}");
                 assert_eq!(dst_topic, DST_TOPICS[index]);
             } else {
                 assert_eq!(src_topic.to_owned(), DST_TOPICS[index]);

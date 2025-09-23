@@ -39,9 +39,12 @@ version = "0.1.34"
 dependencies = [
  "axum",
  "broker-core",
+ "chrono",
  "common-base",
  "common-config",
+ "common-metrics",
  "grpc-clients",
+ "lazy_static",
  "metadata-struct",
  "mockall",
  "mqtt-broker",
@@ -5240,10 +5243,12 @@ dependencies = [
  "common-config",
  "dashmap",
  "futures",
+ "futures-util",
  "grpc-clients",
  "journal-client",
  "metadata-struct",
  "mqtt-broker",
+ "network-server",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
@@ -5259,6 +5264,7 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

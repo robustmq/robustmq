@@ -224,7 +224,7 @@ mod tests {
         };
 
         // test the write function of PubAck in v5
-        write(&puback, &Some(properties), &mut buffer).unwrap();
+        write(&puback.clone(), &Some(properties.clone()), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
@@ -233,11 +233,12 @@ mod tests {
         assert_eq!(fixed_header.remaining_len, 51);
 
         // test the read function of puback packet and check the result of write function in MQTT v5
-        let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(x.pkid, 20u16);
-        assert_eq!(x.reason.unwrap(), PubAckReason::NotAuthorized);
+        let (pub_ack_read, option_pub_ack_properties) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(pub_ack_read.pkid, 20u16);
+        assert_eq!(pub_ack_read.reason.unwrap(), PubAckReason::NotAuthorized);
 
-        let puback_properties = y.unwrap();
+        let puback_properties = option_pub_ack_properties.clone().unwrap();
         assert_eq!(
             puback_properties.reason_string,
             Some("user authorization failed".to_string())
@@ -248,7 +249,10 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        println!("puback is {puback}");
-        println!("puback_properties is {puback_properties}");
+        assert_eq!(puback.clone().to_string(), pub_ack_read.clone().to_string());
+        assert_eq!(
+            properties.clone().to_string(),
+            puback_properties.clone().to_string()
+        );
     }
 }

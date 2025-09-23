@@ -375,6 +375,10 @@ pub async fn send_message_to_client(
         connection_manager
             .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))
             .await?;
+    } else if connection_manager.is_quic(resp.connection_id) {
+        connection_manager
+            .write_quic_frame(resp.connection_id, response)
+            .await?;
     } else {
         connection_manager
             .write_tcp_frame(resp.connection_id, response)

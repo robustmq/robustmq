@@ -472,7 +472,7 @@ mod tests {
         };
 
         // test write function of connack in v5
-        write(&connack, &Some(properties), &mut buffer).unwrap();
+        write(&connack, &Some(properties.clone()), &mut buffer).unwrap();
 
         // read the fixed header
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
@@ -495,7 +495,7 @@ mod tests {
         assert_eq!(connack_properties.max_qos, Some(1u8));
         assert_eq!(connack_properties.retain_available, Some(1u8));
 
-        println!("connack in v5 {connack_read}");
-        println!("connack_properties in v5 {connack_properties}");
+        assert_eq!(connack.to_string(), connack_read.to_string());
+        assert_eq!(properties.to_string(), connack_properties.to_string());
     }
 }

@@ -134,6 +134,13 @@ impl ConnectionManager {
         false
     }
 
+    pub fn is_quic(&self, connect_id: u64) -> bool {
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return connect.connection_type == NetworkConnectionType::QUIC;
+        }
+        false
+    }
+
     pub fn get_tcp_connect_num_check(&self) -> u64 {
         0
     }
@@ -209,6 +216,45 @@ impl ConnectionManager {
         if packet_wrapper.protocol.is_kafka() {
             // todo
         }
+        Ok(())
+    }
+
+    pub async fn write_quic_frame(
+        &self,
+        connection_id: u64,
+        packet_wrapper: RobustMQPacketWrapper,
+    ) -> ResultCommonError {
+        if !is_ignore_print(&packet_wrapper.packet) {
+            info!("Quic response packet:{packet_wrapper:?},connection_id:{connection_id}");
+        }
+
+        let _network_type = if let Some(connection) = self.get_connect(connection_id) {
+            connection.connection_type.to_string()
+        } else {
+            "".to_string()
+        };
+
+        if packet_wrapper.protocol.is_mqtt() {
+            if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
+                let mqtt_packet = MqttPacketWrapper {
+                    protocol_version: packet_wrapper.protocol.to_u8(),
+                    packet: pack,
+                };
+                match self.write_mqtt_quic_frame(connection_id, mqtt_packet).await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        if packet_wrapper.protocol.is_kafka() {
+            // todo
+        }
+
         Ok(())
     }
 }
@@ -355,7 +401,7 @@ impl ConnectionManager {
                         Err(e) => {
                             if times > self.lock_max_try_mut_times {
                                 return Err(CommonError::FailedToWriteClient(
-                                    "tcp".to_string(),
+                                    "tls".to_string(),
                                     e.to_string(),
                                 ));
                             }
@@ -366,6 +412,48 @@ impl ConnectionManager {
                     if times > self.lock_max_try_mut_times {
                         return Err(CommonError::NotObtainAvailableConnection(
                             "tcp".to_string(),
+                            connection_id,
+                        ));
+                    }
+                }
+                dashmap::try_result::TryResult::Locked => {}
+            }
+            times += 1;
+            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
+        }
+        Ok(())
+    }
+
+    async fn write_mqtt_quic_frame(
+        &self,
+        connection_id: u64,
+        resp: MqttPacketWrapper,
+    ) -> ResultCommonError {
+        let mut times = 0;
+        loop {
+            match self.quic_write_list.try_get_mut(&connection_id) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    match da
+                        .send(RobustMQCodecWrapper::MQTT(resp.clone()).clone())
+                        .await
+                    {
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(e) => {
+                            if times > self.lock_max_try_mut_times {
+                                return Err(CommonError::FailedToWriteClient(
+                                    "quic".to_string(),
+                                    e.to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    if times > self.lock_max_try_mut_times {
+                        return Err(CommonError::NotObtainAvailableConnection(
+                            "quic".to_string(),
                             connection_id,
                         ));
                     }

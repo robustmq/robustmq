@@ -268,5 +268,5 @@ pub fn storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name: &str) -> String
 }
 
 fn prefix_key(key: String) -> String {
-    format!("/meta/{}", key)
+    format!("/meta/{key}")
 }

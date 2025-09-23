@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use protocol::codec::RobustMQCodec;
 use protocol::codec::RobustMQCodecWrapper;
 use quinn::{RecvStream, SendStream};
+use tokio::io::AsyncReadExt;
 use tokio_util::codec::{Decoder, Encoder};
+use tracing::{debug, info};
 
 // Write Stream
 pub struct QuicFramedWriteStream {
@@ -37,11 +39,19 @@ impl QuicFramedWriteStream {
     pub async fn send(&mut self, packet: RobustMQCodecWrapper) -> ResultCommonError {
         let mut bytes_mut = BytesMut::new();
         self.codec.encode(packet, &mut bytes_mut)?;
+        let data_length = bytes_mut.len();
+
+        debug!(
+            "send stream data len: {}, data: {:x?}",
+            data_length, &bytes_mut
+        );
+
+        let mut buf = BytesMut::with_capacity(4 + data_length);
+        buf.put_u32(data_length as u32);
+        buf.put_slice(&bytes_mut);
 
         if !bytes_mut.is_empty() {
-            self.write_stream.write_all(bytes_mut.as_mut()).await?;
-            self.write_stream.finish()?;
-            self.write_stream.stopped().await?;
+            self.write_stream.write_all(&buf).await?;
         }
         Ok(())
     }
@@ -60,9 +70,20 @@ impl QuicFramedReadStream {
 
     #[allow(clippy::result_large_err)]
     pub async fn receive(&mut self) -> Result<Option<RobustMQCodecWrapper>, CommonError> {
-        let mut decode_bytes = BytesMut::with_capacity(0);
-        let vec = self.read_stream.read_to_end(1024).await?;
-        decode_bytes.extend(vec);
+        let data_length = self.read_stream.read_u32().await? as usize;
+        info!("Expected to read {} bytes from stream", data_length);
+
+        let mut body = vec![0u8; data_length];
+        let mut decode_bytes = BytesMut::with_capacity(data_length);
+
+        self.read_stream.read_exact(&mut body).await?;
+        decode_bytes.extend_from_slice(&body);
+
+        debug!(
+            "read stream data len: {}, data: {:?}",
+            decode_bytes.len(),
+            decode_bytes
+        );
 
         if !decode_bytes.is_empty() {
             return self.codec.decode(&mut decode_bytes);

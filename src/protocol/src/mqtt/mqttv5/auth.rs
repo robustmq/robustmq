@@ -266,7 +266,7 @@ mod tests {
         };
 
         // test the write function of Auth in v5
-        write(&auth, &Some(properties), &mut buffer).unwrap();
+        write(&auth, &Some(properties.clone()), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
@@ -275,8 +275,11 @@ mod tests {
         assert_eq!(fixed_header.remaining_len, 88);
 
         // test the read function of pubrec packet and check the result of write function in MQTT v5
-        let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(x.reason.unwrap(), AuthReason::ContinueAuthentication);
+        let (auth_read, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(
+            auth_read.reason.unwrap(),
+            AuthReason::ContinueAuthentication
+        );
 
         let auth_properties = y.unwrap();
         assert_eq!(
@@ -289,7 +292,7 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        println!("auth is {auth}");
-        println!("auth_properties is {auth_properties}");
+        assert_eq!(auth.to_string(), auth_read.to_string());
+        assert_eq!(properties.clone().to_string(), auth_properties.to_string());
     }
 }

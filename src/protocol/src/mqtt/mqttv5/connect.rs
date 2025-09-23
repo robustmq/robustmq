@@ -663,10 +663,10 @@ mod tests {
         // test the write method of connect packet in v5
         write(
             &connect,
-            &Some(properties),
-            &Some(lastwill),
-            &Some(will_properties),
-            &Some(login),
+            &Some(properties.clone()),
+            &Some(lastwill.clone()),
+            &Some(will_properties.clone()),
+            &Some(login.clone()),
             &mut buffer,
         )
         .unwrap();
@@ -680,20 +680,13 @@ mod tests {
         assert_eq!(fixedheader.fixed_header_len, 3);
         assert!(fixedheader.remaining_len == 273);
         // test the read method of connect packet in v5 and verify the result of the write method
-        let ConnectReadOutcome {
-            protocol_version: _,
-            connect,
-            properties: connectproperties,
-            last_will,
-            last_will_properties,
-            login,
-        } = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        let outcome = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
 
         assert_eq!(connect.client_id, "test_client_id");
         assert_eq!(connect.keep_alive, 30u16);
         assert!(connect.clean_session);
 
-        let connect_properties = connectproperties.unwrap();
+        let connect_properties = outcome.properties.clone().unwrap();
         assert_eq!(connect_properties.session_expiry_interval, Some(30u32));
         assert_eq!(connect_properties.receive_maximum, Some(1024u16));
         assert_eq!(connect_properties.max_packet_size, Some(2048u32));
@@ -713,17 +706,17 @@ mod tests {
             Some(Bytes::from("client-first-data"))
         );
 
-        let login_read = login.unwrap();
+        let login_read = outcome.login.clone().unwrap();
         assert_eq!(login_read.username, "test_user");
         assert_eq!(login_read.password, "test_password");
 
-        let lastwill_read = last_will.unwrap();
+        let lastwill_read = outcome.last_will.clone().unwrap();
         assert_eq!(lastwill_read.topic, "will_topic");
         assert_eq!(lastwill_read.message, "will_message");
         assert_eq!(lastwill_read.qos, QoS::AtLeastOnce);
         assert!(lastwill_read.retain);
 
-        let lastwillproperties_read = last_will_properties.unwrap();
+        let lastwillproperties_read = outcome.last_will_properties.clone().unwrap();
         assert_eq!(lastwillproperties_read.delay_interval, Some(60u32));
         assert_eq!(lastwillproperties_read.payload_format_indicator, Some(1u8));
         assert_eq!(lastwillproperties_read.message_expiry_interval, Some(60u32));
@@ -744,12 +737,14 @@ mod tests {
             &("will_user".to_string(), "peter".to_string())
         );
 
-        println!("connect in v5 display starts...........................");
-        print!("{connect_properties}");
-        print!("{login_read}");
-        print!("{connect}");
-        print!("{lastwill_read}");
-        println!("{lastwillproperties_read}");
-        println!("connect in v5 display ends.............................");
+        // test the display of connect and connect_properties in v5
+        assert_eq!(connect.to_string(), outcome.connect.to_string());
+        assert_eq!(login.clone().to_string(), login_read.clone().to_string());
+        assert_eq!(properties.to_string(), connect_properties.to_string());
+        assert_eq!(lastwill.clone().to_string(), lastwill_read.to_string());
+        assert_eq!(
+            will_properties.clone().to_string(),
+            lastwillproperties_read.to_string()
+        );
     }
 }
