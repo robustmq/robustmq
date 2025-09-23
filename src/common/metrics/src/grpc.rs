@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc, histogram_metric_observe, register_counter_metric, 
-    register_gauge_metric, register_histogram_metric_ms_with_default_buckets,
+    gauge_metric_inc, histogram_metric_observe, register_counter_metric, register_gauge_metric,
+    register_histogram_metric_ms_with_default_buckets,
 };
 use prometheus_client::encoding::EncodeLabelSet;
 
@@ -90,7 +90,6 @@ register_counter_metric!(
     GrpcLabel
 );
 
-
 // === New Enhanced Functions ===
 
 /// Record a complete gRPC request with all metrics
@@ -109,7 +108,7 @@ pub fn record_grpc_request(
         status_code: status_code.clone(),
     };
     gauge_metric_inc!(GRPC_REQUESTS_TOTAL, full_label);
-    
+
     // Record duration
     let basic_label = GrpcBasicLabel {
         service: service.clone(),
@@ -121,7 +120,7 @@ pub fn record_grpc_request(
         method: method.clone(),
     };
     gauge_metric_inc!(GRPC_REQUEST_DURATION_COUNT, count_label);
-    
+
     // Record request/response sizes if provided
     if let Some(req_size) = request_size_bytes {
         let req_label = GrpcBasicLabel {
@@ -137,7 +136,7 @@ pub fn record_grpc_request(
         };
         histogram_metric_observe!(GRPC_RESPONSE_SIZE_BYTES, resp_size, resp_label);
     }
-    
+
     // Record errors for non-OK status codes
     if status_code != "OK" {
         let error_label = GrpcLabel {
@@ -163,9 +162,9 @@ pub fn record_grpc_connection_end() {
 
 /// Record gRPC request duration only
 pub fn record_grpc_request_duration(service: String, method: String, duration_ms: f64) {
-    let label = GrpcBasicLabel { 
-        service: service.clone(), 
-        method: method.clone() 
+    let label = GrpcBasicLabel {
+        service: service.clone(),
+        method: method.clone(),
     };
     histogram_metric_observe!(GRPC_REQUEST_DURATION_MS, duration_ms, label);
     let count_label = GrpcBasicLabel { service, method };
@@ -186,7 +185,7 @@ pub fn record_grpc_error(service: String, method: String, status_code: String) {
 pub fn parse_grpc_path(uri: &str) -> Result<(String, String), &'static str> {
     let path = uri.trim_start_matches('/');
     let parts: Vec<&str> = path.split('/').collect();
-    
+
     if parts.len() >= 2 && !parts[0].is_empty() && !parts[1].is_empty() {
         Ok((parts[0].to_string(), parts[1].to_string()))
     } else {
@@ -252,7 +251,6 @@ pub fn extract_grpc_status_code_from_metadata(headers: &tonic::metadata::Metadat
         .to_string()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -264,16 +262,16 @@ mod tests {
             method: "get".to_string(),
             status_code: "OK".to_string(),
         };
-        
+
         let basic_label = GrpcBasicLabel {
             service: "placement.center.kv.KvService".to_string(),
             method: "get".to_string(),
         };
-        
+
         assert_eq!(full_label.service, "placement.center.kv.KvService");
         assert_eq!(full_label.method, "get");
         assert_eq!(full_label.status_code, "OK");
-        
+
         assert_eq!(basic_label.service, "placement.center.kv.KvService");
         assert_eq!(basic_label.method, "get");
     }
@@ -283,14 +281,20 @@ mod tests {
         // Test valid paths
         assert_eq!(
             parse_grpc_path("/placement.center.kv.KvService/get"),
-            Ok(("placement.center.kv.KvService".to_string(), "get".to_string()))
+            Ok((
+                "placement.center.kv.KvService".to_string(),
+                "get".to_string()
+            ))
         );
-        
+
         assert_eq!(
             parse_grpc_path("/mqtt.service.MqttService/publish"),
-            Ok(("mqtt.service.MqttService".to_string(), "publish".to_string()))
+            Ok((
+                "mqtt.service.MqttService".to_string(),
+                "publish".to_string()
+            ))
         );
-        
+
         // Test invalid paths
         assert!(parse_grpc_path("/").is_err());
         assert!(parse_grpc_path("/service").is_err());
@@ -302,20 +306,20 @@ mod tests {
     fn test_extract_grpc_status_code() {
         use axum::http::HeaderMap;
         let mut headers = HeaderMap::new();
-        
+
         // Test default (no header)
         assert_eq!(extract_grpc_status_code(&headers), "OK");
-        
+
         // Test various status codes
         headers.insert("grpc-status", "0".parse().unwrap());
         assert_eq!(extract_grpc_status_code(&headers), "OK");
-        
+
         headers.insert("grpc-status", "3".parse().unwrap());
         assert_eq!(extract_grpc_status_code(&headers), "INVALID_ARGUMENT");
-        
+
         headers.insert("grpc-status", "13".parse().unwrap());
         assert_eq!(extract_grpc_status_code(&headers), "INTERNAL");
-        
+
         headers.insert("grpc-status", "999".parse().unwrap());
         assert_eq!(extract_grpc_status_code(&headers), "UNKNOWN");
     }
@@ -323,20 +327,23 @@ mod tests {
     #[test]
     fn test_extract_grpc_status_code_from_metadata() {
         let mut headers = tonic::metadata::MetadataMap::new();
-        
+
         // Test default (no header)
         assert_eq!(extract_grpc_status_code_from_metadata(&headers), "OK");
-        
+
         // Test various status codes
         headers.insert("grpc-status", "0".parse().unwrap());
         assert_eq!(extract_grpc_status_code_from_metadata(&headers), "OK");
-        
+
         headers.insert("grpc-status", "3".parse().unwrap());
-        assert_eq!(extract_grpc_status_code_from_metadata(&headers), "INVALID_ARGUMENT");
-        
+        assert_eq!(
+            extract_grpc_status_code_from_metadata(&headers),
+            "INVALID_ARGUMENT"
+        );
+
         headers.insert("grpc-status", "13".parse().unwrap());
         assert_eq!(extract_grpc_status_code_from_metadata(&headers), "INTERNAL");
-        
+
         headers.insert("grpc-status", "999".parse().unwrap());
         assert_eq!(extract_grpc_status_code_from_metadata(&headers), "UNKNOWN");
     }
@@ -352,7 +359,7 @@ mod tests {
             Some(1024.0),
             Some(2048.0),
         );
-        
+
         // Test error request
         record_grpc_request(
             "test.Service".to_string(),
@@ -372,11 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_duration_recording() {
-        record_grpc_request_duration(
-            "test.Service".to_string(),
-            "testMethod".to_string(),
-            75.0,
-        );
+        record_grpc_request_duration("test.Service".to_string(), "testMethod".to_string(), 75.0);
     }
 
     #[tokio::test]

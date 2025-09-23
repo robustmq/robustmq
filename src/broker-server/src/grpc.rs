@@ -18,7 +18,7 @@ use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
 use common_metrics::grpc::{
-    extract_grpc_status_code, parse_grpc_path, record_grpc_connection_end, 
+    extract_grpc_status_code, parse_grpc_path, record_grpc_connection_end,
     record_grpc_connection_start, record_grpc_request,
 };
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
@@ -220,18 +220,18 @@ where
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
         // Record connection start
         record_grpc_connection_start();
-        
+
         // Parse gRPC path safely
         let (service, method) = parse_grpc_path(req.uri().path())
             .unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
-        
+
         // Extract request size if available
         let request_size = req
             .headers()
             .get("content-length")
             .and_then(|h| h.to_str().ok())
             .and_then(|s| s.parse::<f64>().ok());
-        
+
         // See: https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
@@ -251,10 +251,10 @@ where
                         .get("content-length")
                         .and_then(|h| h.to_str().ok())
                         .and_then(|s| s.parse::<f64>().ok());
-                    
+
                     // Extract gRPC status code from response headers
                     let status_code = extract_grpc_status_code(resp.headers());
-                    
+
                     // Record comprehensive gRPC metrics
                     record_grpc_request(
                         service,
@@ -264,10 +264,10 @@ where
                         request_size,
                         response_size,
                     );
-                    
+
                     // Record connection end
                     record_grpc_connection_end();
-                    
+
                     Ok(resp)
                 }
                 Err(err) => {
@@ -280,17 +280,16 @@ where
                         request_size,
                         None,
                     );
-                    
+
                     // Record connection end
                     record_grpc_connection_end();
-                    
+
                     Err(err)
                 }
             }
         })
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -310,10 +309,9 @@ mod test {
         let (service, method) = result.unwrap();
         assert_eq!(service, "placement.center.kv.KvService");
         assert_eq!(method, "get");
-        
+
         // Test error cases
         let result = parse_grpc_path("/invalid");
         assert!(result.is_err());
     }
-
 }

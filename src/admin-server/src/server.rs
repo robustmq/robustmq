@@ -197,7 +197,7 @@ async fn base_middleware(
 ) -> Response {
     // Record connection start for active connection tracking
     record_http_connection_start();
-    
+
     let start = Instant::now();
     let client_ip = extract_client_ip(&headers, addr);
     let user_agent = headers
@@ -208,18 +208,18 @@ async fn base_middleware(
         .get("referer")
         .and_then(|h| h.to_str().ok())
         .unwrap_or("-");
-    
+
     // Extract request size from Content-Length header
     let request_size = headers
         .get("content-length")
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<f64>().ok());
-    
+
     // Process the request
     let response = next.run(request).await;
     let duration = start.elapsed();
     let status = response.status();
-    
+
     // Extract response size from Content-Length header
     let response_size = response
         .headers()
@@ -230,7 +230,7 @@ async fn base_middleware(
     // Record comprehensive HTTP metrics with all dimensions
     record_http_request(
         method.to_string(),
-        normalize_uri_path(uri.path()),  // Normalize path to reduce cardinality
+        normalize_uri_path(uri.path()), // Normalize path to reduce cardinality
         status.as_u16(),
         duration.as_millis() as f64,
         request_size,
@@ -239,11 +239,12 @@ async fn base_middleware(
 
     // Structured logging with appropriate log levels
     let duration_ms = duration.as_millis();
-    
+
     // Log with different levels based on status and performance
     match status.as_u16() {
         200..=299 => {
-            if duration_ms > 1000 {  // Slow requests (>1s)
+            if duration_ms > 1000 {
+                // Slow requests (>1s)
                 warn!(
                     "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
@@ -252,30 +253,58 @@ async fn base_middleware(
             } else {
                 info!(
                     "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
-                    method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
-                    format_size(request_size), format_size(response_size)
+                    method,
+                    uri,
+                    status.as_u16(),
+                    client_ip,
+                    user_agent,
+                    referer,
+                    duration_ms,
+                    format_size(request_size),
+                    format_size(response_size)
                 );
             }
         }
         400..=499 => {
             warn!(
                 "CLIENT_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
-                method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
-                format_size(request_size), format_size(response_size)
+                method,
+                uri,
+                status.as_u16(),
+                client_ip,
+                user_agent,
+                referer,
+                duration_ms,
+                format_size(request_size),
+                format_size(response_size)
             );
         }
         500..=599 => {
             warn!(
                 "SERVER_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
-                method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
-                format_size(request_size), format_size(response_size)
+                method,
+                uri,
+                status.as_u16(),
+                client_ip,
+                user_agent,
+                referer,
+                duration_ms,
+                format_size(request_size),
+                format_size(response_size)
             );
         }
         _ => {
             info!(
                 "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
-                method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
-                format_size(request_size), format_size(response_size)
+                method,
+                uri,
+                status.as_u16(),
+                client_ip,
+                user_agent,
+                referer,
+                duration_ms,
+                format_size(request_size),
+                format_size(response_size)
             );
         }
     }
@@ -306,7 +335,7 @@ fn normalize_uri_path(path: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("/");
-    
+
     // Limit path length to prevent extremely long paths
     if normalized.len() > 100 {
         format!("{}...", &normalized[..97])
@@ -366,23 +395,26 @@ mod tests {
         // Test normal paths
         assert_eq!(normalize_uri_path("/api/users"), "/api/users");
         assert_eq!(normalize_uri_path("/api/v1/health"), "/api/v1/health");
-        
+
         // Test paths with IDs
         assert_eq!(normalize_uri_path("/api/users/12345"), "/api/users/{id}");
-        assert_eq!(normalize_uri_path("/api/orders/67890/items"), "/api/orders/{id}/items");
-        
+        assert_eq!(
+            normalize_uri_path("/api/orders/67890/items"),
+            "/api/orders/{id}/items"
+        );
+
         // Test paths with UUIDs
         assert_eq!(
-            normalize_uri_path("/api/users/550e8400-e29b-41d4-a716-446655440000"), 
+            normalize_uri_path("/api/users/550e8400-e29b-41d4-a716-446655440000"),
             "/api/users/{uuid}"
         );
-        
+
         // Test paths with hashes
         assert_eq!(
-            normalize_uri_path("/api/files/abcdef1234567890abcdef1234567890"), 
+            normalize_uri_path("/api/files/abcdef1234567890abcdef1234567890"),
             "/api/files/{hash}"
         );
-        
+
         // Test very long paths
         let long_path = "/api/".to_string() + &"a".repeat(200);
         let normalized = normalize_uri_path(&long_path);
@@ -407,16 +439,19 @@ mod tests {
         use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
         let socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
-        
+
         // Test with no headers
         let headers = HeaderMap::new();
         assert_eq!(extract_client_ip(&headers, socket_addr), "127.0.0.1");
-        
+
         // Test with X-Forwarded-For header
         let mut headers = HeaderMap::new();
-        headers.insert("x-forwarded-for", "192.168.1.100, 10.0.0.1".parse().unwrap());
+        headers.insert(
+            "x-forwarded-for",
+            "192.168.1.100, 10.0.0.1".parse().unwrap(),
+        );
         assert_eq!(extract_client_ip(&headers, socket_addr), "192.168.1.100");
-        
+
         // Test with X-Real-IP header
         let mut headers = HeaderMap::new();
         headers.insert("x-real-ip", "192.168.1.200".parse().unwrap());

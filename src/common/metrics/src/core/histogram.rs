@@ -114,12 +114,12 @@ macro_rules! register_histogram_metric {
 
 /// Register a histogram metric with default request duration buckets
 /// This macro uses the predefined DEFAULT_REQUEST_DURATION_BUCKETS configuration
-/// 
+///
 /// # Example
 /// ```
 /// register_histogram_metric_with_ms_default_buckets!(
 ///     HTTP_REQUEST_DURATION,
-///     "http_request_duration_ms", 
+///     "http_request_duration_ms",
 ///     "Duration of HTTP requests in milliseconds",
 ///     HttpLabel
 /// );
@@ -127,15 +127,14 @@ macro_rules! register_histogram_metric {
 #[macro_export]
 macro_rules! register_histogram_metric_ms_with_default_buckets {
     ($name:ident, $metric_name:expr, $help:expr, $label:ty) => {
-        static $name: std::sync::LazyLock<
-            $crate::core::histogram::FamilyHistogram<$label>,
-        > = std::sync::LazyLock::new(|| {
-            $crate::core::histogram::register_histogram_family(
-                $metric_name,
-                $help,
-                $crate::core::histogram::DEFAULT_REQUEST_DURATION_BUCKETS,
-            )
-        });
+        static $name: std::sync::LazyLock<$crate::core::histogram::FamilyHistogram<$label>> =
+            std::sync::LazyLock::new(|| {
+                $crate::core::histogram::register_histogram_family(
+                    $metric_name,
+                    $help,
+                    $crate::core::histogram::DEFAULT_REQUEST_DURATION_BUCKETS,
+                )
+            });
     };
 }
 
@@ -179,7 +178,6 @@ pub const DEFAULT_REQUEST_DURATION_BUCKETS: BucketType = BucketType::Exponential
     factor: 2.0,
     length: 20,
 };
-
 
 #[cfg(test)]
 mod test {
