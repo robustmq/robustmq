@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc, histogram_metric_observe, meta::raft::MetricsLabel, register_counter_metric,
-    register_histogram_metric,
+    gauge_metric_inc, histogram_metric_observe, meta::raft::MetricsLabel, register_counter_metric, register_histogram_metric_ms_with_default_buckets,
 };
 
 register_counter_metric!(
@@ -24,14 +23,11 @@ register_counter_metric!(
     MetricsLabel
 );
 
-register_histogram_metric!(
+register_histogram_metric_ms_with_default_buckets!(
     GRPC_REQUEST_TOTAL_MS,
     "grpc_request_total_ms",
     "TotalMs of calls to the grpc request",
-    MetricsLabel,
-    1.0,
-    2.0,
-    10
+    MetricsLabel
 );
 
 pub fn metrics_grpc_request_incr(service: &str, path: &str) {
