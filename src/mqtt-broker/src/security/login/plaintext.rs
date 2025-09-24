@@ -55,7 +55,8 @@ pub async fn plaintext_check_login(
         Err(e) => {
             // If the user does not exist, try to get the user information from the storage layer
             if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
-                return try_get_check_user_by_driver(driver, cache_manager, username).await;
+                return try_get_check_user_by_driver(driver, cache_manager, username, password)
+                    .await;
             }
             return Err(e);
         }
@@ -67,13 +68,14 @@ async fn try_get_check_user_by_driver(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
     cache_manager: &Arc<MQTTCacheManager>,
     username: &str,
+    password: &str,
 ) -> Result<bool, MqttBrokerError> {
     if let Some(user) = driver.get_user(username.to_owned()).await? {
         cache_manager.add_user(user.clone());
 
         let plaintext = Plaintext::new(
-            user.username.clone(),
-            user.password.clone(),
+            username.to_owned(),
+            password.to_owned(),
             cache_manager.clone(),
         );
 
