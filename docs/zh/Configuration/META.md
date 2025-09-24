@@ -1,6 +1,6 @@
 # Meta 服务配置说明
 
-> 本文档介绍 Meta 服务（元数据服务/Placement Center）相关的所有配置项。通用配置信息请参考 [COMMON.md](COMMON.md)。
+> 本文档介绍 Meta 服务（元数据服务/meta service）相关的所有配置项。通用配置信息请参考 [COMMON.md](COMMON.md)。
 
 ## Meta 服务概述
 

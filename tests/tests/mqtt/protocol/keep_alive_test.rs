@@ -47,6 +47,9 @@ mod tests {
                 match data {
                     Ok(da) => {
                         println!("success:{da:?}");
+                        if matches!(da, MqttPacket::Disconnect(_, _)) {
+                            break;
+                        }
                     }
                     Err(e) => {
                         println!("error :{e}");

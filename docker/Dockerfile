@@ -133,7 +133,7 @@ CMD ["--conf=/robustmq/config/server.toml"]
 # Alternative: Service-specific stages for microservice deployment
 # ==============================================================================
 
-# Meta Service (Placement Center)
+# Meta Service (meta service)
 FROM runtime AS meta-service
 ENV ROBUSTMQ_ROLES="meta"
 EXPOSE 1228
