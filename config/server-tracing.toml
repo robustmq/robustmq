@@ -54,7 +54,7 @@ max_log_files = 50
 
 [meta]
 kind = "rolling_file"
-targets = [{ path = "meeta_service", level = "info" }]
+targets = [{ path = "meta_service", level = "info" }]
 rotation = "daily"
 directory = "./data/broker/logs"
 prefix = "meta"
@@ -81,18 +81,18 @@ max_log_files = 50
 # kind = "rolling_file"
 # target = { path = "openraft", level = "info" }
 # rotation = "minutely"
-# directory = "./data/placement-center/logs"
+# directory = "./data/meta-service/logs"
 # prefix = "openraft"
 # suffix = "log"
 # max_log_files = 10
 
-# # Place all placement center logs in files starting with `placement_center`
-# [placement_center]
+# # Place all meta service logs in files starting with `meta_service`
+# [meta_service]
 # kind = "rolling_file"
-# target = { path = "placement_center", level = "info" }
+# target = { path = "meta_service", level = "info" }
 # rotation = "minutely"
-# directory = "./data/placement-center/logs"
-# prefix = "placement-center"
+# directory = "./data/meta-service/logs"
+# prefix = "meta-service"
 # suffix = "log"
 # max_log_files = 10
 

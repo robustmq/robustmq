@@ -33,10 +33,10 @@ Here is a complete example of the Pull Request process, specifically for fixing 
        // Add new code here
        println!("Hello, robustmq!");
        let args = ArgsParams::parse();
-       init_placement_center_conf_by_path(&args.conf);
-       init_placement_center_log();
+       init_meta_service_conf_by_path(&args.conf);
+       init_meta_service_log();
        let (stop_send, _) = broadcast::channel(2);
-       let mut pc = PlacementCenter::new();
+       let mut pc = MetaService::new();
        pc.start(stop_send).await;
    }
    ```
@@ -58,7 +58,7 @@ Here is a complete example of the Pull Request process, specifically for fixing 
       |----------------------------|---------------------|
    | Unit Tests                  | make test           |
    | Integration Test MQTT Broker | make mqtt-ig-test   |
-   | Integration Test Placement Center | make place-ig-test  |
+   | Integration Test Meta Service | make place-ig-test  |
    | Integration Test Journal Engine | make journal-ig-test|
 
    ```shell

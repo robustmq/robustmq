@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::meta::placement_center_journal::engine_service_client::EngineServiceClient;
-use protocol::meta::placement_center_journal::{
+use protocol::meta::meta_service_journal::engine_service_client::EngineServiceClient;
+use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
@@ -68,7 +68,7 @@ impl_retriable_request!(
     ListShardRequest,
     EngineServiceClient<Channel>,
     ListShardReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     list_shard,
     true
 );
@@ -77,7 +77,7 @@ impl_retriable_request!(
     CreateShardRequest,
     EngineServiceClient<Channel>,
     CreateShardReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     create_shard,
     true
 );
@@ -86,7 +86,7 @@ impl_retriable_request!(
     DeleteShardRequest,
     EngineServiceClient<Channel>,
     DeleteShardReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     delete_shard,
     true
 );
@@ -95,7 +95,7 @@ impl_retriable_request!(
     ListSegmentRequest,
     EngineServiceClient<Channel>,
     ListSegmentReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     list_segment,
     true
 );
@@ -104,7 +104,7 @@ impl_retriable_request!(
     CreateNextSegmentRequest,
     EngineServiceClient<Channel>,
     CreateNextSegmentReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     create_next_segment,
     true
 );
@@ -113,7 +113,7 @@ impl_retriable_request!(
     DeleteSegmentRequest,
     EngineServiceClient<Channel>,
     DeleteSegmentReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     delete_segment,
     true
 );
@@ -122,7 +122,7 @@ impl_retriable_request!(
     UpdateSegmentStatusRequest,
     EngineServiceClient<Channel>,
     UpdateSegmentStatusReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     update_segment_status,
     true
 );
@@ -131,7 +131,7 @@ impl_retriable_request!(
     ListSegmentMetaRequest,
     EngineServiceClient<Channel>,
     ListSegmentMetaReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     list_segment_meta,
     true
 );
@@ -140,7 +140,7 @@ impl_retriable_request!(
     UpdateSegmentMetaRequest,
     EngineServiceClient<Channel>,
     UpdateSegmentMetaReply,
-    placement_center_journal_services_client,
+    meta_service_journal_services_client,
     update_segment_meta,
     true
 );

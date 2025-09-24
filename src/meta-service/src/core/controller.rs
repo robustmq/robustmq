@@ -27,7 +27,7 @@ use tokio::time::sleep;
 
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
-    placement_center_storage: Arc<StorageDriver>,
+    meta_service_storage: Arc<StorageDriver>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
@@ -37,7 +37,7 @@ pub struct ClusterController {
 impl ClusterController {
     pub fn new(
         cluster_cache: Arc<CacheManager>,
-        placement_center_storage: Arc<StorageDriver>,
+        meta_service_storage: Arc<StorageDriver>,
         stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,
         journal_call_manager: Arc<JournalInnerCallManager>,
@@ -45,7 +45,7 @@ impl ClusterController {
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
-            placement_center_storage,
+            meta_service_storage,
             stop_send,
             client_pool,
             journal_call_manager,
@@ -60,7 +60,7 @@ impl ClusterController {
         let mut heartbeat = BrokerHeartbeat::new(
             config.meta_runtime.heartbeat_timeout_ms,
             self.cluster_cache.clone(),
-            self.placement_center_storage.clone(),
+            self.meta_service_storage.clone(),
             self.client_pool.clone(),
             self.journal_call_manager.clone(),
             self.mqtt_call_manager.clone(),

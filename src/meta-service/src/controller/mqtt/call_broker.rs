@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -143,7 +143,7 @@ pub async fn update_cache_by_add_session(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -160,7 +160,7 @@ pub async fn update_cache_by_delete_session(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -177,7 +177,7 @@ pub async fn update_cache_by_add_schema(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&schema)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -194,7 +194,7 @@ pub async fn update_cache_by_delete_schema(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&schema)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -211,7 +211,7 @@ pub async fn update_cache_by_add_schema_bind(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&bind_data)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -228,7 +228,7 @@ pub async fn update_cache_by_delete_schema_bind(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&bind_data)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -245,7 +245,7 @@ pub async fn update_cache_by_add_connector(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MQTTConnector,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -262,7 +262,7 @@ pub async fn update_cache_by_delete_connector(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MQTTConnector,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -279,7 +279,7 @@ pub async fn update_cache_by_add_user(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttUser,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -296,7 +296,7 @@ pub async fn update_cache_by_delete_user(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttUser,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -313,7 +313,7 @@ pub async fn update_cache_by_add_subscribe(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSubscribe,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -330,7 +330,7 @@ pub async fn update_cache_by_delete_subscribe(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSubscribe,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -347,7 +347,7 @@ pub async fn update_cache_by_add_topic(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&topic)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -364,7 +364,7 @@ pub async fn update_cache_by_delete_topic(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&topic)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -381,7 +381,7 @@ pub async fn update_cache_by_add_node(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&node)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -398,7 +398,7 @@ pub async fn update_cache_by_delete_node(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&node)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
@@ -415,7 +415,7 @@ pub async fn update_cache_by_set_resource_config(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     config: ClusterResourceConfig,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&config)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
@@ -439,7 +439,7 @@ async fn start_call_thread(
         if let Some(node_send) = call_manager.get_node_sender(&cluster_name, node.node_id) {
             let mut data_recv = node_send.sender.subscribe();
             info!(
-                "Inner communication between Placement Center and MQTT Broker node [{:?}].",
+                "Inner communication between Meta Service and MQTT Broker node [{:?}].",
                 node.node_id
             );
             loop {
@@ -447,7 +447,7 @@ async fn start_call_thread(
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("Inner communication between Placement Center and MQTT Broker node [{:?}].",node.node_id);
+                                info!("Inner communication between Meta Service and MQTT Broker node [{:?}].",node.node_id);
                                 break;
                             }
                         }
@@ -500,7 +500,7 @@ async fn add_call_message(
     cluster_name: &str,
     client_pool: &Arc<ClientPool>,
     message: MQTTInnerCallMessage,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     for node in call_manager
         .placement_cache_manager
         .get_broker_node_by_cluster(cluster_name)

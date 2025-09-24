@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use dashmap::DashMap;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -140,7 +140,7 @@ pub async fn update_cache_by_set_shard(
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_info: JournalShard,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&shard_info)?;
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
@@ -157,7 +157,7 @@ pub async fn update_cache_by_set_segment(
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     segment_info: JournalSegment,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&segment_info)?;
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
@@ -174,7 +174,7 @@ pub async fn update_cache_by_set_segment_meta(
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     segment_info: JournalSegmentMetadata,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = serde_json::to_string(&segment_info)?;
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
@@ -198,7 +198,7 @@ async fn start_call_thread(
         if let Some(node_send) = call_manager.get_node_sender(&cluster_name, node.node_id) {
             let mut data_recv = node_send.sender.subscribe();
             info!(
-                "Inner communication between Placement Center and Journal Engine node [{:?}].",
+                "Inner communication between Meta Service and Journal Engine node [{:?}].",
                 node.node_id
             );
             loop {
@@ -206,7 +206,7 @@ async fn start_call_thread(
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("Inner communication between Placement Center and Journal Engine node [{:?}].",node.node_id);
+                                info!("Inner communication between Meta Service and Journal Engine node [{:?}].",node.node_id);
                                 break;
                             }
                         }
@@ -249,7 +249,7 @@ async fn add_call_message(
     cluster_name: &str,
     client_pool: &Arc<ClientPool>,
     message: JournalInnerCallMessage,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     for node in call_manager
         .placement_cache_manager
         .get_broker_node_by_cluster(cluster_name)

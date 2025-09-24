@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
     engine_save_by_cluster,
@@ -43,13 +43,13 @@ impl MqttTopicStorage {
         cluster_name: &str,
         topic_name: &str,
         topic: MQTTTopic,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)?;
         Ok(())
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTTopic>, PlacementCenterError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTTopic>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
@@ -64,7 +64,7 @@ impl MqttTopicStorage {
         &self,
         cluster_name: &str,
         topicname: &str,
-    ) -> Result<Option<MQTTTopic>, PlacementCenterError> {
+    ) -> Result<Option<MQTTTopic>, MetaServiceError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
@@ -74,7 +74,7 @@ impl MqttTopicStorage {
         Ok(None)
     }
 
-    pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), PlacementCenterError> {
+    pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())
@@ -86,7 +86,7 @@ impl MqttTopicStorage {
         action: &str,
         source_topic: &str,
         topic_rewrite_rule: MqttTopicRewriteRule,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic_rewrite_rule(cluster_name, action, source_topic);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic_rewrite_rule)?;
         Ok(())
@@ -97,7 +97,7 @@ impl MqttTopicStorage {
         cluster_name: &str,
         action: &str,
         source_topic: &str,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic_rewrite_rule(cluster_name, action, source_topic);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())
@@ -106,7 +106,7 @@ impl MqttTopicStorage {
     pub fn list_topic_rewrite_rule(
         &self,
         cluster_name: &str,
-    ) -> Result<Vec<MqttTopicRewriteRule>, PlacementCenterError> {
+    ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_rewrite_rule_prefix(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();

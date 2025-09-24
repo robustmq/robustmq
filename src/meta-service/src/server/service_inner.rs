@@ -29,8 +29,8 @@ use crate::server::services::inner::{
 };
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
-use protocol::meta::placement_center_inner::placement_center_service_server::PlacementCenterService;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::meta_service_service_server::MetaServiceService;
+use protocol::meta::meta_service_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
@@ -77,7 +77,7 @@ impl GrpcPlacementService {
 }
 
 #[tonic::async_trait]
-impl PlacementCenterService for GrpcPlacementService {
+impl MetaServiceService for GrpcPlacementService {
     async fn cluster_status(
         &self,
         _: Request<ClusterStatusRequest>,

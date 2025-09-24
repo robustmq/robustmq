@@ -16,7 +16,7 @@ cluster_name = "mqtt-broker"
 broker_id = 3
 grpc_port = 39981
 http_port = 39982
-placement_center = ["placement-center-node-1:1228","placement-center-node-2:2228","placement-center-node-3:3228"]
+meta_service = ["meta-service-node-1:1228","meta-service-node-2:2228","meta-service-node-3:3228"]
 
 [network]
 tcp_port = 31883

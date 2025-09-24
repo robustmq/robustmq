@@ -4,7 +4,7 @@
 
 ## Meta 服务概述
 
-Meta 服务（也称为 Placement Center）是 RobustMQ 的元数据管理服务，负责：
+Meta 服务（也称为 Meta Service）是 RobustMQ 的元数据管理服务，负责：
 - 集群节点管理
 - 元数据存储和同步
 - 服务发现
@@ -40,7 +40,7 @@ heartbeat_check_time_ms = 1000    # 心跳检查间隔(毫秒)
 ### RocksDB 存储配置
 ```toml
 [rocksdb]
-data_path = "./data/placement-center/data"  # 数据存储路径
+data_path = "./data/meta-service/data"  # 数据存储路径
 max_open_files = 10000                      # 最大打开文件数
 ```
 
@@ -58,9 +58,9 @@ max_open_files = 10000                      # 最大打开文件数
 ### 集群节点配置
 ```toml
 # 元数据中心节点地址配置
-[placement_center]
+[meta_service]
 1 = "127.0.0.1:1228"
-2 = "127.0.0.1:1229"  
+2 = "127.0.0.1:1229"
 3 = "127.0.0.1:1230"
 ```
 
@@ -68,7 +68,7 @@ max_open_files = 10000                      # 最大打开文件数
 
 | 配置项 | 类型 | 说明 |
 |--------|------|------|
-| `placement_center` | `table` | 元数据中心节点地址映射表 |
+| `meta_service` | `table` | 元数据中心节点地址映射表 |
 | 键 | `string` | 节点ID（通常与 broker_id 对应） |
 | 值 | `string` | 节点地址，格式为 "IP:端口" |
 
@@ -93,7 +93,7 @@ roles = ["meta", "broker"]    # 节点角色列表
 
 ### 部署模式
 1. **一体化部署**: `roles = ["meta", "broker", "journal"]`
-2. **分离式部署**: 
+2. **分离式部署**:
    - Meta 节点: `roles = ["meta"]`
    - Broker 节点: `roles = ["broker"]`
    - Journal 节点: `roles = ["journal"]`
@@ -111,7 +111,7 @@ roles = ["meta", "broker"]
 grpc_port = 1228
 
 # 元数据中心配置
-[placement_center]
+[meta_service]
 1 = "127.0.0.1:1228"
 
 # Meta 运行时配置
@@ -134,7 +134,7 @@ roles = ["meta"]
 grpc_port = 1228
 
 # 元数据中心集群配置
-[placement_center]
+[meta_service]
 1 = "192.168.1.10:1228"
 2 = "192.168.1.11:1228"
 3 = "192.168.1.12:1228"
@@ -214,7 +214,7 @@ max_open_files = 30000             # 足够的文件句柄
 ## 集群管理
 
 ### 节点发现
-Meta 服务使用 `placement_center` 配置进行节点发现：
+Meta 服务使用 `meta_service` 配置进行节点发现：
 1. 每个节点启动时会连接到配置的所有 Meta 节点
 2. 通过心跳机制维持节点状态
 3. 自动处理节点故障和恢复
@@ -235,7 +235,7 @@ Meta 服务使用 `placement_center` 配置进行节点发现：
 
 ### 常见问题
 1. **节点无法加入集群**
-   - 检查 `placement_center` 配置
+   - 检查 `meta_service` 配置
    - 验证网络连通性
    - 确认端口未被占用
 
@@ -278,6 +278,6 @@ Meta 服务提供以下监控指标：
 
 ---
 
-*文档版本: v1.0*  
-*最后更新: 2024-01-01*  
+*文档版本: v1.0*
+*最后更新: 2024-01-01*
 *基于代码版本: RobustMQ v0.1.31*

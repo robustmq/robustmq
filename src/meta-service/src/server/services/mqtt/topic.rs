@@ -15,14 +15,14 @@
 use crate::controller::mqtt::call_broker::{
     update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
 };
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use prost::Message;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
     DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,
@@ -39,8 +39,7 @@ use tonic::Status;
 pub async fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListTopicRequest,
-) -> Result<Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>, PlacementCenterError>
-{
+) -> Result<Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>, MetaServiceError> {
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let mut topics = Vec::new();
 
@@ -70,16 +69,14 @@ pub async fn create_topic_by_req(
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateTopicRequest,
-) -> Result<CreateTopicReply, PlacementCenterError> {
+) -> Result<CreateTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     if topic_storage
         .get(&req.cluster_name, &req.topic_name)?
         .is_some()
     {
-        return Err(PlacementCenterError::TopicAlreadyExist(
-            req.topic_name.clone(),
-        ));
+        return Err(MetaServiceError::TopicAlreadyExist(req.topic_name.clone()));
     }
 
     let data = StorageData::new(
@@ -101,12 +98,12 @@ pub async fn delete_topic_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteTopicRequest,
-) -> Result<DeleteTopicReply, PlacementCenterError> {
+) -> Result<DeleteTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let topic = topic_storage
         .get(&req.cluster_name, &req.topic_name)?
-        .ok_or_else(|| PlacementCenterError::TopicDoesNotExist(req.topic_name.clone()))?;
+        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopic,
@@ -123,12 +120,12 @@ pub async fn set_topic_retain_message_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &SetTopicRetainMessageRequest,
-) -> Result<SetTopicRetainMessageReply, PlacementCenterError> {
+) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let mut topic = topic_storage
         .get(&req.cluster_name, &req.topic_name)?
-        .ok_or_else(|| PlacementCenterError::TopicDoesNotExist(req.topic_name.clone()))?;
+        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     // Update retain message fields
     if req.retain_message.is_empty() {
@@ -158,11 +155,11 @@ pub async fn set_topic_retain_message_by_req(
 pub async fn get_topic_retain_message_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetTopicRetainMessageRequest,
-) -> Result<GetTopicRetainMessageReply, PlacementCenterError> {
+) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let topic = topic_storage
         .get(&req.cluster_name, &req.topic_name)?
-        .ok_or_else(|| PlacementCenterError::TopicDoesNotExist(req.topic_name.clone()))?;
+        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     Ok(GetTopicRetainMessageReply {
         retain_message: topic.retain_message.clone(),
@@ -173,7 +170,7 @@ pub async fn get_topic_retain_message_by_req(
 pub async fn save_last_will_message_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &SaveLastWillMessageRequest,
-) -> Result<SaveLastWillMessageReply, PlacementCenterError> {
+) -> Result<SaveLastWillMessageReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSaveLastWillMessage,
         SaveLastWillMessageRequest::encode_to_vec(req),
@@ -186,7 +183,7 @@ pub async fn save_last_will_message_by_req(
 pub async fn create_topic_rewrite_rule_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &CreateTopicRewriteRuleRequest,
-) -> Result<CreateTopicRewriteRuleReply, PlacementCenterError> {
+) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttCreateTopicRewriteRule,
         CreateTopicRewriteRuleRequest::encode_to_vec(req),
@@ -199,7 +196,7 @@ pub async fn create_topic_rewrite_rule_by_req(
 pub async fn delete_topic_rewrite_rule_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteTopicRewriteRuleRequest,
-) -> Result<DeleteTopicRewriteRuleReply, PlacementCenterError> {
+) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopicRewriteRule,
         DeleteTopicRewriteRuleRequest::encode_to_vec(req),
@@ -212,7 +209,7 @@ pub async fn delete_topic_rewrite_rule_by_req(
 pub fn list_topic_rewrite_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListTopicRewriteRuleRequest,
-) -> Result<ListTopicRewriteRuleReply, PlacementCenterError> {
+) -> Result<ListTopicRewriteRuleReply, MetaServiceError> {
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_topic_rewrite_rule(&req.cluster_name)?;
 

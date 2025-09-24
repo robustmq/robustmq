@@ -1,9 +1,9 @@
 # Cargo运行
-1. Run standalone by placement-center
+1. Run standalone by meta-service
 ```
-cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
+cargo run --package cmd --bin meta-service -- --conf=config/meta-service.toml
 ```
-输出如下信息，表示 placement-center 启动成功:
+输出如下信息，表示 meta-service 启动成功:
 ![image](../../../images/Cargo-Running-1.png)
 
 2. Run standalone by mqtt-server

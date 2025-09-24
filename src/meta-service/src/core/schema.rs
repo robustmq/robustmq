@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::error::PlacementCenterError;
+use super::error::MetaServiceError;
 use crate::{
     controller::mqtt::call_broker::{
         update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
@@ -28,7 +28,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message;
 use prost_validate::Result;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
     ListSchemaRequest, UnBindSchemaRequest, UpdateSchemaRequest,
 };
@@ -38,7 +38,7 @@ use std::sync::Arc;
 pub fn list_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSchemaRequest,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
+) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     if req.cluster_name.is_empty() {
         return Ok(Vec::new());
     }
@@ -67,27 +67,27 @@ pub async fn create_schema_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     if req.cluster_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
         ));
     }
 
     if req.schema_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema_name".to_string(),
         ));
     }
 
     if req.schema.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema".to_string(),
         ));
     }
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     if let Some(_data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
-        Err(PlacementCenterError::SchemaAlreadyExist(
+        Err(MetaServiceError::SchemaAlreadyExist(
             "schema_name".to_string(),
         ))
     } else {
@@ -109,28 +109,26 @@ pub async fn update_schema_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     if storage.get(&req.cluster_name, &req.schema_name)?.is_none() {
-        return Err(PlacementCenterError::SchemaNotFound(
-            req.schema_name.clone(),
-        ));
+        return Err(MetaServiceError::SchemaNotFound(req.schema_name.clone()));
     };
 
     if req.cluster_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
         ));
     }
 
     if req.schema_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema_name".to_string(),
         ));
     }
 
     if req.schema.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema".to_string(),
         ));
     }
@@ -152,23 +150,23 @@ pub async fn delete_schema_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     let schema = if let Some(schema) = storage.get(&req.cluster_name, &req.schema_name)? {
         schema
     } else {
-        return Err(PlacementCenterError::SchemaDoesNotExist(
+        return Err(MetaServiceError::SchemaDoesNotExist(
             req.schema_name.clone(),
         ));
     };
     if req.cluster_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
         ));
     }
 
     if req.schema_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema_name".to_string(),
         ));
     }
@@ -186,7 +184,7 @@ pub async fn delete_schema_req(
 pub async fn list_bind_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListBindSchemaRequest,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
+) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // get schema bind
@@ -227,19 +225,19 @@ pub async fn bind_schema_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     if req.cluster_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
         ));
     }
     if req.schema_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema_name".to_string(),
         ));
     }
     if req.resource_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "resource_name".to_string(),
         ));
     }
@@ -266,19 +264,19 @@ pub async fn un_bind_schema_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     if req.cluster_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
         ));
     }
     if req.schema_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "schema_name".to_string(),
         ));
     }
     if req.resource_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "resource_name".to_string(),
         ));
     }

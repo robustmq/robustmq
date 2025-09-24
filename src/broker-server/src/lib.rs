@@ -19,7 +19,7 @@ use admin_server::{
 };
 use broker_core::{
     cache::BrokerCacheManager,
-    heartbeat::{check_placement_center_status, register_node, report_heartbeat},
+    heartbeat::{check_meta_service_status, register_node, report_heartbeat},
     rocksdb::{column_family_list, storage_data_fold, RocksDBEngine},
 };
 use common_base::runtime::create_runtime;
@@ -42,7 +42,7 @@ use meta_service::{
         route::{apply::StorageDriver, DataRoute},
         type_config::TypeConfig,
     },
-    PlacementCenterServer, PlacementCenterServerParams,
+    MetaServiceServer, MetaServiceServerParams,
 };
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
@@ -74,7 +74,7 @@ mod grpc;
 
 pub struct BrokerServer {
     main_runtime: Runtime,
-    place_params: PlacementCenterServerParams,
+    place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
     journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
@@ -187,7 +187,7 @@ impl BrokerServer {
         let mut journal_stop_send = None;
 
         let config = broker_config();
-        // start placement center
+        // start meta service
         let (stop_send, _) = broadcast::channel(2);
         let place_runtime =
             create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
@@ -195,13 +195,13 @@ impl BrokerServer {
         if config.is_start_meta() {
             place_stop_send = Some(stop_send.clone());
             place_runtime.spawn(async move {
-                let mut pc = PlacementCenterServer::new(place_params, stop_send.clone());
+                let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
                 pc.start().await;
             });
 
             // check placement ready
             self.main_runtime.block_on(async {
-                check_placement_center_status(self.client_pool.clone()).await;
+                check_meta_service_status(self.client_pool.clone()).await;
             });
         }
 
@@ -246,7 +246,7 @@ impl BrokerServer {
     async fn build_meta_service(
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-    ) -> PlacementCenterServerParams {
+    ) -> MetaServiceServerParams {
         let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let journal_call_manager = Arc::new(JournalInnerCallManager::new(cache_manager.clone()));
         let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(cache_manager.clone()));
@@ -257,7 +257,7 @@ impl BrokerServer {
         ));
         let raf_node: Raft<TypeConfig> = create_raft_node(client_pool.clone(), data_route).await;
         let storage_driver: Arc<StorageDriver> = Arc::new(StorageDriver::new(raf_node.clone()));
-        PlacementCenterServerParams {
+        MetaServiceServerParams {
             cache_manager,
             rocksdb_engine_handler,
             client_pool,

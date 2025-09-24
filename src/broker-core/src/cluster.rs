@@ -24,7 +24,7 @@ use grpc_clients::meta::inner::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
 use metadata_struct::placement::node::BrokerNode;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
     NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
@@ -42,12 +42,8 @@ impl ClusterStorage {
     pub async fn place_cluster_status(&self) -> Result<String, CommonError> {
         let request = ClusterStatusRequest {};
         let conf = broker_config();
-        let reply = cluster_status(
-            &self.client_pool,
-            &conf.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            cluster_status(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
         Ok(reply.content)
     }
 
@@ -57,12 +53,7 @@ impl ClusterStorage {
             cluster_name: conf.cluster_name.clone(),
         };
 
-        let reply = node_list(
-            &self.client_pool,
-            &conf.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply = node_list(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
@@ -106,7 +97,7 @@ impl ClusterStorage {
         };
         register_node(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             req.clone(),
         )
         .await?;
@@ -121,7 +112,7 @@ impl ClusterStorage {
 
         unregister_node(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             req.clone(),
         )
         .await?;
@@ -137,7 +128,7 @@ impl ClusterStorage {
 
         heartbeat(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             req.clone(),
         )
         .await?;
@@ -159,12 +150,7 @@ impl ClusterStorage {
             config: data,
         };
 
-        set_resource_config(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        set_resource_config(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
         Ok(())
     }
@@ -181,12 +167,7 @@ impl ClusterStorage {
             resources,
         };
 
-        delete_resource_config(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        delete_resource_config(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -202,12 +183,9 @@ impl ClusterStorage {
             resources,
         };
 
-        let reply = get_resource_config(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            get_resource_config(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
         Ok(reply.config)
     }
 

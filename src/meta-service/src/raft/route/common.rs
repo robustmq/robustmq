@@ -16,7 +16,7 @@ use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message as _;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteIdempotentDataRequest,
     DeleteResourceConfigRequest, DeleteSchemaRequest, SaveOffsetDataRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
@@ -25,7 +25,7 @@ use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -51,7 +51,7 @@ impl DataRouteCluster {
     }
 
     // Cluster
-    pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let cluster = serde_json::from_slice::<ClusterInfo>(&value)?;
         let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
         cluster_storage.save(&cluster)?;
@@ -60,7 +60,7 @@ impl DataRouteCluster {
     }
 
     // Node
-    pub async fn add_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn add_node(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let node = serde_json::from_slice::<BrokerNode>(&value)?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         node_storage.save(&node)?;
@@ -68,7 +68,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub async fn delete_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn delete_node(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         node_storage.delete(&req.cluster_name, req.node_id)?;
@@ -78,14 +78,14 @@ impl DataRouteCluster {
     }
 
     // ResourceConfig
-    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         config_storage.save(req.cluster_name, req.resources, req.config)?;
         Ok(())
     }
 
-    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         config_storage.delete(req.cluster_name, req.resources)?;
@@ -93,14 +93,14 @@ impl DataRouteCluster {
     }
 
     // IdempotentData
-    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num)?;
         Ok(())
     }
 
-    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num)?;
@@ -108,7 +108,7 @@ impl DataRouteCluster {
     }
 
     // OffsetData
-    pub fn save_offset_data(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn save_offset_data(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = SaveOffsetDataRequest::decode(value.as_ref())?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
         for raw in req.offsets {
@@ -124,7 +124,7 @@ impl DataRouteCluster {
     }
 
     // Schema
-    pub fn set_schema(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_schema(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
@@ -132,7 +132,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub fn delete_schema(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_schema(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         schema_storage.delete(&req.cluster_name, &req.schema_name)?;
@@ -140,7 +140,7 @@ impl DataRouteCluster {
     }
 
     // Schema Bind
-    pub fn set_schema_bind(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_schema_bind(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = BindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let bind_data = SchemaResourceBind {
@@ -152,14 +152,14 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub fn delete_schema_bind(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_schema_bind(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = UnBindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         schema_storage.delete_bind(&req.cluster_name, &req.resource_name, &req.schema_name)?;
         Ok(())
     }
 
-    pub fn delete_offset_data(&self, _: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_offset_data(&self, _: Vec<u8>) -> Result<(), MetaServiceError> {
         Ok(())
     }
 }

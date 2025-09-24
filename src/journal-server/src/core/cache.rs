@@ -24,8 +24,8 @@ use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShard};
 use metadata_struct::placement::node::BrokerNode;
-use protocol::meta::placement_center_inner::NodeListRequest;
-use protocol::meta::placement_center_journal::{
+use protocol::meta::meta_service_inner::NodeListRequest;
+use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
 use tracing::{error, info};
@@ -380,7 +380,7 @@ impl CacheManager {
     }
 }
 
-/// fetch node, shard, segment, segment meta from placement center and store them in cache
+/// fetch node, shard, segment, segment meta from meta service and store them in cache
 pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
     let conf = broker_config();
 
@@ -392,7 +392,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
     let request = NodeListRequest {
         cluster_name: conf.cluster_name.clone(),
     };
-    match node_list(client_pool, &conf.get_placement_center_addr(), request).await {
+    match node_list(client_pool, &conf.get_meta_service_addr(), request).await {
         Ok(list) => {
             info!(
                 "Load the node cache, the number of nodes is {}",
@@ -409,7 +409,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             }
         }
         Err(e) => {
-            panic!("Loading the node cache from the Placement Center failed, {e}");
+            panic!("Loading the node cache from the Meta Service failed, {e}");
         }
     }
 
@@ -418,7 +418,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         cluster_name: conf.cluster_name.clone(),
         ..Default::default()
     };
-    match list_shard(client_pool, &conf.get_placement_center_addr(), request).await {
+    match list_shard(client_pool, &conf.get_meta_service_addr(), request).await {
         Ok(list) => match serde_json::from_slice::<Vec<JournalShard>>(&list.shards) {
             Ok(data) => {
                 info!(
@@ -434,7 +434,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             }
         },
         Err(e) => {
-            panic!("Loading the shardcache from the Placement Center failed, {e}");
+            panic!("Loading the shardcache from the Meta Service failed, {e}");
         }
     }
 
@@ -444,7 +444,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         segment_no: -1,
         ..Default::default()
     };
-    match list_segment(client_pool, &conf.get_placement_center_addr(), request).await {
+    match list_segment(client_pool, &conf.get_meta_service_addr(), request).await {
         Ok(list) => match serde_json::from_slice::<Vec<JournalSegment>>(&list.segments) {
             Ok(data) => {
                 info!(
@@ -460,7 +460,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             }
         },
         Err(e) => {
-            panic!("Loading the shardcache from the Placement Center failed, {e}");
+            panic!("Loading the shardcache from the Meta Service failed, {e}");
         }
     }
     // load segment data
@@ -469,7 +469,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         segment_no: -1,
         ..Default::default()
     };
-    match list_segment_meta(client_pool, &conf.get_placement_center_addr(), request).await {
+    match list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await {
         Ok(list) => match serde_json::from_slice::<Vec<JournalSegmentMetadata>>(&list.segments) {
             Ok(data) => {
                 info!(
@@ -485,7 +485,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             }
         },
         Err(e) => {
-            panic!("Loading the shardcache from the Placement Center failed, {e}");
+            panic!("Loading the shardcache from the Meta Service failed, {e}");
         }
     }
 

@@ -47,7 +47,7 @@ mqtt-ig-test:  ## Integration testing for MQTT Broker
 	/bin/bash ./scripts/mqtt-ig-test.sh dev
 
 .PHONY: place-ig-test
-place-ig-test:  ## Integration testing for Placement Center
+place-ig-test:  ## Integration testing for Meta Service
 	/bin/bash ./scripts/place-ig-test.sh dev
 
 .PHONY: journal-ig-test

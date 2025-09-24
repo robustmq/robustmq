@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
     engine_save_by_cluster,
@@ -42,13 +42,13 @@ impl SchemaStorage {
         cluster_name: &str,
         schema_name: &str,
         schema: &SchemaData,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema(cluster_name, schema_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, schema)?;
         Ok(())
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<SchemaData>, PlacementCenterError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<SchemaData>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_prefix(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
@@ -63,7 +63,7 @@ impl SchemaStorage {
         &self,
         cluster_name: &str,
         schema_name: &str,
-    ) -> Result<Option<SchemaData>, PlacementCenterError> {
+    ) -> Result<Option<SchemaData>, MetaServiceError> {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
@@ -73,11 +73,7 @@ impl SchemaStorage {
         Ok(None)
     }
 
-    pub fn delete(
-        &self,
-        cluster_name: &str,
-        schema_name: &str,
-    ) -> Result<(), PlacementCenterError> {
+    pub fn delete(&self, cluster_name: &str, schema_name: &str) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())
@@ -87,7 +83,7 @@ impl SchemaStorage {
         &self,
         cluster_name: &str,
         bind_data: &SchemaResourceBind,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema_bind(
             cluster_name,
             &bind_data.resource_name,
@@ -101,7 +97,7 @@ impl SchemaStorage {
         &self,
         cluster_name: &str,
         resource_name: &str,
-    ) -> Result<Vec<SchemaResourceBind>, PlacementCenterError> {
+    ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key =
             storage_key_mqtt_schema_bind_prefix_by_resource(cluster_name, resource_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
@@ -116,7 +112,7 @@ impl SchemaStorage {
     pub fn list_bind_by_cluster(
         &self,
         cluster_name: &str,
-    ) -> Result<Vec<SchemaResourceBind>, PlacementCenterError> {
+    ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_bind_prefix_by_cluster(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
@@ -132,7 +128,7 @@ impl SchemaStorage {
         cluster_name: &str,
         resource_name: &str,
         schema_name: &str,
-    ) -> Result<Option<SchemaResourceBind>, PlacementCenterError> {
+    ) -> Result<Option<SchemaResourceBind>, MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
@@ -147,7 +143,7 @@ impl SchemaStorage {
         cluster_name: &str,
         resource_name: &str,
         schema_name: &str,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())

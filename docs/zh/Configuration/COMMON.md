@@ -74,7 +74,7 @@ tls_key = "./config/certs/key.pem"    # TLS 私钥路径
 ```toml
 [network]
 accept_thread_num = 1         # 接受连接线程数
-handler_thread_num = 1        # 处理线程数  
+handler_thread_num = 1        # 处理线程数
 response_thread_num = 1       # 响应线程数
 queue_size = 1000            # 队列大小
 lock_max_try_mut_times = 30   # 锁最大尝试次数
@@ -200,9 +200,9 @@ roles = ["meta", "broker"]
 grpc_port = 1228
 
 # 元数据中心地址
-[placement_center]
+[meta_service]
 1 = "192.168.1.10:1228"
-2 = "192.168.1.11:1228" 
+2 = "192.168.1.11:1228"
 3 = "192.168.1.12:1228"
 
 # 运行时配置
@@ -293,6 +293,6 @@ cargo run --bin config-validator config/server.toml
 
 ---
 
-*文档版本: v1.0*  
-*最后更新: 2024-01-01*  
+*文档版本: v1.0*
+*最后更新: 2024-01-01*
 *基于代码版本: RobustMQ v0.1.31*

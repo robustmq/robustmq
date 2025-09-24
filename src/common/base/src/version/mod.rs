@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod logo;
-use logo::DEFAULT_PLACEMENT_CENTER_CONFIG;
+use logo::DEFAULT_META_SERVICE_CONFIG;
 use std::sync::OnceLock;
 use tracing::{error, info};
 
@@ -44,7 +44,7 @@ pub fn version() -> String {
     }
 
     // Try to read version from file
-    let version_str = match read_file(DEFAULT_PLACEMENT_CENTER_CONFIG) {
+    let version_str = match read_file(DEFAULT_META_SERVICE_CONFIG) {
         Ok(data) => {
             // Trim whitespace and newlines
             let version = data.trim().to_string();
@@ -123,7 +123,7 @@ mod tests {
             .expect("Failed to write test version");
 
         // Override the default path temporarily for testing
-        let _orig_path = logo::DEFAULT_PLACEMENT_CENTER_CONFIG;
+        let _orig_path = logo::DEFAULT_META_SERVICE_CONFIG;
         let test_version_result = {
             // Create a new implementation that uses our test path
             fn test_read_file(path: &str) -> Result<String, std::io::Error> {

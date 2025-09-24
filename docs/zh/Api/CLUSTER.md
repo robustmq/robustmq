@@ -27,7 +27,7 @@
 {
   "cluster_name": "robustmq-cluster",
   "broker_id": 1,
-  "placement_center": {
+  "meta_service": {
     "addr": ["127.0.0.1:1228"],
     "timeout_ms": 30000
   },
@@ -111,7 +111,7 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 curl -X POST http://localhost:8080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
-    "config_type": "broker", 
+    "config_type": "broker",
     "config": "{\"mqtt_system_monitor\":{\"enable\":true,\"os_cpu_high_watermark\":90.0,\"os_cpu_low_watermark\":30.0}}"
   }'
 ```
@@ -172,6 +172,6 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 ---
 
-*文档版本: v4.0*  
-*最后更新: 2025-09-20*  
+*文档版本: v4.0*
+*最后更新: 2025-09-20*
 *基于代码版本: RobustMQ Admin Server v0.1.34*
