@@ -42,9 +42,9 @@ docker-compose --profile monitoring up -d
 
 | Service | Ports | Description |
 |---------|-------|-------------|
-| `robustmq` | 1883, 1884, 8083, 8084, 9092, 1228, 5672 | All-in-one deployment |
+| `robustmq` | 1883, 1884, 8083, 8084, 9092, 1228, 5672, 8080 | All-in-one deployment |
 | `meta-service` | 1228 | Metadata management and cluster coordination |
-| `mqtt-broker` | 1883, 1884, 8083, 8084 | MQTT protocol handler |
+| `mqtt-broker` | 1883, 1884, 8083, 8084, 8080 | MQTT protocol handler |
 | `journal-service` | 1229 | Persistent storage layer |
 
 ### Monitoring Services (Optional)
@@ -119,7 +119,7 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 
 ```bash
 # Check service health
-curl http://localhost:8083/health
+curl http://localhost:8080/api/status
 
 # Check service status via CLI
 docker exec robustmq ./libs/cli-command mqtt status
