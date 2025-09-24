@@ -39,10 +39,10 @@ async fn main() {
     // 添加新功能或修复Bug的代码
     println!("Hello, robustmq!");
     let args = ArgsParams::parse();
-    init_placement_center_conf_by_path(&args.conf);
-    init_placement_center_log();
+    init_meta_service_conf_by_path(&args.conf);
+    init_meta_service_log();
     let (stop_send, _) = broadcast::channel(2);
-    let mut pc = PlacementCenter::new();
+    let mut pc = MetaService::new();
     pc.start(stop_send).await;
 }
 ```
@@ -64,7 +64,7 @@ git commit -m "fix: 修复示例Bug"
 |---------------------------|-------------------------|
 | 单元测试                  | `make test`             |
 | MQTT Broker 集成测试      | `make mqtt-ig-test`     |
-| Placement Center 集成测试 | `make place-ig-test`    |
+| Meta Service 集成测试 | `make place-ig-test`    |
 | Journal Engine 集成测试   | `make journal-ig-test`  |
 
 ```shell

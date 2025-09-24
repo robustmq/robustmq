@@ -13,33 +13,33 @@
 # limitations under the License.
 
 stop_pc_cluster(){
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep meta-service  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
-        echo "kill placement center $no1"
+        echo "kill meta service $no1"
         kill $no1
     fi
 
-    # no2=`ps -ef | grep placement-center  | grep node-2 | grep -v grep | awk '{print $2}'`
+    # no2=`ps -ef | grep meta-service  | grep node-2 | grep -v grep | awk '{print $2}'`
     # if [[ -n $no2 ]]
     # then
-    #     echo "kill placement center $no2"
+    #     echo "kill meta service $no2"
     #     kill $no2
     # fi
 
-    # no3=`ps -ef | grep placement-center  | grep node-3 | grep -v grep | awk '{print $2}'`
+    # no3=`ps -ef | grep meta-service  | grep node-3 | grep -v grep | awk '{print $2}'`
     # if [[ -n $no3 ]]
     # then
-    #     echo "kill placement center $no3"
+    #     echo "kill meta service $no3"
     #     kill $no3
     # fi
 
 
     sleep 3
 
-    rm -rf  ./robust-data/placement-center-1/data
-    # rm -rf  ./robust-data/placement-center-2/data
-    # rm -rf  ./robust-data/placement-center-3/data
+    rm -rf  ./robust-data/meta-service-1/data
+    # rm -rf  ./robust-data/meta-service-2/data
+    # rm -rf  ./robust-data/meta-service-3/data
 }
 
 stop_mqtt_cluster(){

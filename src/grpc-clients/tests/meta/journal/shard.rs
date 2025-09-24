@@ -28,8 +28,8 @@ mod tests {
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
     use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::RegisterNodeRequest;
-    use protocol::meta::placement_center_journal::{
+    use protocol::meta::meta_service_inner::RegisterNodeRequest;
+    use protocol::meta::meta_service_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
         ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest, UpdateSegmentMetaRequest,
         UpdateSegmentStatusRequest,

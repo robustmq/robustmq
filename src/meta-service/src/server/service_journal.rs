@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use grpc_clients::pool::ClientPool;
-use protocol::meta::placement_center_journal::engine_service_server::EngineService;
-use protocol::meta::placement_center_journal::{
+use protocol::meta::meta_service_journal::engine_service_server::EngineService;
+use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
@@ -27,7 +27,7 @@ use tonic::{Request, Response, Status};
 
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::server::services::journal::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
@@ -102,7 +102,7 @@ impl EngineService for GrpcEngineService {
 
         if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
-                PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
+                MetaServiceError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
         }
 
@@ -125,7 +125,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         if req.cluster_name.is_empty() {
             return Err(Status::cancelled(
-                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
+                MetaServiceError::RequestParamsNotEmpty(req.cluster_name).to_string(),
             ));
         }
 
@@ -143,7 +143,7 @@ impl EngineService for GrpcEngineService {
 
         if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
-                PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
+                MetaServiceError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
         }
 
@@ -173,7 +173,7 @@ impl EngineService for GrpcEngineService {
 
         if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
-                PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
+                MetaServiceError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
         }
 
@@ -196,7 +196,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         if req.cluster_name.is_empty() {
             return Err(Status::cancelled(
-                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
+                MetaServiceError::RequestParamsNotEmpty(req.cluster_name).to_string(),
             ));
         }
 
@@ -219,7 +219,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         if req.cluster_name.is_empty() {
             return Err(Status::cancelled(
-                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
+                MetaServiceError::RequestParamsNotEmpty(req.cluster_name).to_string(),
             ));
         }
 

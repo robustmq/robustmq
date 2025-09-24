@@ -21,8 +21,8 @@ mod tests {
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::RegisterNodeRequest;
-    use protocol::meta::placement_center_mqtt::GetShareSubLeaderRequest;
+    use protocol::meta::meta_service_inner::RegisterNodeRequest;
+    use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
 
     use crate::common::get_placement_addr;
 

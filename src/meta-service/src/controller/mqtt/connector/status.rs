@@ -14,7 +14,7 @@
 
 use crate::{
     controller::mqtt::call_broker::{update_cache_by_add_connector, MQTTInnerCallManager},
-    core::{cache::CacheManager, error::PlacementCenterError},
+    core::{cache::CacheManager, error::MetaServiceError},
     raft::route::{
         apply::StorageDriver,
         data::{StorageData, StorageDataType},
@@ -23,7 +23,7 @@ use crate::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 use prost::Message;
-use protocol::meta::placement_center_mqtt::CreateConnectorRequest;
+use protocol::meta::meta_service_mqtt::CreateConnectorRequest;
 use std::sync::Arc;
 
 pub async fn update_connector_status_to_idle(
@@ -33,7 +33,7 @@ pub async fn update_connector_status_to_idle(
     cache_manager: &Arc<CacheManager>,
     cluster_name: &str,
     connector_name: &str,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     update_connector_status(
         raft_machine_apply,
         call_manager,
@@ -53,7 +53,7 @@ pub async fn update_connector_status_to_running(
     cache_manager: &Arc<CacheManager>,
     cluster_name: &str,
     connector_name: &str,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     update_connector_status(
         raft_machine_apply,
         call_manager,
@@ -74,7 +74,7 @@ async fn update_connector_status(
     cluster_name: &str,
     connector_name: &str,
     status: MQTTStatus,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     if let Some(mut connector) = cache_manager.get_connector(cluster_name, connector_name) {
         connector.status = status;
 
@@ -97,7 +97,7 @@ pub async fn save_connector(
     req: CreateConnectorRequest,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetConnector,
         CreateConnectorRequest::encode_to_vec(&req),

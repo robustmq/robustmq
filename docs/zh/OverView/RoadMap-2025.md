@@ -2,28 +2,28 @@
 ## 2024
 2024 年：完善 RobustMQ MQTT, 完善 RobustMQ 的基础能力。
 - 完善 RobustMQ MQTT 的功能
-- 提高元数据服务 Placement Center 的稳定性和性能
+- 提高元数据服务 Meta Service 的稳定性和性能
 - 压测 RobustMQ MQTT，并优化性能
-- 压测 Placement Center，并优化性能
-- 完善 RobustMQ MQTT 和 Placement Center 的测试用例
+- 压测 Meta Service，并优化性能
+- 完善 RobustMQ MQTT 和 Meta Service 的测试用例
 - 完善 RobustMQ 的官网和技术文档
 - 寻找对 Rust 或中间件感兴趣的小伙伴，一起打造一个牛逼的基础软件
 
 ## 2025 H1
 
-### Placement Center
-> 目标： Placement Center 集群模式稳定运行、压测性能、完善监控指标
+### Meta Service
+> 目标： Meta Service 集群模式稳定运行、压测性能、完善监控指标
 
 #### feat
 1. 可观测
-- 添加 Placement Center 的监控指标
+- 添加 Meta Service 的监控指标
 
 #### pref
 1. 完善集群能力，能运行稳定的集群模式
    - 集群模式下，GRPC 提供的接口稳定运行
    - 集群模式下，Leader 切换，GRPC 提供的接口稳定运行
    - 集群模式下，Leader 切换，非 Leader 节点的 Controller 暂停，Leader 节点运行 Controller
-2. 压测 Placement Center 服务的性能
+2. 压测 Meta Service 服务的性能
 
 ### Robust MQTT
 > 目标：完成第一阶段，RobustMQ MQTT 集群模式稳定运行。优化当前功能代码、完善测试用例、增加部分功能。

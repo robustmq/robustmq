@@ -78,17 +78,17 @@ scrape_configs:
       - target_label: service
         replacement: 'journal-server'
 
-  # Placement Center metrics (if enabled)
-  - job_name: 'robustmq-placement-center'
+  # Meta Service metrics (if enabled)
+  - job_name: 'robustmq-meta-service'
     static_configs:
-      - targets: ['localhost:9092']    # Adjust to your placement center's metrics endpoint
+      - targets: ['localhost:9092']    # Adjust to your meta service's metrics endpoint
     scrape_interval: 30s
     metrics_path: /metrics
     scheme: http
 
     relabel_configs:
       - target_label: service
-        replacement: 'placement-center'
+        replacement: 'meta-service'
 
   # System metrics (optional, for complete monitoring)
   - job_name: 'node-exporter'

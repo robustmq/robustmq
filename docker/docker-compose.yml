@@ -54,8 +54,8 @@ services:
   # ==============================================================================
   # Microservices Deployment (for production cluster)
   # ==============================================================================
-  
-  # Meta Service (Placement Center)
+
+  # Meta Service (meta service)
   meta-service:
     build:
       context: ..
@@ -123,7 +123,7 @@ services:
   # ==============================================================================
   # Monitoring and Observability (Optional)
   # ==============================================================================
-  
+
   # Prometheus for metrics collection
   prometheus:
     image: prom/prometheus:latest

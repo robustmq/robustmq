@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::cache::CacheManager;
-use super::error::PlacementCenterError;
+use super::error::MetaServiceError;
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::{
     update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
@@ -25,7 +25,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
@@ -37,7 +37,7 @@ pub async fn register_node_by_req(
     _journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: RegisterNodeRequest,
-) -> Result<RegisterNodeReply, PlacementCenterError> {
+) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
     cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     sync_save_node(raft_machine_apply, &node).await?;
@@ -68,7 +68,7 @@ pub async fn un_register_node_by_req(
     _journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: UnRegisterNodeRequest,
-) -> Result<UnRegisterNodeReply, PlacementCenterError> {
+) -> Result<UnRegisterNodeReply, MetaServiceError> {
     if let Some(node) = cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
         sync_delete_node(raft_machine_apply, &req).await?;
 
@@ -87,18 +87,18 @@ pub async fn un_register_node_by_req(
 async fn sync_save_node(
     raft_machine_apply: &Arc<StorageDriver>,
     node: &BrokerNode,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = StorageData::new(StorageDataType::ClusterAddNode, serde_json::to_vec(&node)?);
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
-    Err(PlacementCenterError::ExecutionResultIsEmpty)
+    Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn sync_delete_node(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &UnRegisterNodeRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ClusterDeleteNode,
         UnRegisterNodeRequest::encode_to_vec(req),
@@ -106,13 +106,13 @@ pub async fn sync_delete_node(
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
-    Err(PlacementCenterError::ExecutionResultIsEmpty)
+    Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 async fn sync_save_cluster(
     raft_machine_apply: &Arc<StorageDriver>,
     node: &ClusterInfo,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ClusterAddCluster,
         serde_json::to_vec(&node)?,
@@ -120,5 +120,5 @@ async fn sync_save_cluster(
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
-    Err(PlacementCenterError::ExecutionResultIsEmpty)
+    Err(MetaServiceError::ExecutionResultIsEmpty)
 }

@@ -20,15 +20,15 @@ client 处理 响应信息 来自 server
 
 Client: Mqtt Broker
 
-Server: Placement Center
+Server: Meta Service
 
 请求信息:
 
 ```protobuf
 // The type of the cluster.
 enum ClusterType{
-    // The type of the PlacementCenter.
-    PlacementCenter = 0;
+    // The type of the MetaService.
+    MetaService = 0;
     // The type of the JournalServer.
     JournalServer = 1;
     // The type of the MQTTBrokerServer.

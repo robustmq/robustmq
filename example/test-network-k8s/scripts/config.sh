@@ -26,5 +26,5 @@ function delete_namespace() {
 }
 
 function load_config() {
-    kubectl apply -f  kube/cfg-placement-center.yaml
+    kubectl apply -f  kube/cfg-meta-service.yaml
 }

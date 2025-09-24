@@ -113,7 +113,7 @@ pub struct BrokerConfig {
 }
 
 impl BrokerConfig {
-    pub fn get_placement_center_addr(&self) -> Vec<String> {
+    pub fn get_meta_service_addr(&self) -> Vec<String> {
         self.meta_addrs
             .values()
             .filter_map(|v| v.as_str().map(String::from))

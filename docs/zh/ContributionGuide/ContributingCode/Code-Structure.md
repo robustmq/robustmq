@@ -8,7 +8,7 @@ RobustMQ 是一个用 Rust 构建的高性能、多协议消息队列系统。�
 
 RobustMQ 采用分布式分层架构，主要由以下四个层次组成：
 
-- **元数据和调度层 (Placement Center)**：负责集群元数据存储和调度
+- **元数据和调度层 (Meta Service)**：负责集群元数据存储和调度
 - **协议适配层 (Multi-protocol Computing Layer)**：支持多种消息协议的适配
 - **存储适配层 (Storage Adapter Layer)**：提供可插拔的存储抽象
 - **存储层 (Storage Layer)**：具体的存储引擎实现
@@ -45,7 +45,7 @@ robustmq/
   - `metrics.rs` - 性能指标收集
 
 #### `src/meta-service/`
-**功能**：元数据服务 (Placement Center)
+**功能**：元数据服务 (Meta Service)
 - **职责**：集群元数据存储、节点管理、故障恢复
 - **核心模块**：
   - `core/` - 核心缓存和控制器

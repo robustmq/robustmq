@@ -21,7 +21,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal::journal_inner::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
-use protocol::meta::placement_center_journal::{CreateShardRequest, DeleteShardRequest};
+use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::RocksDBEngine;
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -99,9 +99,9 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Jou
     Ok(true)
 }
 
-/// invoke `create_shard` in placement center
+/// invoke `create_shard` in meta service
 ///
-/// After placement center receives the request and creates the shard, it will invoke a `update_cache` call back to the journal server. Journal server will update its cache
+/// After meta service receives the request and creates the shard, it will invoke a `update_cache` call back to the journal server. Journal server will update its cache
 ///
 /// Will wait for 3s for the cache update to take effect
 pub async fn create_shard_to_place(
@@ -124,7 +124,7 @@ pub async fn create_shard_to_place(
     };
     grpc_clients::meta::journal::call::create_shard(
         client_pool,
-        &conf.get_placement_center_addr(),
+        &conf.get_meta_service_addr(),
         request,
     )
     .await?;
@@ -147,9 +147,9 @@ pub async fn create_shard_to_place(
     Ok(())
 }
 
-/// invoke `delete_shard` in placement center
+/// invoke `delete_shard` in meta service
 ///
-/// After placement center receives the request and deletes the shard, it will invoke a `delete_shard_file` and `delete_segment` call back to the journal server. Journal server will mark the shard as being deleted
+/// After meta service receives the request and deletes the shard, it will invoke a `delete_shard_file` and `delete_segment` call back to the journal server. Journal server will mark the shard as being deleted
 ///
 /// A background thread will delete the shard and its segments. No need to wait for the deletion to complete
 pub async fn delete_shard_to_place(
@@ -166,7 +166,7 @@ pub async fn delete_shard_to_place(
 
     grpc_clients::meta::journal::call::delete_shard(
         &client_pool,
-        &conf.get_placement_center_addr(),
+        &conf.get_meta_service_addr(),
         request,
     )
     .await?;

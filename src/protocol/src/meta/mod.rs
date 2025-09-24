@@ -15,22 +15,22 @@
 #![cfg_attr(any(), rustfmt::skip)]
 #![allow(clippy::all)]
 
-pub mod placement_center_journal {
-    tonic::include_proto!("placement.center.journal");
+pub mod meta_service_journal {
+    tonic::include_proto!("meta.service.journal");
 }
 
-pub mod placement_center_inner {
-    tonic::include_proto!("placement.center.inner");
+pub mod meta_service_inner {
+    tonic::include_proto!("meta.service.inner");
 }
 
-pub mod placement_center_kv {
-    tonic::include_proto!("placement.center.kv");
+pub mod meta_service_kv {
+    tonic::include_proto!("meta.service.kv");
 }
 
-pub mod placement_center_mqtt {
-    tonic::include_proto!("placement.center.mqtt");
+pub mod meta_service_mqtt {
+    tonic::include_proto!("meta.service.mqtt");
 }
 
-pub mod placement_center_openraft {
-    tonic::include_proto!("placement.center.openraft");
+pub mod meta_service_openraft {
+    tonic::include_proto!("meta.service.openraft");
 }

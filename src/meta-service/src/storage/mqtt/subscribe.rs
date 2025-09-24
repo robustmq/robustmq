@@ -30,7 +30,7 @@ use common_base::error::common::CommonError;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
     engine_save_by_cluster,
@@ -108,7 +108,7 @@ impl MqttSubscribeStorage {
         cluster_name: &str,
         client_id: &str,
         path: &str,
-    ) -> Result<Option<MqttSubscribe>, PlacementCenterError> {
+    ) -> Result<Option<MqttSubscribe>, MetaServiceError> {
         let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, path);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
@@ -133,7 +133,7 @@ impl MqttSubscribeStorage {
         cluster_name: &str,
         topic: &str,
         auto_subscribe_rule: MqttAutoSubscribeRule,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
         engine_save_by_cluster(
             self.rocksdb_engine_handler.clone(),
@@ -147,7 +147,7 @@ impl MqttSubscribeStorage {
         &self,
         cluster_name: &str,
         topic: &str,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())
@@ -156,7 +156,7 @@ impl MqttSubscribeStorage {
     pub fn list_auto_subscribe_rule(
         &self,
         cluster_name: &str,
-    ) -> Result<Vec<MqttAutoSubscribeRule>, PlacementCenterError> {
+    ) -> Result<Vec<MqttAutoSubscribeRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();

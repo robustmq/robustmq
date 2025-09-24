@@ -25,7 +25,7 @@ For the content supported by Markdown, you can refer to the [VitePress Writing G
            collapsed: true,
            items: [
                {text: "Overview", link: "/Architect/Overview"},
-               {text: "Placement Center", link: "/Architect/Placement-Center"},
+               {text: "Meta Service", link: "/Architect/Meta-Service"},
                {text: "Broker Server", link: "/Architect/Broker-Server"},
                {text: "Storage Adapter", link: "/Architect/Storage-Adapter"},
                {text: "Journal Server", link: "/Architect/Journal-Server"},
@@ -34,7 +34,7 @@ For the content supported by Markdown, you can refer to the [VitePress Writing G
                    text: "Configuration",
                    collapsed: true,
                    items: [
-                       {text: "Placement Center", link: "/Configuration/META"},
+                       {text: "Meta Service", link: "/Configuration/META"},
                        {text: "MQTT Broker", link: "/Configuration/MQTT"},
                    ],
                },
@@ -58,7 +58,7 @@ For the content supported by Markdown, you can refer to the [VitePress Writing G
            collapsed: true,
            items: [
                {text: "Overview", link: "/Architect/Overview"},
-               {text: "Placement Center", link: "/Architect/Placement-Center"},
+               {text: "Meta Service", link: "/Architect/Meta-Service"},
                {text: "Broker Server", link: "/Architect/Broker-Server"},
                {text: "Storage Adapter", link: "/Architect/Storage-Adapter"},
                {text: "Journal Server", link: "/Architect/Journal-Server"},
@@ -68,7 +68,7 @@ For the content supported by Markdown, you can refer to the [VitePress Writing G
                    text: "Configuration",
                    collapsed: true,
                    items: [
-                       {text: "Placement Center", link: "/Configuration/META"},
+                       {text: "Meta Service", link: "/Configuration/META"},
                        {text: "MQTT Broker", link: "/Configuration/MQTT"},
                    ],
                },

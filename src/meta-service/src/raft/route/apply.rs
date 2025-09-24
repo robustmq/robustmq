@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::data::StorageData;
 use crate::raft::type_config::TypeConfig;
 use openraft::raft::ClientWriteResponse;
@@ -32,7 +32,7 @@ impl StorageDriver {
     pub async fn client_write(
         &self,
         data: StorageData,
-    ) -> Result<Option<ClientWriteResponse<TypeConfig>>, PlacementCenterError> {
+    ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
         match self.raft_write(data).await {
             Ok(data) => Ok(Some(data)),
             Err(e) => Err(e),
@@ -42,7 +42,7 @@ impl StorageDriver {
     async fn raft_write(
         &self,
         data: StorageData,
-    ) -> Result<ClientWriteResponse<TypeConfig>, PlacementCenterError> {
+    ) -> Result<ClientWriteResponse<TypeConfig>, MetaServiceError> {
         let resp = timeout(Duration::from_secs(10), self.raft_node.client_write(data)).await?;
         Ok(resp?)
     }

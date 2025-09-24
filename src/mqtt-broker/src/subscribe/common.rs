@@ -23,7 +23,7 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
-use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
+use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
 use protocol::mqtt::common::{MqttPacket, QoS};
 use regex::Regex;
@@ -248,7 +248,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.to_owned(),
         group_name: group_name.to_owned(),
     };
-    placement_get_share_sub_leader(client_pool, &conf.get_placement_center_addr(), req).await
+    placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await
 }
 
 pub async fn loop_commit_offset(

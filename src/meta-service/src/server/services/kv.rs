@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use prost::Message;
-use protocol::meta::placement_center_kv::{
+use protocol::meta::meta_service_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
@@ -27,9 +27,9 @@ use std::sync::Arc;
 pub async fn set_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &SetRequest,
-) -> Result<SetReply, PlacementCenterError> {
+) -> Result<SetReply, MetaServiceError> {
     if req.key.is_empty() || req.value.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "key or value".to_string(),
         ));
     }
@@ -43,11 +43,9 @@ pub async fn set_by_req(
 pub async fn get_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetRequest,
-) -> Result<GetReply, PlacementCenterError> {
+) -> Result<GetReply, MetaServiceError> {
     if req.key.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
-            "key".to_string(),
-        ));
+        return Err(MetaServiceError::RequestParamsNotEmpty("key".to_string()));
     }
 
     let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
@@ -58,7 +56,7 @@ pub async fn get_by_req(
             reply.value = data;
         }
         Ok(None) => {}
-        Err(e) => return Err(PlacementCenterError::CommonError(e.to_string())),
+        Err(e) => return Err(MetaServiceError::CommonError(e.to_string())),
     }
 
     Ok(reply)
@@ -67,11 +65,9 @@ pub async fn get_by_req(
 pub async fn delete_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteRequest,
-) -> Result<DeleteReply, PlacementCenterError> {
+) -> Result<DeleteReply, MetaServiceError> {
     if req.key.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
-            "key".to_string(),
-        ));
+        return Err(MetaServiceError::RequestParamsNotEmpty("key".to_string()));
     }
 
     // Raft状态机用于存储节点数据
@@ -84,11 +80,9 @@ pub async fn delete_by_req(
 pub async fn exists_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ExistsRequest,
-) -> Result<ExistsReply, PlacementCenterError> {
+) -> Result<ExistsReply, MetaServiceError> {
     if req.key.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
-            "key".to_string(),
-        ));
+        return Err(MetaServiceError::RequestParamsNotEmpty("key".to_string()));
     }
 
     let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
@@ -100,9 +94,9 @@ pub async fn exists_by_req(
 pub async fn list_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListShardRequest,
-) -> Result<ListShardReply, PlacementCenterError> {
+) -> Result<ListShardReply, MetaServiceError> {
     if req.namespace.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "namespace".to_string(),
         ));
     }
@@ -116,9 +110,9 @@ pub async fn list_shard_by_req(
 pub async fn get_prefix_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetPrefixRequest,
-) -> Result<GetPrefixReply, PlacementCenterError> {
+) -> Result<GetPrefixReply, MetaServiceError> {
     if req.prefix.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             "prefix".to_string(),
         ));
     }

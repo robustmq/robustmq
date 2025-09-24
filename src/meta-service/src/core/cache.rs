@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::heartbeat::NodeHeartbeatData;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
@@ -228,7 +228,7 @@ impl CacheManager {
 pub fn load_cache(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     // placement
 
     // journal

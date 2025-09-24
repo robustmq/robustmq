@@ -18,7 +18,7 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
-use protocol::meta::placement_center_journal::UpdateSegmentStatusRequest;
+use protocol::meta::meta_service_journal::UpdateSegmentStatusRequest;
 use tracing::warn;
 
 use super::cache::CacheManager;
@@ -78,7 +78,7 @@ async fn update_segment_status_to_pre_write(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreWrite.to_string(),
         };
-        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
+        update_segment_status(client_pool, &conf.get_meta_service_addr(), request).await?;
     }
     Ok(())
 }
@@ -106,7 +106,7 @@ async fn update_segment_status_to_write(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::Write.to_string(),
         };
-        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
+        update_segment_status(client_pool, &conf.get_meta_service_addr(), request).await?;
     }
     Ok(())
 }
@@ -136,7 +136,7 @@ async fn update_segment_status_to_pre_seal_up(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreSealUp.to_string(),
         };
-        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
+        update_segment_status(client_pool, &conf.get_meta_service_addr(), request).await?;
     }
 
     Ok(())
@@ -167,7 +167,7 @@ async fn update_segment_status_to_seal_up(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::SealUp.to_string(),
         };
-        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
+        update_segment_status(client_pool, &conf.get_meta_service_addr(), request).await?;
     }
     Ok(())
 }

@@ -22,9 +22,7 @@ use grpc_clients::{
     pool::ClientPool,
 };
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
-use protocol::meta::placement_center_kv::{
-    DeleteRequest, GetPrefixRequest, GetRequest, SetRequest,
-};
+use protocol::meta::meta_service_kv::{DeleteRequest, GetPrefixRequest, GetRequest, SetRequest};
 use tokio::{
     select,
     sync::{

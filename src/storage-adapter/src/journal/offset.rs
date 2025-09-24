@@ -18,7 +18,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use grpc_clients::meta::inner::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     GetOffsetDataRequest, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
 
