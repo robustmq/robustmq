@@ -50,7 +50,6 @@ COPY tests/Cargo.toml ./tests/
 # Create dummy source files to build dependencies
 RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
 RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} touch {}/src/lib.rs
-RUN touch src/cmd/src/main.rs
 
 # Build dependencies (this will be cached unless Cargo.toml changes)
 RUN cargo build --release || true
