@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
 use common_base::error::common::CommonError;
-use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
+use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use rocksdb_engine::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -199,13 +199,13 @@ pub fn get_share_sub_leader_by_req(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetShareSubLeaderRequest,
-) -> Result<GetShareSubLeaderReply, PlacementCenterError> {
+) -> Result<GetShareSubLeaderReply, MetaServiceError> {
     let share_sub = ShareSubLeader::new(cache_manager.clone(), rocksdb_engine_handler.clone());
 
     // Get leader broker ID for the shared subscription group
     let leader_broker = share_sub
         .get_leader_node(&req.cluster_name, &req.group_name)
-        .map_err(|e| PlacementCenterError::CommonError(e.to_string()))?;
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
 
     // Get broker node details from cache
     match cache_manager.get_broker_node(&req.cluster_name, leader_broker) {
@@ -214,7 +214,7 @@ pub fn get_share_sub_leader_by_req(
             broker_addr: node.node_ip,
             extend_info: node.extend,
         }),
-        None => Err(PlacementCenterError::NoAvailableBrokerNode),
+        None => Err(MetaServiceError::NoAvailableBrokerNode),
     }
 }
 

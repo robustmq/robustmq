@@ -18,7 +18,7 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::meta::placement_center_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
+use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
@@ -37,12 +37,7 @@ impl AclStorage {
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        let reply = list_acl(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply = list_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
         for raw in reply.acls {
             list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
@@ -58,12 +53,7 @@ impl AclStorage {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-        create_acl(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        create_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -74,12 +64,7 @@ impl AclStorage {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-        delete_acl(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        delete_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 }

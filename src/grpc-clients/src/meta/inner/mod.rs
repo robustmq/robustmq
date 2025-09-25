@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
+use protocol::meta::meta_service_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
@@ -45,11 +45,11 @@ impl PlacementServiceManager {
 
 #[tonic::async_trait]
 impl Manager for PlacementServiceManager {
-    type Connection = PlacementCenterServiceClient<Channel>;
+    type Connection = MetaServiceServiceClient<Channel>;
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match PlacementCenterServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+        match MetaServiceServiceClient::connect(format!("http://{}", self.addr.clone())).await {
             Ok(client) => {
                 return Ok(client);
             }
@@ -70,180 +70,180 @@ impl Manager for PlacementServiceManager {
 
 impl_retriable_request!(
     ClusterStatusRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     ClusterStatusReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     cluster_status,
     true
 );
 
 impl_retriable_request!(
     NodeListRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     NodeListReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     node_list,
     true
 );
 
 impl_retriable_request!(
     RegisterNodeRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     RegisterNodeReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     register_node,
     true
 );
 
 impl_retriable_request!(
     UnRegisterNodeRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     UnRegisterNodeReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     un_register_node,
     true
 );
 
 impl_retriable_request!(
     HeartbeatRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     HeartbeatReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     heartbeat,
     true
 );
 
 impl_retriable_request!(
     SetResourceConfigRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     SetResourceConfigReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     set_resource_config,
     true
 );
 
 impl_retriable_request!(
     GetResourceConfigRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     GetResourceConfigReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     get_resource_config,
     true
 );
 
 impl_retriable_request!(
     DeleteResourceConfigRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     DeleteResourceConfigReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     delete_resource_config,
     true
 );
 
 impl_retriable_request!(
     SetIdempotentDataRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     SetIdempotentDataReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     set_idempotent_data,
     true
 );
 
 impl_retriable_request!(
     ExistsIdempotentDataRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     ExistsIdempotentDataReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     exists_idempotent_data,
     true
 );
 
 impl_retriable_request!(
     DeleteIdempotentDataRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     DeleteIdempotentDataReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     delete_idempotent_data,
     true
 );
 
 impl_retriable_request!(
     SaveOffsetDataRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     SaveOffsetDataReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     save_offset_data,
     true
 );
 
 impl_retriable_request!(
     GetOffsetDataRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     GetOffsetDataReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     get_offset_data,
     true
 );
 
 impl_retriable_request!(
     ListSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     ListSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     list_schema,
     true
 );
 
 impl_retriable_request!(
     CreateSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     CreateSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     create_schema,
     true
 );
 
 impl_retriable_request!(
     UpdateSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     UpdateSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     update_schema,
     true
 );
 
 impl_retriable_request!(
     DeleteSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     DeleteSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     delete_schema,
     true
 );
 
 impl_retriable_request!(
     ListBindSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     ListBindSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     list_bind_schema,
     true
 );
 
 impl_retriable_request!(
     BindSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     BindSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     bind_schema,
     true
 );
 
 impl_retriable_request!(
     UnBindSchemaRequest,
-    PlacementCenterServiceClient<Channel>,
+    MetaServiceServiceClient<Channel>,
     UnBindSchemaReply,
-    placement_center_inner_services_client,
+    meta_service_inner_services_client,
     un_bind_schema,
     true
 );

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use metadata_struct::mqtt::lastwill::LastWillData;
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
 };
@@ -39,7 +39,7 @@ impl MqttLastWillStorage {
         cluster_name: &str,
         client_id: &str,
         last_will_message: LastWillData,
-    ) -> Result<(), PlacementCenterError> {
+    ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message)?;
         Ok(())
@@ -49,7 +49,7 @@ impl MqttLastWillStorage {
         &self,
         cluster_name: &str,
         client_id: &str,
-    ) -> Result<Option<LastWillData>, PlacementCenterError> {
+    ) -> Result<Option<LastWillData>, MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         let result = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         if let Some(data) = result {
@@ -58,7 +58,7 @@ impl MqttLastWillStorage {
         Ok(None)
     }
 
-    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), PlacementCenterError> {
+    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())

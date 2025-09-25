@@ -108,7 +108,7 @@ pub enum MQTTAction {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
+#[command(author="RobustMQ",  about="Command line tool for meta service", long_about = None)]
 #[command(next_line_help = true)]
 pub struct ClusterArgs {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]

@@ -22,7 +22,7 @@ MarkDown支持的内容可以参考[VitePress写作指南](https://vitepress.dev
 ![sidebars](../../../images/DocContributionGuide-1.png)
 
 其中`en`代表的是英文目录，`zh`代表的是中文目录, 这里我们以`en`目录
-为例子, 
+为例子,
 ```ts
 export const sidebar = [
     {
@@ -30,7 +30,7 @@ export const sidebar = [
         collapsed: true,
         items: [
             {text: "Overview", link: "/Architect/Overview"},
-            {text: "Placement Center", link: "/Architect/Placement-Center"},
+            {text: "Meta Service", link: "/Architect/Meta-Service"},
             {text: "Broker Server", link: "/Architect/Broker-Server"},
             {text: "Storage Adapter", link: "/Architect/Storage-Adapter"},
             {text: "Journal Server", link: "/Architect/Journal-Server"},
@@ -39,7 +39,7 @@ export const sidebar = [
                 text: "Configuration",
                 collapsed: true,
                 items: [
-                    {text: "Placement Center", link: "/zh/Configuration/META"},
+                    {text: "Meta Service", link: "/zh/Configuration/META"},
                     {text: "MQTT Broker", link: "/zh/Configuration/MQTT"},
                 ],
             },
@@ -64,7 +64,7 @@ export const sidebar = [
         collapsed: true,
         items: [
             {text: "Overview", link: "/Architect/Overview"},
-            {text: "Placement Center", link: "/Architect/Placement-Center"},
+            {text: "Meta Service", link: "/Architect/Meta-Service"},
             {text: "Broker Server", link: "/Architect/Broker-Server"},
             {text: "Storage Adapter", link: "/Architect/Storage-Adapter"},
             {text: "Journal Server", link: "/Architect/Journal-Server"},
@@ -74,7 +74,7 @@ export const sidebar = [
                 text: "Configuration",
                 collapsed: true,
                 items: [
-                    {text: "Placement Center", link: "/zh/Configuration/META"},
+                    {text: "Meta Service", link: "/zh/Configuration/META"},
                     {text: "MQTT Broker", link: "/zh/Configuration/MQTT"},
                 ],
             },
@@ -86,4 +86,4 @@ export const sidebar = [
 ::: tip
 如果你想要学习一下更多的使用可以参考
 [VitePress侧边栏文档](https://vitepress.dev/zh/reference/default-theme-sidebar)
-::: 
+:::

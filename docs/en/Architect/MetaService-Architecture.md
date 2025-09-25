@@ -2,7 +2,7 @@
 
 ## Overview
 
-MetaService (also known as Placement Center) is the metadata management and cluster coordination center of RobustMQ. It serves as the brain of the entire system, responsible for managing cluster metadata, node coordination, fault detection, and recovery. Built on the Raft consensus algorithm, MetaService ensures high availability and strong consistency of cluster metadata.
+MetaService (also known as Meta Service) is the metadata management and cluster coordination center of RobustMQ. It serves as the brain of the entire system, responsible for managing cluster metadata, node coordination, fault detection, and recovery. Built on the Raft consensus algorithm, MetaService ensures high availability and strong consistency of cluster metadata.
 
 ## Design Principles
 
@@ -49,7 +49,7 @@ MetaService follows a layered architecture with clear separation of concerns:
 The service layer provides external APIs and internal service implementations.
 
 #### gRPC Services
-- **PlacementCenterService**: Main gRPC service for cluster operations
+- **MetaServiceService**: Main gRPC service for cluster operations
 - **MQTT Service**: MQTT-specific metadata operations
 - **Journal Service**: Storage-related metadata operations
 - **KV Service**: Key-value metadata operations
@@ -86,7 +86,7 @@ The core layer contains the essential business logic and coordination mechanisms
 ```rust
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
-    placement_center_storage: Arc<StorageDriver>,
+    meta_service_storage: Arc<StorageDriver>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,

@@ -60,7 +60,7 @@ pub async fn delete_session_by_req(
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
     info!(
-        "Received request from Placement center to delete expired Session. Cluster name :{}, clientId count: {:?}",
+        "Received request from Meta service to delete expired Session. Cluster name :{}, clientId count: {:?}",
         req.cluster_name, req.client_id.len()
     );
     wait_cluster_running(&cache_manager.broker_cache).await;
@@ -96,7 +96,7 @@ pub async fn send_last_will_message_by_req(
 
     wait_cluster_running(&cache_manager.broker_cache).await;
     info!(
-        "Received will message from placement center, source client id: {},data:{:?}",
+        "Received will message from meta service, source client id: {},data:{:?}",
         req.client_id, data.client_id
     );
     send_last_will_message(

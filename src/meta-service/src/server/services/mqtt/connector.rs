@@ -17,13 +17,13 @@ use crate::controller::mqtt::call_broker::{
 };
 use crate::controller::mqtt::connector::status::save_connector;
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use grpc_clients::pool::ClientPool;
 use prost::Message;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,
     CreateConnectorRequest, DeleteConnectorReply, DeleteConnectorRequest, ListConnectorReply,
     ListConnectorRequest, UpdateConnectorReply, UpdateConnectorRequest,
@@ -43,7 +43,7 @@ pub struct ConnectorHeartbeat {
 pub fn connector_heartbeat_by_req(
     cache_manager: &Arc<CacheManager>,
     req: &ConnectorHeartbeatRequest,
-) -> Result<ConnectorHeartbeatReply, PlacementCenterError> {
+) -> Result<ConnectorHeartbeatReply, MetaServiceError> {
     for raw in &req.heatbeats {
         if let Some(connector) = cache_manager.get_connector(&req.cluster_name, &raw.connector_name)
         {
@@ -70,7 +70,7 @@ pub fn connector_heartbeat_by_req(
 pub fn list_connectors_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListConnectorRequest,
-) -> Result<ListConnectorReply, PlacementCenterError> {
+) -> Result<ListConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
     let mut connectors = Vec::new();
 
@@ -92,12 +92,12 @@ pub async fn create_connector_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateConnectorRequest,
-) -> Result<CreateConnectorReply, PlacementCenterError> {
+) -> Result<CreateConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
     let connector = storage.get(&req.cluster_name, &req.connector_name)?;
 
     if connector.is_some() {
-        return Err(PlacementCenterError::ConnectorAlreadyExist(
+        return Err(MetaServiceError::ConnectorAlreadyExist(
             req.connector_name.clone(),
         ));
     }
@@ -119,12 +119,12 @@ pub async fn update_connector_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateConnectorRequest,
-) -> Result<UpdateConnectorReply, PlacementCenterError> {
+) -> Result<UpdateConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
     let connector = storage.get(&req.cluster_name, &req.connector_name)?;
 
     if connector.is_none() {
-        return Err(PlacementCenterError::ConnectorNotFound(
+        return Err(MetaServiceError::ConnectorNotFound(
             req.connector_name.clone(),
         ));
     }
@@ -152,12 +152,12 @@ pub async fn delete_connector_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteConnectorRequest,
-) -> Result<DeleteConnectorReply, PlacementCenterError> {
+) -> Result<DeleteConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
     let connector = storage.get(&req.cluster_name, &req.connector_name)?;
 
     if connector.is_none() {
-        return Err(PlacementCenterError::ConnectorNotFound(
+        return Err(MetaServiceError::ConnectorNotFound(
             req.connector_name.clone(),
         ));
     }

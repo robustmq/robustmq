@@ -1,12 +1,12 @@
 # Running with Cargo
 
-1. **Run standalone by placement-center**
+1. **Run standalone by meta-service**
 
    ```
-   cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
+   cargo run --package cmd --bin meta-service -- --conf=config/meta-service.toml
    ```
 
-   If the following output is displayed, it indicates that the placement-center has started successfully:
+   If the following output is displayed, it indicates that the meta-service has started successfully:
    ![image](../../../images/Cargo-Running-1.png)
 
 2. **Run standalone by mqtt-server**

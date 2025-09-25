@@ -23,7 +23,7 @@ use grpc_clients::meta::mqtt::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, SaveLastWillMessageRequest,
     UpdateSessionRequest,
 };
@@ -49,12 +49,8 @@ impl SessionStorage {
             session: session.encode(),
         };
 
-        placement_create_session(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_create_session(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 
@@ -76,12 +72,8 @@ impl SessionStorage {
             distinct_time,
         };
 
-        placement_update_session(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_update_session(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 
@@ -92,12 +84,8 @@ impl SessionStorage {
             client_id,
         };
 
-        placement_delete_session(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_delete_session(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 
@@ -108,12 +96,9 @@ impl SessionStorage {
             client_id,
         };
 
-        let reply = placement_list_session(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            placement_list_session(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
         if reply.sessions.is_empty() {
             return Ok(None);
         }
@@ -130,12 +115,9 @@ impl SessionStorage {
             client_id: "".to_string(),
         };
 
-        let reply = placement_list_session(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            placement_list_session(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
         let results = DashMap::with_capacity(2);
 
         for raw in reply.sessions {
@@ -160,7 +142,7 @@ impl SessionStorage {
 
         placement_save_last_will_message(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;

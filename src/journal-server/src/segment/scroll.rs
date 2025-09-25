@@ -20,7 +20,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
-use protocol::meta::placement_center_journal::CreateNextSegmentRequest;
+use protocol::meta::meta_service_journal::CreateNextSegmentRequest;
 use tokio::time::sleep;
 use tracing::{error, info};
 
@@ -103,7 +103,7 @@ impl SegmentScrollManager {
 
                     match create_next_segment(
                         &self.client_pool,
-                        &conf.get_placement_center_addr(),
+                        &conf.get_meta_service_addr(),
                         request,
                     )
                     .await

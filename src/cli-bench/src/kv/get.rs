@@ -47,7 +47,7 @@ pub struct KvGetBenchArgs {
     #[clap(long, default_value = "64")]
     pub value_size: usize,
 
-    /// The address of the placement center
+    /// The address of the meta service
     #[clap(long, default_value = "127.0.0.1:1228", value_delimiter = ',')]
     pub pc_addrs: Vec<String>,
 }
@@ -70,7 +70,7 @@ impl BenchMark for KvGetBenchArgs {
         } = self.clone();
 
         println!(
-            "Starting KV Get Benchmark with {} clients, {} worker threads, {} keys, value size: {}, placement center addresses: {:?}",
+            "Starting KV Get Benchmark with {} clients, {} worker threads, {} keys, value size: {}, meta service addresses: {:?}",
             num_clients, worker_threads, num_keys, value_size, pc_addrs
         );
 

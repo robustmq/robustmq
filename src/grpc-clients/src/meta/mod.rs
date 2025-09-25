@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PlacementCenterInterface {
+pub enum MetaServiceInterface {
     // kv interface
     Set,
     Get,

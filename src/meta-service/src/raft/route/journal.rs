@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
@@ -40,7 +40,7 @@ impl DataRouteJournal {
         }
     }
 
-    pub async fn set_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn set_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
 
         let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
@@ -51,7 +51,7 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
@@ -70,7 +70,7 @@ impl DataRouteJournal {
         Ok(())
     }
 
-    pub async fn set_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn set_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
         let segment = serde_json::from_slice::<JournalSegment>(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
@@ -81,7 +81,7 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let segment = serde_json::from_slice::<JournalSegment>(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
@@ -101,7 +101,7 @@ impl DataRouteJournal {
         Ok(())
     }
 
-    pub async fn set_segment_meta(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn set_segment_meta(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
         let meta = serde_json::from_slice::<JournalSegmentMetadata>(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
@@ -112,7 +112,7 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    pub async fn delete_segment_meta(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn delete_segment_meta(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let meta = serde_json::from_slice::<JournalSegmentMetadata>(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());

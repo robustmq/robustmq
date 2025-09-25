@@ -5,29 +5,29 @@
 2024: Improve RobustMQ MQTT and enhance the basic capabilities of RobustMQ.
 
 - Enhance the functionality of RobustMQ MQTT.
-- Improve the stability and performance of the metadata service, Placement Center.
+- Improve the stability and performance of the metadata service, Meta Service.
 - Conduct stress tests on RobustMQ MQTT and optimize performance.
-- Conduct stress tests on Placement Center and optimize performance.
-- Improve test cases for RobustMQ MQTT and Placement Center.
+- Conduct stress tests on Meta Service and optimize performance.
+- Improve test cases for RobustMQ MQTT and Meta Service.
 - Enhance the official website and technical documentation of RobustMQ.
 - Look for friends interested in Rust or middleware to build a great foundational software together.
 
 ## 2025 H1
 
-### Placement Center
+### Meta Service
 
-**Goal:** Stable operation of Placement Center in cluster mode, performance testing, and completion of monitoring metrics.
+**Goal:** Stable operation of Meta Service in cluster mode, performance testing, and completion of monitoring metrics.
 
 #### Features
 1. Observability
-   - Add monitoring metrics for Placement Center.
+   - Add monitoring metrics for Meta Service.
 
 #### Improvements
 1. Improve cluster capabilities to ensure stable operation in cluster mode.
    - Ensure stable operation of GRPC interfaces in cluster mode.
    - Ensure stable operation of GRPC interfaces during Leader switching.
    - During Leader switching, pause the Controller on non-Leader nodes and run the Controller on the Leader node.
-2. Conduct performance testing on the Placement Center service.
+2. Conduct performance testing on the Meta Service service.
 
 ### Robust MQTT
 

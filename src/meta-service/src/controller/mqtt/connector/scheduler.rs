@@ -17,14 +17,14 @@ use crate::{
     controller::mqtt::{
         call_broker::MQTTInnerCallManager, connector::status::update_connector_status_to_idle,
     },
-    core::{cache::CacheManager, error::PlacementCenterError},
+    core::{cache::CacheManager, error::MetaServiceError},
     raft::route::apply::StorageDriver,
 };
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
-use protocol::meta::placement_center_mqtt::CreateConnectorRequest;
+use protocol::meta::meta_service_mqtt::CreateConnectorRequest;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{select, sync::broadcast};
 use tracing::{info, warn};
@@ -79,7 +79,7 @@ async fn check_heartbeat(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let config = broker_config();
     for heartbeat in cache_manager.get_all_connector_heartbeat() {
         let connector = if let Some(connector) =
@@ -118,7 +118,7 @@ async fn start_stop_connector_thread(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     for mut connector in cache_manager.get_all_connector() {
         if connector.broker_id.is_none() && connector.status == MQTTStatus::Running {
             warn!("Connector {} has an abnormal state, which is Running, but the execution node is empty.", connector.cluster_name);
@@ -171,7 +171,7 @@ async fn start_stop_connector_thread(
 async fn calc_connector_broker(
     cache_manager: &Arc<CacheManager>,
     cluster_name: &str,
-) -> Result<u64, PlacementCenterError> {
+) -> Result<u64, MetaServiceError> {
     let mut connector_broker_id_nums = HashMap::new();
     for connector in cache_manager.get_all_connector() {
         if let Some(broker_id) = connector.broker_id {
@@ -202,7 +202,7 @@ async fn calc_connector_broker(
     }
 
     if broker_id == -1 {
-        return Err(PlacementCenterError::NoAvailableBrokerNode);
+        return Err(MetaServiceError::NoAvailableBrokerNode);
     }
 
     Ok(broker_id as u64)

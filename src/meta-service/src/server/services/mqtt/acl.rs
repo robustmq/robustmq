@@ -15,14 +15,14 @@
 use std::sync::Arc;
 
 use prost::Message;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, ListAclReply, ListAclRequest,
     ListBlacklistReply, ListBlacklistRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::{
     raft::route::{
@@ -35,7 +35,7 @@ use crate::{
 pub fn list_acl_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListAclRequest,
-) -> Result<ListAclReply, PlacementCenterError> {
+) -> Result<ListAclReply, MetaServiceError> {
     let acl_storage = AclStorage::new(rocksdb_engine_handler.clone());
     let list = acl_storage.list(&req.cluster_name)?;
     let mut acls = Vec::new();
@@ -48,7 +48,7 @@ pub fn list_acl_by_req(
 pub async fn create_acl_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &CreateAclRequest,
-) -> Result<CreateAclReply, PlacementCenterError> {
+) -> Result<CreateAclReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAcl,
         CreateAclRequest::encode_to_vec(req),
@@ -61,7 +61,7 @@ pub async fn create_acl_by_req(
 pub async fn delete_acl_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteAclRequest,
-) -> Result<DeleteAclReply, PlacementCenterError> {
+) -> Result<DeleteAclReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAcl,
         DeleteAclRequest::encode_to_vec(req),
@@ -74,7 +74,7 @@ pub async fn delete_acl_by_req(
 pub fn list_blacklist_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListBlacklistRequest,
-) -> Result<ListBlacklistReply, PlacementCenterError> {
+) -> Result<ListBlacklistReply, MetaServiceError> {
     let blacklist_storage = MqttBlackListStorage::new(rocksdb_engine_handler.clone());
     let list = blacklist_storage.list(&req.cluster_name)?;
     let mut blacklists = Vec::new();
@@ -87,7 +87,7 @@ pub fn list_blacklist_by_req(
 pub async fn delete_blacklist_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteBlacklistRequest,
-) -> Result<DeleteBlacklistReply, PlacementCenterError> {
+) -> Result<DeleteBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteBlacklist,
         DeleteBlacklistRequest::encode_to_vec(req),
@@ -100,7 +100,7 @@ pub async fn delete_blacklist_by_req(
 pub async fn create_blacklist_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &CreateBlacklistRequest,
-) -> Result<CreateBlacklistReply, PlacementCenterError> {
+) -> Result<CreateBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetBlacklist,
         CreateBlacklistRequest::encode_to_vec(req),

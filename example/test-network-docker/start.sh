@@ -15,7 +15,7 @@
 
 cd ../../
 docker build --target builder -t builder-test:0.1 .
-docker build --target placement-center -t placement-center-test:0.1 .
+docker build --target meta-service -t meta-service-test:0.1 .
 docker build --target mqtt-server -t mqtt-server-test:0.1 .
 docker build --target journal-server -t journal-server-test:0.1 .
 

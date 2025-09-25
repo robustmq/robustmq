@@ -22,7 +22,7 @@ mod tests {
         placement_list_topic_rewrite_rule,
     };
     use grpc_clients::pool::ClientPool;
-    use protocol::meta::placement_center_mqtt::{
+    use protocol::meta::meta_service_mqtt::{
         CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRewriteRuleRequest,
     };
 

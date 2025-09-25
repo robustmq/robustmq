@@ -17,7 +17,7 @@ use crate::subscribe::{common::decode_share_group_and_path, manager::SubscribeMa
 use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_delete_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
-use protocol::{meta::placement_center_mqtt::DeleteSubscribeRequest, mqtt::common::Unsubscribe};
+use protocol::{meta::meta_service_mqtt::DeleteSubscribeRequest, mqtt::common::Unsubscribe};
 use std::sync::Arc;
 
 pub async fn remove_subscribe(
@@ -35,7 +35,7 @@ pub async fn remove_subscribe(
             path: path.clone(),
         };
 
-        placement_delete_subscribe(client_pool, &conf.get_placement_center_addr(), request).await?;
+        placement_delete_subscribe(client_pool, &conf.get_meta_service_addr(), request).await?;
 
         subscribe_manager.remove_subscribe(client_id, &path);
     }
