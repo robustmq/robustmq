@@ -4,7 +4,8 @@ export default function getNavs() {
 
     return [
 
-        {text: "主页", link: "/"},
+        {text: "文档", link: "/"},
+        {text: "演示", link: "http://117.72.92.117:8080/"},
 
     ]
 

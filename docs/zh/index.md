@@ -55,7 +55,7 @@ features:
 
 
 .clip{
-  font-size:50px !important;
+  font-size:55px !important;
 }
 .text[data-v-72cc4481]
 {
@@ -82,6 +82,10 @@ features:
     --vp-home-hero-image-filter: blur(56px) !important;
     --vp-home-hero-name-font-size: 20px !important;
   }
+  
+  .text[data-v-72cc4481] {
+    font-size: 30px !important;
+  }
 }
 
 @media (min-width: 960px) {
@@ -90,6 +94,16 @@ features:
   }
   .name{
     font-size:20px !important;
+  }
+  
+  .text[data-v-72cc4481] {
+    font-size: 35px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .text[data-v-72cc4481] {
+    font-size: 22px !important;
   }
 }
 .VPImage {
