@@ -75,7 +75,7 @@ export const sidebar = [
                     { text: "Authentication", link: "/RobustMQ-MQTT/Security/Authentication" },
                     { text: "Authorization", link: "/RobustMQ-MQTT/Security/Authorization" },
                     { text: "Blacklist", link: "/RobustMQ-MQTT/Security/Blacklist" },
-                    { text: "Flapping Detect", link: "" },
+                    { text: "Flapping Detect", link: "/RobustMQ-MQTT/FlappingDetect" },
                 ]
             },
             {
