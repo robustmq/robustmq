@@ -52,7 +52,7 @@ export const sidebar = [
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
             { text: "MQTT 核心概念", link: "/zh/RobustMQ-MQTT/MQTTCoreConcepts" },
-            { text: "系统架构", link: "zh/RobustMQ-MQTT/SystemArchitecture" },
+            { text: "MQTT 系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "核心功能",
                 collapsed: true,
@@ -65,6 +65,7 @@ export const sidebar = [
                     { text: "自动订阅", link: "/zh/RobustMQ-MQTT/AutoSubscription" },
                     { text: "主题重写", link: "/zh/RobustMQ-MQTT/TopicRewrite" },
                     { text: "通配符订阅", link: "/zh/RobustMQ-MQTT/WildcardSubscription" },
+                    { text: "会话持久化", link: "/zh/RobustMQ-MQTT/SessionPersistence" },
                 ],
             },
             {

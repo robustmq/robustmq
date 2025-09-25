@@ -65,6 +65,7 @@ export const sidebar = [
                     { text: "Auto Subscription", link: "/RobustMQ-MQTT/AutoSubscription" },
                     { text: "Topic Rewrite", link: "/RobustMQ-MQTT/TopicRewrite" },
                     { text: "Wildcard Subscription", link: "/RobustMQ-MQTT/WildcardSubscription" },
+                    { text: "Session Persistence", link: "/RobustMQ-MQTT/SessionPersistence" },
                 ],
             },
             {
