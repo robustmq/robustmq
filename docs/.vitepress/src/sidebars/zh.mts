@@ -1,105 +1,91 @@
 export const sidebar = [
-  {
-    text: "简介",
-    collapsed: true,
-    items: [
-      { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
-      { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
-      { text: "和IGGY对比", link: "/zh/OverView/Diff-iggy" },
-      { text: "和主流消息队列对比", link: "/zh/OverView/Diff-MQ" },
-      {
-        text: "版本计划",
+    {
+        text: "简介",
         collapsed: true,
         items: [
-          { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
-          { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
-          { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
+            { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
+            { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
+            { text: "和IGGY对比", link: "/zh/OverView/Diff-iggy" },
+            { text: "和主流消息队列对比", link: "/zh/OverView/Diff-MQ" },
+            {
+                text: "版本计划",
+                collapsed: true,
+                items: [
+                    { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
+                    { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
+                    { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
+                ],
+            },
+            { text: "给我们签个名吧", link: "/zh/OverView/SignYourName" },
         ],
-      },
-      { text: "给我们签个名吧", link: "/zh/OverView/SignYourName" },
-    ],
-  },
-  {
-    text: "快速启动",
-    collapsed: true,
-    items: [
-      { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
-      { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
-    ],
-  },
-  {
-    text: "安装部署",
-    collapsed: true,
-    items: [
-      { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
-      {
-        text: "二进制运行[单机]",
-        link: "/zh/InstallationDeployment/Docker-Deployment",
-      },
-      {
-        text: "二进制运行[集群]",
-        link: "/zh/InstallationDeployment/Kubernetes-Operator",
-      },
-      {
-        text: "Docker 模式",
-        link: "/zh/InstallationDeployment/Docker-Deployment",
-      },
-      {
-        text: "K8S 模式",
-        link: "/zh/InstallationDeployment/Kubernetes-Operator",
-      },
-    ],
-  },
-  {
-    text: "系统架构",
-    collapsed: true,
-    items: [
-      { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
-      { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
-    ],
-  },
-  {
-    text: "RobustMQ MQTT",
-    collapsed: true,
-    items: [
-      { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
-      {
-        text: "核心功能",
+    },
+    {
+        text: "快速启动",
         collapsed: true,
         items: [
-          { text: "保留消息", link: "/zh/RobustMQ-MQTT/RetainMessage.md" },
-          { text: "遗嘱消息", link: "" },
-          { text: "排他订阅", link: "" },
-          { text: "延迟发布", link: "/zh/RobustMQ-MQTT/DelayMessage.md" },
-          { text: "自动订阅", link: "" },
-          { text: "主题重写", link: "" },
-          { text: "通配符订阅", link: "" },
-          { text: "Session 持久化", link: "" },
-          { text: "共享订阅", link: "" },
-          { text: "MQTT Over Quic", link: "" },
+            { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
+            { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
         ],
-      },
-      {
-        text: "安全",
+    },
+    {
+        text: "安装部署",
         collapsed: true,
         items: [
-          {
-            text: "认证",
-            link: "/zh/RobustMQ-MQTT/Security/Authentication.md",
-          },
-          { text: "授权", link: "/zh/RobustMQ-MQTT/Security/Authorization.md" },
-          { text: "黑名单", link: "/zh/RobustMQ-MQTT/Security/Blacklist.md" },
-          { text: "连接抖动", link: "" },
+            { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
+            { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Docker-Deployment" },
+            { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
+            { text: "Docker 模式", link: "/zh/InstallationDeployment/Docker-Deployment" },
+            { text: "K8S 模式", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
         ],
-      },
-      {
-        text: "数据集成",
+    },
+    {
+        text: "系统架构",
         collapsed: true,
         items: [
-          { text: " Local File", link: "" },
-          { text: "Kafka", link: "" },
+            { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
         ],
-      },
+    },
+    {
+        text: "RobustMQ MQTT",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
+            { text: "MQTT 核心概念", link: "/zh/RobustMQ-MQTT/MQTTCoreConcepts" },
+            { text: "MQTT 系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture" },
+            {
+                text: "核心功能",
+                collapsed: true,
+                items: [
+                    { text: "共享订阅", link: "/zh/RobustMQ-MQTT/SharedSubscription" },
+                    { text: "保留消息", link: "/zh/RobustMQ-MQTT/RetainMessage" },
+                    { text: "遗嘱消息", link: "/zh/RobustMQ-MQTT/WillMessage" },
+                    { text: "排他订阅", link: "/zh/RobustMQ-MQTT/ExclusiveSubscription" },
+                    { text: "延迟发布", link: "/zh/RobustMQ-MQTT/DelayMessage" },
+                    { text: "自动订阅", link: "/zh/RobustMQ-MQTT/AutoSubscription" },
+                    { text: "主题重写", link: "/zh/RobustMQ-MQTT/TopicRewrite" },
+                    { text: "通配符订阅", link: "/zh/RobustMQ-MQTT/WildcardSubscription" },
+                    { text: "会话持久化", link: "/zh/RobustMQ-MQTT/SessionPersistence" },
+                ],
+            },
+            {
+                text: "安全",
+                collapsed: true,
+                items: [
+                    { text: "认证", link: "/zh/RobustMQ-MQTT/Security/Authentication" },
+                    { text: "授权", link: "/zh/RobustMQ-MQTT/Security/Authorization" },
+                    { text: "黑名单", link: "/zh/RobustMQ-MQTT/Security/Blacklist" },
+                    { text: "连接抖动", link: "" },
+                ]
+            },
+            {
+                text: "数据集成",
+                collapsed: true,
+                items: [
+                    { text: " Local File", link: "" },
+                    { text: "Kafka", link: "" },
+                ]
+            },
 
       {
         text: "可观测性",

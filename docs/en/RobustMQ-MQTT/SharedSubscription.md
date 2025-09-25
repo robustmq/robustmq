@@ -1,29 +1,189 @@
-## Overview
-RobustMQ MQTT implements the shared subscription functionality. A shared subscription is a subscription pattern used to achieve load balancing among multiple subscribers. Clients can be divided into multiple subscription groups, and messages will still be forwarded to all subscription groups, but only one client will receive the message within each subscription group. You can prefix the original topic for a group of subscribers to enable a shared subscription.
+# MQTT Shared Subscription
 
-RobustMQ MQTT supports two formats of shared subscription prefixes, one for shared subscriptions with groups (prefixes $share/&lt; group-name&gt; /) and shared subscriptions without groups (prefixed with $queue/). Examples of two shared subscription formats are as follows:
+## What is MQTT Shared Subscription?
 
-| Prefix format | Example | prefix | real subject name |
-| --- | --- | --- | --- |
-| with group format | $share/abc/t/1 | $share/abc/ | t/1 |
-| without group format | $queue/t/1 | $queue/ | t/1 |
+Shared subscription is an extended feature of MQTT that allows multiple subscribers to share a subscription to the same topic. In shared subscription, messages are load-balanced and distributed to different clients in the subscription group, rather than being broadcast to all subscribers.
 
-## Shared subscriptions with groups
-You can do this by prefacing the original theme with $share/&lt; group-name&gt;  Subscribers prefixed with a group enable shared subscriptions. The group name can be any string. The RobustMQ MQTT Broker forwards messages to different groups simultaneously, and subscribers belonging to the same group can receive messages using load balancing.
+The core feature of shared subscription is **load balancing**: when a message is published to a shared subscription topic, the message is distributed to one client in the subscription group, not all clients, thereby achieving load balancing for message processing.
 
-For example, if subscribers s1, s2 and s3 are members of group g1, subscribers s4 and s5 are members of group g2, and all subscribers subscribe to the original topic t1. The topics of the shared subscription must be $share/g1/t1 and $share/g2/t1. When the RobustMQ MQTT Broker publishes message msg1 to the original topic t1:
+## When to Use MQTT Shared Subscription?
 
-RobustMQ MQTT Broker sends msg1 to both groups g1 and g2.
-One subscriber in s1, s2, s3 will receive msg1.
-One subscriber in s4 and s5 will receive msg1.
+Shared subscription is suitable for the following scenarios:
 
-![image](../../images/share-sub-1.png)
+- **Load Balancing**: Multiple clients need to process the same type of messages, but each message only needs to be processed once
+- **Task Distribution**: Distribute task messages to multiple worker nodes to improve processing efficiency
+- **Message Queuing**: Implement message queue-like functionality to ensure messages are processed in order
+- **High Availability**: When a client goes offline, other clients can continue processing messages
+- **Horizontal Scaling**: Scale message processing capability by adding subscribers
 
-## Shared subscriptions without groups
-A shared subscription prefixed with $queue/ is a shared subscription without a group. It's a special case of the $share subscription. You can think of this as all subscribers are in one subscription group, like $share/$queue.
-![image](../../images/share-sub-2.png)
+## Shared Subscription Syntax Rules
 
-## Share subscriptions and sessions
-When a client has a persistent session and subscripts to a shared subscription, the session will continue to receive messages published to the shared subscription topic when the client disconnects. If the client is disconnected for a long time and the message publishing rate is high, the internal message queue in the session state may overflow. To avoid this problem, it is recommended to use clean_session=true sessions for shared subscriptions. That is: the session expires immediately after the client disconnects.
+Shared subscription has two formats:
 
-When the client uses MQTT v5, it is recommended to set a short session expiration time (if not 0). This allows the client to temporarily disconnect and reconnect to receive messages published during the disconnection. When a session expires, QoS1 and QoS2 messages in the send queue, or QoS1 messages in the flight window are redistributed to other sessions in the same group. When the last session expires, all pending messages are discarded.
+### Shared Subscription with Groups
+
+```text
+$share/{group}/{topic}
+```
+
+**Parameter Description**:
+
+- `$share`: Prefix identifier for shared subscription
+- `{group}`: Subscription group name, can be any string
+- `{topic}`: Original topic name
+
+### Shared Subscription without Groups
+
+```text
+$queue/{topic}
+```
+
+**Parameter Description**:
+
+- `$queue`: Prefix identifier for queue subscription
+- `{topic}`: Original topic name
+
+**Important Notes**:
+
+- Shared subscription with groups allows creating multiple subscription groups, each group independently performs load balancing
+- Shared subscription without groups (`$queue/`) is a special case where all subscribers are in one group
+- Messages are published to the original topic, and subscribers receive messages through shared subscription topics
+
+## Features of Shared Subscription
+
+- **Load Balancing**: Messages are load-balanced and distributed within subscription groups
+- **Group Isolation**: Different subscription groups are independent of each other
+- **High Availability**: Supports dynamic client joining and leaving
+- **Session Management**: Supports persistent and temporary sessions
+- **QoS Support**: Supports MQTT QoS levels
+
+## Shared Subscription and Sessions
+
+When a client has a persistent session and subscribes to a shared subscription, the session will continue to receive messages published to the shared subscription topic when the client disconnects. If the client is disconnected for a long time and the message publishing rate is high, the internal message queue in the session state may overflow.
+
+**Recommendations**:
+
+- Use `clean_session=true` sessions for shared subscriptions
+- When using MQTT v5, it is recommended to set short session expiration times
+- When a session expires, unprocessed messages will be redistributed to other sessions in the same group
+
+## Using Shared Subscription with MQTTX
+
+### Using MQTTX CLI
+
+1. **Create Shared Subscription with Groups**
+
+   ```bash
+   # Subscribers in group 1
+   mqttx sub -t '$share/group1/sensor/data' -h '117.72.92.117' -p 1883 -v
+   mqttx sub -t '$share/group1/sensor/data' -h '117.72.92.117' -p 1883 -v
+   
+   # Subscribers in group 2
+   mqttx sub -t '$share/group2/sensor/data' -h '117.72.92.117' -p 1883 -v
+   mqttx sub -t '$share/group2/sensor/data' -h '117.72.92.117' -p 1883 -v
+   ```
+
+2. **Create Shared Subscription without Groups**
+
+   ```bash
+   # Queue subscription
+   mqttx sub -t '$queue/task/processing' -h '117.72.92.117' -p 1883 -v
+   mqttx sub -t '$queue/task/processing' -h '117.72.92.117' -p 1883 -v
+   mqttx sub -t '$queue/task/processing' -h '117.72.92.117' -p 1883 -v
+   ```
+
+3. **Publish Messages to Original Topic**
+
+   ```bash
+   # Publish to original topic
+   mqttx pub -t 'sensor/data' -m '{"temperature":25.5,"humidity":60}' -h '117.72.92.117' -p 1883
+   mqttx pub -t 'task/processing' -m '{"task_id":"T001","type":"analysis"}' -h '117.72.92.117' -p 1883
+   ```
+
+### Practical Application Examples
+
+#### Sensor Data Processing
+
+```bash
+# Data processing group 1
+mqttx sub -t '$share/processor1/sensor/temperature' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$share/processor1/sensor/temperature' -h '117.72.92.117' -p 1883 -v
+
+# Data processing group 2
+mqttx sub -t '$share/processor2/sensor/temperature' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$share/processor2/sensor/temperature' -h '117.72.92.117' -p 1883 -v
+
+# Publish sensor data
+mqttx pub -t 'sensor/temperature' -m '{"value":25.5,"timestamp":"2024-01-01T12:00:00Z"}' -h '117.72.92.117' -p 1883
+```
+
+#### Task Queue Processing
+
+```bash
+# Worker nodes subscribe to task queue
+mqttx sub -t '$queue/job/queue' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$queue/job/queue' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$queue/job/queue' -h '117.72.92.117' -p 1883 -v
+
+# Publish tasks to queue
+mqttx pub -t 'job/queue' -m '{"job_id":"J001","type":"image_processing","data":"base64..."}' -h '117.72.92.117' -p 1883
+mqttx pub -t 'job/queue' -m '{"job_id":"J002","type":"data_analysis","data":"csv_data"}' -h '117.72.92.117' -p 1883
+```
+
+#### Message Notification System
+
+```bash
+# Notification processing group A (high priority)
+mqttx sub -t '$share/notify_high/notification/alert' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$share/notify_high/notification/alert' -h '117.72.92.117' -p 1883 -v
+
+# Notification processing group B (normal priority)
+mqttx sub -t '$share/notify_normal/notification/info' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$share/notify_normal/notification/info' -h '117.72.92.117' -p 1883 -v
+
+# Publish different types of notifications
+mqttx pub -t 'notification/alert' -m '{"level":"critical","message":"System overload"}' -h '117.72.92.117' -p 1883
+mqttx pub -t 'notification/info' -m '{"level":"info","message":"Daily backup completed"}' -h '117.72.92.117' -p 1883
+```
+
+#### Log Processing System
+
+```bash
+# Log processing group
+mqttx sub -t '$share/log_processor/application/logs' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$share/log_processor/application/logs' -h '117.72.92.117' -p 1883 -v
+mqttx sub -t '$share/log_processor/application/logs' -h '117.72.92.117' -p 1883 -v
+
+# Publish log messages
+mqttx pub -t 'application/logs' -m '{"level":"INFO","message":"User login successful","user_id":"123"}' -h '117.72.92.117' -p 1883
+mqttx pub -t 'application/logs' -m '{"level":"ERROR","message":"Database connection failed","error":"timeout"}' -h '117.72.92.117' -p 1883
+```
+
+## Differences Between Shared Subscription and Regular Subscription
+
+| Feature | Regular Subscription | Shared Subscription |
+|---------|---------------------|-------------------|
+| Message Distribution | Broadcast to all subscribers | Load-balanced distribution to subscription groups |
+| Topic Format | Original topic | $share/{group}/{topic} or $queue/{topic} |
+| Processing Method | Each subscriber processes | Each message processed by one subscriber |
+| Load Balancing | None | Yes |
+| High Availability | Depends on client | Supports dynamic failover |
+| Use Cases | Notifications, status sync | Task processing, message queuing |
+
+## Load Balancing Strategies
+
+Shared subscription supports multiple load balancing strategies:
+
+- **Round Robin**: Distribute to subscribers in order
+- **Random**: Randomly select subscribers
+- **Least Connections**: Distribute to subscribers with the least connections
+- **Hash**: Distribute based on message content hash value
+
+## Important Notes
+
+1. **Topic Format**: Must use correct shared subscription topic format
+2. **Group Management**: Reasonably design subscription groups, avoid too few or too many subscribers in a group
+3. **Session Management**: Recommend using `clean_session=true` to avoid message accumulation
+4. **QoS Level**: Choose appropriate QoS level based on business requirements
+5. **Error Handling**: Clients should properly handle message processing failures
+6. **Monitoring and Alerting**: Monitor subscription group status and message processing

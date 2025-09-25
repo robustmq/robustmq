@@ -1,104 +1,91 @@
 export const sidebar = [
-  {
-    text: "Introduction",
-    collapsed: true,
-    items: [
-      { text: "What is RobustMQ", link: "/OverView/What-is-RobustMQ" },
-      { text: "Why RobustMQ", link: "/OverView/Why-RobustMQ" },
-      { text: "IGGY Comparison", link: "/OverView/Diff-iggy" },
-      { text: "MQ Comparison", link: "/OverView/Diff-MQ" },
-      {
-        text: "Version planning",
+    {
+        text: "Introduction",
         collapsed: true,
         items: [
-          { text: "2025 RoadMap", link: "/OverView/RoadMap-2025" },
-          { text: "MQTT Release Planning", link: "/OverView/MQTT-Release" },
-          { text: "Good First Issue", link: "/OverView/Good-First-Issue" },
+            { text: "What is RobustMQ", link: "/OverView/What-is-RobustMQ" },
+            { text: "Why RobustMQ", link: "/OverView/Why-RobustMQ" },
+            { text: "IGGY Comparison", link: "/OverView/Diff-iggy" },
+            { text: "MQ Comparison", link: "/OverView/Diff-MQ" },
+            {
+                text: "Version planning",
+                collapsed: true,
+                items: [
+                    { text: "2025 RoadMap", link: "/OverView/RoadMap-2025" },
+                    { text: "MQTT Release Planning", link: "/OverView/MQTT-Release" },
+                    { text: "Good First Issue", link: "/OverView/Good-First-Issue" },
+                ],
+            },
+            { text: "Sign Your Name", link: "/OverView/SignYourName" },
         ],
-      },
-      { text: "Sign Your Name", link: "/OverView/SignYourName" },
-    ],
-  },
-  {
-    text: "QuickGuide",
-    collapsed: true,
-    items: [
-      { text: "Public Server", link: "/QuickGuide/PublicMqttServer" },
-      { text: "Experience RobustMQ MQTT", link: "/QuickGuide/Experience-MQTT" },
-    ],
-  },
-  {
-    text: "Install and Deployment",
-    collapsed: true,
-    items: [
-      { text: "Build && Package", link: "/QuickGuide/Build-and-Package" },
-      {
-        text: "StandaloneMode",
-        link: "/InstallationDeployment/Single-Machine-Cluster",
-      },
-      {
-        text: "ClusterMode",
-        link: "/InstallationDeployment/Multi-Node-Cluster",
-      },
-      { text: "DockerMode", link: "/InstallationDeployment/Docker-Deployment" },
-      { text: "K8SMode", link: "/InstallationDeployment/Kubernetes-Operator" },
-    ],
-  },
-  {
-    text: "Architect",
-    collapsed: true,
-    items: [
-      { text: "Overview", link: "/Architect/Overall-Architecture" },
-      { text: "Meta Service", link: "/Architect/MetaService-Architecture" },
-    ],
-  },
-  {
-    text: "RobustMQ MQTT",
-    collapsed: true,
-    items: [
-      { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
-      { text: "Public MQTT Server", link: "/RobustMQ-MQTT/PublicMqttServer" },
-      { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
-      {
-        text: "Features",
+    },
+    {
+        text: "QuickGuide",
         collapsed: true,
         items: [
-          { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage.md" },
-          { text: "LastWill Message", link: "" },
-          { text: "Exclusive Subscription", link: "" },
-          { text: "Delayed Publish", link: "/RobustMQ-MQTT/DelayMessage.md" },
-          { text: "Automatic subscription", link: "" },
-          { text: "Topic Rewriting", link: "" },
-          { text: "Wildcard Subscription", link: "" },
-          { text: "Session Persistence", link: "" },
-          { text: "Shared Subscription", link: "" },
-          { text: "MQTT Over Quic", link: "" },
+            { text: "Public Server", link: "/QuickGuide/PublicMqttServer" },
+            { text: "Experience RobustMQ MQTT", link: "/QuickGuide/Experience-MQTT" },
         ],
-      },
-      {
-        text: "Security",
+    },
+    {
+        text: "Install and Deployment",
         collapsed: true,
         items: [
-          {
-            text: "Authentication",
-            link: "/RobustMQ-MQTT/Security/Authentication.md",
-          },
-          {
-            text: "Authorization",
-            link: "/RobustMQ-MQTT/Security/Authorization.md",
-          },
-          { text: "Blacklist", link: "/RobustMQ-MQTT/Security/Blacklist.md" },
-          { text: "Flapping Detect", link: "" },
+            { text: "Build && Package", link: "/QuickGuide/Build-and-Package" },
+            { text: "StandaloneMode", link: "/InstallationDeployment/Single-Machine-Cluster" },
+            { text: "ClusterMode", link: "/InstallationDeployment/Multi-Node-Cluster" },
+            { text: "DockerMode", link: "/InstallationDeployment/Docker-Deployment" },
+            { text: "K8SMode", link: "/InstallationDeployment/Kubernetes-Operator" },
         ],
-      },
-      {
-        text: "Data integration",
+    },
+    {
+        text: "Architect",
         collapsed: true,
         items: [
-          { text: "Local File", link: "" },
-          { text: "Kafka", link: "" },
+            { text: "Overview", link: "/Architect/Overall-Architecture" },
+            { text: "Meta Service", link: "/Architect/MetaService-Architecture" },
         ],
-      },
+    },
+    {
+        text: "RobustMQ MQTT",
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
+            { text: "MQTT Core Concepts", link: "/RobustMQ-MQTT/MQTTCoreConcepts" },
+            { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
+            {
+                text: "Features",
+                collapsed: true,
+                items: [
+                    { text: "Shared Subscription", link: "/RobustMQ-MQTT/SharedSubscription" },
+                    { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage" },
+                    { text: "Will Message", link: "/RobustMQ-MQTT/WillMessage" },
+                    { text: "Exclusive Subscription", link: "/RobustMQ-MQTT/ExclusiveSubscription" },
+                    { text: "Delayed Publishing", link: "/RobustMQ-MQTT/DelayMessage" },
+                    { text: "Auto Subscription", link: "/RobustMQ-MQTT/AutoSubscription" },
+                    { text: "Topic Rewrite", link: "/RobustMQ-MQTT/TopicRewrite" },
+                    { text: "Wildcard Subscription", link: "/RobustMQ-MQTT/WildcardSubscription" },
+                    { text: "Session Persistence", link: "/RobustMQ-MQTT/SessionPersistence" },
+                ],
+            },
+            {
+                text: "Security",
+                collapsed: true,
+                items: [
+                    { text: "Authentication", link: "/RobustMQ-MQTT/Security/Authentication" },
+                    { text: "Authorization", link: "/RobustMQ-MQTT/Security/Authorization" },
+                    { text: "Blacklist", link: "/RobustMQ-MQTT/Security/Blacklist" },
+                    { text: "Flapping Detect", link: "" },
+                ]
+            },
+            {
+                text: "Data integration",
+                collapsed: true,
+                items: [
+                    { text: "Local File", link: "" },
+                    { text: "Kafka", link: "" },
+                ]
+            },
 
       {
         text: "Observability",
