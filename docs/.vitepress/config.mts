@@ -22,13 +22,30 @@ export default defineConfig({
 
     },
 
-    // 语言切换配置
-    themeConfig: {
-        i18nRouting: true,
-    },
-
     // 确保正确的路由配置
     cleanUrls: true,
+    
+    // 默认语言配置
+    defaultLocale: 'en',
+    
+    // 重定向配置 - 将没有语言前缀的路径重定向到英文版本
+    redirects: {
+        '/': '/en/',
+        '/OverView/What-is-RobustMQ': '/en/OverView/What-is-RobustMQ',
+        '/OverView/': '/en/OverView/',
+        '/QuickGuide/': '/en/QuickGuide/',
+        '/Getting-Started/': '/en/Getting-Started/',
+        '/Api/': '/en/Api/',
+        '/Architect/': '/en/Architect/',
+        '/Configuration/': '/en/Configuration/',
+        '/InstallationDeployment/': '/en/InstallationDeployment/',
+        '/RobustMQ-Command/': '/en/RobustMQ-Command/',
+        '/RobustMQ-Kafka/': '/en/RobustMQ-Kafka/',
+        '/RobustMQ-MQTT/': '/en/RobustMQ-MQTT/',
+        '/VersionRecord/': '/en/VersionRecord/',
+        '/Blogs/': '/en/Blogs/',
+        '/ContributionGuide/': '/en/ContributionGuide/',
+    },
 
     /* 文档配置 */
 

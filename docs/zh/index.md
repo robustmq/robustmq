@@ -3,10 +3,10 @@
 layout: home
 
 hero:
-  name: "RobustMQ"
-  text: "下一代高性能云原生融合消息队列"
+  text: "新一代云原生和AI原生消息基础设施"
   tagline: |
     RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
+    
     <div class="badges">
       <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
       <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
@@ -39,12 +39,35 @@ features:
   - title: 功能丰富
     details: 功能丰富：支持顺序消息、死消息、事务消息、幂等消息、延时消息等丰富的消息队列功能。
 
+---
+
+<div class="architecture-section">
+  <div class="architecture-header">
+    <h2>架构概览</h2>
+  </div>
+  <div class="architecture-container">
+    <div class="architecture-image-wrapper">
+      <img src="/images/robustmq-architecture.jpg" alt="RobustMQ Architecture" />
+      <div class="architecture-overlay">
+        <div class="overlay-content">
+          <h3>云原生设计</h3>
+          <p>为规模、可靠性和性能而构建</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="footer-message">
   <p>RobustMQ: 很高兴有机会让你看到不一样的作品。</p>
 </div>
 
 <div class="website-footer">
   <p>RobustMQ Website</p>
+</div>
+
+<div class="footer-brand">
+  <span>@RobustMQ</span>
 </div>
 
 ---
@@ -121,6 +144,135 @@ features:
     transition: opacity 0.3s ease !important;
 }
 
+/* 架构展示区域样式 */
+.architecture-section {
+  margin: 80px 0;
+  padding: 0 20px;
+}
+
+.architecture-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.architecture-header h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.architecture-header p {
+  font-size: 1.125rem;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+  font-weight: 400;
+  padding: 0 20px;
+}
+
+.architecture-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.architecture-image-wrapper {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.architecture-image-wrapper:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 32px 64px -12px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.architecture-image-wrapper img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: all 0.4s ease;
+  filter: brightness(0.9) contrast(1.1);
+}
+
+.architecture-image-wrapper:hover img {
+  filter: brightness(1) contrast(1.2);
+  transform: scale(1.05);
+}
+
+.architecture-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    transparent 100%
+  );
+  padding: 40px 30px 30px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.4s ease;
+}
+
+.architecture-image-wrapper:hover .architecture-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.overlay-content h3 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.overlay-content p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .architecture-header h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  
+  .architecture-header p {
+    font-size: 1rem;
+    padding: 0 16px;
+  }
+  
+  .architecture-section {
+    margin: 60px 0;
+    padding: 0 16px;
+  }
+  
+  .architecture-overlay {
+    padding: 30px 20px 20px;
+  }
+}
+
 /* 底部消息样式 */
 .footer-message {
   text-align: center;
@@ -182,5 +334,51 @@ features:
   text-transform: uppercase;
   margin: 0;
   opacity: 0.8;
+}
+
+/* 固定底部品牌标识 */
+.footer-brand {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 25px;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-brand:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.footer-brand span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-brand span::before {
+  content: "🚀";
+  font-size: 1rem;
+}
+
+/* 移动端调整 */
+@media (max-width: 768px) {
+  .footer-brand {
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
 }
 </style>

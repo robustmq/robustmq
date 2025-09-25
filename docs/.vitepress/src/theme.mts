@@ -7,9 +7,4 @@ export const themeConfig: DefaultTheme.Config = {
     // i18n路由
     i18nRouting: true,
 
-    // 导航配置
-    nav: [
-        { text: "Docs", link: "/OverView/What-is-RobustMQ" }
-    ],
-
 };
