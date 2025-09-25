@@ -19,7 +19,7 @@ use grpc_clients::meta::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
 use grpc_clients::pool::ClientPool;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
 
@@ -45,7 +45,7 @@ pub async fn pkid_save(
             producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
-        match set_idempotent_data(client_pool, &conf.get_placement_center_addr(), request).await {
+        match set_idempotent_data(client_pool, &conf.get_meta_service_addr(), request).await {
             Ok(_) => {
                 return Ok(());
             }
@@ -77,8 +77,7 @@ pub async fn pkid_exists(
             producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
-        match exists_idempotent_data(client_pool, &conf.get_placement_center_addr(), request).await
-        {
+        match exists_idempotent_data(client_pool, &conf.get_meta_service_addr(), request).await {
             Ok(reply) => Ok(reply.exists),
             Err(e) => Err(MqttBrokerError::CommonError(e.to_string())),
         }
@@ -108,8 +107,7 @@ pub async fn pkid_delete(
             producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
-        match delete_idempotent_data(client_pool, &conf.get_placement_center_addr(), request).await
-        {
+        match delete_idempotent_data(client_pool, &conf.get_meta_service_addr(), request).await {
             Ok(_) => {
                 return Ok(());
             }

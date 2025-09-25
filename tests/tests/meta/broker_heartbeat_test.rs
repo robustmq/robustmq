@@ -18,17 +18,15 @@ mod tests {
 
     use common_base::tools::now_second;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-    use protocol::meta::placement_center_inner::{NodeListRequest, RegisterNodeRequest};
+    use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
+    use protocol::meta::meta_service_inner::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;
 
     use crate::meta::common::{cluster_name, extend_info, node_id, node_ip, pc_addr};
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
         let node = BrokerNode {

@@ -16,7 +16,7 @@ use crate::{
     controller::mqtt::call_broker::{
         update_cache_by_add_user, update_cache_by_delete_user, MQTTInnerCallManager,
     },
-    core::error::PlacementCenterError,
+    core::error::MetaServiceError,
     raft::route::{
         apply::StorageDriver,
         data::{StorageData, StorageDataType},
@@ -26,7 +26,7 @@ use crate::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
     ListUserRequest,
 };
@@ -36,7 +36,7 @@ use std::sync::Arc;
 pub fn list_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListUserRequest,
-) -> Result<ListUserReply, PlacementCenterError> {
+) -> Result<ListUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
     let mut users = Vec::new();
 
@@ -60,12 +60,10 @@ pub async fn create_user_by_req(
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateUserRequest,
-) -> Result<CreateUserReply, PlacementCenterError> {
+) -> Result<CreateUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
     if storage.get(&req.cluster_name, &req.user_name)?.is_some() {
-        return Err(PlacementCenterError::UserAlreadyExist(
-            req.user_name.clone(),
-        ));
+        return Err(MetaServiceError::UserAlreadyExist(req.user_name.clone()));
     }
 
     let data = StorageData::new(
@@ -86,14 +84,12 @@ pub async fn delete_user_by_req(
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &DeleteUserRequest,
-) -> Result<DeleteUserReply, PlacementCenterError> {
+) -> Result<DeleteUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
     let user = if let Some(user) = storage.get(&req.cluster_name, &req.user_name)? {
         user
     } else {
-        return Err(PlacementCenterError::UserDoesNotExist(
-            req.user_name.clone(),
-        ));
+        return Err(MetaServiceError::UserDoesNotExist(req.user_name.clone()));
     };
 
     let data = StorageData::new(

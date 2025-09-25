@@ -16,7 +16,7 @@ use crate::{
     controller::mqtt::call_broker::{
         update_cache_by_add_subscribe, update_cache_by_delete_subscribe, MQTTInnerCallManager,
     },
-    core::error::PlacementCenterError,
+    core::error::MetaServiceError,
     raft::route::{
         apply::StorageDriver,
         data::{StorageData, StorageDataType},
@@ -26,7 +26,7 @@ use crate::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use prost::Message;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteSubscribeReply,
     DeleteSubscribeRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
     ListSubscribeReply, ListSubscribeRequest, SetAutoSubscribeRuleReply,
@@ -42,15 +42,13 @@ pub async fn delete_subscribe_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSubscribeRequest,
-) -> Result<DeleteSubscribeReply, PlacementCenterError> {
+) -> Result<DeleteSubscribeReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let subscribes = if !req.path.is_empty() {
         match storage.get(&req.cluster_name, &req.client_id, &req.path)? {
             Some(subscribe) => vec![subscribe],
             None => {
-                return Err(PlacementCenterError::SubscribeDoesNotExist(
-                    req.path.clone(),
-                ));
+                return Err(MetaServiceError::SubscribeDoesNotExist(req.path.clone()));
             }
         }
     } else {
@@ -77,7 +75,7 @@ pub async fn delete_subscribe_by_req(
 pub fn list_subscribe_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSubscribeRequest,
-) -> Result<ListSubscribeReply, PlacementCenterError> {
+) -> Result<ListSubscribeReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_by_cluster(&req.cluster_name)?;
     let subscribes = data.into_iter().map(|raw| raw.encode()).collect();
@@ -90,7 +88,7 @@ pub async fn set_subscribe_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
-) -> Result<SetSubscribeReply, PlacementCenterError> {
+) -> Result<SetSubscribeReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetSubscribe,
         SetSubscribeRequest::encode_to_vec(req),
@@ -101,7 +99,7 @@ pub async fn set_subscribe_by_req(
         Ok(subscribe) => subscribe,
         Err(e) => {
             warn!("set subscribe error:{}", e);
-            return Err(PlacementCenterError::CommonError(e.to_string()));
+            return Err(MetaServiceError::CommonError(e.to_string()));
         }
     };
 
@@ -114,7 +112,7 @@ pub async fn set_subscribe_by_req(
 pub async fn set_auto_subscribe_rule_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &SetAutoSubscribeRuleRequest,
-) -> Result<SetAutoSubscribeRuleReply, PlacementCenterError> {
+) -> Result<SetAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAutoSubscribeRule,
         SetAutoSubscribeRuleRequest::encode_to_vec(req),
@@ -127,7 +125,7 @@ pub async fn set_auto_subscribe_rule_by_req(
 pub async fn delete_auto_subscribe_rule_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteAutoSubscribeRuleRequest,
-) -> Result<DeleteAutoSubscribeRuleReply, PlacementCenterError> {
+) -> Result<DeleteAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAutoSubscribeRule,
         DeleteAutoSubscribeRuleRequest::encode_to_vec(req),
@@ -140,7 +138,7 @@ pub async fn delete_auto_subscribe_rule_by_req(
 pub fn list_auto_subscribe_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListAutoSubscribeRuleRequest,
-) -> Result<ListAutoSubscribeRuleReply, PlacementCenterError> {
+) -> Result<ListAutoSubscribeRuleReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_auto_subscribe_rule(&req.cluster_name)?;
 

@@ -15,7 +15,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: placement-center-config
+  name: meta-service-config
   namespace: ${NAMESPACE}
 data:
   config.toml: |
@@ -37,9 +37,9 @@ data:
     heartbeat_check_time_ms = 1000
 
     [rocksdb]
-    data_path = "./robust-data/placement-center/data"
+    data_path = "./robust-data/meta-service/data"
     max_open_files = 10000
 
     [log]
     log_config = "./config/log4rs.yaml"
-    log_path = "./robust-data/placement-center/logs"
+    log_path = "./robust-data/meta-service/logs"

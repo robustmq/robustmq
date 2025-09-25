@@ -20,7 +20,7 @@ use crate::controller::journal::call_node::{
     JournalInnerCallManager,
 };
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
@@ -29,7 +29,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
-use protocol::meta::placement_center_journal::{
+use protocol::meta::meta_service_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest, ListShardReply,
     ListShardRequest,
 };
@@ -39,9 +39,9 @@ use std::sync::Arc;
 pub async fn list_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListShardRequest,
-) -> Result<ListShardReply, PlacementCenterError> {
+) -> Result<ListShardReply, MetaServiceError> {
     if req.cluster_name.is_empty() {
-        return Err(PlacementCenterError::RequestParamsNotEmpty(
+        return Err(MetaServiceError::RequestParamsNotEmpty(
             req.cluster_name.clone(),
         ));
     }
@@ -73,9 +73,9 @@ pub async fn create_shard_by_req(
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
-) -> Result<CreateShardReply, PlacementCenterError> {
+) -> Result<CreateShardReply, MetaServiceError> {
     if cache_manager.get_cluster(&req.cluster_name).is_none() {
-        return Err(PlacementCenterError::ClusterDoesNotExist(
+        return Err(MetaServiceError::ClusterDoesNotExist(
             req.cluster_name.clone(),
         ));
     }
@@ -85,7 +85,7 @@ pub async fn create_shard_by_req(
     let shard_config: JournalShardConfig =
         serde_json::from_slice::<JournalShardConfig>(&req.shard_config)?;
     if num < shard_config.replica_num {
-        return Err(PlacementCenterError::NotEnoughNodes(
+        return Err(MetaServiceError::NotEnoughNodes(
             shard_config.replica_num,
             num,
         ));
@@ -177,13 +177,13 @@ pub async fn delete_shard_by_req(
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
-) -> Result<DeleteShardReply, PlacementCenterError> {
+) -> Result<DeleteShardReply, MetaServiceError> {
     let mut shard = if let Some(shard) =
         cache_manager.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
     {
         shard
     } else {
-        return Err(PlacementCenterError::ShardDoesNotExist(
+        return Err(MetaServiceError::ShardDoesNotExist(
             req.cluster_name.clone(),
         ));
     };
@@ -209,7 +209,7 @@ pub async fn update_start_segment_by_shard(
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     shard.start_segment_seq = segment_no;
     sync_save_shard_info(raft_machine_apply, shard).await?;
     cache_manager.set_shard(shard);
@@ -221,7 +221,7 @@ pub async fn update_last_segment_by_shard(
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     shard.last_segment_seq = segment_no;
     sync_save_shard_info(raft_machine_apply, shard).await?;
     cache_manager.set_shard(shard);
@@ -231,7 +231,7 @@ pub async fn update_last_segment_by_shard(
 async fn sync_save_shard_info(
     raft_machine_apply: &Arc<StorageDriver>,
     shard: &JournalShard,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetShard,
         serde_json::to_vec(&shard)?,
@@ -239,13 +239,13 @@ async fn sync_save_shard_info(
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
-    Err(PlacementCenterError::ExecutionResultIsEmpty)
+    Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn sync_delete_shard_info(
     raft_machine_apply: &Arc<StorageDriver>,
     shard: &JournalShard,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteShard,
         serde_json::to_vec(&shard)?,
@@ -253,7 +253,7 @@ pub async fn sync_delete_shard_info(
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
-    Err(PlacementCenterError::ExecutionResultIsEmpty)
+    Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn update_shard_status(
@@ -261,7 +261,7 @@ pub async fn update_shard_status(
     cache_manager: &Arc<CacheManager>,
     shard: &JournalShard,
     status: JournalShardStatus,
-) -> Result<(), PlacementCenterError> {
+) -> Result<(), MetaServiceError> {
     let mut new_shard = shard.clone();
     new_shard.status = status;
     sync_save_shard_info(raft_machine_apply, &new_shard).await?;

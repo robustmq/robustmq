@@ -32,7 +32,7 @@ RobustMQ adopts a distributed, layered architecture with clear separation of con
 - **Protocol Translation**: Converts different protocols to internal message format
 - **Connection Management**: Handles millions of concurrent connections
 
-### 3. Meta Service Layer (Placement Center)
+### 3. Meta Service Layer (meta service)
 - **Raft Consensus**: High-availability metadata management using Raft algorithm
 - **Cluster Coordination**: Node discovery, health checks, and failover
 - **Topic Management**: Topic routing, partitioning, and load balancing

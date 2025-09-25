@@ -15,10 +15,10 @@
 
 function docker_build() {
     local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
-    local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
+    local meta_service_tag=${META_SERVICE_IMAGE_NAME}:${IMAGE_VERSION}
     local cli_command_tag=${CLI_COMMAND_IMAGE_NAME}:${IMAGE_VERSION}
     cd ../../
-    docker build --target placement-center -t ${placement_center_tag} .
+    docker build --target meta-service -t ${meta_service_tag} .
     docker build --target mqtt-server -t ${mqtt_server_tag} .
     docker build --target cli-command -t ${cli_command_tag} .
 }

@@ -1,10 +1,10 @@
 # Meta Service Configuration
 
-> This document describes all configuration items related to Meta service (Metadata Service/Placement Center). For general configuration information, please refer to [COMMON.md](COMMON.md).
+> This document describes all configuration items related to Meta service (Metadata Service/Meta Service). For general configuration information, please refer to [COMMON.md](COMMON.md).
 
 ## Meta Service Overview
 
-Meta service (also known as Placement Center) is RobustMQ's metadata management service, responsible for:
+Meta service (also known as Meta Service) is RobustMQ's metadata management service, responsible for:
 - Cluster node management
 - Metadata storage and synchronization
 - Service discovery
@@ -40,7 +40,7 @@ heartbeat_check_time_ms = 1000    # Heartbeat check interval (milliseconds)
 ### RocksDB Storage Configuration
 ```toml
 [rocksdb]
-data_path = "./data/placement-center/data"  # Data storage path
+data_path = "./data/meta-service/data"  # Data storage path
 max_open_files = 10000                      # Maximum open files
 ```
 
@@ -58,9 +58,9 @@ max_open_files = 10000                      # Maximum open files
 ### Cluster Node Configuration
 ```toml
 # Metadata center node address configuration
-[placement_center]
+[meta_service]
 1 = "127.0.0.1:1228"
-2 = "127.0.0.1:1229"  
+2 = "127.0.0.1:1229"
 3 = "127.0.0.1:1230"
 ```
 
@@ -68,7 +68,7 @@ max_open_files = 10000                      # Maximum open files
 
 | Configuration | Type | Description |
 |---------------|------|-------------|
-| `placement_center` | `table` | Metadata center node address mapping table |
+| `meta_service` | `table` | Metadata center node address mapping table |
 | Key | `string` | Node ID (usually corresponds to broker_id) |
 | Value | `string` | Node address in format "IP:port" |
 
@@ -93,7 +93,7 @@ roles = ["meta", "broker"]    # Node role list
 
 ### Deployment Modes
 1. **Integrated Deployment**: `roles = ["meta", "broker", "journal"]`
-2. **Separated Deployment**: 
+2. **Separated Deployment**:
    - Meta nodes: `roles = ["meta"]`
    - Broker nodes: `roles = ["broker"]`
    - Journal nodes: `roles = ["journal"]`
@@ -111,7 +111,7 @@ roles = ["meta", "broker"]
 grpc_port = 1228
 
 # Metadata center configuration
-[placement_center]
+[meta_service]
 1 = "127.0.0.1:1228"
 
 # Meta runtime configuration
@@ -134,7 +134,7 @@ roles = ["meta"]
 grpc_port = 1228
 
 # Metadata center cluster configuration
-[placement_center]
+[meta_service]
 1 = "192.168.1.10:1228"
 2 = "192.168.1.11:1228"
 3 = "192.168.1.12:1228"
@@ -214,7 +214,7 @@ max_open_files = 30000             # Sufficient file handles
 ## Cluster Management
 
 ### Node Discovery
-Meta service uses `placement_center` configuration for node discovery:
+Meta service uses `meta_service` configuration for node discovery:
 1. Each node connects to all configured Meta nodes on startup
 2. Maintain node status through heartbeat mechanism
 3. Automatically handle node failures and recovery
@@ -235,7 +235,7 @@ Meta service uses `placement_center` configuration for node discovery:
 
 ### Common Issues
 1. **Node Cannot Join Cluster**
-   - Check `placement_center` configuration
+   - Check `meta_service` configuration
    - Verify network connectivity
    - Confirm ports are not occupied
 
@@ -278,6 +278,6 @@ Meta service provides the following monitoring metrics:
 
 ---
 
-*Documentation Version: v1.0*  
-*Last Updated: 2024-01-01*  
+*Documentation Version: v1.0*
+*Last Updated: 2024-01-01*
 *Based on Code Version: RobustMQ v0.1.31*

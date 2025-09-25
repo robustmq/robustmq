@@ -21,7 +21,7 @@ mod test {
         pool::ClientPool,
     };
     use metadata_struct::schema::{SchemaData, SchemaType};
-    use protocol::meta::placement_center_inner::{
+    use protocol::meta::meta_service_inner::{
         CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest, UpdateSchemaRequest,
     };
 

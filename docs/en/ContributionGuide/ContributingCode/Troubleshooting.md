@@ -10,10 +10,10 @@ kind = "TokioConsole" # Note that this is case-sensitive
 bind = "127.0.0.1:5674" # specify the server address for the tokio-console server(default: 127.0.0.1:6669)
 ```
 
-In order to collect task data from the tokio runtime, you also need to enable the `tokio_unstable` `cfg`. For example, you can run the placement center with the following command along with the above configuration to enable `tokio-console` support:
+In order to collect task data from the tokio runtime, you also need to enable the `tokio_unstable` `cfg`. For example, you can run the meta service with the following command along with the above configuration to enable `tokio-console` support:
 
 ```bash
-RUSTFLAGS="--cfg tokio_unstable" cargo run --package cmd --bin placement-center
+RUSTFLAGS="--cfg tokio_unstable" cargo run --package cmd --bin meta-service
 ```
 
 You can then use the following command to launch the `tokio-console` client to connect to the server listening on the custom address:

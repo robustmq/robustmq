@@ -17,12 +17,12 @@ mod tests {
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-    use protocol::meta::placement_center_inner::{
+    use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
+    use protocol::meta::meta_service_inner::{
         HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
     };
-    use protocol::meta::placement_center_journal::engine_service_client::EngineServiceClient;
-    use protocol::meta::placement_center_journal::{
+    use protocol::meta::meta_service_journal::engine_service_client::EngineServiceClient;
+    use protocol::meta::meta_service_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
 
@@ -33,9 +33,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_register_node_method_is_ok() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
         let node = BrokerNode {
             cluster_name: cluster_name(),
             roles: Vec::new(),
@@ -57,9 +55,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_register_node_method_param_ip_is_correct() {
-        let client = PlacementCenterServiceClient::connect(pc_addr())
+        let client = MetaServiceServiceClient::connect(pc_addr())
             .await
-            .expect("Failed to connect to PlacementCenterService");
+            .expect("Failed to connect to MetaServiceService");
 
         let mut node = BrokerNode {
             cluster_name: cluster_name(),
@@ -119,9 +117,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_heartbeat() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
 
         let request = HeartbeatRequest {
             cluster_name: cluster_name(),
@@ -133,9 +129,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unregister_node() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
 
         let request = UnRegisterNodeRequest {
             cluster_name: cluster_name(),
@@ -149,9 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_idempotent_data() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
 
         let valid_request = SetIdempotentDataRequest {
             cluster_name: cluster_name(),

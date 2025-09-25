@@ -16,7 +16,7 @@ cluster_name = "placement-test"
 
 [node]
 node_id = 2
-nodes = { 1 = "placement-center-node-1:1228", 2 = "placement-center-node-2:2228", 3 = "placement-center-node-3:3228" }
+nodes = { 1 = "meta-service-node-1:1228", 2 = "meta-service-node-2:2228", 3 = "meta-service-node-3:3228" }
 
 [network]
 grpc_port = 2228
@@ -30,9 +30,9 @@ heartbeat_timeout_ms = 5000
 heartbeat_check_time_ms = 1000
 
 [rocksdb]
-data_path = "./robust-data/placement-center-2/data"
+data_path = "./robust-data/meta-service-2/data"
 max_open_files = 10000
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "./robust-data/placement-center-2/logs"
+log_path = "./robust-data/meta-service-2/logs"

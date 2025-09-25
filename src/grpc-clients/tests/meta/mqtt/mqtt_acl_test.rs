@@ -21,9 +21,7 @@ mod tests {
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
-    use protocol::meta::placement_center_mqtt::{
-        CreateAclRequest, DeleteAclRequest, ListAclRequest,
-    };
+    use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
     use std::sync::Arc;
 
     use crate::common::get_placement_addr;

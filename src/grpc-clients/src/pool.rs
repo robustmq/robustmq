@@ -31,14 +31,14 @@ use tracing::info;
 #[derive(Clone)]
 pub struct ClientPool {
     max_open_connection: u64,
-    // modules: placement center
-    placement_center_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
-    placement_center_journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
-    placement_center_kv_service_pools: DashMap<String, Pool<KvServiceManager>>,
-    placement_center_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
-    placement_center_openraft_service_pools: DashMap<String, Pool<OpenRaftServiceManager>>,
-    // modules: placement center service: leader cache
-    placement_center_leader_addr_caches: DashMap<String, String>,
+    // modules: meta service
+    meta_service_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
+    meta_service_journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
+    meta_service_kv_service_pools: DashMap<String, Pool<KvServiceManager>>,
+    meta_service_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
+    meta_service_openraft_service_pools: DashMap<String, Pool<OpenRaftServiceManager>>,
+    // modules: meta service service: leader cache
+    meta_service_leader_addr_caches: DashMap<String, String>,
 
     // modules: mqtt broker
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
@@ -52,13 +52,13 @@ impl ClientPool {
     pub fn new(max_open_connection: u64) -> Self {
         Self {
             max_open_connection,
-            // modules: placement_center
-            placement_center_inner_pools: DashMap::with_capacity(2),
-            placement_center_journal_service_pools: DashMap::with_capacity(2),
-            placement_center_kv_service_pools: DashMap::with_capacity(2),
-            placement_center_mqtt_service_pools: DashMap::with_capacity(2),
-            placement_center_openraft_service_pools: DashMap::with_capacity(2),
-            placement_center_leader_addr_caches: DashMap::with_capacity(2),
+            // modules: meta_service
+            meta_service_inner_pools: DashMap::with_capacity(2),
+            meta_service_journal_service_pools: DashMap::with_capacity(2),
+            meta_service_kv_service_pools: DashMap::with_capacity(2),
+            meta_service_mqtt_service_pools: DashMap::with_capacity(2),
+            meta_service_openraft_service_pools: DashMap::with_capacity(2),
+            meta_service_leader_addr_caches: DashMap::with_capacity(2),
             // modules: mqtt_broker
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
             // modules: journal_engine
@@ -67,29 +67,30 @@ impl ClientPool {
         }
     }
 
-    // ----------modules: placement center -------------
-    pub async fn placement_center_inner_services_client(
+    // ----------modules: meta service -------------
+    pub async fn meta_service_inner_services_client(
         &self,
         addr: &str,
     ) -> Result<Connection<PlacementServiceManager>, CommonError> {
-        if !self.placement_center_inner_pools.contains_key(addr) {
+        if !self.meta_service_inner_pools.contains_key(addr) {
             let manager = PlacementServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_inner_pools
-                .insert(addr.to_owned(), pool);
+            self.meta_service_inner_pools.insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.placement_center_inner_pools.get(addr) {
+        if let Some(pool) = self.meta_service_inner_pools.get(addr) {
             match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "PlacementService".to_string(),
-                        format!("get placement center inner service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get meta service inner service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -100,22 +101,19 @@ impl ClientPool {
         ))
     }
 
-    pub async fn placement_center_journal_services_client(
+    pub async fn meta_service_journal_services_client(
         &self,
         addr: &str,
     ) -> Result<Connection<JournalServiceManager>, CommonError> {
-        if !self
-            .placement_center_journal_service_pools
-            .contains_key(addr)
-        {
+        if !self.meta_service_journal_service_pools.contains_key(addr) {
             let manager = JournalServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_journal_service_pools
+            self.meta_service_journal_service_pools
                 .insert(addr.to_owned(), pool);
         }
-        if let Some(pool) = self.placement_center_journal_service_pools.get(addr) {
+        if let Some(pool) = self.meta_service_journal_service_pools.get(addr) {
             match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
@@ -123,9 +121,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "JournalService".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get meta service journal service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -136,20 +136,20 @@ impl ClientPool {
         ))
     }
 
-    pub async fn placement_center_kv_services_client(
+    pub async fn meta_service_kv_services_client(
         &self,
         addr: &str,
     ) -> Result<Connection<KvServiceManager>, CommonError> {
-        if !self.placement_center_kv_service_pools.contains_key(addr) {
+        if !self.meta_service_kv_service_pools.contains_key(addr) {
             let manager = KvServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_kv_service_pools
+            self.meta_service_kv_service_pools
                 .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.placement_center_kv_service_pools.get(addr) {
+        if let Some(pool) = self.meta_service_kv_service_pools.get(addr) {
             match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
@@ -158,7 +158,7 @@ impl ClientPool {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "KvServices".to_string(),
                         format!(
-                            "get placement center kv service client failed, err: {}, state: {:?}",
+                            "get meta service kv service client failed, err: {}, state: {:?}",
                             e,
                             pool.state().await
                         ),
@@ -173,19 +173,19 @@ impl ClientPool {
         ))
     }
 
-    pub async fn placement_center_mqtt_services_client(
+    pub async fn meta_service_mqtt_services_client(
         &self,
         addr: &str,
     ) -> Result<Connection<MqttServiceManager>, CommonError> {
-        if !self.placement_center_mqtt_service_pools.contains_key(addr) {
+        if !self.meta_service_mqtt_service_pools.contains_key(addr) {
             let manager = MqttServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_mqtt_service_pools
+            self.meta_service_mqtt_service_pools
                 .insert(addr.to_owned(), pool);
         }
-        if let Some(pool) = self.placement_center_mqtt_service_pools.get(addr) {
+        if let Some(pool) = self.meta_service_mqtt_service_pools.get(addr) {
             match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
@@ -194,7 +194,7 @@ impl ClientPool {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "MqttServices".to_string(),
                         format!(
-                            "get placement center mqtt service client failed, err: {}, state: {:?}",
+                            "get meta service mqtt service client failed, err: {}, state: {:?}",
                             e,
                             pool.state().await
                         ),
@@ -208,23 +208,20 @@ impl ClientPool {
         ))
     }
 
-    pub async fn placement_center_openraft_services_client(
+    pub async fn meta_service_openraft_services_client(
         &self,
         addr: &str,
     ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
-        if !self
-            .placement_center_openraft_service_pools
-            .contains_key(addr)
-        {
+        if !self.meta_service_openraft_service_pools.contains_key(addr) {
             let manager = OpenRaftServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_openraft_service_pools
+            self.meta_service_openraft_service_pools
                 .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.placement_center_openraft_service_pools.get(addr) {
+        if let Some(pool) = self.meta_service_openraft_service_pools.get(addr) {
             match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
@@ -232,9 +229,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "OpenRaftServices".to_string(),
-                        format!("get placement center openraft service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get meta service openraft service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -360,7 +359,7 @@ impl ClientPool {
 
     // other
     pub fn get_leader_addr(&self, addr: &str) -> Option<Ref<'_, String, String>> {
-        self.placement_center_leader_addr_caches.get(addr)
+        self.meta_service_leader_addr_caches.get(addr)
     }
 
     pub fn set_leader_addr(&self, addr: String, leader_addr: String) {
@@ -368,7 +367,7 @@ impl ClientPool {
             "Update the Leader information in the client cache with the new Leader address :{}",
             leader_addr
         );
-        self.placement_center_leader_addr_caches
+        self.meta_service_leader_addr_caches
             .insert(addr.to_owned(), leader_addr);
     }
 }

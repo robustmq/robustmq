@@ -25,7 +25,7 @@ use metadata_struct::mqtt::{
     topic::MQTTTopic,
 };
 use protocol::{
-    meta::placement_center_mqtt::SetSubscribeRequest,
+    meta::meta_service_mqtt::SetSubscribeRequest,
     mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
 };
 use serde::{Deserialize, Serialize};
@@ -103,15 +103,12 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
             subscribe: subscribe_data.encode(),
         };
 
-        if let Err(e) = placement_set_subscribe(
-            &context.client_pool,
-            &conf.get_placement_center_addr(),
-            request,
-        )
-        .await
+        if let Err(e) =
+            placement_set_subscribe(&context.client_pool, &conf.get_meta_service_addr(), request)
+                .await
         {
             error!(
-                "Failed to set subscribe to placement center, error message: {}",
+                "Failed to set subscribe to meta service, error message: {}",
                 e
             );
             return Err(MqttBrokerError::CommonError(e.to_string()));

@@ -18,7 +18,7 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
 };
 
@@ -39,12 +39,8 @@ impl BlackListStorage {
         let request = ListBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        let reply = list_blacklist(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            list_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
         for raw in reply.blacklists {
             list.push(serde_json::from_slice::<MqttAclBlackList>(raw.as_slice())?);
@@ -58,12 +54,7 @@ impl BlackListStorage {
             cluster_name: config.cluster_name.clone(),
             blacklist: blacklist.encode()?,
         };
-        create_blacklist(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        create_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -74,12 +65,7 @@ impl BlackListStorage {
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
         };
-        delete_blacklist(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        delete_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 }

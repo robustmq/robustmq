@@ -51,7 +51,7 @@ pub struct KvMixedBenchArgs {
     #[clap(long, default_value = "64")]
     pub value_size: usize,
 
-    /// The address of the placement center
+    /// The address of the meta service
     #[clap(long, default_value = "127.0.0.1:1228", value_delimiter = ',')]
     pub pc_addrs: Vec<String>,
 }
@@ -75,7 +75,7 @@ impl BenchMark for KvMixedBenchArgs {
         } = self.clone();
 
         println!(
-            "Starting KV Mix Benchmark with {} clients, {} worker threads, {} keys, key size: {}, value size: {}, placement center addresses: {:?}",
+            "Starting KV Mix Benchmark with {} clients, {} worker threads, {} keys, key size: {}, value size: {}, meta service addresses: {:?}",
             num_clients, worker_threads, num_keys, key_size, value_size, pc_addrs
         );
 

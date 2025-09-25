@@ -21,7 +21,7 @@ use grpc_clients::meta::mqtt::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
 };
 
@@ -46,7 +46,7 @@ impl AutoSubscribeStorage {
         };
         let reply = placement_list_auto_subscribe_rule(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -74,7 +74,7 @@ impl AutoSubscribeStorage {
         };
         placement_set_auto_subscribe_rule(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -89,7 +89,7 @@ impl AutoSubscribeStorage {
         };
         placement_delete_auto_subscribe_rule(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;

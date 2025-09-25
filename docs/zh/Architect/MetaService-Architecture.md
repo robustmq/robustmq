@@ -49,7 +49,7 @@ MetaService 采用分层架构，职责分离清晰：
 服务层提供外部 API 和内部服务实现。
 
 #### gRPC 服务
-- **PlacementCenterService**：集群操作的主要 gRPC 服务
+- **MetaServiceService**：集群操作的主要 gRPC 服务
 - **MQTT 服务**：MQTT 特定的元数据操作
 - **Journal 服务**：存储相关的元数据操作
 - **KV 服务**：键值元数据操作
@@ -86,7 +86,7 @@ pub struct GrpcPlacementService {
 ```rust
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
-    placement_center_storage: Arc<StorageDriver>,
+    meta_service_storage: Arc<StorageDriver>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,

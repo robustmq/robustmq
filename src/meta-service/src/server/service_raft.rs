@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use openraft::Raft;
-use protocol::meta::placement_center_openraft::open_raft_service_server::OpenRaftService;
-use protocol::meta::placement_center_openraft::{
+use protocol::meta::meta_service_openraft::open_raft_service_server::OpenRaftService;
+use protocol::meta::meta_service_openraft::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };

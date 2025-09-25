@@ -21,9 +21,7 @@ use grpc_clients::meta::mqtt::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::meta::placement_center_mqtt::{
-    CreateUserRequest, DeleteUserRequest, ListUserRequest,
-};
+use protocol::meta::meta_service_mqtt::{CreateUserRequest, DeleteUserRequest, ListUserRequest};
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
@@ -43,12 +41,7 @@ impl UserStorage {
             user_name: user_info.username.clone(),
             content: user_info.encode(),
         };
-        placement_create_user(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_create_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -58,12 +51,7 @@ impl UserStorage {
             cluster_name: config.cluster_name.clone(),
             user_name,
         };
-        placement_delete_user(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_delete_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -75,12 +63,9 @@ impl UserStorage {
             user_name: username.clone(),
         };
 
-        let reply = placement_list_user(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            placement_list_user(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
 
         if let Some(raw) = reply.users.first() {
             return Ok(Some(serde_json::from_slice::<MqttUser>(raw)?));
@@ -96,12 +81,9 @@ impl UserStorage {
             ..Default::default()
         };
 
-        let reply = placement_list_user(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            placement_list_user(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
 
         let results = DashMap::with_capacity(2);
         for raw in reply.users {

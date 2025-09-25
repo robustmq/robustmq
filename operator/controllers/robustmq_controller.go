@@ -220,8 +220,8 @@ grpc_port = %d
 `
 	}
 
-	// Add placement center configuration
-	config += fmt.Sprintf(`placement_center = { 1 = "%s-meta-service:%d" }
+	// Add meta service configuration
+	config += fmt.Sprintf(`meta_service = { 1 = "%s-meta-service:%d" }
 
 `, robustmq.Name, robustmq.Spec.Network.GRPC.Port)
 
@@ -326,7 +326,7 @@ max_log_files = 50
 
 [place]
 kind = "rolling_file"
-targets = [{ path = "placement_center", level = "info" }]
+targets = [{ path = "meta_service", level = "info" }]
 rotation = "daily"
 directory = "/robustmq/logs"
 prefix = "place"

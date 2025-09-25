@@ -16,7 +16,7 @@ use crate::controller::mqtt::call_broker::{
     update_cache_by_set_resource_config, MQTTInnerCallManager,
 };
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
@@ -26,7 +26,7 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use prost::Message;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     ClusterStatusReply, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
     ExistsIdempotentDataRequest, GetOffsetDataReply, GetOffsetDataReplyOffset,
@@ -41,14 +41,14 @@ use tracing::debug;
 
 pub async fn cluster_status_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
-) -> Result<ClusterStatusReply, PlacementCenterError> {
+) -> Result<ClusterStatusReply, MetaServiceError> {
     let mut reply = ClusterStatusReply::default();
     let status = raft_machine_apply.raft_node.metrics().borrow().clone();
 
     reply.content = match serde_json::to_string(&status) {
         Ok(data) => data,
         Err(e) => {
-            return Err(PlacementCenterError::SerdeJsonError(e));
+            return Err(MetaServiceError::SerdeJsonError(e));
         }
     };
 
@@ -58,7 +58,7 @@ pub async fn cluster_status_by_req(
 pub async fn node_list_by_req(
     cluster_cache: &Arc<CacheManager>,
     req: &NodeListRequest,
-) -> Result<NodeListReply, PlacementCenterError> {
+) -> Result<NodeListReply, MetaServiceError> {
     let mut nodes = Vec::new();
 
     for broker_node in cluster_cache.get_broker_node_by_cluster(&req.cluster_name) {
@@ -71,7 +71,7 @@ pub async fn node_list_by_req(
 pub async fn heartbeat_by_req(
     cluster_cache: &Arc<CacheManager>,
     req: &HeartbeatRequest,
-) -> Result<HeartbeatReply, PlacementCenterError> {
+) -> Result<HeartbeatReply, MetaServiceError> {
     match cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
         Some(_) => {
             debug!(
@@ -84,7 +84,7 @@ pub async fn heartbeat_by_req(
 
             Ok(HeartbeatReply::default())
         }
-        None => Err(PlacementCenterError::NodeDoesNotExist(req.node_id)),
+        None => Err(MetaServiceError::NodeDoesNotExist(req.node_id)),
     }
 }
 
@@ -93,7 +93,7 @@ pub async fn set_resource_config_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
-) -> Result<SetResourceConfigReply, PlacementCenterError> {
+) -> Result<SetResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ResourceConfigSet,
         SetResourceConfigRequest::encode_to_vec(req),
@@ -114,7 +114,7 @@ pub async fn set_resource_config_by_req(
 pub async fn get_resource_config_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: GetResourceConfigRequest,
-) -> Result<GetResourceConfigReply, PlacementCenterError> {
+) -> Result<GetResourceConfigReply, MetaServiceError> {
     let storage = ResourceConfigStorage::new(rocksdb_engine_handler.clone());
 
     match storage.get(req.cluster_name, req.resources) {
@@ -122,14 +122,14 @@ pub async fn get_resource_config_by_req(
             Some(res) => Ok(GetResourceConfigReply { config: res }),
             None => Ok(GetResourceConfigReply { config: Vec::new() }),
         },
-        Err(e) => Err(PlacementCenterError::CommonError(e.to_string())),
+        Err(e) => Err(MetaServiceError::CommonError(e.to_string())),
     }
 }
 
 pub async fn delete_resource_config_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteResourceConfigRequest,
-) -> Result<DeleteResourceConfigReply, PlacementCenterError> {
+) -> Result<DeleteResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ResourceConfigDelete,
         DeleteResourceConfigRequest::encode_to_vec(req),
@@ -144,7 +144,7 @@ pub async fn delete_resource_config_by_req(
 pub async fn set_idempotent_data_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &SetIdempotentDataRequest,
-) -> Result<SetIdempotentDataReply, PlacementCenterError> {
+) -> Result<SetIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::IdempotentDataSet,
         SetIdempotentDataRequest::encode_to_vec(req),
@@ -159,19 +159,19 @@ pub async fn set_idempotent_data_by_req(
 pub async fn exists_idempotent_data_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ExistsIdempotentDataRequest,
-) -> Result<ExistsIdempotentDataReply, PlacementCenterError> {
+) -> Result<ExistsIdempotentDataReply, MetaServiceError> {
     let storage = IdempotentStorage::new(rocksdb_engine_handler.clone());
 
     storage
         .exists(&req.cluster_name, &req.producer_id, req.seq_num)
-        .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
         .map(|flag| ExistsIdempotentDataReply { exists: flag })
 }
 
 pub async fn delete_idempotent_data_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteIdempotentDataRequest,
-) -> Result<DeleteIdempotentDataReply, PlacementCenterError> {
+) -> Result<DeleteIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::IdempotentDataDelete,
         DeleteIdempotentDataRequest::encode_to_vec(req),
@@ -186,7 +186,7 @@ pub async fn delete_idempotent_data_by_req(
 pub async fn save_offset_data_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     req: &SaveOffsetDataRequest,
-) -> Result<SaveOffsetDataReply, PlacementCenterError> {
+) -> Result<SaveOffsetDataReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::OffsetSet,
         SaveOffsetDataRequest::encode_to_vec(req),
@@ -201,11 +201,11 @@ pub async fn save_offset_data_by_req(
 pub async fn get_offset_data_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetOffsetDataRequest,
-) -> Result<GetOffsetDataReply, PlacementCenterError> {
+) -> Result<GetOffsetDataReply, MetaServiceError> {
     let offset_storage = OffsetStorage::new(rocksdb_engine_handler.clone());
     offset_storage
         .group_offset(&req.cluster_name, &req.group)
-        .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
         .map(|offset_data| GetOffsetDataReply {
             offsets: offset_data
                 .into_iter()

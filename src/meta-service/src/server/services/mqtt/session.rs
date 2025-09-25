@@ -17,7 +17,7 @@ use crate::controller::mqtt::call_broker::{
 };
 use crate::controller::mqtt::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::{
     raft::route::{
@@ -30,7 +30,7 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
     ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
 };
@@ -40,7 +40,7 @@ use std::sync::Arc;
 pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
-) -> Result<ListSessionReply, PlacementCenterError> {
+) -> Result<ListSessionReply, MetaServiceError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let mut sessions = Vec::new();
 
@@ -61,7 +61,7 @@ pub async fn create_session_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
-) -> Result<CreateSessionReply, PlacementCenterError> {
+) -> Result<CreateSessionReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetSession,
         CreateSessionRequest::encode_to_vec(req),
@@ -82,7 +82,7 @@ pub async fn update_session_by_req(
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &UpdateSessionRequest,
-) -> Result<UpdateSessionReply, PlacementCenterError> {
+) -> Result<UpdateSessionReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttUpdateSession,
         UpdateSessionRequest::encode_to_vec(req),
@@ -103,11 +103,11 @@ pub async fn delete_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<CacheManager>,
     req: &DeleteSessionRequest,
-) -> Result<DeleteSessionReply, PlacementCenterError> {
+) -> Result<DeleteSessionReply, MetaServiceError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session = storage
         .get(&req.cluster_name, &req.client_id)?
-        .ok_or_else(|| PlacementCenterError::SessionDoesNotExist(req.client_id.clone()))?;
+        .ok_or_else(|| MetaServiceError::SessionDoesNotExist(req.client_id.clone()))?;
 
     update_cache_by_delete_session(
         &req.cluster_name,
