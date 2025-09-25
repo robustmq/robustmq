@@ -32,3 +32,4 @@ crc32fast.workspace = true
 tokio.workspace = true
 lazy_static.workspace = true
 clap.workspace = true
+pulsar.workspace = true

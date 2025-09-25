@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use common_base::{tools::now_second, utils::crc::calc_crc32};
+use pulsar::{producer, Error as PulsarError, SerializeMessage};
 use serde::{Deserialize, Serialize};
+
+use crate::adapter;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Header {
@@ -75,5 +78,15 @@ impl Record {
     pub fn crc32_check(&self) -> bool {
         let crc_num = calc_crc32(&self.data);
         crc_num == self.crc_num
+    }
+}
+
+impl SerializeMessage for Record {
+    fn serialize_message(input: adapter::record::Record) -> Result<producer::Message, PulsarError> {
+        let payload = serde_json::to_vec(&input).map_err(|e| PulsarError::Custom(e.to_string()))?;
+        Ok(producer::Message {
+            payload,
+            ..Default::default()
+        })
     }
 }
