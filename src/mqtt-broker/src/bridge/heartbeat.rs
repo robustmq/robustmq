@@ -56,12 +56,12 @@ async fn report_heartbeat(
 ) {
     let storage = ConnectorStorage::new(client_pool.clone());
     let conf = broker_config();
-    let mut heatbeats = Vec::new();
+    let mut heatbeats = Vec::with_capacity(connector_manager.connector_heartbeat.len());
 
-    for (connector_name, heartbeat_time) in connector_manager.connector_heartbeat.clone() {
+    for entry in connector_manager.connector_heartbeat.iter() {
         heatbeats.push(ConnectorHeartbeatRaw {
-            connector_name,
-            heartbeat_time,
+            connector_name: entry.key().clone(),
+            heartbeat_time: *entry.value(),
             broker_id: conf.broker_id,
         });
     }

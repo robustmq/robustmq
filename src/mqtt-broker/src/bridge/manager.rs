@@ -54,9 +54,9 @@ impl ConnectorManager {
     }
 
     pub fn get_all_connector(&self) -> Vec<MQTTConnector> {
-        let mut results = Vec::new();
-        for (_, raw) in self.connector_list.clone() {
-            results.push(raw);
+        let mut results = Vec::with_capacity(self.connector_list.len());
+        for entry in self.connector_list.iter() {
+            results.push(entry.value().clone());
         }
         results
     }
@@ -80,9 +80,9 @@ impl ConnectorManager {
     }
 
     pub fn get_all_connector_thread(&self) -> Vec<BridgePluginThread> {
-        let mut results = Vec::new();
-        for (_, raw) in self.connector_thread.clone() {
-            results.push(raw);
+        let mut results = Vec::with_capacity(self.connector_thread.len());
+        for entry in self.connector_thread.iter() {
+            results.push(entry.value().clone());
         }
         results
     }
