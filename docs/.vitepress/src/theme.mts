@@ -9,7 +9,7 @@ export const themeConfig: DefaultTheme.Config = {
 
     // 导航配置
     nav: [
-        { text: "Doc", link: "/OverView/What-is-RobustMQ" }
+        { text: "Docs", link: "/OverView/What-is-RobustMQ" }
     ],
 
 };

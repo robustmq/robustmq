@@ -22,6 +22,11 @@ export default defineConfig({
 
     },
 
+    // 语言切换配置
+    themeConfig: {
+        i18nRouting: true,
+    },
+
     // 确保正确的路由配置
     cleanUrls: true,
 

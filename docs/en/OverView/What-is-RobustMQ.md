@@ -1,6 +1,6 @@
 ## Logo
 
-![image](../../../docs/images/robustmq-logo.png)
+![image](/images/robustmq-logo.png)
 
 ## Vision
 To become the next-generation cloud-native and AI-native messaging infrastructure.

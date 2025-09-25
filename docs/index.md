@@ -57,6 +57,14 @@ features:
   </div>
 </div>
 
+<div class="footer-message">
+  <p>RobustMQ: Glad to have the opportunity to show you something different.</p>
+</div>
+
+<div class="website-footer">
+  <p>RobustMQ Website</p>
+</div>
+
 <div class="footer-brand">
   <span>@RobustMQ</span>
 </div>
@@ -320,6 +328,69 @@ features:
   .architecture-overlay {
     padding: 30px 20px 20px;
   }
+}
+
+/* 底部消息样式 */
+.footer-message {
+  text-align: center;
+  margin: 80px 0 60px;
+  padding: 0 20px;
+}
+
+.footer-message p {
+  font-size: 1.25rem;
+  color: #2d3748;
+  font-weight: 600;
+  line-height: 1.7;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  position: relative;
+}
+
+.footer-message p::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+}
+
+.footer-message p::after {
+  content: "";
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 1px;
+  opacity: 0.6;
+}
+
+/* 网站底部样式 */
+.website-footer {
+  text-align: center;
+  margin: 40px 0 20px;
+  padding: 0 20px;
+}
+
+.website-footer p {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0.8;
 }
 
 /* 固定底部品牌标识 */

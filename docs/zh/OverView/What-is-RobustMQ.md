@@ -1,6 +1,6 @@
 
 ## Logo
-![image](../../../docs/images/robustmq-logo.png)
+![image](/images/robustmq-logo.png)
 
 ## 愿景
 
