@@ -52,6 +52,7 @@ export const sidebar = [
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
             { text: "MQTT 核心概念", link: "/zh/RobustMQ-MQTT/MQTTCoreConcepts" },
+            { text: "系统架构", link: "zh/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "核心功能",
                 collapsed: true,
