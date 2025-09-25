@@ -24,7 +24,7 @@ Add the following dependency to your `pom.xml`:
 
 Add the following dependency to your `build.gradle`:
 
-```gradle
+```groovy
 implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
 ```
 
@@ -85,7 +85,7 @@ public class App {
             MqttMessage message = new MqttMessage(content.getBytes());
             message.setQos(qos);
             message.setRetained(false);
-            
+
             client.publish(pubTopic, message);
             System.out.println("Message published to topic: " + pubTopic);
 
@@ -96,7 +96,7 @@ public class App {
             client.disconnect();
             System.out.println("Disconnected from RobustMQ");
             client.close();
-            
+
         } catch (MqttException me) {
             System.out.println("Reason: " + me.getReasonCode());
             System.out.println("Message: " + me.getMessage());
@@ -123,7 +123,7 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 public class RobustMQCallback implements MqttCallback {
-    
+
     @Override
     public void connectionLost(Throwable cause) {
         // After connection is lost, usually implement reconnection here
@@ -174,45 +174,45 @@ public class SSLConnection {
     public static void main(String[] args) {
         String broker = "ssl://localhost:1884";
         String clientId = "robustmq_ssl_client";
-        
+
         try {
             MqttClient client = new MqttClient(broker, clientId);
             MqttConnectOptions connOpts = new MqttConnectOptions();
-            
+
             // Configure SSL
             SSLContext sslContext = createSSLContext();
             connOpts.setSocketFactory(sslContext.getSocketFactory());
-            
+
             // Other connection parameters
             connOpts.setCleanSession(true);
             connOpts.setConnectionTimeout(10);
             connOpts.setKeepAliveInterval(20);
-            
+
             System.out.println("Connecting to RobustMQ with SSL...");
             client.connect(connOpts);
             System.out.println("Connected to RobustMQ with SSL successfully");
-            
+
             // ... other operations ...
-            
+
             client.disconnect();
             client.close();
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    
+
     private static SSLContext createSSLContext() throws Exception {
         // Load trust certificate
         KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
         trustStore.load(new FileInputStream("/path/to/truststore.jks"), "password".toCharArray());
-        
+
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         trustManagerFactory.init(trustStore);
-        
+
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
-        
+
         return sslContext;
     }
 }
@@ -227,47 +227,47 @@ public class AsyncMQTTClient {
     public static void main(String[] args) {
         String broker = "tcp://localhost:1883";
         String clientId = "robustmq_async_client";
-        
+
         try {
             MqttAsyncClient client = new MqttAsyncClient(broker, clientId);
-            
+
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(true);
             connOpts.setKeepAliveInterval(20);
-            
+
             // Set callback
             client.setCallback(new RobustMQCallback());
-            
+
             // Asynchronous connection
             IMqttToken connectToken = client.connect(connOpts);
             connectToken.waitForCompletion();
-            
+
             System.out.println("Connected to RobustMQ asynchronously");
-            
+
             // Asynchronous subscription
             String topic = "robustmq/async/test";
             IMqttToken subToken = client.subscribe(topic, 1);
             subToken.waitForCompletion();
-            
+
             System.out.println("Subscribed to topic: " + topic);
-            
+
             // Asynchronous publishing
             String message = "Async message from RobustMQ Java client";
             MqttMessage mqttMessage = new MqttMessage(message.getBytes());
             mqttMessage.setQos(1);
-            
+
             IMqttDeliveryToken pubToken = client.publish(topic, mqttMessage);
             pubToken.waitForCompletion();
-            
+
             System.out.println("Message published asynchronously");
-            
+
             // Wait for messages
             Thread.sleep(2000);
-            
+
             // Disconnect
             client.disconnect();
             client.close();
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -290,52 +290,52 @@ public class MQTT5Client {
     public static void main(String[] args) {
         String broker = "tcp://localhost:1883";
         String clientId = "robustmq_mqtt5_client";
-        
+
         try {
             MqttClient client = new MqttClient(broker, clientId);
-            
+
             // MQTT 5.0 connection options
             MqttConnectionOptions connOpts = new MqttConnectionOptions();
             connOpts.setCleanStart(true);
             connOpts.setKeepAliveInterval(20);
-            
+
             // Set MQTT 5.0 properties
             MqttProperties connectProperties = new MqttProperties();
             connectProperties.setSessionExpiryInterval(3600L); // Session expiry: 1 hour
             connectProperties.setReceiveMaximum(100); // Receive maximum
             connOpts.setConnectionProperties(connectProperties);
-            
+
             // Set callback
             client.setCallback(new MQTT5Callback());
-            
+
             // Connect to RobustMQ
             System.out.println("Connecting to RobustMQ with MQTT 5.0...");
             client.connect(connOpts);
             System.out.println("Connected to RobustMQ with MQTT 5.0 successfully");
-            
+
             // Subscribe to topic
             String topic = "robustmq/mqtt5/test";
             client.subscribe(topic, 1);
-            
+
             // Publish message
             String content = "MQTT 5.0 message from RobustMQ";
             MqttMessage message = new MqttMessage(content.getBytes());
             message.setQos(1);
-            
+
             // Set publish properties
             MqttProperties pubProperties = new MqttProperties();
             pubProperties.setMessageExpiryInterval(300L); // Message expiry: 5 minutes
             pubProperties.setPayloadFormat(true); // Payload format indicator
-            
+
             client.publish(topic, message, null, null, pubProperties);
             System.out.println("MQTT 5.0 message published");
-            
+
             // Wait for messages
             Thread.sleep(2000);
-            
+
             client.disconnect();
             client.close();
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -357,25 +357,25 @@ public class MQTTConnectionPool {
     private final BlockingQueue<MqttClient> pool;
     private final String broker;
     private final int poolSize;
-    
+
     public MQTTConnectionPool(String broker, int poolSize) {
         this.broker = broker;
         this.poolSize = poolSize;
         this.pool = new LinkedBlockingQueue<>();
         initializePool();
     }
-    
+
     private void initializePool() {
         try {
             for (int i = 0; i < poolSize; i++) {
                 String clientId = "robustmq_pool_client_" + i;
                 MqttClient client = new MqttClient(broker, clientId);
-                
+
                 MqttConnectOptions connOpts = new MqttConnectOptions();
                 connOpts.setCleanSession(true);
                 connOpts.setKeepAliveInterval(20);
                 connOpts.setAutomaticReconnect(true);
-                
+
                 client.connect(connOpts);
                 pool.offer(client);
             }
@@ -384,17 +384,17 @@ public class MQTTConnectionPool {
             e.printStackTrace();
         }
     }
-    
+
     public MqttClient getConnection() throws InterruptedException {
         return pool.take();
     }
-    
+
     public void returnConnection(MqttClient client) {
         if (client != null && client.isConnected()) {
             pool.offer(client);
         }
     }
-    
+
     public void closePool() {
         while (!pool.isEmpty()) {
             try {
@@ -419,27 +419,27 @@ public class MQTTConnectionPool {
 @Configuration
 @EnableConfigurationProperties(MQTTProperties.class)
 public class MQTTConfig {
-    
+
     @Autowired
     private MQTTProperties mqttProperties;
-    
+
     @Bean
     public MqttClient mqttClient() throws MqttException {
         MqttClient client = new MqttClient(
-            mqttProperties.getBroker(), 
+            mqttProperties.getBroker(),
             mqttProperties.getClientId()
         );
-        
+
         MqttConnectOptions connOpts = new MqttConnectOptions();
         connOpts.setCleanSession(mqttProperties.isCleanSession());
         connOpts.setKeepAliveInterval(mqttProperties.getKeepAliveInterval());
         connOpts.setAutomaticReconnect(true);
-        
+
         if (mqttProperties.getUsername() != null) {
             connOpts.setUserName(mqttProperties.getUsername());
             connOpts.setPassword(mqttProperties.getPassword().toCharArray());
         }
-        
+
         client.connect(connOpts);
         return client;
     }
@@ -462,20 +462,20 @@ public class MQTTProperties {
 ```java
 @Service
 public class MQTTService {
-    
+
     @Autowired
     private MqttClient mqttClient;
-    
+
     public void publish(String topic, String message, int qos) throws MqttException {
         MqttMessage mqttMessage = new MqttMessage(message.getBytes());
         mqttMessage.setQos(qos);
         mqttClient.publish(topic, mqttMessage);
     }
-    
+
     public void subscribe(String topic, int qos) throws MqttException {
         mqttClient.subscribe(topic, qos);
     }
-    
+
     @PreDestroy
     public void cleanup() throws MqttException {
         if (mqttClient.isConnected()) {
@@ -490,22 +490,22 @@ public class MQTTService {
 
 ### Basic Connection Parameters
 
-| Parameter | Description | Default Value |
-|-----------|-------------|---------------|
-| `broker` | RobustMQ Broker address | tcp://localhost:1883 |
-| `clientId` | Unique client identifier | Auto-generated |
-| `cleanSession` | Whether to clear session | true |
-| `keepAliveInterval` | Heartbeat interval (seconds) | 60 |
-| `connectionTimeout` | Connection timeout (seconds) | 30 |
+| Parameter           | Description                  | Default Value        |
+| ------------------- | ---------------------------- | -------------------- |
+| `broker`            | RobustMQ Broker address      | tcp://localhost:1883 |
+| `clientId`          | Unique client identifier     | Auto-generated       |
+| `cleanSession`      | Whether to clear session     | true                 |
+| `keepAliveInterval` | Heartbeat interval (seconds) | 60                   |
+| `connectionTimeout` | Connection timeout (seconds) | 30                   |
 
 ### RobustMQ Supported Protocol Ports
 
-| Protocol | Port | Description |
-|----------|------|-------------|
-| MQTT | 1883 | Standard MQTT port |
-| MQTT over SSL | 1884 | Encrypted MQTT connection |
-| MQTT over WebSocket | 8083 | WebSocket connection |
-| MQTT over WSS | 8084 | Encrypted WebSocket connection |
+| Protocol            | Port | Description                    |
+| ------------------- | ---- | ------------------------------ |
+| MQTT                | 1883 | Standard MQTT port             |
+| MQTT over SSL       | 1884 | Encrypted MQTT connection      |
+| MQTT over WebSocket | 8083 | WebSocket connection           |
+| MQTT over WSS       | 8084 | Encrypted WebSocket connection |
 
 ## Best Practices
 
@@ -514,25 +514,25 @@ public class MQTTService {
 ```java
 public class RobustMQTTClient {
     private MqttClient client;
-    
+
     public void connectWithRetry(String broker, String clientId, int maxRetries) {
         int retryCount = 0;
-        
+
         while (retryCount < maxRetries) {
             try {
                 client = new MqttClient(broker, clientId);
                 MqttConnectOptions connOpts = new MqttConnectOptions();
                 connOpts.setCleanSession(true);
                 connOpts.setConnectionTimeout(10);
-                
+
                 client.connect(connOpts);
                 System.out.println("Connected to RobustMQ successfully");
                 return;
-                
+
             } catch (MqttException e) {
                 retryCount++;
                 System.out.println("Connection attempt " + retryCount + " failed: " + e.getMessage());
-                
+
                 if (retryCount < maxRetries) {
                     try {
                         Thread.sleep(2000); // Wait 2 seconds before retry
@@ -543,7 +543,7 @@ public class RobustMQTTClient {
                 }
             }
         }
-        
+
         System.out.println("Failed to connect after " + maxRetries + " attempts");
     }
 }
@@ -558,23 +558,23 @@ public class PersistentClient {
     public static void main(String[] args) {
         String broker = "tcp://localhost:1883";
         String clientId = "robustmq_persistent_client";
-        
+
         try {
             // Use file persistence
             String tmpDir = System.getProperty("java.io.tmpdir");
             MqttDefaultFilePersistence persistence = new MqttDefaultFilePersistence(tmpDir);
-            
+
             MqttClient client = new MqttClient(broker, clientId, persistence);
-            
+
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(false); // Retain session
             connOpts.setKeepAliveInterval(20);
-            
+
             client.connect(connOpts);
             System.out.println("Connected with persistent session");
-            
+
             // ... other operations ...
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -591,24 +591,24 @@ public class PerformanceMonitor {
     private final AtomicLong messagesPublished = new AtomicLong(0);
     private final AtomicLong messagesReceived = new AtomicLong(0);
     private final long startTime;
-    
+
     public PerformanceMonitor() {
         this.startTime = System.currentTimeMillis();
     }
-    
+
     public void incrementPublished() {
         messagesPublished.incrementAndGet();
     }
-    
+
     public void incrementReceived() {
         messagesReceived.incrementAndGet();
     }
-    
+
     public void printStatistics() {
         long elapsed = System.currentTimeMillis() - startTime;
         long published = messagesPublished.get();
         long received = messagesReceived.get();
-        
+
         System.out.println("=== Performance Statistics ===");
         System.out.println("Elapsed time: " + elapsed + "ms");
         System.out.println("Messages published: " + published);
@@ -693,4 +693,3 @@ Eclipse Paho Java Client is a stable and widely-used MQTT client library in the 
 The client library supports both MQTT 3.1.1 and MQTT 5.0 protocols, provides rich configuration options and advanced features, and can meet various requirements from simple IoT applications to complex enterprise systems.
 
 By properly using features like connection pooling, asynchronous processing, and automatic reconnection, you can build high-performance and highly reliable MQTT applications.
-
