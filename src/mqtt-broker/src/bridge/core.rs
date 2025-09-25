@@ -18,6 +18,7 @@ use axum::async_trait;
 use common_base::{error::ResultCommonError, tools::loop_select};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
+    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
     connector_type::ConnectorType, status::MQTTStatus,
 };
@@ -26,7 +27,12 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
-use super::{file::FileBridgePlugin, manager::ConnectorManager};
+use super::{
+    file::FileBridgePlugin,
+    greptimedb::GreptimeDBBridgePlugin,
+    kafka::KafkaBridgePlugin,
+    manager::ConnectorManager,
+};
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
@@ -119,9 +125,8 @@ async fn check_connector(
                     raw.connector_name, e
                 );
             }
-            if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
-                connector.status = MQTTStatus::Idle;
-            }
+            connector_manager
+                .update_connector_status(&raw.connector_name, MQTTStatus::Idle);
         }
     }
 }
@@ -140,7 +145,7 @@ fn start_thread(
                 ) {
                     Ok(config) => config,
                     Err(e) => {
-                        error!("Failed to parse LocalFileConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
+                        error!("Failed to parse LocalFileConnectorConfig: {}", e);
                         return;
                     }
                 };
@@ -153,7 +158,7 @@ fn start_thread(
                     thread.stop_send.clone(),
                 );
 
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
+                connector_manager.add_connector_thread(&connector.connector_name, thread.clone());
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
@@ -162,15 +167,83 @@ fn start_thread(
                     })
                     .await
                 {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
                     error!(
                         "Failed to start FileBridgePlugin with error message: {:?}",
                         e
                     );
                 }
+                connector_manager.remove_connector_thread(&connector.connector_name);
             }
-            ConnectorType::Kafka => {}
-            ConnectorType::GreptimeDB => {}
+            ConnectorType::Kafka => {
+                let kafka_config = match serde_json::from_str::<KafkaConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse KafkaConnectorConfig: {}", e);
+                        return;
+                    }
+                };
+
+                let bridge = KafkaBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    kafka_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread.clone());
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_id: connector.topic_id,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    error!(
+                        "Failed to start KafkaBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+                connector_manager.remove_connector_thread(&connector.connector_name);
+            }
+            ConnectorType::GreptimeDB => {
+                let greptime_config = match serde_json::from_str::<GreptimeDBConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse GreptimeDBConnectorConfig: {}", e);
+                        return;
+                    }
+                };
+
+                let bridge = GreptimeDBBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    greptime_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread.clone());
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_id: connector.topic_id,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    error!(
+                        "Failed to start GreptimeDBBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+                connector_manager.remove_connector_thread(&connector.connector_name);
+            }
         }
     });
 }

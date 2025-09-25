@@ -14,7 +14,7 @@
 
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 
 use super::core::BridgePluginThread;
 
@@ -63,6 +63,12 @@ impl ConnectorManager {
 
     pub fn remove_connector(&self, connector_name: &str) {
         self.connector_list.remove(connector_name);
+    }
+
+    pub fn update_connector_status(&self, connector_name: &str, status: MQTTStatus) {
+        if let Some(mut entry) = self.connector_list.get_mut(connector_name) {
+            entry.status = status;
+        }
     }
 
     // Connector Thread

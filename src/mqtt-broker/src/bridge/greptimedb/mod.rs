@@ -75,7 +75,6 @@ impl BridgePlugin for GreptimeDBBridgePlugin {
     async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
         let message_storage = MessageStorage::new(self.message_storage.clone());
         let group_name = self.connector_name.clone();
-        let offset = message_storage.get_group_offset(&group_name).await?;
         let mut recv = self.stop_send.subscribe();
         let sender = sender::Sender::new(&self.config);
         loop {
@@ -88,8 +87,10 @@ impl BridgePlugin for GreptimeDBBridgePlugin {
                     }
                 }
             }
-
-            val = message_storage.read_topic_message(&config.topic_id, offset, config.record_num) =>
+            val = async {
+                let offset = message_storage.get_group_offset(&group_name).await?;
+                message_storage.read_topic_message(&config.topic_id, offset, config.record_num).await
+            } =>
                 match val {
                     Ok(data) => {
                         self.connector_manager.report_heartbeat(&self.connector_name);
@@ -101,6 +102,13 @@ impl BridgePlugin for GreptimeDBBridgePlugin {
                         if let Err(e) = self.append(&data, sender.clone()).await{
                             error!("Connector {} failed to write data to GreptimeDB database {}, error message: {}", self.connector_name, self.config.database, e);
                             sleep(Duration::from_millis(100)).await;
+                        } else {
+                            // commit offset upon successful send
+                            let current = message_storage.get_group_offset(&group_name).await?;
+                            let new_offset = current + data.len() as u64;
+                            if let Err(e) = message_storage.commit_group_offset(&group_name, &config.topic_id, new_offset).await {
+                                error!("Connector {} failed to commit offset to GreptimeDB sink, error: {}", self.connector_name, e);
+                            }
                         }
                     },
                     Err(e) => {
