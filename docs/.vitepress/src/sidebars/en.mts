@@ -51,21 +51,22 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
-            { text: "MQTT Core Concepts", link: "/RobustMQ-MQTT/MQTTCoreConcepts" },
             { text: "Public MQTT Server", link: "/RobustMQ-MQTT/PublicMqttServer" },
             { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",
                 collapsed: true,
                 items: [
-                    { text: "Shared Subscription", link: "/RobustMQ-MQTT/SharedSubscription" },
-                    { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage" },
-                    { text: "Will Message", link: "/RobustMQ-MQTT/WillMessage" },
-                    { text: "Exclusive Subscription", link: "/RobustMQ-MQTT/ExclusiveSubscription" },
-                    { text: "Delayed Publishing", link: "/RobustMQ-MQTT/DelayMessage" },
-                    { text: "Auto Subscription", link: "/RobustMQ-MQTT/AutoSubscription" },
-                    { text: "Topic Rewrite", link: "/RobustMQ-MQTT/TopicRewrite" },
-                    { text: "Wildcard Subscription", link: "/RobustMQ-MQTT/WildcardSubscription" },
+                    { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage.md" },
+                    { text: "LastWill Message", link: "" },
+                    { text: "Exclusive Subscription", link: "" },
+                    { text: "Delayed Publish", link: "/RobustMQ-MQTT/DelayMessage.md" },
+                    { text: "Automatic subscription", link: "" },
+                    { text: "Topic Rewriting", link: "" },
+                    { text: "Wildcard Subscription", link: "" },
+                    { text: "Session Persistence", link: "" },
+                    { text: "Shared Subscription", link: "" },
+                    { text: "MQTT Over Quic", link: "" },
                 ],
             },
             {
@@ -87,109 +88,135 @@ export const sidebar = [
                 ]
             },
 
-            {
-                text: "Observability",
-                collapsed: true,
-                items: [
-                    { text: "System Alarm", link: "/RobustMQ-MQTT/SystemAlarm.mdi" },
-                    { text: "Metrics", link: "" },
-                    { text: "Trace", link: "" },
-                    { text: "Integrate promethrus", link: "" },
-                    { text: "Integrate OpenTelemetry", link: "" },
-                ]
-            },
-            { text: "MQTTX Testing Guide", link: "/RobustMQ-MQTT/MQTTX-Guide" },
-            { text: "Performance", link: "" },
-            {
-                text: "Client SDK",
-                collapsed: true,
-                items: [
-                    { text: "C SDK", link: "/RobustMQ-MQTT/SDK/c-sdk" },
-                    { text: "Java SDK", link: "/RobustMQ-MQTT/SDK/java-sdk" },
-                    { text: "Go SDK", link: "/RobustMQ-MQTT/SDK/go-sdk" },
-                    { text: "Python SDK", link: "/RobustMQ-MQTT/SDK/python-sdk" },
-                    { text: "JavaScript SDK", link: "/RobustMQ-MQTT/SDK/javascript-sdk" },
-                ]
-            },
-        ],
-    },
-    {
-        text: "RobustMQ Kafka",
+      {
+        text: "Observability",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/RobustMQ-Kafka/Overview" },
+          { text: "System Alarm", link: "/RobustMQ-MQTT/SystemAlarm.mdi" },
+          { text: "Metrics", link: "" },
+          { text: "Trace", link: "" },
+          { text: "Integrate promethrus", link: "" },
+          { text: "Integrate OpenTelemetry", link: "" },
         ],
-    },
-    {
-        text: "RobustMQ Dashboard",
+      },
+      { text: "MQTTX Testing Guide", link: "/RobustMQ-MQTT/MQTTX-Guide" },
+      { text: "Performance", link: "" },
+      {
+        text: "Client SDK",
         collapsed: true,
         items: [
-            { text: "Overview", link: "" },
+          { text: "C SDK", link: "/RobustMQ-MQTT/SDK/c-sdk" },
+          { text: "Java SDK", link: "/RobustMQ-MQTT/SDK/java-sdk" },
+          { text: "Go SDK", link: "/RobustMQ-MQTT/SDK/go-sdk" },
+          { text: "Python SDK", link: "/RobustMQ-MQTT/SDK/python-sdk" },
+          { text: "JavaScript SDK", link: "/RobustMQ-MQTT/SDK/javascript-sdk" },
         ],
-    },
-    {
-        text: "RobustMQ Command",
+      },
+    ],
+  },
+  {
+    text: "RobustMQ Kafka",
+    collapsed: true,
+    items: [{ text: "Overview", link: "/RobustMQ-Kafka/Overview" }],
+  },
+  {
+    text: "RobustMQ Dashboard",
+    collapsed: true,
+    items: [{ text: "Overview", link: "" }],
+  },
+  {
+    text: "RobustMQ Command",
+    collapsed: true,
+    items: [
+      { text: "Overview", link: "/RobustMQ-Command/CLI_COMMON" },
+      { text: "Cluster Manager", link: "/RobustMQ-Command/CLI_CLUSTER" },
+      { text: "MQTT Manager", link: "/RobustMQ-Command/CLI_MQTT" },
+      { text: "Journal Manager", link: "/RobustMQ-Command/CLI_JOURNAL" },
+    ],
+  },
+  {
+    text: "HTTP Rest API",
+    collapsed: true,
+    items: [
+      { text: "Overview", link: "/Api/COMMON" },
+      { text: "Cluster API", link: "/Api/CLUSTER" },
+      { text: "MQTT API", link: "/Api/MQTT" },
+    ],
+  },
+  {
+    text: "Configuration",
+    collapsed: true,
+    items: [
+      { text: "Common Configuration", link: "/Configuration/COMMON" },
+      { text: "MQTT Configuration", link: "/Configuration/MQTT" },
+      { text: "Meta Configuration", link: "/Configuration/META" },
+      { text: "Journal Configuration", link: "/Configuration/JOURNAL" },
+    ],
+  },
+  {
+    text: "ContributionGuide",
+    collapsed: true,
+    items: [
+      {
+        text: "Contribution Guide",
+        link: "/ContributionGuide/GitHub-Contribution-Guide",
+      },
+      { text: "PR Example", link: "/ContributionGuide/Pull-Request-Example" },
+      {
+        text: "ContributingCode",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/RobustMQ-Command/CLI_COMMON" },
-            { text: "Cluster Manager", link: "/RobustMQ-Command/CLI_CLUSTER" },
-            { text: "MQTT Manager", link: "/RobustMQ-Command/CLI_MQTT" },
-            { text: "Journal Manager", link: "/RobustMQ-Command/CLI_JOURNAL" },
+          {
+            text: "Build Develop Env",
+            link: "/ContributionGuide/ContributingCode/Build-Develop-Env",
+          },
+          {
+            text: "Cargo Running",
+            link: "/ContributionGuide/ContributingCode/Cargo-Running",
+          },
+          {
+            text: "Troubleshooting",
+            link: "/ContributionGuide/ContributingCode/Troubleshooting",
+          },
+          {
+            text: "VSCode Running",
+            link: "/ContributionGuide/ContributingCode/VsCode-Running",
+          },
+          {
+            text: "Code Structure",
+            link: "/ContributionGuide/ContributingCode/Code-Structure",
+          },
         ],
-    },
-    {
-        text: "HTTP Rest API",
+      },
+      {
+        text: "ContributingDoc",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/Api/COMMON" },
-            { text: "Cluster API", link: "/Api/CLUSTER" },
-            { text: "MQTT API", link: "/Api/MQTT" },
+          {
+            text: "Build Doc Env",
+            link: "/ContributionGuide/ContributingDoc/Build-Doc-Env",
+          },
+          {
+            text: "Doc Contribution Guide",
+            link: "/ContributionGuide/ContributingDoc/Doc-Contribution-Guide",
+          },
         ],
-    },
-    {
-        text: "Configuration",
-        collapsed: true,
-        items: [
-            { text: "Common Configuration", link: "/Configuration/COMMON" },
-            { text: "MQTT Configuration", link: "/Configuration/MQTT" },
-            { text: "Meta Configuration", link: "/Configuration/META" },
-            { text: "Journal Configuration", link: "/Configuration/JOURNAL" },
-        ],
-    },
-    {
-        text: "ContributionGuide",
-        collapsed: true,
-        items: [
-            { text: "Contribution Guide", link: "/ContributionGuide/GitHub-Contribution-Guide" },
-            { text: "PR Example", link: "/ContributionGuide/Pull-Request-Example" },
-            {
-                text: "ContributingCode",
-                collapsed: true,
-                items: [
-                    { text: "Build Develop Env", link: "/ContributionGuide/ContributingCode/Build-Develop-Env" },
-                    { text: "Cargo Running", link: "/ContributionGuide/ContributingCode/Cargo-Running" },
-                    { text: "Troubleshooting", link: "/ContributionGuide/ContributingCode/Troubleshooting" },
-                    { text: "VSCode Running", link: "/ContributionGuide/ContributingCode/VsCode-Running" },
-                    { text: "Code Structure", link: "/ContributionGuide/ContributingCode/Code-Structure" },
-                ],
-            },
-            {
-                text: "ContributingDoc",
-                collapsed: true,
-                items: [
-                    { text: "Build Doc Env", link: "/ContributionGuide/ContributingDoc/Build-Doc-Env" },
-                    { text: "Doc Contribution Guide", link: "/ContributionGuide/ContributingDoc/Doc-Contribution-Guide" },
-                ],
-            }
-        ],
-    },
-    {
-        text: "Blog Articles",
-        collapsed: true,
-        items: [
-            { text: "Redefining Cloud-Native Message Queues with Rust", link: "/Blogs/01" },
-            { text: "RobustMQ: Overview of Technical Design Philosophy", link: "/Blogs/02" },
-            { text: "Introduction to RobustMQ Roles", link: "/Blogs/03" },
-        ],
-    }
+      },
+    ],
+  },
+  {
+    text: "Blog Articles",
+    collapsed: true,
+    items: [
+      {
+        text: "Redefining Cloud-Native Message Queues with Rust",
+        link: "/Blogs/01",
+      },
+      {
+        text: "RobustMQ: Overview of Technical Design Philosophy",
+        link: "/Blogs/02",
+      },
+      { text: "Introduction to RobustMQ Roles", link: "/Blogs/03" },
+    ],
+  },
 ];
