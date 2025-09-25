@@ -10,9 +10,9 @@
 |------|------|------|------|
 | MQTT TCP | 117.72.92.117 | 1883 | 标准 MQTT 连接 |
 | MQTT SSL/TLS | 117.72.92.117 | 1884 | 加密 MQTT 连接 |
-| MQTT WebSocket | 117.72.92.117 | 1093 | WebSocket 连接 |
-| MQTT WebSocket SSL | 117.72.92.117 | 1094 | 加密 WebSocket 连接 |
-| MQTT QUIC | 117.72.92.117 | 1083 | QUIC 协议连接 |
+| MQTT WebSocket | 117.72.92.117 | 8083 | WebSocket 连接 |
+| MQTT WebSocket SSL | 117.72.92.117 | 8084 | 加密 WebSocket 连接 |
+| MQTT QUIC | 117.72.92.117 | 9083 | QUIC 协议连接 |
 
 ### 认证信息
 
@@ -28,6 +28,8 @@
 ## 快速体验
 
 > **📦 MQTTX 安装**: 如果您还没有安装 MQTTX CLI，请参考我们的 [MQTTX 安装指南](../RobustMQ-MQTT/MQTTX-Guide.md#安装-mqttx-cli) 获取不同平台的详细安装说明。
+
+> Web UI 地址：https://mqttx.app/web-client#/recent_connections
 
 ### 使用 MQTTX 命令行工具
 

@@ -48,7 +48,7 @@ use axum::{
 };
 use common_base::version::version;
 use common_metrics::http::{
-    metrics_http_request_error_incr, metrics_http_request_incr, metrics_http_request_success_incr,
+    record_http_connection_end, record_http_connection_start, record_http_request,
 };
 use reqwest::StatusCode;
 use std::path::PathBuf;
@@ -186,6 +186,7 @@ async fn serve_spa_fallback() -> impl IntoResponse {
     }
 }
 
+/// Enhanced HTTP middleware with comprehensive metrics and logging
 async fn base_middleware(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     method: Method,
@@ -194,6 +195,9 @@ async fn base_middleware(
     request: Request,
     next: Next,
 ) -> Response {
+    // Record connection start for active connection tracking
+    record_http_connection_start();
+
     let start = Instant::now();
     let client_ip = extract_client_ip(&headers, addr);
     let user_agent = headers
@@ -204,37 +208,151 @@ async fn base_middleware(
         .get("referer")
         .and_then(|h| h.to_str().ok())
         .unwrap_or("-");
+
+    // Extract request size from Content-Length header
+    let request_size = headers
+        .get("content-length")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse::<f64>().ok());
+
+    // Process the request
     let response = next.run(request).await;
     let duration = start.elapsed();
     let status = response.status();
 
-    info!(
-        "http request log: {} {} {} - {} - \"{}\" \"{}\" {}ms",
-        method,
-        uri,
+    // Extract response size from Content-Length header
+    let response_size = response
+        .headers()
+        .get("content-length")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse::<f64>().ok());
+
+    // Record comprehensive HTTP metrics with all dimensions
+    record_http_request(
+        method.to_string(),
+        normalize_uri_path(uri.path()), // Normalize path to reduce cardinality
         status.as_u16(),
-        client_ip,
-        user_agent,
-        referer,
-        duration.as_millis()
+        duration.as_millis() as f64,
+        request_size,
+        response_size,
     );
 
-    metrics_http_request_incr(uri.to_string());
+    // Structured logging with appropriate log levels
+    let duration_ms = duration.as_millis();
 
-    if status.is_client_error() || status.is_server_error() {
-        warn!(
-            "http request log: {} {} {} - {} - FAILED",
-            method,
-            uri,
-            status.as_u16(),
-            client_ip
-        );
-        metrics_http_request_error_incr(uri.to_string());
-    } else {
-        metrics_http_request_success_incr(uri.to_string());
+    // Log with different levels based on status and performance
+    match status.as_u16() {
+        200..=299 => {
+            if duration_ms > 1000 {
+                // Slow requests (>1s)
+                warn!(
+                    "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                    method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
+                    format_size(request_size), format_size(response_size)
+                );
+            } else {
+                info!(
+                    "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                    method,
+                    uri,
+                    status.as_u16(),
+                    client_ip,
+                    user_agent,
+                    referer,
+                    duration_ms,
+                    format_size(request_size),
+                    format_size(response_size)
+                );
+            }
+        }
+        400..=499 => {
+            warn!(
+                "CLIENT_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                method,
+                uri,
+                status.as_u16(),
+                client_ip,
+                user_agent,
+                referer,
+                duration_ms,
+                format_size(request_size),
+                format_size(response_size)
+            );
+        }
+        500..=599 => {
+            warn!(
+                "SERVER_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                method,
+                uri,
+                status.as_u16(),
+                client_ip,
+                user_agent,
+                referer,
+                duration_ms,
+                format_size(request_size),
+                format_size(response_size)
+            );
+        }
+        _ => {
+            info!(
+                "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                method,
+                uri,
+                status.as_u16(),
+                client_ip,
+                user_agent,
+                referer,
+                duration_ms,
+                format_size(request_size),
+                format_size(response_size)
+            );
+        }
     }
 
+    // Record connection end for active connection tracking
+    record_http_connection_end();
+
     response
+}
+
+/// Normalize URI path to reduce metric cardinality
+/// Replaces dynamic segments with placeholders
+fn normalize_uri_path(path: &str) -> String {
+    // Replace common dynamic segments to reduce cardinality
+    let normalized = path
+        .split('/')
+        .map(|segment| {
+            // Replace UUIDs, IDs, and other dynamic segments
+            if segment.chars().all(|c| c.is_ascii_digit()) && segment.len() > 3 {
+                "{id}".to_string()
+            } else if segment.len() == 36 && segment.chars().filter(|&c| c == '-').count() == 4 {
+                "{uuid}".to_string()
+            } else if segment.len() > 20 && segment.chars().all(|c| c.is_ascii_alphanumeric()) {
+                "{hash}".to_string()
+            } else {
+                segment.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/");
+
+    // Limit path length to prevent extremely long paths
+    if normalized.len() > 100 {
+        format!("{}...", &normalized[..97])
+    } else {
+        normalized
+    }
+}
+
+/// Format size for logging (handles None values gracefully)
+fn format_size(size: Option<f64>) -> String {
+    match size {
+        Some(s) if s < 1024.0 => format!("{}B", s as u64),
+        Some(s) if s < 1024.0 * 1024.0 => format!("{:.1}KB", s / 1024.0),
+        Some(s) if s < 1024.0 * 1024.0 * 1024.0 => format!("{:.1}MB", s / (1024.0 * 1024.0)),
+        Some(s) => format!("{:.1}GB", s / (1024.0 * 1024.0 * 1024.0)),
+        None => "unknown".to_string(),
+    }
 }
 
 fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
@@ -266,4 +384,77 @@ fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
 
 pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
     format!("RobustMQ API {}", version())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_uri_path() {
+        // Test normal paths
+        assert_eq!(normalize_uri_path("/api/users"), "/api/users");
+        assert_eq!(normalize_uri_path("/api/v1/health"), "/api/v1/health");
+
+        // Test paths with IDs
+        assert_eq!(normalize_uri_path("/api/users/12345"), "/api/users/{id}");
+        assert_eq!(
+            normalize_uri_path("/api/orders/67890/items"),
+            "/api/orders/{id}/items"
+        );
+
+        // Test paths with UUIDs
+        assert_eq!(
+            normalize_uri_path("/api/users/550e8400-e29b-41d4-a716-446655440000"),
+            "/api/users/{uuid}"
+        );
+
+        // Test paths with hashes
+        assert_eq!(
+            normalize_uri_path("/api/files/abcdef1234567890abcdef1234567890"),
+            "/api/files/{hash}"
+        );
+
+        // Test very long paths
+        let long_path = "/api/".to_string() + &"a".repeat(200);
+        let normalized = normalize_uri_path(&long_path);
+        assert!(normalized.len() <= 100);
+        if normalized.len() == 100 {
+            assert!(normalized.ends_with("..."));
+        }
+    }
+
+    #[test]
+    fn test_format_size() {
+        assert_eq!(format_size(None), "unknown");
+        assert_eq!(format_size(Some(512.0)), "512B");
+        assert_eq!(format_size(Some(1536.0)), "1.5KB");
+        assert_eq!(format_size(Some(2097152.0)), "2.0MB");
+        assert_eq!(format_size(Some(1073741824.0)), "1.0GB");
+    }
+
+    #[test]
+    fn test_extract_client_ip() {
+        use axum::http::HeaderMap;
+        use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+        let socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+
+        // Test with no headers
+        let headers = HeaderMap::new();
+        assert_eq!(extract_client_ip(&headers, socket_addr), "127.0.0.1");
+
+        // Test with X-Forwarded-For header
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            "192.168.1.100, 10.0.0.1".parse().unwrap(),
+        );
+        assert_eq!(extract_client_ip(&headers, socket_addr), "192.168.1.100");
+
+        // Test with X-Real-IP header
+        let mut headers = HeaderMap::new();
+        headers.insert("x-real-ip", "192.168.1.200".parse().unwrap());
+        assert_eq!(extract_client_ip(&headers, socket_addr), "192.168.1.200");
+    }
 }

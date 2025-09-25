@@ -30,3 +30,7 @@ frequency = 1000
 [log]
 log_config = "./config/server-tracing.toml"
 log_path = "./data/broker/logs"
+
+[prometheus]
+enable = true
+port = 9091
