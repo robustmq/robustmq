@@ -75,7 +75,7 @@ export const sidebar = [
                     { text: "认证", link: "/zh/RobustMQ-MQTT/Security/Authentication" },
                     { text: "授权", link: "/zh/RobustMQ-MQTT/Security/Authorization" },
                     { text: "黑名单", link: "/zh/RobustMQ-MQTT/Security/Blacklist" },
-                    { text: "连接抖动", link: "" },
+                    { text: "连接抖动", link: "/zh/RobustMQ-MQTT/FlappingDetect" },
                 ]
             },
             {

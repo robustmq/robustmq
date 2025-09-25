@@ -29,12 +29,12 @@ export const sidebar = [
         text: "Architect",
         collapsed: true,
         items: [
-            {text: "Overview", link: "/Architect/Overview"},
-            {text: "Meta Service", link: "/Architect/Meta-Service"},
-            {text: "Broker Server", link: "/Architect/Broker-Server"},
-            {text: "Storage Adapter", link: "/Architect/Storage-Adapter"},
-            {text: "Journal Server", link: "/Architect/Journal-Server"},
-            {text: "Ig Test", link: "/Architect/Test-Case"},
+            {text: "Overview", link: "/zh/Architect/Overview"},
+            {text: "Meta Service", link: "/zh/Architect/Meta-Service"},
+            {text: "Broker Server", link: "/zh/Architect/Broker-Server"},
+            {text: "Storage Adapter", link: "/zh/Architect/Storage-Adapter"},
+            {text: "Journal Server", link: "/zh/Architect/Journal-Server"},
+            {text: "Ig Test", link: "/zh/Architect/Test-Case"},
             {
                 text: "Configuration",
                 collapsed: true,
@@ -63,13 +63,13 @@ export const sidebar = [
         text: "Architect",
         collapsed: true,
         items: [
-            {text: "Overview", link: "/Architect/Overview"},
-            {text: "Meta Service", link: "/Architect/Meta-Service"},
-            {text: "Broker Server", link: "/Architect/Broker-Server"},
-            {text: "Storage Adapter", link: "/Architect/Storage-Adapter"},
-            {text: "Journal Server", link: "/Architect/Journal-Server"},
-            {text: "Ig Test", link: "/Architect/Test-Case"},
-            {text: "Test", link: "/Archhitect/Test"}, // [!code highlight]
+            {text: "Overview", link: "/zh/Architect/Overview"},
+            {text: "Meta Service", link: "/zh/Architect/Meta-Service"},
+            {text: "Broker Server", link: "/zh/Architect/Broker-Server"},
+            {text: "Storage Adapter", link: "/zh/Architect/Storage-Adapter"},
+            {text: "Journal Server", link: "/zh/Architect/Journal-Server"},
+            {text: "Ig Test", link: "/zh/Architect/Test-Case"},
+            {text: "Test", link: "/zh/Architect/Test"}, // [!code highlight]
             {
                 text: "Configuration",
                 collapsed: true,

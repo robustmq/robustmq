@@ -4,7 +4,7 @@ layout: home
 
 hero:
   name: "RobustMQ"
-  text: "Next-generation high-performance cloud-native converged message queue."
+  text: "New generation of cloud-native and AI-native messaging infrastructure"
   tagline: >
    RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
     <div class="badges">
@@ -17,7 +17,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /OverView/What-is-RobustMQ
+      link: /en/OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples

@@ -3,10 +3,9 @@
 layout: home
 
 hero:
-  text: "新一代云原生和AI原生消息基础设施"
-  tagline: |
-    RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
-    
+  text: "New generation of cloud-native and AI-native messaging infrastructure"
+  tagline: >
+    RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
     <div class="badges">
       <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
       <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
@@ -17,7 +16,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /zh/OverView/What-is-RobustMQ
+      link: /en/OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples
@@ -27,31 +26,31 @@ hero:
 
 features:
   - title: 100% Rust
-    details: 完全用 Rust 实现的消息队列内核，这是构建具有惊人性能、可靠性和生产力的软件的神奇语言。
-  - title: 多协议
-    details: 支持 MQTT 3.1/3.1.1/5.0、AMQP、RocketMQ Remoting/GRPC、Kafka 协议、OpenMessaging、JNS、SQS 等主流消息协议。
-  - title: 分层架构
-    details: 三层独立架构，包括 Computing、Storage 和 Scheduling。每一层都具备集群部署能力和快速水平扩容能力。
-  - title: 插件存储
-    details: 通过独立存储插件实施，您可以按需选择最佳插件，与传统本地部署和新的云原生部署兼容。
-  - title: 高内聚力
-    details: 它提供内置的元数据存储组件和分布式日志存储服务。所有这些都可以快速、轻松和有凝聚力地部署。
-  - title: 功能丰富
-    details: 功能丰富：支持顺序消息、死消息、事务消息、幂等消息、延时消息等丰富的消息队列功能。
+    details: A message queuing kernel implemented entirely in Rust, which is the amazing language to build software with stunning performance, reliability and productivity.
+  - title: Multi-protocol
+    details: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessaging, JNS, SQS and other mainstream message protocols.
+  - title: Layered architecture
+    details: Three-tier independent architecture consists of Computing, Storage and Scheduling. Each layer has the ability of cluster deployment and rapid horizontal scaling capacity.
+  - title: Plug-in storage
+    details: With standalone storage plug-in implementation, you can choose the best plug-in on demand, compatible with traditional on-premise and new cloud-native deployment.
+  - title: High cohesion
+    details: It provides built-in metadata storage components and distributed journal storage services. All of these ones could be deployed quickly, easily and cohesively.
+  - title: Rich functions
+    details: Rich functions support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
 
 ---
 
 <div class="architecture-section">
   <div class="architecture-header">
-    <h2>架构概览</h2>
+    <h2>Architecture Overview</h2>
   </div>
   <div class="architecture-container">
     <div class="architecture-image-wrapper">
       <img src="/images/robustmq-architecture.jpg" alt="RobustMQ Architecture" />
       <div class="architecture-overlay">
         <div class="overlay-content">
-          <h3>云原生设计</h3>
-          <p>为规模、可靠性和性能而构建</p>
+          <h3>Cloud-Native Design</h3>
+          <p>Built for scale, reliability, and performance</p>
         </div>
       </div>
     </div>
@@ -59,7 +58,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>RobustMQ: 很高兴有机会让你看到不一样的作品。</p>
+  <p>RobustMQ: Glad to have the opportunity to show you something different.</p>
 </div>
 
 <div class="website-footer">
@@ -71,7 +70,6 @@ features:
 </div>
 
 ---
-
 <style>
 
 .badges {
@@ -79,27 +77,66 @@ features:
   justify-content: left;  /* 水平居中 */
   gap: 10px;                /* 徽章之间的间距 */
   margin-top: 10px;
+  margin-bottom: 20px;      /* 减少与按钮的距离 */
 }
 
 .badges img {
   height: 24px;   /* 调整徽章大小 */
 }
 
-
+/* 优化主标题样式 */
 .clip{
-  font-size:55px !important;
+  font-size:50px !important;
 }
-.text[data-v-72cc4481]
-{
-  font-size:20px !important;
+
+/* 优化副标题样式 */
+.text[data-v-72cc4481] {
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+  animation: fadeInUp 1s ease-out !important;
 }
-.tagline
-{
-  font-size:20px !important;
+
+/* 添加动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 优化描述文字样式 */
+.tagline {
+  font-size: 17px !important;
+  font-weight: 400 !important;
+  line-height: 1.3 !important;
+  color: #4a5568 !important;
+  letter-spacing: 0.01em !important;
+  font-family: var(--vp-font-family-base) !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  opacity: 0.9 !important;
+  transition: opacity 0.3s ease !important;
 }
 .VPButton.brand
 {
   background-color:purple !important;
+}
+
+/* 调整按钮容器的间距 */
+.actions {
+  margin-top: -30px !important;
+  padding-top: 0 !important;
 }
 :root {
   --vp-home-hero-name-color: transparent !important;
@@ -109,6 +146,7 @@ features:
   --vp-home-hero-image-filter: blur(44px) !important;
 }
 
+/* 响应式设计 */
 @media (min-width: 640px) {
   :root {
     --vp-home-hero-image-filter: blur(56px) !important;
@@ -116,7 +154,12 @@ features:
   }
   
   .text[data-v-72cc4481] {
-    font-size: 30px !important;
+    font-size: 28px !important;
+  }
+  
+  .tagline {
+    font-size: 18px !important;
+    line-height: 1.4 !important;
   }
 }
 
@@ -124,18 +167,32 @@ features:
   :root {
     --vp-home-hero-image-filter: blur(68px) !important;
   }
-  .name{
-    font-size:20px !important;
+  
+  .name {
+    font-size: 20px !important;
   }
   
   .text[data-v-72cc4481] {
-    font-size: 35px !important;
+    font-size: 32px !important;
+  }
+  
+  .tagline {
+    font-size: 19px !important;
+    line-height: 1.45 !important;
+    letter-spacing: 0.015em !important;
   }
 }
 
 @media (max-width: 640px) {
   .text[data-v-72cc4481] {
-    font-size: 22px !important;
+    font-size: 20px !important;
+    line-height: 1.3 !important;
+  }
+  
+  .tagline {
+    font-size: 15px !important;
+    line-height: 1.35 !important;
+    letter-spacing: 0.005em !important;
   }
 }
 .VPImage {
