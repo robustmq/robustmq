@@ -113,6 +113,18 @@ export const sidebar = [
           { text: "JavaScript SDK", link: "/en/RobustMQ-MQTT/SDK/javascript-sdk" },
         ],
       },
+      {
+        text: "Reference Guide",
+        collapsed: true,
+        items: [
+          { text: "MQTT Tutorial", link: "https://www.emqx.com/zh/mqtt-guide" },
+          { text: "MQTT 5.0 Protocol", link: "https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html" },
+          { text: "MQTT 3.1.1 Protocol", link: "https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html" },
+          { text: "MQTT Terminology", link: "https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901003" },
+          { text: "MQTT 5.0 Features", link: "https://www.emqx.com/zh/blog/introduction-to-mqtt-5" },
+          { text: "MQTT Reason Codes", link: "https://www.emqx.com/en/blog/mqtt5-new-features-reason-code-and-ack" },
+        ],
+      },
     ],
   },
   {
