@@ -4,48 +4,63 @@
   --vp-c-brand-1: #646cff;
   --vp-c-brand-2: #747bff;
   --vp-c-brand-3: #9499ff;
-  
-  /* 修复布局变量 */
-  --vp-offset: 0px !important;
 }
 
-/* 修复VitePress布局问题 - 仅针对首页 */
-.VPContent.is-home {
-  --vp-offset: 0px !important;
-  transform: none !important;
-  transition: none !important;
+/* 确保样式在服务端和客户端渲染一致 */
+.VPHome .VPHero .VPImage {
+  max-width: 100%;
+  height: auto;
 }
 
-/* 强制覆盖动态计算的样式 */
-[style*="--vp-offset"] {
-  --vp-offset: 0px !important;
+/* 特性卡片样式优化 */
+.VPFeatures .VPFeature {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* 确保首页布局稳定 */
-.VPHome {
-  transform: none !important;
-  transition: none !important;
-  will-change: auto !important;
+.VPFeatures .VPFeature:hover {
+  transform: translateY(-4px);
 }
 
-/* 禁用可能导致布局问题的动画 - 仅针对首页 */
-.VPHome * {
-  animation-duration: 0s !important;
-  animation-delay: 0s !important;
-  transition-duration: 0.3s !important;
+/* Hero 部分的徽章样式 */
+.VPHero .hero-badges {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 20px;
+  flex-wrap: wrap;
+  justify-content: flex-start; /* 靠左对齐 */
+  max-width: 600px;
 }
 
-/* 确保响应式布局的稳定性 - 仅针对首页 */
+.VPHero .hero-badges img {
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.VPHero .hero-badges img:hover {
+  transform: scale(1.05);
+}
+
+/* 确保 Actions 按钮有合适的上边距 */
+.VPHero .VPHeroActions {
+  margin-top: 20px; /* 减少间距，给徽章留出空间 */
+}
+
+/* 响应式调整 */
 @media (max-width: 768px) {
-  .VPHome .VPContent {
-    --vp-offset: 0px !important;
-    transform: none !important;
+  .VPHero .hero-badges {
+    margin: 8px 0 16px;
+    padding: 0;
+    justify-content: flex-start; /* 移动端也靠左对齐 */
+  }
+  
+  .VPHero .VPHeroActions {
+    margin-top: 16px;
   }
 }
 
-/* 修复主题切换时的布局问题 - 仅针对首页 */
-html.dark .VPHome .VPContent,
-html:not(.dark) .VPHome .VPContent {
-  --vp-offset: 0px !important;
-  transform: none !important;
+@media (max-width: 960px) {
+  /* 在中等屏幕上，当文字和图片垂直排列时 */
+  .VPHero .hero-badges {
+    justify-content: center; /* 中等屏幕居中显示 */
+  }
 }
