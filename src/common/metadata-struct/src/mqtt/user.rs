@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 pub struct MqttUser {
     pub username: String,
     pub password: String,
+    pub salt: Option<String>,
     pub is_superuser: bool,
 }
 

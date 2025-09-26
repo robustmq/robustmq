@@ -16,8 +16,9 @@ use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
-use mysql::{params, prelude::Queryable, Pool, Row};
+use r2d2_mysql::mysql::{params, prelude::Queryable, Row};
 use std::{collections::HashMap, time::Duration};
+use third_driver::mysql::MysqlPool;
 use tokio::{
     sync::mpsc::{self, Receiver},
     time::sleep,
@@ -25,14 +26,14 @@ use tokio::{
 
 #[derive(Clone)]
 pub struct MySQLStorageAdapter {
-    pool: Pool,
+    pool: MysqlPool,
     stop_send: mpsc::Sender<bool>,
 }
 
 impl MySQLStorageAdapter {
-    pub fn new(pool: Pool) -> Result<Self, CommonError> {
+    pub fn new(pool: MysqlPool) -> Result<Self, CommonError> {
         // init tags and groups table
-        let mut conn = pool.get_conn()?;
+        let mut conn = pool.get()?;
 
         let create_tags_table_sql = format!(
             "CREATE TABLE IF NOT EXISTS `{}` (
@@ -121,7 +122,7 @@ impl MySQLStorageAdapter {
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let mut offsets = Vec::new();
 
@@ -179,14 +180,14 @@ impl MySQLStorageAdapter {
         Ok(offsets)
     }
 
-    fn spawn_clean_thread(pool: Pool, mut stop_recv: Receiver<bool>) {
+    fn spawn_clean_thread(pool: MysqlPool, mut stop_recv: Receiver<bool>) {
         tokio::spawn(async move {
             loop {
                 if let Ok(true) = stop_recv.try_recv() {
                     break;
                 }
 
-                let mut conn = pool.get_conn().unwrap();
+                let mut conn = pool.get().unwrap();
 
                 let sql = format!("SELECT info FROM `{}`;", Self::shard_info_table_name());
                 let query_res = conn
@@ -222,7 +223,7 @@ impl MySQLStorageAdapter {
 #[async_trait]
 impl StorageAdapter for MySQLStorageAdapter {
     async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let table_name = Self::record_table_name(&shard.namespace, &shard.shard_name);
 
@@ -286,7 +287,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         namespace: String,
         shard_name: String,
     ) -> Result<Vec<ShardInfo>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         if namespace.is_empty() {
             let sql = format!("SELECT info FROM `{}`;", Self::shard_info_table_name());
@@ -336,7 +337,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
         let check_table_exists_sql = format!("SHOW TABLES LIKE '{table_name}';");
 
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         if conn
             .query_first::<Row, _>(check_table_exists_sql)?
@@ -399,7 +400,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         offset: u64,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
@@ -447,7 +448,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         tag: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let sql = format!(
             "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
@@ -500,7 +501,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         key: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
@@ -549,7 +550,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         shard_name: String,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let sql = format!(
             "SELECT `offset`
@@ -579,7 +580,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         group_name: String,
     ) -> Result<Vec<ShardOffset>, CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let sql = format!(
             "SELECT `offset`
@@ -608,7 +609,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         namespace: String,
         offset: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        let mut conn = self.pool.get_conn()?;
+        let mut conn = self.pool.get()?;
 
         let sql = format!(
             "REPLACE INTO `{}` (`group`, `namespace`, `shard`, `offset`) VALUES (:group, :namespace, :shard, :offset)",
@@ -649,14 +650,14 @@ mod tests {
         record::{Header, Record},
     };
 
-    use mysql::{prelude::Queryable, Pool};
-    use third_driver::mysql::build_mysql_conn_pool;
+    use r2d2_mysql::mysql::prelude::Queryable;
+    use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
     use super::MySQLStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
 
-    async fn clean_resources(pool: Pool) {
-        let mut conn = pool.get_conn().unwrap();
+    async fn clean_resources(pool: MysqlPool) {
+        let mut conn = pool.get().unwrap();
 
         conn.query::<String, _>("SHOW TABLES;")
             .unwrap()
