@@ -55,11 +55,6 @@ export default defineConfig({
     // 保持主题切换功能
     appearance: true,
     
-    // 优化SSR配置
-    ssr: {
-        noExternal: ['vitepress']
-    },
-    
     // 禁用可能导致布局问题的功能
     mpa: false,
 
