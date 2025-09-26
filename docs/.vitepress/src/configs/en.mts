@@ -8,8 +8,10 @@ import {sidebar} from '../sidebars/en.mts'
 
 export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
-    themeConfig: {
+    // 英文版本的base路径
+    base: '/',
 
+    themeConfig: {
 
         logo: "/logo.png",
 

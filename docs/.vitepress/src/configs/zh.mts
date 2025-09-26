@@ -4,9 +4,12 @@ import type {DefaultTheme, LocaleSpecificConfig} from 'vitepress'
 
 import getNavs from "../nav/zh.mts";
 
-import {sidebar} from '../sidebars/zh.mjs'
+import {sidebar} from '../sidebars/zh.mts'
 
 export const zhConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
+
+    // 中文版本的base路径
+    base: '/zh/',
 
     themeConfig: {
 

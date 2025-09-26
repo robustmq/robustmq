@@ -58,7 +58,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>RobustMQ: Glad to have the opportunity to show you something different.</p>
+  <p>Glad to have the opportunity to show you something different.</p>
 </div>
 
 <div class="website-footer">
@@ -338,17 +338,24 @@ features:
 }
 
 .footer-message p {
-  font-size: 1.25rem;
+  font-size: 1.8rem;
   color: #2d3748;
-  font-weight: 600;
-  line-height: 1.7;
-  max-width: 700px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: none;
   margin: 0 auto;
   padding: 0;
   background: none;
   border: none;
   box-shadow: none;
   position: relative;
+  animation: fadeInUp 1.2s ease-out 0.5s both;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  white-space: nowrap;
 }
 
 .footer-message p::before {
