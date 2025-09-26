@@ -74,6 +74,23 @@ features:
   </div>
 </div>
 
+<div class="web-ui-section">
+  <div class="web-ui-header">
+    <h2>Web Dashboard</h2>
+  </div>
+  <div class="web-ui-container">
+    <div class="web-ui-image-wrapper">
+      <img src="/images/web-ui.png" alt="RobustMQ Web Dashboard" />
+      <div class="web-ui-overlay">
+        <div class="overlay-content">
+          <h3>Real-time Monitoring</h3>
+          <p>Comprehensive dashboard for system monitoring and management</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="footer-message">
   <p>Glad to have the opportunity to show you something different</p>
 </div>
@@ -465,6 +482,128 @@ features:
   }
   
   .console-overlay {
+    padding: 30px 20px 20px;
+  }
+}
+
+/* Web UI展示区域样式 */
+.web-ui-section {
+  margin: 80px 0;
+  padding: 0 20px;
+}
+
+.web-ui-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.web-ui-header h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.web-ui-header p {
+  font-size: 1.125rem;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+  font-weight: 400;
+  padding: 0 20px;
+}
+
+.web-ui-container {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.web-ui-image-wrapper {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  padding: 20px;
+}
+
+.web-ui-image-wrapper:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow:
+    0 32px 64px -12px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.web-ui-image-wrapper img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  transition: all 0.4s ease;
+  filter: brightness(0.9) contrast(1.1);
+  border-radius: 16px;
+}
+
+.web-ui-image-wrapper:hover img {
+  filter: brightness(1) contrast(1.2);
+  transform: scale(1.05);
+}
+
+.web-ui-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    transparent 100%
+  );
+  padding: 40px 30px 30px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.4s ease;
+}
+
+.web-ui-image-wrapper:hover .web-ui-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Web UI区域响应式设计 */
+@media (max-width: 768px) {
+  .web-ui-header h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  
+  .web-ui-header p {
+    font-size: 1rem;
+    padding: 0 16px;
+  }
+  
+  .web-ui-section {
+    margin: 60px 0;
+    padding: 0 16px;
+  }
+  
+  .web-ui-image-wrapper {
+    padding: 15px;
+  }
+  
+  .web-ui-overlay {
     padding: 30px 20px 20px;
   }
 }
