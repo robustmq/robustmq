@@ -6,7 +6,7 @@ hero:
   name: "RobustMQ"
   text: "New generation of cloud-native and AI-native messaging infrastructure"
   tagline: >
-   RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
+    RobustMQ is a next-generation cloud-native message queue that is 100% implemented in Rust, specifically redesigned for the AI era and cloud-native environments. Through multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, and pluggable storage, it provides high-performance messaging infrastructure with microsecond-level latency and zero GC pauses, supporting Serverless elastic scaling.
     <div class="badges">
       <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
       <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
@@ -17,7 +17,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /OverView/What-is-RobustMQ
+      link: /en/OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples
@@ -26,18 +26,18 @@ hero:
     alt: RobustMQ
 
 features:
-  - title: 100% Rust
-    details: A message queuing kernel implemented entirely in Rust, which is the amazing language to build software with stunning performance, reliability and productivity.
-  - title: Multi-protocol
-    details: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessaging, JNS, SQS and other mainstream message protocols.
-  - title: Layered architecture
-    details: Three-tier independent architecture consists of Computing, Storage and Scheduling. Each layer has the ability of cluster deployment and rapid horizontal scaling capacity.
-  - title: Plug-in storage
-    details: With standalone storage plug-in implementation, you can choose the best plug-in on demand, compatible with traditional on-premise and new cloud-native deployment.
-  - title: High cohesion
-    details: It provides built-in metadata storage components and distributed journal storage services. All of these ones could be deployed quickly, easily and cohesively.
-  - title: Rich functions
-    details: Rich functions support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
+  - title: 🦀 Rust High-Performance Kernel
+    details: A message queue kernel implemented entirely in Rust, with zero GC pauses, memory safety, and microsecond-level latency, providing ultimate performance guarantee for AI applications.
+  - title: 🔌 Multi-Protocol Unified Platform
+    details: Native support for MQTT, Kafka, AMQP and other mainstream protocols. Deploy once, multiple protocols available, avoiding system fragmentation and reducing operational complexity.
+  - title: ☁️ Compute-Storage Separation Architecture
+    details: Three-tier independent design with Broker, Journal, and Meta Service. Stateless compute layer supports Serverless elastic scaling, with independent storage layer expansion.
+  - title: 💾 Pluggable Storage Engine
+    details: Supports multiple backends including memory, SSD, and object storage. Intelligent tiered storage allows flexible selection based on business scenarios, significantly reducing storage costs.
+  - title: 🚀 AI-Native Optimization
+    details: Specifically designed for the AI era, supporting massive data stream processing and real-time inference scenarios, with microsecond-level latency meeting stringent AI application performance requirements.
+  - title: 🌐 Cloud-Native Friendly
+    details: Single binary deployment, K8s Operator support, and visual management interface, truly achieving simplified operations and rapid deployment in the cloud-native era.
 ---
 
 <div class="footer-message">
@@ -70,11 +70,11 @@ features:
 }
 .text[data-v-72cc4481]
 {
-  font-size:20px !important;
+  font-size:24px !important;
 }
 .tagline
 {
-  font-size:20px !important;
+  font-size:16px !important;
 }
 .VPButton.brand
 {
