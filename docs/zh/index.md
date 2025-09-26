@@ -5,7 +5,7 @@ layout: home
 hero:
   text: "新一代云原生和AI原生消息基础设施"
   tagline: |
-    RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
+    RobustMQ 是 100% 用 Rust 实现的新一代云原生消息队列，专为 AI 时代和云原生环境重新设计。通过多协议统一（MQTT/Kafka/AMQP）、存算分离架构和插件化存储，提供微秒级延迟、零 GC 停顿的高性能消息基础设施，支持 Serverless 弹性扩缩容。
     
     <div class="badges">
       <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
@@ -26,18 +26,18 @@ hero:
     alt: RobustMQ
 
 features:
-  - title: 100% Rust
-    details: 完全用 Rust 实现的消息队列内核，这是构建具有惊人性能、可靠性和生产力的软件的神奇语言。
-  - title: 多协议
-    details: 支持 MQTT 3.1/3.1.1/5.0、AMQP、RocketMQ Remoting/GRPC、Kafka 协议、OpenMessaging、JNS、SQS 等主流消息协议。
-  - title: 分层架构
-    details: 三层独立架构，包括 Computing、Storage 和 Scheduling。每一层都具备集群部署能力和快速水平扩容能力。
-  - title: 插件存储
-    details: 通过独立存储插件实施，您可以按需选择最佳插件，与传统本地部署和新的云原生部署兼容。
-  - title: 高内聚力
-    details: 它提供内置的元数据存储组件和分布式日志存储服务。所有这些都可以快速、轻松和有凝聚力地部署。
-  - title: 功能丰富
-    details: 功能丰富：支持顺序消息、死消息、事务消息、幂等消息、延时消息等丰富的消息队列功能。
+  - title: 🦀 Rust 高性能内核
+    details: 完全用 Rust 实现的消息队列内核，零 GC 停顿、内存安全、微秒级延迟，为 AI 应用提供极致性能保障。
+  - title: 🔌 多协议统一平台
+    details: 原生支持 MQTT、Kafka、AMQP 等主流协议，一次部署多协议可用，避免系统割裂，降低运维复杂度。
+  - title: ☁️ 存算分离架构
+    details: 采用 Broker、Journal、Meta Service 三层独立设计，无状态计算层支持 Serverless 弹性扩缩容，存储层独立扩展。
+  - title: 💾 插件化存储引擎
+    details: 支持内存、SSD、对象存储等多种后端，智能分层存储，根据业务场景灵活选择，大幅降低存储成本。
+  - title: 🚀 AI 原生优化
+    details: 专为 AI 时代设计，支持海量数据流处理、实时推理场景，微秒级延迟满足 AI 应用的严苛性能要求。
+  - title: 🌐 云原生友好
+    details: 单二进制部署、K8s Operator 支持、可视化管理界面，真正实现云原生时代的简化运维和快速部署。
 
 ---
 
@@ -59,7 +59,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>RobustMQ: 很高兴有机会让你看到不一样的作品。</p>
+  <p>很高兴有机会让你看到不一样的作品</p>
 </div>
 
 <div class="website-footer">
@@ -95,7 +95,7 @@ features:
 }
 .tagline
 {
-  font-size:20px !important;
+  font-size:16px !important;
 }
 .VPButton.brand
 {
@@ -281,17 +281,24 @@ features:
 }
 
 .footer-message p {
-  font-size: 1.25rem;
+  font-size: 1.8rem;
   color: #2d3748;
-  font-weight: 600;
-  line-height: 1.7;
-  max-width: 700px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: none;
   margin: 0 auto;
   padding: 0;
   background: none;
   border: none;
   box-shadow: none;
   position: relative;
+  animation: fadeInUp 1.2s ease-out 0.5s both;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  white-space: nowrap;
 }
 
 .footer-message p::before {

@@ -82,8 +82,10 @@ export const sidebar = [
                 text: "数据集成",
                 collapsed: true,
                 items: [
-                    { text: " Local File", link: "" },
-                    { text: "Kafka", link: "" },
+                    { text: "概述", link: "/zh/RobustMQ-MQTT/Bridge/Overview" },
+                    { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
+                    { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },
 
@@ -117,6 +119,18 @@ export const sidebar = [
             text: "使用 JavaScript SDK 连接",
             link: "/zh/RobustMQ-MQTT/SDK/javascript-sdk",
           },
+        ],
+      },
+      {
+        text: "参考指南",
+        collapsed: true,
+        items: [
+          { text: "MQTT 教程", link: "https://www.emqx.com/zh/mqtt-guide" },
+          { text: "MQTT 5.0 协议", link: "https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html" },
+          { text: "MQTT 3.1.1 协议", link: "https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html" },
+          { text: "MQTT 术语", link: "https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901003" },
+          { text: "MQTT 5.0 特性", link: "https://www.emqx.com/zh/blog/introduction-to-mqtt-5" },
+          { text: "MQTT 原因码", link: "https://www.emqx.com/en/blog/mqtt5-new-features-reason-code-and-ack" },
         ],
       },
     ],

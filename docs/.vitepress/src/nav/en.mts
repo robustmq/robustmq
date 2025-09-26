@@ -1,4 +1,3 @@
-import type { DefaultTheme } from "vitepress";
 
 export default function getNavs() {
 
