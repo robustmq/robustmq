@@ -23,11 +23,11 @@ use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
-use r2d2_redis::redis::Commands;
+use redis::Commands;
 use std::collections::HashMap;
 use third_driver::redis::{build_redis_conn_pool, RedisPool};
 
-type RedisConnection = r2d2_redis::r2d2::PooledConnection<r2d2_redis::RedisConnectionManager>;
+type RedisConnection = r2d2::PooledConnection<redis::Client>;
 
 mod schema;
 use schema::{RedisAuthAcl, RedisAuthUser};

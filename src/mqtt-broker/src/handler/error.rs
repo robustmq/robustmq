@@ -49,7 +49,7 @@ pub enum MqttBrokerError {
     FromR2d2PostgresError(#[from] r2d2_postgres::postgres::Error),
 
     #[error("{0}")]
-    FromR2d2RedisError(#[from] r2d2_redis::redis::RedisError),
+    FromRedisError(#[from] redis::RedisError),
 
     #[error("{0}")]
     FromRustlsError(#[from] rustls::Error),

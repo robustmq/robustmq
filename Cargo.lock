@@ -306,7 +306,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "itoa 1.0.15",
+ "itoa",
  "matchit",
  "memchr",
  "mime",
@@ -317,7 +317,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
- "sha1 0.10.6",
+ "sha1",
  "sync_wrapper",
  "tokio",
  "tokio-tungstenite",
@@ -498,7 +498,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -995,7 +995,7 @@ dependencies = [
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
- "r2d2_redis",
+ "redis",
  "regex",
  "rocksdb",
  "rustls 0.23.28",
@@ -1299,7 +1299,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acdc4883a9c96732e4733212c01447ebd805833b7275a73ca3ee080fd77afdaf"
 dependencies = [
  "csv-core",
- "itoa 1.0.15",
+ "itoa",
  "ryu",
  "serde",
 ]
@@ -1523,12 +1523,6 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
 name = "dtoa"
-version = "0.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56899898ce76aaf4a0f24d914c97ea6ed976d42fec6ad33fcbb0a1103e07b2b0"
-
-[[package]]
-name = "dtoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6add3b8cff394282be81f3fc1a0605db594ed69890078ca6e2cab1c408bcf04"
@@ -1627,7 +1621,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2193,7 +2187,7 @@ dependencies = [
  "http",
  "httpdate",
  "mime",
- "sha1 0.10.6",
+ "sha1",
 ]
 
 [[package]]
@@ -2249,7 +2243,7 @@ checksum = "f4a85d31aea989eead29a3aaf9e1115a180df8282431156e533de47660892565"
 dependencies = [
  "bytes",
  "fnv",
- "itoa 1.0.15",
+ "itoa",
 ]
 
 [[package]]
@@ -2323,7 +2317,7 @@ dependencies = [
  "http-body",
  "httparse",
  "httpdate",
- "itoa 1.0.15",
+ "itoa",
  "pin-project-lite",
  "smallvec",
  "tokio",
@@ -2394,7 +2388,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -2568,7 +2562,7 @@ dependencies = [
  "ahash 0.8.12",
  "indexmap 2.9.0",
  "is-terminal",
- "itoa 1.0.15",
+ "itoa",
  "log",
  "num-format",
  "once_cell",
@@ -2619,7 +2613,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2645,12 +2639,6 @@ checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
-
-[[package]]
-name = "itoa"
-version = "0.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
 name = "itoa"
@@ -3270,9 +3258,9 @@ dependencies = [
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
- "r2d2_redis",
  "rcgen",
  "rdkafka",
+ "redis",
  "regex",
  "reqwest",
  "robustmq-test",
@@ -3282,7 +3270,7 @@ dependencies = [
  "schema-register",
  "serde",
  "serde_json",
- "sha1 0.10.6",
+ "sha1",
  "sha2",
  "storage-adapter",
  "strum 0.27.1",
@@ -3344,7 +3332,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "serde_json",
- "socket2",
+ "socket2 0.5.10",
  "twox-hash 1.6.3",
  "url",
 ]
@@ -3366,7 +3354,7 @@ dependencies = [
  "named_pipe",
  "pem",
  "percent-encoding",
- "socket2",
+ "socket2 0.5.10",
  "twox-hash 2.1.1",
  "url",
 ]
@@ -3436,7 +3424,7 @@ dependencies = [
  "saturating",
  "serde",
  "serde_json",
- "sha1 0.10.6",
+ "sha1",
  "sha2",
  "smallvec",
  "subprocess",
@@ -3470,7 +3458,7 @@ dependencies = [
  "saturating",
  "serde",
  "serde_json",
- "sha1 0.10.6",
+ "sha1",
  "sha2",
  "subprocess",
  "thiserror 1.0.69",
@@ -3625,7 +3613,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a652d9771a63711fd3c3deb670acfbe5c30a4072e664d7a3bf5a9e1056ac72c3"
 dependencies = [
  "arrayvec",
- "itoa 1.0.15",
+ "itoa",
 ]
 
 [[package]]
@@ -4379,8 +4367,8 @@ version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf41c1a7c32ed72abe5082fb19505b969095c12da9f5732a4bc9878757fd087c"
 dependencies = [
- "dtoa 1.0.10",
- "itoa 1.0.15",
+ "dtoa",
+ "itoa",
  "parking_lot",
  "prometheus-client-derive-encode",
 ]
@@ -4413,7 +4401,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "multimap",
  "once_cell",
@@ -4433,7 +4421,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.103",
@@ -4749,7 +4737,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls 0.23.28",
- "socket2",
+ "socket2 0.5.10",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -4788,9 +4776,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2",
+ "socket2 0.5.10",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4837,16 +4825,6 @@ checksum = "efd4b47636dbca581cd057e2f27a5d39be741ea4f85fd3c29e415c55f71c7595"
 dependencies = [
  "postgres",
  "r2d2",
-]
-
-[[package]]
-name = "r2d2_redis"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "182473b876b0b93e353682ec58e207dd1cb4a62278bbe0045fe52b86b74363bb"
-dependencies = [
- "r2d2",
- "redis",
 ]
 
 [[package]]
@@ -4995,16 +4973,18 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "0.20.2"
+version = "0.32.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4f0ceb2ec0dd769483ecd283f6615aa83dcd0be556d5294c6e659caefe7cc54"
+checksum = "15965fbccb975c38a08a68beca6bdb57da9081cd0859417c5975a160d968c3cb"
 dependencies = [
- "async-trait",
  "combine",
- "dtoa 0.4.8",
- "itoa 0.4.8",
+ "itoa",
+ "num-bigint",
  "percent-encoding",
- "sha1 0.6.1",
+ "r2d2",
+ "ryu",
+ "sha1_smol",
+ "socket2 0.6.0",
  "url",
 ]
 
@@ -5096,7 +5076,7 @@ dependencies = [
  "rust-ini",
  "serde",
  "serde_json",
- "sha1 0.10.6",
+ "sha1",
  "sha2",
 ]
 
@@ -5360,7 +5340,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5373,7 +5353,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.9.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5452,7 +5432,7 @@ dependencies = [
  "security-framework 3.2.0",
  "security-framework-sys",
  "webpki-root-certs 0.26.11",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5669,7 +5649,7 @@ version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
- "itoa 1.0.15",
+ "itoa",
  "memchr",
  "ryu",
  "serde",
@@ -5681,7 +5661,7 @@ version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59fab13f937fa393d08645bf3a84bdfe86e296747b506ada67bb15f10f218b2a"
 dependencies = [
- "itoa 1.0.15",
+ "itoa",
  "serde",
 ]
 
@@ -5701,7 +5681,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
 dependencies = [
  "form_urlencoded",
- "itoa 1.0.15",
+ "itoa",
  "ryu",
  "serde",
 ]
@@ -5713,19 +5693,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
 dependencies = [
  "indexmap 2.9.0",
- "itoa 1.0.15",
+ "itoa",
  "ryu",
  "serde",
  "unsafe-libyaml",
-]
-
-[[package]]
-name = "sha1"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1da05c97445caa12d05e848c4a4fcbbea29e748ac28f7e80e9b010392063770"
-dependencies = [
- "sha1_smol",
 ]
 
 [[package]]
@@ -5845,6 +5816,16 @@ checksum = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "socket2"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "233504af464074f9d066d7b5416c5f9b894a5862a6506e306f7b816cdd6f1807"
+dependencies = [
+ "libc",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6117,7 +6098,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.7",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6152,9 +6133,10 @@ version = "0.1.34"
 dependencies = [
  "common-base",
  "mysql 26.0.0",
+ "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
- "r2d2_redis",
+ "redis",
  "thiserror 1.0.69",
 ]
 
@@ -6214,7 +6196,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7619e19bc266e0f9c5e6686659d394bc57973859340060a69221e57dbc0c40"
 dependencies = [
  "deranged",
- "itoa 1.0.15",
+ "itoa",
  "num-conv",
  "powerfmt",
  "serde",
@@ -6285,7 +6267,7 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2",
+ "socket2 0.5.10",
  "tokio-macros",
  "tracing",
  "windows-sys 0.52.0",
@@ -6332,7 +6314,7 @@ dependencies = [
  "postgres-protocol",
  "postgres-types",
  "rand 0.9.1",
- "socket2",
+ "socket2 0.5.10",
  "tokio",
  "tokio-util",
  "whoami",
@@ -6460,7 +6442,7 @@ dependencies = [
  "percent-encoding",
  "pin-project",
  "prost",
- "socket2",
+ "socket2 0.5.10",
  "tokio",
  "tokio-stream",
  "tower 0.4.13",
@@ -6731,7 +6713,7 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.8.5",
- "sha1 0.10.6",
+ "sha1",
  "thiserror 1.0.69",
  "utf-8",
 ]
@@ -7205,7 +7187,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
