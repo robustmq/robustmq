@@ -724,30 +724,16 @@ features:
   }
 }
 
-/* 修复VitePress水合不匹配问题 */
-:root {
-  --vp-offset: 0px !important;
+/* 首页特定的布局优化 */
+.VPHome .VPContent {
+  overflow-x: hidden;
 }
 
-/* 确保布局一致性 */
-.VPContent {
-  --vp-offset: 0px !important;
-}
-
-.VPContent.is-home {
-  --vp-offset: 0px !important;
-}
-
-/* 强制覆盖VitePress的布局计算 */
-[style*="--vp-offset"] {
-  --vp-offset: 0px !important;
-}
-
-/* 禁用VitePress的自动布局计算 */
-.VPContent,
-.VPContent.is-home,
-.VPContent.is-home .VPContent {
-  --vp-offset: 0px !important;
-  transform: none !important;
+/* 确保首页元素不会超出边界 */
+.architecture-section,
+.console-section,
+.web-ui-section {
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 </style>

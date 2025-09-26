@@ -28,24 +28,40 @@ export default defineConfig({
     // 默认语言配置
     defaultLocale: 'en',
     
-    // 修复水合不匹配问题
+    // 修复布局和水合不匹配问题
     vite: {
         define: {
-            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': true
+            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': false
         },
         ssr: {
             noExternal: ['vitepress']
+        },
+        build: {
+            rollupOptions: {
+                output: {
+                    manualChunks: undefined
+                }
+            }
+        },
+        css: {
+            preprocessorOptions: {
+                scss: {
+                    charset: false
+                }
+            }
         }
     },
     
     // 保持主题切换功能
     appearance: true,
     
-    // 客户端渲染配置
-    client: {
-        // 禁用客户端水合检查
-        hydrationMismatchDetails: false
+    // 优化SSR配置
+    ssr: {
+        noExternal: ['vitepress']
     },
+    
+    // 禁用可能导致布局问题的功能
+    mpa: false,
 
     /* 文档配置 */
 

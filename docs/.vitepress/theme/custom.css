@@ -4,6 +4,48 @@
   --vp-c-brand-1: #646cff;
   --vp-c-brand-2: #747bff;
   --vp-c-brand-3: #9499ff;
+  
+  /* 修复布局变量 */
+  --vp-offset: 0px !important;
 }
 
-/* Custom styles can be added here */
+/* 修复VitePress布局问题 - 仅针对首页 */
+.VPContent.is-home {
+  --vp-offset: 0px !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* 强制覆盖动态计算的样式 */
+[style*="--vp-offset"] {
+  --vp-offset: 0px !important;
+}
+
+/* 确保首页布局稳定 */
+.VPHome {
+  transform: none !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+
+/* 禁用可能导致布局问题的动画 - 仅针对首页 */
+.VPHome * {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.3s !important;
+}
+
+/* 确保响应式布局的稳定性 - 仅针对首页 */
+@media (max-width: 768px) {
+  .VPHome .VPContent {
+    --vp-offset: 0px !important;
+    transform: none !important;
+  }
+}
+
+/* 修复主题切换时的布局问题 - 仅针对首页 */
+html.dark .VPHome .VPContent,
+html:not(.dark) .VPHome .VPContent {
+  --vp-offset: 0px !important;
+  transform: none !important;
+}
