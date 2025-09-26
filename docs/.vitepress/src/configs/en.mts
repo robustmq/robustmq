@@ -12,7 +12,7 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
     base: '/en/',
     
     // 设置页面标题（浏览器标签页）
-    title: 'RobustMQ：很高兴有机会让你看到不一样的作品',
+    title: 'RobustMQ：Glad to have the opportunity to show you something different',
 
     themeConfig: {
         // 设置 Logo 旁边的文字
