@@ -14,7 +14,7 @@
 
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 
 use super::core::BridgePluginThread;
 
@@ -54,15 +54,21 @@ impl ConnectorManager {
     }
 
     pub fn get_all_connector(&self) -> Vec<MQTTConnector> {
-        let mut results = Vec::new();
-        for (_, raw) in self.connector_list.clone() {
-            results.push(raw);
+        let mut results = Vec::with_capacity(self.connector_list.len());
+        for entry in self.connector_list.iter() {
+            results.push(entry.value().clone());
         }
         results
     }
 
     pub fn remove_connector(&self, connector_name: &str) {
         self.connector_list.remove(connector_name);
+    }
+
+    pub fn update_connector_status(&self, connector_name: &str, status: MQTTStatus) {
+        if let Some(mut entry) = self.connector_list.get_mut(connector_name) {
+            entry.status = status;
+        }
     }
 
     // Connector Thread
@@ -80,9 +86,9 @@ impl ConnectorManager {
     }
 
     pub fn get_all_connector_thread(&self) -> Vec<BridgePluginThread> {
-        let mut results = Vec::new();
-        for (_, raw) in self.connector_thread.clone() {
-            results.push(raw);
+        let mut results = Vec::with_capacity(self.connector_thread.len());
+        for entry in self.connector_thread.iter() {
+            results.push(entry.value().clone());
         }
         results
     }

@@ -61,6 +61,7 @@ impl FileBridgePlugin {
         for record in records {
             let data = serde_json::to_string(record)?;
             writer.write_all(data.as_ref()).await?;
+            writer.write_all(b"\n").await?;
         }
         writer.flush().await?;
         Ok(())
@@ -74,6 +75,7 @@ impl BridgePlugin for FileBridgePlugin {
         let group_name = self.connector_name.clone();
         let mut recv = self.stop_send.subscribe();
         let file = OpenOptions::new()
+            .create(true)
             .append(true)
             .open(self.config.local_file_path.clone())
             .await?;
