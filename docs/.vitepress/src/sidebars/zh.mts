@@ -82,8 +82,10 @@ export const sidebar = [
                 text: "数据集成",
                 collapsed: true,
                 items: [
-                    { text: " Local File", link: "" },
-                    { text: "Kafka", link: "" },
+                    { text: "概述", link: "/zh/RobustMQ-MQTT/Bridge/Overview" },
+                    { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
+                    { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },
 

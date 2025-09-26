@@ -82,8 +82,10 @@ export const sidebar = [
                 text: "Data integration",
                 collapsed: true,
                 items: [
-                    { text: "Local File", link: "" },
-                    { text: "Kafka", link: "" },
+                    { text: "Overview", link: "/en/RobustMQ-MQTT/Bridge/Overview" },
+                    { text: "Local File", link: "/en/RobustMQ-MQTT/Bridge/LocalFile" },
+                    { text: "Kafka", link: "/en/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },
 
