@@ -32,7 +32,19 @@ export default defineConfig({
     vite: {
         define: {
             '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': true
+        },
+        ssr: {
+            noExternal: ['vitepress']
         }
+    },
+    
+    // 保持主题切换功能
+    appearance: true,
+    
+    // 客户端渲染配置
+    client: {
+        // 禁用客户端水合检查
+        hydrationMismatchDetails: false
     },
 
     /* 文档配置 */
