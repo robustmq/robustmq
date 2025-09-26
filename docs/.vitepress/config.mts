@@ -28,6 +28,12 @@ export default defineConfig({
     // 默认语言配置
     defaultLocale: 'en',
     
+    // 修复水合不匹配问题
+    vite: {
+        define: {
+            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': true
+        }
+    },
 
     /* 文档配置 */
 
