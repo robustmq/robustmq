@@ -133,7 +133,7 @@ features:
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-  animation: fadeInUp 1s ease-out !important;
+  /* animation: fadeInUp 1s ease-out !important; */
 }
 
 /* 添加动画效果 */
@@ -627,7 +627,7 @@ features:
   border: none;
   box-shadow:none;
   position: relative;
-  animation: fadeInUp 1.2s ease-out 0.5s both;
+  /* animation: fadeInUp 1.2s ease-out 0.5s both; */
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
