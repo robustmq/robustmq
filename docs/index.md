@@ -57,6 +57,24 @@ features:
   </div>
 </div>
 
+<div class="console-section">
+  <div class="console-header">
+    <h2>Management Console</h2>
+    <p>Intuitive web-based management interface for monitoring and configuration</p>
+  </div>
+  <div class="console-container">
+    <div class="console-image-wrapper">
+      <img src="/images/console-logo.png" alt="RobustMQ Console" />
+      <div class="console-overlay">
+        <div class="overlay-content">
+          <h3>Web Management</h3>
+          <p>Easy monitoring and configuration through web interface</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="footer-message">
   <p>Glad to have the opportunity to show you something different</p>
 </div>
