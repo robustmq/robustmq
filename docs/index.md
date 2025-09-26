@@ -723,4 +723,31 @@ features:
     font-size: 0.85rem;
   }
 }
+
+/* 修复VitePress水合不匹配问题 */
+:root {
+  --vp-offset: 0px !important;
+}
+
+/* 确保布局一致性 */
+.VPContent {
+  --vp-offset: 0px !important;
+}
+
+.VPContent.is-home {
+  --vp-offset: 0px !important;
+}
+
+/* 强制覆盖VitePress的布局计算 */
+[style*="--vp-offset"] {
+  --vp-offset: 0px !important;
+}
+
+/* 禁用VitePress的自动布局计算 */
+.VPContent,
+.VPContent.is-home,
+.VPContent.is-home .VPContent {
+  --vp-offset: 0px !important;
+  transform: none !important;
+}
 </style>
