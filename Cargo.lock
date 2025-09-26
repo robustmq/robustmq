@@ -594,6 +594,7 @@ version = "0.1.34"
 dependencies = [
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap",
  "grpc-clients",
  "metadata-struct",

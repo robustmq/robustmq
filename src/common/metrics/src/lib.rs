@@ -20,3 +20,4 @@ pub mod http;
 pub mod meta;
 pub mod mqtt;
 pub mod network;
+pub mod rocksdb;

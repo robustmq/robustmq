@@ -21,6 +21,7 @@ license.workspace = true
 [dependencies]
 common-base.workspace = true
 common-config.workspace = true
+common-metrics.workspace = true
 grpc-clients.workspace = true
 metadata-struct.workspace = true
 protocol.workspace = true

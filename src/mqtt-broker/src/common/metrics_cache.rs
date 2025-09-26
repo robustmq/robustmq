@@ -15,7 +15,7 @@
 use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select, now_second};
-use common_metrics::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
+use common_metrics::network::{record_broker_connections_max, record_broker_connections_num};
 use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
 use std::{collections::HashMap, sync::Arc};

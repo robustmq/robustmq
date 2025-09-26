@@ -25,7 +25,7 @@ use crate::{
     context::{ProcessorConfig, ServerContext},
 };
 use common_base::error::ResultCommonError;
-use common_metrics::mqtt::server::record_broker_thread_num;
+use common_metrics::network::record_broker_thread_num;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::codec::RobustMQCodec;

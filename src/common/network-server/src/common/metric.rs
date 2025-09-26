@@ -14,7 +14,7 @@
 
 use crate::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
-use common_metrics::mqtt::server::{
+use common_metrics::network::{
     metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
     metrics_request_response_queue_ms, metrics_request_total_ms,
 };
