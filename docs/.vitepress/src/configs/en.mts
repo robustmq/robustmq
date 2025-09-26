@@ -10,8 +10,13 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
     // 英文版本的base路径
     base: '/',
+    
+    // 设置页面标题（浏览器标签页）
+    title: 'RobustMQ：很高兴有机会让你看到不一样的作品',
 
     themeConfig: {
+        // 设置 Logo 旁边的文字
+        siteTitle: 'RobustMQ',
 
         logo: "/logo.png",
 
