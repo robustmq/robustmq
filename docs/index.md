@@ -16,7 +16,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /en/OverView/What-is-RobustMQ
+      link: /OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples
@@ -58,7 +58,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>Glad to have the opportunity to show you something different.</p>
+  <p>Glad to have the opportunity to show you something different</p>
 </div>
 
 <div class="website-footer">

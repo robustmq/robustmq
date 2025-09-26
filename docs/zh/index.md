@@ -59,7 +59,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>很高兴有机会让你看到不一样的作品。</p>
+  <p>很高兴有机会让你看到不一样的作品</p>
 </div>
 
 <div class="website-footer">
