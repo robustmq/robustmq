@@ -71,6 +71,7 @@ network-server.workspace = true
 common-metrics.workspace = true
 reqwest.workspace = true
 broker-core.workspace = true
+pulsar.workspace = true
 #security
 r2d2.workspace = true
 r2d2_mysql.workspace = true

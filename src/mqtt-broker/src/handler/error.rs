@@ -15,6 +15,7 @@
 use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
+use pulsar::Error as PulsarError;
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use r2d2;
 use rdkafka::error::KafkaError;
@@ -220,6 +221,9 @@ pub enum MqttBrokerError {
 
     #[error("Unsupported MAC function: {0}")]
     UnsupportedMacFunction(String),
+
+    #[error("Pulsar error: {0}")]
+    PulsarError(#[from] PulsarError),
 }
 
 impl From<MqttBrokerError> for Status {
