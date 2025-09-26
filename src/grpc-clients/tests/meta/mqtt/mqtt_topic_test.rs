@@ -25,7 +25,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::meta::placement_center_mqtt::{
+    use protocol::meta::meta_service_mqtt::{
         CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
     };
     use protocol::mqtt::common::{qos, Publish};

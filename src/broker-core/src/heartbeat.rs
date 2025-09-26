@@ -62,18 +62,18 @@ pub async fn report_heartbeat(
 }
 
 #[derive(Deserialize, Serialize)]
-struct PlacementCenterStatus {
+struct MetaServiceStatus {
     pub current_leader: u32,
 }
 
-pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) {
+pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
     let fun = async move || -> Result<Option<bool>, CommonError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let data = cluster_storage.place_cluster_status().await?;
-        let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;
+        let status = serde_json::from_str::<MetaServiceStatus>(&data)?;
         if status.current_leader > 0 {
             info!(
-                "Placement Center cluster is in normal condition. current leader node is {}.",
+                "Meta Service cluster is in normal condition. current leader node is {}.",
                 status.current_leader
             );
             return Ok(Some(true));

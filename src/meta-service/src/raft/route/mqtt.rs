@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
@@ -34,7 +34,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
@@ -63,7 +63,7 @@ impl DataRouteMqtt {
     }
 
     // User
-    pub fn create_user(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn create_user(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = serde_json::from_slice::<MqttUser>(&req.content)?;
@@ -72,7 +72,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_user(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_user(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.user_name)?;
@@ -82,7 +82,7 @@ impl DataRouteMqtt {
     }
 
     // Topic
-    pub fn create_topic(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn create_topic(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
@@ -92,7 +92,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_topic(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_topic(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.topic_name)?;
@@ -102,7 +102,7 @@ impl DataRouteMqtt {
     }
 
     // LastWill Message
-    pub fn save_last_will_message(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn save_last_will_message(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = SaveLastWillMessageRequest::decode(value.as_ref())?;
         let storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
         let last_will_message = serde_json::from_slice(&req.last_will_message)?;
@@ -111,7 +111,7 @@ impl DataRouteMqtt {
     }
 
     // Session
-    pub fn create_session(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn create_session(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         let session = serde_json::from_str::<MqttSession>(&req.session)?;
@@ -119,7 +119,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn update_session(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn update_session(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = UpdateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -152,7 +152,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_session(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_session(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.client_id)?;
@@ -160,7 +160,7 @@ impl DataRouteMqtt {
     }
 
     // TopicRewriteRule
-    pub fn create_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn create_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         let topic_rewrite_rule = MqttTopicRewriteRule {
@@ -179,14 +179,14 @@ impl DataRouteMqtt {
         )
     }
 
-    pub fn delete_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete_topic_rewrite_rule(&req.cluster_name, &req.action, &req.source_topic)
     }
 
     // Subscribe
-    pub fn set_subscribe(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_subscribe(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = SetSubscribeRequest::decode(value.as_ref())?;
         let subscribe = serde_json::from_slice::<MqttSubscribe>(&req.subscribe)?;
@@ -194,7 +194,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_subscribe(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_subscribe(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteSubscribeRequest::decode(value.as_ref())?;
         if !req.path.is_empty() {
@@ -206,7 +206,7 @@ impl DataRouteMqtt {
     }
 
     // Connector
-    pub fn set_connector(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_connector(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
         let req = CreateConnectorRequest::decode(value.as_ref())?;
         let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
@@ -216,7 +216,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_connector(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_connector(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteConnectorRequest::decode(value.as_ref())?;
         storage.delete(&req.cluster_name, &req.connector_name)?;
@@ -226,7 +226,7 @@ impl DataRouteMqtt {
     }
 
     // ACL
-    pub fn create_acl(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn create_acl(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
@@ -234,7 +234,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
@@ -243,7 +243,7 @@ impl DataRouteMqtt {
     }
 
     // BlackList
-    pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         let blacklist = serde_json::from_slice::<MqttAclBlackList>(&req.blacklist)?;
@@ -251,7 +251,7 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)?;
@@ -259,14 +259,14 @@ impl DataRouteMqtt {
     }
 
     // AutoSubscribeRule
-    pub fn set_auto_subscribe_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn set_auto_subscribe_rule(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = SetAutoSubscribeRuleRequest::decode(value.as_ref())?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let mut _qos: Option<QoS> = None;
         if req.qos <= u8::MAX as u32 {
             _qos = qos(req.qos as u8);
         } else {
-            return Err(PlacementCenterError::CommonError(
+            return Err(MetaServiceError::CommonError(
                 MQTTProtocolError::InvalidRemainingLength(req.qos as usize).to_string(),
             ));
         };
@@ -275,7 +275,7 @@ impl DataRouteMqtt {
         if req.retained_handling <= u8::MAX as u32 {
             _retained_handling = retain_forward_rule(req.retained_handling as u8);
         } else {
-            return Err(PlacementCenterError::CommonError(
+            return Err(MetaServiceError::CommonError(
                 MQTTProtocolError::InvalidRemainingLength(req.retained_handling as usize)
                     .to_string(),
             ));
@@ -284,12 +284,12 @@ impl DataRouteMqtt {
         let auto_subscribe_rule: MqttAutoSubscribeRule = MqttAutoSubscribeRule {
             cluster: req.cluster_name.clone(),
             topic: req.topic.clone(),
-            qos: _qos.ok_or(PlacementCenterError::CommonError(
+            qos: _qos.ok_or(MetaServiceError::CommonError(
                 MQTTProtocolError::InvalidQoS(req.qos as u8).to_string(),
             ))?,
             no_local: req.no_local,
             retain_as_published: req.retain_as_published,
-            retained_handling: _retained_handling.ok_or(PlacementCenterError::CommonError(
+            retained_handling: _retained_handling.ok_or(MetaServiceError::CommonError(
                 MQTTProtocolError::InvalidRetainForwardRule(req.retained_handling as u8)
                     .to_string(),
             ))?,
@@ -297,7 +297,7 @@ impl DataRouteMqtt {
         storage.save_auto_subscribe_rule(&req.cluster_name, &req.topic, auto_subscribe_rule)
     }
 
-    pub fn delete_auto_subscribe_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn delete_auto_subscribe_rule(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete_auto_subscribe_rule(&req.cluster_name, &req.topic)

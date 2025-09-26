@@ -17,8 +17,12 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
+use crate::security::login::mysql::mysql_check_login;
 use crate::security::login::plaintext::plaintext_check_login;
+use crate::security::login::postgresql::postgresql_check_login;
+use crate::security::login::redis::redis_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
+use crate::security::storage::AuthType;
 use crate::subscribe::common::get_sub_topic_id_list;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
@@ -37,7 +41,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use storage::mysql::MySQLAuthStorageAdapter;
 use storage::placement::PlacementAuthStorageAdapter;
-use storage_adapter::StorageType;
+use storage::postgresql::PostgresqlAuthStorageAdapter;
+use storage::redis::RedisAuthStorageAdapter;
 
 pub mod auth;
 pub mod login;
@@ -80,16 +85,76 @@ impl AuthDriver {
         }
 
         if let Some(info) = login {
-            return plaintext_check_login(
-                &self.driver,
-                &self.cache_manager,
-                &info.username,
-                &info.password,
-            )
-            .await;
-        }
+            let conf = broker_config();
 
-        Ok(false)
+            // according to auth_type to select authentication method
+            match conf.mqtt_auth_config.auth_type.as_str() {
+                "password" => {
+                    // get password configuration
+                    if let Some(password_config) =
+                        &conf.mqtt_auth_config.authn_config.password_config
+                    {
+                        // according to storage type to select corresponding verification function
+                        match conf.mqtt_auth_storage.storage_type.as_str() {
+                            "mysql" => {
+                                mysql_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    password_config,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            "postgresql" => {
+                                postgresql_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    password_config,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            "redis" => {
+                                redis_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    password_config,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            "placement" => {
+                                plaintext_check_login(
+                                    &self.driver,
+                                    &self.cache_manager,
+                                    &info.username,
+                                    &info.password,
+                                )
+                                .await
+                            }
+                            _ => Err(MqttBrokerError::UnavailableStorageType),
+                        }
+                    } else {
+                        Err(MqttBrokerError::PasswordConfigNotFound)
+                    }
+                }
+                "jwt" | "http" => {
+                    // JWT authentication or HTTP authentication
+                    // TODO: implement JWT and http authentication logic
+                    Err(MqttBrokerError::UnsupportedAuthType(
+                        "JWT or HTTP authentication not implemented yet".to_string(),
+                    ))
+                }
+                _ => Err(MqttBrokerError::UnsupportedAuthType(
+                    conf.mqtt_auth_config.auth_type.clone(),
+                )),
+            }
+        } else {
+            Ok(false)
+        }
     }
 
     pub async fn auth_connect_check(&self, connection: &MQTTConnection) -> bool {
@@ -243,15 +308,25 @@ pub fn build_driver(
     client_pool: Arc<ClientPool>,
     auth: MqttAuthStorage,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
-    let storage_type = StorageType::from_str(&auth.storage_type)
+    let storage_type = AuthType::from_str(&auth.storage_type)
         .map_err(|_| MqttBrokerError::UnavailableStorageType)?;
-    if matches!(storage_type, StorageType::Placement) {
+    if matches!(storage_type, AuthType::Placement) {
         let driver = PlacementAuthStorageAdapter::new(client_pool);
         return Ok(Arc::new(driver));
     }
 
-    if matches!(storage_type, StorageType::Mysql) {
+    if matches!(storage_type, AuthType::Mysql) {
         let driver = MySQLAuthStorageAdapter::new(auth.mysql_addr.clone());
+        return Ok(Arc::new(driver));
+    }
+
+    if matches!(storage_type, AuthType::Postgresql) {
+        let driver = PostgresqlAuthStorageAdapter::new(auth.postgres_addr.clone());
+        return Ok(Arc::new(driver));
+    }
+
+    if matches!(storage_type, AuthType::Redis) {
+        let driver = RedisAuthStorageAdapter::new(auth.redis_addr.clone());
         return Ok(Arc::new(driver));
     }
 

@@ -14,17 +14,20 @@ import {zhConfig} from './src/configs/zh.mts';
 
 export default defineConfig({
 
-    rewrites: {
-        'en/:rest*': ':rest*'
-    },
-
     locales: {
 
-        root: {label: 'English', lang: 'en', dir: 'en', ...enConfig},
+        root: {label: 'English', lang: 'en',dir: 'en',  ...enConfig},
 
         zh: {label: '简体中文', lang: 'zh', dir: 'zh', ...zhConfig},
 
     },
+
+    // 确保正确的路由配置
+    cleanUrls: true,
+    
+    // 默认语言配置
+    defaultLocale: 'en',
+    
 
     /* 文档配置 */
 

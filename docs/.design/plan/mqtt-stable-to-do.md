@@ -20,7 +20,7 @@
 
 ## 测试用例覆盖度
 1. 代码测试覆盖度(单元测试和集成测试)
-   1. placement center
+   1. meta service
    2. MQTT Broker
 2. 功能测试覆盖度
    1. 连接建立/关闭(TCP/TCPS/WebSocket/WebSockets,QUIC)
@@ -44,7 +44,7 @@
    19. Auth
    20. ACL
    21. 通配符订阅
-  
+
 3. MQTT 高级特性
    1.  连接抖动
    2.  排他订阅

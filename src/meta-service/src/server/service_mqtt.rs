@@ -41,8 +41,8 @@ use crate::server::services::mqtt::user::{
 };
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
-use protocol::meta::placement_center_mqtt::mqtt_service_server::MqttService;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttService;
+use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
     CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,

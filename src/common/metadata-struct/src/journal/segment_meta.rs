@@ -14,7 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Segment metadata in the placement center.
+/// Segment metadata in the meta service.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct JournalSegmentMetadata {
     pub cluster_name: String,

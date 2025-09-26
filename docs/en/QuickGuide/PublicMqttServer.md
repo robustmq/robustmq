@@ -10,9 +10,9 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 |----------|---------|------|-------------|
 | MQTT TCP | 117.72.92.117 | 1883 | Standard MQTT connection |
 | MQTT SSL/TLS | 117.72.92.117 | 1884 | Encrypted MQTT connection |
-| MQTT WebSocket | 117.72.92.117 | 1093 | WebSocket connection |
-| MQTT WebSocket SSL | 117.72.92.117 | 1094 | Encrypted WebSocket connection |
-| MQTT QUIC | 117.72.92.117 | 1083 | QUIC protocol connection |
+| MQTT WebSocket | 117.72.92.117 | 8083 | WebSocket connection |
+| MQTT WebSocket SSL | 117.72.92.117 | 8084 | Encrypted WebSocket connection |
+| MQTT QUIC | 117.72.92.117 | 9083 | QUIC protocol connection |
 
 ### Authentication
 
@@ -21,13 +21,15 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 
 ### Management Interface
 
-- **Dashboard**: <http://117.72.92.117:3000/>
+- **Dashboard**: <http://117.72.92.117:8080/>
 
 ![Dashboard](../../images/dashboard.png)
 
 ## Quick Experience
 
 > **📦 MQTTX Installation**: If you haven't installed MQTTX CLI yet, please refer to our [MQTTX Installation Guide](../RobustMQ-MQTT/MQTTX-Guide.md#installing-mqttx-cli) for detailed installation instructions on different platforms.
+
+> Web UI ：https://mqttx.app/web-client#/recent_connections
 
 ### Using MQTTX Command Line Tool
 

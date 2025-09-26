@@ -19,7 +19,7 @@ mod tests {
     use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-    use protocol::meta::placement_center_mqtt::{
+    use protocol::meta::meta_service_mqtt::{
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
     };
     use std::sync::Arc;

@@ -1,56 +1,206 @@
-## Topic Rewrite
-Topic Rewrite allows users to configure rules to change the topic strings that
-the client requests to subscribe or publish.
+# MQTT Topic Rewrite
 
-This feature is very useful when there's a need to transform between different topic structures.
-For example, an old device that has already been issued and cannot
-be upgraded may use old topic designs, but for some reason, we adjusted the format of topics. We can use this feature
-to rewrite the old topics as the new format to eliminate these differences.
+## What is MQTT Topic Rewrite?
 
-More introduction about [Topic Rewrite](https://www.emqx.io/docs/en/v5.0/mqtt/mqtt-topic-rewrite.html).
+Many IoT devices do not support reconfiguration or upgrades, making it very difficult to modify device business topics. Topic rewrite functionality can help make such business upgrades easier: by setting up a set of rules for RobustMQ, it can change the original topic to a new target topic when subscribing and publishing.
 
-See [List all rewrite rules](https://www.emqx.io/docs/en/v5.0/admin/api-docs.html#tag/MQTT/paths/~1mqtt~1topic_rewrite/get)
-and [Create or Update rewrite rules](https://www.emqx.io/docs/en/v5.0/admin/api-docs.html#tag/MQTT/paths/~1mqtt~1topic_rewrite/put).
+Topic rewrite is an extended MQTT feature supported by RobustMQ, which allows dynamic modification of topic names during message publishing and subscription, enabling transparent topic conversion and flexible business logic adjustment.
 
-### Configure Topic Rewrite Rules
-RobustMQ topic rewrite rules are configured by the placement amin service. You may add multiple topic rewrite rules. The number of rules is
-not limited, but any MQTT message that carries a topic needs to match the rewrite rule again. Therefore,
-the performance overhead in high-throughput scenarios is proportional to the number of rules,
-so, use this feature with caution.
+## When to Use MQTT Topic Rewrite?
 
-The request format of rewrite rule for each topic is as follows:
-```rust
-let action: String = "All".to_string();
-let source_topic: String = "x/#".to_string();
-let dest_topic: String = "x/y/z/$1".to_string();
-let re: String = "^x/y/(.+)$".to_string();
+Topic rewrite is suitable for the following scenarios:
 
-let req = CreateTopicRewriteRuleRequest {
-    action: action.clone(),
-    source_topic: source_topic.clone(),
-    dest_topic: dest_topic.clone(),
-    regex: re.clone(),
-};
+- **Device Compatibility**: Old devices use fixed topics and need to integrate with new systems
+- **Business Upgrade**: Adjust topic structure without modifying client code
+- **System Migration**: Migrate messages from old topic structure to new topic structure
+- **Multi-tenant Support**: Provide personalized topic namespaces for different tenants
+- **Protocol Adaptation**: Adapt to topic naming conventions of different vendor devices
+- **Security Isolation**: Implement message routing and access control through topic rewrite
+
+## Features of Topic Rewrite
+
+- **Dynamic Rewrite**: Dynamically modify topic names at runtime
+- **Rule Matching**: Support wildcard and regular expression matching
+- **Multi-rule Support**: Can configure multiple rewrite rules
+- **Direction Control**: Can separately control publishing and subscription rewriting
+- **Variable Substitution**: Support using client information for topic construction
+- **Compatibility**: Compatible with retained messages and delayed publishing features
+
+## Topic Rewrite Rule Configuration
+
+Topic rewrite rules consist of the following parts:
+
+- **action**: Rule scope (`publish`, `subscribe`, `all`)
+- **source_topic**: Source topic filter (supports wildcards)
+- **dest_topic**: Target topic template
+- **re**: Regular expression (used to extract topic information)
+
+### Rule Types
+
+- **publish rules**: Only match topics carried by PUBLISH packets
+- **subscribe rules**: Only match topics carried by SUBSCRIBE, UNSUBSCRIBE packets
+- **all rules**: Effective for PUBLISH, SUBSCRIBE, and UNSUBSCRIBE packets
+
+### Variable Support
+
+Target expressions support the following variables:
+
+- `$N`: The Nth element extracted by regular expression
+- `${clientid}`: Client ID
+- `${username}`: Client username
+
+## Using Topic Rewrite with MQTTX
+
+### Using MQTTX CLI
+
+1. **Configure Topic Rewrite Rules**
+
+   Assume the following rewrite rules are configured:
+
+   ```text
+   Rule 1: y/+/z/# → y/z/$2 (regex: ^y/(.+)/z/(.+)$)
+   Rule 2: x/# → z/y/x/$1 (regex: ^x/y/(.+)$)
+   Rule 3: x/y/+ → z/y/$1 (regex: ^x/y/(\d+)$)
+   ```
+
+2. **Test Topic Rewrite**
+
+   ```bash
+   # Subscribe to topics that will be rewritten
+   mqttx sub -t 'y/a/z/b' -h '117.72.92.117' -p 1883 -v
+   # Actually subscribes to: y/z/b
+   
+   mqttx sub -t 'x/y/123' -h '117.72.92.117' -p 1883 -v
+   # Actually subscribes to: z/y/123
+   
+   mqttx sub -t 'x/1/2' -h '117.72.92.117' -p 1883 -v
+   # Actually subscribes to: x/1/2 (doesn't match regex)
+   ```
+
+3. **Publish to Rewritten Topics**
+
+   ```bash
+   # Publish to original topic, will be rewritten
+   mqttx pub -t 'y/device1/z/data' -m '{"temperature":25.5}' -h '117.72.92.117' -p 1883
+   # Actually publishes to: y/z/data
+   
+   mqttx pub -t 'x/y/sensor' -m '{"humidity":60}' -h '117.72.92.117' -p 1883
+   # Actually publishes to: z/y/x/sensor
+   ```
+
+### Practical Application Examples
+
+#### Device Topic Standardization
+
+```bash
+# Old device uses non-standard topic
+mqttx pub -t 'device/001/temp' -m '{"value":25.5}' -h '117.72.92.117' -p 1883
+
+# Configure rewrite rule: device/+/temp → sensors/$1/temperature
+# Actually publishes to: sensors/001/temperature
+
+# New system subscribes to standardized topic
+mqttx sub -t 'sensors/+/temperature' -h '117.72.92.117' -p 1883 -v
 ```
-Each rewrite rule consists of a filter, regular expression.
 
-The rewrite rules are divided into publish, subscribe and all rules. The publish rule matches the topics carried
-by PUBLISH messages, and the subscribe rule matches the topics carried by SUBSCRIBE and UNSUBSCRIBE messages.
-The all rule is valid for topics carried by PUBLISH, SUBSCRIBE and UNSUBSCRIBE messages.
+#### Multi-tenant Topic Isolation
 
-On the premise that the topic rewrite is enabled, when receiving MQTT packet such as PUBLISH messages with a topic,
-RobustMQ will use the topic in the packet to sequentially match the topic filter part of the rules in the configuration
-file. Once the match is successful the regular expression is used to extract the information in the topic,
-and then the old topic is replaced by the target expression to form a new topic.
+```bash
+# Tenant A's device publishes message
+mqttx pub -t 'tenantA/sensor/data' -m '{"value":30}' -h '117.72.92.117' -p 1883
 
-The target expression can use variables in the format of $N to match the elements extracted from the regular expression.
-The value of $N is the Nth element extracted from the regular expression, for example, $1 is the first element
-extracted by the regular expression.
+# Configure rewrite rule: tenantA/# → ${username}/tenantA/#
+# Actually publishes to: user1/tenantA/sensor/data
 
-And the target expression alose support use ${clientid} to represent the client ID and ${username} to represent the client username.
+# Tenant A subscribes to their own topic
+mqttx sub -t 'user1/tenantA/#' -h '117.72.92.117' -p 1883 -v
+```
 
-It should be noted that RobustMQ reads the rewrite rules in order of the configuration file. When a topic can match the
-topic filters of multiple topic rewrite rules at the same time, RobustMQ uses the first matching rule to rewrite the topic.
+#### Protocol Version Upgrade
 
-If the regular expression in the rule does not match the topic of the MQTT packet, the rewrite fails, and no other
-rule will be used to rewrite. Therefore, users need to carefully design MQTT packet topics and topic rewrite rules.
+```bash
+# Old version device uses v1 topic
+mqttx pub -t 'v1/sensor/temperature' -m '{"temp":25}' -h '117.72.92.117' -p 1883
+
+# Configure rewrite rule: v1/# → v2/legacy/#
+# Actually publishes to: v2/legacy/sensor/temperature
+
+# New version system subscribes to v2 topic
+mqttx sub -t 'v2/legacy/#' -h '117.72.92.117' -p 1883 -v
+```
+
+#### Geographic Location Topic Routing
+
+```bash
+# Device publishes by geographic location
+mqttx pub -t 'beijing/sensor/air' -m '{"pm25":50}' -h '117.72.92.117' -p 1883
+
+# Configure rewrite rule: beijing/# → region/north/beijing/#
+# Actually publishes to: region/north/beijing/sensor/air
+
+# Regional monitoring system subscribes
+mqttx sub -t 'region/north/#' -h '117.72.92.117' -p 1883 -v
+```
+
+#### Device Type Classification
+
+```bash
+# Different types of devices publish messages
+mqttx pub -t 'device/001/status' -m '{"online":true}' -h '117.72.92.117' -p 1883
+mqttx pub -t 'device/002/status' -m '{"online":true}' -h '117.72.92.117' -p 1883
+
+# Configure rewrite rule: device/+/status → devices/${clientid}/status
+# Actually publishes to: devices/device001/status, devices/device002/status
+
+# Device management system subscribes
+mqttx sub -t 'devices/+/status' -h '117.72.92.117' -p 1883 -v
+```
+
+## Topic Rewrite and Shared Subscription
+
+When topic rewrite acts on client subscription/unsubscription of shared subscription topics, it only affects the actual topic. That is, it only affects the part after removing the prefix `$share/<group-name>/` or `$queue` from the shared subscription topic.
+
+For example:
+
+- When client subscribes to `$share/group/t/1`, only tries to match and rewrite `t/1`
+- When client subscribes to `$queue/t/2`, only tries to match and rewrite `t/2`
+
+```bash
+# Shared subscription topic rewrite example
+mqttx sub -t '$share/group1/y/a/z/b' -h '117.72.92.117' -p 1883 -v
+# Actually subscribes to: $share/group1/y/z/b (rewrite rule acts on y/a/z/b)
+
+mqttx sub -t '$queue/x/y/123' -h '117.72.92.117' -p 1883 -v
+# Actually subscribes to: $queue/z/y/123 (rewrite rule acts on x/y/123)
+```
+
+## Topic Rewrite Rule Priority
+
+When multiple rules match the same topic, RobustMQ processes them with the following priority:
+
+1. **Configuration Order**: Execute rules in the order they appear in the configuration file
+2. **First Match**: Use the first matching rule for rewriting
+3. **Regex Match**: If regular expression doesn't match, rewrite fails and won't try other rules
+
+## Integration with Retained Messages and Delayed Publishing
+
+Topic rewrite can be combined with retained messages and delayed publishing features:
+
+```bash
+# Delayed publishing combined with topic rewrite
+mqttx pub -t '$delayed/10/y/device/data' -m '{"delayed":true}' -h '117.72.92.117' -p 1883
+# Actually publishes to: $delayed/10/y/z/data (rewrite rule acts on y/device/data)
+
+# Retained message combined with topic rewrite
+mqttx pub -t 'x/y/config' -m '{"retain":true}' --retain -h '117.72.92.117' -p 1883
+# Actually publishes to: z/y/x/config (rewrite rule acts on x/y/config)
+```
+
+## Important Notes
+
+1. **ACL Check**: Publish/subscribe authorization check is executed before topic rewrite
+2. **Rule Order**: Rules are executed in configuration order, first matching rule takes effect
+3. **Regex Match**: When regular expression doesn't match, rewrite fails
+4. **Shared Subscription**: Topic rewrite for shared subscription only affects the actual topic part
+5. **Performance Impact**: Each topic needs to match all rules, affecting performance
+6. **Compatibility**: Ensure rewritten topics are compatible with existing systems

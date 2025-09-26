@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
     SetTopicRetainMessageRequest,
@@ -49,12 +49,7 @@ impl TopicStorage {
             topic_name: topic.topic_name.clone(),
             content: topic.encode(),
         };
-        placement_create_topic(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_create_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -64,12 +59,7 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name,
         };
-        placement_delete_topic(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_delete_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -79,12 +69,9 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name: "".to_string(),
         };
-        let mut data_stream = placement_list_topic(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let mut data_stream =
+            placement_list_topic(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
         let results = DashMap::with_capacity(2);
 
         while let Some(data) = data_stream.message().await? {
@@ -102,12 +89,9 @@ impl TopicStorage {
             topic_name: topic_name.to_owned(),
         };
 
-        let mut data_stream = placement_list_topic(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let mut data_stream =
+            placement_list_topic(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
         if let Some(data) = data_stream.message().await? {
             let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice())?;
             return Ok(Some(topic));
@@ -131,7 +115,7 @@ impl TopicStorage {
         };
         placement_set_topic_retain_message(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -148,7 +132,7 @@ impl TopicStorage {
         };
         placement_set_topic_retain_message(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -183,7 +167,7 @@ impl TopicStorage {
         };
         let reply = placement_list_topic_rewrite_rule(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -209,7 +193,7 @@ impl TopicStorage {
         };
         placement_create_topic_rewrite_rule(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -229,7 +213,7 @@ impl TopicStorage {
         };
         placement_delete_topic_rewrite_rule(
             &self.client_pool,
-            &config.get_placement_center_addr(),
+            &config.get_meta_service_addr(),
             request,
         )
         .await?;

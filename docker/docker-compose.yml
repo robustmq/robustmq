@@ -32,6 +32,7 @@ services:
       - "9092:9092"    # Kafka
       - "1228:1228"    # gRPC
       - "5672:5672"    # AMQP
+      - "8080:8080"    # Admin
     volumes:
       - robustmq_data:/robustmq/data
       - robustmq_logs:/robustmq/logs
@@ -44,7 +45,7 @@ services:
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -53,8 +54,8 @@ services:
   # ==============================================================================
   # Microservices Deployment (for production cluster)
   # ==============================================================================
-  
-  # Meta Service (Placement Center)
+
+  # Meta Service (meta service)
   meta-service:
     build:
       context: ..
@@ -85,6 +86,7 @@ services:
       - "1884:1884"
       - "8083:8083"
       - "8084:8084"
+      - "8080:8080"
     volumes:
       - mqtt_data:/robustmq/data
       - mqtt_logs:/robustmq/logs
@@ -105,7 +107,7 @@ services:
       target: journal-service
     container_name: robustmq-journal
     ports:
-      - "1229:1228"
+      - "1228:1228"
     volumes:
       - journal_data:/robustmq/data
       - journal_logs:/robustmq/logs
@@ -121,7 +123,7 @@ services:
   # ==============================================================================
   # Monitoring and Observability (Optional)
   # ==============================================================================
-  
+
   # Prometheus for metrics collection
   prometheus:
     image: prom/prometheus:latest

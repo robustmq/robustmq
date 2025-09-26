@@ -13,10 +13,22 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use mysql::Pool;
+use r2d2_mysql::{
+    mysql::{Opts, OptsBuilder},
+    r2d2::Pool,
+    MySqlConnectionManager,
+};
 
-pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, CommonError> {
-    match Pool::new(addr) {
+pub type MysqlPool = Pool<MySqlConnectionManager>;
+
+pub fn build_mysql_conn_pool(addr: &str) -> Result<MysqlPool, CommonError> {
+    let opts = Opts::from_url(addr)
+        .map_err(|e| CommonError::CommonError(format!("Invalid MySQL connection string: {}", e)))?;
+
+    let builder = OptsBuilder::from_opts(opts);
+    let manager = MySqlConnectionManager::new(builder);
+
+    match Pool::new(manager) {
         Ok(pool) => Ok(pool),
         Err(e) => Err(CommonError::CommonError(e.to_string())),
     }

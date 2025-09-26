@@ -31,7 +31,7 @@ context NGINX_HTTPS_PORT                443
 
 context MQTT_SERVER_IMAGE_NAME          mqtt-server-test
 context JOURNAL_SERVER_IMAGE_NAME       journal-server-test
-context PLACEMENT_CENTER_IMAGE_NAME     placement-center-test
+context META_SERVICE_IMAGE_NAME     meta-service-test
 context CLI_COMMAND_IMAGE_NAME          cli-command-test
 context IMAGE_VERSION                   0.2
 

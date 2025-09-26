@@ -24,7 +24,7 @@ use grpc_clients::{
     pool::ClientPool,
 };
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use protocol::meta::placement_center_mqtt::{
+use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatRaw, ConnectorHeartbeatRequest, CreateConnectorRequest,
     DeleteConnectorRequest, ListConnectorRequest, UpdateConnectorRequest,
 };
@@ -50,12 +50,9 @@ impl ConnectorStorage {
             cluster_name: config.cluster_name.clone(),
             connector_name: connector_name.to_owned(),
         };
-        let reply = placement_list_connector(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            placement_list_connector(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
         let mut list = Vec::new();
         for raw in reply.connectors {
             list.push(serde_json::from_slice::<MQTTConnector>(raw.as_slice())?);
@@ -74,12 +71,8 @@ impl ConnectorStorage {
             connector_name: connector.connector_name.clone(),
             connector: connector.encode(),
         };
-        placement_create_connector(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_create_connector(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 
@@ -90,12 +83,8 @@ impl ConnectorStorage {
             connector_name: connector.connector_name.clone(),
             connector: connector.encode(),
         };
-        placement_update_connector(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_update_connector(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 
@@ -109,12 +98,8 @@ impl ConnectorStorage {
             cluster_name: cluster_name.to_owned(),
             connector_name: connector_name.to_owned(),
         };
-        placement_delete_connector(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_delete_connector(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 
@@ -127,12 +112,8 @@ impl ConnectorStorage {
             cluster_name: config.cluster_name.clone(),
             heatbeats,
         };
-        placement_connector_heartbeat(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        placement_connector_heartbeat(&self.client_pool, &config.get_meta_service_addr(), request)
+            .await?;
         Ok(())
     }
 }

@@ -62,9 +62,9 @@ spec:
             - containerPort: 1883
               name: mqtt
           env:
-            - name: MQTT_SERVER_PLACEMENT_CENTER
+            - name: MQTT_SERVER_META_SERVICE
               value: |
-                [ "placement-center-0.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228","placement-center-1.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228","placement-center-2.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228" ]
+                [ "meta-service-0.meta-service-hs.${NAMESPACE}.svc.cluster.local:1228","meta-service-1.meta-service-hs.${NAMESPACE}.svc.cluster.local:1228","meta-service-2.meta-service-hs.${NAMESPACE}.svc.cluster.local:1228" ]
             - name: INDEX
               valueFrom:
                 fieldRef:

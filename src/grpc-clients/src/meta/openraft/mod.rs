@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::meta::placement_center_openraft::open_raft_service_client::OpenRaftServiceClient;
-use protocol::meta::placement_center_openraft::{
+use protocol::meta::meta_service_openraft::open_raft_service_client::OpenRaftServiceClient;
+use protocol::meta::meta_service_openraft::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
@@ -61,7 +61,7 @@ impl_retriable_request!(
     VoteRequest,
     OpenRaftServiceClient<Channel>,
     VoteReply,
-    placement_center_openraft_services_client,
+    meta_service_openraft_services_client,
     vote,
     true
 );
@@ -70,7 +70,7 @@ impl_retriable_request!(
     AppendRequest,
     OpenRaftServiceClient<Channel>,
     AppendReply,
-    placement_center_openraft_services_client,
+    meta_service_openraft_services_client,
     append,
     true
 );
@@ -79,7 +79,7 @@ impl_retriable_request!(
     SnapshotRequest,
     OpenRaftServiceClient<Channel>,
     SnapshotReply,
-    placement_center_openraft_services_client,
+    meta_service_openraft_services_client,
     snapshot,
     true
 );
@@ -88,7 +88,7 @@ impl_retriable_request!(
     AddLearnerRequest,
     OpenRaftServiceClient<Channel>,
     AddLearnerReply,
-    placement_center_openraft_services_client,
+    meta_service_openraft_services_client,
     add_learner,
     true
 );
@@ -97,7 +97,7 @@ impl_retriable_request!(
     ChangeMembershipRequest,
     OpenRaftServiceClient<Channel>,
     ChangeMembershipReply,
-    placement_center_openraft_services_client,
+    meta_service_openraft_services_client,
     change_membership,
     true
 );

@@ -21,7 +21,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
-    use protocol::meta::placement_center_mqtt::{
+    use protocol::meta::meta_service_mqtt::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
 
@@ -39,6 +39,7 @@ mod tests {
         let mqtt_user: MqttUser = MqttUser {
             username: user_name.clone(),
             password: password.clone(),
+            salt: None,
             is_superuser: false,
         };
 

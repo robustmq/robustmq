@@ -17,7 +17,10 @@ use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
-use common_metrics::grpc::{metrics_grpc_request_incr, metrics_grpc_request_ms};
+use common_metrics::grpc::{
+    extract_grpc_status_code, parse_grpc_path, record_grpc_connection_end,
+    record_grpc_connection_start, record_grpc_request,
+};
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
 use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
@@ -26,18 +29,18 @@ use meta_service::server::service_journal::GrpcEngineService;
 use meta_service::server::service_kv::GrpcKvService;
 use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::server::service_raft::GrpcOpenRaftServices;
-use meta_service::PlacementCenterServerParams;
+use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::inner::GrpcInnerServices;
 use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
 use protocol::cluster::cluster_status::cluster_service_server::ClusterServiceServer;
 use protocol::journal::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
-use protocol::meta::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
-use protocol::meta::placement_center_journal::engine_service_server::EngineServiceServer;
-use protocol::meta::placement_center_kv::kv_service_server::KvServiceServer;
-use protocol::meta::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
-use protocol::meta::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
+use protocol::meta::meta_service_inner::meta_service_service_server::MetaServiceServiceServer;
+use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
+use protocol::meta::meta_service_kv::kv_service_server::KvServiceServer;
+use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
+use protocol::meta::meta_service_openraft::open_raft_service_server::OpenRaftServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tonic::transport::Server;
@@ -45,7 +48,7 @@ use tower::{Layer, Service};
 use tracing::info;
 
 pub async fn start_grpc_server(
-    place_params: PlacementCenterServerParams,
+    place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
     journal_params: JournalServerParams,
     grpc_port: u32,
@@ -72,7 +75,7 @@ pub async fn start_grpc_server(
     if config.is_start_meta() {
         route = route
             .add_service(
-                PlacementCenterServiceServer::new(get_place_inner_handler(&place_params))
+                MetaServiceServiceServer::new(get_place_inner_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
@@ -116,7 +119,7 @@ pub async fn start_grpc_server(
     Ok(())
 }
 
-fn get_place_inner_handler(place_params: &PlacementCenterServerParams) -> GrpcPlacementService {
+fn get_place_inner_handler(place_params: &MetaServiceServerParams) -> GrpcPlacementService {
     GrpcPlacementService::new(
         place_params.storage_driver.clone(),
         place_params.cache_manager.clone(),
@@ -127,14 +130,14 @@ fn get_place_inner_handler(place_params: &PlacementCenterServerParams) -> GrpcPl
     )
 }
 
-fn get_place_kv_handler(place_params: &PlacementCenterServerParams) -> GrpcKvService {
+fn get_place_kv_handler(place_params: &MetaServiceServerParams) -> GrpcKvService {
     GrpcKvService::new(
         place_params.storage_driver.clone(),
         place_params.rocksdb_engine_handler.clone(),
     )
 }
 
-fn get_place_mqtt_handler(place_params: &PlacementCenterServerParams) -> GrpcMqttService {
+fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttService {
     GrpcMqttService::new(
         place_params.cache_manager.clone(),
         place_params.storage_driver.clone(),
@@ -144,7 +147,7 @@ fn get_place_mqtt_handler(place_params: &PlacementCenterServerParams) -> GrpcMqt
     )
 }
 
-fn get_place_engine_handler(place_params: &PlacementCenterServerParams) -> GrpcEngineService {
+fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngineService {
     GrpcEngineService::new(
         place_params.storage_driver.clone(),
         place_params.cache_manager.clone(),
@@ -154,7 +157,7 @@ fn get_place_engine_handler(place_params: &PlacementCenterServerParams) -> GrpcE
     )
 }
 
-fn get_place_raft_handler(place_params: &PlacementCenterServerParams) -> GrpcOpenRaftServices {
+fn get_place_raft_handler(place_params: &MetaServiceServerParams) -> GrpcOpenRaftServices {
     GrpcOpenRaftServices::new(place_params.storage_driver.raft_node.clone())
 }
 
@@ -215,7 +218,20 @@ where
     }
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
-        let paths = parse_path(req.uri().path());
+        // Record connection start
+        record_grpc_connection_start();
+
+        // Parse gRPC path safely
+        let (service, method) = parse_grpc_path(req.uri().path())
+            .unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
+
+        // Extract request size if available
+        let request_size = req
+            .headers()
+            .get("content-length")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|s| s.parse::<f64>().ok());
+
         // See: https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
@@ -223,40 +239,57 @@ where
         Box::pin(async move {
             let start_time = now_mills();
 
-            // call
-            let response = inner.call(req).await?;
+            // Process the request
+            let response = inner.call(req).await;
+            let duration_ms = (now_mills() - start_time) as f64;
 
-            metrics_grpc_request_ms(
-                paths.0.as_str(),
-                paths.1.as_str(),
-                (now_mills() - start_time) as f64,
-            );
+            match response {
+                Ok(resp) => {
+                    // Extract response size if available
+                    let response_size = resp
+                        .headers()
+                        .get("content-length")
+                        .and_then(|h| h.to_str().ok())
+                        .and_then(|s| s.parse::<f64>().ok());
 
-            metrics_grpc_request_incr(paths.0.as_str(), paths.1.as_str());
-            Ok(response)
+                    // Extract gRPC status code from response headers
+                    let status_code = extract_grpc_status_code(resp.headers());
+
+                    // Record comprehensive gRPC metrics
+                    record_grpc_request(
+                        service,
+                        method,
+                        status_code,
+                        duration_ms,
+                        request_size,
+                        response_size,
+                    );
+
+                    // Record connection end
+                    record_grpc_connection_end();
+
+                    Ok(resp)
+                }
+                Err(err) => {
+                    // Record error metrics
+                    record_grpc_request(
+                        service,
+                        method,
+                        "INTERNAL".to_string(),
+                        duration_ms,
+                        request_size,
+                        None,
+                    );
+
+                    // Record connection end
+                    record_grpc_connection_end();
+
+                    Err(err)
+                }
+            }
         })
     }
 }
 
-fn parse_path(uri: &str) -> (String, String) {
-    let paths: Vec<&str> = uri.split("/").collect();
-    (paths[1].to_string(), paths[2].to_string())
-}
-
 #[cfg(test)]
-mod test {
-    use crate::grpc::parse_path;
-
-    #[tokio::test]
-    async fn parse_path_test() {
-        let path = "/placement.center.kv.KvService/exists";
-        let paths = parse_path(path);
-        assert_eq!(paths.0, "placement.center.kv.KvService");
-        assert_eq!(paths.1, "exists");
-
-        let path = "/placement.center.kv.KvService/get";
-        let paths = parse_path(path);
-        assert_eq!(paths.0, "placement.center.kv.KvService");
-        assert_eq!(paths.1, "get");
-    }
-}
+mod test {}

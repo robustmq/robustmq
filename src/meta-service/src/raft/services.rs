@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::raft_node::Node;
 use crate::raft::type_config::TypeConfig;
 use bincode::{deserialize, serialize};
 use openraft::Raft;
-use protocol::meta::placement_center_openraft::{
+use protocol::meta::meta_service_openraft::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
@@ -25,15 +25,15 @@ use protocol::meta::placement_center_openraft::{
 pub async fn vote_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &VoteRequest,
-) -> Result<VoteReply, PlacementCenterError> {
+) -> Result<VoteReply, MetaServiceError> {
     let vote_data = deserialize(&req.value)?;
     raft_node
         .vote(vote_data)
         .await
-        .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
         .and_then(|res| {
             serialize(&res)
-                .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+                .map_err(|e| MetaServiceError::CommonError(e.to_string()))
                 .map(|value| VoteReply { value })
         })
 }
@@ -41,15 +41,15 @@ pub async fn vote_by_req(
 pub async fn append_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &AppendRequest,
-) -> Result<AppendReply, PlacementCenterError> {
+) -> Result<AppendReply, MetaServiceError> {
     let append_data = deserialize(&req.value)?;
     raft_node
         .append_entries(append_data)
         .await
-        .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
         .and_then(|res| {
             serialize(&res)
-                .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+                .map_err(|e| MetaServiceError::CommonError(e.to_string()))
                 .map(|value| AppendReply { value })
         })
 }
@@ -57,15 +57,15 @@ pub async fn append_by_req(
 pub async fn snapshot_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &SnapshotRequest,
-) -> Result<SnapshotReply, PlacementCenterError> {
+) -> Result<SnapshotReply, MetaServiceError> {
     let snapshot_data = deserialize(&req.value)?;
     raft_node
         .install_snapshot(snapshot_data)
         .await
-        .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
         .and_then(|res| {
             serialize(&res)
-                .map_err(|e| PlacementCenterError::CommonError(e.to_string()))
+                .map_err(|e| MetaServiceError::CommonError(e.to_string()))
                 .map(|value| SnapshotReply { value })
         })
 }
@@ -73,14 +73,12 @@ pub async fn snapshot_by_req(
 pub async fn add_learner_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &AddLearnerRequest,
-) -> Result<AddLearnerReply, PlacementCenterError> {
+) -> Result<AddLearnerReply, MetaServiceError> {
     let node_id = req.node_id;
     let node = req
         .node
         .clone()
-        .ok_or(PlacementCenterError::RequestParamsNotEmpty(
-            "node".to_string(),
-        ))?;
+        .ok_or(MetaServiceError::RequestParamsNotEmpty("node".to_string()))?;
 
     let raft_node_data = Node {
         rpc_addr: node.rpc_addr,
@@ -99,7 +97,7 @@ pub async fn add_learner_by_req(
 pub async fn change_membership_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &ChangeMembershipRequest,
-) -> Result<ChangeMembershipReply, PlacementCenterError> {
+) -> Result<ChangeMembershipReply, MetaServiceError> {
     let members = req.members.clone();
     let retain = req.retain;
 

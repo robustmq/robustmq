@@ -50,7 +50,6 @@ COPY tests/Cargo.toml ./tests/
 # Create dummy source files to build dependencies
 RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
 RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} touch {}/src/lib.rs
-RUN touch src/cmd/src/main.rs
 
 # Build dependencies (this will be cached unless Cargo.toml changes)
 RUN cargo build --release || true
@@ -114,11 +113,11 @@ USER robustmq
 # Kafka: 9092
 # gRPC: 1228
 # AMQP: 5672
-EXPOSE 1883 1884 8083 8084 9092 1228 5672
+EXPOSE 1883 1884 8083 8084 9092 1228 5672 8080
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8083/health || exit 1
+    CMD curl -f http://localhost:8080/api/status || exit 1
 
 # Default environment variables
 ENV ROBUSTMQ_CONFIG_PATH="/robustmq/config/server.toml"
@@ -133,7 +132,7 @@ CMD ["--conf=/robustmq/config/server.toml"]
 # Alternative: Service-specific stages for microservice deployment
 # ==============================================================================
 
-# Meta Service (Placement Center)
+# Meta Service (meta service)
 FROM runtime AS meta-service
 ENV ROBUSTMQ_ROLES="meta"
 EXPOSE 1228
@@ -142,7 +141,7 @@ CMD ["--conf=/robustmq/config/server.toml"]
 # MQTT Broker Service
 FROM runtime AS mqtt-broker
 ENV ROBUSTMQ_ROLES="broker"
-EXPOSE 1883 1884 8083 8084
+EXPOSE 1883 1884 8083 8084 8080
 CMD ["--conf=/robustmq/config/server.toml"]
 
 # Journal Service
@@ -176,7 +175,7 @@ COPY config/ ./config/
 COPY bin/ ./bin/
 RUN chmod +x ./bin/*
 
-EXPOSE 1883 1884 8083 8084 9092 1228 5672
+EXPOSE 1883 1884 8083 8084 9092 1228 5672 8080
 
 # Development entry point
 ENTRYPOINT ["cargo", "run", "--package", "cmd", "--bin", "broker-server", "--"]

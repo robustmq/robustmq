@@ -14,7 +14,7 @@
    │   └── server.rs
    ├── mqtt-server
    │   └── server.rs
-   └── placement-center
+   └── meta-service
        └── server.rs
    ```
 

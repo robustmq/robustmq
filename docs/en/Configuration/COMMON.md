@@ -74,7 +74,7 @@ tls_key = "./config/certs/key.pem"    # TLS private key path
 ```toml
 [network]
 accept_thread_num = 1         # Accept connection thread count
-handler_thread_num = 1        # Handler thread count  
+handler_thread_num = 1        # Handler thread count
 response_thread_num = 1       # Response thread count
 queue_size = 1000            # Queue size
 lock_max_try_mut_times = 30   # Lock maximum retry times
@@ -200,9 +200,9 @@ roles = ["meta", "broker"]
 grpc_port = 1228
 
 # Metadata center addresses
-[placement_center]
+[meta_service]
 1 = "192.168.1.10:1228"
-2 = "192.168.1.11:1228" 
+2 = "192.168.1.11:1228"
 3 = "192.168.1.12:1228"
 
 # Runtime configuration
@@ -293,6 +293,6 @@ cargo run --bin config-validator config/server.toml
 
 ---
 
-*Documentation Version: v1.0*  
-*Last Updated: 2024-01-01*  
+*Documentation Version: v1.0*
+*Last Updated: 2024-01-01*
 *Based on Code Version: RobustMQ v0.1.31*

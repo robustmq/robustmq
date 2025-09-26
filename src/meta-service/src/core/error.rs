@@ -24,7 +24,7 @@ use thiserror::Error;
 use crate::raft::type_config::TypeConfig;
 
 #[derive(Error, Debug)]
-pub enum PlacementCenterError {
+pub enum MetaServiceError {
     #[error("{0}")]
     TonicTransport(#[from] tonic::transport::Error),
 

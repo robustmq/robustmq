@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_config::broker::broker_config;
 use grpc_clients::meta::journal::call::update_segment_meta;
 use grpc_clients::pool::ClientPool;
-use protocol::meta::placement_center_journal::UpdateSegmentMetaRequest;
+use protocol::meta::meta_service_journal::UpdateSegmentMetaRequest;
 use tracing::warn;
 
 use super::error::JournalServerError;
@@ -57,7 +57,7 @@ pub async fn update_meta_start_timestamp(
         start_timestamp: start_timestamp as i64,
         end_timestamp: -1,
     };
-    update_segment_meta(client_pool, &conf.get_placement_center_addr(), request).await?;
+    update_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
     Ok(())
 }
 
@@ -81,7 +81,7 @@ pub async fn update_meta_end_timestamp(
                 start_timestamp: -1,
                 end_timestamp: file.end_timestamp,
             };
-            update_segment_meta(client_pool, &conf.get_placement_center_addr(), request).await?;
+            update_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
         } else {
             warn!("");
         }
@@ -106,7 +106,7 @@ async fn update_meta_start_offset(
         start_timestamp: -1,
         end_timestamp: -1,
     };
-    update_segment_meta(&client_pool, &conf.get_placement_center_addr(), request).await?;
+    update_segment_meta(&client_pool, &conf.get_meta_service_addr(), request).await?;
     Ok(())
 }
 
@@ -127,6 +127,6 @@ async fn update_meta_end_offset(
         start_timestamp: -1,
         end_timestamp: -1,
     };
-    update_segment_meta(&client_pool, &conf.get_placement_center_addr(), request).await?;
+    update_segment_meta(&client_pool, &conf.get_meta_service_addr(), request).await?;
     Ok(())
 }

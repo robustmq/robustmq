@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::meta::placement_center_kv::kv_service_client::KvServiceClient;
-use protocol::meta::placement_center_kv::{
+use protocol::meta::meta_service_kv::kv_service_client::KvServiceClient;
+use protocol::meta::meta_service_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
@@ -65,7 +65,7 @@ impl_retriable_request!(
     SetRequest,
     KvServiceClient<Channel>,
     SetReply,
-    placement_center_kv_services_client,
+    meta_service_kv_services_client,
     set,
     true
 );
@@ -74,7 +74,7 @@ impl_retriable_request!(
     GetRequest,
     KvServiceClient<Channel>,
     GetReply,
-    placement_center_kv_services_client,
+    meta_service_kv_services_client,
     get,
     true
 );
@@ -83,7 +83,7 @@ impl_retriable_request!(
     DeleteRequest,
     KvServiceClient<Channel>,
     DeleteReply,
-    placement_center_kv_services_client,
+    meta_service_kv_services_client,
     delete,
     true
 );
@@ -92,7 +92,7 @@ impl_retriable_request!(
     ExistsRequest,
     KvServiceClient<Channel>,
     ExistsReply,
-    placement_center_kv_services_client,
+    meta_service_kv_services_client,
     exists,
     true
 );
@@ -101,7 +101,7 @@ impl_retriable_request!(
     ListShardRequest,
     KvServiceClient<Channel>,
     ListShardReply,
-    placement_center_kv_services_client,
+    meta_service_kv_services_client,
     list_shard,
     true
 );
@@ -110,7 +110,7 @@ impl_retriable_request!(
     GetPrefixRequest,
     KvServiceClient<Channel>,
     GetPrefixReply,
-    placement_center_kv_services_client,
+    meta_service_kv_services_client,
     get_prefix,
     true
 );

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
+use crate::core::error::MetaServiceError;
 use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::journal::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
@@ -72,9 +72,9 @@ impl DataRoute {
     pub async fn route(
         &self,
         storage_data: StorageData,
-    ) -> Result<Option<Vec<u8>>, PlacementCenterError> {
+    ) -> Result<Option<Vec<u8>>, MetaServiceError> {
         match storage_data.data_type {
-            // Placement Center
+            // Meta Service
             StorageDataType::KvSet => {
                 self.route_kv.set(storage_data.value)?;
                 Ok(None)
@@ -269,7 +269,7 @@ impl DataRoute {
         } else {
             error!(
                 "{}",
-                PlacementCenterError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string(),)
+                MetaServiceError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string(),)
             );
             return Vec::new();
         };
@@ -293,20 +293,20 @@ impl DataRoute {
         res
     }
 
-    pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), MetaServiceError> {
         info!("Start restoring snapshot, snapshot length :{}", data.len());
         let now = Instant::now();
         let records = match deserialize::<Vec<(String, Vec<u8>)>>(&data) {
             Ok(data) => data,
             Err(e) => {
-                return Err(PlacementCenterError::CommonError(e.to_string()));
+                return Err(MetaServiceError::CommonError(e.to_string()));
             }
         };
 
         let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
             cf
         } else {
-            return Err(PlacementCenterError::RocksDBFamilyNotAvailable(
+            return Err(MetaServiceError::RocksDBFamilyNotAvailable(
                 DB_COLUMN_FAMILY_META.to_string(),
             ));
         };

@@ -14,7 +14,7 @@
 
 use tracing::info;
 
-pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./config/version.ini";
+pub const DEFAULT_META_SERVICE_CONFIG: &str = "./config/version.ini";
 
 pub fn banner() {
     const B: &str = r"

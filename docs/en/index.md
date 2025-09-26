@@ -4,9 +4,9 @@ layout: home
 
 hero:
   name: "RobustMQ"
-  text: "Next-generation high-performance cloud-native converged message queue."
+  text: "New generation of cloud-native and AI-native messaging infrastructure"
   tagline: >
-   RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
+    RobustMQ is a next-generation cloud-native message queue that is 100% implemented in Rust, specifically redesigned for the AI era and cloud-native environments. Through multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, and pluggable storage, it provides high-performance messaging infrastructure with microsecond-level latency and zero GC pauses, supporting Serverless elastic scaling.
     <div class="badges">
       <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
       <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
@@ -17,7 +17,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /OverView/What-is-RobustMQ
+      link: /en/OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples
@@ -26,18 +26,31 @@ hero:
     alt: RobustMQ
 
 features:
-  - title: 100% Rust
-    details: A message queuing kernel implemented entirely in Rust, which is the amazing language to build software with stunning performance, reliability and productivity.
-  - title: Multi-protocol
-    details: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessaging, JNS, SQS and other mainstream message protocols.
-  - title: Layered architecture
-    details: Three-tier independent architecture consists of Computing, Storage and Scheduling. Each layer has the ability of cluster deployment and rapid horizontal scaling capacity.
-  - title: Plug-in storage
-    details: With standalone storage plug-in implementation, you can choose the best plug-in on demand, compatible with traditional on-premise and new cloud-native deployment.
-  - title: High cohesion
-    details: It provides built-in metadata storage components and distributed journal storage services. All of these ones could be deployed quickly, easily and cohesively.
-  - title: Rich functions
-    details: Rich functions support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
+  - title: 🦀 Rust High-Performance Kernel
+    details: A message queue kernel implemented entirely in Rust, with zero GC pauses, memory safety, and microsecond-level latency, providing ultimate performance guarantee for AI applications.
+  - title: 🔌 Multi-Protocol Unified Platform
+    details: Native support for MQTT, Kafka, AMQP and other mainstream protocols. Deploy once, multiple protocols available, avoiding system fragmentation and reducing operational complexity.
+  - title: ☁️ Compute-Storage Separation Architecture
+    details: Three-tier independent design with Broker, Journal, and Meta Service. Stateless compute layer supports Serverless elastic scaling, with independent storage layer expansion.
+  - title: 💾 Pluggable Storage Engine
+    details: Supports multiple backends including memory, SSD, and object storage. Intelligent tiered storage allows flexible selection based on business scenarios, significantly reducing storage costs.
+  - title: 🚀 AI-Native Optimization
+    details: Specifically designed for the AI era, supporting massive data stream processing and real-time inference scenarios, with microsecond-level latency meeting stringent AI application performance requirements.
+  - title: 🌐 Cloud-Native Friendly
+    details: Single binary deployment, K8s Operator support, and visual management interface, truly achieving simplified operations and rapid deployment in the cloud-native era.
+---
+
+<div class="footer-message">
+  <p>Glad to have the opportunity to show you something different</p>
+</div>
+
+<div class="website-footer">
+  <p>RobustMQ Website</p>
+</div>
+
+<div class="footer-brand">
+  <span>@RobustMQ</span>
+</div>
 ---
 <style>
 
@@ -57,11 +70,11 @@ features:
 }
 .text[data-v-72cc4481]
 {
-  font-size:20px !important;
+  font-size:24px !important;
 }
 .tagline
 {
-  font-size:20px !important;
+  font-size:16px !important;
 }
 .VPButton.brand
 {
@@ -94,5 +107,133 @@ features:
     border-radius: 24% !important;
     opacity: 0.8 !important;
     transition: opacity 0.3s ease !important;
+}
+
+/* 添加动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 底部消息样式 */
+.footer-message {
+  text-align: center;
+  margin: 80px 0 60px;
+  padding: 0 20px;
+}
+
+.footer-message p {
+  font-size: 1.8rem;
+  color: #2d3748;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: none;
+  margin: 0 auto;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  position: relative;
+  animation: fadeInUp 1.2s ease-out 0.5s both;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  white-space: nowrap;
+}
+
+.footer-message p::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+}
+
+.footer-message p::after {
+  content: "";
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 1px;
+  opacity: 0.6;
+}
+
+/* 网站底部样式 */
+.website-footer {
+  text-align: center;
+  margin: 40px 0 20px;
+  padding: 0 20px;
+}
+
+.website-footer p {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* 固定底部品牌标识 */
+.footer-brand {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 25px;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-brand:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.footer-brand span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-brand span::before {
+  content: "🚀";
+  font-size: 1rem;
+}
+
+/* 移动端调整 */
+@media (max-width: 768px) {
+  .footer-brand {
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
 }
 </style>

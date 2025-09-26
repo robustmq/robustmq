@@ -19,7 +19,7 @@ use grpc_clients::{
     pool::ClientPool,
 };
 use metadata_struct::schema::SchemaData;
-use protocol::meta::placement_center_inner::{
+use protocol::meta::meta_service_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest,
     UnBindSchemaRequest,
 };
@@ -41,12 +41,8 @@ impl SchemaStorage {
             schema_name,
         };
 
-        let reply = list_schema(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        let reply =
+            list_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut results = Vec::new();
         for raw in reply.schemas {
             results.push(serde_json::from_slice::<SchemaData>(raw.as_slice())?);
@@ -62,12 +58,7 @@ impl SchemaStorage {
             schema: schema_data.encode(),
         };
 
-        create_schema(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        create_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
         Ok(())
     }
@@ -79,12 +70,7 @@ impl SchemaStorage {
             schema_name,
         };
 
-        delete_schema(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        delete_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
         Ok(())
     }
@@ -97,12 +83,7 @@ impl SchemaStorage {
             resource_name: resource_name.to_string(),
         };
 
-        bind_schema(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        bind_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
@@ -114,12 +95,7 @@ impl SchemaStorage {
             resource_name: resource_name.to_string(),
         };
 
-        un_bind_schema(
-            &self.client_pool,
-            &config.get_placement_center_addr(),
-            request,
-        )
-        .await?;
+        un_bind_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
         Ok(())
     }

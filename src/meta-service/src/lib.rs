@@ -36,7 +36,7 @@ pub mod server;
 pub mod storage;
 
 #[derive(Clone)]
-pub struct PlacementCenterServerParams {
+pub struct MetaServiceServerParams {
     pub raf_node: Raft<TypeConfig>,
     pub storage_driver: Arc<StorageDriver>,
     // Cache metadata information for the Storage Engine cluster
@@ -50,7 +50,7 @@ pub struct PlacementCenterServerParams {
     // Global call thread manager
     pub mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
-pub struct PlacementCenterServer {
+pub struct MetaServiceServer {
     raf_node: Raft<TypeConfig>,
     storage_driver: Arc<StorageDriver>,
     // Cache metadata information for the Storage Engine cluster
@@ -67,13 +67,13 @@ pub struct PlacementCenterServer {
     inner_stop: broadcast::Sender<bool>,
 }
 
-impl PlacementCenterServer {
+impl MetaServiceServer {
     pub fn new(
-        params: PlacementCenterServerParams,
+        params: MetaServiceServerParams,
         main_stop: broadcast::Sender<bool>,
-    ) -> PlacementCenterServer {
+    ) -> MetaServiceServer {
         let (inner_stop, _) = broadcast::channel(2);
-        PlacementCenterServer {
+        MetaServiceServer {
             cache_manager: params.cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             client_pool: params.client_pool,

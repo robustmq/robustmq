@@ -22,9 +22,7 @@ use protocol::journal::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard, ListShardReq,
 };
-use protocol::meta::placement_center_journal::{
-    CreateNextSegmentRequest, UpdateSegmentStatusRequest,
-};
+use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, UpdateSegmentStatusRequest};
 
 use crate::core::cache::{load_metadata_cache, CacheManager};
 use crate::core::error::JournalServerError;
@@ -241,7 +239,7 @@ impl ShardHandler {
         };
         grpc_clients::meta::journal::call::create_next_segment(
             &self.client_pool,
-            &conf.get_placement_center_addr(),
+            &conf.get_meta_service_addr(),
             request,
         )
         .await?;
@@ -266,7 +264,7 @@ impl ShardHandler {
                 cur_status: segment.status.to_string(),
                 next_status: SegmentStatus::PreWrite.to_string(),
             };
-            update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
+            update_segment_status(client_pool, &conf.get_meta_service_addr(), request).await?;
         }
 
         // When the state SealUp/PreDelete/Deleteing,
