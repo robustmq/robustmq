@@ -9,7 +9,7 @@ import {sidebar} from '../sidebars/en.mts'
 export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
     // 英文版本的base路径
-    base: '/',
+    base: '/en/',
     
     // 设置页面标题（浏览器标签页）
     title: 'RobustMQ：很高兴有机会让你看到不一样的作品',
