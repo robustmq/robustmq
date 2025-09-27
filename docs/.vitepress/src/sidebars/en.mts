@@ -164,6 +164,7 @@ export const sidebar = [
       { text: "MQTT Configuration", link: "/en/Configuration/MQTT" },
       { text: "Meta Configuration", link: "/en/Configuration/META" },
       { text: "Journal Configuration", link: "/en/Configuration/JOURNAL" },
+      { text: "Logging Configuration", link: "/en/Configuration/Logging" },
     ],
   },
   {

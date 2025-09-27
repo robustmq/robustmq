@@ -19,7 +19,8 @@ use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::{now_mills, now_second};
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use common_metrics::mqtt::publish::{
-    record_mqtt_messages_delayed_inc, record_mqtt_messages_received_inc,
+    record_mqtt_message_bytes_received, record_mqtt_messages_delayed_inc,
+    record_mqtt_messages_received_inc,
 };
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -322,7 +323,6 @@ impl MqttService {
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
     ) -> Option<MqttPacket> {
-        record_mqtt_messages_received_inc();
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
@@ -374,7 +374,7 @@ impl MqttService {
         let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
                 Ok(data) => {
-                    record_mqtt_messages_delayed_inc();
+                    record_mqtt_messages_delayed_inc(topic_name.clone());
                     topic_name = data.target_topic_name.clone();
                     Some(data)
                 }
@@ -487,6 +487,8 @@ impl MqttService {
             }
         };
 
+        record_mqtt_messages_received_inc(topic_name.clone());
+        record_mqtt_message_bytes_received(topic_name.clone(), publish.payload.len() as u64);
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager
