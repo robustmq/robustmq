@@ -86,6 +86,7 @@ export const sidebar = [
                     { text: "概述", link: "/zh/RobustMQ-MQTT/Bridge/Overview" },
                     { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
                     { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "Pulsar", link: "/zh/RobustMQ-MQTT/Bridge/Pulsar" },
                     { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },

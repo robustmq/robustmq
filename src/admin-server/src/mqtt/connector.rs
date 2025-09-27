@@ -29,6 +29,7 @@ use metadata_struct::mqtt::bridge::{
     config_greptimedb::GreptimeDBConnectorConfig,
     config_kafka::KafkaConnectorConfig,
     config_local_file::LocalFileConnectorConfig,
+    config_pulsar::PulsarConnectorConfig,
     connector::MQTTConnector,
     connector_type::{connector_type_for_string, ConnectorType},
     status::MQTTStatus,
@@ -149,6 +150,9 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         }
         ConnectorType::GreptimeDB => {
             let _greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::Pulsar => {
+            let _pulsar_config: PulsarConnectorConfig = serde_json::from_str(config)?;
         }
     }
     Ok(())

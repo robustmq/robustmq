@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{gauge_metric_inc, gauge_metric_inc_by, gauge_metric_set, register_gauge_metric};
+use crate::{gauge_metric_inc, register_gauge_metric};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]

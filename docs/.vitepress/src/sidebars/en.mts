@@ -86,6 +86,7 @@ export const sidebar = [
                     { text: "Overview", link: "/en/RobustMQ-MQTT/Bridge/Overview" },
                     { text: "Local File", link: "/en/RobustMQ-MQTT/Bridge/LocalFile" },
                     { text: "Kafka", link: "/en/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "Pulsar", link: "/en/RobustMQ-MQTT/Bridge/Pulsar" },
                     { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },
