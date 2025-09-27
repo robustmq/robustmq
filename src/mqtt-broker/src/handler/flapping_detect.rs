@@ -21,7 +21,7 @@ use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::error::ResultCommonError;
 use common_base::tools::{convert_seconds, loop_select, now_second};
 use common_config::config::MqttFlappingDetect;
-use common_metrics::mqtt::event_metrics;
+use common_metrics::mqtt::event;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -66,7 +66,7 @@ pub async fn check_flapping_detect(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> ResultMqttBrokerError {
     // get metric
-    let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
+    let current_counter = event::get_client_connection_counter(client_id.clone());
     let current_request_time = now_second();
 
     // get flapping detect info
@@ -89,10 +89,10 @@ pub async fn check_flapping_detect(
     );
 
     // incr metric
-    event_metrics::incr_client_connection_counter(client_id.clone());
+    event::incr_client_connection_counter(client_id.clone());
 
     let config = cache_manager.get_flapping_detect_config();
-    let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
+    let current_counter = event::get_client_connection_counter(client_id.clone());
     debug!("get current_counter : {current_counter} by client_id: {client_id}");
 
     if is_within_window_time(

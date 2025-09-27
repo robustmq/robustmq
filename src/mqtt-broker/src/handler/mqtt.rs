@@ -298,7 +298,6 @@ impl MqttService {
             connection_manager: self.connection_manager.clone(),
         })
         .await;
-
         response_packet_mqtt_connect_success(ResponsePacketMqttConnectSuccessContext {
             protocol: self.protocol.clone(),
             cluster: cluster.clone(),

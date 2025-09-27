@@ -26,12 +26,16 @@ use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
 use common_base::tools::now_mills;
+use common_metrics::mqtt::packets::record_sent_metrics;
+use common_metrics::mqtt::time::record_mqtt_packet_send_duration;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::codec::MqttCodec;
+use protocol::mqtt::codec::MqttPacketWrapper;
+use protocol::mqtt::common::mqtt_packet_to_string;
 use protocol::mqtt::common::qos;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::robust::RobustMQPacket;
@@ -356,6 +360,7 @@ pub async fn send_message_to_client(
     resp: ResponsePackage,
     connection_manager: &Arc<ConnectionManager>,
 ) -> ResultMqttBrokerError {
+    let start = now_mills();
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
             protocol
@@ -363,8 +368,8 @@ pub async fn send_message_to_client(
             RobustMQProtocol::MQTT3
         };
 
-    let response =
-        build_mqtt_packet_wrapper(protocol.clone(), resp.packet.get_mqtt_packet().unwrap());
+    let packet = resp.packet.get_mqtt_packet().unwrap();
+    let response = build_mqtt_packet_wrapper(protocol.clone(), packet.clone());
 
     if connection_manager.is_websocket(resp.connection_id) {
         let mut codec = MqttCodec::new(Some(protocol.to_u8()));
@@ -385,6 +390,19 @@ pub async fn send_message_to_client(
             .await?
     }
 
+    let network_type = connection_manager.get_network_type(resp.connection_id);
+    let wrapper = MqttPacketWrapper {
+        protocol_version: protocol.to_u8(),
+        packet: packet.clone(),
+    };
+    if let Some(network) = network_type.clone() {
+        record_mqtt_packet_send_duration(
+            network,
+            mqtt_packet_to_string(&packet),
+            (now_mills() - start) as f64,
+        );
+    }
+    record_sent_metrics(&wrapper, format!("{:?}", network_type));
     Ok(())
 }
 

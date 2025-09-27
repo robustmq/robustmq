@@ -20,6 +20,7 @@ use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 use broker_core::tool::wait_cluster_running;
 use common_config::broker::broker_config;
+use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker::broker_mqtt_inner::{
@@ -77,7 +78,7 @@ pub async fn delete_session_by_req(
         subscribe_manager.remove_client_id(client_id);
         cache_manager.remove_session(client_id);
     }
-
+    record_mqtt_session_deleted();
     Ok(DeleteSessionReply::default())
 }
 

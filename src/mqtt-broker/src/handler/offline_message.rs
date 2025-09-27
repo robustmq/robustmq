@@ -25,7 +25,7 @@ use super::{
 };
 use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
 use common_base::tools::now_second;
-use common_metrics::mqtt::packets::record_messages_dropped_discard_metrics;
+use common_metrics::mqtt::packets::record_messages_dropped_no_subscribers_metrics;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
@@ -60,7 +60,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     let not_exist_subscribe =
         !is_exist_subscribe(&context.subscribe_manager, &context.topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
-        record_messages_dropped_discard_metrics(context.publish.qos);
+        record_messages_dropped_no_subscribers_metrics(context.publish.qos);
         return Ok(None);
     }
 
