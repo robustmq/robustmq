@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{
     storage_key_mqtt_schema, storage_key_mqtt_schema_bind,
@@ -44,7 +44,7 @@ impl SchemaStorage {
         schema: &SchemaData,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema(cluster_name, schema_name);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, schema)?;
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, schema)?;
         Ok(())
     }
 
@@ -89,7 +89,7 @@ impl SchemaStorage {
             &bind_data.resource_name,
             &bind_data.schema_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, bind_data)?;
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, bind_data)?;
         Ok(())
     }
 

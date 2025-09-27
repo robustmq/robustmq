@@ -14,7 +14,6 @@
 
 use crate::handler::cache::MQTTCacheManager;
 use crate::security::auth::acl::is_acl_deny;
-use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::super_user::is_super_user;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
@@ -38,12 +37,6 @@ pub fn is_allow_acl(
     // check super user
     if is_super_user(cache_manager, &connection.login_user) {
         return true;
-    }
-
-    // check blacklist
-    // default true if blacklist check fails
-    if is_blacklist(cache_manager, connection).unwrap_or(true) {
-        return false;
     }
 
     // check acl

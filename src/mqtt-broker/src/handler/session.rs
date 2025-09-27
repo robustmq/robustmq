@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
+use common_metrics::mqtt::session::record_mqtt_session_created;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
@@ -100,7 +101,7 @@ pub async fn save_session(
             .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
             .await?;
     }
-
+    record_mqtt_session_created();
     Ok(())
 }
 

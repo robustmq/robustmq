@@ -16,7 +16,7 @@ use crate::common::connection_manager::ConnectionManager;
 use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
 use crate::common::{channel::RequestChannel, metric::record_packet_handler_info_by_response};
 use common_base::tools::now_mills;
-use common_metrics::mqtt::server::{metrics_response_queue_size, record_response_and_total_ms};
+use common_metrics::network::{metrics_response_queue_size, record_response_and_total_ms};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::robust::RobustMQPacket;

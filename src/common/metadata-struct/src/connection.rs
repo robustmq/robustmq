@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 use tracing::error;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     Tcp,
     Tls,

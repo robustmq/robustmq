@@ -33,3 +33,4 @@ tracing.workspace = true
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+common-metrics.workspace = true

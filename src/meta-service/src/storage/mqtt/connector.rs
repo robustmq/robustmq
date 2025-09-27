@@ -29,9 +29,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{storage_key_mqtt_connector, storage_key_mqtt_connector_prefix};
 use rocksdb_engine::RocksDBEngine;
@@ -53,7 +53,7 @@ impl MqttConnectorStorage {
         connector: &MQTTConnector,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, connector)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, connector)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTConnector>, CommonError> {

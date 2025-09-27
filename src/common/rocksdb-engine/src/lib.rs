@@ -22,6 +22,7 @@ use rocksdb::{
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 pub mod engine;
+pub mod storage;
 pub mod warp;
 
 #[derive(Debug)]
@@ -150,6 +151,22 @@ impl RocksDBEngine {
         Ok(result)
     }
 
+    // Search data by prefix
+    pub fn read_list_by_model(
+        &self,
+        cf: Arc<BoundColumnFamily<'_>>,
+        mode: &rocksdb::IteratorMode,
+    ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
+        let mut result = Vec::new();
+        let iter = self.db.iterator_cf(&cf, *mode);
+        for raw in iter {
+            let (k, value) = raw?;
+            let key = String::from_utf8(k.to_vec())?;
+            result.push((key, value.to_vec()));
+        }
+        Ok(result)
+    }
+
     // Read all data in a ColumnFamily
     pub fn read_all_by_cf(
         &self,
@@ -173,6 +190,15 @@ impl RocksDBEngine {
 
     pub fn delete(&self, cf: Arc<BoundColumnFamily<'_>>, key: &str) -> Result<(), CommonError> {
         Ok(self.db.delete_cf(&cf, key)?)
+    }
+
+    pub fn delete_range_cf(
+        &self,
+        cf: Arc<BoundColumnFamily<'_>>,
+        from: Vec<u8>,
+        to: Vec<u8>,
+    ) -> Result<(), CommonError> {
+        Ok(self.db.delete_range_cf(&cf, from, to)?)
     }
 
     pub fn delete_prefix(

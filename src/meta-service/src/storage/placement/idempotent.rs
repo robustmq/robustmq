@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_exists_by_cluster, engine_save_by_cluster,
+use crate::storage::engine_meta::{
+    engine_delete_by_cluster, engine_exists_by_cluster, engine_save_by_meta,
 };
 use crate::storage::keys::key_resource_idempotent;
 use rocksdb_engine::RocksDBEngine;
@@ -39,7 +39,7 @@ impl IdempotentStorage {
         seq_num: u64,
     ) -> Result<(), CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, seq_num)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, seq_num)
     }
 
     pub fn delete(

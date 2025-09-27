@@ -21,6 +21,7 @@ use bytes::BytesMut;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select, now_second};
 use common_config::config::BrokerConfig;
+use common_metrics::mqtt::event::record_mqtt_connection_expired;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use metadata_struct::mqtt::connection::MQTTConnection;
@@ -164,7 +165,7 @@ impl ClientKeepAlive {
                 false,
             )
             .await;
-
+            record_mqtt_connection_expired();
             info!(
                 "Heartbeat timeout, active disconnection {} successful",
                 context.connect_id

@@ -17,9 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MqttUser;
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
 use rocksdb_engine::RocksDBEngine;
@@ -42,7 +42,7 @@ impl MqttUserStorage {
         user: MqttUser,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, user)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {

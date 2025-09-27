@@ -15,7 +15,11 @@
 use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select, now_second};
-use common_metrics::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
+use common_metrics::mqtt::statistics::{
+    record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscribers_set,
+    record_mqtt_subscriptions_shared_set, record_mqtt_topics_set,
+};
+use common_metrics::network::{record_broker_connections_max, record_broker_connections_num};
 use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
 use std::{collections::HashMap, sync::Arc};
@@ -180,6 +184,13 @@ pub fn metrics_record_thread(
             // Further, we can conclude that the time range of
             // indicator export is [min(metrics_export_interval,time_window), metrics_export_interval + time_window]
             metrics_cache_manager.export_metrics();
+
+            // record metrics
+            record_mqtt_connections_set(connection_manager.connections.len() as i64);
+            record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
+            record_mqtt_topics_set(cache_manager.topic_info.len() as i64);
+            record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
+            record_mqtt_subscriptions_shared_set(subscribe_manager.share_leader_push.len() as i64);
             Ok(())
         };
         loop_select(record_func, time_window, &stop_send).await;

@@ -17,14 +17,6 @@ use crate::raft::raft_node::types;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
-use common_base::tools::now_mills;
-use common_metrics::meta::raft::metrics_raft_storage_error_incr;
-use common_metrics::meta::raft::metrics_raft_storage_total_incr;
-use common_metrics::meta::raft::metrics_raft_storage_total_ms;
-use common_metrics::meta::raft::metrics_rocksdb_stroge_total_ms;
-use common_metrics::meta::raft::{
-    metrics_rocksdb_storage_err_inc, metrics_rocksdb_storage_total_inc, RocksDBLabels,
-};
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
@@ -130,31 +122,21 @@ impl StateMachineStore {
     }
 
     fn get_current_snapshot_(&self) -> StorageResult<Option<StoredSnapshot>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::snapshot("get"));
         Ok(self
             .db
             .get_cf(&self.store(), b"snapshot")
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::snapshot("get"));
-
-                StorageError::read(&e)
-            })?
+            .map_err(|e| StorageError::read(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
     fn set_current_snapshot_(&self, snap: StoredSnapshot) -> StorageResult<()> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::snapshot("set"));
         self.db
             .put_cf(
                 &self.store(),
                 b"snapshot",
                 serde_json::to_vec(&snap).unwrap().as_slice(),
             )
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::snapshot("set"));
-
-                StorageError::write_snapshot(Some(snap.meta.signature()), &e)
-            })?;
+            .map_err(|e| StorageError::write_snapshot(Some(snap.meta.signature()), &e))?;
         self.flush(
             ErrorSubject::Snapshot(Some(snap.meta.signature())),
             ErrorVerb::Write,
@@ -167,18 +149,9 @@ impl StateMachineStore {
         subject: ErrorSubject<TypeConfig>,
         verb: ErrorVerb,
     ) -> Result<(), StorageError<TypeConfig>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::snapshot("flush"));
-        let start_ms = now_mills();
-
-        self.db.flush_wal(true).map_err(|e| {
-            metrics_rocksdb_storage_err_inc(RocksDBLabels::snapshot("flush"));
-
-            StorageError::new(subject, verb, AnyError::new(&e))
-        })?;
-        metrics_rocksdb_stroge_total_ms(
-            RocksDBLabels::snapshot("flush"),
-            (now_mills() - start_ms) as f64,
-        );
+        self.db
+            .flush_wal(true)
+            .map_err(|e| StorageError::new(subject, verb, AnyError::new(&e)))?;
         Ok(())
     }
 
@@ -218,26 +191,17 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
             match ent.payload {
                 EntryPayload::Blank => {}
-                EntryPayload::Normal(req) => {
-                    metrics_raft_storage_total_incr(req.data_type.to_string());
-                    let start_ms = now_mills();
-                    match self.data.route.route(req.clone()).await {
-                        Ok(data) => {
-                            resp_value = data;
-                        }
-                        Err(e) => {
-                            metrics_raft_storage_error_incr(req.data_type.to_string());
-                            warn!(
-                                "Raft route failed to process message with error message: {},req:{:?}",
-                                e, req.data_type
-                            );
-                        }
+                EntryPayload::Normal(req) => match self.data.route.route(req.clone()).await {
+                    Ok(data) => {
+                        resp_value = data;
                     }
-                    metrics_raft_storage_total_ms(
-                        req.data_type.to_string(),
-                        (now_mills() - start_ms) as f64,
-                    );
-                }
+                    Err(e) => {
+                        warn!(
+                            "Raft route failed to process message with error message: {},req:{:?}",
+                            e, req.data_type
+                        );
+                    }
+                },
                 EntryPayload::Membership(mem) => {
                     self.data.last_membership = StoredMembership::new(Some(ent.log_id), mem);
                 }

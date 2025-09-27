@@ -27,7 +27,7 @@ use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
-use common_metrics::mqtt::server::record_ws_request_duration;
+use common_metrics::network::record_ws_request_duration;
 use futures_util::stream::StreamExt;
 use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 pub mod auth;
-pub mod event_metrics;
+pub mod event;
 pub mod packets;
 pub mod publish;
-pub mod server;
 pub mod session;
+pub mod statistics;
 pub mod time;

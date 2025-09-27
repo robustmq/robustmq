@@ -24,7 +24,9 @@ use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
 use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
-use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
+use protocol::mqtt::common::{
+    Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
+};
 use protocol::mqtt::common::{MqttPacket, QoS};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -261,6 +263,21 @@ pub async fn loop_commit_offset(
         .commit_group_offset(group_id, topic_id, offset)
         .await?;
     Ok(())
+}
+
+pub fn is_error_by_suback(suback: &SubAck) -> bool {
+    for reason in suback.return_codes.clone() {
+        if !(reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtLeastOnce)
+            || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtMostOnce)
+            || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::ExactlyOnce)
+            || reason == SubscribeReasonCode::QoS0
+            || reason == SubscribeReasonCode::QoS1
+            || reason == SubscribeReasonCode::QoS2)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]

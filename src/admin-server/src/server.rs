@@ -47,9 +47,7 @@ use axum::{
     Router,
 };
 use common_base::version::version;
-use common_metrics::http::{
-    record_http_connection_end, record_http_connection_start, record_http_request,
-};
+use common_metrics::http::record_http_request;
 use reqwest::StatusCode;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
@@ -195,9 +193,6 @@ async fn base_middleware(
     request: Request,
     next: Next,
 ) -> Response {
-    // Record connection start for active connection tracking
-    record_http_connection_start();
-
     let start = Instant::now();
     let client_ip = extract_client_ip(&headers, addr);
     let user_agent = headers
@@ -308,9 +303,6 @@ async fn base_middleware(
             );
         }
     }
-
-    // Record connection end for active connection tracking
-    record_http_connection_end();
 
     response
 }

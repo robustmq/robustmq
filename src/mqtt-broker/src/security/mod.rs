@@ -28,6 +28,9 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_config::broker::broker_config;
 use common_config::config::MqttAuthStorage;
+use common_metrics::mqtt::auth::{
+    record_mqtt_acl_failed, record_mqtt_acl_success, record_mqtt_blacklist_blocked,
+};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -169,14 +172,27 @@ impl AuthDriver {
         retain: bool,
         qos: QoS,
     ) -> bool {
-        is_allow_acl(
+        if !is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
             MqttAclAction::Publish,
             retain,
             qos,
-        )
+        ) {
+            record_mqtt_acl_failed();
+            return false;
+        }
+        record_mqtt_acl_success();
+
+        // check blacklist
+        // default true if blacklist check fails
+        if is_blacklist(&self.cache_manager, connection).unwrap_or(true) {
+            record_mqtt_blacklist_blocked();
+            return false;
+        }
+
+        true
     }
 
     pub async fn auth_subscribe_check(

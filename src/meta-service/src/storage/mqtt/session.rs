@@ -30,9 +30,9 @@ use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
 use rocksdb_engine::warp::StorageDataWrap;
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
 use rocksdb_engine::RocksDBEngine;
@@ -54,7 +54,7 @@ impl MqttSessionStorage {
         session: MqttSession,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, session)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<StorageDataWrap>, CommonError> {

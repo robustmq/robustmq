@@ -17,8 +17,8 @@ use std::sync::Arc;
 use metadata_struct::mqtt::lastwill::LastWillData;
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
+use crate::storage::engine_meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_meta,
 };
 use crate::storage::keys::storage_key_mqtt_last_will;
 use rocksdb_engine::RocksDBEngine;
@@ -41,7 +41,7 @@ impl MqttLastWillStorage {
         last_will_message: LastWillData,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message)?;
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, last_will_message)?;
         Ok(())
     }
 

@@ -20,9 +20,16 @@ use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
 use crate::security::AuthDriver;
+use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
 use broker_core::rocksdb::RocksDBEngine;
+use common_base::tools::now_mills;
+use common_metrics::mqtt::event::{
+    record_mqtt_connection_failed, record_mqtt_connection_success, record_mqtt_subscribe_failed,
+    record_mqtt_subscribe_success, record_mqtt_unsubscribe_success,
+};
+use common_metrics::mqtt::time::record_mqtt_packet_process_duration;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
@@ -30,11 +37,11 @@ use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, Connect, ConnectProperties, ConnectReturnCode, Disconnect,
-    DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket,
-    MqttProtocol, PingReq, PubAck, PubAckProperties, PubComp, PubCompProperties, PubRec,
-    PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, Subscribe,
-    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    is_mqtt3, is_mqtt4, is_mqtt5, mqtt_packet_to_string, Connect, ConnectProperties,
+    ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
+    LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq, PubAck, PubAckProperties,
+    PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish,
+    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use protocol::robust::RobustMQPacket;
 use schema_register::schema::SchemaRegisterManager;
@@ -76,6 +83,7 @@ impl Command for MQTTHandlerCommand {
         addr: SocketAddr,
         robust_packet: RobustMQPacket,
     ) -> Option<ResponsePackage> {
+        let start = now_mills();
         let packet = robust_packet.get_mqtt_packet().unwrap();
         let mut is_connect_pkg = false;
         if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
@@ -92,7 +100,7 @@ impl Command for MQTTHandlerCommand {
             ));
         }
 
-        let resp_package = match packet {
+        let resp_package = match packet.clone() {
             MqttPacket::Connect(
                 protocol_version,
                 connect,
@@ -192,6 +200,11 @@ impl Command for MQTTHandlerCommand {
             }
         }
 
+        record_mqtt_packet_process_duration(
+            tcp_connection.connection_type,
+            mqtt_packet_to_string(&packet),
+            (now_mills() - start) as f64,
+        );
         resp_package
     }
 }
@@ -267,6 +280,9 @@ impl MQTTHandlerCommand {
                 self.cache_manager
                     .login_success(tcp_connection.connection_id, username);
                 info!("connect [{}] login success", tcp_connection.connection_id);
+                record_mqtt_connection_success();
+            } else {
+                record_mqtt_connection_failed();
             }
         }
         Some(ResponsePackage::build(
@@ -501,6 +517,13 @@ impl MQTTHandlerCommand {
             None
         };
         if let Some(pkg) = resp {
+            if let MqttPacket::SubAck(sub_ack, _) = pkg.clone() {
+                if is_error_by_suback(&sub_ack) {
+                    record_mqtt_subscribe_failed();
+                } else {
+                    record_mqtt_subscribe_success();
+                }
+            }
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
@@ -585,6 +608,7 @@ impl MQTTHandlerCommand {
         };
 
         if let Some(pkg) = resp {
+            record_mqtt_unsubscribe_success();
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),

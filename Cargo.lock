@@ -794,6 +794,7 @@ version = "0.1.34"
 dependencies = [
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap",
  "grpc-clients",
  "metadata-struct",
@@ -1672,6 +1673,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-metrics",
  "dashmap",
  "futures",
  "metadata-struct",
@@ -5966,6 +5968,7 @@ version = "0.1.34"
 dependencies = [
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap",
  "futures",
  "metadata-struct",

@@ -141,6 +141,13 @@ impl ConnectionManager {
         false
     }
 
+    pub fn get_network_type(&self, connect_id: u64) -> Option<NetworkConnectionType> {
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return Some(connect.connection_type.clone());
+        }
+        None
+    }
+
     pub fn get_tcp_connect_num_check(&self) -> u64 {
         0
     }

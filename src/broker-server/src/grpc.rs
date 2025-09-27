@@ -17,10 +17,7 @@ use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
-use common_metrics::grpc::{
-    extract_grpc_status_code, parse_grpc_path, record_grpc_connection_end,
-    record_grpc_connection_start, record_grpc_request,
-};
+use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grpc_request};
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
 use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
@@ -218,14 +215,9 @@ where
     }
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
-        // Record connection start
-        record_grpc_connection_start();
-
-        // Parse gRPC path safely
         let (service, method) = parse_grpc_path(req.uri().path())
             .unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
 
-        // Extract request size if available
         let request_size = req
             .headers()
             .get("content-length")
@@ -238,24 +230,17 @@ where
 
         Box::pin(async move {
             let start_time = now_mills();
-
-            // Process the request
             let response = inner.call(req).await;
             let duration_ms = (now_mills() - start_time) as f64;
 
             match response {
                 Ok(resp) => {
-                    // Extract response size if available
                     let response_size = resp
                         .headers()
                         .get("content-length")
                         .and_then(|h| h.to_str().ok())
                         .and_then(|s| s.parse::<f64>().ok());
-
-                    // Extract gRPC status code from response headers
                     let status_code = extract_grpc_status_code(resp.headers());
-
-                    // Record comprehensive gRPC metrics
                     record_grpc_request(
                         service,
                         method,
@@ -265,13 +250,9 @@ where
                         response_size,
                     );
 
-                    // Record connection end
-                    record_grpc_connection_end();
-
                     Ok(resp)
                 }
                 Err(err) => {
-                    // Record error metrics
                     record_grpc_request(
                         service,
                         method,
@@ -280,9 +261,6 @@ where
                         request_size,
                         None,
                     );
-
-                    // Record connection end
-                    record_grpc_connection_end();
 
                     Err(err)
                 }
