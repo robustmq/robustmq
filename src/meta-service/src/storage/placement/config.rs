@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
+use crate::storage::engine_meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_meta,
 };
 use crate::storage::keys::key_resource_config;
 use rocksdb_engine::RocksDBEngine;
@@ -39,7 +39,7 @@ impl ResourceConfigStorage {
         config: Vec<u8>,
     ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, config)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, config)
     }
 
     pub fn delete(

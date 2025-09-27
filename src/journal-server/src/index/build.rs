@@ -18,7 +18,8 @@ use std::time::Duration;
 use common_base::tools::now_second;
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::engine::{
-    rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_prefix_map, rocksdb_engine_save,
+    rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_list_by_prefix_to_map,
+    rocksdb_engine_save,
 };
 use rocksdb_engine::RocksDBEngine;
 use tokio::select;
@@ -318,7 +319,7 @@ pub fn delete_segment_index(
 ) -> Result<(), JournalServerError> {
     let prefix_key_name = segment_index_prefix(segment_iden);
     let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-    let data = rocksdb_engine_prefix_map(
+    let data = rocksdb_engine_list_by_prefix_to_map(
         rocksdb_engine_handler.clone(),
         comlumn_family,
         prefix_key_name,
@@ -339,7 +340,7 @@ mod tests {
     use std::time::Duration;
 
     use common_base::tools::now_second;
-    use rocksdb_engine::engine::rocksdb_engine_prefix_map;
+    use rocksdb_engine::engine::rocksdb_engine_list_by_prefix_to_map;
     use tokio::time::sleep;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
@@ -396,7 +397,7 @@ mod tests {
         // check data
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = rocksdb_engine_prefix_map(
+        let data = rocksdb_engine_list_by_prefix_to_map(
             rocksdb_engine_handler.clone(),
             comlumn_family,
             prefix_key_name,
@@ -411,7 +412,7 @@ mod tests {
         // check data
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = rocksdb_engine_prefix_map(
+        let data = rocksdb_engine_list_by_prefix_to_map(
             rocksdb_engine_handler.clone(),
             comlumn_family,
             prefix_key_name,
@@ -437,7 +438,7 @@ mod tests {
         sleep(Duration::from_secs(120)).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = rocksdb_engine_prefix_map(
+        let data = rocksdb_engine_list_by_prefix_to_map(
             rocksdb_engine_handler.clone(),
             comlumn_family,
             prefix_key_name,

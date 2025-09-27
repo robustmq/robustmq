@@ -31,9 +31,9 @@ use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{
     storage_key_mqtt_auto_subscribe_rule, storage_key_mqtt_auto_subscribe_rule_prefix,
@@ -60,7 +60,7 @@ impl MqttSubscribeStorage {
         subscribe: MqttSubscribe,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, subscribe)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, subscribe)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
@@ -135,7 +135,7 @@ impl MqttSubscribeStorage {
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
-        engine_save_by_cluster(
+        engine_save_by_meta(
             self.rocksdb_engine_handler.clone(),
             key,
             auto_subscribe_rule,

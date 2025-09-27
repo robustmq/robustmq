@@ -17,9 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::placement::node::BrokerNode;
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{key_node, key_node_prefix, key_node_prefix_all};
 use rocksdb_engine::RocksDBEngine;
@@ -37,7 +37,7 @@ impl NodeStorage {
 
     pub fn save(&self, node: &BrokerNode) -> Result<(), CommonError> {
         let node_key = key_node(&node.cluster_name, node.node_id);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node.clone())
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), node_key, node.clone())
     }
 
     pub fn delete(&self, cluster_name: &str, node_id: u64) -> Result<(), CommonError> {

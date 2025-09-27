@@ -17,7 +17,6 @@ use crate::raft::raft_node::types;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
-use common_base::tools::now_mills;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,

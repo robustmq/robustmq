@@ -17,8 +17,8 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 
-use crate::storage::engine::{
-    engine_get_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
+use crate::storage::engine_meta::{
+    engine_get_by_cluster, engine_prefix_list_by_cluster, engine_save_by_meta,
 };
 use crate::storage::keys::{storage_key_mqtt_acl, storage_key_mqtt_acl_prefix};
 use rocksdb_engine::RocksDBEngine;
@@ -52,7 +52,7 @@ impl AclStorage {
             &acl.resource_type.to_string(),
             &acl.resource_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl_list)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, acl_list)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAcl>, CommonError> {
@@ -92,7 +92,7 @@ impl AclStorage {
             &delete_acl.resource_type.to_string(),
             &delete_acl.resource_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, new_acl_list)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, new_acl_list)
     }
 
     pub fn get(

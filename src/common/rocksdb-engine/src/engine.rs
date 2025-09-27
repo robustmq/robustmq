@@ -44,22 +44,20 @@ where
     };
 
     let data = StorageDataWrap::new(content);
-    match rocksdb_engine_handler.write(cf, &key_name, &data) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
+    rocksdb_engine_handler.write(cf, &key_name, &data)?;
+    Ok(())
 }
 
 pub fn rocksdb_engine_get(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
+    column_family: &str,
     key_name: String,
 ) -> Result<Option<StorageDataWrap>, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
         cf
     } else {
         return Err(CommonError::RocksDBFamilyNotAvailable(
-            comlumn_family.to_string(),
+            column_family.to_string(),
         ));
     };
 
@@ -68,46 +66,63 @@ pub fn rocksdb_engine_get(
 
 pub fn rocksdb_engine_delete(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
+    column_family: &str,
     key_name: String,
 ) -> Result<(), CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
         cf
     } else {
         return Err(CommonError::RocksDBFamilyNotAvailable(
-            comlumn_family.to_string(),
+            column_family.to_string(),
         ));
     };
 
     rocksdb_engine_handler.delete(cf, &key_name)
 }
 
-pub fn rocksdb_engine_exists(
+pub fn rocksdb_engine_delete_range(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    key_name: String,
-) -> Result<bool, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+    column_family: &str,
+    from: Vec<u8>,
+    to: Vec<u8>,
+) -> Result<(), CommonError> {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
         cf
     } else {
         return Err(CommonError::RocksDBFamilyNotAvailable(
-            comlumn_family.to_string(),
+            column_family.to_string(),
+        ));
+    };
+
+    rocksdb_engine_handler.delete_range_cf(cf, from, to)
+}
+
+pub fn rocksdb_engine_exists(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    column_family: &str,
+    key_name: String,
+) -> Result<bool, CommonError> {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
+        cf
+    } else {
+        return Err(CommonError::RocksDBFamilyNotAvailable(
+            column_family.to_string(),
         ));
     };
 
     Ok(rocksdb_engine_handler.exist(cf, &key_name))
 }
 
-pub fn rocksdb_engine_prefix_list(
+pub fn rocksdb_engine_list_by_prefix(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
+    column_family: &str,
     prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
         cf
     } else {
         return Err(CommonError::RocksDBFamilyNotAvailable(
-            comlumn_family.to_string(),
+            column_family.to_string(),
         ));
     };
 
@@ -126,16 +141,46 @@ pub fn rocksdb_engine_prefix_list(
     Ok(results)
 }
 
-pub fn rocksdb_engine_prefix_map(
+pub fn rocksdb_engine_list_by_mode(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    prefix_key_name: String,
+    column_family: &str,
+    mode: &rocksdb::IteratorMode,
 ) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
         cf
     } else {
         return Err(CommonError::RocksDBFamilyNotAvailable(
-            comlumn_family.to_string(),
+            column_family.to_string(),
+        ));
+    };
+
+    let data_list = rocksdb_engine_handler.read_list_by_model(cf, mode);
+    let results = DashMap::with_capacity(2);
+    if let Ok(raw) = data_list {
+        for (key, v) in raw {
+            match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
+                Ok(v) => {
+                    results.insert(key, v);
+                }
+                Err(_) => {
+                    continue;
+                }
+            }
+        }
+    }
+    Ok(results)
+}
+
+pub fn rocksdb_engine_list_by_prefix_to_map(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    column_family: &str,
+    prefix_key_name: String,
+) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
+        cf
+    } else {
+        return Err(CommonError::RocksDBFamilyNotAvailable(
+            column_family.to_string(),
         ));
     };
 

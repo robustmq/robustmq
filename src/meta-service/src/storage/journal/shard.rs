@@ -17,9 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::journal::shard::JournalShard;
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{
     key_all_shard, key_shard, key_shard_cluster_prefix, key_shard_namespace_prefix,
@@ -43,7 +43,7 @@ impl ShardStorage {
             &shard_info.namespace,
             &shard_info.shard_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, shard_info)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), shard_key, shard_info)
     }
 
     pub fn get(

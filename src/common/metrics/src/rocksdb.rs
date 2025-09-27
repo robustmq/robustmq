@@ -90,6 +90,19 @@ pub fn metrics_rocksdb_delete_ms(source: &str, ms: f64) {
     counter_metric_inc!(ROCKSDB_OPERATION_COUNT, count_label);
 }
 
+pub fn metrics_rocksdb_delete_range_ms(source: &str, ms: f64) {
+    let label = RocksdbLabel {
+        source: source.to_string(),
+        operation: "delete_range".to_string(),
+    };
+    histogram_metric_observe!(ROCKSDB_OPERATION_MS, ms, label);
+    let count_label = RocksdbLabel {
+        source: source.to_string(),
+        operation: "delete_range".to_string(),
+    };
+    counter_metric_inc!(ROCKSDB_OPERATION_COUNT, count_label);
+}
+
 pub fn metrics_rocksdb_list_ms(source: &str, ms: f64) {
     let label = RocksdbLabel {
         source: source.to_string(),

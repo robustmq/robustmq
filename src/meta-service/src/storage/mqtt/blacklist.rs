@@ -17,8 +17,8 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
+use crate::storage::engine_meta::{
+    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_meta,
 };
 use crate::storage::keys::{storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix};
 use rocksdb_engine::RocksDBEngine;
@@ -40,7 +40,7 @@ impl MqttBlackListStorage {
             &blacklist.blacklist_type.to_string(),
             &blacklist.resource_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, blacklist)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, blacklist)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {

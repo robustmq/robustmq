@@ -15,9 +15,9 @@
 use std::sync::Arc;
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
@@ -45,7 +45,7 @@ impl MqttTopicStorage {
         topic: MQTTTopic,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)?;
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, topic)?;
         Ok(())
     }
 
@@ -88,7 +88,7 @@ impl MqttTopicStorage {
         topic_rewrite_rule: MqttTopicRewriteRule,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic_rewrite_rule(cluster_name, action, source_topic);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic_rewrite_rule)?;
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, topic_rewrite_rule)?;
         Ok(())
     }
 

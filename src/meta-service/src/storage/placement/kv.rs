@@ -16,9 +16,9 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_exists_by_cluster, engine_get_by_cluster,
-    engine_prefix_list_by_cluster, engine_save_by_cluster,
+    engine_prefix_list_by_cluster, engine_save_by_meta,
 };
 use rocksdb_engine::RocksDBEngine;
 
@@ -35,7 +35,7 @@ impl KvStorage {
     }
 
     pub fn set(&self, key: String, value: String) -> Result<(), CommonError> {
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, value)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, value)
     }
 
     pub fn delete(&self, key: String) -> Result<(), CommonError> {

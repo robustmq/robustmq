@@ -17,9 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 
-use crate::storage::engine::{
+use crate::storage::engine_meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
+    engine_save_by_meta,
 };
 use crate::storage::keys::{
     key_all_segment, key_segment, key_segment_cluster_prefix, key_segment_namespace_prefix,
@@ -50,7 +50,7 @@ impl SegmentStorage {
             &segment.shard_name,
             segment.segment_seq,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, segment)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), shard_key, segment)
     }
 
     pub fn get(

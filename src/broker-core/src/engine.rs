@@ -19,8 +19,8 @@ use common_metrics::rocksdb::{
     metrics_rocksdb_list_ms, metrics_rocksdb_save_ms,
 };
 use rocksdb_engine::engine::{
-    rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_prefix_list,
-    rocksdb_engine_save,
+    rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get,
+    rocksdb_engine_list_by_prefix, rocksdb_engine_save,
 };
 use rocksdb_engine::warp::StorageDataWrap;
 use rocksdb_engine::RocksDBEngine;
@@ -87,7 +87,7 @@ pub fn engine_prefix_list_by_broker(
     prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, CommonError> {
     let start_time = now_mills();
-    let result = rocksdb_engine_prefix_list(
+    let result = rocksdb_engine_list_by_prefix(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_BROKER,
         prefix_key_name,

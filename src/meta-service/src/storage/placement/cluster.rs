@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::engine::{engine_prefix_list_by_cluster, engine_save_by_cluster};
+use crate::storage::engine_meta::{engine_prefix_list_by_cluster, engine_save_by_meta};
 use crate::storage::keys::{key_cluster, key_cluster_prefix};
 use common_base::error::common::CommonError;
 use metadata_struct::placement::cluster::ClusterInfo;
@@ -32,7 +32,7 @@ impl ClusterStorage {
 
     pub fn save(&self, cluster_info: &ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_name);
-        engine_save_by_cluster(
+        engine_save_by_meta(
             self.rocksdb_engine_handler.clone(),
             key,
             cluster_info.clone(),
