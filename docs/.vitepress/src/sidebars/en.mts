@@ -66,6 +66,7 @@ export const sidebar = [
                     { text: "Topic Rewrite", link: "/en/RobustMQ-MQTT/TopicRewrite" },
                     { text: "Wildcard Subscription", link: "/en/RobustMQ-MQTT/WildcardSubscription" },
                     { text: "Session Persistence", link: "/en/RobustMQ-MQTT/SessionPersistence" },
+                    { text: "System Alarm", link: "/en/RobustMQ-MQTT/SystemAlarm" },
                 ],
             },
             {
@@ -88,18 +89,6 @@ export const sidebar = [
                     { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },
-
-      {
-        text: "Observability",
-        collapsed: true,
-        items: [
-          { text: "System Alarm", link: "/en/RobustMQ-MQTT/SystemAlarm" },
-          { text: "Metrics", link: "" },
-          { text: "Trace", link: "" },
-          { text: "Integrate promethrus", link: "" },
-          { text: "Integrate OpenTelemetry", link: "" },
-        ],
-      },
       { text: "MQTTX Testing Guide", link: "/en/RobustMQ-MQTT/MQTTX-Guide" },
       { text: "Performance", link: "" },
       {
@@ -154,6 +143,16 @@ export const sidebar = [
       { text: "Overview", link: "/en/Api/COMMON" },
       { text: "Cluster API", link: "/en/Api/CLUSTER" },
       { text: "MQTT API", link: "/en/Api/MQTT" },
+    ],
+  },
+  {
+    text: "Observability",
+    collapsed: true,
+    items: [
+      { text: "Prometheus Integration", link: "/en/Observability/Prometheus-Integration" },
+      { text: "Infrastructure Metrics", link: "/en/Observability/Infrastructure-Metrics" },
+      { text: "MQTT Specific Metrics", link: "/en/Observability/MQTT-Specific-Metrics" },
+      { text: "Grafana Configuration Guide", link: "/en/Observability/Grafana-Configuration-Guide" },
     ],
   },
   {

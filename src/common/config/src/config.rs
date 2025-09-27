@@ -70,7 +70,7 @@ pub struct BrokerConfig {
     pub rocksdb: Rocksdb,
 
     // Journal Engine
-    #[serde(default = "default_journal_server")]
+    #[serde(default = "default_journal_server")] 
     pub journal_server: JournalServer,
 
     #[serde(default = "default_journal_runtime")]
