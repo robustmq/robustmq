@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use anyhow;
+use governor::InsufficientCapacity;
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use std::io;
 use std::net::AddrParseError;
@@ -76,6 +77,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     AnyHowError(#[from] anyhow::Error),
+
+    #[error("{0}")]
+    InsufficientCapacity(#[from] InsufficientCapacity),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),

@@ -86,6 +86,7 @@ export const sidebar = [
                     { text: "Overview", link: "/en/RobustMQ-MQTT/Bridge/Overview" },
                     { text: "Local File", link: "/en/RobustMQ-MQTT/Bridge/LocalFile" },
                     { text: "Kafka", link: "/en/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "Pulsar", link: "/en/RobustMQ-MQTT/Bridge/Pulsar" },
                     { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
                 ]
             },
@@ -163,6 +164,7 @@ export const sidebar = [
       { text: "MQTT Configuration", link: "/en/Configuration/MQTT" },
       { text: "Meta Configuration", link: "/en/Configuration/META" },
       { text: "Journal Configuration", link: "/en/Configuration/JOURNAL" },
+      { text: "Logging Configuration", link: "/en/Configuration/Logging" },
     ],
   },
   {

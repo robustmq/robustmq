@@ -23,7 +23,7 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 |-------------|-----------|---------------|------|
 | **Webhook** | ✅ | ❌ | RobustMQ 暂不支持 HTTP Webhook |
 | **Apache Kafka** | ✅ | ✅ | RobustMQ 支持 Kafka 连接器 |
-| **Apache Pulsar** | ✅ | ❌ | RobustMQ 暂不支持 Pulsar |
+| **Apache Pulsar** | ✅ | ✅ | RobustMQ 支持 Pulsar 连接器 |
 | **Apache IoTDB** | ✅ | ❌ | RobustMQ 暂不支持 IoTDB |
 | **Apache Doris** | ✅ | ❌ | RobustMQ 暂不支持 Doris |
 | **AWS Kinesis** | ✅ | ❌ | RobustMQ 暂不支持 AWS Kinesis |
@@ -60,16 +60,17 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 ### 支持情况总结
 
 - **EMQX 支持**：30+ 种数据集成类型
-- **RobustMQ 支持**：3 种数据集成类型
+- **RobustMQ 支持**：4 种数据集成类型
   - ✅ Apache Kafka
+  - ✅ Apache Pulsar
   - ✅ GreptimeDB  
   - ✅ 本地文件
 
-RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka）、时序数据库（GreptimeDB）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
+RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar）、时序数据库（GreptimeDB）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
 
 
 ## 总结
 
-RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 Kafka、GreptimeDB 和本地文件三种核心连接器类型，覆盖了消息队列、时序数据库和文件存储的主要场景。
+RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 Kafka、Pulsar、GreptimeDB 和本地文件四种核心连接器类型，覆盖了消息队列、时序数据库和文件存储的主要场景。
 
 相比 EMQX 的 30+ 种数据集成类型，RobustMQ 专注于核心场景，通过 Rust 语言的内存安全和零成本抽象特性，实现了高性能、高可靠性的消息桥接。这种精简而高效的设计理念，为构建可靠的 IoT 数据管道提供了坚实的基础。

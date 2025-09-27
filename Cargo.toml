@@ -213,7 +213,7 @@ strum = "0.27"
 strum_macros = "0.27"
 async-stream = "0.3.6"
 kafka-protocol = "0.15.1"
-governor = "0.10.1"
+governor = { version = "0.10.1" }
 pulsar = "6.3.1"
 
 #pprof
