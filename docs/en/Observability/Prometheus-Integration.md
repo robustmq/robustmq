@@ -19,10 +19,10 @@ Restart RobustMQ service to apply the configuration.
 
 ```bash
 # Check metrics endpoint
-curl http://localhost:9091/metrics
+curl `http://localhost:9091/metrics`
 
 # Verify metrics data
-curl http://localhost:9091/metrics | grep mqtt_
+curl `http://localhost:9091/metrics` | grep mqtt_
 ```
 
 ## Configure Prometheus
@@ -64,7 +64,7 @@ RobustMQ exports the following types of metrics:
 
 ## Common Queries
 
-```promql
+```text
 # Current connection count
 mqtt_connections_count
 

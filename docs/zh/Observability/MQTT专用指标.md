@@ -193,7 +193,7 @@ statistics::record_mqtt_retained_inc();
 
 ### Prometheus 查询示例
 
-```promql
+```text
 # MQTT 连接成功率
 mqtt_connection_success / (mqtt_connection_success + mqtt_connection_failed) * 100
 

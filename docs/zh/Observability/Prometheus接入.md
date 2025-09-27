@@ -19,10 +19,10 @@ port = 9091
 
 ```bash
 # 检查指标端点
-curl http://localhost:9091/metrics
+curl `http://localhost:9091/metrics`
 
 # 验证指标数据
-curl http://localhost:9091/metrics | grep mqtt_
+curl `http://localhost:9091/metrics` | grep mqtt_
 ```
 
 ## 配置 Prometheus
@@ -64,7 +64,7 @@ RobustMQ 导出以下类型的指标：
 
 ## 常用查询
 
-```promql
+```text
 # 当前连接数
 mqtt_connections_count
 

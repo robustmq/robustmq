@@ -38,9 +38,9 @@ docker-compose -f docker-compose.monitoring.yml ps
 ```
 
 **Service Access URLs:**
-- Grafana: http://localhost:3000 (admin/admin)
-- Prometheus: http://localhost:9090
-- Alertmanager: http://localhost:9093
+- Grafana: `localhost:3000` (admin/admin)
+- Prometheus: `localhost:9090`
+- Alertmanager: `localhost:9093`
 
 ### Manual Installation
 
@@ -96,7 +96,7 @@ port = 9091
 
 ```bash
 # Check RobustMQ Broker metrics
-curl http://localhost:9091/metrics
+curl `http://localhost:9091/metrics`
 ```
 
 ## Prometheus Configuration
@@ -165,12 +165,12 @@ scrape_configs:
 
 Through Grafana Web Interface:
 
-1. Login to Grafana (http://localhost:3000)
+1. Login to Grafana (`localhost:3000`)
 2. Go to **Configuration** → **Data Sources**
 3. Click **Add data source**
 4. Select **Prometheus**
 5. Configure connection information:
-   - **URL**: http://localhost:9090
+   - **URL**: `http://localhost:9090`
    - **Access**: Server (default)
    - **Scrape interval**: 15s
 
@@ -205,7 +205,7 @@ datasources:
 ```bash
 # Import dashboard using Grafana API
 curl -X POST \
-  http://localhost:3000/api/dashboards/db \
+  `http://localhost:3000/api/dashboards/db` \
   -H 'Authorization: Bearer YOUR_API_KEY' \
   -H 'Content-Type: application/json' \
   -d @robustmq-mqtt-broker-dashboard.json
@@ -400,14 +400,14 @@ ttl = 300s
 **Check Steps:**
 ```bash
 # 1. Verify RobustMQ Broker metrics export
-curl http://localhost:9091/metrics
+curl `http://localhost:9091/metrics`
 
 # 2. Check Prometheus target status
-curl http://localhost:9090/api/v1/targets
+curl `http://localhost:9090/api/v1/targets`
 
 # 3. Verify Grafana data source connection
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/datasources/proxy/1/api/v1/query?query=up
+     `http://localhost:3000/api/datasources/proxy/1/api/v1/query?query=up`
 ```
 
 #### 2. Missing Metrics
@@ -420,7 +420,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 **Solutions:**
 ```bash
 # Check available metrics
-curl http://localhost:9091/metrics | grep mqtt_
+curl `http://localhost:9091/metrics` | grep mqtt_
 
 # Verify feature configuration
 grep -r "enable.*true" config/
@@ -522,14 +522,14 @@ scrape_configs:
 ```bash
 # Backup dashboards
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/search?type=dash-db | \
+     `http://localhost:3000/api/search?type=dash-db` | \
      jq -r '.[].uri' | \
      xargs -I {} curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/dashboards/{} > backup.json
+     `http://localhost:3000/api/dashboards/{}` > backup.json
 
 # Backup data sources
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/datasources > datasources-backup.json
+     `http://localhost:3000/api/datasources` > datasources-backup.json
 ```
 
 #### Prometheus Backup
