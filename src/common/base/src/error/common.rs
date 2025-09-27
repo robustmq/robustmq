@@ -99,7 +99,7 @@ pub enum CommonError {
     FromR2d2PostgresError(#[from] r2d2_postgres::postgres::Error),
 
     #[error("{0}")]
-    RedisError(#[from] r2d2_redis::redis::RedisError),
+    RedisError(#[from] redis::RedisError),
 
     #[error("{0}")]
     FromParseIntError(#[from] ParseIntError),

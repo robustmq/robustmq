@@ -23,11 +23,11 @@ use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
-use r2d2_redis::redis::Commands;
+use redis::Commands;
 use std::collections::HashMap;
 use third_driver::redis::{build_redis_conn_pool, RedisPool};
 
-type RedisConnection = r2d2_redis::r2d2::PooledConnection<r2d2_redis::RedisConnectionManager>;
+type RedisConnection = r2d2::PooledConnection<redis::Client>;
 
 mod schema;
 use schema::{RedisAuthAcl, RedisAuthUser};
@@ -176,10 +176,10 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let hash_data = redis_user.to_redis_hash();
 
         for (field, value) in hash_data {
-            conn.hset(&user_key, &field, &value)?;
+            conn.hset::<_, _, _, ()>(&user_key, &field, &value)?;
         }
 
-        conn.sadd(RedisAuthUser::redis_users_key(), &redis_user.username)?;
+        conn.sadd::<_, _, ()>(RedisAuthUser::redis_users_key(), &redis_user.username)?;
 
         Ok(())
     }
@@ -189,9 +189,9 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 
         let user_key = RedisAuthUser::redis_user_key(&username);
 
-        conn.del(&user_key)?;
+        conn.del::<_, ()>(&user_key)?;
 
-        conn.srem(RedisAuthUser::redis_users_key(), &username)?;
+        conn.srem::<_, _, ()>(RedisAuthUser::redis_users_key(), &username)?;
 
         Ok(())
     }
@@ -234,10 +234,10 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let hash_data = redis_acl.to_redis_hash();
 
         for (field, value) in hash_data {
-            conn.hset(&acl_key, &field, &value)?;
+            conn.hset::<_, _, _, ()>(&acl_key, &field, &value)?;
         }
 
-        conn.sadd(RedisAuthAcl::redis_acls_key(), &redis_acl.id)?;
+        conn.sadd::<_, _, ()>(RedisAuthAcl::redis_acls_key(), &redis_acl.id)?;
 
         Ok(())
     }
@@ -253,9 +253,9 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let id = RedisAuthAcl::generate_id(&username, &clientid, &acl.topic);
         let acl_key = RedisAuthAcl::redis_acl_key(&id);
 
-        conn.del(&acl_key)?;
+        conn.del::<_, ()>(&acl_key)?;
 
-        conn.srem(RedisAuthAcl::redis_acls_key(), &id)?;
+        conn.srem::<_, _, ()>(RedisAuthAcl::redis_acls_key(), &id)?;
 
         Ok(())
     }
