@@ -56,6 +56,7 @@ use mqtt_broker::{
 use network_server::common::connection_manager::ConnectionManager as MqttConnectionManager;
 use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
+use rate_limit::RateLimiterManager;
 use schema_register::schema::SchemaRegisterManager;
 use std::{
     sync::{
@@ -79,6 +80,7 @@ pub struct BrokerServer {
     journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rate_limiter_manager: Arc<RateLimiterManager>,
     broker_cache: Arc<BrokerCacheManager>,
     config: BrokerConfig,
 }
@@ -98,6 +100,7 @@ impl BrokerServer {
             config.rocksdb.max_open_files,
             column_family_list(),
         ));
+        let rate_limiter_manager = Arc::new(RateLimiterManager::new());
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
         let place_params = main_runtime.block_on(async {
@@ -120,6 +123,7 @@ impl BrokerServer {
             mqtt_params,
             client_pool,
             rocksdb_engine_handler,
+            rate_limiter_manager,
         }
     }
     pub fn start(&self) {
@@ -155,6 +159,7 @@ impl BrokerServer {
             },
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache: broker_cache.clone(),
+            rate_limiter_manager: self.rate_limiter_manager.clone(),
         });
         server_runtime.spawn(async move {
             let admin_server = AdminServer::new();

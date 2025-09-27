@@ -46,3 +46,4 @@ network-server.workspace = true
 admin-server.workspace = true
 broker-core.workspace = true
 common-metrics.workspace = true
+rate-limit.workspace = true
