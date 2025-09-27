@@ -38,9 +38,9 @@ docker-compose -f docker-compose.monitoring.yml ps
 ```
 
 **服务访问地址：**
-- Grafana: http://localhost:3000 (admin/admin)
-- Prometheus: http://localhost:9090
-- Alertmanager: http://localhost:9093
+- Grafana: `localhost:3000` (admin/admin)
+- Prometheus: `localhost:9090`
+- Alertmanager: `localhost:9093`
 
 ### 手动安装
 
@@ -96,7 +96,7 @@ port = 9091
 
 ```bash
 # 检查 RobustMQ Broker 指标
-curl http://localhost:9091/metrics
+curl `http://localhost:9091/metrics`
 ```
 
 ## Prometheus 配置
@@ -165,12 +165,12 @@ scrape_configs:
 
 通过 Grafana Web 界面：
 
-1. 登录 Grafana (http://localhost:3000)
+1. 登录 Grafana (`localhost:3000`)
 2. 进入 **Configuration** → **Data Sources**
 3. 点击 **Add data source**
 4. 选择 **Prometheus**
 5. 配置连接信息：
-   - **URL**: http://localhost:9090
+   - **URL**: `http://localhost:9090`
    - **Access**: Server (default)
    - **Scrape interval**: 15s
 
@@ -205,7 +205,7 @@ datasources:
 ```bash
 # 使用 Grafana API 导入仪表板
 curl -X POST \
-  http://localhost:3000/api/dashboards/db \
+  `http://localhost:3000/api/dashboards/db` \
   -H 'Authorization: Bearer YOUR_API_KEY' \
   -H 'Content-Type: application/json' \
   -d @robustmq-mqtt-broker-dashboard.json
@@ -400,14 +400,14 @@ ttl = 300s
 **检查步骤：**
 ```bash
 # 1. 验证 RobustMQ Broker 指标导出
-curl http://localhost:9091/metrics
+curl `http://localhost:9091/metrics`
 
 # 2. 检查 Prometheus 目标状态
-curl http://localhost:9090/api/v1/targets
+curl `http://localhost:9090/api/v1/targets`
 
 # 3. 验证 Grafana 数据源连接
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/datasources/proxy/1/api/v1/query?query=up
+     `http://localhost:3000/api/datasources/proxy/1/api/v1/query?query=up`
 ```
 
 #### 2. 指标缺失
@@ -420,7 +420,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 **解决方案：**
 ```bash
 # 检查可用指标
-curl http://localhost:9090/metrics | grep mqtt_
+curl `http://localhost:9090/metrics` | grep mqtt_
 
 # 验证功能配置
 grep -r "enable.*true" config/
@@ -522,14 +522,14 @@ scrape_configs:
 ```bash
 # 备份仪表板
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/search?type=dash-db | \
+     `http://localhost:3000/api/search?type=dash-db` | \
      jq -r '.[].uri' | \
      xargs -I {} curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/dashboards/{} > backup.json
+     `http://localhost:3000/api/dashboards/{}` > backup.json
 
 # 备份数据源
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-     http://localhost:3000/api/datasources > datasources-backup.json
+     `http://localhost:3000/api/datasources` > datasources-backup.json
 ```
 
 #### Prometheus 备份
