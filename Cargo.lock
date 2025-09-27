@@ -1392,6 +1392,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-metrics",
  "dashmap",
  "futures",
  "metadata-struct",

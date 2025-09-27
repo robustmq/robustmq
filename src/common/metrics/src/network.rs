@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::server::NoLabelSet, gauge_metric_get, gauge_metric_inc_by, gauge_metrics_set,
+    core::server::NoLabelSet, gauge_metric_get, gauge_metric_inc_by, gauge_metric_set,
     histogram_metric_observe, register_gauge_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
@@ -195,7 +195,7 @@ pub fn record_broker_thread_num(
 }
 
 pub fn record_broker_connections_num(value: i64) {
-    gauge_metrics_set!(BROKER_CONNECTIONS_NUM, NoLabelSet, value);
+    gauge_metric_set!(BROKER_CONNECTIONS_NUM, NoLabelSet, value);
 }
 
 pub fn record_broker_connections_max(value: i64) {
@@ -203,6 +203,6 @@ pub fn record_broker_connections_max(value: i64) {
     gauge_metric_get!(BROKER_CONNECTIONS_MAX, NoLabelSet, current_val);
 
     if current_val < value {
-        gauge_metrics_set!(BROKER_CONNECTIONS_MAX, NoLabelSet, value);
+        gauge_metric_set!(BROKER_CONNECTIONS_MAX, NoLabelSet, value);
     }
 }

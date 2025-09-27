@@ -27,6 +27,7 @@ use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
 use common_base::tools::now_mills;
 use common_metrics::mqtt::packets::record_sent_metrics;
+use common_metrics::mqtt::publish::record_mqtt_messages_sent_inc;
 use common_metrics::mqtt::time::record_mqtt_packet_send_duration;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -395,6 +396,9 @@ pub async fn send_message_to_client(
         protocol_version: protocol.to_u8(),
         packet: packet.clone(),
     };
+    if let MqttPacket::Publish(_, _) = packet.clone() {
+        record_mqtt_messages_sent_inc();
+    }
     if let Some(network) = network_type.clone() {
         record_mqtt_packet_send_duration(
             network,

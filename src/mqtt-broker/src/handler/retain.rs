@@ -28,6 +28,7 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
 use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
+use common_metrics::mqtt::statistics::{record_mqtt_retained_dec, record_mqtt_retained_inc};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -75,8 +76,10 @@ pub async fn save_retain_message(
             .delete_retain_message(topic_name.clone())
             .await?;
         cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
+        record_mqtt_retained_dec();
     } else {
         record_retain_recv_metrics(publish.qos);
+        record_mqtt_retained_inc();
         let message_expire = build_message_expire(cache_manager, publish_properties);
         let retain_message =
             MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
