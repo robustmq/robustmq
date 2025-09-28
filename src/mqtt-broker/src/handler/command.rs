@@ -48,7 +48,7 @@ use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -279,7 +279,7 @@ impl MQTTHandlerCommand {
                 };
                 self.cache_manager
                     .login_success(tcp_connection.connection_id, username);
-                info!("connect [{}] login success", tcp_connection.connection_id);
+                debug!("connect [{}] login success", tcp_connection.connection_id);
                 record_mqtt_connection_success();
             } else {
                 record_mqtt_connection_failed();

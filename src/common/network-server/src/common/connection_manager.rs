@@ -209,7 +209,8 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                self.write_mqtt_tcp_frame(connection_id, mqtt_packet).await?;
+                self.write_mqtt_tcp_frame(connection_id, mqtt_packet)
+                    .await?;
             }
         }
 
@@ -240,7 +241,8 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                self.write_mqtt_quic_frame(connection_id, mqtt_packet).await?;
+                self.write_mqtt_quic_frame(connection_id, mqtt_packet)
+                    .await?;
             }
         }
 

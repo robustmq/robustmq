@@ -23,7 +23,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::core::cache::CacheManager;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
@@ -62,7 +62,7 @@ pub(crate) async fn acceptor_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("accept tcp connection:{:?}",addr);
+                                debug!("accept tcp connection:{:?}",addr);
 
                                 let (r_stream, w_stream) = io::split(stream);
                                 let codec = JournalServerCodec::new();

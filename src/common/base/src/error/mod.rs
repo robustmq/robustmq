@@ -39,5 +39,5 @@ pub fn not_record_error(error: &String) -> bool {
     if error.to_string().contains("Broken pipe") {
         return true;
     }
-    return false;
+    false
 }
