@@ -186,7 +186,7 @@ mod tests {
     }
 
     async fn build_rules() -> Arc<MQTTCacheManager> {
-        let rules = vec![
+        let rules = [
             SimpleRule::new(r"y/+/z/#", r"y/z/$2", r"^y/(.+)/z/(.+)$"),
             SimpleRule::new(r"x/#", r"z/y/x/$1", r"^x/y/(.+)$"),
             SimpleRule::new(r"x/y/+", r"z/y/$1", r"^x/y/(\d+)$"),
