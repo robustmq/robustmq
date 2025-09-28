@@ -32,10 +32,8 @@ tokio.workspace = true
 futures.workspace = true
 common-base.workspace = true
 serde.workspace = true
-validator.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 kafka-protocol.workspace = true
-pulsar.workspace = true
 
 [dev-dependencies]
 robustmq-test.workspace = true
