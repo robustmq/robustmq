@@ -42,13 +42,43 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      # 清理缓存和临时文件，防止磁盘空间被填满
+      - name: Clean up disk space
+        run: |
+          sudo rm -rf /home/runner/actions-runner/cached/*  # 清理缓存文件
+          sudo rm -rf /tmp/*  # 清理临时文件
+          df -h  # 打印磁盘使用情况，确认清理效果
+
+      # 安装所需的构建配置
       - name: set up build configure
         uses: ./.github/actions/setup-builder
+
+      # 安装 cargo-nextest
       - name: Install cargo-nextest
         uses: baptiste0928/cargo-install@v1
         with:
           crate: cargo-nextest
           args: --locked
+
+      # 重新 Checkout，确保最新代码
       - uses: actions/checkout@v3
+
+      # 缓存 Cargo 依赖，避免每次都重新下载
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # 运行测试
       - name: Run tests
         run: sh ./scripts/bin-ig-test.sh
+
+      # 检查磁盘空间，确保不会再次溢出
+      - name: Check disk space
+        run: df -h
