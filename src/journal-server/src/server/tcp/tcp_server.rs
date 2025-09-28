@@ -130,7 +130,7 @@ fn read_frame_process(
                                 match request_queue_sx.send(package.clone()).await {
                                     Ok(_) => {
                                     }
-                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
+                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err.to_string()),
                                 }
                             }
                             Err(e) => {
