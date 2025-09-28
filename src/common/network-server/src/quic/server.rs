@@ -51,6 +51,7 @@ impl QuicServer {
         acceptor_process(
             self.context.proc_config.accept_thread_num,
             self.context.connection_manager.clone(),
+            self.context.broker_cache.clone(),
             arc_quic_endpoint.clone(),
             request_channel.clone(),
             network_type.clone(),

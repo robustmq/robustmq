@@ -70,6 +70,14 @@ impl BrokerCacheManager {
         self.status.insert(self.cluster_name.clone(), status);
     }
 
+    pub fn is_stop(&self) -> bool {
+        if let Some(status) = self.status.get(&self.cluster_name) {
+            status.clone() == NodeStatus::Stopping
+        } else {
+            false
+        }
+    }
+
     // cluster config
     pub fn set_cluster_config(&self, cluster: BrokerConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);

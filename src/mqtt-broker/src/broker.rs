@@ -32,6 +32,7 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
 use crate::system_topic::SystemTopic;
+use broker_core::cache::BrokerCacheManager;
 use broker_core::rocksdb::RocksDBEngine;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
@@ -56,6 +57,7 @@ pub struct MqttBrokerServerParams {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MetricsCacheManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub broker_cache: Arc<BrokerCacheManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -89,6 +91,7 @@ impl MqttBrokerServer {
             stop_sx: inner_stop.clone(),
             auth_driver: params.auth_driver.clone(),
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
+            broker_cache: params.broker_cache.clone(),
         }));
 
         MqttBrokerServer {

@@ -318,6 +318,7 @@ impl BrokerServer {
             schema_manager,
             metrics_cache_manager,
             rocksdb_engine_handler,
+            broker_cache,
         }
     }
 

@@ -3824,6 +3824,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-server",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",

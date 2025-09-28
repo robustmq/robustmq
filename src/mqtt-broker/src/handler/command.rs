@@ -23,6 +23,7 @@ use crate::security::AuthDriver;
 use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
+use broker_core::cache::BrokerCacheManager;
 use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::now_mills;
 use common_metrics::mqtt::event::{
@@ -73,6 +74,7 @@ pub struct CommandContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub auth_driver: Arc<AuthDriver>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub broker_cache: Arc<BrokerCacheManager>,
 }
 
 #[async_trait]

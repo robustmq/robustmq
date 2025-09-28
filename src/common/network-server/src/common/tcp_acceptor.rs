@@ -15,6 +15,7 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::read_packet;
+use broker_core::cache::BrokerCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
@@ -43,9 +44,11 @@ use tracing::{debug, error};
 /// - `cache_manager`: An `Arc`-wrapped `CacheManager` for managing cache operations.
 /// - `network_connection_type`: An enum indicating the type of network connection.
 ///
+#[allow(clippy::too_many_arguments)]
 pub async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
+    broker_cache: Arc<BrokerCacheManager>,
     stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
     request_channel: Arc<RequestChannel>,
@@ -59,6 +62,7 @@ pub async fn acceptor_process(
         let request_channel = request_channel.clone();
         let network_type = network_type.clone();
         let row_codec = codec.clone();
+        let row_broker_cache = broker_cache.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -98,6 +102,7 @@ pub async fn acceptor_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
                                 read_frame_process(
+                                    row_broker_cache.clone(),
                                     read_frame_stream,
                                     connection.connection_id(),
                                     connection_manager.clone(),
@@ -119,6 +124,7 @@ pub async fn acceptor_process(
 
 // spawn connection read thread
 fn read_frame_process(
+    broker_cache: Arc<BrokerCacheManager>,
     mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, RobustMQCodec>,
     connection_id: u64,
     connection_manager: Arc<ConnectionManager>,
@@ -142,7 +148,10 @@ fn read_frame_process(
                      if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
-
+                                if broker_cache.is_stop(){
+                                    debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
+                                    break;
+                                }
                                 let connection = if let Some(conn) = connection_manager.get_connect(connection_id){
                                     conn
                                 }else{

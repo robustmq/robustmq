@@ -40,3 +40,4 @@ common-config.workspace = true
 axum-extra.workspace = true
 axum-server.workspace = true
 kafka-protocol.workspace = true
+broker-core.workspace = true
