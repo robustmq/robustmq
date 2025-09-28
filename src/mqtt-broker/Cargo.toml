@@ -56,7 +56,6 @@ schema-register.workspace = true
 # observability
 prometheus-client.workspace = true
 quinn.workspace = true
-rcgen.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
 rdkafka.workspace = true

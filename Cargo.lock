@@ -113,11 +113,6 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "amqp-broker"
 version = "0.1.34"
-dependencies = [
- "axum",
- "bytes",
- "thiserror 1.0.69",
-]
 
 [[package]]
 name = "android-tzdata"
@@ -1183,18 +1178,12 @@ dependencies = [
  "clap",
  "console-subscriber",
  "crc32fast",
- "env_logger",
  "governor",
- "humantime-serde",
  "lazy_static",
  "local-ip-address",
  "mysql 26.0.0",
  "opendal",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
  "prometheus",
- "prometheus-client",
  "prost",
  "quinn",
  "r2d2",
@@ -1206,9 +1195,6 @@ dependencies = [
  "rustls 0.23.28",
  "serde",
  "serde_json",
- "serde_yaml",
- "snowflake",
- "temp-env",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1229,10 +1215,8 @@ dependencies = [
  "common-base",
  "crc32fast",
  "dashmap",
- "protocol",
  "serde",
  "serde_json",
- "temp-env",
  "thiserror 1.0.69",
  "toml",
  "tracing",
@@ -1247,7 +1231,6 @@ dependencies = [
  "common-base",
  "hyper",
  "metadata-struct",
- "pprof",
  "prometheus-client",
  "protocol",
  "tokio",
@@ -1258,11 +1241,6 @@ dependencies = [
 [[package]]
 name = "common-security"
 version = "0.1.34"
-dependencies = [
- "bytes",
- "mockall",
- "tracing",
-]
 
 [[package]]
 name = "concurrent-queue"
@@ -1927,19 +1905,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1cc3c5651fb62ab8aa3103998dade57efdd028544bd300516baa31840c252a83"
 dependencies = [
  "encoding_rs",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
-dependencies = [
- "humantime",
- "is-terminal",
- "log",
- "regex",
- "termcolor",
 ]
 
 [[package]]
@@ -2728,16 +2693,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b112acc8b3adf4b107a8ec20977da0273a8c386765a3ec0229bd500a1443f9f"
 
 [[package]]
-name = "humantime-serde"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57a3db5ea5923d99402c94e9feb261dc5ee9b4efa158b0315f788cf549cc200c"
-dependencies = [
- "humantime",
- "serde",
-]
-
-[[package]]
 name = "hyper"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3159,7 +3114,6 @@ dependencies = [
  "prost",
  "protocol",
  "rocksdb-engine",
- "rustls-pemfile",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -3205,21 +3159,6 @@ dependencies = [
 [[package]]
 name = "kafka-broker"
 version = "0.1.34"
-dependencies = [
- "axum",
- "bytes",
- "common-base",
- "dashmap",
- "futures",
- "metadata-struct",
- "network-server",
- "protocol",
- "storage-adapter",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
-]
 
 [[package]]
 name = "kafka-protocol"
@@ -3504,26 +3443,6 @@ dependencies = [
 [[package]]
 name = "message-expire"
 version = "0.1.34"
-dependencies = [
- "apache-avro",
- "axum",
- "bytes",
- "common-base",
- "dashmap",
- "futures",
- "metadata-struct",
- "protobuf",
- "protobuf-codegen",
- "protofish",
- "serde",
- "serde_json",
- "storage-adapter",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
- "valico",
-]
 
 [[package]]
 name = "meta-service"
@@ -3569,7 +3488,6 @@ dependencies = [
  "bytes",
  "clap",
  "common-base",
- "common-config",
  "crc32fast",
  "dashmap",
  "lazy_static",
@@ -3720,7 +3638,6 @@ dependencies = [
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
- "rcgen",
  "rdkafka",
  "redis",
  "regex",
@@ -5608,19 +5525,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rcgen"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75e669e5202259b5314d1ea5397316ad400819437857b90861765f24c4cf80a2"
-dependencies = [
- "pem",
- "ring",
- "rustls-pki-types",
- "time",
- "yasna",
-]
-
-[[package]]
 name = "rdkafka"
 version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6496,19 +6400,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap 2.9.0",
- "itoa",
- "ryu",
- "serde",
- "unsafe-libyaml",
-]
-
-[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6620,12 +6511,6 @@ name = "snap"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
-
-[[package]]
-name = "snowflake"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27207bb65232eda1f588cf46db2fee75c0808d557f6b3cf19a75f5d6d7c94df1"
 
 [[package]]
 name = "socket2"
@@ -6907,15 +6792,6 @@ name = "target-triple"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ac9aa371f599d22256307c24a9d748c041e548cbf599f35d890f9d365361790"
-
-[[package]]
-name = "temp-env"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96374855068f47402c3121c6eed88d29cb1de8f3ab27090e273e420bdabcf050"
-dependencies = [
- "parking_lot",
-]
 
 [[package]]
 name = "tempfile"
@@ -7642,12 +7518,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
-
-[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8361,15 +8231,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
-]
-
-[[package]]
-name = "yasna"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
-dependencies = [
- "time",
 ]
 
 [[package]]
