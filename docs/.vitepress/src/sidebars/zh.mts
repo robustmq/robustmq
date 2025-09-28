@@ -222,6 +222,10 @@ export const sidebar = [
             text: "代码结构",
             link: "/zh/ContributionGuide/ContributingCode/Code-Structure",
           },
+          {
+            text: "Pprof 使用指南",
+            link: "/zh/ContributionGuide/ContributingCode/Pprof-Usage",
+          },
         ],
       },
       {

@@ -145,7 +145,11 @@ fn read_frame_process(
                         match pkg {
                             Ok(pack) => {
 
-                                let connection = connection_manager.get_connect(connection_id).unwrap();
+                                let connection = if let Some(conn) = connection_manager.get_connect(connection_id){
+                                    conn
+                                }else{
+                                    continue;
+                                };
                                 match pack{
                                     RobustMQCodecWrapper::MQTT(pk) =>{
                                         read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;
