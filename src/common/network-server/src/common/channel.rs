@@ -101,8 +101,8 @@ impl RequestChannel {
         let sx = self.get_request_send_channel(network_type);
         if let Err(err) = sx.send(request_package).await {
             error!(
-                "Failed to write data to the request queue, error message: {:?}",
-                err
+                "Failed to write data to the request queue, error message: {}",
+                err.to_string()
             );
         }
     }

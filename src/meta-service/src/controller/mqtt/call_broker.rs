@@ -14,6 +14,7 @@
 
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use broker_core::cache::BrokerCacheManager;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -56,16 +57,21 @@ pub struct MQTTInnerCallManager {
     node_sender: DashMap<String, MQTTInnerCallNodeSender>,
     node_stop_sender: DashMap<String, Sender<bool>>,
     placement_cache_manager: Arc<CacheManager>,
+    broker_cache: Arc<BrokerCacheManager>,
 }
 
 impl MQTTInnerCallManager {
-    pub fn new(placement_cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(
+        placement_cache_manager: Arc<CacheManager>,
+        broker_cache: Arc<BrokerCacheManager>,
+    ) -> Self {
         let node_sender = DashMap::with_capacity(2);
         let node_sender_thread = DashMap::with_capacity(2);
         MQTTInnerCallManager {
             node_sender,
             node_stop_sender: node_sender_thread,
             placement_cache_manager,
+            broker_cache,
         }
     }
 
@@ -457,7 +463,7 @@ async fn start_call_thread(
                             if is_ignore_push(&node, &data){
                                 continue;
                             }
-                            call_mqtt_update_cache(client_pool.clone(), node.node_inner_addr.clone(), data).await;
+                            call_mqtt_update_cache(&client_pool, &call_manager.broker_cache, &node.node_inner_addr, &data).await;
                         }
                     }
                 }
@@ -479,9 +485,10 @@ fn is_ignore_push(node: &BrokerNode, data: &MQTTInnerCallMessage) -> bool {
     false
 }
 async fn call_mqtt_update_cache(
-    client_pool: Arc<ClientPool>,
-    addr: String,
-    data: MQTTInnerCallMessage,
+    client_pool: &Arc<ClientPool>,
+    broker_cache: &Arc<BrokerCacheManager>,
+    addr: &String,
+    data: &MQTTInnerCallMessage,
 ) {
     let request = UpdateMqttCacheRequest {
         cluster_name: data.cluster_name.to_string(),
@@ -490,7 +497,10 @@ async fn call_mqtt_update_cache(
         data: data.data.clone(),
     };
 
-    if let Err(e) = broker_mqtt_update_cache(&client_pool, &[addr], request.clone()).await {
+    if let Err(e) = broker_mqtt_update_cache(client_pool, &[addr], request.clone()).await {
+        if broker_cache.is_stop() {
+            return;
+        }
         error!("Calling MQTT Broker to update cache failed,{},cluster_name:{},action_type:{},resource_type:{}", e,request.cluster_name,request.action_type,request.resource_type);
     };
 }

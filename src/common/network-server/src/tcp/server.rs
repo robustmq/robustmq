@@ -24,6 +24,7 @@ use crate::{
     },
     context::{ProcessorConfig, ServerContext},
 };
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_metrics::network::record_broker_thread_num;
 use grpc_clients::pool::ClientPool;
@@ -46,6 +47,7 @@ pub struct TcpServer {
     network_type: NetworkConnectionType,
     request_channel: Arc<RequestChannel>,
     acceptor_stop_send: broadcast::Sender<bool>,
+    broker_cache: Arc<BrokerCacheManager>,
     stop_sx: broadcast::Sender<bool>,
 }
 
@@ -66,6 +68,7 @@ impl TcpServer {
             stop_sx: context.stop_sx,
             request_channel,
             acceptor_stop_send,
+            broker_cache: context.broker_cache.clone(),
         }
     }
 
@@ -86,6 +89,7 @@ impl TcpServer {
                 self.acceptor_stop_send.clone(),
                 self.network_type.clone(),
                 self.connection_manager.clone(),
+                self.broker_cache.clone(),
                 self.request_channel.clone(),
                 codec,
             )
@@ -94,6 +98,7 @@ impl TcpServer {
             acceptor_process(
                 self.proc_config.accept_thread_num,
                 self.connection_manager.clone(),
+                self.broker_cache.clone(),
                 self.acceptor_stop_send.clone(),
                 arc_listener.clone(),
                 self.request_channel.clone(),

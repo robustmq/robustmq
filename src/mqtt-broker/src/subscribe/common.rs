@@ -18,6 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use common_base::error::common::CommonError;
+use common_base::error::not_record_error;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
@@ -90,17 +91,7 @@ impl SubPublishParam {
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
-    if e.to_string()
-        .contains("Connection management could not obtain an available")
-    {
-        return true;
-    }
-
-    if e.to_string().contains("IO error: Broken pipe") {
-        return true;
-    }
-
-    if e.to_string().contains("Broken pipe (os error 32)") {
+    if not_record_error(&e.to_string()) {
         return true;
     }
 

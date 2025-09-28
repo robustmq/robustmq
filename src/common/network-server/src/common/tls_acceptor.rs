@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
@@ -51,7 +52,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()
@@ -63,12 +64,14 @@ pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
         .ok_or(io::Error::other("no private key found".to_string()))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn acceptor_tls_process(
     accept_thread_num: usize,
     listener_arc: Arc<TcpListener>,
     stop_sx: broadcast::Sender<bool>,
     network_type: NetworkConnectionType,
     connection_manager: Arc<ConnectionManager>,
+    broker_cache: Arc<BrokerCacheManager>,
     request_channel: Arc<RequestChannel>,
     codec: RobustMQCodec,
 ) -> ResultCommonError {
@@ -82,6 +85,7 @@ pub async fn acceptor_tls_process(
         let raw_tls_acceptor = tls_acceptor.clone();
         let network_type = network_type.clone();
         let row_codec = codec.clone();
+        let row_broker_cache = broker_cache.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -100,7 +104,7 @@ pub async fn acceptor_tls_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("Accept {} tls connection:{:?}", network_type, addr);
+                                debug!("Accept {} tls connection:{:?}", network_type, addr);
                                 let stream = match raw_tls_acceptor.accept(stream).await{
                                     Ok(da) => da,
                                     Err(e) => {
@@ -126,7 +130,7 @@ pub async fn acceptor_tls_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                read_tls_frame_process(read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
+                                read_tls_frame_process(row_broker_cache.clone(), read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }
                             Err(e) => {
                                 error!("{} accept failed to create connection with error message :{:?}", network_type, e);
@@ -142,6 +146,7 @@ pub async fn acceptor_tls_process(
 
 // spawn connection read thread
 pub(crate) fn read_tls_frame_process(
+    broker_cache: Arc<BrokerCacheManager>,
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
         RobustMQCodec,
@@ -166,6 +171,10 @@ pub(crate) fn read_tls_frame_process(
                     if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
+                                if broker_cache.is_stop(){
+                                    debug!("{} connection 【{}】 acceptor thread stopped successfully.",network_type, connection.connection_id);
+                                    break;
+                                }
                                  match pack{
                                     RobustMQCodecWrapper::MQTT(pk) =>{
                                         read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;

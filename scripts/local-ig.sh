@@ -12,33 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cluster_name = "broker-server"
-broker_id = 1
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 1 = "127.0.0.1:1228" }
-
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
-
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/server-tracing.toml"
-log_path = "./data/broker/logs"
-
-[network]
-accept_thread_num = 64
-handler_thread_num = 512
-response_thread_num = 64
-queue_size = 1000
-lock_max_try_mut_times = 30
-lock_try_mut_sleep_time_ms = 50
-
-[prometheus]
-enable = true
-port = 9091
+cargo nextest run --package grpc-clients --test mod -- meta
+cargo nextest run --package robustmq-test --test mod -- meta
+cargo nextest run --package robustmq-test --test mod -- journal
+cargo nextest run --package robustmq-test --test mod -- mqtt

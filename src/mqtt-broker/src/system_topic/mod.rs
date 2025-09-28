@@ -185,6 +185,9 @@ impl SystemTopic {
             )
             .await
             {
+                if e.to_string().contains("already exist") {
+                    return;
+                }
                 panic!("Initializing system topic {new_topic_name} Failed, error message :{e}");
             }
         }
@@ -395,6 +398,10 @@ pub(crate) async fn write_topic_data(
             }
         }
         Err(e) => {
+            if e.to_string().contains("already exist") {
+                return;
+            }
+
             error!(
                 "Initializing system topic {} Failed, error message :{}",
                 topic_name,

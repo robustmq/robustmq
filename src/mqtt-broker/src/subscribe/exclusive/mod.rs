@@ -38,8 +38,9 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
+use tracing::debug;
+use tracing::error;
 use tracing::warn;
-use tracing::{error, info};
 
 pub struct ExclusivePush {
     cache_manager: Arc<MQTTCacheManager>,
@@ -134,7 +135,7 @@ impl ExclusivePush {
             );
 
             tokio::spawn(async move {
-                info!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
+                debug!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
                         subscriber.client_id, subscriber.sub_path, subscriber.topic_id);
 
                 let group_id = build_group_name(&subscriber);
@@ -157,7 +158,7 @@ impl ExclusivePush {
                         val = sub_thread_stop_rx.recv() =>{
                             if let Ok(flag) = val {
                                 if flag {
-                                    info!(
+                                    debug!(
                                         "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
                                         subscriber.client_id,
                                         subscriber.sub_path,

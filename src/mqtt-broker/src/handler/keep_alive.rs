@@ -166,7 +166,7 @@ impl ClientKeepAlive {
             )
             .await;
             record_mqtt_connection_expired();
-            info!(
+            debug!(
                 "Heartbeat timeout, active disconnection {} successful",
                 context.connect_id
             );

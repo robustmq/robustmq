@@ -16,7 +16,7 @@ use crate::common::{channel::RequestChannel, packet::RequestPackage};
 use common_metrics::mqtt::packets::record_mqtt_packet_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
-use tracing::info;
+use tracing::debug;
 
 pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
     if let RobustMQPacket::MQTT(pack) = packet {
@@ -38,7 +38,7 @@ pub async fn read_packet(
     network_type: &NetworkConnectionType,
 ) {
     if !is_ignore_print(&pack) {
-        info!(
+        debug!(
             "recv {} packet:{:?}, connect_id:{}",
             network_type, pack, connection.connection_id
         );

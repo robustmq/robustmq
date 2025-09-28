@@ -194,7 +194,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         let _network_type = if let Some(connection) = self.get_connect(connection_id) {
@@ -209,14 +209,8 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                match self.write_mqtt_tcp_frame(connection_id, mqtt_packet).await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
+                self.write_mqtt_tcp_frame(connection_id, mqtt_packet)
+                    .await?;
             }
         }
 
@@ -247,14 +241,8 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                match self.write_mqtt_quic_frame(connection_id, mqtt_packet).await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
+                self.write_mqtt_quic_frame(connection_id, mqtt_packet)
+                    .await?;
             }
         }
 

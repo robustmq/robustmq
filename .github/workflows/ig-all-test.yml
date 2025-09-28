@@ -43,6 +43,16 @@ jobs:
         with:
           submodules: true
 
-      # Clean up disk space by removing old cache and temp files to prevent running out of space
-      - name: Clean up disk space
-        run: |
+      - name: set up build configure
+        uses: ./.github/actions/setup-builder
+
+      - name: Install cargo-nextest
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-nextest
+          args: --locked
+
+      - uses: actions/checkout@v3
+
+      - name: Run tests
+        run: sh ./scripts/mqtt-ig.sh

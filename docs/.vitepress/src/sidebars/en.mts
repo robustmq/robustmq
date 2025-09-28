@@ -200,6 +200,10 @@ export const sidebar = [
             text: "Code Structure",
             link: "/en/ContributionGuide/ContributingCode/Code-Structure",
           },
+          {
+            text: "Pprof Usage",
+            link: "/en/ContributionGuide/ContributingCode/Pprof-Usage",
+          },
         ],
       },
       {

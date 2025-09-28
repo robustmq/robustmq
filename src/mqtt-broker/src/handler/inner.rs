@@ -30,7 +30,7 @@ use protocol::broker::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::info;
+use tracing::{debug, info};
 
 pub async fn update_cache_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -60,7 +60,7 @@ pub async fn delete_session_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
-    info!(
+    debug!(
         "Received request from Meta service to delete expired Session. Cluster name :{}, clientId count: {:?}",
         req.cluster_name, req.client_id.len()
     );

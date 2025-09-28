@@ -23,6 +23,7 @@ use crate::security::AuthDriver;
 use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
+use broker_core::cache::BrokerCacheManager;
 use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::now_mills;
 use common_metrics::mqtt::event::{
@@ -48,7 +49,7 @@ use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -73,6 +74,7 @@ pub struct CommandContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub auth_driver: Arc<AuthDriver>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub broker_cache: Arc<BrokerCacheManager>,
 }
 
 #[async_trait]
@@ -279,7 +281,7 @@ impl MQTTHandlerCommand {
                 };
                 self.cache_manager
                     .login_success(tcp_connection.connection_id, username);
-                info!("connect [{}] login success", tcp_connection.connection_id);
+                debug!("connect [{}] login success", tcp_connection.connection_id);
                 record_mqtt_connection_success();
             } else {
                 record_mqtt_connection_failed();

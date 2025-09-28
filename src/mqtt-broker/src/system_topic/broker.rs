@@ -102,7 +102,7 @@ pub(crate) async fn report_broker_sysdescr(
         metadata_cache,
         message_storage_adapter,
         SYSTEM_TOPIC_BROKERS_SYSDESCR,
-        || async { format!("{}", os_info::get()) },
+        || async { format!("report broker sysdescr error,error:{}", os_info::get()) },
     )
     .await;
 }
@@ -112,7 +112,7 @@ async fn build_node_cluster(topic_name: &str, client_pool: &Arc<ClientPool>) -> 
     let node_list = match cluster_storage.node_list().await {
         Ok(data) => data,
         Err(e) => {
-            error!("{}", e.to_string());
+            error!("build node cluster {}", e.to_string());
             return None;
         }
     };

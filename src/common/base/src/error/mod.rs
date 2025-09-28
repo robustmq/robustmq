@@ -19,3 +19,25 @@ pub mod log_config;
 pub mod mqtt_protocol_error;
 
 pub type ResultCommonError = Result<(), CommonError>;
+
+pub fn not_record_error(error: &String) -> bool {
+    if error
+        .to_string()
+        .contains("Connection management could not obtain an available")
+    {
+        return true;
+    }
+
+    if error.to_string().contains("IO error: Broken pipe") {
+        return true;
+    }
+
+    if error.to_string().contains("Broken pipe (os error 32)") {
+        return true;
+    }
+
+    if error.to_string().contains("Broken pipe") {
+        return true;
+    }
+    false
+}
