@@ -98,7 +98,13 @@ mod tests {
                 let target_ms2 = target_ms.1.parse::<i64>().unwrap();
                 let diff = target_ms2 - recv_ms1;
                 assert_eq!(diff, t as i64);
-                println!("now:{},target_ms2:{}", now_second(), target_ms2);
+                println!(
+                    "t:{},now:{},target_ms2:{},diff:{}",
+                    t,
+                    now_second(),
+                    target_ms2,
+                    now_second() - target_ms2 as u64
+                );
                 assert!((now_second() - target_ms2 as u64) < 3);
                 payload == message_content
             };

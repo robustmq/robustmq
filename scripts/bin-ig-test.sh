@@ -33,7 +33,7 @@ else
 fi
 
 # journal
-cargo nextest run  --profile ci --package grpc-clients --test mod -- journal
+cargo nextest run  --profile ci --package robustmq-test --test mod -- journal
 
 
 if [ $? -ne 0 ]; then
@@ -44,7 +44,6 @@ else
 fi
 
 # mqtt
-cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
 cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt
 
 

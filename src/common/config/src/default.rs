@@ -59,7 +59,7 @@ pub fn default_runtime() -> Runtime {
 pub fn default_network() -> Network {
     Network {
         accept_thread_num: 1,
-        handler_thread_num: 1,
+        handler_thread_num: 5,
         response_thread_num: 1,
         queue_size: 1000,
         lock_max_try_mut_times: 30,
