@@ -194,7 +194,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         let _network_type = if let Some(connection) = self.get_connect(connection_id) {

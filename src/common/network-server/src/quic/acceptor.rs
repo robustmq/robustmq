@@ -83,8 +83,6 @@ pub(crate) async fn acceptor_process(
                                             connection_manager.add_connection(connection.clone());
                                             connection_manager.add_mqtt_quic_write(connection.connection_id, codec_write);
 
-
-                                            info!("acceptor_process => connection_id = {}",connection.connection_id);
                                             read_frame_process(
                                                 codec_read,
                                                 connection.connection_id,

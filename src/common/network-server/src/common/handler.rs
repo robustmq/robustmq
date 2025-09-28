@@ -23,7 +23,7 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 pub async fn handler_process(
     handler_process_num: usize,
@@ -138,7 +138,7 @@ fn handler_child_process(
                                     request_channel.send_response_channel(&raw_network_type, resp).await;
                                 } else {
                                     // record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
-                                    info!("{}","No backpacking is required for this request");
+                                    debug!("{}","No backpacking is required for this request");
                                 }
                             }
                         }

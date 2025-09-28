@@ -97,8 +97,6 @@ pub async fn acceptor_process(
 
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
-
-                                info!("acceptor_process => connection_id = {}",connection.connection_id);
                                 read_frame_process(
                                     read_frame_stream,
                                     connection.connection_id(),
