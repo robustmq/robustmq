@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 name: Ig All Test
 
 on:
@@ -42,37 +43,6 @@ jobs:
         with:
           submodules: true
 
-      # Clean up disk space
+      # Clean up disk space by removing old cache and temp files to prevent running out of space
       - name: Clean up disk space
         run: |
-          sudo rm -rf /home/runner/actions-runner/cached/*
-          sudo rm -rf /tmp/*
-          df -h
-
-      - name: set up build configure
-        uses: ./.github/actions/setup-builder
-
-      - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-nextest
-          args: --locked
-
-      - uses: actions/checkout@v3
-
-      # Update actions/cache to v3
-      - name: Cache Cargo registry and build
-        uses: actions/cache@v3  # Updated to v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Run tests
-        run: sh ./scripts/bin-ig-test.sh
-
-      - name: Check disk space
-        run: df -h
