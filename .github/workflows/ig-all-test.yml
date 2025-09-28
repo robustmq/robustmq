@@ -43,6 +43,9 @@ jobs:
         with:
           submodules: true
 
-      # Clean up disk space by removing old cache and temp files to prevent running out of space
-      - name: Clean up disk space
-        run: |
+      - name: set up build configure
+        uses: ./.github/actions/setup-builder
+
+      - name: Install cargo-nextest
+        uses: baptiste09
+

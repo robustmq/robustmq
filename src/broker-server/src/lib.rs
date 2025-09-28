@@ -104,8 +104,12 @@ impl BrokerServer {
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
         let place_params = main_runtime.block_on(async {
-            BrokerServer::build_meta_service(client_pool.clone(), rocksdb_engine_handler.clone())
-                .await
+            BrokerServer::build_meta_service(
+                client_pool.clone(),
+                rocksdb_engine_handler.clone(),
+                broker_cache.clone(),
+            )
+            .await
         });
         let mqtt_params = BrokerServer::build_mqtt_server(
             client_pool.clone(),
@@ -251,10 +255,14 @@ impl BrokerServer {
     async fn build_meta_service(
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        broker_cache: Arc<BrokerCacheManager>,
     ) -> MetaServiceServerParams {
         let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let journal_call_manager = Arc::new(JournalInnerCallManager::new(cache_manager.clone()));
-        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(cache_manager.clone()));
+        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(
+            cache_manager.clone(),
+            broker_cache,
+        ));
 
         let data_route = Arc::new(DataRoute::new(
             rocksdb_engine_handler.clone(),

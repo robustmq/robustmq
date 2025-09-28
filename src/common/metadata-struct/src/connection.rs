@@ -20,7 +20,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::debug;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -128,11 +128,8 @@ impl NetworkConnection {
 
     pub async fn stop_connection(&self) {
         if let Some(sx) = self.connection_stop_sx.clone() {
-            match sx.send(true).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("{}", e);
-                }
+            if let Err(e) = sx.send(true).await {
+                debug!("{}", e);
             }
         }
     }
