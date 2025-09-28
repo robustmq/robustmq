@@ -90,9 +90,6 @@ pub enum CommonError {
     #[error("{0}")]
     ApacheAvroError(#[from] apache_avro::Error),
 
-    #[error("{0}")]
-    FromMysqlError(#[from] mysql::Error),
-
     #[error("R2D2 Pool Error: {0}")]
     R2d2PoolError(#[from] r2d2::Error),
 
