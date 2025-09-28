@@ -90,6 +90,11 @@ impl SubPublishParam {
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    if e.to_string()
+        .contains("Connection management could not obtain an available")
+    {
+        return true;
+    }
     match e {
         MqttBrokerError::SessionNullSkipPushMessage(_) => {}
         MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
