@@ -58,7 +58,6 @@ pub fn init_tracing_subscriber(
             panic!("Failed to initialize log directory {log_path:?}");
         }
     }
-
     let config: config::Configs = toml::from_str(&content)?;
     init_tracing_subscriber_with_config(config)
 }
