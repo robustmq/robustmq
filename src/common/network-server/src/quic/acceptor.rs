@@ -98,7 +98,7 @@ pub(crate) async fn acceptor_process(
                                             if let ConnectionError::ApplicationClosed(data) = e.clone(){
                                                 if data.error_code.into_inner() == 0 {
                                                     continue;
-                                                }   
+                                                }
                                             }
                                             error!("{} accept failed to create connection with error message :{:?}", network_type, e);
                                         }
