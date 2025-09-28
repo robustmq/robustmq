@@ -134,12 +134,12 @@ pub fn create_runtime(runtime_name: &str, worker_threads: usize) -> Runtime {
 }
 
 pub fn get_runtime_worker_threads() -> usize {
-    4
+    64
 }
 
 #[cfg(test)]
 mod tests {
-    use std::thread::sleep;
+    use std::thread::{self, sleep};
     use std::time::Duration;
 
     use super::create_runtime;
@@ -178,5 +178,11 @@ mod tests {
         });
 
         sleep(Duration::from_secs(5));
+    }
+
+    #[test]
+    fn test_get_cpu_num() {
+        let num_threads = thread::available_parallelism().unwrap().get();
+        println!("{}", num_threads);
     }
 }

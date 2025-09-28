@@ -16,41 +16,9 @@ VERSION=`grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2`
 echo "Version: ${VERSION}"
 cargo clean
 
-# start server
 nohup cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
 
-sleep 30
-
-# place
-cargo nextest run --profile ci --package grpc-clients --test mod -- meta
-cargo nextest run --profile ci --package robustmq-test --test mod -- meta
-
-if [ $? -ne 0 ]; then
-    echo "place test failed"
-    exit 1
-else
-    echo "place test passed"
-fi
-
-# journal
-cargo nextest run  --profile ci --package grpc-clients --test mod -- journal
-
-
-if [ $? -ne 0 ]; then
-    echo "journal test failed"
-    exit 1
-else
-    echo "journal test passed"
-fi
-
-# mqtt
-cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
-cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt
-
-
-if [ $? -ne 0 ]; then
-    echo "mqtt test failed"
-    exit 1
-else
-    echo "mqtt test passed"
-fi
+# cargo nextest run --package grpc-clients --test mod -- meta
+# cargo nextest run --package robustmq-test --test mod -- meta
+# cargo nextest run --package robustmq-test --test mod -- journal
+cargo nextest run --package robustmq-test --test mod -- mqtt

@@ -23,11 +23,9 @@ thiserror.workspace = true
 serde.workspace = true
 common-base.workspace = true
 serde_json.workspace = true
-protocol.workspace = true
 bytes.workspace = true
 tracing.workspace = true
 dashmap.workspace = true
 crc32fast.workspace = true
 toml.workspace = true
-temp-env.workspace = true
 

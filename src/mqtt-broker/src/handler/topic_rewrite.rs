@@ -44,7 +44,6 @@ fn gen_convert_rewrite_name(
 ) -> Result<Option<String>, MqttBrokerError> {
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    println!("{rules:?}");
     let mut new_topic_name = "".to_string();
     for rule in rules.iter() {
         let allow = rule.action != TopicRewriteActionEnum::All.to_string()
@@ -187,7 +186,7 @@ mod tests {
     }
 
     async fn build_rules() -> Arc<MQTTCacheManager> {
-        let rules = vec![
+        let rules = [
             SimpleRule::new(r"y/+/z/#", r"y/z/$2", r"^y/(.+)/z/(.+)$"),
             SimpleRule::new(r"x/#", r"z/y/x/$1", r"^x/y/(.+)$"),
             SimpleRule::new(r"x/y/+", r"z/y/$1", r"^x/y/(\d+)$"),

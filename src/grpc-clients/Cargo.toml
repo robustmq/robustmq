@@ -32,7 +32,8 @@ mobc.workspace = true
 prost.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
-metadata-struct.workspace = true
 serde_json.workspace = true
 regex.workspace = true
-validator.workspace = true
+
+[dev-dependencies]
+metadata-struct.workspace = true

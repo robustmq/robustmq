@@ -90,6 +90,20 @@ impl SubPublishParam {
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    if e.to_string()
+        .contains("Connection management could not obtain an available")
+    {
+        return true;
+    }
+
+    if e.to_string().contains("IO error: Broken pipe") {
+        return true;
+    }
+
+    if e.to_string().contains("Broken pipe (os error 32)") {
+        return true;
+    }
+
     match e {
         MqttBrokerError::SessionNullSkipPushMessage(_) => {}
         MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}

@@ -56,6 +56,7 @@ DRY_RUN="${DRY_RUN:-false}"
 FORCE="${FORCE:-false}"
 VERBOSE="${VERBOSE:-false}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
+BUILD_FRONTEND="${BUILD_FRONTEND:-true}"
 
 # GitHub API base URL
 GITHUB_API_URL="https://api.github.com"
@@ -107,6 +108,7 @@ show_help() {
     echo "    --force                    Force recreate release if it exists"
     echo "    --skip-build               Skip building packages (use existing ones)"
     echo "    --verbose                  Enable verbose output"
+    echo "    --no-frontend              Skip frontend build for server component"
     echo
     echo -e "${BOLD}PLATFORMS:${NC}"
     echo "    auto                      Auto-detect current platform (default)"
@@ -126,6 +128,7 @@ show_help() {
     echo "    FORCE                     Force recreate release (true/false)"
     echo "    VERBOSE                   Verbose output (true/false)"
     echo "    SKIP_BUILD                Skip building packages (true/false)"
+    echo "    BUILD_FRONTEND            Build frontend for server component (true/false, default: true)"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
     echo "    # Create release for current platform (default)"
@@ -148,6 +151,9 @@ show_help() {
     echo
     echo "    # Skip build and upload existing packages"
     echo "    $0 --skip-build"
+    echo
+    echo "    # Release without frontend"
+    echo "    $0 --no-frontend"
     echo
     echo -e "${BOLD}PREREQUISITES:${NC}"
     echo "    1. GitHub personal access token with repo permissions"
@@ -442,6 +448,13 @@ build_packages() {
     log_step "Building packages for version $version"
 
     local build_cmd="$SCRIPT_DIR/build.sh --version $version"
+    
+    # Add frontend option based on BUILD_FRONTEND setting
+    if [ "$BUILD_FRONTEND" = "true" ]; then
+        build_cmd="$build_cmd --with-frontend"
+    else
+        build_cmd="$build_cmd --no-frontend"
+    fi
 
     if [ "$PLATFORM" != "all" ]; then
         build_cmd="$build_cmd --platform $PLATFORM"
@@ -518,6 +531,7 @@ show_release_info() {
     log_info "Platform: $PLATFORM"
     log_info "GitHub Repository: $GITHUB_REPO"
     log_info "Skip Build: $SKIP_BUILD"
+    log_info "Build Frontend: $BUILD_FRONTEND"
     if [ "$DRY_RUN" = "true" ]; then
         log_warning "DRY RUN MODE - No actual changes will be made"
     fi
@@ -562,6 +576,10 @@ main() {
                 ;;
             --verbose)
                 VERBOSE="true"
+                shift
+                ;;
+            --no-frontend)
+                BUILD_FRONTEND="false"
                 shift
                 ;;
             *)

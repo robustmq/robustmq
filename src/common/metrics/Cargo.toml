@@ -20,7 +20,6 @@ license.workspace = true
 
 [dependencies]
 tokio.workspace = true
-pprof.workspace = true
 hyper.workspace = true
 axum.workspace = true
 bytes.workspace = true

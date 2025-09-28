@@ -54,6 +54,7 @@ CLEAN="${CLEAN:-false}"
 VERBOSE="${VERBOSE:-false}"
 DRY_RUN="${DRY_RUN:-false}"
 PARALLEL="${PARALLEL:-true}"
+BUILD_FRONTEND="${BUILD_FRONTEND:-false}"
 
 # Global state variables
 FRONTEND_BUILT="${FRONTEND_BUILT:-false}"
@@ -148,6 +149,8 @@ show_help() {
     echo "    --verbose                  Enable verbose output"
     echo "    --dry-run                  Show what would be built without actually building"
     echo "    --no-parallel              Disable parallel builds"
+    echo "    --with-frontend            Build frontend for server component (default: disabled)"
+    echo "    --no-frontend              Skip frontend build for server component (deprecated, use default)"
     echo
     echo -e "${BOLD}PLATFORMS:${NC}"
     echo "    linux-amd64               Linux x86_64"
@@ -177,6 +180,7 @@ show_help() {
     echo "    VERBOSE                   Verbose output (true/false)"
     echo "    DRY_RUN                   Dry run mode (true/false)"
     echo "    PARALLEL                  Parallel builds (true/false)"
+    echo "    BUILD_FRONTEND            Build frontend for server component (true/false)"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
     echo "    # Build for current platform (server only)"
@@ -199,6 +203,9 @@ show_help() {
     echo
     echo "    # Dry run to see what would be built"
     echo "    $0 --dry-run --all-platforms"
+    echo
+    echo "    # Build server with frontend"
+    echo "    $0 --component server --with-frontend"
     echo
     echo "For more information, visit: https://github.com/robustmq/robustmq"
 }
@@ -412,6 +419,7 @@ prepare_rust_target() {
 
 build_server_component() {
     local platform="$1"
+    local build_frontend_flag="${2:-false}"  # Default to false
     local rust_target="$(get_rust_target "$platform")"
     local output_name="robustmq-${VERSION}-${platform}"
     local package_path="${OUTPUT_DIR}/${output_name}"
@@ -425,16 +433,24 @@ build_server_component() {
 
     if [ "$DRY_RUN" = "true" ]; then
         log_info "[DRY RUN] Would build server for $platform using target $rust_target"
-        log_info "[DRY RUN] Would build frontend web UI"
-        # Mark frontend as built in dry-run mode to avoid duplicate builds
-        FRONTEND_BUILT="true"
+        if [ "$build_frontend_flag" = "true" ]; then
+            log_info "[DRY RUN] Would build frontend web UI"
+            # Mark frontend as built in dry-run mode to avoid duplicate builds
+            FRONTEND_BUILT="true"
+        else
+            log_info "[DRY RUN] Skipping frontend build"
+        fi
         return 0
     fi
 
-    # Build frontend first
-    if ! build_frontend; then
-        log_error "Failed to build frontend for server component"
-        return 1
+    # Build frontend conditionally
+    if [ "$build_frontend_flag" = "true" ]; then
+        if ! build_frontend; then
+            log_error "Failed to build frontend for server component"
+            return 1
+        fi
+    else
+        log_info "Skipping frontend build as requested"
     fi
 
     # Prepare Rust target
@@ -497,14 +513,18 @@ build_server_component() {
         cp -r "$PROJECT_ROOT/config/"* "$package_path/config/" 2>/dev/null || true
     fi
 
-    # Copy frontend build results
-    local copilot_dist_dir="${PROJECT_ROOT}/build/robustmq-copilot/packages/web-ui/dist"
-    if [ -d "$copilot_dist_dir" ]; then
-        log_info "Copying frontend build results to package..."
-        cp -r "$copilot_dist_dir/"* "$package_path/dist/" 2>/dev/null || true
-        log_success "Frontend assets copied to dist directory"
+    # Copy frontend build results conditionally
+    if [ "$build_frontend_flag" = "true" ]; then
+        local copilot_dist_dir="${PROJECT_ROOT}/build/robustmq-copilot/packages/web-ui/dist"
+        if [ -d "$copilot_dist_dir" ]; then
+            log_info "Copying frontend build results to package..."
+            cp -r "$copilot_dist_dir/"* "$package_path/dist/" 2>/dev/null || true
+            log_success "Frontend assets copied to dist directory"
+        else
+            log_warning "Frontend build directory not found: $copilot_dist_dir"
+        fi
     else
-        log_warning "Frontend build directory not found: $copilot_dist_dir"
+        log_info "Skipping frontend assets copy as frontend build was disabled"
     fi
 
     # Create version file
@@ -512,8 +532,14 @@ build_server_component() {
 
     # Create package info
     local frontend_status="Not included"
-    if [ -d "$package_path/dist" ] && [ "$(ls -A "$package_path/dist" 2>/dev/null)" ]; then
-        frontend_status="Included"
+    if [ "$build_frontend_flag" = "true" ]; then
+        if [ -d "$package_path/dist" ] && [ "$(ls -A "$package_path/dist" 2>/dev/null)" ]; then
+            frontend_status="Included"
+        else
+            frontend_status="Build attempted but failed"
+        fi
+    else
+        frontend_status="Disabled by build option"
     fi
     
     cat > "$package_path/package-info.txt" << EOF
@@ -666,7 +692,7 @@ build_platform() {
 
     # Build components
     if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
-        if ! build_server_component "$platform"; then
+        if ! build_server_component "$platform" "$BUILD_FRONTEND"; then
             return 1
         fi
     fi
@@ -727,6 +753,9 @@ show_build_info() {
     log_info "Build Type: $BUILD_TYPE"
     log_info "Output Directory: $OUTPUT_DIR"
     log_info "Parallel Builds: $PARALLEL"
+    if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
+        log_info "Build Frontend: $BUILD_FRONTEND"
+    fi
     if [ "$DRY_RUN" = "true" ]; then
         log_warning "DRY RUN MODE - No actual building will occur"
     fi
@@ -779,6 +808,14 @@ main() {
                 ;;
             --no-parallel)
                 PARALLEL="false"
+                shift
+                ;;
+            --with-frontend)
+                BUILD_FRONTEND="true"
+                shift
+                ;;
+            --no-frontend)
+                BUILD_FRONTEND="false"
                 shift
                 ;;
             *)
