@@ -28,7 +28,7 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 /// The `acceptor_process` function is responsible for accepting incoming TCP connections
 /// in an asynchronous manner. It utilizes multiple threads to handle the incoming connections
@@ -78,7 +78,7 @@ pub async fn acceptor_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("Accept {} connection:{:?}", network_type, addr);
+                                debug!("Accept {} connection:{:?}", network_type, addr);
 
                                 let (r_stream, w_stream) = io::split(stream);
                                 let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());

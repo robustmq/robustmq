@@ -51,7 +51,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()
@@ -100,7 +100,7 @@ pub async fn acceptor_tls_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("Accept {} tls connection:{:?}", network_type, addr);
+                                debug!("Accept {} tls connection:{:?}", network_type, addr);
                                 let stream = match raw_tls_acceptor.accept(stream).await{
                                     Ok(da) => da,
                                     Err(e) => {
