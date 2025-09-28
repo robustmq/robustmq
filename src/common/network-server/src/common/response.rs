@@ -15,6 +15,7 @@
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
 use crate::common::{channel::RequestChannel, metric::record_packet_handler_info_by_response};
+use common_base::error::not_record_error;
 use common_base::tools::now_mills;
 use common_metrics::network::{metrics_response_queue_size, record_response_and_total_ms};
 use grpc_clients::pool::ClientPool;
@@ -137,11 +138,17 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                                 match &network_type.clone() {
                                     NetworkConnectionType::Tcp | NetworkConnectionType::Tls | NetworkConnectionType::WebSocket |  NetworkConnectionType::WebSockets => {
                                          if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
+                                            if not_record_error(&e.to_string()){
+                                                continue;
+                                            }
                                             error!("{}",e);
                                          };
                                     }
                                     NetworkConnectionType::QUIC => {
                                         if let Err(e) =  raw_connect_manager.write_quic_frame(response_package.connection_id, packet_wrapper).await {
+                                            if not_record_error(&e.to_string()){
+                                                continue;
+                                            }
                                             error!("{}",e);
                                          };
                                     }
