@@ -20,7 +20,7 @@ use common_metrics::mqtt::packets::record_received_error_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
-use quinn::Endpoint;
+use quinn::{ConnectionError, Endpoint};
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -95,6 +95,11 @@ pub(crate) async fn acceptor_process(
                                             );
                                         },
                                         Err(e) => {
+                                            if let ConnectionError::ApplicationClosed(data) = e.clone(){
+                                                if data.error_code.into_inner() == 0 {
+                                                    continue;
+                                                }   
+                                            }
                                             error!("{} accept failed to create connection with error message :{:?}", network_type, e);
                                         }
                                     }
