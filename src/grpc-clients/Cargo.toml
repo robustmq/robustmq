@@ -34,3 +34,6 @@ dashmap.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
 regex.workspace = true
+
+[dev-dependencies]
+metadata-struct.workspace = true

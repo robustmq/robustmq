@@ -2490,6 +2490,7 @@ dependencies = [
  "common-base",
  "dashmap",
  "lazy_static",
+ "metadata-struct",
  "mobc",
  "prost",
  "protocol",
@@ -5835,6 +5836,7 @@ name = "rocksdb-engine"
 version = "0.1.34"
 dependencies = [
  "common-base",
+ "common-config",
  "common-metrics",
  "dashmap",
  "futures",
@@ -5844,6 +5846,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 
