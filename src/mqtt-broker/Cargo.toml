@@ -47,6 +47,7 @@ axum-server.workspace = true
 rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
 mysql.workspace = true
+tokio-postgres.workspace = true
 tracing.workspace = true
 ipnet.workspace = true
 os_info.workspace = true

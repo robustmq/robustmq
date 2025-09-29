@@ -215,6 +215,7 @@ async-stream = "0.3.6"
 kafka-protocol = "0.15.1"
 governor = { version = "0.10.1" }
 pulsar = "6.3.1"
+tokio-postgres = "0.7.12"
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }

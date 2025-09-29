@@ -3652,6 +3652,7 @@ dependencies = [
  "third-driver",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-postgres",
  "tokio-rustls 0.26.2",
  "tokio-util",
  "tonic",
