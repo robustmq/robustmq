@@ -18,15 +18,19 @@ use axum::async_trait;
 use common_base::{error::ResultCommonError, tools::loop_select};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
-    config_local_file::LocalFileConnectorConfig, config_pulsar::PulsarConnectorConfig,
-    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
+    config_local_file::LocalFileConnectorConfig, config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig, connector::MQTTConnector, connector_type::ConnectorType,
+    status::MQTTStatus,
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
-use super::{file::FileBridgePlugin, manager::ConnectorManager, pulsar::PulsarBridgePlugin};
+use super::{
+    file::FileBridgePlugin, manager::ConnectorManager, postgres::PostgresBridgePlugin,
+    pulsar::PulsarBridgePlugin,
+};
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
@@ -202,6 +206,41 @@ fn start_thread(
                     connector_manager.remove_connector_thread(&connector.connector_name);
                     error!(
                         "Failed to start PulsarBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
+            ConnectorType::Postgres => {
+                let postgres_config = match serde_json::from_str::<PostgresConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse PostgresConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = PostgresBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    postgres_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_id: connector.topic_id,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start PostgresBridgePlugin with error message: {:?}",
                         e
                     );
                 }

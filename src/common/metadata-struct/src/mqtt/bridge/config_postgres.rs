@@ -12,11 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod config_greptimedb;
-pub mod config_kafka;
-pub mod config_local_file;
-pub mod config_postgres;
-pub mod config_pulsar;
-pub mod connector;
-pub mod connector_type;
-pub mod status;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct PostgresConnectorConfig {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub username: String,
+    pub password: String,
+    pub table: String,
+    pub pool_size: Option<u32>,
+}
+
+impl PostgresConnectorConfig {
+    pub fn connection_string(&self) -> String {
+        format!(
+            "host={} port={} dbname={} user={} password={}",
+            self.host, self.port, self.database, self.username, self.password
+        )
+    }
+}
