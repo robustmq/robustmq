@@ -179,22 +179,48 @@ get_rust_target() {
 check_dependencies() {
     if ! command -v cargo >/dev/null 2>&1; then
         log_error "cargo not found. Please install Rust."
+        echo
+        log_info "Installation instructions:"
+        log_info "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        log_info "  source ~/.cargo/env"
+        log_info "  Or visit: https://rustup.rs/"
+        echo
         return 1
     fi
 
     if ! command -v rustup >/dev/null 2>&1; then
         log_error "rustup not found. Please install Rust."
+        echo
+        log_info "Installation instructions:"
+        log_info "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        log_info "  source ~/.cargo/env"
+        log_info "  Or visit: https://rustup.rs/"
+        echo
         return 1
     fi
 
     if [ "$BUILD_FRONTEND" = "true" ]; then
         if ! command -v pnpm >/dev/null 2>&1; then
             log_error "pnpm not found. Please install pnpm for frontend build."
+            echo
+            log_info "Installation instructions:"
+            log_info "  macOS:   brew install pnpm"
+            log_info "  Linux:   curl -fsSL https://get.pnpm.io/install.sh | sh -"
+            log_info "  Windows: npm install -g pnpm"
+            log_info "  Or visit: https://pnpm.io/installation"
+            echo
             return 1
         fi
         
         if ! command -v git >/dev/null 2>&1; then
             log_error "git not found. Please install git for frontend repository cloning."
+            echo
+            log_info "Installation instructions:"
+            log_info "  macOS:   brew install git"
+            log_info "  Ubuntu:  sudo apt-get install git"
+            log_info "  CentOS:  sudo yum install git"
+            log_info "  Windows: Download from https://git-scm.com/"
+            echo
             return 1
         fi
     fi
@@ -202,6 +228,14 @@ check_dependencies() {
     if [ "$BUILD_DOCKER" = "true" ]; then
         if ! command -v docker >/dev/null 2>&1; then
             log_error "docker command not found. Please install Docker."
+            echo
+            log_info "Installation instructions:"
+            log_info "  macOS:   brew install --cask docker"
+            log_info "  Ubuntu:  sudo apt-get install docker.io"
+            log_info "  CentOS:  sudo yum install docker"
+            log_info "  Windows: Download Docker Desktop from https://docker.com/"
+            log_info "  Or visit: https://docs.docker.com/get-docker/"
+            echo
             return 1
         fi
     fi
@@ -231,16 +265,17 @@ build_frontend() {
         fi
         
         log_success "Frontend repository cloned successfully"
-    else
-        log_info "Frontend directory exists, updating from remote"
-        
-        # Update existing repository
-        cd "$frontend_dir"
-        if ! git pull origin main; then
-            log_warning "Failed to update frontend repository, continuing with existing code"
-        fi
-        cd "$PROJECT_ROOT"
     fi
+
+    # Always pull latest code before building
+    log_info "Updating frontend code to latest version"
+    cd "$frontend_dir"
+    if ! git pull origin main; then
+        log_warning "Failed to update frontend repository, continuing with existing code"
+    else
+        log_success "Frontend code updated successfully"
+    fi
+    cd "$PROJECT_ROOT"
 
     cd "$frontend_dir"
     
@@ -315,10 +350,17 @@ create_package() {
     local target_dir="$PROJECT_ROOT/target/$rust_target/release"
 
     # Create package directory structure
-    mkdir -p "$package_dir"/{bin,config,docs}
+    mkdir -p "$package_dir"/{bin,libs,config,dist}
 
-    # Copy binaries
+    # Copy bin directory from source code (scripts, startup files, etc.)
+    if [ -d "$PROJECT_ROOT/bin" ]; then
+        cp -r "$PROJECT_ROOT/bin"/* "$package_dir/bin/" 2>/dev/null || true
+        log_info "Copied source bin directory"
+    fi
+
+    # Copy Rust compiled binaries to libs directory
     local binaries=("broker-server" "cli-command" "cli-bench")
+    local found_binaries=()
     for binary in "${binaries[@]}"; do
         local binary_path="$target_dir/$binary"
         if [[ "$platform" == windows-* ]]; then
@@ -326,36 +368,62 @@ create_package() {
         fi
         
         if [ -f "$binary_path" ]; then
-            cp "$binary_path" "$package_dir/bin/"
-            log_info "Copied $binary"
+            cp "$binary_path" "$package_dir/libs/"
+            found_binaries+=("$binary")
+            log_info "Copied binary $binary to libs/"
         else
             log_warning "Binary not found: $binary_path"
         fi
     done
 
-    # Copy configuration files
+    if [ ${#found_binaries[@]} -eq 0 ]; then
+        log_error "No binaries found for $platform"
+        return 1
+    fi
+
+    # Copy configuration files from source config directory
     if [ -d "$PROJECT_ROOT/config" ]; then
         cp -r "$PROJECT_ROOT/config"/* "$package_dir/config/" 2>/dev/null || true
+        log_info "Copied source config directory"
     fi
 
-    # Copy documentation
-    if [ -f "$PROJECT_ROOT/README.md" ]; then
-        cp "$PROJECT_ROOT/README.md" "$package_dir/docs/"
-    fi
+    # Copy LICENSE to root directory
     if [ -f "$PROJECT_ROOT/LICENSE" ]; then
-        cp "$PROJECT_ROOT/LICENSE" "$package_dir/docs/"
+        cp "$PROJECT_ROOT/LICENSE" "$package_dir/"
+        log_info "Copied LICENSE to root directory"
     fi
 
-    # Copy frontend if built
+    # Copy frontend build results to dist directory
     if [ "$BUILD_FRONTEND" = "true" ]; then
         local frontend_dist="$PROJECT_ROOT/build/robustmq-copilot/packages/web-ui/dist"
         if [ -d "$frontend_dist" ]; then
-            cp -r "$frontend_dist" "$package_dir/web/"
-            log_info "Copied frontend files from $frontend_dist"
+            cp -r "$frontend_dist"/* "$package_dir/dist/" 2>/dev/null || true
+            log_info "Copied frontend files to dist/"
         else
             log_warning "Frontend dist directory not found at $frontend_dist"
         fi
     fi
+
+
+    # Create package info
+    local frontend_status="Not included"
+    if [ -d "$package_dir/dist" ] && [ "$(ls -A "$package_dir/dist" 2>/dev/null)" ]; then
+        frontend_status="Included"
+    fi
+    
+    cat > "$package_dir/package-info.txt" << EOF
+Package: robustmq-server
+Version: $version
+Platform: $platform
+Target: $rust_target
+Build Date: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
+Binaries: ${found_binaries[*]}
+Frontend Web UI: $frontend_status
+EOF
+
+    # Set permissions for executable files
+    chmod -R 755 "$package_dir/bin/"* 2>/dev/null || true
+    chmod -R 755 "$package_dir/libs/"* 2>/dev/null || true
 
     # Create tarball
     cd "$OUTPUT_DIR"

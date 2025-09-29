@@ -45,6 +45,8 @@
 3. **Docker 构建（可选）**
    - `docker` 已安装并运行（仅在使用 `--with-docker` 时需要）
 
+> **注意**: 如果缺少必要的工具，脚本会显示详细的安装指令，包括不同操作系统的安装命令。
+
 ## 完整用法
 
 ```bash
@@ -76,6 +78,17 @@
 ### 普通构建
 构建完成后会在 `build/` 目录生成：
 - `robustmq-{version}-{platform}.tar.gz` - 安装包
+
+### 包结构
+```text
+robustmq-{version}-{platform}/
+├── bin/           # 源码 bin 目录（启动脚本等）
+├── libs/          # Rust 编译的二进制文件
+├── config/        # 源码 config 目录（配置文件）
+├── dist/          # 前端构建产物（如果包含前端）
+├── LICENSE        # 许可证文件
+└── package-info.txt # 包信息文件（包含版本信息）
+```
 
 ### Docker 构建
 构建完成后会生成 Docker 镜像：
@@ -120,7 +133,7 @@
 - ✅ 不指定 `--version` 时自动从项目根目录的 Cargo.toml 文件中读取版本
 - ✅ 使用 `cargo build --release` 进行 Rust 项目构建
 - ✅ 前端构建是可选的，会自动从 GitHub 克隆 robustmq-copilot 代码
-- ✅ 如果前端目录已存在，会自动更新代码
+- ✅ 每次构建前端时都会自动拉取最新代码（git pull）
 - ✅ Docker 构建基于 `docker/Dockerfile` 文件
 - ✅ Docker 构建会检查 Docker 命令和守护进程状态
 - ❌ 不支持交叉编译

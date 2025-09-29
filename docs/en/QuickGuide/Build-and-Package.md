@@ -21,6 +21,8 @@ Please refer to [Build Development Environment](../ContributionGuide/Contributin
 - **Frontend Build**: `pnpm` and `git` installed (only required when using `--with-frontend`)
 - **Docker Build**: `docker` installed and running (only required when using `--with-docker`)
 
+> **Note**: If required tools are missing, the build script will automatically detect and display detailed installation instructions, including commands for different operating systems.
+
 ## Quick Start
 
 ### 1. Clone Project
@@ -136,12 +138,15 @@ After build completion, files will be generated in the `build/` directory:
 
 ```text
 robustmq-0.1.35-darwin-arm64/
-├── bin/           # Binary files
+├── bin/           # Source bin directory (startup scripts, etc.)
+├── libs/          # Rust compiled binary files
 │   ├── broker-server
 │   ├── cli-command
 │   └── cli-bench
-├── config/        # Configuration files
-└── docs/          # Documentation
+├── config/        # Source config directory (configuration files)
+├── dist/          # Frontend build artifacts (if frontend included)
+├── LICENSE        # License file
+└── package-info.txt # Package information file (includes version info)
 ```
 
 ## Release Process
@@ -227,7 +232,15 @@ find build/ -name "*.tar.gz"
 # Extract and test
 tar -xzf robustmq-0.1.35-darwin-arm64.tar.gz
 cd robustmq-0.1.35-darwin-arm64
-./bin/broker-server --help
+
+# Test binary files
+./libs/broker-server --help
+./libs/cli-command --help
+./libs/cli-bench --help
+
+# View package information
+cat package-info.txt
+cat VERSION
 ```
 
 ## Notes
@@ -236,7 +249,7 @@ cd robustmq-0.1.35-darwin-arm64
 - ✅ When `--version` is not specified, automatically reads version from Cargo.toml file in project root
 - ✅ Uses `cargo build --release` for Rust project builds
 - ✅ Frontend build is optional, automatically clones robustmq-copilot code from GitHub
-- ✅ If frontend directory exists, automatically updates code
+- ✅ Always pulls latest code before building frontend (git pull)
 - ✅ Docker build based on `docker/Dockerfile` file
 - ✅ Docker build checks Docker command and daemon status
 - ❌ Does not support cross-compilation
