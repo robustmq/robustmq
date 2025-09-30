@@ -59,15 +59,7 @@ impl PostgresBridgePlugin {
     pub async fn connect(&self) -> Result<Client, common_base::error::common::CommonError> {
         let connection_string = self.config.connection_string();
 
-        let (client, connection) = tokio_postgres::connect(&connection_string, NoTls)
-            .await
-            .map_err(|e| {
-                error!("Failed to connect to PostgreSQL: {}", e);
-                common_base::error::common::CommonError::CommonError(format!(
-                    "PostgreSQL connection error: {}",
-                    e
-                ))
-            })?;
+        let (client, connection) = tokio_postgres::connect(&connection_string, NoTls).await?;
 
         tokio::spawn(async move {
             if let Err(e) = connection.await {
@@ -79,6 +71,22 @@ impl PostgresBridgePlugin {
     }
 
     pub async fn append(&self, records: &Vec<Record>, client: &Client) -> ResultMqttBrokerError {
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        let enable_batch = self.config.enable_batch_insert.unwrap_or(false);
+
+        if enable_batch {
+            self.batch_insert(records, client).await
+        } else {
+            self.single_insert(records, client).await
+        }
+    }
+
+    async fn single_insert(&self, records: &Vec<Record>, client: &Client) -> ResultMqttBrokerError {
+        let enable_upsert = self.config.enable_upsert.unwrap_or(false);
+
         for record in records {
             let client_id = &record.key;
             let timestamp = record.timestamp as i64;
@@ -90,25 +98,110 @@ impl PostgresBridgePlugin {
                 .unwrap_or_else(|| "unknown".to_string());
             let payload_str = String::from_utf8_lossy(&record.data).to_string();
 
-            let sql = format!(
-                "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5)",
-                self.config.table
-            );
+            let sql = if enable_upsert {
+                let conflict_columns = self
+                    .config
+                    .conflict_columns
+                    .as_deref()
+                    .unwrap_or("client_id, topic");
+
+                format!(
+                    "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT ({}) DO UPDATE SET timestamp = EXCLUDED.timestamp, payload = EXCLUDED.payload, data = EXCLUDED.data",
+                    self.config.table, conflict_columns
+                )
+            } else {
+                format!(
+                    "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5)",
+                    self.config.table
+                )
+            };
 
             client
                 .execute(
                     &sql,
-                    &[&client_id, &topic, &timestamp, &payload_str, &record.data],
+                    &[client_id, &topic, &timestamp, &payload_str, &record.data],
                 )
-                .await
-                .map_err(|e| {
-                    error!("Failed to execute PostgreSQL query: {}", e);
-                    common_base::error::common::CommonError::CommonError(format!(
-                        "PostgreSQL execution error: {}",
-                        e
-                    ))
-                })?;
+                .await?;
         }
+
+        Ok(())
+    }
+
+    async fn batch_insert(&self, records: &Vec<Record>, client: &Client) -> ResultMqttBrokerError {
+        let enable_upsert = self.config.enable_upsert.unwrap_or(false);
+        let base_sql = if enable_upsert {
+            let conflict_columns = self
+                .config
+                .conflict_columns
+                .as_deref()
+                .unwrap_or("client_id, topic");
+
+            format!(
+                "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ",
+                self.config.table
+            ) + &format!(
+                " ON CONFLICT ({}) DO UPDATE SET timestamp = EXCLUDED.timestamp, payload = EXCLUDED.payload, data = EXCLUDED.data",
+                conflict_columns
+            )
+        } else {
+            format!(
+                "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ",
+                self.config.table
+            )
+        };
+
+        // Pre-allocate vectors with capacity to reduce allocations
+        let mut value_placeholders = Vec::with_capacity(records.len());
+        let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            Vec::with_capacity(records.len() * 5);
+        let mut param_index = 1;
+
+        let mut client_ids = Vec::with_capacity(records.len());
+        let mut topics = Vec::with_capacity(records.len());
+        let mut timestamps = Vec::with_capacity(records.len());
+        let mut payloads = Vec::with_capacity(records.len());
+        let mut data_vec = Vec::with_capacity(records.len());
+
+        for record in records {
+            let client_id = record.key.clone();
+            let timestamp = record.timestamp as i64;
+            let topic = record
+                .header
+                .iter()
+                .find(|h| h.name == "topic")
+                .map(|h| h.value.clone())
+                .unwrap_or_else(|| "unknown".to_string());
+            let payload_str = String::from_utf8_lossy(&record.data).to_string();
+            let data = record.data.clone();
+
+            client_ids.push(client_id);
+            topics.push(topic);
+            timestamps.push(timestamp);
+            payloads.push(payload_str);
+            data_vec.push(data);
+
+            value_placeholders.push(format!(
+                "(${}, ${}, ${}, ${}, ${})",
+                param_index,
+                param_index + 1,
+                param_index + 2,
+                param_index + 3,
+                param_index + 4
+            ));
+            param_index += 5;
+        }
+
+        for i in 0..records.len() {
+            params.push(&client_ids[i]);
+            params.push(&topics[i]);
+            params.push(&timestamps[i]);
+            params.push(&payloads[i]);
+            params.push(&data_vec[i]);
+        }
+
+        let sql = format!("{}{}", base_sql, value_placeholders.join(", "));
+        client.execute(&sql, &params).await?;
+
         Ok(())
     }
 }

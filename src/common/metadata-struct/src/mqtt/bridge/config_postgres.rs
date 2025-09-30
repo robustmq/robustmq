@@ -23,6 +23,9 @@ pub struct PostgresConnectorConfig {
     pub password: String,
     pub table: String,
     pub pool_size: Option<u32>,
+    pub enable_batch_insert: Option<bool>,
+    pub enable_upsert: Option<bool>,
+    pub conflict_columns: Option<String>,
 }
 
 impl PostgresConnectorConfig {
