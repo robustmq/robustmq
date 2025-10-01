@@ -48,7 +48,7 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 | **MySQL** | ✅ | ❌ | RobustMQ does not support MySQL |
 | **OpenTSDB** | ✅ | ❌ | RobustMQ does not support OpenTSDB |
 | **Oracle Database** | ✅ | ❌ | RobustMQ does not support Oracle |
-| **PostgreSQL** | ✅ | ❌ | RobustMQ does not support PostgreSQL |
+| **PostgreSQL** | ✅ | ✅ | RobustMQ supports PostgreSQL connector |
 | **RabbitMQ** | ✅ | ❌ | RobustMQ does not support RabbitMQ |
 | **Redis** | ✅ | ❌ | RobustMQ does not support Redis |
 | **RocketMQ** | ✅ | ❌ | RobustMQ does not support RocketMQ |
@@ -60,15 +60,16 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 ### Support Summary
 
 - **EMQX Support**: 30+ data integration types
-- **RobustMQ Support**: 3 data integration types
+- **RobustMQ Support**: 4 data integration types
   - ✅ Apache Kafka
   - ✅ GreptimeDB  
+  - ✅ PostgreSQL
   - ✅ Local File
 
-RobustMQ currently focuses on core data integration scenarios, supporting the most commonly used message queues (Kafka), time-series databases (GreptimeDB), and local file storage. Future versions will gradually expand more data integration types.
+RobustMQ currently focuses on core data integration scenarios, supporting the most commonly used message queues (Kafka), time-series databases (GreptimeDB), relational databases (PostgreSQL), and local file storage. Future versions will gradually expand more data integration types.
 
 ## Summary
 
-RobustMQ connectors adopt a plugin-based architecture design, providing efficient data integration capabilities for MQTT messages. Currently supporting three core connector types: Kafka, GreptimeDB, and local file, covering the main scenarios of message queues, time-series databases, and file storage.
+RobustMQ connectors adopt a plugin-based architecture design, providing efficient data integration capabilities for MQTT messages. Currently supporting four core connector types: Kafka, GreptimeDB, PostgreSQL, and local file, covering the main scenarios of message queues, time-series databases, relational databases, and file storage.
 
 Compared to EMQX's 30+ data integration types, RobustMQ focuses on core scenarios, achieving high-performance and high-reliability message bridging through Rust's memory safety and zero-cost abstraction features. This streamlined and efficient design philosophy provides a solid foundation for building reliable IoT data pipelines.
