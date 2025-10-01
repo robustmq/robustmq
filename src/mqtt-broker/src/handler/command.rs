@@ -96,7 +96,7 @@ impl Command for MQTTHandlerCommand {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
-                    &MqttProtocol::Mqtt5,
+                    &MqttProtocol::Mqtt4,
                     Some(DisconnectReasonCode::NotAuthorized),
                 )),
             ));
