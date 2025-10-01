@@ -69,7 +69,6 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 
 RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar）、时序数据库（GreptimeDB）、关系型数据库（PostgreSQL）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
 
-
 ## 总结
 
 RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 Kafka、Pulsar、GreptimeDB、PostgreSQL 和本地文件五种核心连接器类型，覆盖了消息队列、时序数据库、关系型数据库和文件存储的主要场景。
