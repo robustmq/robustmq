@@ -36,8 +36,6 @@ features:
 
 ---
 
-<BadgeSection />
-
 <div class="architecture-section">
   <div class="architecture-header">
     <h2>架构概览</h2>
