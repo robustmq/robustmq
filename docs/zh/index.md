@@ -6,8 +6,6 @@ hero:
   text: "新一代云原生和AI原生消息基础设施"
   tagline: |
     RobustMQ 是 100% 用 Rust 实现的新一代云原生消息队列，专为 AI 时代和云原生环境重新设计。通过多协议统一（MQTT/Kafka/AMQP）、存算分离架构和插件化存储，提供微秒级延迟、零 GC 停顿的高性能消息基础设施，支持 Serverless 弹性扩缩容。
-    
-    <GitHubStars />
 
   actions:
     - theme: brand

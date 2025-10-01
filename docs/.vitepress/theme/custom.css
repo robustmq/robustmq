@@ -112,48 +112,22 @@ html body * .text[data-v-4f9c455b] {
   transform: translateY(-4px);
 }
 
-/* Hero 部分的徽章样式 */
-.VPHero .hero-badges {
-  display: flex;
-  gap: 8px;
-  margin: 4px 0 20px;
-  flex-wrap: wrap;
-  justify-content: flex-start; /* 靠左对齐 */
-  max-width: 600px;
-}
+/* 徽章样式已移除 */
 
-.VPHero .hero-badges img {
-  height: 20px;
-  transition: transform 0.2s ease;
-}
-
-.VPHero .hero-badges img:hover {
-  transform: scale(1.05);
-}
-
-/* 确保 Actions 按钮有合适的上边距 */
+/* Actions 按钮间距调整 */
 .VPHero .VPHeroActions {
-  margin-top: 32px !important; /* 增加间距，避免与GitHubStars组件重合 */
-  padding-top: 16px !important; /* 额外的内边距确保分离 */
+  margin-top: 24px !important; /* 正常间距 */
+  padding-top: 8px !important;
 }
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .VPHero .hero-badges {
-    margin: 8px 0 16px;
-    padding: 0;
-    justify-content: flex-start; /* 移动端也靠左对齐 */
-  }
-  
   .VPHero .VPHeroActions {
-    margin-top: 24px !important; /* 移动端也需要足够的间距 */
+    margin-top: 24px !important; /* 移动端按钮间距 */
     padding-top: 12px !important;
   }
 }
 
 @media (max-width: 960px) {
-  /* 在中等屏幕上，当文字和图片垂直排列时 */
-  .VPHero .hero-badges {
-    justify-content: center; /* 中等屏幕居中显示 */
-  }
+  /* 中等屏幕响应式调整 */
 }
