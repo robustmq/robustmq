@@ -16,9 +16,9 @@ export default defineConfig({
 
     locales: {
 
-        root: {label: 'English', lang: 'en',dir: 'en',  ...enConfig},
+        en: {label: 'English', lang: 'en', ...enConfig},
 
-        zh: {label: '简体中文', lang: 'zh', dir: 'zh', ...zhConfig},
+        zh: {label: '简体中文', lang: 'zh', ...zhConfig},
 
     },
 
@@ -31,7 +31,8 @@ export default defineConfig({
     // 修复布局和水合不匹配问题
     vite: {
         define: {
-            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': false
+            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': false,
+            '__VUE_PROD_DEVTOOLS__': false
         },
         ssr: {
             noExternal: ['vitepress']
@@ -49,6 +50,10 @@ export default defineConfig({
                     charset: false
                 }
             }
+        },
+        // 确保开发和生产环境的一致性
+        optimizeDeps: {
+            exclude: ['vitepress']
         }
     },
     
@@ -57,6 +62,19 @@ export default defineConfig({
     
     // 禁用可能导致布局问题的功能
     mpa: false,
+    
+    // 忽略死链接检查，特别是 localhost 链接
+    ignoreDeadLinks: [
+        // 忽略所有 localhost 链接
+        /^https?:\/\/localhost/,
+        // 忽略本地 IP 地址
+        /^https?:\/\/127\.0\.0\.1/,
+        /^https?:\/\/0\.0\.0\.0/,
+        // 忽略内网 IP 地址
+        /^https?:\/\/192\.168\./,
+        /^https?:\/\/10\./,
+        /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./
+    ],
 
     /* 文档配置 */
 

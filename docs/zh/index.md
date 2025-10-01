@@ -6,21 +6,20 @@ hero:
   text: "新一代云原生和AI原生消息基础设施"
   tagline: |
     RobustMQ 是 100% 用 Rust 实现的新一代云原生消息队列，专为 AI 时代和云原生环境重新设计。通过多协议统一（MQTT/Kafka/AMQP）、存算分离架构和插件化存储，提供微秒级延迟、零 GC 停顿的高性能消息基础设施，支持 Serverless 弹性扩缩容。
-    
-    <div class="badges">
-      <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
-      <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
-      <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
-      <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
-    </div>
 
   actions:
+    - theme: alt
+      text: ⭐ GitHub Stars
+      link: https://github.com/robustmq/robustmq
+    - theme: alt
+      text: 👥 Contributors
+      link: https://github.com/robustmq/robustmq/graphs/contributors
+    - theme: alt
+      text: 📦 Version
+      link: https://github.com/robustmq/robustmq/releases
     - theme: brand
-      text: Get Started
+      text: 🚀 Get Started
       link: /zh/OverView/What-is-RobustMQ
-    # - theme: alt
-    #   text: API Examples
-    #   link: /api-examples
   image:
     src: /logo-large.jpg
     alt: RobustMQ
@@ -75,6 +74,23 @@ features:
   </div>
 </div>
 
+<div class="web-ui-section">
+  <div class="web-ui-header">
+    <h2>Web 仪表板</h2>
+  </div>
+  <div class="web-ui-container">
+    <div class="web-ui-image-wrapper">
+      <img src="/images/web-ui.png" alt="RobustMQ Web Dashboard" />
+      <div class="web-ui-overlay">
+        <div class="overlay-content">
+          <h3>实时监控</h3>
+          <p>全面的仪表板用于系统监控和管理</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="footer-message">
   <p>很高兴有机会让你看到不一样的作品</p>
 </div>
@@ -91,20 +107,24 @@ features:
 
 <style>
 
-.badges {
-  display: flex;
-  justify-content: left;  /* 水平居中 */
-  gap: 10px;                /* 徽章之间的间距 */
-  margin-top: 10px;
-}
-
-.badges img {
-  height: 24px;   /* 调整徽章大小 */
-}
+/* 徽章样式已移至 BadgeSection 组件中 */
 
 
-.clip{
-  font-size:55px !important;
+.VPHero .name .clip,
+.VPHomeHero .name .clip,
+h1.name .clip,
+.clip {
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
+  letter-spacing: -0.02em !important;
+  animation: titleGlow 3s ease-in-out infinite alternate !important;
+  display: inline-block !important;
 }
 .text[data-v-72cc4481]
 {
@@ -126,10 +146,33 @@ features:
   --vp-home-hero-image-filter: blur(44px) !important;
 }
 
+/* 主标题渐变动画 */
+@keyframes titleGlow {
+  0% {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    background: linear-gradient(135deg, #764ba2 0%, #f093fb 50%, #667eea 100%);
+    text-shadow: 0 6px 12px rgba(118, 75, 162, 0.4);
+  }
+  100% {
+    background: linear-gradient(135deg, #f093fb 0%, #667eea 50%, #764ba2 100%);
+    text-shadow: 0 4px 8px rgba(240, 147, 251, 0.3);
+  }
+}
+
 @media (min-width: 640px) {
   :root {
     --vp-home-hero-image-filter: blur(56px) !important;
     --vp-home-hero-name-font-size: 20px !important;
+  }
+  
+  .VPHero .name .clip,
+  .VPHomeHero .name .clip,
+  h1.name .clip,
+  .clip {
+    font-size: 40px !important;
   }
   
   .text[data-v-72cc4481] {
@@ -141,6 +184,14 @@ features:
   :root {
     --vp-home-hero-image-filter: blur(68px) !important;
   }
+  
+  .VPHero .name .clip,
+  .VPHomeHero .name .clip,
+  h1.name .clip,
+  .clip {
+    font-size: 44px !important;
+  }
+  
   .name{
     font-size:20px !important;
   }
@@ -151,6 +202,14 @@ features:
 }
 
 @media (max-width: 640px) {
+  .VPHero .name .clip,
+  .VPHomeHero .name .clip,
+  h1.name .clip,
+  .clip {
+    font-size: 28px !important;
+    line-height: 1.1 !important;
+  }
+  
   .text[data-v-72cc4481] {
     font-size: 22px !important;
   }
@@ -408,6 +467,128 @@ features:
   }
   
   .console-overlay {
+    padding: 30px 20px 20px;
+  }
+}
+
+/* Web UI展示区域样式 */
+.web-ui-section {
+  margin: 80px 0;
+  padding: 0 20px;
+}
+
+.web-ui-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.web-ui-header h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.web-ui-header p {
+  font-size: 1.125rem;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+  font-weight: 400;
+  padding: 0 20px;
+}
+
+.web-ui-container {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.web-ui-image-wrapper {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  padding: 20px;
+}
+
+.web-ui-image-wrapper:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow:
+    0 32px 64px -12px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.web-ui-image-wrapper img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  transition: all 0.4s ease;
+  filter: brightness(0.9) contrast(1.1);
+  border-radius: 16px;
+}
+
+.web-ui-image-wrapper:hover img {
+  filter: brightness(1) contrast(1.2);
+  transform: scale(1.05);
+}
+
+.web-ui-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    transparent 100%
+  );
+  padding: 40px 30px 30px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.4s ease;
+}
+
+.web-ui-image-wrapper:hover .web-ui-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Web UI区域响应式设计 */
+@media (max-width: 768px) {
+  .web-ui-header h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  
+  .web-ui-header p {
+    font-size: 1rem;
+    padding: 0 16px;
+  }
+  
+  .web-ui-section {
+    margin: 60px 0;
+    padding: 0 16px;
+  }
+  
+  .web-ui-image-wrapper {
+    padding: 15px;
+  }
+  
+  .web-ui-overlay {
     padding: 30px 20px 20px;
   }
 }

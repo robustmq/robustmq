@@ -6,6 +6,97 @@
   --vp-c-brand-3: #9499ff;
 }
 
+/* 主标题渐变动画 */
+@keyframes titleGlow {
+  0% {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    background: linear-gradient(135deg, #764ba2 0%, #f093fb 50%, #667eea 100%);
+    text-shadow: 0 6px 12px rgba(118, 75, 162, 0.4);
+  }
+  100% {
+    background: linear-gradient(135deg, #f093fb 0%, #667eea 50%, #764ba2 100%);
+    text-shadow: 0 4px 8px rgba(240, 147, 251, 0.3);
+  }
+}
+
+/* 主标题样式 - 全局覆盖，使用最高优先级选择器 */
+html body .VPHome .VPHero .text,
+html body .VPHome .VPHomeHero .text,
+html body .VPHero .text,
+html body .VPHomeHero .text,
+html body h1.heading .text,
+html body .heading .text,
+html body .VPHome .VPHero .name .clip,
+html body .VPHome .VPHomeHero .name .clip,
+html body .VPHome h1.name .clip,
+html body .clip,
+html body * .text[data-v-4f9c455b] {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
+  letter-spacing: -0.02em !important;
+  animation: titleGlow 3s ease-in-out infinite alternate !important;
+  display: inline-block !important;
+}
+
+/* 响应式主标题 - 使用最高优先级选择器 */
+@media (min-width: 640px) {
+  html body .VPHome .VPHero .text,
+  html body .VPHome .VPHomeHero .text,
+  html body .VPHero .text,
+  html body .VPHomeHero .text,
+  html body h1.heading .text,
+  html body .heading .text,
+  html body .VPHome .VPHero .name .clip,
+  html body .VPHome .VPHomeHero .name .clip,
+  html body .VPHome h1.name .clip,
+  html body .clip,
+  html body * .text[data-v-4f9c455b] {
+    font-size: 32px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  html body .VPHome .VPHero .text,
+  html body .VPHome .VPHomeHero .text,
+  html body .VPHero .text,
+  html body .VPHomeHero .text,
+  html body h1.heading .text,
+  html body .heading .text,
+  html body .VPHome .VPHero .name .clip,
+  html body .VPHome .VPHomeHero .name .clip,
+  html body .VPHome h1.name .clip,
+  html body .clip,
+  html body * .text[data-v-4f9c455b] {
+    font-size: 36px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  html body .VPHome .VPHero .text,
+  html body .VPHome .VPHomeHero .text,
+  html body .VPHero .text,
+  html body .VPHomeHero .text,
+  html body h1.heading .text,
+  html body .heading .text,
+  html body .VPHome .VPHero .name .clip,
+  html body .VPHome .VPHomeHero .name .clip,
+  html body .VPHome h1.name .clip,
+  html body .clip,
+  html body * .text[data-v-4f9c455b] {
+    font-size: 22px !important;
+    line-height: 1.1 !important;
+  }
+}
+
 /* 确保样式在服务端和客户端渲染一致 */
 .VPHome .VPHero .VPImage {
   max-width: 100%;
@@ -21,46 +112,100 @@
   transform: translateY(-4px);
 }
 
-/* Hero 部分的徽章样式 */
-.VPHero .hero-badges {
-  display: flex;
-  gap: 8px;
-  margin: 4px 0 20px;
-  flex-wrap: wrap;
-  justify-content: flex-start; /* 靠左对齐 */
-  max-width: 600px;
-}
+/* 徽章样式已移除 */
 
-.VPHero .hero-badges img {
-  height: 20px;
-  transition: transform 0.2s ease;
-}
-
-.VPHero .hero-badges img:hover {
-  transform: scale(1.05);
-}
-
-/* 确保 Actions 按钮有合适的上边距 */
+/* Actions 按钮间距调整 */
 .VPHero .VPHeroActions {
-  margin-top: 20px; /* 减少间距，给徽章留出空间 */
+  margin-top: 24px !important; /* 正常间距 */
+  padding-top: 8px !important;
+}
+
+/* GitHub Stars 按钮容器样式 */
+.VPHome .VPHero .VPHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+/* 按钮统一小尺寸样式 */
+.VPButton.brand,
+.VPButton.alt {
+  /* 调整按钮大小 */
+  padding: 6px 14px !important; /* 进一步减小内边距 */
+  font-size: 11px !important; /* 进一步减小字体 */
+  line-height: 1.3 !important; /* 调整行高 */
+  border-radius: 14px !important; /* 调整圆角 */
+  min-height: auto !important; /* 移除最小高度限制 */
+}
+
+/* GitHub Stars 按钮样式 - 金黄色渐变 */
+.VPButton.alt[href*="github.com/robustmq/robustmq"]:not([href*="contributors"]):not([href*="releases"]) {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3) !important;
+}
+
+.VPButton.alt[href*="github.com/robustmq/robustmq"]:not([href*="contributors"]):not([href*="releases"]):hover {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4) !important;
+  text-decoration: none !important;
+  color: white !important;
+}
+
+/* Contributors 按钮样式 - 绿色渐变 */
+.VPButton.alt[href*="contributors"] {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3) !important;
+}
+
+.VPButton.alt[href*="contributors"]:hover {
+  background: linear-gradient(135deg, #229954 0%, #27ae60 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4) !important;
+  text-decoration: none !important;
+  color: white !important;
+}
+
+/* Version 按钮样式 - 紫色渐变 */
+.VPButton.alt[href*="releases"] {
+  background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(142, 68, 173, 0.3) !important;
+}
+
+.VPButton.alt[href*="releases"]:hover {
+  background: linear-gradient(135deg, #7d3c98 0%, #8e44ad 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(142, 68, 173, 0.4) !important;
+  text-decoration: none !important;
+  color: white !important;
 }
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .VPHero .hero-badges {
-    margin: 8px 0 16px;
-    padding: 0;
-    justify-content: flex-start; /* 移动端也靠左对齐 */
+  .VPHero .VPHeroActions {
+    margin-top: 24px !important; /* 移动端按钮间距 */
+    padding-top: 12px !important;
   }
   
-  .VPHero .VPHeroActions {
-    margin-top: 16px;
+  /* 移动端按钮统一进一步缩小 */
+  .VPButton.brand,
+  .VPButton.alt {
+    padding: 5px 10px !important; /* 移动端更小的内边距 */
+    font-size: 10px !important; /* 移动端更小的字体 */
+    border-radius: 12px !important; /* 调整移动端圆角 */
   }
 }
 
 @media (max-width: 960px) {
-  /* 在中等屏幕上，当文字和图片垂直排列时 */
-  .VPHero .hero-badges {
-    justify-content: center; /* 中等屏幕居中显示 */
-  }
+  /* 中等屏幕响应式调整 */
 }

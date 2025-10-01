@@ -17,7 +17,7 @@ use broker_server::{
     BrokerServer,
 };
 use clap::{command, Parser};
-use common_base::version::logo::banner;
+use common_base::version::logo::banner_info;
 use common_config::{broker::init_broker_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG};
 
 #[derive(Parser, Debug)]
@@ -34,7 +34,7 @@ fn main() {
     init_broker_conf_by_path(&args.conf);
     #[allow(unused_variables)]
     let append = init_broker_log().unwrap();
-    banner();
+    banner_info();
     print_conf();
     let server = BrokerServer::new();
     server.start();

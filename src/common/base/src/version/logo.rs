@@ -16,7 +16,21 @@ use tracing::info;
 
 pub const DEFAULT_META_SERVICE_CONFIG: &str = "./config/version.ini";
 
-pub fn banner() {
+pub fn banner_info() {
+    let b = banner();
+    info!("{b}");
+
+    // Print version information
+    let version = super::version();
+    info!("version: {}", version);
+}
+
+pub fn banner_print() {
+    let b = banner();
+    print!("{b}");
+}
+
+pub fn banner() -> String {
     const B: &str = r"
     ╭─────────────────────────────────────────────────────────────────────────────╮
     │                                                                             │
@@ -33,12 +47,7 @@ pub fn banner() {
     │                                                                             │
     ╰─────────────────────────────────────────────────────────────────────────────╯
     ";
-
-    info!("{B}");
-
-    // Print version information
-    let version = super::version();
-    info!("version: {}", version);
+    B.to_string()
 }
 
 #[cfg(test)]
