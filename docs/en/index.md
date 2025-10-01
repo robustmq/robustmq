@@ -8,12 +8,18 @@ hero:
     RobustMQ is a next-generation cloud-native message queue that is 100% implemented in Rust, specifically redesigned for the AI era and cloud-native environments. Through multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, and pluggable storage, it provides high-performance messaging infrastructure with microsecond-level latency and zero GC pauses, supporting Serverless elastic scaling.
 
   actions:
+    - theme: alt
+      text: ⭐ GitHub Stars
+      link: https://github.com/robustmq/robustmq
+    - theme: alt
+      text: 👥 Contributors
+      link: https://github.com/robustmq/robustmq/graphs/contributors
+    - theme: alt
+      text: 📦 Version
+      link: https://github.com/robustmq/robustmq/releases
     - theme: brand
-      text: Get Started
+      text: 🚀 Get Started
       link: /en/OverView/What-is-RobustMQ
-    # - theme: alt
-    #   text: API Examples
-    #   link: /api-examples
   image:
     src: /logo-large.jpg
     alt: RobustMQ

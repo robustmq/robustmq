@@ -8,12 +8,18 @@ hero:
     RobustMQ 是 100% 用 Rust 实现的新一代云原生消息队列，专为 AI 时代和云原生环境重新设计。通过多协议统一（MQTT/Kafka/AMQP）、存算分离架构和插件化存储，提供微秒级延迟、零 GC 停顿的高性能消息基础设施，支持 Serverless 弹性扩缩容。
 
   actions:
+    - theme: alt
+      text: ⭐ GitHub Stars
+      link: https://github.com/robustmq/robustmq
+    - theme: alt
+      text: 👥 Contributors
+      link: https://github.com/robustmq/robustmq/graphs/contributors
+    - theme: alt
+      text: 📦 Version
+      link: https://github.com/robustmq/robustmq/releases
     - theme: brand
-      text: Get Started
+      text: 🚀 Get Started
       link: /zh/OverView/What-is-RobustMQ
-    # - theme: alt
-    #   text: API Examples
-    #   link: /api-examples
   image:
     src: /logo-large.jpg
     alt: RobustMQ
