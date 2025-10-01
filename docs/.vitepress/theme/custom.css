@@ -133,7 +133,8 @@ html body * .text[data-v-4f9c455b] {
 
 /* 确保 Actions 按钮有合适的上边距 */
 .VPHero .VPHeroActions {
-  margin-top: 20px; /* 减少间距，给徽章留出空间 */
+  margin-top: 32px !important; /* 增加间距，避免与GitHubStars组件重合 */
+  padding-top: 16px !important; /* 额外的内边距确保分离 */
 }
 
 /* 响应式调整 */
@@ -145,7 +146,8 @@ html body * .text[data-v-4f9c455b] {
   }
   
   .VPHero .VPHeroActions {
-    margin-top: 16px;
+    margin-top: 24px !important; /* 移动端也需要足够的间距 */
+    padding-top: 12px !important;
   }
 }
 

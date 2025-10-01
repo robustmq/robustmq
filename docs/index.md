@@ -6,12 +6,8 @@ hero:
   text: "New generation of cloud-native and AI-native messaging infrastructure"
   tagline: |
     RobustMQ is a next-generation cloud-native message queue that is 100% implemented in Rust, specifically redesigned for the AI era and cloud-native environments. Through multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, and pluggable storage, it provides high-performance messaging infrastructure with microsecond-level latency and zero GC pauses, supporting Serverless elastic scaling.
-    <div class="badges">
-      <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
-      <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
-      <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
-      <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
-    </div>
+    
+    <GitHubStars />
 
   actions:
     - theme: brand
@@ -172,11 +168,7 @@ features:
   background-color:purple !important;
 }
 
-/* 调整按钮容器的间距 */
-.actions {
-  margin-top: -30px !important;
-  padding-top: 0 !important;
-}
+/* 按钮容器间距已在主题CSS中统一管理 */
 :root {
   --vp-home-hero-name-color: transparent !important;
   --vp-home-hero-name-background: purple !important;
