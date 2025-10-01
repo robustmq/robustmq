@@ -1,20 +1,14 @@
 <template>
-  <div class="hero-badges" v-if="mounted">
-    <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
-    <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
+  <div class="hero-badges">
+    <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat" loading="lazy">
+    <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat" loading="lazy">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat" loading="lazy">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat" loading="lazy">
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-
-const mounted = ref(false)
-
-onMounted(() => {
-  mounted.value = true
-})
+// 移除条件渲染逻辑，确保 SSR 和客户端渲染一致
 </script>
 
 <style scoped>

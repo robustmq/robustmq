@@ -6,8 +6,7 @@ hero:
   text: "New generation of cloud-native and AI-native messaging infrastructure"
   tagline: |
     RobustMQ is a next-generation cloud-native message queue that is 100% implemented in Rust, specifically redesigned for the AI era and cloud-native environments. Through multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, and pluggable storage, it provides high-performance messaging infrastructure with microsecond-level latency and zero GC pauses, supporting Serverless elastic scaling.
-    
-    <div class="hero-badges">
+    <div class="badges">
       <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
       <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
       <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
@@ -40,6 +39,8 @@ features:
     details: Single binary deployment, K8s Operator support, and visual management interface, truly achieving simplified operations and rapid deployment in the cloud-native era.
 
 ---
+
+<BadgeSection />
 
 <div class="architecture-section">
   <div class="architecture-header">
@@ -107,22 +108,9 @@ features:
 ---
 <style>
 
-.badges {
-  display: flex;
-  justify-content: left;  /* 水平居中 */
-  gap: 10px;                /* 徽章之间的间距 */
-  margin-top: 10px;
-  margin-bottom: 20px;      /* 减少与按钮的距离 */
-}
+/* 徽章样式已移至 BadgeSection 组件中 */
 
-.badges img {
-  height: 24px;   /* 调整徽章大小 */
-}
-
-/* 优化主标题样式 */
-.clip{
-  font-size:50px !important;
-}
+/* 主标题样式已移至主题 custom.css 文件中，避免冲突 */
 
 /* 优化副标题样式 */
 .text[data-v-72cc4481] {
@@ -146,6 +134,22 @@ features:
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* 主标题渐变动画 */
+@keyframes titleGlow {
+  0% {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    background: linear-gradient(135deg, #764ba2 0%, #f093fb 50%, #667eea 100%);
+    text-shadow: 0 6px 12px rgba(118, 75, 162, 0.4);
+  }
+  100% {
+    background: linear-gradient(135deg, #f093fb 0%, #667eea 50%, #764ba2 100%);
+    text-shadow: 0 4px 8px rgba(240, 147, 251, 0.3);
   }
 }
 
@@ -188,6 +192,8 @@ features:
     --vp-home-hero-name-font-size: 20px !important;
   }
   
+/* 响应式样式已移至主题 custom.css 文件中 */
+  
   .text[data-v-72cc4481] {
     font-size: 32px !important;
   }
@@ -202,6 +208,8 @@ features:
   :root {
     --vp-home-hero-image-filter: blur(68px) !important;
   }
+  
+/* 桌面端响应式样式已移至主题 custom.css 文件中 */
   
   .name {
     font-size: 20px !important;
@@ -219,6 +227,8 @@ features:
 }
 
 @media (max-width: 640px) {
+/* 移动端响应式样式已移至主题 custom.css 文件中 */
+  
   .text[data-v-72cc4481] {
     font-size: 24px !important;
     line-height: 1.3 !important;

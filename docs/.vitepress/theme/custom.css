@@ -6,6 +6,97 @@
   --vp-c-brand-3: #9499ff;
 }
 
+/* 主标题渐变动画 */
+@keyframes titleGlow {
+  0% {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    background: linear-gradient(135deg, #764ba2 0%, #f093fb 50%, #667eea 100%);
+    text-shadow: 0 6px 12px rgba(118, 75, 162, 0.4);
+  }
+  100% {
+    background: linear-gradient(135deg, #f093fb 0%, #667eea 50%, #764ba2 100%);
+    text-shadow: 0 4px 8px rgba(240, 147, 251, 0.3);
+  }
+}
+
+/* 主标题样式 - 全局覆盖，使用最高优先级选择器 */
+html body .VPHome .VPHero .text,
+html body .VPHome .VPHomeHero .text,
+html body .VPHero .text,
+html body .VPHomeHero .text,
+html body h1.heading .text,
+html body .heading .text,
+html body .VPHome .VPHero .name .clip,
+html body .VPHome .VPHomeHero .name .clip,
+html body .VPHome h1.name .clip,
+html body .clip,
+html body * .text[data-v-4f9c455b] {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  text-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
+  letter-spacing: -0.02em !important;
+  animation: titleGlow 3s ease-in-out infinite alternate !important;
+  display: inline-block !important;
+}
+
+/* 响应式主标题 - 使用最高优先级选择器 */
+@media (min-width: 640px) {
+  html body .VPHome .VPHero .text,
+  html body .VPHome .VPHomeHero .text,
+  html body .VPHero .text,
+  html body .VPHomeHero .text,
+  html body h1.heading .text,
+  html body .heading .text,
+  html body .VPHome .VPHero .name .clip,
+  html body .VPHome .VPHomeHero .name .clip,
+  html body .VPHome h1.name .clip,
+  html body .clip,
+  html body * .text[data-v-4f9c455b] {
+    font-size: 32px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  html body .VPHome .VPHero .text,
+  html body .VPHome .VPHomeHero .text,
+  html body .VPHero .text,
+  html body .VPHomeHero .text,
+  html body h1.heading .text,
+  html body .heading .text,
+  html body .VPHome .VPHero .name .clip,
+  html body .VPHome .VPHomeHero .name .clip,
+  html body .VPHome h1.name .clip,
+  html body .clip,
+  html body * .text[data-v-4f9c455b] {
+    font-size: 36px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  html body .VPHome .VPHero .text,
+  html body .VPHome .VPHomeHero .text,
+  html body .VPHero .text,
+  html body .VPHomeHero .text,
+  html body h1.heading .text,
+  html body .heading .text,
+  html body .VPHome .VPHero .name .clip,
+  html body .VPHome .VPHomeHero .name .clip,
+  html body .VPHome h1.name .clip,
+  html body .clip,
+  html body * .text[data-v-4f9c455b] {
+    font-size: 22px !important;
+    line-height: 1.1 !important;
+  }
+}
+
 /* 确保样式在服务端和客户端渲染一致 */
 .VPHome .VPHero .VPImage {
   max-width: 100%;

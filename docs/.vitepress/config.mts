@@ -31,7 +31,8 @@ export default defineConfig({
     // 修复布局和水合不匹配问题
     vite: {
         define: {
-            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': false
+            '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': false,
+            '__VUE_PROD_DEVTOOLS__': false
         },
         ssr: {
             noExternal: ['vitepress']
@@ -49,6 +50,10 @@ export default defineConfig({
                     charset: false
                 }
             }
+        },
+        // 确保开发和生产环境的一致性
+        optimizeDeps: {
+            exclude: ['vitepress']
         }
     },
     
