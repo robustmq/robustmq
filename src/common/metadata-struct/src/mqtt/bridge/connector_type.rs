@@ -23,12 +23,14 @@ pub enum ConnectorType {
     LocalFile,
     GreptimeDB,
     Pulsar,
+    Postgres,
 }
 
 pub const CONNECTOR_TYPE_FILE: &str = "file";
 pub const CONNECTOR_TYPE_KAFKA: &str = "kafka";
 pub const CONNECTOR_TYPE_GREPTIMEDB: &str = "greptime";
 pub const CONNECTOR_TYPE_PULSAR: &str = "pulsar";
+pub const CONNECTOR_TYPE_POSTGRES: &str = "postgres";
 
 impl Display for ConnectorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,6 +53,10 @@ pub fn connector_type_for_string(connector_type: String) -> Result<ConnectorType
 
     if CONNECTOR_TYPE_PULSAR == connector_type {
         return Ok(ConnectorType::Pulsar);
+    }
+
+    if CONNECTOR_TYPE_POSTGRES == connector_type {
+        return Ok(ConnectorType::Postgres);
     }
 
     Err(CommonError::IneligibleConnectorType(connector_type))
