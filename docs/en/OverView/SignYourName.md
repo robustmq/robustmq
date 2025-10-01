@@ -24,6 +24,7 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 @codenohup
 @dwsio
 @Yinwei-Yu
+@reigadegr
 
 ## How to sign your name for us
 
