@@ -85,7 +85,7 @@ impl Default for JwtConfig {
             jwt_source: "password".to_string(),
             jwt_encryption: "hmac-based".to_string(),
             secret: None,
-            secret_base64_encoded: None,
+            secret_base64_encoded: Some(false),
             public_key: None,
         }
     }

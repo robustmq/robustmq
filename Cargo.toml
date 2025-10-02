@@ -169,6 +169,8 @@ bcrypt = "0.17.1"
 pbkdf2 = "0.12.2"
 hmac = "0.12.1"
 hex = "0.4.3"
+base64 = "0.22.1"
+jsonwebtoken = { version = "10.0.0", default-features = false, features = ["use_pem", "rust_crypto"] }
 
 #format
 prettytable-rs = "^0.10"

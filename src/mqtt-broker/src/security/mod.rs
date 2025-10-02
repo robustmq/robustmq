@@ -18,6 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
 use crate::security::login::http::http_check_login;
+use crate::security::login::jwt::jwt_check_login;
 use crate::security::login::mysql::mysql_check_login;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::login::postgresql::postgresql_check_login;
@@ -166,10 +167,18 @@ impl AuthDriver {
                 }
                 "jwt" => {
                     // JWT authentication
-                    // TODO: implement JWT authentication logic
-                    Err(MqttBrokerError::UnsupportedAuthType(
-                        "JWT authentication not implemented yet".to_string(),
-                    ))
+                    if let Some(jwt_config) = &conf.mqtt_auth_config.authn_config.jwt_config {
+                        jwt_check_login(
+                            &self.driver,
+                            &self.cache_manager,
+                            jwt_config,
+                            &info.username,
+                            &info.password,
+                        )
+                        .await
+                    } else {
+                        Err(MqttBrokerError::JwtConfigNotFound)
+                    }
                 }
                 _ => Err(MqttBrokerError::UnsupportedAuthType(
                     conf.mqtt_auth_config.auth_type.clone(),

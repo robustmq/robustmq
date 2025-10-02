@@ -156,6 +156,9 @@ pub enum MqttBrokerError {
     #[error("HTTP configuration not found")]
     HttpConfigNotFound,
 
+    #[error("JWT configuration not found")]
+    JwtConfigNotFound,
+
     #[error("HTTP request error: {0}")]
     HttpRequestError(String),
 
@@ -164,6 +167,24 @@ pub enum MqttBrokerError {
 
     #[error("Unsupported HTTP method: {0}")]
     UnsupportedHttpMethod(String),
+
+    #[error("JWT secret not found")]
+    JwtSecretNotFound,
+
+    #[error("JWT public key not found")]
+    JwtPublicKeyNotFound,
+
+    #[error("JWT secret decode error: {0}")]
+    JwtSecretDecodeError(String),
+
+    #[error("JWT public key decode error: {0}")]
+    JwtPublicKeyDecodeError(String),
+
+    #[error("JWT verification error: {0}")]
+    JwtVerificationError(String),
+
+    #[error("Unsupported JWT encryption: {0}")]
+    UnsupportedJwtEncryption(String),
 
     #[error("{0}")]
     CommonError(String),
