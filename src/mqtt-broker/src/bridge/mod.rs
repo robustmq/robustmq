@@ -18,5 +18,6 @@ pub mod greptimedb;
 pub mod heartbeat;
 pub mod kafka;
 pub mod manager;
+pub mod mongodb;
 pub mod postgres;
 pub mod pulsar;
