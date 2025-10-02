@@ -49,7 +49,7 @@ impl RequestChannel {
         }
     }
 
-    pub fn create_handler_child_channel(
+    pub fn create_handler_channel(
         &self,
         network_type: &NetworkConnectionType,
         index: usize,
@@ -60,7 +60,7 @@ impl RequestChannel {
         rx
     }
 
-    pub fn create_response_child_channel(
+    pub fn create_response_channel(
         &self,
         network_type: &NetworkConnectionType,
         index: usize,
@@ -106,7 +106,7 @@ impl RequestChannel {
     ) {
         let mut sleep_ms = 0;
         loop {
-            let index = self.calc_req_channel_index();
+            let index = self.calc_resp_channel_index();
             let key = self.key_name(network_type, index);
             if let Some(handler_sx) = self.response_channels.get(&key) {
                 if handler_sx.try_send(packet.clone()).is_ok() {
@@ -135,6 +135,15 @@ impl RequestChannel {
     pub fn calc_req_channel_index(&self) -> u64 {
         let index = self.req_packet_seq.fetch_add(1, Ordering::Relaxed);
         let seq = index % (self.handler_channels.len()) as u64;
+        if seq == 0 {
+            return 1;
+        }
+        seq
+    }
+
+    pub fn calc_resp_channel_index(&self) -> u64 {
+        let index = self.resp_packet_seq.fetch_add(1, Ordering::Relaxed);
+        let seq = index % (self.response_channels.len()) as u64;
         if seq == 0 {
             return 1;
         }

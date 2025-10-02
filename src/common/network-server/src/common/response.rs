@@ -40,7 +40,7 @@ pub fn response_process(context: ResponseChildProcessContext) {
     for index in 1..=context.response_process_num {
         let request_channel = context.request_channel.clone();
         let mut response_process_rx =
-            request_channel.create_response_child_channel(&context.network_type, index);
+            request_channel.create_response_channel(&context.network_type, index);
         let mut raw_stop_rx = context.stop_sx.subscribe();
         let raw_connect_manager = context.connection_manager.clone();
         let network_type = context.network_type.clone();
