@@ -77,8 +77,8 @@ pub fn record_packet_handler_info_by_response(
     metrics_request_total_ms(&NetworkConnectionType::Tcp, total_ms as f64);
 
     if response_package.receive_ms > 0 && is_record_ms_log(total_ms) {
-        info!("packet:{}, total_ms:{}, receive_ms:{}, handler_queue_ms:{}, handler_ms:{}, response_queue_ms:{}, response_ms:{}, end_ms:{}",
-                    response_package.request_packet, total_ms, response_package.receive_ms, handler_queue_ms, handler_ms, response_queue_ms, response_ms, end_ms);
+        info!("packet:{},receive_ms:{}, total_ms:{},  handler_queue_ms:{}, handler_ms:{}, response_queue_ms:{}, response_ms:{}, end_ms:{}",
+                    response_package.request_packet,  response_package.receive_ms, total_ms, handler_queue_ms, handler_ms, response_queue_ms, response_ms, end_ms);
     }
 }
 

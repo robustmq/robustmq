@@ -16,6 +16,7 @@ use crate::common::connection_manager::ConnectionManager;
 use crate::common::packet::RequestPackage;
 use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::tools::now_mills;
+use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
 use std::sync::Arc;
 use std::time::Duration;
@@ -60,7 +61,7 @@ pub async fn handler_process(
                 val = request_queue_rx.recv()=>{
                     if let Some(packet) = val{
                         let mut sleep_ms = 0;
-                        // metrics_request_queue_size("total", request_queue_rx.len());
+                         metrics_request_queue_size("total", request_queue_rx.len());
 
                         // Try to deliver the request packet to the child handler until it is delivered successfully.
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -121,23 +122,22 @@ fn handler_child_process(
                         }
                     },
                     val = child_process_rx.recv()=>{
+                        let label = format!("handler-{index}");
+                        metrics_request_queue_size(&label, child_process_rx.len());
+                        let out_queue_time = now_mills();
                         if let Some(packet) = val{
-                            // let label = format!("handler-{index}");
-                            // metrics_request_queue_size(&label, child_process_rx.len());
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
-                                let _out_handler_queue_ms = now_mills();
 
                                 let response_data = raw_command
                                     .apply(connect, packet.addr, packet.packet)
                                     .await;
-                                let _end_handler_ms = now_mills();
 
-                                if let Some(resp) = response_data {
-                                    // let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
-                                    //             out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                if let Some(mut resp) = response_data {
+                                    resp.out_queue_ms = out_queue_time;
+                                    resp.receive_ms = packet.receive_ms;
+                                    resp.end_handler_ms = now_mills();
                                     request_channel.send_response_channel(&raw_network_type, resp).await;
                                 } else {
-                                    // record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     debug!("{}","No backpacking is required for this request");
                                 }
                             }
