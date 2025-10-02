@@ -17,6 +17,8 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
+use crate::security::login::http::http_check_login;
+use crate::security::login::jwt::jwt_check_login;
 use crate::security::login::mysql::mysql_check_login;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::login::postgresql::postgresql_check_login;
@@ -80,6 +82,7 @@ impl AuthDriver {
         login: &Option<Login>,
         _connect_properties: &Option<ConnectProperties>,
         _socket_addr: &SocketAddr,
+        client_id: Option<&str>,
     ) -> Result<bool, MqttBrokerError> {
         let cluster = self.cache_manager.broker_cache.get_cluster_config();
 
@@ -144,12 +147,38 @@ impl AuthDriver {
                         Err(MqttBrokerError::PasswordConfigNotFound)
                     }
                 }
-                "jwt" | "http" => {
-                    // JWT authentication or HTTP authentication
-                    // TODO: implement JWT and http authentication logic
-                    Err(MqttBrokerError::UnsupportedAuthType(
-                        "JWT or HTTP authentication not implemented yet".to_string(),
-                    ))
+                "http" => {
+                    // HTTP authentication
+                    if let Some(http_config) = &conf.mqtt_auth_config.authn_config.http_config {
+                        let client_id_str = client_id.unwrap_or("unknown");
+                        http_check_login(
+                            &self.driver,
+                            &self.cache_manager,
+                            http_config,
+                            &info.username,
+                            &info.password,
+                            client_id_str,
+                            &_socket_addr.ip().to_string(), // source_ip
+                        )
+                        .await
+                    } else {
+                        Err(MqttBrokerError::HttpConfigNotFound)
+                    }
+                }
+                "jwt" => {
+                    // JWT authentication
+                    if let Some(jwt_config) = &conf.mqtt_auth_config.authn_config.jwt_config {
+                        jwt_check_login(
+                            &self.driver,
+                            &self.cache_manager,
+                            jwt_config,
+                            &info.username,
+                            &info.password,
+                        )
+                        .await
+                    } else {
+                        Err(MqttBrokerError::JwtConfigNotFound)
+                    }
                 }
                 _ => Err(MqttBrokerError::UnsupportedAuthType(
                     conf.mqtt_auth_config.auth_type.clone(),

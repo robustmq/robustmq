@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// TODO: add validator
 
@@ -20,6 +21,7 @@ use serde::{Deserialize, Serialize};
 pub struct AuthnConfig {
     pub jwt_config: Option<JwtConfig>,
     pub password_config: Option<PasswordConfig>,
+    pub http_config: Option<HttpConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -45,11 +47,20 @@ pub struct PasswordConfig {
     pub dk_length: Option<u32>,        // pbkdf2 need
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct HttpConfig {
+    pub url: String,
+    pub method: String, // GET/POST
+    pub headers: Option<HashMap<String, String>>,
+    pub body: Option<HashMap<String, String>>,
+}
+
 impl Default for AuthnConfig {
     fn default() -> Self {
         Self {
             jwt_config: None,
             password_config: Some(PasswordConfig::default()),
+            http_config: None,
         }
     }
 }
@@ -74,8 +85,19 @@ impl Default for JwtConfig {
             jwt_source: "password".to_string(),
             jwt_encryption: "hmac-based".to_string(),
             secret: None,
-            secret_base64_encoded: None,
+            secret_base64_encoded: Some(false),
             public_key: None,
+        }
+    }
+}
+
+impl Default for HttpConfig {
+    fn default() -> Self {
+        Self {
+            url: "".to_string(),
+            method: "POST".to_string(),
+            headers: None,
+            body: None,
         }
     }
 }
