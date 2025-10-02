@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc_by, histogram_metric_observe, register_gauge_metric,
+    gauge_metric_inc_by, gauge_metric_set, histogram_metric_observe, register_gauge_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
 use common_base::tools::now_mills;
@@ -26,16 +26,44 @@ struct LabelType {
 }
 
 register_gauge_metric!(
-    BROKER_NETWORK_REQUEST_QUEUE_NUM,
-    "network_request_queue_num",
-    "broker request network queue num",
+    BROKER_NETWORK_REQUEST_QUEUE_BLOCK_NUM,
+    "network_request_queue_block_num",
+    "broker request network queue blocked message num",
     LabelType
 );
 
 register_gauge_metric!(
-    BROKER_NETWORK_RESPONSE_QUEUE_NUM,
-    "network_response_queue_num",
-    "broker response network queue num",
+    BROKER_NETWORK_REQUEST_QUEUE_REMAINING_NUM,
+    "network_request_queue_remaining_num",
+    "broker request network queue remaining capacity",
+    LabelType
+);
+
+register_gauge_metric!(
+    BROKER_NETWORK_REQUEST_QUEUE_USE_NUM,
+    "network_request_queue_use_num",
+    "broker request network queue used capacity",
+    LabelType
+);
+
+register_gauge_metric!(
+    BROKER_NETWORK_RESPONSE_QUEUE_BLOCK_NUM,
+    "network_response_queue_block_num",
+    "broker response network queue blocked message num",
+    LabelType
+);
+
+register_gauge_metric!(
+    BROKER_NETWORK_RESPONSE_QUEUE_REMAINING_NUM,
+    "network_response_queue_remaining_num",
+    "broker response network queue remaining capacity",
+    LabelType
+);
+
+register_gauge_metric!(
+    BROKER_NETWORK_RESPONSE_QUEUE_USE_NUM,
+    "network_response_queue_use_num",
+    "broker response network queue used capacity",
     LabelType
 );
 
@@ -127,18 +155,66 @@ pub fn metrics_request_response_ms(network_connection: &NetworkConnectionType, m
     histogram_metric_observe!(REQUEST_RESPONSE_MS, ms, label);
 }
 
-pub fn metrics_request_queue_size(label: &str, len: usize) {
+pub fn metrics_request_queue_size(
+    label: &str,
+    block_num: usize,
+    use_num: usize,
+    remaining_num: usize,
+) {
     let label_type = LabelType {
         label: label.to_string(),
     };
-    gauge_metric_inc_by!(BROKER_NETWORK_REQUEST_QUEUE_NUM, label_type, len as i64);
+
+    let label_block = label_type.clone();
+    gauge_metric_set!(
+        BROKER_NETWORK_REQUEST_QUEUE_BLOCK_NUM,
+        label_block,
+        block_num as i64
+    );
+
+    let label_use = label_type.clone();
+    gauge_metric_set!(
+        BROKER_NETWORK_REQUEST_QUEUE_USE_NUM,
+        label_use,
+        use_num as i64
+    );
+
+    gauge_metric_set!(
+        BROKER_NETWORK_REQUEST_QUEUE_REMAINING_NUM,
+        label_type,
+        remaining_num as i64
+    );
 }
 
-pub fn metrics_response_queue_size(label: &str, len: usize) {
-    let label_type: LabelType = LabelType {
+pub fn metrics_response_queue_size(
+    label: &str,
+    block_num: usize,
+    use_num: usize,
+    remaining_num: usize,
+) {
+    let label_type = LabelType {
         label: label.to_string(),
     };
-    gauge_metric_inc_by!(BROKER_NETWORK_RESPONSE_QUEUE_NUM, label_type, len as i64);
+
+    let label_block = label_type.clone();
+    gauge_metric_set!(
+        BROKER_NETWORK_RESPONSE_QUEUE_BLOCK_NUM,
+        label_block,
+        block_num as i64
+    );
+
+    let label_use = label_type.clone();
+    gauge_metric_set!(
+        BROKER_NETWORK_RESPONSE_QUEUE_USE_NUM,
+        label_use,
+        use_num as i64
+    );
+
+    gauge_metric_set!(
+        BROKER_NETWORK_RESPONSE_QUEUE_REMAINING_NUM,
+        label_type,
+        remaining_num as i64
+    );
 }
 
 pub fn record_response_and_total_ms(
