@@ -32,10 +32,10 @@ log_config = "./config/server-tracing.toml"
 log_path = "./data/broker/logs"
 
 [network]
-accept_thread_num = 64
-handler_thread_num = 512
-response_thread_num = 64
-queue_size = 1000
+accept_thread_num = 32
+handler_thread_num = 128
+response_thread_num = 32
+queue_size = 2000
 lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
 

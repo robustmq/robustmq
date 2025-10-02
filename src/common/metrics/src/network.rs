@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::server::NoLabelSet, gauge_metric_get, gauge_metric_inc_by, gauge_metric_set,
-    histogram_metric_observe, register_gauge_metric,
+    gauge_metric_inc_by, histogram_metric_observe, register_gauge_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
 use common_base::tools::now_mills;
@@ -24,13 +23,19 @@ use prometheus_client::encoding::EncodeLabelSet;
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct LabelType {
     label: String,
-    r#type: String,
 }
 
 register_gauge_metric!(
-    BROKER_NETWORK_QUEUE_NUM,
-    "network_queue_num",
-    "broker network queue num",
+    BROKER_NETWORK_REQUEST_QUEUE_NUM,
+    "network_request_queue_num",
+    "broker request network queue num",
+    LabelType
+);
+
+register_gauge_metric!(
+    BROKER_NETWORK_RESPONSE_QUEUE_NUM,
+    "network_response_queue_num",
+    "broker response network queue num",
     LabelType
 );
 
@@ -87,20 +92,6 @@ register_gauge_metric!(
     BrokerThreadLabel
 );
 
-register_gauge_metric!(
-    BROKER_CONNECTIONS_NUM,
-    "broker_connections_num",
-    "The number of active connections by the broker",
-    NoLabelSet
-);
-
-register_gauge_metric!(
-    BROKER_CONNECTIONS_MAX,
-    "broker_connections_max",
-    "The number of max active connections by the broker",
-    NoLabelSet
-);
-
 pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
         network: network_connection.to_string(),
@@ -139,17 +130,15 @@ pub fn metrics_request_response_ms(network_connection: &NetworkConnectionType, m
 pub fn metrics_request_queue_size(label: &str, len: usize) {
     let label_type = LabelType {
         label: label.to_string(),
-        r#type: "request".to_string(),
     };
-    gauge_metric_inc_by!(BROKER_NETWORK_QUEUE_NUM, label_type, len as i64);
+    gauge_metric_inc_by!(BROKER_NETWORK_REQUEST_QUEUE_NUM, label_type, len as i64);
 }
 
 pub fn metrics_response_queue_size(label: &str, len: usize) {
     let label_type: LabelType = LabelType {
         label: label.to_string(),
-        r#type: "response".to_string(),
     };
-    gauge_metric_inc_by!(BROKER_NETWORK_QUEUE_NUM, label_type, len as i64);
+    gauge_metric_inc_by!(BROKER_NETWORK_RESPONSE_QUEUE_NUM, label_type, len as i64);
 }
 
 pub fn record_response_and_total_ms(
@@ -192,17 +181,4 @@ pub fn record_broker_thread_num(
         thread_type: "response".to_string(),
     };
     gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, response as i64);
-}
-
-pub fn record_broker_connections_num(value: i64) {
-    gauge_metric_set!(BROKER_CONNECTIONS_NUM, NoLabelSet, value);
-}
-
-pub fn record_broker_connections_max(value: i64) {
-    let mut current_val = 0i64;
-    gauge_metric_get!(BROKER_CONNECTIONS_MAX, NoLabelSet, current_val);
-
-    if current_val < value {
-        gauge_metric_set!(BROKER_CONNECTIONS_MAX, NoLabelSet, value);
-    }
 }

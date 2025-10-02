@@ -553,8 +553,8 @@ impl MqttService {
                     pkid: pub_ack.pkid,
                 }) {
                     error!(
-                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}",
-                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id, now_mills() -  data.create_time
                         );
                 }
             }
@@ -581,8 +581,8 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}",
-                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id);
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id, now_mills() -  data.create_time);
                 }
             }
         }
@@ -609,8 +609,8 @@ impl MqttService {
                     pkid: pub_comp.pkid,
                 }) {
                     error!(
-                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}",
-                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id, now_mills() -  data.create_time
                         );
                 }
             }
