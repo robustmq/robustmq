@@ -167,7 +167,12 @@ impl MqttService {
         // login check
         match self
             .auth_driver
-            .auth_login_check(&context.login, &context.connect_properties, &context.addr)
+            .auth_login_check(
+                &context.login,
+                &context.connect_properties,
+                &context.addr,
+                Some(&context.connect.client_id),
+            )
             .await
         {
             Ok(flag) => {
