@@ -29,6 +29,7 @@ use metadata_struct::mqtt::bridge::{
     config_greptimedb::GreptimeDBConnectorConfig,
     config_kafka::KafkaConnectorConfig,
     config_local_file::LocalFileConnectorConfig,
+    config_mongodb::MongoDBConnectorConfig,
     config_postgres::PostgresConnectorConfig,
     config_pulsar::PulsarConnectorConfig,
     connector::MQTTConnector,
@@ -157,6 +158,9 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         }
         ConnectorType::Postgres => {
             let _postgres_config: PostgresConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::MongoDB => {
+            let _mongo_config: MongoDBConnectorConfig = serde_json::from_str(config)?;
         }
     }
     Ok(())

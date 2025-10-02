@@ -18,9 +18,9 @@ use axum::async_trait;
 use common_base::{error::ResultCommonError, tools::loop_select};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
-    config_local_file::LocalFileConnectorConfig, config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig, connector::MQTTConnector, connector_type::ConnectorType,
-    status::MQTTStatus,
+    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
+    config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
+    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -28,8 +28,8 @@ use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use super::{
-    file::FileBridgePlugin, manager::ConnectorManager, postgres::PostgresBridgePlugin,
-    pulsar::PulsarBridgePlugin,
+    file::FileBridgePlugin, manager::ConnectorManager, mongodb::MongoDBBridgePlugin,
+    postgres::PostgresBridgePlugin, pulsar::PulsarBridgePlugin,
 };
 
 #[derive(Clone)]
@@ -241,6 +241,41 @@ fn start_thread(
                     connector_manager.remove_connector_thread(&connector.connector_name);
                     error!(
                         "Failed to start PostgresBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
+            ConnectorType::MongoDB => {
+                let mongodb_config = match serde_json::from_str::<MongoDBConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse MongoDBConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = MongoDBBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    mongodb_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_id: connector.topic_id,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start MongoDBBridgePlugin with error message: {:?}",
                         e
                     );
                 }

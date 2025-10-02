@@ -224,6 +224,12 @@ pub enum MqttBrokerError {
 
     #[error("Pulsar error: {0}")]
     PulsarError(#[from] PulsarError),
+
+    #[error("MongoDB error: {0}")]
+    MongoDBError(String),
+
+    #[error("BSON serialization error: {0}")]
+    BsonSerializationError(String),
 }
 
 impl From<MqttBrokerError> for Status {
