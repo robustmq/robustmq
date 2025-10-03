@@ -20,13 +20,16 @@ use crate::{
     core::{cache::CacheManager, error::MetaServiceError},
     raft::route::apply::StorageDriver,
 };
-use common_base::tools::now_second;
+use common_base::{
+    error::ResultCommonError,
+    tools::{loop_select_ticket, now_second},
+};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::meta::meta_service_mqtt::CreateConnectorRequest;
 use std::{collections::HashMap, sync::Arc};
-use tokio::{select, sync::broadcast};
+use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 pub async fn start_connector_scheduler(
@@ -34,24 +37,14 @@ pub async fn start_connector_scheduler(
     raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-
     stop_send: broadcast::Sender<bool>,
 ) {
-    let mut recv = stop_send.subscribe();
-    loop {
-        select! {
-            val = recv.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        break;
-                    }
-                }
-            }
-            _ = scheduler_thread(raft_machine_apply, call_manager, client_pool, cache_manager)=>{
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-            }
-        }
-    }
+    let ac_fn = async || -> ResultCommonError {
+        scheduler_thread(raft_machine_apply, call_manager, client_pool, cache_manager).await;
+        Ok(())
+    };
+
+    loop_select_ticket(ac_fn, 1, &stop_send).await;
 }
 
 async fn scheduler_thread(

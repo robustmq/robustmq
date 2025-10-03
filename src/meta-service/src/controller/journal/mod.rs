@@ -14,11 +14,12 @@
 
 use crate::core::cache::CacheManager;
 use crate::raft::route::apply::StorageDriver;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use gc::{gc_segment_thread, gc_shard_thread};
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::sleep;
+use tokio::sync::broadcast;
 use tracing::info;
 
 pub mod call_node;
@@ -28,6 +29,7 @@ pub struct StorageEngineController {
     raft_machine_apply: Arc<StorageDriver>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl StorageEngineController {
@@ -35,11 +37,13 @@ impl StorageEngineController {
         raft_machine_apply: Arc<StorageDriver>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         StorageEngineController {
             raft_machine_apply,
             cache_manager,
             client_pool,
+            stop_sx,
         }
     }
 
@@ -53,16 +57,18 @@ impl StorageEngineController {
         let raft_machine_apply = self.raft_machine_apply.clone();
         let cache_manager = self.cache_manager.clone();
         let client_pool = self.client_pool.clone();
+        let stop_sx = self.stop_sx.clone();
         tokio::spawn(async move {
-            loop {
+            let ac_fn = async || -> ResultCommonError {
                 gc_shard_thread(
                     raft_machine_apply.clone(),
                     cache_manager.clone(),
                     client_pool.clone(),
                 )
                 .await;
-                sleep(Duration::from_secs(1)).await;
-            }
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 1, &stop_sx).await;
         });
     }
 
@@ -70,16 +76,18 @@ impl StorageEngineController {
         let raft_machine_apply = self.raft_machine_apply.clone();
         let cache_manager = self.cache_manager.clone();
         let client_pool = self.client_pool.clone();
+        let stop_sx = self.stop_sx.clone();
         tokio::spawn(async move {
-            loop {
+            let ac_fn = async || -> ResultCommonError {
                 gc_segment_thread(
                     raft_machine_apply.clone(),
                     cache_manager.clone(),
                     client_pool.clone(),
                 )
                 .await;
-                sleep(Duration::from_secs(1)).await;
-            }
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 1, &stop_sx).await;
         });
     }
 }

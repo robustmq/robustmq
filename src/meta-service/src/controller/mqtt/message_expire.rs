@@ -241,7 +241,7 @@ mod tests {
             last_will: None,
             last_will_properties: Some(last_will_properties),
         };
-        let mut message_expire =
+        let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         tokio::spawn(async move {
             loop {

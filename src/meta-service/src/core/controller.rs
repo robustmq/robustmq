@@ -17,13 +17,12 @@ use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::route::apply::StorageDriver;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
 
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
@@ -55,9 +54,8 @@ impl ClusterController {
 
     // Start the heartbeat detection thread of the Storage Engine node
     pub async fn start_node_heartbeat_check(&self) {
-        let mut stop_recv = self.stop_send.subscribe();
         let config = broker_config();
-        let mut heartbeat = BrokerHeartbeat::new(
+        let heartbeat = BrokerHeartbeat::new(
             config.meta_runtime.heartbeat_timeout_ms,
             self.cluster_cache.clone(),
             self.meta_service_storage.clone(),
@@ -65,19 +63,17 @@ impl ClusterController {
             self.journal_call_manager.clone(),
             self.mqtt_call_manager.clone(),
         );
-        loop {
-            select! {
-                val = stop_recv.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            break;
-                        }
-                    }
-                }
-                _ = heartbeat.start()=>{
-                    sleep(Duration::from_millis(config.meta_runtime.heartbeat_check_time_ms)).await;
-                }
-            }
-        }
+
+        let ac_fn = async || -> ResultCommonError {
+            heartbeat.start().await;
+            Ok(())
+        };
+
+        loop_select_ticket(
+            ac_fn,
+            config.meta_runtime.heartbeat_check_time_ms / 1000,
+            &self.stop_send,
+        )
+        .await;
     }
 }
