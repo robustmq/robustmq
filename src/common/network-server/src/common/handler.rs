@@ -34,8 +34,7 @@ pub fn handler_process(
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
-        let mut child_process_rx =
-            request_channel.create_handler_channel(&network_type, index);
+        let mut child_process_rx = request_channel.create_handler_channel(&network_type, index);
         let raw_connect_manager = connection_manager.clone();
         let request_channel = request_channel.clone();
         let raw_command = command.clone();

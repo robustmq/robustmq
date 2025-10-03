@@ -19,7 +19,7 @@ use common_metrics::network::{
     metrics_request_response_queue_ms, metrics_request_total_ms,
 };
 use metadata_struct::connection::NetworkConnectionType;
-use tracing::{debug, info};
+use tracing::info;
 
 pub fn record_packet_handler_info_no_response(
     request_packet: &RequestPackage,
@@ -77,7 +77,7 @@ pub fn record_packet_handler_info_by_response(
     metrics_request_total_ms(&NetworkConnectionType::Tcp, total_ms as f64);
 
     if response_package.receive_ms > 0 && is_record_ms_log(total_ms) {
-        debug!("packet:{},receive_ms:{}, total_ms:{},  handler_queue_ms:{}, handler_ms:{}, response_queue_ms:{}, response_ms:{}, end_ms:{}",
+        info!("packet:{},receive_ms:{}, total_ms:{},  handler_queue_ms:{}, handler_ms:{}, response_queue_ms:{}, response_ms:{}, end_ms:{}",
                     response_package.request_packet,  response_package.receive_ms, total_ms, handler_queue_ms, handler_ms, response_queue_ms, response_ms, end_ms);
     }
 }
