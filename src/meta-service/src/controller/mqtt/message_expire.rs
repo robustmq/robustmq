@@ -20,7 +20,6 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use rocksdb_engine::warp::StorageDataWrap;
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use tokio::time::{self, Duration, Interval};
 use tracing::error;
 
 use crate::storage::keys::{
@@ -32,21 +31,17 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 pub struct MessageExpire {
     cluster_name: String,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    interval: Interval,
 }
 
 impl MessageExpire {
     pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let intervarl = time::interval(Duration::from_secs(1));
         MessageExpire {
             cluster_name,
             rocksdb_engine_handler,
-            interval: intervarl,
         }
     }
 
-    pub async fn retain_message_expire(&mut self) {
-        self.interval.tick().await;
+    pub async fn retain_message_expire(&self) {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -106,8 +101,7 @@ impl MessageExpire {
         }
     }
 
-    pub async fn last_will_message_expire(&mut self) {
-        self.interval.tick().await;
+    pub async fn last_will_message_expire(&self) {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -195,7 +189,7 @@ mod tests {
             1000,
             column_family_list(),
         ));
-        let mut message_expire =
+        let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
         let mut topic = MQTTTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());

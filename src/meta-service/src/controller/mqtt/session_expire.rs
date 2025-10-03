@@ -66,18 +66,15 @@ impl SessionExpire {
         if !sessions.is_empty() {
             self.delete_session(sessions);
         }
-        sleep(Duration::from_secs(1)).await;
     }
 
-    pub async fn lastwill_expire_send(&self) {
+    pub async fn last_will_expire_send(&self) {
         let lastwill_list = self.cache_manager.get_expire_last_wills(&self.cluster_name);
 
         if !lastwill_list.is_empty() {
             debug!("Will message due, list:{:?}", lastwill_list);
             self.send_expire_lastwill_message(lastwill_list).await;
         }
-
-        sleep(Duration::from_secs(1)).await;
     }
 
     async fn get_expire_session_list(&self) -> Vec<MqttSession> {
