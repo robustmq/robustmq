@@ -299,7 +299,7 @@ impl MQTTCacheManager {
 
     pub fn is_re_calc_topic_rewrite(&self) -> bool {
         if let Some(flag) = self.re_calc_topic_rewrite.get("flag") {
-            return flag.clone();
+            return *flag;
         }
         false
     }
