@@ -178,7 +178,7 @@ impl Command for MQTTHandlerCommand {
                 ));
             }
         };
-        if let Some(mut pkg) = resp_package{
+        if let Some(mut pkg) = resp_package {
             pkg.request_packet = mqtt_packet_to_string(&packet);
             resp_package = Some(pkg);
         }
