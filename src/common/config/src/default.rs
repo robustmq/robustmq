@@ -15,9 +15,9 @@
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
     JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttAuthStorage,
-    MqttFlappingDetect, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
-    MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
-    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
+    MqttFlappingDetect, MqttKeepAlive, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig,
+    MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor,
+    Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
 use common_base::enum_type::delay_type::DelayType;
 use common_base::runtime::get_runtime_worker_threads;
@@ -100,6 +100,14 @@ pub fn default_mqtt_auth_storage() -> MqttAuthStorage {
         redis_addr: "".to_string(),
     }
 }
+pub fn default_mqtt_keep_alive() -> MqttKeepAlive {
+    MqttKeepAlive {
+        enable: true,
+        max_time: 3600,
+        default_time: 180,
+        default_timeout: 2,
+    }
+}
 
 pub fn default_mqtt_auth_config() -> MqttAuthConfig {
     MqttAuthConfig {
@@ -159,8 +167,6 @@ pub fn default_mqtt_protocol_config() -> MqttProtocolConfig {
         topic_alias_max: 65535,
         max_qos: 2,
         max_packet_size: 1024 * 1024 * 10,
-        max_server_keep_alive: 3600,
-        default_server_keep_alive: 60,
         receive_max: 65535,
         client_pkid_persistent: false,
         max_message_expiry_interval: 3600,

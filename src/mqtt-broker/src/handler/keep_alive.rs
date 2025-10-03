@@ -20,7 +20,6 @@ use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
-use common_config::config::BrokerConfig;
 use common_metrics::mqtt::event::record_mqtt_connection_expired;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
@@ -80,6 +79,11 @@ impl ClientKeepAlive {
     }
 
     async fn keep_alive(&self) -> ResultCommonError {
+        let config = self.cache_manager.broker_cache.get_cluster_config();
+        if !config.mqtt_keep_alive.enable {
+            return Ok(());
+        }
+
         let expire_connection = self.get_expire_connection().await;
 
         for connect_id in expire_connection {
@@ -177,10 +181,10 @@ impl ClientKeepAlive {
         let mut expire_connection = Vec::new();
         for (connect_id, connection) in self.cache_manager.connection_info.clone() {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
-                let max_timeout = keep_live_time(time.keep_live) as u64;
+                let max_timeout = keep_live_time(&self.cache_manager, time.keep_live) as u64;
                 let now = now_second();
                 if (now - time.heartbeat) >= max_timeout {
-                    debug!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
+                    info!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
                     expire_connection.push(connect_id);
                 }
             } else {
@@ -197,20 +201,18 @@ impl ClientKeepAlive {
     }
 }
 
-pub fn keep_live_time(keep_alive: u16) -> u16 {
-    let new_keep_alive: u32 = (keep_alive as u32) * 3;
-    if new_keep_alive > 65535 {
-        return 65535;
-    }
-    new_keep_alive as u16
+pub fn keep_live_time(cache_manager: &Arc<MQTTCacheManager>, keep_alive: u16) -> u16 {
+    let config = cache_manager.broker_cache.get_cluster_config();
+    keep_alive * config.mqtt_keep_alive.default_timeout
 }
 
-pub fn client_keep_live_time(cluster: &BrokerConfig, mut keep_alive: u16) -> u16 {
+pub fn client_keep_live_time(cache_manager: &Arc<MQTTCacheManager>, mut keep_alive: u16) -> u16 {
+    let config = cache_manager.broker_cache.get_cluster_config();
     if keep_alive == 0 {
-        keep_alive = cluster.mqtt_protocol_config.default_server_keep_alive;
+        keep_alive = config.mqtt_keep_alive.default_time;
     }
-    if keep_alive > cluster.mqtt_protocol_config.max_server_keep_alive {
-        keep_alive = cluster.mqtt_protocol_config.max_server_keep_alive / 3;
+    if keep_alive > config.mqtt_keep_alive.max_time {
+        keep_alive = config.mqtt_keep_alive.max_time / config.mqtt_keep_alive.default_timeout;
     }
     keep_alive
 }
@@ -224,69 +226,48 @@ pub struct KeepAliveRunInfo {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    use common_base::tools::{local_hostname, now_second, unique_id};
-    use common_config::config::BrokerConfig;
-    use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
-    use metadata_struct::mqtt::session::MqttSession;
-    use tokio::sync::broadcast;
-    use tokio::time::sleep;
-
     use super::keep_live_time;
     use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::subscribe::manager::SubscribeManager;
+    use common_base::tools::{local_hostname, now_second, unique_id};
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
+    use metadata_struct::mqtt::session::MqttSession;
     use network_server::common::connection_manager::ConnectionManager;
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::sync::broadcast;
+    use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn keep_live_test() {
-        let mut config = BrokerConfig::default();
-        config.mqtt_protocol_config.default_server_keep_alive = 60;
-        config.mqtt_protocol_config.max_server_keep_alive = 300;
+        let cache_manager = test_build_mqtt_cache_manager();
 
         let keep_alive = 0;
-        let client_live = client_keep_live_time(&config, keep_alive);
-        assert_eq!(client_live, 60);
-        assert_eq!(keep_live_time(client_live), 180);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        assert_eq!(client_live, 180);
+        assert_eq!(keep_live_time(&cache_manager, client_live), 360);
 
         let keep_alive = 50;
-        let client_live = client_keep_live_time(&config, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive);
         assert_eq!(client_live, 50);
-        assert_eq!(keep_live_time(client_live), 150);
+        assert_eq!(keep_live_time(&cache_manager, client_live), 100);
 
         let keep_alive = 100;
-        let client_live = client_keep_live_time(&config, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive);
         assert_eq!(client_live, 100);
-        assert_eq!(keep_live_time(client_live), 300);
+        assert_eq!(keep_live_time(&cache_manager, client_live), 200);
 
         let keep_alive = 500;
-        let client_live = client_keep_live_time(&config, keep_alive);
-        assert_eq!(client_live, 100);
-        assert_eq!(keep_live_time(client_live), 300);
-    }
+        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        assert_eq!(client_live, 500);
+        assert_eq!(keep_live_time(&cache_manager, client_live), 1000);
 
-    #[tokio::test]
-    pub async fn client_keep_live_time_test() {
-        let mut config = BrokerConfig::default();
-        config.mqtt_protocol_config.default_server_keep_alive = 60;
-        config.mqtt_protocol_config.max_server_keep_alive = 300;
-
-        assert_eq!(client_keep_live_time(&config, 0), 60);
-        assert_eq!(client_keep_live_time(&config, 400), 100);
-        assert_eq!(client_keep_live_time(&config, 50), 50);
-    }
-
-    #[tokio::test]
-    pub async fn keep_live_time_test() {
-        let res = keep_live_time(3);
-        assert_eq!(res, 9);
-        let res = keep_live_time(1000);
-        assert_eq!(res, 3000);
-        let res = keep_live_time(50000);
-        assert_eq!(res, 65535);
+        let keep_alive = 4000;
+        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        assert_eq!(client_live, 1800);
+        assert_eq!(keep_live_time(&cache_manager, client_live), 3600);
     }
 
     #[tokio::test]
@@ -333,6 +314,9 @@ mod test {
             }
             sleep(Duration::from_millis(100)).await;
         }
-        assert_eq!((now_second() - start), keep_live_time(keep_alive) as u64);
+        assert_eq!(
+            (now_second() - start),
+            keep_live_time(&cache_manager, keep_alive) as u64
+        );
     }
 }
