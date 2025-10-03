@@ -38,10 +38,7 @@ use crate::subscribe::{
     manager::{ShareSubShareSub, SubscribeManager},
 };
 
-use super::{
-    cache::MQTTCacheManager, error::MqttBrokerError,
-    topic_rewrite::convert_sub_path_by_rewrite_rule,
-};
+use super::{cache::MQTTCacheManager, error::MqttBrokerError};
 use crate::common::types::ResultMqttBrokerError;
 
 #[derive(Clone)]
@@ -129,18 +126,7 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
     let new_cache_manager = context.cache_manager.to_owned();
     tokio::spawn(async move {
         for filter in new_filters.clone() {
-            let rewrite_sub_path =
-                match convert_sub_path_by_rewrite_rule(&new_cache_manager, &filter.path) {
-                    Ok(rewrite_sub_path) => rewrite_sub_path,
-                    Err(e) => {
-                        error!(
-                            "Failed to convert sub path by rewrite rule, error message: {}",
-                            e
-                        );
-                        continue;
-                    }
-                };
-
+            let rewrite_sub_path = new_cache_manager.get_new_rewrite_name(&filter.path);
             for (_, topic) in new_cache_manager.topic_info.clone() {
                 if let Err(e) = parse_subscribe(ParseSubscribeContext {
                     client_pool: new_client_pool.clone(),

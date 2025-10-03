@@ -14,7 +14,7 @@
 
 use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
-use common_base::tools::{loop_select, now_second};
+use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::statistics::{
     record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscribers_set,
     record_mqtt_subscriptions_shared_set, record_mqtt_topics_set,
@@ -174,7 +174,7 @@ pub fn metrics_record_thread(
             record_mqtt_subscriptions_shared_set(subscribe_manager.share_leader_push.len() as i64);
             Ok(())
         };
-        loop_select(record_func, time_window, &stop_send).await;
+        loop_select_ticket(record_func, time_window, &stop_send).await;
     });
 }
 
@@ -232,7 +232,7 @@ pub fn metrics_gc_thread(
 
             Ok(())
         };
-        loop_select(record_func, 3600, &stop_send).await;
+        loop_select_ticket(record_func, 3600, &stop_send).await;
     });
 }
 

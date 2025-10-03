@@ -19,7 +19,7 @@ use broker_core::rocksdb::RocksDBEngine;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::error::ResultCommonError;
-use common_base::tools::{convert_seconds, loop_select, now_second};
+use common_base::tools::{convert_seconds, loop_select_ticket, now_second};
 use common_config::config::MqttFlappingDetect;
 use common_metrics::mqtt::event;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -57,7 +57,7 @@ pub async fn clean_flapping_detect(
         Ok(())
     };
 
-    loop_select(ac_fn, 10, &stop_send).await;
+    loop_select_ticket(ac_fn, 10, &stop_send).await;
 }
 
 pub async fn check_flapping_detect(

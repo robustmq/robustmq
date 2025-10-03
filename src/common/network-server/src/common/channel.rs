@@ -12,150 +12,140 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+
 use crate::common::packet::{RequestPackage, ResponsePackage};
 use dashmap::DashMap;
-use metadata_struct::connection::{calc_child_channel_index, NetworkConnectionType};
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use metadata_struct::connection::NetworkConnectionType;
+use tokio::{
+    sync::mpsc::{self, Receiver, Sender},
+    time::sleep,
+};
 use tracing::error;
 
 #[derive(Clone)]
 pub struct RequestChannel {
-    pub request_send_channel: DashMap<String, Sender<RequestPackage>>,
-    pub handler_child_channels: DashMap<String, Sender<RequestPackage>>,
-    pub response_send_channel: DashMap<String, Sender<ResponsePackage>>,
-    pub response_child_channels: DashMap<String, Sender<ResponsePackage>>,
+    pub handler_channels: DashMap<String, Sender<RequestPackage>>,
+    pub response_channels: DashMap<String, Sender<ResponsePackage>>,
     pub channel_size: usize,
+    pub req_packet_seq: Arc<AtomicU64>,
+    pub resp_packet_seq: Arc<AtomicU64>,
 }
 
 impl RequestChannel {
     pub fn new(channel_size: usize) -> Self {
         RequestChannel {
-            request_send_channel: DashMap::with_capacity(2),
-            handler_child_channels: DashMap::with_capacity(2),
-            response_send_channel: DashMap::with_capacity(2),
-            response_child_channels: DashMap::with_capacity(2),
+            handler_channels: DashMap::with_capacity(2),
+            response_channels: DashMap::with_capacity(2),
+            req_packet_seq: Arc::new(AtomicU64::new(0)),
+            resp_packet_seq: Arc::new(AtomicU64::new(0)),
             channel_size,
         }
     }
-    pub fn create_request_channel(
+
+    pub fn create_handler_channel(
         &self,
         network_type: &NetworkConnectionType,
+        index: usize,
     ) -> Receiver<RequestPackage> {
         let (sx, rx) = mpsc::channel::<RequestPackage>(self.channel_size);
-        self.request_send_channel
-            .insert(network_type.to_string(), sx);
+        let key = self.key_name(network_type, index as u64);
+        self.handler_channels.insert(key, sx);
         rx
     }
 
     pub fn create_response_channel(
         &self,
         network_type: &NetworkConnectionType,
-    ) -> Receiver<ResponsePackage> {
-        let (sx, rx) = mpsc::channel::<ResponsePackage>(self.channel_size);
-        self.response_send_channel
-            .insert(network_type.to_string(), sx);
-        rx
-    }
-
-    pub fn create_handler_child_channel(
-        &self,
-        network_type: &NetworkConnectionType,
-        index: usize,
-    ) -> Receiver<RequestPackage> {
-        let (sx, rx) = mpsc::channel::<RequestPackage>(self.channel_size);
-        let key = self.key_name(network_type, index);
-        self.handler_child_channels.insert(key, sx);
-        rx
-    }
-
-    pub fn create_response_child_channel(
-        &self,
-        network_type: &NetworkConnectionType,
         index: usize,
     ) -> Receiver<ResponsePackage> {
         let (sx, rx) = mpsc::channel::<ResponsePackage>(self.channel_size);
-        let key = self.key_name(network_type, index);
-        self.response_child_channels.insert(key, sx);
+        let key = self.key_name(network_type, index as u64);
+        self.response_channels.insert(key, sx);
         rx
     }
 
-    pub async fn send_response_channel(
+    pub async fn send_request_packet_to_handler(
         &self,
         network_type: &NetworkConnectionType,
-        response_package: ResponsePackage,
+        packet: RequestPackage,
     ) {
-        let sx = self.get_response_send_channel(network_type);
-        if let Err(err) = sx.send(response_package).await {
-            error!(
-                "Failed to write data to the response queue, error message: {:?}",
-                err
-            );
+        let mut sleep_ms = 0;
+        loop {
+            let index = self.calc_req_channel_index();
+            let key = self.key_name(network_type, index);
+            if let Some(handler_sx) = self.handler_channels.get(&key) {
+                if handler_sx.try_send(packet.clone()).is_ok() {
+                    break;
+                }
+            } else {
+                // In exceptional cases, if no available child handler can be found, the request packet is dropped.
+                // If the client does not receive a return packet, it will retry the request.
+                // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
+                error!(
+                    "{}",
+                    "Handler child thread, no request packet processing thread available"
+                );
+            }
+            sleep_ms += 2;
+            sleep(Duration::from_millis(sleep_ms)).await;
         }
     }
 
-    pub async fn send_request_channel(
+    pub async fn send_response_packet_to_handler(
         &self,
         network_type: &NetworkConnectionType,
-        request_package: RequestPackage,
+        packet: ResponsePackage,
     ) {
-        let sx = self.get_request_send_channel(network_type);
-        if let Err(err) = sx.send(request_package).await {
-            error!(
-                "Failed to write data to the request queue, error message: {}",
-                err.to_string()
-            );
+        let mut sleep_ms = 0;
+        loop {
+            let index = self.calc_resp_channel_index();
+            let key = self.key_name(network_type, index);
+            if let Some(handler_sx) = self.response_channels.get(&key) {
+                if handler_sx.try_send(packet.clone()).is_ok() {
+                    break;
+                }
+            } else {
+                // In exceptional cases, if no available child handler can be found, the request packet is dropped.
+                // If the client does not receive a return packet, it will retry the request.
+                // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
+
+                error!(
+                    "{}",
+                    "Response child thread, no request packet processing thread available"
+                );
+            }
+
+            sleep_ms += 2;
+            sleep(Duration::from_millis(sleep_ms)).await;
         }
     }
 
-    pub fn get_request_send_channel(
-        &self,
-        network_type: &NetworkConnectionType,
-    ) -> Sender<RequestPackage> {
-        self.request_send_channel
-            .get(&network_type.to_string())
-            .unwrap()
-            .clone()
-    }
-
-    pub fn get_response_send_channel(
-        &self,
-        network_type: &NetworkConnectionType,
-    ) -> Sender<ResponsePackage> {
-        self.response_send_channel
-            .get(&network_type.to_string())
-            .unwrap()
-            .clone()
-    }
-
-    pub fn get_available_handler(
-        &self,
-        network_type: &NetworkConnectionType,
-        process_handler_seq: usize,
-    ) -> Option<Sender<RequestPackage>> {
-        let index =
-            calc_child_channel_index(process_handler_seq, self.handler_child_channels.len());
-        let key = self.key_name(network_type, index);
-        if let Some(handler_sx) = self.handler_child_channels.get(&key) {
-            return Some(handler_sx.clone());
-        }
-        None
-    }
-
-    pub fn get_available_response(
-        &self,
-        network_type: &NetworkConnectionType,
-        response_process_seq: usize,
-    ) -> Option<Sender<ResponsePackage>> {
-        let index =
-            calc_child_channel_index(response_process_seq, self.response_child_channels.len());
-        let key = self.key_name(network_type, index);
-        if let Some(handler_sx) = self.response_child_channels.get(&key) {
-            return Some(handler_sx.clone());
-        }
-        None
-    }
-
-    fn key_name(&self, network_type: &NetworkConnectionType, index: usize) -> String {
+    fn key_name(&self, network_type: &NetworkConnectionType, index: u64) -> String {
         format!("{network_type}_{index}")
+    }
+
+    pub fn calc_req_channel_index(&self) -> u64 {
+        let index = self.req_packet_seq.fetch_add(1, Ordering::Relaxed);
+        let seq = index % (self.handler_channels.len()) as u64;
+        if seq == 0 {
+            return 1;
+        }
+        seq
+    }
+
+    pub fn calc_resp_channel_index(&self) -> u64 {
+        let index = self.resp_packet_seq.fetch_add(1, Ordering::Relaxed);
+        let seq = index % (self.response_channels.len()) as u64;
+        if seq == 0 {
+            return 1;
+        }
+        seq
     }
 }

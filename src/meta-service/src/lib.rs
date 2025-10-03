@@ -137,8 +137,9 @@ impl MetaServiceServer {
     fn start_mqtt_controller(&self) {
         let mqtt_all_manager = self.mqtt_call_manager.clone();
         let client_pool = self.client_pool.clone();
+        let stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            mqtt_call_thread_manager(&mqtt_all_manager, &client_pool).await;
+            mqtt_call_thread_manager(&mqtt_all_manager, &client_pool, stop_send).await;
         });
 
         // start mqtt connector scheduler thread
@@ -162,8 +163,9 @@ impl MetaServiceServer {
     fn start_journal_controller(&self) {
         let client_pool = self.client_pool.clone();
         let journal_all_manager = self.journal_call_manager.clone();
+        let stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            journal_call_thread_manager(&journal_all_manager, &client_pool).await;
+            journal_call_thread_manager(&journal_all_manager, &client_pool, stop_send).await;
         });
     }
 

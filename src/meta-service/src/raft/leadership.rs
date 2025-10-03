@@ -110,6 +110,7 @@ pub fn start_controller(
         raft_machine_apply.clone(),
         cache_manager.clone(),
         client_pool.clone(),
+        stop_send.clone(),
     );
     tokio::spawn(async move {
         journal_controller.start().await;

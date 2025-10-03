@@ -35,7 +35,7 @@ use protocol::mqtt::common::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{error, warn};
+use tracing::{debug, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
@@ -557,7 +557,7 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
-                    error!(
+                    debug!(
                             "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
                             e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id, now_mills() -  data.create_time
                         );
@@ -586,7 +586,7 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                    debug!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
                         e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id, now_mills() -  data.create_time);
                 }
             }
@@ -613,7 +613,7 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
-                    error!(
+                    debug!(
                             "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
                             e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id, now_mills() -  data.create_time
                         );

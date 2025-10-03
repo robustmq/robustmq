@@ -14,7 +14,7 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::handler::handler_process;
-use crate::common::response::{response_process, ResponseProcessContext};
+use crate::common::response::{response_process, ResponseChildProcessContext};
 use crate::common::tls_acceptor::{load_certs, load_key};
 use crate::context::ServerContext;
 use crate::quic::acceptor::acceptor_process;
@@ -45,8 +45,6 @@ impl QuicServer {
         let arc_quic_endpoint = Arc::new(server);
         let network_type = NetworkConnectionType::QUIC;
         let request_channel = Arc::new(RequestChannel::new(self.context.proc_config.channel_size));
-        let request_recv_channel = request_channel.create_request_channel(&network_type);
-        let response_recv_channel = request_channel.create_response_channel(&network_type);
         let codec = RobustMQCodec::new();
         acceptor_process(
             self.context.proc_config.accept_thread_num,
@@ -62,25 +60,20 @@ impl QuicServer {
 
         handler_process(
             self.context.proc_config.handler_process_num,
-            request_recv_channel,
             self.context.connection_manager.clone(),
             self.context.command.clone(),
             request_channel.clone(),
             NetworkConnectionType::QUIC,
             self.context.stop_sx.clone(),
-        )
-        .await;
+        );
 
-        response_process(ResponseProcessContext {
+        response_process(ResponseChildProcessContext {
             response_process_num: self.context.proc_config.response_process_num,
             connection_manager: self.context.connection_manager.clone(),
-            response_queue_rx: response_recv_channel,
-            client_pool: self.context.client_pool.clone(),
             request_channel: request_channel.clone(),
             network_type: NetworkConnectionType::QUIC,
             stop_sx: self.context.stop_sx.clone(),
-        })
-        .await;
+        });
 
         info!("MQTT Quic Server started successfully, addr: {}", addr);
         Ok(())

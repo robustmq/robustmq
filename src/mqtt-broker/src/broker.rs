@@ -23,6 +23,7 @@ use crate::handler::flapping_detect::clean_flapping_detect;
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::handler::system_alarm::SystemAlarm;
+use crate::handler::topic_rewrite::start_convert_thread;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
@@ -235,6 +236,7 @@ impl MqttBrokerServer {
             .await;
         });
 
+        let stop_send = self.inner_stop.clone();
         let exclusive_sub = ExclusivePush::new(
             self.message_storage_adapter.clone(),
             self.cache_manager.clone(),
@@ -242,18 +244,21 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.metrics_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            stop_send,
         );
 
         tokio::spawn(async move {
             exclusive_sub.start().await;
         });
 
+        let stop_send = self.inner_stop.clone();
         let leader_sub = ShareLeaderPush::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            stop_send,
         );
 
         tokio::spawn(async move {
@@ -269,6 +274,12 @@ impl MqttBrokerServer {
 
         tokio::spawn(async move {
             follower_sub.start().await;
+        });
+
+        let metadata_cache = self.cache_manager.clone();
+        let stop_send = self.inner_stop.clone();
+        tokio::spawn(async move {
+            start_convert_thread(metadata_cache, stop_send).await;
         });
     }
 

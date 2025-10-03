@@ -12,60 +12,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
-use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use regex::Regex;
-use tracing::info;
-
+use super::cache::MQTTCacheManager;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::subscribe::common::{decode_sub_path, is_match_sub_and_topic};
+use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
+use common_base::error::common::CommonError;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+use regex::Regex;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 
-use super::cache::MQTTCacheManager;
-
-pub fn convert_publish_topic_by_rewrite_rule(
-    cache_manager: &Arc<MQTTCacheManager>,
-    topic_name: String,
-) -> Result<Option<String>, MqttBrokerError> {
-    gen_convert_rewrite_name(cache_manager, &topic_name)
+pub async fn start_convert_thread(
+    cache_manager: Arc<MQTTCacheManager>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        if let Err(e) = convert_rewrite_topic(cache_manager.clone()) {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, 3, &stop_send).await;
 }
 
-pub fn convert_sub_path_by_rewrite_rule(
-    cache_manager: &Arc<MQTTCacheManager>,
-    path: &str,
-) -> Result<Option<String>, MqttBrokerError> {
-    gen_convert_rewrite_name(cache_manager, path)
-}
-
-fn gen_convert_rewrite_name(
-    cache_manager: &Arc<MQTTCacheManager>,
-    name: &str,
-) -> Result<Option<String>, MqttBrokerError> {
+pub fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
+    if !cache_manager.is_re_calc_topic_rewrite() {
+        return Ok(());
+    }
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    let mut new_topic_name = "".to_string();
-    for rule in rules.iter() {
-        let allow = rule.action != TopicRewriteActionEnum::All.to_string()
-            || rule.action != TopicRewriteActionEnum::Publish.to_string();
+    for topic in cache_manager.topic_info.iter() {
+        let topic_name = topic.topic_name.clone();
+        let mut new_topic_name = "".to_string();
+        for rule in rules.iter() {
+            let allow = rule.action != TopicRewriteActionEnum::All.to_string()
+                || rule.action != TopicRewriteActionEnum::Publish.to_string();
 
-        if !allow {
-            continue;
+            if !allow {
+                continue;
+            }
+
+            if is_match_sub_and_topic(&rule.source_topic, &topic_name).is_ok() {
+                new_topic_name =
+                    gen_rewrite_topic(topic_name.to_string(), &rule.regex, &rule.dest_topic)?;
+            }
         }
-
-        if is_match_sub_and_topic(&rule.source_topic, name).is_ok() {
-            new_topic_name = gen_rewrite_topic(name.to_string(), &rule.regex, &rule.dest_topic)?;
+        if !new_topic_name.is_empty() {
+            cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
         }
     }
-
-    if new_topic_name.is_empty() {
-        return Ok(None);
-    }
-    info!(
-        "topic rewriteconvert topic name: {} to {}",
-        name, new_topic_name
-    );
-    Ok(Some(new_topic_name))
+    cache_manager.set_re_calc_topic_rewrite();
+    Ok(())
 }
 
 fn gen_rewrite_topic(
@@ -166,22 +166,6 @@ mod tests {
                 }
             }
             assert_eq!(t1, d1);
-        }
-    }
-
-    #[tokio::test]
-    async fn gen_convert_rewrite_name_test() {
-        let cache_manager = build_rules().await;
-        for (index, src_topic) in SRC_TOPICS.iter().enumerate() {
-            let result =
-                convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic.to_string());
-            assert!(result.is_ok());
-            if let Some(dst_topic) = result.unwrap() {
-                println!("{src_topic:?}");
-                assert_eq!(dst_topic, DST_TOPICS[index]);
-            } else {
-                assert_eq!(src_topic.to_owned(), DST_TOPICS[index]);
-            }
         }
     }
 

@@ -14,92 +14,27 @@
 
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::packet::RequestPackage;
+use crate::common::tool::calc_req_channel_len;
 use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::tools::now_mills;
 use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Receiver;
-use tokio::time::sleep;
-use tracing::{debug, error};
+use tracing::debug;
 
-pub async fn handler_process(
+pub fn handler_process(
     handler_process_num: usize,
-    mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,
     command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
-    network_type: NetworkConnectionType,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        handler_child_process(
-            handler_process_num,
-            connection_manager,
-            request_channel.clone(),
-            command,
-            network_type.clone(),
-            stop_sx.clone(),
-        );
-
-        let mut stop_rx = stop_sx.subscribe();
-        let mut process_handler_seq = 0;
-
-        loop {
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            debug!("{}","Server handler thread stopped successfully.");
-                            break;
-                        }
-                    }
-                },
-                val = request_queue_rx.recv()=>{
-                    if let Some(packet) = val{
-                        let mut sleep_ms = 0;
-                         metrics_request_queue_size("total", request_queue_rx.len());
-
-                        // Try to deliver the request packet to the child handler until it is delivered successfully.
-                        // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
-                        loop{
-                            process_handler_seq += 1;
-                            if let Some(handler_sx) = request_channel.get_available_handler(&network_type, process_handler_seq){
-                                if handler_sx.try_send(packet.clone()).is_ok(){
-                                    break;
-                                }
-                            }else{
-                                // In exceptional cases, if no available child handler can be found, the request packet is dropped.
-                                // If the client does not receive a return packet, it will retry the request.
-                                // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
-                                error!("{}","Handler child thread, no request packet processing thread available");
-                            }
-
-                            sleep_ms += 2;
-                            sleep(Duration::from_millis(sleep_ms)).await;
-                        }
-
-                    }
-                }
-            }
-        }
-    });
-}
-
-fn handler_child_process(
-    handler_process_num: usize,
-    connection_manager: Arc<ConnectionManager>,
-    request_channel: Arc<RequestChannel>,
-    command: ArcCommandAdapter,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
-        let mut child_process_rx =
-            request_channel.create_handler_child_channel(&network_type, index);
+        let mut child_process_rx = request_channel.create_handler_channel(&network_type, index);
         let raw_connect_manager = connection_manager.clone();
         let request_channel = request_channel.clone();
         let raw_command = command.clone();
@@ -122,9 +57,8 @@ fn handler_child_process(
                         }
                     },
                     val = child_process_rx.recv()=>{
-                        let label = format!("handler-{index}");
-                        metrics_request_queue_size(&label, child_process_rx.len());
                         let out_queue_time = now_mills();
+                        record_request_channel_metrics(&child_process_rx,index,request_channel.channel_size);
                         if let Some(packet) = val{
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
 
@@ -136,7 +70,7 @@ fn handler_child_process(
                                     resp.out_queue_ms = out_queue_time;
                                     resp.receive_ms = packet.receive_ms;
                                     resp.end_handler_ms = now_mills();
-                                    request_channel.send_response_channel(&raw_network_type, resp).await;
+                                    request_channel.send_response_packet_to_handler(&raw_network_type, resp).await;
                                 } else {
                                     debug!("{}","No backpacking is required for this request");
                                 }
@@ -147,4 +81,14 @@ fn handler_child_process(
             }
         });
     }
+}
+
+fn record_request_channel_metrics(
+    recv: &Receiver<RequestPackage>,
+    index: usize,
+    channel_size: usize,
+) {
+    let label = format!("handler-{index}");
+    let (block_size, remaining_size, use_size) = calc_req_channel_len(recv, channel_size);
+    metrics_request_queue_size(&label, block_size, use_size, remaining_size);
 }

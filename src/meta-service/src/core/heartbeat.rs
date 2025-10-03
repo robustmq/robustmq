@@ -58,7 +58,7 @@ impl BrokerHeartbeat {
         }
     }
 
-    pub async fn start(&mut self) {
+    pub async fn start(&self) {
         for cluster_name in self.cluster_cache.get_all_cluster_name() {
             for node in self.cluster_cache.get_broker_node_by_cluster(&cluster_name) {
                 if let Some(heart_data) = self

@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::{channel::RequestChannel, packet::RequestPackage};
+use crate::common::{
+    channel::RequestChannel,
+    packet::{RequestPackage, ResponsePackage},
+};
 use common_metrics::mqtt::packets::record_mqtt_packet_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
+use tokio::sync::mpsc::Receiver;
 use tracing::debug;
 
 pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
@@ -52,6 +56,26 @@ pub async fn read_packet(
 
     let package = RequestPackage::new(connection.connection_id, connection.addr, pack);
     request_channel
-        .send_request_channel(network_type, package.clone())
+        .send_request_packet_to_handler(network_type, package.clone())
         .await;
+}
+
+pub fn calc_req_channel_len(
+    recv: &Receiver<RequestPackage>,
+    queue_size: usize,
+) -> (usize, usize, usize) {
+    let block_size = recv.len();
+    let remaining_size = recv.capacity();
+    let use_size = queue_size - remaining_size;
+    (block_size, remaining_size, use_size)
+}
+
+pub fn calc_resp_channel_len(
+    recv: &Receiver<ResponsePackage>,
+    queue_size: usize,
+) -> (usize, usize, usize) {
+    let block_size = recv.len();
+    let remaining_size = recv.capacity();
+    let use_size = queue_size - remaining_size;
+    (block_size, remaining_size, use_size)
 }

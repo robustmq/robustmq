@@ -83,5 +83,5 @@ pub fn record_packet_handler_info_by_response(
 }
 
 fn is_record_ms_log(total: u128) -> bool {
-    total >= 100
+    total >= 500000
 }

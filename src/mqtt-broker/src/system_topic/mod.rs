@@ -73,7 +73,7 @@ use crate::system_topic::stats::subscription::{
 };
 use crate::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
 use common_base::error::ResultCommonError;
-use common_base::tools::{get_local_ip, loop_select};
+use common_base::tools::{get_local_ip, loop_select_ticket};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -170,7 +170,7 @@ impl SystemTopic {
             Ok(())
         };
 
-        loop_select(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1, &stop_send).await;
     }
 
     pub async fn try_init_system_topic(&self) {
