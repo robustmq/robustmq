@@ -39,6 +39,9 @@ pub async fn start_convert_thread(
 }
 
 pub fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
+    if !cache_manager.is_re_calc_topic_rewrite() {
+        return Ok(());
+    }
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
     for topic in cache_manager.topic_info.iter() {
@@ -61,6 +64,7 @@ pub fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqtt
             cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
         }
     }
+    cache_manager.set_re_calc_topic_rewrite();
     Ok(())
 }
 

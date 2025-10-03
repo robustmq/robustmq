@@ -121,6 +121,7 @@ pub struct MQTTCacheManager {
 
     // Topic rewrite new name
     pub topic_rewrite_new_name: DashMap<String, String>,
+    pub re_calc_topic_rewrite: DashMap<String, bool>,
 
     // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
@@ -145,6 +146,7 @@ impl MQTTCacheManager {
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             topic_is_validator: DashMap::with_capacity(8),
+            re_calc_topic_rewrite: DashMap::with_capacity(2),
             topic_rewrite_new_name: DashMap::with_capacity(8),
         }
     }
@@ -293,6 +295,17 @@ impl MQTTCacheManager {
             return Some(new_name.clone());
         }
         None
+    }
+
+    pub fn is_re_calc_topic_rewrite(&self) -> bool {
+        if let Some(flag) = self.re_calc_topic_rewrite.get("flag") {
+            return flag.clone();
+        }
+        false
+    }
+
+    pub fn set_re_calc_topic_rewrite(&self) {
+        self.re_calc_topic_rewrite.insert("flag".to_string(), true);
     }
 
     pub fn login_success(&self, connect_id: u64, user_name: String) {

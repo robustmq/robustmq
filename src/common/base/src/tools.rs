@@ -20,7 +20,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::select;
 use tokio::sync::broadcast;
 use tonic::Status;
-use tracing::warn;
+use tracing::debug;
 use uuid::Uuid;
 
 use crate::enum_type::time_unit_enum::TimeUnit;
@@ -123,7 +123,7 @@ pub fn get_local_ip() -> String {
     match local_ip() {
         Ok(data) => data.to_string(),
         Err(e) => {
-            warn!(
+            debug!(
                 "If the local IP fails, stop the process.error message:{}",
                 e.to_string()
             );
