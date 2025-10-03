@@ -135,7 +135,6 @@ impl TcpServer {
 
         // Determine whether the channel for request processing is empty. If it is empty,
         // it indicates that the request packet has been processed and subsequent stop logic can be carried out.
-
         loop {
             sleep(Duration::from_secs(1)).await;
             let mut flag = false;
@@ -143,7 +142,7 @@ impl TcpServer {
             // request channel
             for (index, send) in self.request_channel.handler_channels.clone() {
                 let cap = send.capacity();
-                if cap != self.proc_config.channel_size {
+                if self.proc_config.channel_size > send.capacity() {
                     info!("Request child queue {} is not empty, current length {}, waiting for request packet processing to complete....", index, self.proc_config.channel_size - cap);
                     flag = true;
                 }
@@ -152,7 +151,7 @@ impl TcpServer {
             // response child channel
             for (index, send) in self.request_channel.response_channels.clone() {
                 let cap = send.capacity();
-                if cap != self.proc_config.channel_size {
+                if self.proc_config.channel_size > send.capacity() {
                     info!("Response child queue {} is not empty, current length {}, waiting for response packet processing to complete....", index, self.proc_config.channel_size - cap);
                     flag = true;
                 }
