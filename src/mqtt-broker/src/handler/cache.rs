@@ -119,8 +119,14 @@ pub struct MQTTCacheManager {
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
 
+    // Topic rewrite new name
+    pub topic_rewrite_new_name: DashMap<String, String>,
+
     // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
+
+    // Topic is Validator
+    pub topic_is_validator: DashMap<String, bool>,
 }
 
 impl MQTTCacheManager {
@@ -138,6 +144,8 @@ impl MQTTCacheManager {
             pkid_metadata: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
+            topic_is_validator: DashMap::with_capacity(8),
+            topic_rewrite_new_name: DashMap::with_capacity(8),
         }
     }
 
@@ -274,6 +282,19 @@ impl MQTTCacheManager {
             .collect()
     }
 
+    // topic_rewrite_new_name
+    pub fn add_new_rewrite_name(&self, topic_name: &str, new_topic_name: &str) {
+        self.topic_rewrite_new_name
+            .insert(topic_name.to_string(), new_topic_name.to_string());
+    }
+
+    pub fn get_new_rewrite_name(&self, topic_name: &str) -> Option<String> {
+        if let Some(new_name) = self.topic_rewrite_new_name.get(topic_name) {
+            return Some(new_name.clone());
+        }
+        None
+    }
+
     pub fn login_success(&self, connect_id: u64, user_name: String) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
             conn.login_success(user_name)
@@ -355,6 +376,11 @@ impl MQTTCacheManager {
 
     pub fn remove_blacklist(&self, blacklist: MqttAclBlackList) {
         self.acl_metadata.remove_mqtt_blacklist(blacklist);
+    }
+
+    // topic_is_validator
+    pub fn add_topic_is_validator(&self, topic_name: &str) {
+        self.topic_is_validator.insert(topic_name.to_string(), true);
     }
 
     // key

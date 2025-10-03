@@ -93,7 +93,6 @@ impl RequestChannel {
                     "Handler child thread, no request packet processing thread available"
                 );
             }
-
             sleep_ms += 2;
             sleep(Duration::from_millis(sleep_ms)).await;
         }

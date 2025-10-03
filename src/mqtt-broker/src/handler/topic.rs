@@ -29,7 +29,6 @@ use tokio::time::sleep;
 use super::error::MqttBrokerError;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
-use crate::handler::topic_rewrite::convert_publish_topic_by_rewrite_rule;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
 
@@ -95,20 +94,19 @@ pub async fn get_topic_name(
         return Err(MqttBrokerError::TopicNameIsEmpty);
     }
 
-    let topic_name = if topic.is_empty() {
+    let mut topic_name = if topic.is_empty() {
         get_topic_alias(cache_manager, connect_id, topic_alias).await?
     } else {
         topic
     };
 
-    topic_name_validator(&topic_name)?;
+    if !cache_manager.topic_is_validator.contains_key(&topic_name) {
+        topic_name_validator(&topic_name)?;
+        cache_manager.add_topic_is_validator(&topic_name);
+    }
 
-    // topic rewrite
-    if let Some(rewrite_topic_name) =
-        convert_publish_topic_by_rewrite_rule(cache_manager, topic_name.clone())?
-    {
-        topic_name_validator(rewrite_topic_name.as_str())?;
-        return Ok(rewrite_topic_name);
+    if let Some(new_topic_name) = cache_manager.get_new_rewrite_name(&topic_name) {
+        topic_name = new_topic_name;
     }
 
     Ok(topic_name)
