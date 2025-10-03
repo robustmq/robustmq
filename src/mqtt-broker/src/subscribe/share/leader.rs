@@ -27,7 +27,9 @@ use crate::subscribe::push::{
     BuildPublishMessageContext,
 };
 use broker_core::rocksdb::RocksDBEngine;
+use common_base::error::ResultCommonError;
 use common_base::network::broker_not_available;
+use common_base::tools::loop_select_ticket;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
@@ -48,6 +50,7 @@ pub struct ShareLeaderPush {
     connection_manager: Arc<ConnectionManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MQTTCacheManager>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl ShareLeaderPush {
@@ -57,6 +60,7 @@ impl ShareLeaderPush {
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<MQTTCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         ShareLeaderPush {
             subscribe_manager,
@@ -64,15 +68,17 @@ impl ShareLeaderPush {
             connection_manager,
             cache_manager,
             rocksdb_engine_handler,
+            stop_sx,
         }
     }
 
     pub async fn start(&self) {
-        loop {
+        let ac_fn = async || -> ResultCommonError {
             self.start_push_thread().await;
             self.try_thread_gc();
-            sleep(Duration::from_secs(1)).await;
-        }
+            Ok(())
+        };
+        loop_select_ticket(ac_fn, 3, &self.stop_sx).await;
     }
 
     pub fn try_thread_gc(&self) {
@@ -277,12 +283,14 @@ async fn read_message_process(
                 break;
             }
 
-            let subscriber = if let Some(subscrbie) = get_subscribe_by_random(
+            let subscriber = if let Some(subscribe) = get_subscribe_by_random(
                 &context.subscribe_manager,
                 &context.share_leader_key,
                 context.seq,
-            ) {
-                subscrbie
+            )
+            .await
+            {
+                subscribe
             } else {
                 warn!("No available subscribers were obtained. Continue looking for the next one, , offset: {:?}", record.offset);
                 sleep(Duration::from_secs(1)).await;
@@ -406,7 +414,7 @@ async fn read_message_process(
     Ok((results.last().unwrap().offset, context.seq))
 }
 
-fn get_subscribe_by_random(
+async fn get_subscribe_by_random(
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
     mut seq: u64,
@@ -432,6 +440,7 @@ fn get_subscribe_by_random(
             }
         }
         seq += 1;
+        sleep(Duration::from_millis(100)).await;
     }
 }
 

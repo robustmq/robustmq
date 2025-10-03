@@ -235,6 +235,7 @@ impl MqttBrokerServer {
             .await;
         });
 
+        let stop_send = self.inner_stop.clone();
         let exclusive_sub = ExclusivePush::new(
             self.message_storage_adapter.clone(),
             self.cache_manager.clone(),
@@ -242,18 +243,21 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.metrics_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            stop_send,
         );
 
         tokio::spawn(async move {
             exclusive_sub.start().await;
         });
 
+        let stop_send = self.inner_stop.clone();
         let leader_sub = ShareLeaderPush::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            stop_send,
         );
 
         tokio::spawn(async move {

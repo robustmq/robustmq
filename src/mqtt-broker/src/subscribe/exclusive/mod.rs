@@ -28,6 +28,8 @@ use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
 use broker_core::rocksdb::RocksDBEngine;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
@@ -49,6 +51,7 @@ pub struct ExclusivePush {
     message_storage: ArcStorageAdapter,
     metrics_cache_manager: Arc<MetricsCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl ExclusivePush {
@@ -59,6 +62,7 @@ impl ExclusivePush {
         connection_manager: Arc<ConnectionManager>,
         metrics_cache_manager: Arc<MetricsCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         ExclusivePush {
             message_storage,
@@ -67,15 +71,17 @@ impl ExclusivePush {
             connection_manager,
             metrics_cache_manager,
             rocksdb_engine_handler,
+            stop_sx,
         }
     }
 
     pub async fn start(&self) {
-        loop {
+        let ac_fn = async || -> ResultCommonError {
             self.start_push_thread().await;
             self.try_thread_gc().await;
-            sleep(Duration::from_secs(1)).await;
-        }
+            Ok(())
+        };
+        loop_select_ticket(ac_fn, 1, &self.stop_sx).await;
     }
 
     async fn try_thread_gc(&self) {
