@@ -15,7 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
-use common_base::{error::ResultCommonError, tools::loop_select};
+use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, config_postgres::PostgresConnectorConfig,
@@ -60,7 +60,7 @@ pub async fn start_connector_thread(
         Ok(())
     };
 
-    loop_select(ac_fn, 1, &stop_send).await;
+    loop_select_ticket(ac_fn, 1, &stop_send).await;
     info!("Connector thread exited successfully");
 }
 

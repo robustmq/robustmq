@@ -14,7 +14,7 @@
 
 use common_base::{
     error::{common::CommonError, ResultCommonError},
-    tools::loop_select,
+    tools::loop_select_ticket,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -58,7 +58,7 @@ pub async fn report_heartbeat(
         Ok(())
     };
 
-    loop_select(ac_fn, 3, &stop_send).await;
+    loop_select_ticket(ac_fn, 3, &stop_send).await;
 }
 
 #[derive(Deserialize, Serialize)]

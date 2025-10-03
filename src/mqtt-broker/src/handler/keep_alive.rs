@@ -19,7 +19,7 @@ use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::ResultCommonError;
-use common_base::tools::{loop_select, now_second};
+use common_base::tools::{loop_select_ticket, now_second};
 use common_config::config::BrokerConfig;
 use common_metrics::mqtt::event::record_mqtt_connection_expired;
 use grpc_clients::pool::ClientPool;
@@ -75,7 +75,7 @@ impl ClientKeepAlive {
 
     pub async fn start_heartbeat_check(&self) {
         let ac_fn = async || -> ResultCommonError { self.keep_alive().await };
-        loop_select(ac_fn, 1, &self.stop_send).await;
+        loop_select_ticket(ac_fn, 1, &self.stop_send).await;
         info!("Heartbeat check thread stopped successfully.");
     }
 

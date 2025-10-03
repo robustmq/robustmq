@@ -189,7 +189,7 @@ where
         .map_err(|e| Status::cancelled(CommonError::CommonError(e.to_string()).to_string()))
 }
 
-pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
+pub async fn loop_select_ticket<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
 where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = ResultCommonError>,

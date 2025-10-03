@@ -15,6 +15,8 @@
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -111,8 +113,9 @@ impl MQTTInnerCallManager {
 pub async fn mqtt_call_thread_manager(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
+    stop: broadcast::Sender<bool>,
 ) {
-    loop {
+    let ac_fn = async || -> ResultCommonError {
         // start thread
         for (key, node_sender) in call_manager.node_sender.clone() {
             if !call_manager.node_stop_sender.contains_key(&key) {
@@ -132,16 +135,14 @@ pub async fn mqtt_call_thread_manager(
         // gc thread
         for (key, sx) in call_manager.node_stop_sender.clone() {
             if !call_manager.node_sender.contains_key(&key) {
-                match sx.send(true) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!("{}", e);
-                    }
+                if let Err(e) = sx.send(true) {
+                    error!("node stop sender:{}", e);
                 }
             }
         }
-        sleep(Duration::from_secs(1)).await;
-    }
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, 1, &stop).await;
 }
 
 pub async fn update_cache_by_add_session(
