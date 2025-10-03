@@ -217,16 +217,6 @@ pub fn metrics_response_queue_size(
     );
 }
 
-pub fn record_response_and_total_ms(
-    connection_type: &NetworkConnectionType,
-    receive_ms: u128,
-    response_ms: u128,
-) {
-    let now = now_mills();
-    metrics_request_total_ms(connection_type, (now - receive_ms) as f64);
-    metrics_request_response_ms(connection_type, (now - response_ms) as f64);
-}
-
 pub fn record_ws_request_duration(receive_ms: u128, response_ms: u128) {
     let now = now_mills();
     let ws_type = NetworkConnectionType::WebSocket;

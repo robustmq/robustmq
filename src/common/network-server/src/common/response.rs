@@ -90,8 +90,8 @@ pub fn response_process(context: ResponseChildProcessContext) {
                                          };
                                     }
                                 }
+                                record_packet_handler_info_by_response(&network_type, &response_package, out_response_queue_ms);
                             }
-                            record_packet_handler_info_by_response(&network_type, &response_package, out_response_queue_ms);
                         }
                     }
                 }
