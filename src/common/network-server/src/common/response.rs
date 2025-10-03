@@ -18,7 +18,7 @@ use crate::common::tool::calc_resp_channel_len;
 use crate::common::{channel::RequestChannel, metric::record_packet_handler_info_by_response};
 use common_base::error::not_record_error;
 use common_base::tools::now_mills;
-use common_metrics::network::{metrics_response_queue_size, record_response_and_total_ms};
+use common_metrics::network::metrics_response_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
@@ -61,7 +61,6 @@ pub fn response_process(context: ResponseChildProcessContext) {
                             let out_response_queue_ms = now_mills();
                             record_response_channel_metrics(&response_process_rx,index, request_channel.channel_size);
 
-                            let mut response_ms = now_mills();
                             if let Some(protocol) = raw_connect_manager.get_connect_protocol(response_package.connection_id){
                                 let packet_wrapper = match response_package.packet.clone(){
                                     RobustMQPacket::MQTT(packet) => {
@@ -91,10 +90,8 @@ pub fn response_process(context: ResponseChildProcessContext) {
                                          };
                                     }
                                 }
-                                response_ms = now_mills();
-                                record_response_and_total_ms(&network_type.clone(),response_package.get_receive_ms(),out_response_queue_ms);
                             }
-                            record_packet_handler_info_by_response(&response_package, out_response_queue_ms, response_ms);
+                            record_packet_handler_info_by_response(&network_type, &response_package, out_response_queue_ms);
                         }
                     }
                 }
