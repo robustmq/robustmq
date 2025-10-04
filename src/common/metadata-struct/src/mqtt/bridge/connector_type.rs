@@ -25,6 +25,7 @@ pub enum ConnectorType {
     Pulsar,
     Postgres,
     MongoDB,
+    RabbitMQ,
 }
 
 pub const CONNECTOR_TYPE_FILE: &str = "file";
@@ -33,6 +34,7 @@ pub const CONNECTOR_TYPE_GREPTIMEDB: &str = "greptime";
 pub const CONNECTOR_TYPE_PULSAR: &str = "pulsar";
 pub const CONNECTOR_TYPE_POSTGRES: &str = "postgres";
 pub const CONNECTOR_TYPE_MONGODB: &str = "mongodb";
+pub const CONNECTOR_TYPE_RABBITMQ: &str = "rabbitmq";
 
 impl Display for ConnectorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -63,6 +65,10 @@ pub fn connector_type_for_string(connector_type: String) -> Result<ConnectorType
 
     if CONNECTOR_TYPE_MONGODB == connector_type {
         return Ok(ConnectorType::MongoDB);
+    }
+
+    if CONNECTOR_TYPE_RABBITMQ == connector_type {
+        return Ok(ConnectorType::RabbitMQ);
     }
 
     Err(CommonError::IneligibleConnectorType(connector_type))
