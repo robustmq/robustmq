@@ -35,7 +35,7 @@ use protocol::mqtt::common::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
@@ -799,7 +799,6 @@ impl MqttService {
     }
 
     pub async fn ping(&self, connect_id: u64, _: &PingReq) -> MqttPacket {
-        info!("ping:{}", connect_id);
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {

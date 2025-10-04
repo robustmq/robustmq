@@ -166,7 +166,7 @@ impl ClientKeepAlive {
                 &context.client_pool,
                 &context.connection_manager,
                 &context.subscribe_manager,
-                false,
+                true,
             )
             .await;
             record_mqtt_connection_expired();
