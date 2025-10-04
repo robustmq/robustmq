@@ -21,8 +21,8 @@ use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::broadcast;
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::{broadcast, Semaphore};
 use tracing::debug;
 
 pub fn handler_process(
@@ -39,8 +39,9 @@ pub fn handler_process(
         let request_channel = request_channel.clone();
         let raw_command = command.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
-
         let raw_network_type = network_type.clone();
+
+        let semaphore = Arc::new(Semaphore::new(5));
         tokio::spawn(async move {
             debug!(
                 "Server handler process thread {} start successfully.",
@@ -60,21 +61,28 @@ pub fn handler_process(
                         let out_queue_time = now_mills();
                         record_request_channel_metrics(&child_process_rx,index,request_channel.channel_size);
                         if let Some(packet) = val{
-                            if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
+                            let permit = semaphore.clone().acquire_owned().await.unwrap();
+                            let permit_request_channel = request_channel.clone();
+                            let permit_raw_connect_manager = raw_connect_manager.clone();
+                            let permit_raw_command = raw_command.clone();
+                            let permit_raw_network_type = raw_network_type.clone();
+                            tokio::spawn(async move{
+                                if let Some(connect) = permit_raw_connect_manager.get_connect(packet.connection_id) {
+                                    let response_data = permit_raw_command
+                                        .apply(connect, packet.addr, packet.packet)
+                                        .await;
 
-                                let response_data = raw_command
-                                    .apply(connect, packet.addr, packet.packet)
-                                    .await;
-
-                                if let Some(mut resp) = response_data {
-                                    resp.out_queue_ms = out_queue_time;
-                                    resp.receive_ms = packet.receive_ms;
-                                    resp.end_handler_ms = now_mills();
-                                    request_channel.send_response_packet_to_handler(&raw_network_type, resp).await;
-                                } else {
-                                    debug!("{}","No backpacking is required for this request");
+                                    if let Some(mut resp) = response_data {
+                                        resp.out_queue_ms = out_queue_time;
+                                        resp.receive_ms = packet.receive_ms;
+                                        resp.end_handler_ms = now_mills();
+                                        permit_request_channel.send_response_packet_to_handler(&permit_raw_network_type, resp).await;
+                                    } else {
+                                        debug!("{}","No backpacking is required for this request");
+                                    }
                                 }
-                            }
+                                drop(permit);
+                            });
                         }
                     }
                 }

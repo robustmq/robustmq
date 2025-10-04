@@ -132,7 +132,7 @@ impl RequestChannel {
     }
 
     pub fn calc_req_channel_index(&self) -> u64 {
-        let index = self.req_packet_seq.fetch_add(1, Ordering::Relaxed);
+        let index = self.req_packet_seq.fetch_add(1, Ordering::SeqCst);
         let seq = index % (self.handler_channels.len()) as u64;
         if seq == 0 {
             return 1;
@@ -141,7 +141,7 @@ impl RequestChannel {
     }
 
     pub fn calc_resp_channel_index(&self) -> u64 {
-        let index = self.resp_packet_seq.fetch_add(1, Ordering::Relaxed);
+        let index = self.resp_packet_seq.fetch_add(1, Ordering::SeqCst);
         let seq = index % (self.response_channels.len()) as u64;
         if seq == 0 {
             return 1;

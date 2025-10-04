@@ -72,7 +72,6 @@ impl MessageExpire {
                     continue;
                 }
             };
-
             if !result_key.starts_with(&search_key) {
                 break;
             }
@@ -203,6 +202,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 message_expire.retain_message_expire().await;
+                sleep(Duration::from_millis(1000)).await;
             }
         });
 
@@ -246,6 +246,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 message_expire.last_will_message_expire().await;
+                sleep(Duration::from_millis(1000)).await;
             }
         });
 

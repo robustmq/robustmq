@@ -149,7 +149,7 @@ impl MqttService {
         let connection = build_connection(
             context.connect_id,
             client_id.clone(),
-            &cluster,
+            &self.cache_manager,
             &context.connect,
             &context.connect_properties,
             &context.addr,

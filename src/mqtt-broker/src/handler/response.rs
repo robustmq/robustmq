@@ -178,7 +178,10 @@ pub fn response_packet_mqtt_distinct_by_reason(
 
     MqttPacket::Disconnect(
         Disconnect { reason_code: code },
-        Some(DisconnectProperties::default()),
+        Some(DisconnectProperties {
+            reason_string: Some("".to_string()),
+            ..Default::default()
+        }),
     )
 }
 

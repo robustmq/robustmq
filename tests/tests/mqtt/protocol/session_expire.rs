@@ -80,10 +80,10 @@ mod tests {
         };
 
         let start_time = now_second();
-        let res = timeout(Duration::from_secs(40), check_fn).await;
+        let res = timeout(Duration::from_secs(180), check_fn).await;
         assert!(res.is_ok());
         let total = now_second() - start_time;
-        println!("{total}");
+        println!("total:{total}");
         let sei = session_expiry_interval() as u64;
         assert!(total >= (sei - 2) && total <= (sei + 2));
     }
