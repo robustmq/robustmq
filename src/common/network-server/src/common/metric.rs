@@ -15,8 +15,8 @@
 use crate::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
 use common_metrics::network::{
-    metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
-    metrics_request_response_queue_ms, metrics_request_total_ms,
+    metrics_request_handler_ms, metrics_request_not_response_total_ms, metrics_request_queue_ms,
+    metrics_request_response_ms, metrics_request_response_queue_ms, metrics_request_total_ms,
 };
 use metadata_struct::connection::NetworkConnectionType;
 use tracing::info;
@@ -59,6 +59,7 @@ pub fn record_packet_handler_info_by_response(
     let handler_ms = response_package.end_handler_ms - response_package.out_queue_ms;
     let response_queue_ms = out_response_queue_ms - response_package.end_handler_ms;
     let response_ms = end_ms - out_response_queue_ms;
+    let no_response_total_ms = out_response_queue_ms - response_package.receive_ms;
     let total_ms = end_ms - response_package.receive_ms;
 
     // request queue ms
@@ -72,6 +73,9 @@ pub fn record_packet_handler_info_by_response(
 
     // response ms
     metrics_request_response_ms(network_type, response_ms as f64);
+
+    // not response total ms
+    metrics_request_not_response_total_ms(network_type, no_response_total_ms as f64);
 
     // total ms
     metrics_request_total_ms(network_type, total_ms as f64);

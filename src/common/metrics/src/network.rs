@@ -80,6 +80,13 @@ register_histogram_metric_ms_with_default_buckets!(
 );
 
 register_histogram_metric_ms_with_default_buckets!(
+    REQUEST_NOT_RESPONSE_TOTAL_MS,
+    "request_not_response_total_ms",
+    "The not response total duration of request packets processed in the broker",
+    NetworkLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
     REQUEST_QUEUE_MS,
     "request_queue_ms",
     "The total duration of request packets in the broker queue",
@@ -125,6 +132,13 @@ pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: 
         network: network_connection.to_string(),
     };
     histogram_metric_observe!(REQUEST_TOTAL_MS, ms, label);
+}
+
+pub fn metrics_request_not_response_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
+    let label = NetworkLabel {
+        network: network_connection.to_string(),
+    };
+    histogram_metric_observe!(REQUEST_NOT_RESPONSE_TOTAL_MS, ms, label);
 }
 
 pub fn metrics_request_queue_ms(network_connection: &NetworkConnectionType, ms: f64) {

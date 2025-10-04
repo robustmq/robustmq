@@ -23,7 +23,7 @@ data_path = "./data/broker/data"
 max_open_files = 10000
 
 [p_prof]
-enable = false
+enable = true
 port = 6777
 frequency = 1000
 

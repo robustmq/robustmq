@@ -23,8 +23,8 @@ use metadata_struct::connection::NetworkConnectionType;
 use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::broadcast;
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::{broadcast, Semaphore};
 use tracing::{debug, error};
 
 #[derive(Clone)]
@@ -44,6 +44,8 @@ pub fn response_process(context: ResponseChildProcessContext) {
         let mut raw_stop_rx = context.stop_sx.subscribe();
         let raw_connect_manager = context.connection_manager.clone();
         let network_type = context.network_type.clone();
+
+        let semaphore = Arc::new(Semaphore::new(5));
         tokio::spawn(async move {
             debug!("Server response process thread {index} start successfully.");
             loop {
@@ -61,37 +63,44 @@ pub fn response_process(context: ResponseChildProcessContext) {
                             let out_response_queue_ms = now_mills();
                             record_response_channel_metrics(&response_process_rx,index, request_channel.channel_size);
 
-                            if let Some(protocol) = raw_connect_manager.get_connect_protocol(response_package.connection_id){
-                                let packet_wrapper = match response_package.packet.clone(){
-                                    RobustMQPacket::MQTT(packet) => {
-                                        build_mqtt_packet_wrapper(protocol, packet)
-                                    }
-                                    RobustMQPacket::KAFKA(_packet) => {
-                                        // todo
-                                        return;
-                                    }
-                                };
+                            let permit = semaphore.clone().acquire_owned().await.unwrap();
+                            let permit_raw_connect_manager = raw_connect_manager.clone();
+                            let permit_network_type = network_type.clone();
+                            tokio::spawn(async move{
+                                if let Some(protocol) = permit_raw_connect_manager.get_connect_protocol(response_package.connection_id){
+                                    let packet_wrapper = match response_package.packet.clone(){
+                                        RobustMQPacket::MQTT(packet) => {
+                                            build_mqtt_packet_wrapper(protocol, packet)
+                                        }
+                                        RobustMQPacket::KAFKA(_packet) => {
+                                            // todo
+                                            return;
+                                        }
+                                    };
 
-                                match &network_type.clone() {
-                                    NetworkConnectionType::Tcp | NetworkConnectionType::Tls | NetworkConnectionType::WebSocket |  NetworkConnectionType::WebSockets => {
-                                         if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
-                                            if not_record_error(&e.to_string()){
-                                                continue;
-                                            }
-                                            error!("{}",e);
-                                         };
+                                    match &permit_network_type.clone() {
+                                        NetworkConnectionType::Tcp | NetworkConnectionType::Tls | NetworkConnectionType::WebSocket |  NetworkConnectionType::WebSockets => {
+                                            if let Err(e) =  permit_raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
+                                                if not_record_error(&e.to_string()){
+                                                    return;
+                                                }
+                                                error!("{}",e);
+                                            };
+                                        }
+                                        NetworkConnectionType::QUIC => {
+                                            if let Err(e) =  permit_raw_connect_manager.write_quic_frame(response_package.connection_id, packet_wrapper).await {
+                                                if not_record_error(&e.to_string()){
+                                                    return;
+                                                }
+                                                error!("{}",e);
+                                            };
+                                        }
                                     }
-                                    NetworkConnectionType::QUIC => {
-                                        if let Err(e) =  raw_connect_manager.write_quic_frame(response_package.connection_id, packet_wrapper).await {
-                                            if not_record_error(&e.to_string()){
-                                                continue;
-                                            }
-                                            error!("{}",e);
-                                         };
-                                    }
+                                    record_packet_handler_info_by_response(&permit_network_type, &response_package, out_response_queue_ms);
                                 }
-                                record_packet_handler_info_by_response(&network_type, &response_package, out_response_queue_ms);
-                            }
+
+                                drop(permit);
+                            });
                         }
                     }
                 }
