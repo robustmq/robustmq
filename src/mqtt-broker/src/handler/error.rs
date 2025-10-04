@@ -15,6 +15,7 @@
 use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
+use lapin::Error as LapinError;
 use pulsar::Error as PulsarError;
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use r2d2;
@@ -263,6 +264,9 @@ pub enum MqttBrokerError {
 
     #[error("BSON serialization error: {0}")]
     BsonSerializationError(String),
+
+    #[error("RabbitMQ error: {0}")]
+    RabbitMQError(#[from] LapinError),
 }
 
 impl From<MqttBrokerError> for Status {

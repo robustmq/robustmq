@@ -32,6 +32,7 @@ use metadata_struct::mqtt::bridge::{
     config_mongodb::MongoDBConnectorConfig,
     config_postgres::PostgresConnectorConfig,
     config_pulsar::PulsarConnectorConfig,
+    config_rabbitmq::RabbitMQConnectorConfig,
     connector::MQTTConnector,
     connector_type::{connector_type_for_string, ConnectorType},
     status::MQTTStatus,
@@ -161,6 +162,9 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         }
         ConnectorType::MongoDB => {
             let _mongo_config: MongoDBConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::RabbitMQ => {
+            let _rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
         }
     }
     Ok(())
