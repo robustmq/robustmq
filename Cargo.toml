@@ -220,6 +220,7 @@ pulsar = "6.3.1"
 tokio-postgres = "0.7.12"
 mongodb = { version = "2.8", features = ["tokio-runtime"] }
 bson = "2.9"
+lapin = "2.5.0"
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }

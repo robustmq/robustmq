@@ -74,6 +74,7 @@ broker-core.workspace = true
 pulsar.workspace = true
 mongodb.workspace = true
 bson.workspace = true
+lapin.workspace = true
 #security
 r2d2.workspace = true
 r2d2_mysql.workspace = true
