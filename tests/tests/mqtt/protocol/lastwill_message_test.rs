@@ -22,8 +22,8 @@ mod tests {
 
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
-            subscribe_data_by_qos, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn,
+            distinct_conn_close, ssl_by_type, subscribe_data_by_qos, ws_by_type,
         },
         ClientTestProperties,
     };
@@ -36,7 +36,7 @@ mod tests {
 
         // create will message
         let mut props = Properties::new();
-        props.push_u32(PropertyCode::WillDelayInterval, 2).unwrap();
+        props.push_u32(PropertyCode::WillDelayInterval, 10).unwrap();
         let will_message_content = "will message content".to_string();
         let will_topic = format!("/tests/{}", unique_id());
         let will = MessageBuilder::new()
@@ -57,8 +57,9 @@ mod tests {
             will: Some(will),
             ..Default::default()
         };
-        let _ = connect_server(&client_properties);
+        let cli = connect_server(&client_properties);
         sleep(Duration::from_secs(3)).await;
+        distinct_conn_close(cli);
 
         // subscribe
         let client_id =

@@ -87,7 +87,10 @@ export const sidebar = [
                     { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
                     { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
                     { text: "Pulsar", link: "/zh/RobustMQ-MQTT/Bridge/Pulsar" },
+                    { text: "RabbitMQ", link: "/zh/RobustMQ-MQTT/Bridge/RabbitMQ" },
                     { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
+                    { text: "PostgreSQL", link: "/zh/RobustMQ-MQTT/Bridge/PostgreSQL" },
+                    { text: "MongoDB", link: "/zh/RobustMQ-MQTT/Bridge/MongoDB" },
                 ]
             },
 

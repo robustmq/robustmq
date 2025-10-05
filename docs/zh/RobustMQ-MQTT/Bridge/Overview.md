@@ -43,13 +43,13 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 | **InfluxDB** | ✅ | ❌ | RobustMQ 暂不支持 InfluxDB |
 | **Lindorm** | ✅ | ❌ | RobustMQ 暂不支持 Lindorm |
 | **Microsoft SQL Server** | ✅ | ❌ | RobustMQ 暂不支持 SQL Server |
-| **MongoDB** | ✅ | ❌ | RobustMQ 暂不支持 MongoDB |
+| **MongoDB** | ✅ | ✅ | RobustMQ 支持 MongoDB 连接器 |
 | **MQTT** | ✅ | ❌ | RobustMQ 暂不支持 MQTT 桥接 |
 | **MySQL** | ✅ | ❌ | RobustMQ 暂不支持 MySQL |
 | **OpenTSDB** | ✅ | ❌ | RobustMQ 暂不支持 OpenTSDB |
 | **Oracle Database** | ✅ | ❌ | RobustMQ 暂不支持 Oracle |
 | **PostgreSQL** | ✅ | ✅ | RobustMQ 支持 PostgreSQL 连接器 |
-| **RabbitMQ** | ✅ | ❌ | RobustMQ 暂不支持 RabbitMQ |
+| **RabbitMQ** | ✅ | ✅ | RobustMQ 支持 RabbitMQ 连接器 |
 | **Redis** | ✅ | ❌ | RobustMQ 暂不支持 Redis |
 | **RocketMQ** | ✅ | ❌ | RobustMQ 暂不支持 RocketMQ |
 | **Snowflake** | ✅ | ❌ | RobustMQ 暂不支持 Snowflake |
@@ -60,17 +60,19 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 ### 支持情况总结
 
 - **EMQX 支持**：30+ 种数据集成类型
-- **RobustMQ 支持**：5 种数据集成类型
+- **RobustMQ 支持**：7 种数据集成类型
   - ✅ Apache Kafka
   - ✅ Apache Pulsar
+  - ✅ RabbitMQ
   - ✅ GreptimeDB  
   - ✅ PostgreSQL
+  - ✅ MongoDB
   - ✅ 本地文件
 
-RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar）、时序数据库（GreptimeDB）、关系型数据库（PostgreSQL）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
+RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar、RabbitMQ）、时序数据库（GreptimeDB）、关系型数据库（PostgreSQL）、NoSQL 数据库（MongoDB）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
 
 ## 总结
 
-RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 Kafka、Pulsar、GreptimeDB、PostgreSQL 和本地文件五种核心连接器类型，覆盖了消息队列、时序数据库、关系型数据库和文件存储的主要场景。
+RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 7 种核心连接器类型：Kafka、Pulsar、RabbitMQ、GreptimeDB、PostgreSQL、MongoDB 和本地文件，覆盖了消息队列、时序数据库、关系型数据库、NoSQL 数据库和文件存储的主要场景。
 
 相比 EMQX 的 30+ 种数据集成类型，RobustMQ 专注于核心场景，通过 Rust 语言的内存安全和零成本抽象特性，实现了高性能、高可靠性的消息桥接。这种精简而高效的设计理念，为构建可靠的 IoT 数据管道提供了坚实的基础。
