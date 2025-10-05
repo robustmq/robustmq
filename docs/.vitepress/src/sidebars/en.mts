@@ -87,7 +87,10 @@ export const sidebar = [
                     { text: "Local File", link: "/en/RobustMQ-MQTT/Bridge/LocalFile" },
                     { text: "Kafka", link: "/en/RobustMQ-MQTT/Bridge/Kafka" },
                     { text: "Pulsar", link: "/en/RobustMQ-MQTT/Bridge/Pulsar" },
+                    { text: "RabbitMQ", link: "/en/RobustMQ-MQTT/Bridge/RabbitMQ" },
                     { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
+                    { text: "PostgreSQL", link: "/en/RobustMQ-MQTT/Bridge/PostgreSQL" },
+                    { text: "MongoDB", link: "/en/RobustMQ-MQTT/Bridge/MongoDB" },
                 ]
             },
       { text: "MQTTX Testing Guide", link: "/en/RobustMQ-MQTT/MQTTX-Guide" },
