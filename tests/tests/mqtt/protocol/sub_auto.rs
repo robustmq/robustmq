@@ -14,13 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::{CreateAutoSubscribeReq, DeleteAutoSubscribeReq};
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, QOS_1};
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
@@ -28,6 +21,11 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use admin_server::client::AdminHttpClient;
+    use admin_server::request::mqtt::{CreateAutoSubscribeReq, DeleteAutoSubscribeReq};
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, QOS_1};
+    use std::time::Duration;
 
     #[tokio::test]
     async fn sub_auto_test() {

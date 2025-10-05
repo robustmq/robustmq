@@ -80,11 +80,14 @@ impl MqttController {
                 self.client_pool.clone(),
                 cluster_name.clone(),
             );
-            let ac_fn = async || -> ResultCommonError {
-                session.session_expire().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1, &self.stop_send).await;
+            let stop_send = self.stop_send.clone();
+            tokio::spawn(async move {
+                let ac_fn = async || -> ResultCommonError {
+                    session.session_expire().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
+            });
 
             // Periodically check if the session has expired
             let session = SessionExpire::new(
@@ -93,30 +96,40 @@ impl MqttController {
                 self.client_pool.clone(),
                 cluster_name.clone(),
             );
-            let ac_fn = async || -> ResultCommonError {
-                session.last_will_expire_send().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1, &self.stop_send).await;
+
+            let stop_send = self.stop_send.clone();
+            tokio::spawn(async move {
+                let ac_fn = async || -> ResultCommonError {
+                    session.last_will_expire_send().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
+            });
 
             // Whether the timed message expires
             let message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
-            let ac_fn = async || -> ResultCommonError {
-                message.retain_message_expire().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1, &self.stop_send).await;
+            let stop_send = self.stop_send.clone();
+            tokio::spawn(async move {
+                let ac_fn = async || -> ResultCommonError {
+                    message.retain_message_expire().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
+            });
 
             // Periodically detects whether a will message is sent
             let message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
 
-            let ac_fn = async || -> ResultCommonError {
-                message.last_will_message_expire().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1, &self.stop_send).await;
+            let stop_send = self.stop_send.clone();
+            tokio::spawn(async move {
+                let ac_fn = async || -> ResultCommonError {
+                    message.last_will_message_expire().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
+            });
             self.thread_running_info.insert(cluster_name.clone(), true);
         }
     }
