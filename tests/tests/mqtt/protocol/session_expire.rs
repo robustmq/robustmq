@@ -14,18 +14,16 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use admin_server::client::AdminHttpClient;
     use admin_server::request::mqtt::SessionListReq;
     use admin_server::response::mqtt::SessionListRow;
     use common_base::tools::{now_second, unique_id};
     use paho_mqtt::{Message, QOS_1};
+    use std::time::Duration;
     use tokio::time::{sleep, timeout};
 
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn,
+            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
             distinct_conn_close, publish_data, session_expiry_interval, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
@@ -53,7 +51,7 @@ mod tests {
         publish_data(&cli, msg, false);
         distinct_conn(cli);
 
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let check_fn = async {
             loop {
@@ -110,7 +108,7 @@ mod tests {
         publish_data(&cli, msg, false);
         distinct_conn_close(cli);
 
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let request = SessionListReq {
             client_id: None,

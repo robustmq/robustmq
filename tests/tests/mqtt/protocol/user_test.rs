@@ -19,16 +19,15 @@ mod tests {
     use common_base::tools::unique_id;
 
     use crate::mqtt::protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
-        ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+        network_types, ssl_by_type, ws_by_type,
     };
     use crate::mqtt::protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn login_auth_test() {
         for network in network_types() {
-            let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
-
+            let admin_client = create_test_env().await;
             let qos = 1;
             let client_id = build_client_id(format!("login_auth_test_{network}_{qos}").as_str());
 

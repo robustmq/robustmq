@@ -64,7 +64,7 @@ pub fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqtt
             cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
         }
     }
-    cache_manager.set_re_calc_topic_rewrite();
+    cache_manager.set_re_calc_topic_rewrite(false);
     Ok(())
 }
 

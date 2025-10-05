@@ -16,8 +16,8 @@
 mod tests {
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+            publish_data, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
@@ -29,7 +29,7 @@ mod tests {
 
     #[tokio::test]
     async fn sub_auto_test() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let uniq = unique_id();
         let topic = format!("/tests/v1/v2/{uniq}");

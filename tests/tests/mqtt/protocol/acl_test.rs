@@ -15,8 +15,8 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
-        protocol_versions, qos_list, ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+        network_types, protocol_versions, qos_list, ssl_by_type, ws_by_type,
     };
 
     use crate::mqtt::protocol::ClientTestProperties;
@@ -139,9 +139,6 @@ mod tests {
         run_authorization_test(MqttAclResourceType::ClientId, topic).await;
     }
 
-    async fn create_test_env() -> AdminHttpClient {
-        AdminHttpClient::new("http://127.0.0.1:8080")
-    }
     fn create_test_acl(
         resource_type: MqttAclResourceType,
         resource_name: String,
