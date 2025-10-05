@@ -300,12 +300,14 @@ impl MQTTCacheManager {
     pub fn is_re_calc_topic_rewrite(&self) -> bool {
         if let Some(flag) = self.re_calc_topic_rewrite.get("flag") {
             return *flag;
+        } else {
+            self.re_calc_topic_rewrite.insert("flag".to_string(), false);
         }
-        false
+        true
     }
 
-    pub fn set_re_calc_topic_rewrite(&self) {
-        self.re_calc_topic_rewrite.insert("flag".to_string(), true);
+    pub fn set_re_calc_topic_rewrite(&self, flag: bool) {
+        self.re_calc_topic_rewrite.insert("flag".to_string(), flag);
     }
 
     pub fn login_success(&self, connect_id: u64, user_name: String) {

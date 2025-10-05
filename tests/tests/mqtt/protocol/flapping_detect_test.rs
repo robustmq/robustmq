@@ -15,10 +15,9 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::{
-        broker_addr, build_conn_pros, build_create_conn_pros, distinct_conn,
+        broker_addr, build_conn_pros, build_create_conn_pros, create_test_env, distinct_conn,
     };
     use crate::mqtt::protocol::ClientTestProperties;
-    use admin_server::client::AdminHttpClient;
     use admin_server::request::cluster::ClusterConfigSetReq;
     use common_base::tools::unique_id;
     use common_config::config::BrokerConfig;
@@ -81,7 +80,7 @@ mod tests {
     }
 
     async fn open_flapping_detect() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let mut config = BrokerConfig::default();
         config.mqtt_flapping_detect.enable = true;
@@ -100,7 +99,7 @@ mod tests {
     }
 
     async fn close_flapping_detect() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let mut config = BrokerConfig::default();
         config.mqtt_flapping_detect.enable = false;

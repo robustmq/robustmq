@@ -15,6 +15,7 @@
 use std::time::Duration;
 
 use crate::mqtt::protocol::ClientTestProperties;
+use admin_server::client::AdminHttpClient;
 use common_base::tools::{now_nanos, unique_id};
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
@@ -28,6 +29,10 @@ pub fn qos_list() -> Vec<i32> {
 
 pub fn protocol_versions() -> Vec<u32> {
     vec![5]
+}
+
+pub async fn create_test_env() -> AdminHttpClient {
+    AdminHttpClient::new("http://127.0.0.1:8080")
 }
 
 pub fn network_types() -> Vec<String> {

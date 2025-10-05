@@ -14,8 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
@@ -25,6 +23,7 @@ mod tests {
     };
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions};
+    use std::time::Duration;
 
     #[tokio::test]
     async fn sub_identifier_test() {

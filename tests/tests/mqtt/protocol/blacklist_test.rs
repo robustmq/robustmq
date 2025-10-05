@@ -26,15 +26,14 @@ mod tests {
     use paho_mqtt::MessageBuilder;
 
     use crate::mqtt::protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
-        ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+        ssl_by_type, ws_by_type,
     };
     use crate::mqtt::protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn blacklist_storage_test() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
-
+        let admin_client = create_test_env().await;
         let user = unique_id();
         let password: String = unique_id();
 
@@ -101,7 +100,7 @@ mod tests {
 
     #[tokio::test]
     async fn blacklist_user_auth_test() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let user = unique_id();
         let password: String = unique_id();

@@ -14,24 +14,22 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
+    use crate::mqtt::protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+            publish_data, ssl_by_type, ws_by_type,
+        },
+        ClientTestProperties,
+    };
     use admin_server::client::AdminHttpClient;
     use admin_server::request::mqtt::{CreateAutoSubscribeReq, DeleteAutoSubscribeReq};
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
-
-    use crate::mqtt::protocol::{
-        common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, ws_by_type,
-        },
-        ClientTestProperties,
-    };
+    use std::time::Duration;
 
     #[tokio::test]
     async fn sub_auto_test() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let uniq = unique_id();
         let topic = format!("/tests/v1/v2/{uniq}");
