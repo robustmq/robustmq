@@ -284,9 +284,21 @@ build_frontend() {
         return 1
     fi
 
+    # Configure pnpm to use a local store directory to avoid permission issues
+    log_info "Configuring pnpm store directory..."
+    local pnpm_store_dir="$PROJECT_ROOT/build/.pnpm-store"
+    mkdir -p "$pnpm_store_dir"
+    
+    # Set pnpm store path
+    export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
+    
+    # Configure pnpm to use local store
+    pnpm config set store-dir "$pnpm_store_dir" 2>/dev/null || true
+    
     log_info "Installing frontend dependencies..."
-    if ! pnpm install; then
+    if ! pnpm install --store-dir="$pnpm_store_dir" --no-frozen-lockfile; then
         log_error "Failed to install frontend dependencies"
+        log_error "Store directory: $pnpm_store_dir"
         return 1
     fi
 

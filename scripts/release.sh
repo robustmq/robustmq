@@ -254,20 +254,145 @@ check_release_exists() {
     fi
 }
 
+generate_custom_release_notes() {
+    local version="$1"
+    local build_date=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
+    
+    cat << EOF
+## 🚀 RobustMQ $version
+
+Welcome to RobustMQ $version release!
+
+### 📦 Assets
+
+This release includes pre-built binaries for multiple platforms:
+
+- **Linux AMD64** (\`robustmq-${version}-linux-amd64.tar.gz\`)
+- **Linux ARM64** (\`robustmq-${version}-linux-arm64.tar.gz\`)
+- **macOS AMD64** (\`robustmq-${version}-darwin-amd64.tar.gz\`)
+- **macOS ARM64** (\`robustmq-${version}-darwin-arm64.tar.gz\`)
+
+> **Note**: Platform-specific packages are uploaded incrementally. If your platform is not yet available, please check back shortly.
+
+### 📥 Installation
+
+1. **Download the package** for your platform from the assets below
+2. **Extract the archive**:
+   \`\`\`bash
+   tar -xzf robustmq-${version}-<platform>.tar.gz
+   cd robustmq-${version}-<platform>
+   \`\`\`
+
+3. **Review the directory structure**:
+   - \`bin/\` - Management scripts (robust-server, robust-ctl, robust-bench)
+   - \`libs/\` - Compiled binaries (broker-server, cli-command, cli-bench)
+   - \`config/\` - Configuration files
+   - \`dist/\` - Web UI (if included)
+   - \`LICENSE\` - License file
+   - \`package-info.txt\` - Package information
+
+### ⚙️ Configuration
+
+1. **Edit configuration files** in the \`config/\` directory according to your needs
+2. **Main configuration file**:
+   - \`config/server.toml\` - Server configuration (supports multiple roles: meta, broker, journal)
+   - \`config/server-tracing.toml\` - Logging and tracing configuration
+
+### 🎯 Quick Start
+
+**Start RobustMQ Server** (all-in-one mode):
+\`\`\`bash
+./bin/robust-server start
+\`\`\`
+
+**Start with custom configuration**:
+\`\`\`bash
+./bin/robust-server start config/server.toml
+\`\`\`
+
+**Stop the server**:
+\`\`\`bash
+./bin/robust-server stop
+\`\`\`
+
+**Access Web UI** (if frontend is included):
+\`\`\`
+http://localhost:8080
+\`\`\`
+
+**Management Tools**:
+\`\`\`bash
+# View cluster information
+./bin/robust-ctl cluster info
+
+# Run benchmarks
+./bin/robust-bench --help
+\`\`\`
+
+**Test MQTT Connection**:
+\`\`\`bash
+# Install mqttx client (if not already installed)
+npm install -g mqttx-cli
+
+# Publish message
+mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+
+# Subscribe to messages
+mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
+\`\`\`
+
+### 📚 Documentation
+
+- **Documentation**: [https://www.robustmq.com](https://www.robustmq.com)
+- **GitHub Repository**: [https://github.com/robustmq/robustmq](https://github.com/robustmq/robustmq)
+- **Issues**: [https://github.com/robustmq/robustmq/issues](https://github.com/robustmq/robustmq/issues)
+- **Discussions**: [https://github.com/robustmq/robustmq/discussions](https://github.com/robustmq/robustmq/discussions)
+
+### 🛠️ Build Information
+
+- **Release Version**: $version
+- **Build Date**: $build_date
+- **Frontend Web UI**: Included (in packages with \`dist/\` directory)
+
+### 📝 Notes
+
+- For production deployments, please review and adjust the configuration files
+- Make sure required ports are available and not blocked by firewall
+- Check system requirements and dependencies before deployment
+- For upgrade instructions, please refer to the documentation
+
+### 💬 Community
+
+Join our community to get help, share ideas, and contribute:
+
+- **GitHub Discussions**: Ask questions and share knowledge
+- **GitHub Issues**: Report bugs and request features
+- **Contributing**: We welcome contributions! See CONTRIBUTING.md
+EOF
+}
+
 create_github_release() {
     local version="$1"
     local response
 
     log_step "Creating GitHub release for version $version"
 
+    # Generate custom release notes (installation guide, etc.)
+    local custom_notes=$(generate_custom_release_notes "$version")
+    
+    # Escape the body for JSON
+    local escaped_body=$(echo "$custom_notes" | jq -Rs .)
+
+    # Use GitHub's auto-generate feature combined with our custom notes
     local release_data=$(cat << EOF
 {
   "tag_name": "$version",
   "target_commitish": "main",
-  "name": "$version",
-  "body": "Release $version",
+  "name": "RobustMQ $version",
+  "body": $escaped_body,
   "draft": false,
-  "prerelease": false
+  "prerelease": false,
+  "generate_release_notes": true
 }
 EOF
 )
@@ -277,6 +402,7 @@ EOF
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
         local release_id=$(echo "$response" | jq -r '.id')
         log_success "GitHub release created successfully (ID: $release_id)"
+        log_info "GitHub has automatically generated PR and contributor information"
         echo "$release_id"
     else
         log_error "Failed to create GitHub release"
@@ -304,7 +430,7 @@ build_package() {
 
     log_step "Building package for $platform"
 
-    local build_cmd="$SCRIPT_DIR/build.sh --version $version --platform $platform --with-frontend"
+    local build_cmd="$SCRIPT_DIR/build.sh --version $version --with-frontend"
 
     if ! $build_cmd; then
         log_error "Failed to build package"

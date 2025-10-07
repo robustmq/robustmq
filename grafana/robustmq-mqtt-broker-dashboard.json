@@ -2255,7 +2255,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "返回队列剩余大小(Request Remianing Size)",
+      "description": "返回队列剩余大小(Request Remaining Size)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2347,7 +2347,7 @@
           "refId": "A"
         }
       ],
-      "title": "返回队列剩余大小(Request Remianing Size)",
+      "title": "返回队列剩余大小(Request Remaining Size)",
       "type": "timeseries"
     },
     {
