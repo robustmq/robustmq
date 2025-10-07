@@ -284,7 +284,7 @@ This release includes pre-built binaries for multiple platforms:
    \`\`\`
 
 3. **Review the directory structure**:
-   - \`bin/\` - Startup scripts and utilities
+   - \`bin/\` - Management scripts (robust-server, robust-ctl, robust-bench)
    - \`libs/\` - Compiled binaries (broker-server, cli-command, cli-bench)
    - \`config/\` - Configuration files
    - \`dist/\` - Web UI (if included)
@@ -294,31 +294,51 @@ This release includes pre-built binaries for multiple platforms:
 ### ⚙️ Configuration
 
 1. **Edit configuration files** in the \`config/\` directory according to your needs
-2. **Key configuration files**:
-   - \`placement-center.toml\` - Placement center configuration
-   - \`mqtt-server.toml\` - MQTT broker configuration
-   - \`journal-server.toml\` - Journal server configuration
+2. **Main configuration file**:
+   - \`config/server.toml\` - Server configuration (supports multiple roles: meta, broker, journal)
+   - \`config/server-tracing.toml\` - Logging and tracing configuration
 
 ### 🎯 Quick Start
 
-**Start Placement Center**:
+**Start RobustMQ Server** (all-in-one mode):
 \`\`\`bash
-./bin/start-placement-center.sh
+./bin/robust-server start
 \`\`\`
 
-**Start MQTT Broker**:
+**Start with custom configuration**:
 \`\`\`bash
-./bin/start-mqtt-server.sh
+./bin/robust-server start config/server.toml
 \`\`\`
 
-**Start Journal Server**:
+**Stop the server**:
 \`\`\`bash
-./bin/start-journal-server.sh
+./bin/robust-server stop
 \`\`\`
 
 **Access Web UI** (if frontend is included):
 \`\`\`
 http://localhost:8080
+\`\`\`
+
+**Management Tools**:
+\`\`\`bash
+# View cluster information
+./bin/robust-ctl cluster info
+
+# Run benchmarks
+./bin/robust-bench --help
+\`\`\`
+
+**Test MQTT Connection**:
+\`\`\`bash
+# Install mqttx client (if not already installed)
+npm install -g mqttx-cli
+
+# Publish message
+mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+
+# Subscribe to messages
+mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
 \`\`\`
 
 ### 📚 Documentation
