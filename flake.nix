@@ -83,6 +83,12 @@
         packages = [ rustToolchain ] ++ devTools;
 
         LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+        LD_LIBRARY_PATH =
+          with pkgs;
+          lib.concatStringsSep ":" [
+            (lib.makeLibraryPath [ openssl ])
+            "${pkgs.stdenv.cc.cc.lib}/lib"
+          ];
 
         shellHook = ''
           echo "Entered RobustMQ development shell. 🚀"
