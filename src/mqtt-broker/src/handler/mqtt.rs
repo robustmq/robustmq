@@ -380,7 +380,7 @@ impl MqttService {
         let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
                 Ok(data) => {
-                    record_mqtt_messages_delayed_inc(topic_name.clone());
+                    record_mqtt_messages_delayed_inc();
                     topic_name = data.target_topic_name.clone();
                     Some(data)
                 }
@@ -493,8 +493,8 @@ impl MqttService {
             }
         };
 
-        record_mqtt_messages_received_inc(topic_name.clone());
-        record_mqtt_message_bytes_received(topic_name.clone(), publish.payload.len() as u64);
+        record_mqtt_messages_received_inc();
+        record_mqtt_message_bytes_received(publish.payload.len() as u64);
         record_topic_messages_written(&topic_name);
         record_topic_bytes_written(&topic_name, publish.payload.len() as u64);
 

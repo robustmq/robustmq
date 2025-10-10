@@ -30,7 +30,7 @@ use protocol::broker::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{debug, info};
+use tracing::debug;
 
 pub async fn update_cache_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -96,7 +96,7 @@ pub async fn send_last_will_message_by_req(
     };
 
     wait_cluster_running(&cache_manager.broker_cache).await;
-    info!(
+    debug!(
         "Received will message from meta service, source client id: {},data:{:?}",
         req.client_id, data.client_id
     );

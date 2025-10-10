@@ -401,8 +401,8 @@ pub async fn send_message_to_client(
     };
     if let MqttPacket::Publish(publish, _) = packet.clone() {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        record_mqtt_messages_sent_inc(topic_name.clone());
-        record_mqtt_message_bytes_sent(topic_name.clone(), publish.payload.len() as u64);
+        record_mqtt_messages_sent_inc();
+        record_mqtt_message_bytes_sent(publish.payload.len() as u64);
         record_topic_messages_sent(&topic_name);
         record_topic_bytes_sent(&topic_name, publish.payload.len() as u64);
     }

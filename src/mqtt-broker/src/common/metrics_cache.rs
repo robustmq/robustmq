@@ -15,6 +15,7 @@
 use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
+use common_metrics::mqtt::publish::record_mqtt_messages_received_get;
 use common_metrics::mqtt::statistics::{
     record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscribers_set,
     record_mqtt_subscriptions_shared_set, record_mqtt_topics_set,
@@ -27,12 +28,12 @@ use tracing::info;
 
 #[derive(Default, Clone)]
 pub struct MetricsCacheManager {
-    pub connection_num: DashMap<u64, u32>,
-    pub topic_num: DashMap<u64, u32>,
-    pub subscribe_num: DashMap<u64, u32>,
-    pub message_in_num: DashMap<u64, u32>,
-    pub message_out_num: DashMap<u64, u32>,
-    pub message_drop_num: DashMap<u64, u32>,
+    pub connection_num: DashMap<u64, u64>,
+    pub topic_num: DashMap<u64, u64>,
+    pub subscribe_num: DashMap<u64, u64>,
+    pub message_in_num: DashMap<u64, u64>,
+    pub message_out_num: DashMap<u64, u64>,
+    pub message_drop_num: DashMap<u64, u64>,
 }
 
 impl MetricsCacheManager {
@@ -47,27 +48,27 @@ impl MetricsCacheManager {
         }
     }
 
-    pub fn record_connection_num(&self, time: u64, num: u32) {
+    pub fn record_connection_num(&self, time: u64, num: u64) {
         self.connection_num.insert(time, num);
     }
 
-    pub fn record_topic_num(&self, time: u64, num: u32) {
+    pub fn record_topic_num(&self, time: u64, num: u64) {
         self.topic_num.insert(time, num);
     }
 
-    pub fn record_subscribe_num(&self, time: u64, num: u32) {
+    pub fn record_subscribe_num(&self, time: u64, num: u64) {
         self.subscribe_num.insert(time, num);
     }
 
-    pub fn record_message_in_num(&self, time: u64, num: u32) {
+    pub fn record_message_in_num(&self, time: u64, num: u64) {
         self.message_in_num.insert(time, num);
     }
 
-    pub fn record_message_out_num(&self, time: u64, num: u32) {
+    pub fn record_message_out_num(&self, time: u64, num: u64) {
         self.message_out_num.insert(time, num);
     }
 
-    pub fn record_message_drop_num(&self, time: u64, num: u32) {
+    pub fn record_message_drop_num(&self, time: u64, num: u64) {
         self.message_drop_num.insert(time, num);
     }
 
@@ -122,7 +123,7 @@ impl MetricsCacheManager {
     // Get the value within a given time interval
     fn search_by_time(
         &self,
-        data_list: DashMap<u64, u32>,
+        data_list: DashMap<u64, u64>,
         start_time: u64,
         end_time: u64,
     ) -> Vec<HashMap<String, u64>> {
@@ -131,7 +132,7 @@ impl MetricsCacheManager {
             if time >= start_time && time <= end_time {
                 let mut raw = HashMap::new();
                 raw.insert("date".to_string(), time);
-                raw.insert("value".to_string(), value as u64);
+                raw.insert("value".to_string(), value);
                 results.push(raw);
             }
         }
@@ -154,11 +155,11 @@ pub fn metrics_record_thread(
             let metrics_cache_manager = metrics_cache_manager.clone();
             let connection_manager = connection_manager.clone();
             metrics_cache_manager
-                .record_connection_num(now, connection_manager.connections.len() as u32);
-            metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
+                .record_connection_num(now, connection_manager.connections.len() as u64);
+            metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u64);
             metrics_cache_manager
-                .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
-            metrics_cache_manager.record_message_in_num(now, 1000);
+                .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u64);
+            metrics_cache_manager.record_message_in_num(now, record_mqtt_messages_received_get());
             metrics_cache_manager.record_message_out_num(now, 1000);
             metrics_cache_manager.record_message_drop_num(now, 30);
 

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{counter_metric_inc, counter_metric_inc_by, register_counter_metric};
+use crate::{
+    counter_metric_get, counter_metric_inc, counter_metric_inc_by, register_counter_metric,
+};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
-struct MessageLabel {
-    topic: String,
-}
+struct MessageLabel {}
 
 register_counter_metric!(
     MQTT_MESSAGES_DELAYED,
@@ -55,27 +55,34 @@ register_counter_metric!(
     MessageLabel
 );
 
-pub fn record_mqtt_messages_delayed_inc(topic: String) {
-    let label = MessageLabel { topic };
+pub fn record_mqtt_messages_delayed_inc() {
+    let label = MessageLabel {};
     counter_metric_inc!(MQTT_MESSAGES_DELAYED, label);
 }
 
-pub fn record_mqtt_messages_received_inc(topic: String) {
-    let label = MessageLabel { topic };
+pub fn record_mqtt_messages_received_inc() {
+    let label = MessageLabel {};
     counter_metric_inc!(MQTT_MESSAGES_RECEIVED, label);
 }
 
-pub fn record_mqtt_message_bytes_received(topic: String, bytes: u64) {
-    let label = MessageLabel { topic };
+pub fn record_mqtt_messages_received_get() -> u64 {
+    let label = MessageLabel {};
+    let mut result = 0u64;
+    counter_metric_get!(MQTT_MESSAGES_RECEIVED, label, result);
+    result
+}
+
+pub fn record_mqtt_message_bytes_received(bytes: u64) {
+    let label = MessageLabel {};
     counter_metric_inc_by!(MQTT_MESSAGE_BYTES_RECEIVED, label, bytes);
 }
 
-pub fn record_mqtt_messages_sent_inc(topic: String) {
-    let label = MessageLabel { topic };
+pub fn record_mqtt_messages_sent_inc() {
+    let label = MessageLabel {};
     counter_metric_inc!(MQTT_MESSAGES_SENT, label);
 }
 
-pub fn record_mqtt_message_bytes_sent(topic: String, bytes: u64) {
-    let label = MessageLabel { topic };
+pub fn record_mqtt_message_bytes_sent(bytes: u64) {
+    let label = MessageLabel {};
     counter_metric_inc_by!(MQTT_MESSAGE_BYTES_SENT, label, bytes);
 }
