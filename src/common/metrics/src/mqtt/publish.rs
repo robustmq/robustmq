@@ -82,7 +82,60 @@ pub fn record_mqtt_messages_sent_inc() {
     counter_metric_inc!(MQTT_MESSAGES_SENT, label);
 }
 
+pub fn record_mqtt_messages_sent_get() -> u64 {
+    let label = MessageLabel {};
+    let mut result = 0u64;
+    counter_metric_get!(MQTT_MESSAGES_SENT, label, result);
+    result
+}
+
 pub fn record_mqtt_message_bytes_sent(bytes: u64) {
     let label = MessageLabel {};
     counter_metric_inc_by!(MQTT_MESSAGE_BYTES_SENT, label, bytes);
+}
+
+register_counter_metric!(
+    MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS,
+    "mqtt_messages_dropped_no_subscribers",
+    "Number of MQTT messages dropped due to no subscribers",
+    MessageLabel
+);
+
+pub fn record_messages_dropped_no_subscribers_incr() {
+    let label = MessageLabel {};
+    counter_metric_inc!(MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS, label);
+}
+
+pub fn record_messages_dropped_no_subscribers_get() -> u64 {
+    let label = MessageLabel {};
+    let mut result = 0u64;
+    counter_metric_get!(MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS, label, result);
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mqtt_messages_received_inc_and_get() {
+        // Test initial value (should be 0 for a new metric)
+        let initial_count = record_mqtt_messages_received_get();
+
+        // Increment the counter
+        record_mqtt_messages_received_inc();
+        let count_after_one = record_mqtt_messages_received_get();
+        assert_eq!(count_after_one, initial_count + 1);
+
+        // Increment multiple times
+        record_mqtt_messages_received_inc();
+        record_mqtt_messages_received_inc();
+        record_mqtt_messages_received_inc();
+        let count_after_four = record_mqtt_messages_received_get();
+        assert_eq!(count_after_four, initial_count + 4);
+
+        // Verify counter only increases (never decreases)
+        let final_count = record_mqtt_messages_received_get();
+        assert!(final_count >= initial_count);
+    }
 }

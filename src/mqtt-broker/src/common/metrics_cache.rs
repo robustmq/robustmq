@@ -15,7 +15,10 @@
 use crate::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
-use common_metrics::mqtt::publish::record_mqtt_messages_received_get;
+use common_metrics::mqtt::publish::{
+    record_messages_dropped_no_subscribers_get, record_mqtt_messages_received_get,
+    record_mqtt_messages_sent_get,
+};
 use common_metrics::mqtt::statistics::{
     record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscribers_set,
     record_mqtt_subscriptions_shared_set, record_mqtt_topics_set,
@@ -159,9 +162,42 @@ pub fn metrics_record_thread(
             metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u64);
             metrics_cache_manager
                 .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u64);
-            metrics_cache_manager.record_message_in_num(now, record_mqtt_messages_received_get());
-            metrics_cache_manager.record_message_out_num(now, 1000);
-            metrics_cache_manager.record_message_drop_num(now, 30);
+
+            // message in
+            let message_in = record_mqtt_messages_received_get();
+            let pre_message_in = if let Some(val) = metrics_cache_manager
+                .message_in_num
+                .get(&(now - time_window))
+            {
+                *val
+            } else {
+                message_in
+            };
+            metrics_cache_manager.record_message_in_num(now, message_in - pre_message_in);
+
+            // message out
+            let message_out = record_mqtt_messages_sent_get();
+            let pre_message_out = if let Some(val) = metrics_cache_manager
+                .message_out_num
+                .get(&(now - time_window))
+            {
+                *val
+            } else {
+                message_out
+            };
+            metrics_cache_manager.record_message_out_num(now, message_out - pre_message_out);
+
+            // message drop
+            let message_drop = record_messages_dropped_no_subscribers_get();
+            let pre_message_drop = if let Some(val) = metrics_cache_manager
+                .message_drop_num
+                .get(&(now - time_window))
+            {
+                *val
+            } else {
+                message_drop
+            };
+            metrics_cache_manager.record_message_drop_num(now, message_drop - pre_message_drop);
 
             // Many system metrics can be reused here. We only need to get the instantaneous value.
             // However, it should be noted that prometheus export itself is periodic,

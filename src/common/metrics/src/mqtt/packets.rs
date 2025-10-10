@@ -239,13 +239,6 @@ register_counter_metric!(
     QosLabel
 );
 
-register_counter_metric!(
-    MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS,
-    "mqtt_messages_dropped_no_subscribers",
-    "Number of MQTT messages dropped due to no subscribers",
-    QosLabel
-);
-
 // Record the packet-related metrics received by the server for failed resolution
 pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
     let labe = NetworkLabel {
@@ -369,12 +362,6 @@ pub fn record_retain_sent_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
     let label = QosLabel { qos: qos_str };
     counter_metric_inc!(MQTT_RETAIN_PACKETS_SENT, label);
-}
-
-pub fn record_messages_dropped_no_subscribers_metrics(qos: QoS) {
-    let qos_str = (qos as u8).to_string();
-    let label = QosLabel { qos: qos_str };
-    counter_metric_inc!(MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS, label);
 }
 
 #[cfg(test)]
