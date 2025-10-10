@@ -166,8 +166,8 @@ pub struct BanLogListRaw {
 pub struct OverViewResp {
     pub node_list: Vec<BrokerNode>,
     pub cluster_name: String,
-    pub message_in_rate: u32,
-    pub message_out_rate: u32,
+    pub message_in_rate: u64,
+    pub message_out_rate: u64,
     pub connection_num: u32,
     pub session_num: u32,
     pub topic_num: u32,
