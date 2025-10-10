@@ -22,6 +22,7 @@ use common_metrics::mqtt::publish::{
     record_mqtt_message_bytes_received, record_mqtt_messages_delayed_inc,
     record_mqtt_messages_received_inc,
 };
+use common_metrics::mqtt::topic::{record_topic_bytes_written, record_topic_messages_written};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -494,6 +495,9 @@ impl MqttService {
 
         record_mqtt_messages_received_inc(topic_name.clone());
         record_mqtt_message_bytes_received(topic_name.clone(), publish.payload.len() as u64);
+        record_topic_messages_written(&topic_name);
+        record_topic_bytes_written(&topic_name, publish.payload.len() as u64);
+
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager

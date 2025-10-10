@@ -16,7 +16,6 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
-
 use common_base::error::common::CommonError;
 use common_base::error::not_record_error;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
