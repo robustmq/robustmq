@@ -168,7 +168,7 @@ mod test {
         assert!(!flag);
         let mut cluset_info = cache_manager.broker_cache.get_cluster_config().await;
         cluset_info.mqtt_protocol_config.client_pkid_persistent = true;
-        cache_manager.broker_cache.set_cluster_config(cluset_info);
+        cache_manager.broker_cache.set_cluster_config(cluset_info).await;
 
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)
             .await

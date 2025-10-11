@@ -59,7 +59,7 @@ mod tests {
             },
             ..Default::default()
         };
-        cache_manager.broker_cache.set_cluster_config(cluster);
+        cache_manager.broker_cache.set_cluster_config(cluster).await;
 
         let publish_properties = None;
         let res = build_message_expire(&cache_manager, &publish_properties).await;
