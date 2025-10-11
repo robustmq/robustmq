@@ -55,6 +55,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_offline_message
         .enable;
     let not_exist_subscribe =
@@ -64,7 +65,8 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         return Ok(None);
     }
 
-    let message_expire = build_message_expire(&context.cache_manager, &context.publish_properties);
+    let message_expire =
+        build_message_expire(&context.cache_manager, &context.publish_properties).await;
 
     if context.delay_info.is_some() {
         return save_delay_message(

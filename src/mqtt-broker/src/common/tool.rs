@@ -31,12 +31,13 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     false
 }
 
-pub fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
+pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-    let broker_cache = Arc::new(BrokerCacheManager::new("test".to_string()));
+    let broker_cache = Arc::new(BrokerCacheManager::new(default_broker_config()));
     let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));
     cache_manager
         .broker_cache
-        .set_cluster_config(default_broker_config());
+        .set_cluster_config(default_broker_config())
+        .await;
     cache_manager
 }

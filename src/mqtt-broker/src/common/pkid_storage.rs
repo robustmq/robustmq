@@ -36,6 +36,7 @@ pub async fn pkid_save(
     if cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .client_pkid_persistent
     {
@@ -68,6 +69,7 @@ pub async fn pkid_exists(
     if cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .client_pkid_persistent
     {
@@ -98,6 +100,7 @@ pub async fn pkid_delete(
     if cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .client_pkid_persistent
     {
@@ -138,7 +141,7 @@ mod test {
         init_broker_conf_by_config(default_broker_config());
 
         let client_pool = Arc::new(ClientPool::new(2));
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test".to_string();
         let pkid = 15;
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)
@@ -163,7 +166,7 @@ mod test {
             .await
             .unwrap();
         assert!(!flag);
-        let mut cluset_info = cache_manager.broker_cache.get_cluster_config();
+        let mut cluset_info = cache_manager.broker_cache.get_cluster_config().await;
         cluset_info.mqtt_protocol_config.client_pkid_persistent = true;
         cache_manager.broker_cache.set_cluster_config(cluset_info);
 

@@ -47,7 +47,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     // load cluster config
     let cluster = build_cluster_config(client_pool).await?;
-    cache_manager.broker_cache.set_cluster_config(cluster);
+    cache_manager.broker_cache.set_cluster_config(cluster).await;
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());

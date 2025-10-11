@@ -79,7 +79,7 @@ impl ClientKeepAlive {
     }
 
     async fn keep_alive(&self) -> ResultCommonError {
-        let config = self.cache_manager.broker_cache.get_cluster_config();
+        let config = self.cache_manager.broker_cache.get_cluster_config().await;
         if !config.mqtt_keep_alive.enable {
             return Ok(());
         }
@@ -181,7 +181,7 @@ impl ClientKeepAlive {
         let mut expire_connection = Vec::new();
         for (connect_id, connection) in self.cache_manager.connection_info.clone() {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
-                let max_timeout = keep_live_time(&self.cache_manager, time.keep_live) as u64;
+                let max_timeout = keep_live_time(&self.cache_manager, time.keep_live).await as u64;
                 let now = now_second();
                 if (now - time.heartbeat) >= max_timeout {
                     info!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
@@ -201,13 +201,16 @@ impl ClientKeepAlive {
     }
 }
 
-pub fn keep_live_time(cache_manager: &Arc<MQTTCacheManager>, keep_alive: u16) -> u16 {
-    let config = cache_manager.broker_cache.get_cluster_config();
+pub async fn keep_live_time(cache_manager: &Arc<MQTTCacheManager>, keep_alive: u16) -> u16 {
+    let config = cache_manager.broker_cache.get_cluster_config().await;
     keep_alive * config.mqtt_keep_alive.default_timeout
 }
 
-pub fn client_keep_live_time(cache_manager: &Arc<MQTTCacheManager>, mut keep_alive: u16) -> u16 {
-    let config = cache_manager.broker_cache.get_cluster_config();
+pub async fn client_keep_live_time(
+    cache_manager: &Arc<MQTTCacheManager>,
+    mut keep_alive: u16,
+) -> u16 {
+    let config = cache_manager.broker_cache.get_cluster_config().await;
     if keep_alive == 0 {
         keep_alive = config.mqtt_keep_alive.default_time;
     }
@@ -242,39 +245,39 @@ mod test {
 
     #[tokio::test]
     pub async fn keep_live_test() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
 
         let keep_alive = 0;
-        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive).await;
         assert_eq!(client_live, 180);
-        assert_eq!(keep_live_time(&cache_manager, client_live), 360);
+        assert_eq!(keep_live_time(&cache_manager, client_live).await, 360);
 
         let keep_alive = 50;
-        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive).await;
         assert_eq!(client_live, 50);
-        assert_eq!(keep_live_time(&cache_manager, client_live), 100);
+        assert_eq!(keep_live_time(&cache_manager, client_live).await, 100);
 
         let keep_alive = 100;
-        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive).await;
         assert_eq!(client_live, 100);
-        assert_eq!(keep_live_time(&cache_manager, client_live), 200);
+        assert_eq!(keep_live_time(&cache_manager, client_live).await, 200);
 
         let keep_alive = 500;
-        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive).await;
         assert_eq!(client_live, 500);
-        assert_eq!(keep_live_time(&cache_manager, client_live), 1000);
+        assert_eq!(keep_live_time(&cache_manager, client_live).await, 1000);
 
         let keep_alive = 4000;
-        let client_live = client_keep_live_time(&cache_manager, keep_alive);
+        let client_live = client_keep_live_time(&cache_manager, keep_alive).await;
         assert_eq!(client_live, 1800);
-        assert_eq!(keep_live_time(&cache_manager, client_live), 3600);
+        assert_eq!(keep_live_time(&cache_manager, client_live).await, 3600);
     }
 
     #[tokio::test]
     pub async fn get_expire_connection_test() {
         let client_pool = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(
@@ -316,7 +319,7 @@ mod test {
         }
         assert_eq!(
             (now_second() - start),
-            keep_live_time(&cache_manager, keep_alive) as u64
+            keep_live_time(&cache_manager, keep_alive).await as u64
         );
     }
 }

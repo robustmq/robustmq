@@ -88,9 +88,9 @@ mod test {
         topic_name: String,
     }
 
-    fn setup() -> TestFixture {
+    async fn setup() -> TestFixture {
         let topic_name = "tp-1".to_string();
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -144,7 +144,7 @@ mod test {
 
     #[tokio::test]
     pub async fn check_empty_acl_test() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert!(!is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
@@ -162,7 +162,7 @@ mod test {
 
     #[tokio::test]
     async fn test_user_is_denied_by_specific_topic_rule() {
-        let fixture = setup();
+        let fixture = setup().await;
         add_deny_rule(
             &fixture,
             MqttAclResourceType::User,
@@ -187,7 +187,7 @@ mod test {
 
     #[tokio::test]
     async fn test_clientid_is_denied_by_wildcard_topic_rule() {
-        let fixture = setup();
+        let fixture = setup().await;
         add_deny_rule(
             &fixture,
             MqttAclResourceType::ClientId,

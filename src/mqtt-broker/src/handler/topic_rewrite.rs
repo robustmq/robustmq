@@ -176,7 +176,7 @@ mod tests {
             SimpleRule::new(r"x/y/+", r"z/y/$1", r"^x/y/(\d+)$"),
         ];
 
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         for rule in rules.iter() {
             let rule = MqttTopicRewriteRule {
                 cluster: "default".to_string(),

@@ -440,7 +440,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
@@ -467,7 +467,7 @@ mod tests {
     #[tokio::test]
 
     async fn user_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user1 = MqttUser {
             username: "user1".to_string(),
             password: "password1".to_string(),
@@ -507,7 +507,7 @@ mod tests {
 
     #[tokio::test]
     async fn session_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_session";
         let session = MqttSession {
             client_id: client_id.to_string(),
@@ -543,7 +543,7 @@ mod tests {
 
     #[tokio::test]
     async fn connection_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let connect_id = 12345;
         let client_id = "test_client_connection";
         let session = MqttSession {
@@ -583,7 +583,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let topic_name = "test/topic";
         let topic = MQTTTopic {
             topic_id: "topic_1".to_string(),
@@ -615,7 +615,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_id_name_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let topic_name = "test/topic";
         let topic = MQTTTopic {
             topic_id: "topic_1".to_string(),
@@ -640,7 +640,7 @@ mod tests {
 
     #[tokio::test]
     async fn heartbeat_data_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_heartbeat";
         let live_time = ConnectionLiveTime {
             protocol: MqttProtocol::Mqtt3,
@@ -666,7 +666,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_rewrite_rule_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttTopicRewriteRule {
             cluster: cache_manager.broker_cache.cluster_name.clone(),
             action: "publish".to_string(),
@@ -694,7 +694,7 @@ mod tests {
 
     #[tokio::test]
     async fn auto_subscribe_rule_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
             cluster: cache_manager.broker_cache.cluster_name.clone(),
             topic: "auto/sub/topic".to_string(),
@@ -724,7 +724,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_alias_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_alias";
         let connect_id = 1;
         let session = MqttSession {
@@ -764,7 +764,7 @@ mod tests {
 
     #[tokio::test]
     async fn acl_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user_acl = MqttAcl {
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user_acl".to_string(),
@@ -818,7 +818,7 @@ mod tests {
 
     #[tokio::test]
     async fn blacklist_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let blacklist = MqttAclBlackList {
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "blacklist_client".to_string(),

@@ -80,7 +80,7 @@ pub async fn save_retain_message(
     } else {
         record_retain_recv_metrics(publish.qos);
         record_mqtt_retained_inc();
-        let message_expire = build_message_expire(cache_manager, publish_properties);
+        let message_expire = build_message_expire(cache_manager, publish_properties).await;
         let retain_message =
             MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
         topic_storage
@@ -169,7 +169,11 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
         let topic_id_list = get_sub_topic_id_list(&context.cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(context.client_pool.clone());
-        let cluster = context.cache_manager.broker_cache.get_cluster_config();
+        let cluster = context
+            .cache_manager
+            .broker_cache
+            .get_cluster_config()
+            .await;
 
         for topic_id in topic_id_list.iter() {
             let topic_name =

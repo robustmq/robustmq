@@ -24,7 +24,7 @@ pub fn is_message_expire(message: &MqttMessage) -> bool {
     message.expiry_interval < now_second()
 }
 
-pub fn build_message_expire(
+pub async fn build_message_expire(
     cache_manager: &Arc<MQTTCacheManager>,
     publish_properties: &Option<PublishProperties>,
 ) -> u64 {
@@ -36,7 +36,7 @@ pub fn build_message_expire(
         }
     }
 
-    let cluster = cache_manager.broker_cache.get_cluster_config();
+    let cluster = cache_manager.broker_cache.get_cluster_config().await;
     now_second() + cluster.mqtt_protocol_config.max_message_expiry_interval
 }
 
@@ -49,9 +49,9 @@ mod tests {
     use metadata_struct::mqtt::message::MqttMessage;
     use protocol::mqtt::common::PublishProperties;
 
-    #[test]
-    fn build_message_expire_test() {
-        let cache_manager = test_build_mqtt_cache_manager();
+    #[tokio::test]
+    async fn build_message_expire_test() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let cluster = BrokerConfig {
             mqtt_protocol_config: MqttProtocolConfig {
                 max_message_expiry_interval: 10,
@@ -62,14 +62,14 @@ mod tests {
         cache_manager.broker_cache.set_cluster_config(cluster);
 
         let publish_properties = None;
-        let res = build_message_expire(&cache_manager, &publish_properties);
+        let res = build_message_expire(&cache_manager, &publish_properties).await;
         assert_eq!(res, now_second() + 10);
 
         let publish_properties = PublishProperties {
             message_expiry_interval: Some(3),
             ..Default::default()
         };
-        let res = build_message_expire(&cache_manager, &Some(publish_properties));
+        let res = build_message_expire(&cache_manager, &Some(publish_properties)).await;
         assert_eq!(res, now_second() + 3);
     }
 

@@ -26,11 +26,12 @@ use common_metrics::mqtt::statistics::{
 use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, RwLock};
 use tracing::info;
 
 #[derive(Default, Clone)]
 pub struct MetricsCacheManager {
+    pub pre_calc_time: Arc<RwLock<u64>>,
     pub connection_num: DashMap<u64, u64>,
     pub topic_num: DashMap<u64, u64>,
     pub subscribe_num: DashMap<u64, u64>,
@@ -48,7 +49,17 @@ impl MetricsCacheManager {
             message_in_num: DashMap::with_capacity(4),
             message_out_num: DashMap::with_capacity(4),
             message_drop_num: DashMap::with_capacity(4),
+            pre_calc_time: Arc::new(RwLock::new(0)),
         }
+    }
+
+    pub async fn set_calc_time(&self, now: u64) {
+        let mut data = self.pre_calc_time.write().await;
+        *data = now;
+    }
+
+    pub async fn get_calc_time(&self) -> u64 {
+        *self.pre_calc_time.read().await
     }
 
     pub fn record_connection_num(&self, time: u64, num: u64) {
@@ -155,6 +166,7 @@ pub fn metrics_record_thread(
     tokio::spawn(async move {
         let record_func = async || -> ResultCommonError {
             let now = now_second();
+            let pre_time = metrics_cache_manager.get_calc_time().await;
             let metrics_cache_manager = metrics_cache_manager.clone();
             let connection_manager = connection_manager.clone();
             metrics_cache_manager
@@ -165,39 +177,35 @@ pub fn metrics_record_thread(
 
             // message in
             let message_in = record_mqtt_messages_received_get();
-            let pre_message_in = if let Some(val) = metrics_cache_manager
-                .message_in_num
-                .get(&(now - time_window))
-            {
-                *val
-            } else {
-                message_in
-            };
+            let pre_message_in =
+                if let Some(val) = metrics_cache_manager.message_in_num.get(&pre_time) {
+                    *val
+                } else {
+                    message_in
+                };
+
             metrics_cache_manager.record_message_in_num(now, message_in - pre_message_in);
 
             // message out
             let message_out = record_mqtt_messages_sent_get();
-            let pre_message_out = if let Some(val) = metrics_cache_manager
-                .message_out_num
-                .get(&(now - time_window))
-            {
-                *val
-            } else {
-                message_out
-            };
+            let pre_message_out =
+                if let Some(val) = metrics_cache_manager.message_out_num.get(&pre_time) {
+                    *val
+                } else {
+                    message_out
+                };
             metrics_cache_manager.record_message_out_num(now, message_out - pre_message_out);
 
             // message drop
             let message_drop = record_messages_dropped_no_subscribers_get();
-            let pre_message_drop = if let Some(val) = metrics_cache_manager
-                .message_drop_num
-                .get(&(now - time_window))
-            {
-                *val
-            } else {
-                message_drop
-            };
+            let pre_message_drop =
+                if let Some(val) = metrics_cache_manager.message_drop_num.get(&pre_time) {
+                    *val
+                } else {
+                    message_drop
+                };
             metrics_cache_manager.record_message_drop_num(now, message_drop - pre_message_drop);
+            metrics_cache_manager.set_calc_time(now).await;
 
             // Many system metrics can be reused here. We only need to get the instantaneous value.
             // However, it should be noted that prometheus export itself is periodic,
@@ -311,7 +319,7 @@ mod test {
     pub async fn metrics_cache_test() {
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let (stop_send, _) = broadcast::channel(2);
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let subscribe_manager = Arc::new(SubscribeManager::new());
 
         // add mock connection

@@ -229,10 +229,11 @@ pub async fn send_publish_packet_to_client(
     Ok(())
 }
 
-pub fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
+pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
     let cluster_qos = cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .max_qos;
     min_qos(qos(cluster_qos).unwrap(), subscriber.qos)

@@ -67,7 +67,7 @@ pub async fn send_last_will_message(
     // Persisting stores message data
     let message_storage = MessageStorage::new(message_storage_adapter.clone());
 
-    let message_expire = build_message_expire(cache_manager, &publish_properties);
+    let message_expire = build_message_expire(cache_manager, &publish_properties).await;
     if let Some(record) =
         MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
     {

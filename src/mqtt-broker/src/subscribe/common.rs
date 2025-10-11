@@ -468,7 +468,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let metadata_cache = test_build_mqtt_cache_manager();
+        let metadata_cache = test_build_mqtt_cache_manager().await;
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

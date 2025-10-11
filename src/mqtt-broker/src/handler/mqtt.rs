@@ -130,7 +130,7 @@ impl MqttService {
     }
 
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
 
         // connect params validator
         if let Some(res) = connect_validator(
@@ -154,7 +154,8 @@ impl MqttService {
             &context.connect,
             &context.connect_properties,
             &context.addr,
-        );
+        )
+        .await;
 
         if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
@@ -778,6 +779,7 @@ impl MqttService {
             .cache_manager
             .broker_cache
             .get_cluster_config()
+            .await
             .mqtt_protocol_config
             .max_qos;
         for filter in subscribe.filters.clone() {
