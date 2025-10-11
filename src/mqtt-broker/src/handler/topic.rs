@@ -175,7 +175,7 @@ pub async fn try_init_topic(
             };
             message_storage_adapter.create_shard(shard).await?;
         }
-        metadata_cache.set_re_calc_topic_rewrite(true);
+        metadata_cache.set_re_calc_topic_rewrite(true).await;
         return Ok(topic);
     };
     Ok(topic)

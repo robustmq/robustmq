@@ -30,7 +30,7 @@ pub async fn start_convert_thread(
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        if let Err(e) = convert_rewrite_topic(cache_manager.clone()) {
+        if let Err(e) = convert_rewrite_topic(cache_manager.clone()).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -38,8 +38,8 @@ pub async fn start_convert_thread(
     loop_select_ticket(ac_fn, 3, &stop_send).await;
 }
 
-pub fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
-    if !cache_manager.is_re_calc_topic_rewrite() {
+pub async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
+    if !cache_manager.is_re_calc_topic_rewrite().await {
         return Ok(());
     }
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
@@ -64,7 +64,7 @@ pub fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqtt
             cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
         }
     }
-    cache_manager.set_re_calc_topic_rewrite(false);
+    cache_manager.set_re_calc_topic_rewrite(false).await;
     Ok(())
 }
 

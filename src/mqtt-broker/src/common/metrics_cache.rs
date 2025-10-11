@@ -36,8 +36,11 @@ pub struct MetricsCacheManager {
     pub topic_num: DashMap<u64, u64>,
     pub subscribe_num: DashMap<u64, u64>,
     pub message_in_num: DashMap<u64, u64>,
+    pub message_in_num_total: DashMap<u64, u64>,
     pub message_out_num: DashMap<u64, u64>,
     pub message_drop_num: DashMap<u64, u64>,
+    pub message_out_num_total: DashMap<u64, u64>,
+    pub message_drop_num_total: DashMap<u64, u64>,
 }
 
 impl MetricsCacheManager {
@@ -47,8 +50,11 @@ impl MetricsCacheManager {
             topic_num: DashMap::with_capacity(4),
             subscribe_num: DashMap::with_capacity(4),
             message_in_num: DashMap::with_capacity(4),
+            message_in_num_total: DashMap::with_capacity(4),
             message_out_num: DashMap::with_capacity(4),
+            message_out_num_total: DashMap::with_capacity(4),
             message_drop_num: DashMap::with_capacity(4),
+            message_drop_num_total: DashMap::with_capacity(4),
             pre_calc_time: Arc::new(RwLock::new(0)),
         }
     }
@@ -74,16 +80,19 @@ impl MetricsCacheManager {
         self.subscribe_num.insert(time, num);
     }
 
-    pub fn record_message_in_num(&self, time: u64, num: u64) {
+    pub fn record_message_in_num(&self, time: u64, total: u64, num: u64) {
         self.message_in_num.insert(time, num);
+        self.message_in_num_total.insert(time, total);
     }
 
-    pub fn record_message_out_num(&self, time: u64, num: u64) {
+    pub fn record_message_out_num(&self, time: u64, total: u64, num: u64) {
         self.message_out_num.insert(time, num);
+        self.message_out_num_total.insert(time, total);
     }
 
-    pub fn record_message_drop_num(&self, time: u64, num: u64) {
+    pub fn record_message_drop_num(&self, time: u64, total: u64, num: u64) {
         self.message_drop_num.insert(time, num);
+        self.message_drop_num_total.insert(time, total);
     }
 
     pub fn get_connection_num_by_time(
@@ -165,7 +174,7 @@ pub fn metrics_record_thread(
     info!("Metrics record thread start successfully");
     tokio::spawn(async move {
         let record_func = async || -> ResultCommonError {
-            let now = now_second();
+            let now: u64 = now_second();
             let pre_time = metrics_cache_manager.get_calc_time().await;
             let metrics_cache_manager = metrics_cache_manager.clone();
             let connection_manager = connection_manager.clone();
@@ -178,33 +187,45 @@ pub fn metrics_record_thread(
             // message in
             let message_in = record_mqtt_messages_received_get();
             let pre_message_in =
-                if let Some(val) = metrics_cache_manager.message_in_num.get(&pre_time) {
+                if let Some(val) = metrics_cache_manager.message_in_num_total.get(&pre_time) {
                     *val
                 } else {
                     message_in
                 };
 
-            metrics_cache_manager.record_message_in_num(now, message_in - pre_message_in);
+            metrics_cache_manager.record_message_in_num(
+                now,
+                message_in,
+                message_in - pre_message_in,
+            );
 
             // message out
             let message_out = record_mqtt_messages_sent_get();
             let pre_message_out =
-                if let Some(val) = metrics_cache_manager.message_out_num.get(&pre_time) {
+                if let Some(val) = metrics_cache_manager.message_out_num_total.get(&pre_time) {
                     *val
                 } else {
                     message_out
                 };
-            metrics_cache_manager.record_message_out_num(now, message_out - pre_message_out);
+            metrics_cache_manager.record_message_out_num(
+                now,
+                message_out,
+                message_out - pre_message_out,
+            );
 
             // message drop
             let message_drop = record_messages_dropped_no_subscribers_get();
             let pre_message_drop =
-                if let Some(val) = metrics_cache_manager.message_drop_num.get(&pre_time) {
+                if let Some(val) = metrics_cache_manager.message_drop_num_total.get(&pre_time) {
                     *val
                 } else {
                     message_drop
                 };
-            metrics_cache_manager.record_message_drop_num(now, message_drop - pre_message_drop);
+            metrics_cache_manager.record_message_drop_num(
+                now,
+                message_drop,
+                message_drop - pre_message_drop,
+            );
             metrics_cache_manager.set_calc_time(now).await;
 
             // Many system metrics can be reused here. We only need to get the instantaneous value.

@@ -155,7 +155,8 @@ pub async fn topic_rewrite_create(
     state
         .mqtt_context
         .cache_manager
-        .set_re_calc_topic_rewrite(true);
+        .set_re_calc_topic_rewrite(true)
+        .await;
     success_response("success")
 }
 
@@ -178,6 +179,7 @@ pub async fn topic_rewrite_delete(
     state
         .mqtt_context
         .cache_manager
-        .set_re_calc_topic_rewrite(true);
+        .set_re_calc_topic_rewrite(true)
+        .await;
     success_response("success")
 }

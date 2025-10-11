@@ -249,10 +249,7 @@ impl BrokerServer {
         });
 
         // awaiting stop
-        server_runtime.block_on(async move {
-            self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send)
-                .await;
-        });
+        self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
     }
 
     async fn build_meta_service(
@@ -355,16 +352,16 @@ impl BrokerServer {
         }
     }
 
-    pub async fn awaiting_stop(
+    pub fn awaiting_stop(
         &self,
         place_stop: Option<broadcast::Sender<bool>>,
         mqtt_stop: Option<broadcast::Sender<bool>>,
         journal_stop: Option<broadcast::Sender<bool>>,
     ) {
-        self.broker_cache
-            .set_status(common_base::node_status::NodeStatus::Running)
-            .await;
         self.main_runtime.block_on(async {
+            self.broker_cache
+                .set_status(common_base::node_status::NodeStatus::Running)
+                .await;
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
             info!(
