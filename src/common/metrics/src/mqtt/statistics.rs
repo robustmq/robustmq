@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{gauge_metric_inc, gauge_metric_inc_by, gauge_metric_set, register_gauge_metric};
+use crate::{
+    gauge_metric_get, gauge_metric_inc, gauge_metric_inc_by, gauge_metric_set,
+    register_gauge_metric,
+};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -91,14 +94,35 @@ pub fn record_mqtt_connections_set(count: i64) {
     gauge_metric_set!(MQTT_CONNECTIONS_COUNT, label, count);
 }
 
+pub fn record_mqtt_connections_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_CONNECTIONS_COUNT, label, result);
+    result
+}
+
 pub fn record_mqtt_sessions_set(count: i64) {
     let label = StatLabel {};
     gauge_metric_set!(MQTT_SESSIONS_COUNT, label, count);
 }
 
+pub fn record_mqtt_sessions_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_SESSIONS_COUNT, label, result);
+    result
+}
+
 pub fn record_mqtt_topics_set(count: i64) {
     let label = StatLabel {};
     gauge_metric_set!(MQTT_TOPICS_COUNT, label, count);
+}
+
+pub fn record_mqtt_topics_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_TOPICS_COUNT, label, result);
+    result
 }
 
 pub fn record_mqtt_subscribers_set(count: i64) {
@@ -109,6 +133,13 @@ pub fn record_mqtt_subscribers_set(count: i64) {
 pub fn record_mqtt_subscriptions_shared_set(count: i64) {
     let label = StatLabel {};
     gauge_metric_set!(MQTT_SUBSCRIPTIONS_SHARED_COUNT, label, count);
+}
+
+pub fn record_mqtt_subscriptions_shared_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_SUBSCRIPTIONS_SHARED_COUNT, label, result);
+    result
 }
 
 pub fn record_mqtt_retained_inc() {
@@ -140,4 +171,36 @@ pub fn record_mqtt_delay_queue_remaining_capacity_set(shard_no: u64, remaining: 
         shard_no: shard_no.to_string(),
     };
     gauge_metric_set!(MQTT_DELAY_QUEUE_REMAINING_CAPACITY, label, remaining);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mqtt_connections_set_and_get() {
+        // Test initial value (should be 0)
+        let initial_count = record_mqtt_connections_get();
+        assert_eq!(initial_count, 0);
+
+        // Test setting a value
+        record_mqtt_connections_set(100);
+        let count = record_mqtt_connections_get();
+        assert_eq!(count, 100);
+
+        // Test updating the value
+        record_mqtt_connections_set(250);
+        let updated_count = record_mqtt_connections_get();
+        assert_eq!(updated_count, 250);
+
+        // Test setting to zero
+        record_mqtt_connections_set(0);
+        let zero_count = record_mqtt_connections_get();
+        assert_eq!(zero_count, 0);
+
+        // Test negative value (gauge can store negative values)
+        record_mqtt_connections_set(-10);
+        let negative_count = record_mqtt_connections_get();
+        assert_eq!(negative_count, -10);
+    }
 }

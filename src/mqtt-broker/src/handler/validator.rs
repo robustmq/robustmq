@@ -202,7 +202,7 @@ pub async fn publish_validator(
         };
     }
 
-    let cluster = cache_manager.broker_cache.get_cluster_config();
+    let cluster = cache_manager.broker_cache.get_cluster_config().await;
 
     let max_packet_size = min(
         cluster.mqtt_protocol_config.max_packet_size,
@@ -284,7 +284,7 @@ pub async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
-            let cluster = cache_manager.broker_cache.get_cluster_config();
+            let cluster = cache_manager.broker_cache.get_cluster_config().await;
             if alias > cluster.mqtt_protocol_config.topic_alias_max {
                 if is_puback {
                     return Some(build_puback(

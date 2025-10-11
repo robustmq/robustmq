@@ -61,7 +61,7 @@ mod test {
 
     #[tokio::test]
     pub async fn check_super_user_test() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),

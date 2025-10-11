@@ -36,7 +36,7 @@ use tracing::{error, warn};
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
 
-pub fn build_connection(
+pub async fn build_connection(
     connect_id: u64,
     client_id: String,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -44,8 +44,8 @@ pub fn build_connection(
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
 ) -> MQTTConnection {
-    let config = cache_manager.broker_cache.get_cluster_config();
-    let keep_alive = client_keep_live_time(cache_manager, connect.keep_alive);
+    let config = cache_manager.broker_cache.get_cluster_config().await;
+    let keep_alive = client_keep_live_time(cache_manager, connect.keep_alive).await;
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
@@ -256,7 +256,7 @@ mod test {
         let client_id = "client_id-***".to_string();
         let cluster = default_broker_config();
         println!("{cluster:?}");
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),
@@ -281,7 +281,8 @@ mod test {
             &connect,
             &Some(connect_properties),
             &addr,
-        );
+        )
+        .await;
         assert_eq!(conn.connect_id, connect_id);
         assert_eq!(conn.client_id, client_id);
         assert!(!conn.is_login);

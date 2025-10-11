@@ -43,7 +43,7 @@ pub async fn build_session(
     context: BuildSessionContext,
 ) -> Result<(MqttSession, bool), MqttBrokerError> {
     let session_expiry =
-        session_expiry_interval(&context.cache_manager, &context.connect_properties);
+        session_expiry_interval(&context.cache_manager, &context.connect_properties).await;
     let is_contain_last_will = context.last_will.is_some();
     let last_will_delay_interval = last_will_delay_interval(&context.last_will_properties);
 
@@ -105,18 +105,20 @@ pub async fn save_session(
     Ok(())
 }
 
-fn session_expiry_interval(
+async fn session_expiry_interval(
     cache_manager: &Arc<MQTTCacheManager>,
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
     let default_session_expiry_interval = cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .default_session_expiry_interval;
     let max_session_expiry_interval = cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .max_session_expiry_interval;
 
@@ -159,18 +161,20 @@ mod test {
         assert!(session.distinct_time.is_none());
     }
 
-    #[test]
-    pub fn session_expiry_interval_test() {
-        let cache_manager = test_build_mqtt_cache_manager();
+    #[tokio::test]
+    pub async fn session_expiry_interval_test() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
         cache_manager
             .broker_cache
-            .set_cluster_config(default_broker_config());
-        let res = session_expiry_interval(&cache_manager, &None);
+            .set_cluster_config(default_broker_config())
+            .await;
+        let res = session_expiry_interval(&cache_manager, &None).await;
         assert_eq!(
             res,
             cache_manager
                 .broker_cache
                 .get_cluster_config()
+                .await
                 .mqtt_protocol_config
                 .default_session_expiry_interval as u64
         );
@@ -179,21 +183,21 @@ mod test {
             session_expiry_interval: Some(120),
             ..Default::default()
         };
-        let res = session_expiry_interval(&cache_manager, &Some(properties));
+        let res = session_expiry_interval(&cache_manager, &Some(properties)).await;
         assert_eq!(res, 120);
 
         let properties = ConnectProperties {
             session_expiry_interval: Some(3600),
             ..Default::default()
         };
-        let res = session_expiry_interval(&cache_manager, &Some(properties));
+        let res = session_expiry_interval(&cache_manager, &Some(properties)).await;
         assert_eq!(res, 1800);
 
         let properties = ConnectProperties {
             session_expiry_interval: None,
             ..Default::default()
         };
-        let res = session_expiry_interval(&cache_manager, &Some(properties));
+        let res = session_expiry_interval(&cache_manager, &Some(properties)).await;
         assert_eq!(res, 30);
     }
 }

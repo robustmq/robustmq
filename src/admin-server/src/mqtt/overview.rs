@@ -25,6 +25,9 @@ use common_base::{
     tools::now_second,
 };
 use common_config::broker::broker_config;
+use common_metrics::mqtt::publish::{
+    record_mqtt_messages_received_get, record_mqtt_messages_sent_get,
+};
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
@@ -98,8 +101,8 @@ async fn cluster_overview_by_req(
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: 10,
-        message_out_rate: 3,
+        message_in_rate: record_mqtt_messages_received_get(),
+        message_out_rate: record_mqtt_messages_sent_get(),
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
         subscribe_num: subscribe_manager.subscribe_list.len() as u32,

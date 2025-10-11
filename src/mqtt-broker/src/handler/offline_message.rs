@@ -25,7 +25,7 @@ use super::{
 };
 use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
 use common_base::tools::now_second;
-use common_metrics::mqtt::packets::record_messages_dropped_no_subscribers_metrics;
+use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
@@ -55,16 +55,18 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_offline_message
         .enable;
     let not_exist_subscribe =
         !is_exist_subscribe(&context.subscribe_manager, &context.topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
-        record_messages_dropped_no_subscribers_metrics(context.publish.qos);
+        record_messages_dropped_no_subscribers_incr();
         return Ok(None);
     }
 
-    let message_expire = build_message_expire(&context.cache_manager, &context.publish_properties);
+    let message_expire =
+        build_message_expire(&context.cache_manager, &context.publish_properties).await;
 
     if context.delay_info.is_some() {
         return save_delay_message(

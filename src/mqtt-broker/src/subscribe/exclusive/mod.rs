@@ -145,7 +145,7 @@ impl ExclusivePush {
                         subscriber.client_id, subscriber.sub_path, subscriber.topic_id);
 
                 let group_id = build_group_name(&subscriber);
-                let qos = build_pub_qos(&cache_manager, &subscriber);
+                let qos = build_pub_qos(&cache_manager, &subscriber).await;
                 let sub_ids = build_sub_ids(&subscriber);
 
                 let mut offset = match message_storage.get_group_offset(&group_id).await {

@@ -148,7 +148,7 @@ fn read_frame_process(
                      if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
-                                if broker_cache.is_stop(){
+                                if broker_cache.is_stop().await{
                                     debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
                                     break;
                                 }

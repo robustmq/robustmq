@@ -19,11 +19,10 @@ use tokio::time::sleep;
 
 pub async fn wait_cluster_running(cache_manager: &Arc<BrokerCacheManager>) {
     loop {
-        if let Some(status) = cache_manager.status.get(&cache_manager.cluster_name) {
-            if status.clone() == NodeStatus::Running {
-                break;
-            }
+        if cache_manager.get_status().await == NodeStatus::Running {
+            break;
         }
+
         sleep(Duration::from_secs(1)).await;
     }
 }

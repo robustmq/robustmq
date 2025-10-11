@@ -19,3 +19,4 @@ pub mod publish;
 pub mod session;
 pub mod statistics;
 pub mod time;
+pub mod topic;

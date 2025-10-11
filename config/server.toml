@@ -41,7 +41,7 @@ lock_try_mut_sleep_time_ms = 50
 keep_alive_enable = false
 
 [mqtt_keep_alive]
-enable = true
+enable = false
 default_time = 180
 max_time = 3600
 default_timeout = 2
@@ -49,3 +49,8 @@ default_timeout = 2
 [prometheus]
 enable = true
 port = 9091
+
+[mqtt_offline_message]
+enable = false
+expire_ms = 3600000
+max_messages_num = 100000

@@ -499,7 +499,7 @@ async fn call_mqtt_update_cache(
     };
 
     if let Err(e) = broker_mqtt_update_cache(client_pool, &[addr], request.clone()).await {
-        if broker_cache.is_stop() {
+        if broker_cache.is_stop().await {
             return;
         }
         error!("Calling MQTT Broker to update cache failed,{},cluster_name:{},action_type:{},resource_type:{}", e,request.cluster_name,request.action_type,request.resource_type);

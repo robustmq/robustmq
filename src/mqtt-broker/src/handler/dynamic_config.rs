@@ -39,110 +39,88 @@ pub enum ClusterDynamicConfig {
 
 impl MQTTCacheManager {
     // slow sub
-    pub fn update_slow_sub_config(&self, slow_sub: MqttSlowSubscribeConfig) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_slow_subscribe_config = slow_sub.to_owned();
-        }
+    pub async fn update_slow_sub_config(&self, slow_sub: MqttSlowSubscribeConfig) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_slow_subscribe_config = slow_sub;
     }
 
-    pub fn get_slow_sub_config(&self) -> MqttSlowSubscribeConfig {
+    pub async fn get_slow_sub_config(&self) -> MqttSlowSubscribeConfig {
         self.broker_cache
             .get_cluster_config()
+            .await
             .mqtt_slow_subscribe_config
     }
 
     // flapping detect
-    pub fn update_flapping_detect_config(&self, flapping_detect: MqttFlappingDetect) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_flapping_detect = flapping_detect;
-        }
+    pub async fn update_flapping_detect_config(&self, flapping_detect: MqttFlappingDetect) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_flapping_detect = flapping_detect;
     }
 
-    pub fn get_flapping_detect_config(&self) -> MqttFlappingDetect {
-        self.broker_cache.get_cluster_config().mqtt_flapping_detect
+    pub async fn get_flapping_detect_config(&self) -> MqttFlappingDetect {
+        self.broker_cache
+            .get_cluster_config()
+            .await
+            .mqtt_flapping_detect
     }
 
     // mqtt protocol config
-    pub fn update_mqtt_protocol_config(&self, mqtt_protocol_config: MqttProtocolConfig) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_protocol_config = mqtt_protocol_config;
-        }
+    pub async fn update_mqtt_protocol_config(&self, mqtt_protocol_config: MqttProtocolConfig) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_protocol_config = mqtt_protocol_config;
     }
 
-    pub fn get_mqtt_protocol_config(&self) -> MqttProtocolConfig {
-        self.broker_cache.get_cluster_config().mqtt_protocol_config
+    pub async fn get_mqtt_protocol_config(&self) -> MqttProtocolConfig {
+        self.broker_cache
+            .get_cluster_config()
+            .await
+            .mqtt_protocol_config
     }
 
     // offline message
-    pub fn update_offline_message_config(&self, offline_message: MqttOfflineMessage) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_offline_message = offline_message;
-        }
+    pub async fn update_offline_message_config(&self, offline_message: MqttOfflineMessage) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_offline_message = offline_message;
     }
 
-    pub fn get_offline_message_config(&self) -> MqttOfflineMessage {
-        self.broker_cache.get_cluster_config().mqtt_offline_message
+    pub async fn get_offline_message_config(&self) -> MqttOfflineMessage {
+        self.broker_cache
+            .get_cluster_config()
+            .await
+            .mqtt_offline_message
     }
 
     // system monitor
-    pub fn update_system_monitor_config(&self, system_monitor: MqttSystemMonitor) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_system_monitor = system_monitor;
-        }
+    pub async fn update_system_monitor_config(&self, system_monitor: MqttSystemMonitor) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_system_monitor = system_monitor;
     }
 
-    pub fn get_system_monitor_config(&self) -> MqttSystemMonitor {
-        self.broker_cache.get_cluster_config().mqtt_system_monitor
-    }
-
-    // schema
-    pub fn update_schema_config(&self, schema: MqttSchema) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_schema = schema;
-        }
-    }
-
-    pub fn get_schema_config(&self) -> MqttSchema {
-        self.broker_cache.get_cluster_config().mqtt_schema
+    pub async fn get_system_monitor_config(&self) -> MqttSystemMonitor {
+        self.broker_cache
+            .get_cluster_config()
+            .await
+            .mqtt_system_monitor
     }
 
     // schema
-    pub fn update_security_config(&self, security: MqttSecurity) {
-        if let Some(mut config) = self
-            .broker_cache
-            .cluster_info
-            .get_mut(&self.broker_cache.cluster_name)
-        {
-            config.mqtt_security = security;
-        }
+    pub async fn update_schema_config(&self, schema: MqttSchema) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_schema = schema;
     }
 
-    pub fn get_security_config(&self) -> MqttSecurity {
-        self.broker_cache.get_cluster_config().mqtt_security
+    pub async fn get_schema_config(&self) -> MqttSchema {
+        self.broker_cache.get_cluster_config().await.mqtt_schema
+    }
+
+    // schema
+    pub async fn update_security_config(&self, security: MqttSecurity) {
+        let mut config = self.broker_cache.cluster_config.write().await;
+        config.mqtt_security = security;
+    }
+
+    pub async fn get_security_config(&self) -> MqttSecurity {
+        self.broker_cache.get_cluster_config().await.mqtt_security
     }
 }
 
@@ -189,32 +167,42 @@ pub async fn update_cluster_dynamic_config(
     match resource_type {
         ClusterDynamicConfig::MqttSlowSubscribeConfig => {
             let slow_subscribe_config = serde_json::from_slice(&config)?;
-            cache_manager.update_slow_sub_config(slow_subscribe_config);
+            cache_manager
+                .update_slow_sub_config(slow_subscribe_config)
+                .await;
         }
         ClusterDynamicConfig::MqttFlappingDetect => {
             let flapping_detect = serde_json::from_slice(&config)?;
-            cache_manager.update_flapping_detect_config(flapping_detect);
+            cache_manager
+                .update_flapping_detect_config(flapping_detect)
+                .await;
         }
         ClusterDynamicConfig::MqttProtocol => {
             let mqtt_protocol = serde_json::from_slice(&config)?;
-            cache_manager.update_mqtt_protocol_config(mqtt_protocol);
+            cache_manager
+                .update_mqtt_protocol_config(mqtt_protocol)
+                .await;
         }
         ClusterDynamicConfig::MqttOfflineMessage => {
             let mqtt_protocol = serde_json::from_slice(&config)?;
-            cache_manager.update_offline_message_config(mqtt_protocol);
+            cache_manager
+                .update_offline_message_config(mqtt_protocol)
+                .await;
         }
 
         ClusterDynamicConfig::MqttSystemMonitor => {
             let system_monitor = serde_json::from_slice(&config)?;
-            cache_manager.update_system_monitor_config(system_monitor);
+            cache_manager
+                .update_system_monitor_config(system_monitor)
+                .await;
         }
         ClusterDynamicConfig::MqttSchema => {
             let schema_config = serde_json::from_slice(&config)?;
-            cache_manager.update_schema_config(schema_config);
+            cache_manager.update_schema_config(schema_config).await;
         }
         ClusterDynamicConfig::MqttSecurity => {
             let security_config = serde_json::from_slice(&config)?;
-            cache_manager.update_security_config(security_config);
+            cache_manager.update_security_config(security_config).await;
         }
     }
     Ok(())
