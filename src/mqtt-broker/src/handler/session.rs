@@ -166,7 +166,8 @@ mod test {
         let cache_manager = test_build_mqtt_cache_manager().await;
         cache_manager
             .broker_cache
-            .set_cluster_config(default_broker_config()).await;
+            .set_cluster_config(default_broker_config())
+            .await;
         let res = session_expiry_interval(&cache_manager, &None).await;
         assert_eq!(
             res,
