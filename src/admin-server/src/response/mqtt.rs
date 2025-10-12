@@ -34,7 +34,6 @@ pub struct ClientListRow {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicListRow {
-    pub topic_id: String,
     pub topic_name: String,
     pub create_time: u64,
 }
@@ -82,7 +81,7 @@ pub struct ConnectorListRow {
     pub connector_name: String,
     pub connector_type: String,
     pub config: String,
-    pub topic_id: String,
+    pub topic_name: String,
     pub status: String,
     pub broker_id: String,
     pub create_time: String,

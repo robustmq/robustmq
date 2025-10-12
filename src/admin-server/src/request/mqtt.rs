@@ -210,7 +210,7 @@ pub struct CreateConnectorReq {
     pub connector_name: String,
     pub connector_type: String,
     pub config: String,
-    pub topic_id: String,
+    pub topic_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

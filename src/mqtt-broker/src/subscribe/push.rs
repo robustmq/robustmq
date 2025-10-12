@@ -80,8 +80,8 @@ pub async fn build_publish_message(
         &msg.client_id,
     ) {
         debug!(
-            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
-            context.subscriber.client_id, context.subscriber.topic_id
+            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_name: {}",
+            context.subscriber.client_id, context.subscriber.topic_name
         );
         return Ok(None);
     }

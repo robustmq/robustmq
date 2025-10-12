@@ -116,7 +116,7 @@ impl DataRouteMqtt {
 
         let message = MQTTRetainMessage {
             cluster_name: req.cluster_name.clone(),
-            topic_id: topic.topic_id,
+            topic_name: topic.topic_name,
             retain_message: req.retain_message,
             retain_message_expired_at: req.retain_message_expired_at,
             create_time: now_second(),
@@ -135,7 +135,7 @@ impl DataRouteMqtt {
         } else {
             return Ok(());
         };
-        storage.delete_retain_message(&req.cluster_name, &topic.topic_id)?;
+        storage.delete_retain_message(&req.cluster_name, &topic.topic_name)?;
         Ok(())
     }
 

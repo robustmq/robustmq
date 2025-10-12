@@ -105,9 +105,6 @@ pub struct MQTTCacheManager {
     // (topic_name, Topic)
     pub topic_info: DashMap<String, MQTTTopic>,
 
-    // (topic_id, topic_name)
-    pub topic_id_name: DashMap<String, String>,
-
     // (client_id, HeartbeatShard)
     pub heartbeat_data: DashMap<String, ConnectionLiveTime>,
 
@@ -139,7 +136,6 @@ impl MQTTCacheManager {
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
             topic_info: DashMap::with_capacity(8),
-            topic_id_name: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
@@ -230,24 +226,14 @@ impl MQTTCacheManager {
     // topic
     pub fn add_topic(&self, topic_name: &str, topic: &MQTTTopic) {
         self.topic_info.insert(topic_name.to_owned(), topic.clone());
-        self.topic_id_name
-            .insert(topic.topic_id.clone(), topic_name.to_owned());
     }
 
-    pub fn delete_topic(&self, topic_name: &String, topic: &MQTTTopic) {
+    pub fn delete_topic(&self, topic_name: &String) {
         self.topic_info.remove(topic_name);
-        self.topic_id_name.remove(&topic.topic_id);
     }
 
-    pub fn topic_exists(&self, topic: &str) -> bool {
-        self.topic_info.contains_key(topic)
-    }
-
-    pub fn topic_name_by_id(&self, topic_id: &str) -> Option<String> {
-        if let Some(data) = self.topic_id_name.get(topic_id) {
-            return Some(data.clone());
-        }
-        None
+    pub fn topic_exists(&self, topic_name: &str) -> bool {
+        self.topic_info.contains_key(topic_name)
     }
 
     pub fn get_topic_by_name(&self, topic_name: &str) -> Option<MQTTTopic> {
@@ -581,7 +567,7 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let topic_name = "test/topic";
         let topic = MQTTTopic {
-            topic_id: "topic_1".to_string(),
+            topic_name: "topic_1".to_string(),
             ..Default::default()
         };
 
@@ -592,10 +578,10 @@ mod tests {
         // get
         let topic_info = cache_manager.get_topic_by_name(topic_name);
         assert!(topic_info.is_some());
-        assert_eq!(topic_info.unwrap().topic_id, topic.topic_id);
+        assert_eq!(topic_info.unwrap().topic_name, topic.topic_name);
 
         // remove
-        cache_manager.delete_topic(&topic_name.to_string(), &topic);
+        cache_manager.delete_topic(&topic_name.to_string());
 
         // get again
         let topic_info_after_remove = cache_manager.get_topic_by_name(topic_name);
@@ -603,27 +589,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn topic_id_name_operations() {
+    async fn topic_name_name_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let topic_name = "test/topic";
         let topic = MQTTTopic {
-            topic_id: "topic_1".to_string(),
+            topic_name: "topic_1".to_string(),
             ..Default::default()
         };
 
         // add
         cache_manager.add_topic(topic_name, &topic);
 
-        // get
-        let topic_name_from_id = cache_manager.topic_name_by_id(&topic.topic_id);
-        assert!(topic_name_from_id.is_some());
-        assert_eq!(topic_name_from_id.unwrap(), topic_name);
-
         // remove
-        cache_manager.delete_topic(&topic_name.to_string(), &topic);
+        cache_manager.delete_topic(&topic_name.to_string());
 
         // get again
-        let topic_name_from_id_after_remove = cache_manager.topic_name_by_id(&topic.topic_id);
+        let topic_name_from_id_after_remove = cache_manager.get_topic_by_name(&topic.topic_name);
         assert!(topic_name_from_id_after_remove.is_none());
     }
 

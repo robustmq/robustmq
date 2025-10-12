@@ -31,15 +31,12 @@ mod tests {
     async fn mqtt_topic_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let topic_id: String = unique_id();
-        let topic_name: String = "test_topic".to_string();
+        let topic_name: String = unique_id();
         let cluster_name: String = unique_id();
 
         let mqtt_topic: MQTTTopic = MQTTTopic {
-            topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
             cluster_name: cluster_name.clone(),
-            contain_retain_message: false,
             create_time: now_second(),
         };
 

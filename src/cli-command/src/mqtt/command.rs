@@ -889,14 +889,13 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
-                    "topic_id",
                     "topic_name",
-                    "is_contain_retain_message",
+                    "create_time",
                 ]);
                 for topic in page_data.data {
                     table.add_row(row![
-                        topic.topic_id,
                         topic.topic_name,
+                        topic.create_time
                     ]);
                 }
                 // output cmd
@@ -1061,7 +1060,7 @@ impl MqttBrokerCommand {
                         connector.connector_name,
                         connector.connector_type,
                         connector.config,
-                        connector.topic_id,
+                        connector.topic_name,
                         connector.status,
                         connector.broker_id,
                         connector.create_time,

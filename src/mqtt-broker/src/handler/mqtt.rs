@@ -447,7 +447,7 @@ impl MqttService {
 
         if delay_info.is_some() {
             let mut new_delay_info = delay_info.unwrap();
-            new_delay_info.tagget_shard_name = Some(topic.topic_id.clone());
+            new_delay_info.tagget_shard_name = Some(topic.topic_name.clone());
             delay_info = Some(new_delay_info);
         }
 

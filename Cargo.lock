@@ -831,7 +831,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.10.5",
  "lazy_static",
  "lazycell",
  "proc-macro2",
@@ -3465,15 +3465,6 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
 dependencies = [
  "either",
 ]
@@ -6402,7 +6393,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#e19a6cf88bfcef72cfd39aa73e7faa1218afeae2"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#8924c2a34c56b7d1449cc7776c791112a9bffd58"
 dependencies = [
  "prost-build",
  "prost-validate-build",

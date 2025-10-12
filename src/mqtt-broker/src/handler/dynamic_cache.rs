@@ -181,7 +181,7 @@ pub async fn update_cache_metadata(
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let topic = serde_json::from_str::<MQTTTopic>(&request.data)?;
-                cache_manager.delete_topic(&topic.topic_name, &topic);
+                cache_manager.delete_topic(&topic.topic_name);
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {

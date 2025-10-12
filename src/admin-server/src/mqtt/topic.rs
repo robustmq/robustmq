@@ -51,7 +51,6 @@ pub async fn topic_list(
     if let Some(tp) = params.topic_name.clone() {
         if let Some(topic) = state.mqtt_context.cache_manager.get_topic_by_name(&tp) {
             topics.push(TopicListRow {
-                topic_id: topic.topic_id.clone(),
                 topic_name: topic.topic_name.clone(),
                 create_time: topic.create_time,
             });
@@ -73,7 +72,6 @@ pub async fn topic_list(
             }
 
             topics.push(TopicListRow {
-                topic_id: topic.topic_id.clone(),
                 topic_name: topic.topic_name.clone(),
                 create_time: topic.create_time,
             });

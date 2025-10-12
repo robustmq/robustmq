@@ -60,7 +60,7 @@ pub async fn connector_list(
             connector_name: connector.connector_name.clone(),
             connector_type: connector.connector_type.to_string(),
             config: connector.config.clone(),
-            topic_id: connector.topic_id.clone(),
+            topic_name: connector.topic_name.clone(),
             status: connector.status.to_string(),
             broker_id: if let Some(id) = connector.broker_id {
                 id.to_string()
@@ -87,7 +87,7 @@ impl Queryable for ConnectorListRow {
         match field {
             "connector_name" => Some(self.connector_name.clone()),
             "connector_type" => Some(self.connector_type.clone()),
-            "topic_id" => Some(self.topic_id.clone()),
+            "topic_name" => Some(self.topic_name.clone()),
             "status" => Some(self.status.clone()),
             "broker_id" => Some(self.broker_id.clone()),
             _ => None,
@@ -133,7 +133,7 @@ async fn connector_create_inner(
         connector_name: params.connector_name.clone(),
         connector_type,
         config: params.config.clone(),
-        topic_id: params.topic_id.clone(),
+        topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
         broker_id: None,
         create_time: now_second(),

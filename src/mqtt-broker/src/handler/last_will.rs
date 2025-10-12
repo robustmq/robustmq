@@ -72,7 +72,7 @@ pub async fn send_last_will_message(
         MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
     {
         message_storage
-            .append_topic_message(&topic.topic_id, vec![record])
+            .append_topic_message(&topic.topic_name, vec![record])
             .await?;
     }
     Ok(())

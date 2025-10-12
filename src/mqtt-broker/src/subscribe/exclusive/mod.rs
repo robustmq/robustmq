@@ -141,8 +141,8 @@ impl ExclusivePush {
             );
 
             tokio::spawn(async move {
-                debug!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
-                        subscriber.client_id, subscriber.sub_path, subscriber.topic_id);
+                debug!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_name [{}] was started successfully",
+                        subscriber.client_id, subscriber.sub_path, subscriber.topic_name);
 
                 let group_id = build_group_name(&subscriber);
                 let qos = build_pub_qos(&cache_manager, &subscriber).await;
@@ -165,10 +165,10 @@ impl ExclusivePush {
                             if let Ok(flag) = val {
                                 if flag {
                                     debug!(
-                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
+                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_name [{}] was stopped successfully",
                                         subscriber.client_id,
                                         subscriber.sub_path,
-                                        subscriber.topic_id
+                                        subscriber.topic_name
                                     );
 
                                     subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
@@ -205,7 +205,7 @@ impl ExclusivePush {
                                         error!(
                                             "Push message to client failed, failure message: {}, topic:{}, group:{}",
                                             e.to_string(),
-                                            subscriber.topic_id.clone(),
+                                            subscriber.topic_name.clone(),
                                             group_id.clone()
                                         );
                                         sleep(Duration::from_millis(100)).await;
@@ -240,7 +240,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
     let record_num = 5;
     let results = context
         .message_storage
-        .read_topic_message(&context.subscriber.topic_id, context.offset, record_num)
+        .read_topic_message(&context.subscriber.topic_name, context.offset, record_num)
         .await?;
 
     let push_fn = async |record: &Record| -> ResultMqttBrokerError {
@@ -293,7 +293,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         // commit offset
         loop_commit_offset(
             &context.message_storage,
-            &context.subscriber.topic_id,
+            &context.subscriber.topic_name,
             &context.group_id,
             record_offset,
         )
@@ -337,7 +337,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
 fn build_group_name(subscriber: &Subscriber) -> String {
     format!(
         "system_sub_{}_{}_{}",
-        subscriber.client_id, subscriber.sub_path, subscriber.topic_id
+        subscriber.client_id, subscriber.sub_path, subscriber.topic_name
     )
 }
 

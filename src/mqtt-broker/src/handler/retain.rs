@@ -21,8 +21,8 @@ use crate::handler::sub_option::{
     is_send_retain_msg_by_retain_handling,
 };
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::common::Subscriber;
-use crate::subscribe::common::{get_sub_topic_id_list, min_qos};
+use crate::subscribe::common::min_qos;
+use crate::subscribe::common::{get_sub_topic_name_list, Subscriber};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
@@ -164,7 +164,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
             continue;
         }
 
-        let topic_id_list = get_sub_topic_id_list(&context.cache_manager, &filter.path).await;
+        let topic_name_list = get_sub_topic_name_list(&context.cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(context.client_pool.clone());
         let cluster = context
             .cache_manager
@@ -172,25 +172,8 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
             .get_cluster_config()
             .await;
 
-        for topic_id in topic_id_list.iter() {
-            let topic_name =
-                if let Some(topic_name) = context.cache_manager.topic_name_by_id(topic_id) {
-                    topic_name
-                } else {
-                    continue;
-                };
-
-            let topic = if let Some(topic) = context.cache_manager.get_topic_by_name(&topic_name) {
-                topic
-            } else {
-                continue;
-            };
-
-            if !topic.contain_retain_message {
-                continue;
-            }
-
-            let (message, message_at) = topic_storage.get_retain_message(&topic_name).await?;
+        for topic_name in topic_name_list.iter() {
+            let (message, message_at) = topic_storage.get_retain_message(topic_name).await?;
             if message.is_none() || message_at.is_none() {
                 continue;
             }
@@ -264,7 +247,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
             .await?;
             info!(
                 "retain the successful message sending: client_id: {}, topi_id: {}",
-                context.client_id, topic_id
+                context.client_id, topic_name
             );
 
             record_retain_sent_metrics(qos);

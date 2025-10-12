@@ -280,7 +280,7 @@
   "data": {
     "data": [
       {
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "topic_name": "sensor/temperature",
         "is_contain_retain_message": true,
         "create_time": 1640995200
@@ -292,7 +292,7 @@
 ```
 
 **响应字段说明**：
-- `topic_id`: 主题ID
+- `topic_name`: 主题ID
 - `topic_name`: 主题名称
 - `is_contain_retain_message`: 是否包含保留消息
 - `create_time`: 主题创建时间戳
@@ -314,7 +314,7 @@
   "message": "success",
   "data": {
     "topic_info": {
-      "topic_id": "topic_001",
+      "topic_name": "topic_001",
       "cluster_name": "robustmq-cluster",
       "topic_name": "sensor/temperature",
       "retain_message": null,
@@ -338,7 +338,7 @@
 **响应字段说明**：
 
 - **topic_info**: 主题基本信息
-  - `topic_id`: 主题ID
+  - `topic_name`: 主题ID
   - `cluster_name`: 集群名称
   - `topic_name`: 主题名称
   - `retain_message`: 保留消息内容（字节数组，可为 null）
@@ -740,7 +740,7 @@
         "connector_name": "kafka_connector",
         "connector_type": "Kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
         "create_time": "2024-01-01 10:00:00",
@@ -761,7 +761,7 @@
   "connector_name": "new_connector",   // 连接器名称
   "connector_type": "Kafka",           // 连接器类型
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // 配置信息（JSON字符串）
-  "topic_id": "sensor/+"               // 关联的主题ID
+  "topic_name": "sensor/+"               // 关联的主题ID
 }
 ```
 
@@ -1079,7 +1079,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_name": "kafka_bridge",
     "connector_type": "Kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_id": "sensor/+"
+    "topic_name": "sensor/+"
   }'
 ```
 

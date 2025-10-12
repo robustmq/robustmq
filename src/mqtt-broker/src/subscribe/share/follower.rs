@@ -160,7 +160,6 @@ impl ShareFollowerResub {
                 // add share leader push
                 let req = ParseShareQueueSubscribeRequest {
                     topic_name: share_sub.topic_name.to_owned(),
-                    topic_id: share_sub.topic_id.to_owned(),
                     client_id: share_sub.client_id.to_owned(),
                     protocol: share_sub.protocol.clone(),
                     sub_identifier: share_sub.subscription_identifier,

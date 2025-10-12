@@ -280,7 +280,7 @@
   "data": {
     "data": [
       {
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "topic_name": "sensor/temperature",
         "is_contain_retain_message": true,
         "create_time": 1640995200
@@ -292,7 +292,7 @@
 ```
 
 **Response Field Description**:
-- `topic_id`: Topic ID
+- `topic_name`: Topic ID
 - `topic_name`: Topic name
 - `is_contain_retain_message`: Whether contains retained message
 - `create_time`: Topic creation timestamp
@@ -314,7 +314,7 @@
   "message": "success",
   "data": {
     "topic_info": {
-      "topic_id": "topic_001",
+      "topic_name": "topic_001",
       "cluster_name": "robustmq-cluster",
       "topic_name": "sensor/temperature",
       "retain_message": null,
@@ -338,7 +338,7 @@
 **Response Field Description**:
 
 - **topic_info**: Topic basic information
-  - `topic_id`: Topic ID
+  - `topic_name`: Topic ID
   - `cluster_name`: Cluster name
   - `topic_name`: Topic name
   - `retain_message`: Retained message content (byte array, can be null)
@@ -740,7 +740,7 @@
         "connector_name": "kafka_connector",
         "connector_type": "Kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
         "create_time": "2024-01-01 10:00:00",
@@ -761,7 +761,7 @@
   "connector_name": "new_connector",   // Connector name
   "connector_type": "Kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
-  "topic_id": "sensor/+"               // Associated topic ID
+  "topic_name": "sensor/+"               // Associated topic ID
 }
 ```
 
@@ -1079,7 +1079,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_name": "kafka_bridge",
     "connector_type": "Kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_id": "sensor/+"
+    "topic_name": "sensor/+"
   }'
 ```
 

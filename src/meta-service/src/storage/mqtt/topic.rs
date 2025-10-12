@@ -64,9 +64,9 @@ impl MqttTopicStorage {
     pub fn get(
         &self,
         cluster_name: &str,
-        topicname: &str,
+        topic_name: &str,
     ) -> Result<Option<MQTTTopic>, MetaServiceError> {
-        let key: String = storage_key_mqtt_topic(cluster_name, topicname);
+        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
             let topic = serde_json::from_str::<MQTTTopic>(&data.data)?;
@@ -122,8 +122,10 @@ impl MqttTopicStorage {
         &self,
         retain_message: MQTTRetainMessage,
     ) -> Result<(), MetaServiceError> {
-        let key =
-            storage_key_mqtt_retain_message(&retain_message.cluster_name, &retain_message.topic_id);
+        let key = storage_key_mqtt_retain_message(
+            &retain_message.cluster_name,
+            &retain_message.topic_name,
+        );
         engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, retain_message)?;
         Ok(())
     }
@@ -131,9 +133,9 @@ impl MqttTopicStorage {
     pub fn delete_retain_message(
         &self,
         cluster_name: &str,
-        topic_id: &str,
+        topic_name: &str,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_retain_message(cluster_name, topic_id);
+        let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         Ok(())
     }
@@ -141,9 +143,9 @@ impl MqttTopicStorage {
     pub fn get_retain_message(
         &self,
         cluster_name: &str,
-        topic_id: &str,
+        topic_name: &str,
     ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
-        let key = storage_key_mqtt_retain_message(cluster_name, topic_id);
+        let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
             let topic = serde_json::from_str::<MQTTRetainMessage>(&data.data)?;
             return Ok(Some(topic));
@@ -178,10 +180,8 @@ mod tests {
         let cluster_name = "test_cluster".to_string();
         let topic_name = "loboxu".to_string();
         let topic = MQTTTopic {
-            topic_id: "xxx".to_string(),
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
-            contain_retain_message: false,
             create_time: now_second(),
         };
         topic_storage
@@ -190,10 +190,8 @@ mod tests {
 
         let topic_name = "lobo1".to_string();
         let topic = MQTTTopic {
-            topic_id: "xxx".to_string(),
             cluster_name: cluster_name.to_string(),
             topic_name: topic_name.clone(),
-            contain_retain_message: false,
             create_time: now_second(),
         };
         topic_storage

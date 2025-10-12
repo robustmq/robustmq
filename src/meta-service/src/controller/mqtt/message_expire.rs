@@ -81,7 +81,7 @@ impl MessageExpire {
             let delete = now_second() >= (value.create_time + value.retain_message_expired_at);
             if delete {
                 if let Err(e) =
-                    topic_storage.delete_retain_message(&self.cluster_name, &value.topic_id)
+                    topic_storage.delete_retain_message(&self.cluster_name, &value.topic_name)
                 {
                     error!("{}", e);
                 }
@@ -181,10 +181,10 @@ mod tests {
         let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let topic_id = unique_id();
+        let topic_name = unique_id();
         let retain_message = MQTTRetainMessage {
             cluster_name: "t1".to_string(),
-            topic_id: topic_id.clone(),
+            topic_name: topic_name.clone(),
             retain_message: "message1".to_string(),
             retain_message_expired_at: 10,
             create_time: now_second(),
@@ -203,7 +203,7 @@ mod tests {
 
         loop {
             let res = topic_storage
-                .get_retain_message(&cluster_name, &topic_id)
+                .get_retain_message(&cluster_name, &topic_name)
                 .unwrap();
 
             if res.is_some() {

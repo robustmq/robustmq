@@ -86,7 +86,7 @@ pub struct RabbitMQConnectorConfig {
   "connector_name": "rabbitmq_connector_01",
   "connector_type": "RabbitMQ",
   "config": "{\"server\": \"localhost\", \"port\": 5672, \"username\": \"guest\", \"password\": \"guest\", \"virtual_host\": \"/\", \"exchange\": \"mqtt_messages\", \"routing_key\": \"sensor.data\", \"delivery_mode\": \"Persistent\", \"enable_tls\": false}",
-  "topic_id": "sensor/data",
+  "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": null,
   "create_time": 1640995200,

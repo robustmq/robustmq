@@ -42,7 +42,7 @@ mod test {
             right.connector_type.clone() as u8
         );
         assert_eq!(left.config, right.config);
-        assert_eq!(left.topic_id, right.topic_id);
+        assert_eq!(left.topic_name, right.topic_name);
         assert_eq!(left.status.clone() as u8, right.status.clone() as u8);
         assert_eq!(left.broker_id, right.broker_id);
     }
@@ -64,7 +64,7 @@ mod test {
                 local_file_path: "/tmp/test".to_string(),
             })
             .unwrap(),
-            topic_id: "test_topic-1".to_string(),
+            topic_name: "test_topic-1".to_string(),
             ..Default::default()
         };
 
@@ -111,7 +111,7 @@ mod test {
             key: "test_key".to_string(),
         })
         .unwrap();
-        connector.topic_id = "test_topic-2".to_string();
+        connector.topic_name = "test_topic-2".to_string();
 
         let update_request = UpdateConnectorRequest {
             cluster_name: cluster_name.clone(),

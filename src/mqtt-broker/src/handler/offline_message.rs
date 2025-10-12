@@ -163,7 +163,7 @@ async fn save_simple_message(
     {
         let message_storage = MessageStorage::new(message_storage_adapter.clone());
         let offsets = message_storage
-            .append_topic_message(&topic.topic_id, vec![record])
+            .append_topic_message(&topic.topic_name, vec![record])
             .await?;
         return Ok(Some(format!("{offsets:?}")));
     }
