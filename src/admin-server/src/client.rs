@@ -242,6 +242,15 @@ impl AdminHttpClient {
         self.post(&api_path(MQTT_TOPIC_LIST_PATH), request).await
     }
 
+    /// Get topic detail
+    pub async fn get_topic_detail<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(MQTT_TOPIC_DETAIL_PATH), request).await
+    }
+
     /// Get subscription list
     pub async fn get_subscribe_list<T, R>(
         &self,

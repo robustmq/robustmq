@@ -32,7 +32,7 @@ mod tests {
     async fn retain_message_sub_test() {
         for network in network_types() {
             for qos in qos_list() {
-                let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+                let topic = format!("/retain_message/{}/{}/{}", unique_id(), network, qos);
                 let client_id =
                     build_client_id(format!("retain_message_sub_test_{network}_{qos}").as_str());
 

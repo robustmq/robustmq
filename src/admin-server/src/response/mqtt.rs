@@ -16,10 +16,10 @@ use std::collections::HashMap;
 
 use metadata_struct::{
     connection::NetworkConnection,
-    mqtt::{connection::MQTTConnection, session::MqttSession},
+    mqtt::{connection::MQTTConnection, session::MqttSession, topic::MQTTTopic},
     placement::node::BrokerNode,
 };
-use mqtt_broker::handler::cache::ConnectionLiveTime;
+use mqtt_broker::{handler::cache::ConnectionLiveTime, subscribe::manager::TopicSubscribeInfo};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -37,6 +37,13 @@ pub struct TopicListRow {
     pub topic_id: String,
     pub topic_name: String,
     pub is_contain_retain_message: bool,
+    pub create_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TopicDetailResp {
+    pub topic_info: MQTTTopic,
+    pub sub_list: Vec<TopicSubscribeInfo>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

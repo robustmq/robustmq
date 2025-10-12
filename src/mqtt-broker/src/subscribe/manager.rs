@@ -50,7 +50,7 @@ pub struct ShareLeaderSubscribeData {
     pub sub_list: DashMap<String, Subscriber>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TopicSubscribeInfo {
     pub client_id: String,
     pub path: String,
@@ -96,7 +96,7 @@ pub struct SubscribeManager {
     // (client_id_group_name_sub_name, SubPushThreadData)
     pub share_follower_resub_thread: DashMap<String, SubPushThreadData>,
 
-    //(topic_id, Vec<TopicSubscribeInfo>)
+    //(topic_name, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
 
     //(client_id, TemporaryNotPushClient)
@@ -323,6 +323,14 @@ impl SubscribeManager {
                     path: path.to_owned(),
                 }],
             );
+        }
+    }
+
+    pub fn get_topic_subscribe_list(&self, topic_name: &str) -> Vec<TopicSubscribeInfo> {
+        if let Some(list) = self.topic_subscribe_list.get(topic_name) {
+            list.clone()
+        } else {
+            Vec::new()
         }
     }
 

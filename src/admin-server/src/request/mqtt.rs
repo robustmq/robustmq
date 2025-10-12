@@ -35,6 +35,7 @@ pub struct SessionListReq {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TopicListReq {
     pub topic_name: Option<String>,
+    pub topic_type: Option<String>, // "all", "normal", "system"
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -42,6 +43,11 @@ pub struct TopicListReq {
     pub filter_field: Option<String>,
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicDetailReq {
+    pub topic_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

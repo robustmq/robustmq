@@ -255,6 +255,7 @@
 ```json
 {
   "topic_name": "sensor/+",         // 可选，按主题名过滤
+  "topic_type": "all",              // 可选，主题类型："all"(全部)、"normal"(普通主题)、"system"(系统主题)，默认为"all"
   "limit": 20,
   "page": 1,
   "sort_field": "topic_name",       // 可选，排序字段
@@ -264,6 +265,12 @@
   "exact_match": "false"
 }
 ```
+
+**参数说明**：
+- **topic_type**: 主题类型过滤
+  - `"all"` - 返回所有主题（默认值）
+  - `"normal"` - 只返回普通主题（不以 `$` 开头的主题）
+  - `"system"` - 只返回系统主题（以 `$` 开头的主题，如 `$SYS/...`）
 
 - **响应数据结构**:
 ```json
@@ -275,7 +282,8 @@
       {
         "topic_id": "topic_001",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true
+        "is_contain_retain_message": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 25
@@ -283,7 +291,69 @@
 }
 ```
 
-#### 4.2 主题重写规则列表
+**响应字段说明**：
+- `topic_id`: 主题ID
+- `topic_name`: 主题名称
+- `is_contain_retain_message`: 是否包含保留消息
+- `create_time`: 主题创建时间戳
+
+#### 4.2 主题详情查询
+- **接口**: `POST /api/mqtt/topic/detail`
+- **描述**: 查询指定主题的详细信息，包括主题信息和订阅列表
+- **请求参数**:
+```json
+{
+  "topic_name": "sensor/temperature"  // 必填，主题名称
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "topic_info": {
+      "topic_id": "topic_001",
+      "cluster_name": "robustmq-cluster",
+      "topic_name": "sensor/temperature",
+      "retain_message": null,
+      "retain_message_expired_at": null,
+      "create_time": 1640995200
+    },
+    "sub_list": [
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature"
+      },
+      {
+        "client_id": "client002",
+        "path": "sensor/+"
+      }
+    ]
+  }
+}
+```
+
+**响应字段说明**：
+
+- **topic_info**: 主题基本信息
+  - `topic_id`: 主题ID
+  - `cluster_name`: 集群名称
+  - `topic_name`: 主题名称
+  - `retain_message`: 保留消息内容（字节数组，可为 null）
+  - `retain_message_expired_at`: 保留消息过期时间戳（可为 null）
+  - `create_time`: 主题创建时间戳
+
+- **sub_list**: 订阅该主题的客户端列表
+  - `client_id`: 订阅客户端ID
+  - `path`: 订阅路径（可能包含通配符）
+
+**注意事项**：
+- 如果主题不存在，将返回错误响应
+- `sub_list` 显示所有匹配该主题的订阅，包括通配符订阅
+
+#### 4.3 主题重写规则列表
 - **接口**: `POST /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表
 - **请求参数**: 支持通用分页和过滤参数

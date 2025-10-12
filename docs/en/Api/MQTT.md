@@ -255,6 +255,7 @@
 ```json
 {
   "topic_name": "sensor/+",         // Optional, filter by topic name
+  "topic_type": "all",              // Optional, topic type: "all"(all topics), "normal"(normal topics), "system"(system topics), defaults to "all"
   "limit": 20,
   "page": 1,
   "sort_field": "topic_name",       // Optional, sort field
@@ -264,6 +265,12 @@
   "exact_match": "false"
 }
 ```
+
+**Parameter Description**:
+- **topic_type**: Topic type filter
+  - `"all"` - Return all topics (default)
+  - `"normal"` - Return only normal topics (topics not starting with `$`)
+  - `"system"` - Return only system topics (topics starting with `$`, such as `$SYS/...`)
 
 - **Response Data Structure**:
 ```json
@@ -275,7 +282,8 @@
       {
         "topic_id": "topic_001",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true
+        "is_contain_retain_message": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 25
@@ -283,7 +291,69 @@
 }
 ```
 
-#### 4.2 Topic Rewrite Rules List
+**Response Field Description**:
+- `topic_id`: Topic ID
+- `topic_name`: Topic name
+- `is_contain_retain_message`: Whether contains retained message
+- `create_time`: Topic creation timestamp
+
+#### 4.2 Topic Detail Query
+- **Endpoint**: `POST /api/mqtt/topic/detail`
+- **Description**: Query detailed information for a specific topic, including topic info and subscriber list
+- **Request Parameters**:
+```json
+{
+  "topic_name": "sensor/temperature"  // Required, topic name
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "topic_info": {
+      "topic_id": "topic_001",
+      "cluster_name": "robustmq-cluster",
+      "topic_name": "sensor/temperature",
+      "retain_message": null,
+      "retain_message_expired_at": null,
+      "create_time": 1640995200
+    },
+    "sub_list": [
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature"
+      },
+      {
+        "client_id": "client002",
+        "path": "sensor/+"
+      }
+    ]
+  }
+}
+```
+
+**Response Field Description**:
+
+- **topic_info**: Topic basic information
+  - `topic_id`: Topic ID
+  - `cluster_name`: Cluster name
+  - `topic_name`: Topic name
+  - `retain_message`: Retained message content (byte array, can be null)
+  - `retain_message_expired_at`: Retained message expiration timestamp (can be null)
+  - `create_time`: Topic creation timestamp
+
+- **sub_list**: List of clients subscribed to this topic
+  - `client_id`: Subscriber client ID
+  - `path`: Subscription path (may include wildcards)
+
+**Notes**:
+- Returns an error response if the topic does not exist
+- `sub_list` shows all subscriptions matching this topic, including wildcard subscriptions
+
+#### 4.3 Topic Rewrite Rules List
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list
 - **Request Parameters**: Supports common pagination and filtering parameters

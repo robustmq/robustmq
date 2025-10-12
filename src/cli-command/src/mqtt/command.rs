@@ -868,6 +868,7 @@ impl MqttBrokerCommand {
         // Create request for topic list
         let request = admin_server::request::mqtt::TopicListReq {
             topic_name: None,
+            topic_type: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
