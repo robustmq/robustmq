@@ -369,7 +369,7 @@ mod test {
     use crate::core::server::metrics_register_default;
 
     use super::*;
-    use common_base::tools::{get_addr_by_local_hostname, now_second};
+    use common_base::tools::get_addr_by_local_hostname;
     use prometheus_client::encoding::text::encode;
 
     #[tokio::test]
