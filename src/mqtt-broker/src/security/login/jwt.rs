@@ -230,7 +230,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_jwt_hmac_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let secret = "test_secret";
 
         // create JWT config
@@ -276,7 +276,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_jwt_from_username() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let secret = "test_secret";
 
         // create JWT config, get token from username
@@ -345,7 +345,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_jwt_invalid_token() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
 
         let jwt_config = JwtConfig {
             jwt_source: "password".to_string(),

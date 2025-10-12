@@ -274,7 +274,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_http_template_rendering() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),

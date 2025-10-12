@@ -110,7 +110,7 @@ mod test {
 
     #[tokio::test]
     pub async fn plaintext_test() {
-        let cache_manager: Arc<MQTTCacheManager> = test_build_mqtt_cache_manager();
+        let cache_manager: Arc<MQTTCacheManager> = test_build_mqtt_cache_manager().await;
         let username = "lobo".to_string();
         let password = "pwd123".to_string();
         let user = MqttUser {

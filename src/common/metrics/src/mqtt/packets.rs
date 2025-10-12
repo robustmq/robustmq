@@ -239,13 +239,6 @@ register_counter_metric!(
     QosLabel
 );
 
-register_counter_metric!(
-    MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS,
-    "mqtt_messages_dropped_no_subscribers",
-    "Number of MQTT messages dropped due to no subscribers",
-    QosLabel
-);
-
 // Record the packet-related metrics received by the server for failed resolution
 pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
     let labe = NetworkLabel {
@@ -371,18 +364,12 @@ pub fn record_retain_sent_metrics(qos: QoS) {
     counter_metric_inc!(MQTT_RETAIN_PACKETS_SENT, label);
 }
 
-pub fn record_messages_dropped_no_subscribers_metrics(qos: QoS) {
-    let qos_str = (qos as u8).to_string();
-    let label = QosLabel { qos: qos_str };
-    counter_metric_inc!(MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS, label);
-}
-
 #[cfg(test)]
 mod test {
     use crate::core::server::metrics_register_default;
 
     use super::*;
-    use common_base::tools::{get_addr_by_local_hostname, now_second};
+    use common_base::tools::get_addr_by_local_hostname;
     use prometheus_client::encoding::text::encode;
 
     #[tokio::test]
@@ -463,7 +450,7 @@ mod test {
     }
 
     use bytes::Bytes;
-    use protocol::robust::RobustMQProtocol;
+
     #[test]
     fn calc_mqtt_packet_test() {
         let mp: MqttPacket = MqttPacket::Publish(
@@ -478,14 +465,11 @@ mod test {
             None,
         );
 
-        let nc = NetworkConnection {
-            connection_type: NetworkConnectionType::Tcp,
-            addr: get_addr_by_local_hostname(1883).parse().unwrap(),
-            connection_stop_sx: None,
-            connection_id: 100,
-            protocol: Some(RobustMQProtocol::MQTT3),
-            create_time: now_second(),
-        };
+        let nc = NetworkConnection::new(
+            NetworkConnectionType::Tcp,
+            get_addr_by_local_hostname(1883).parse().unwrap(),
+            None,
+        );
         let ty = NetworkConnectionType::Tcp;
         record_mqtt_packet_received_metrics(&nc, &mp, &ty);
         let label = NetworkLabel {

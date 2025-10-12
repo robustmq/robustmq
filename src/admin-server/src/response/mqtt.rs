@@ -14,16 +14,22 @@
 
 use std::collections::HashMap;
 
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::{
+    connection::NetworkConnection,
+    mqtt::{connection::MQTTConnection, session::MqttSession},
+    placement::node::BrokerNode,
+};
+use mqtt_broker::handler::cache::ConnectionLiveTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ClientListRow {
+    pub client_id: String,
     pub connection_id: u64,
-    pub connection_type: String,
-    pub protocol: String,
-    pub source_addr: String,
-    pub create_time: String,
+    pub mqtt_connection: MQTTConnection,
+    pub network_connection: Option<NetworkConnection>,
+    pub session: Option<MqttSession>,
+    pub heartbeat: Option<ConnectionLiveTime>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -166,8 +172,8 @@ pub struct BanLogListRaw {
 pub struct OverViewResp {
     pub node_list: Vec<BrokerNode>,
     pub cluster_name: String,
-    pub message_in_rate: u32,
-    pub message_out_rate: u32,
+    pub message_in_rate: u64,
+    pub message_out_rate: u64,
     pub connection_num: u32,
     pub session_num: u32,
     pub topic_num: u32,

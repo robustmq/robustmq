@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::BrokerCacheManager;
-use common_base::node_status::NodeStatus;
-use std::{sync::Arc, time::Duration};
-use tokio::time::sleep;
+use common_base::{error::ResultCommonError, tools::loop_select_ticket};
+use network_server::common::connection_manager::ConnectionManager;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 
-pub async fn wait_cluster_running(cache_manager: &Arc<BrokerCacheManager>) {
-    loop {
-        if cache_manager.get_status().await == NodeStatus::Running {
-            break;
-        }
+pub async fn network_connection_gc(
+    connection_manager: Arc<ConnectionManager>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        connection_manager.connection_gc().await;
+        Ok(())
+    };
 
-        sleep(Duration::from_secs(1)).await;
-    }
+    loop_select_ticket(ac_fn, 3, &stop_send).await;
 }

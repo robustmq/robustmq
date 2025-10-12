@@ -22,6 +22,7 @@ use common_metrics::mqtt::publish::{
     record_mqtt_message_bytes_received, record_mqtt_messages_delayed_inc,
     record_mqtt_messages_received_inc,
 };
+use common_metrics::mqtt::topic::{record_topic_bytes_written, record_topic_messages_written};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -129,7 +130,7 @@ impl MqttService {
     }
 
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
 
         // connect params validator
         if let Some(res) = connect_validator(
@@ -153,7 +154,8 @@ impl MqttService {
             &context.connect,
             &context.connect_properties,
             &context.addr,
-        );
+        )
+        .await;
 
         if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
@@ -379,7 +381,7 @@ impl MqttService {
         let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
                 Ok(data) => {
-                    record_mqtt_messages_delayed_inc(topic_name.clone());
+                    record_mqtt_messages_delayed_inc();
                     topic_name = data.target_topic_name.clone();
                     Some(data)
                 }
@@ -492,8 +494,11 @@ impl MqttService {
             }
         };
 
-        record_mqtt_messages_received_inc(topic_name.clone());
-        record_mqtt_message_bytes_received(topic_name.clone(), publish.payload.len() as u64);
+        record_mqtt_messages_received_inc();
+        record_mqtt_message_bytes_received(publish.payload.len() as u64);
+        record_topic_messages_written(&topic_name);
+        record_topic_bytes_written(&topic_name, publish.payload.len() as u64);
+
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager
@@ -774,6 +779,7 @@ impl MqttService {
             .cache_manager
             .broker_cache
             .get_cluster_config()
+            .await
             .mqtt_protocol_config
             .max_qos;
         for filter in subscribe.filters.clone() {
@@ -815,6 +821,8 @@ impl MqttService {
         };
         self.cache_manager
             .report_heartbeat(connection.client_id, live_time);
+        self.connection_manager
+            .report_heartbeat(connect_id, now_second());
         response_packet_mqtt_ping_resp()
     }
 

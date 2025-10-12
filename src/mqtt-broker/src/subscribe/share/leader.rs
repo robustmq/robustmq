@@ -297,7 +297,7 @@ async fn read_message_process(
                 continue;
             };
 
-            let qos = build_pub_qos(&context.cache_manager, &subscriber);
+            let qos = build_pub_qos(&context.cache_manager, &subscriber).await;
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params

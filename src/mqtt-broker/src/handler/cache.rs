@@ -30,6 +30,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use tokio::sync::RwLock;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -121,7 +122,7 @@ pub struct MQTTCacheManager {
 
     // Topic rewrite new name
     pub topic_rewrite_new_name: DashMap<String, String>,
-    pub re_calc_topic_rewrite: DashMap<String, bool>,
+    pub re_calc_topic_rewrite: Arc<RwLock<bool>>,
 
     // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
@@ -146,7 +147,7 @@ impl MQTTCacheManager {
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             topic_is_validator: DashMap::with_capacity(8),
-            re_calc_topic_rewrite: DashMap::with_capacity(2),
+            re_calc_topic_rewrite: Arc::new(RwLock::new(false)),
             topic_rewrite_new_name: DashMap::with_capacity(8),
         }
     }
@@ -297,17 +298,13 @@ impl MQTTCacheManager {
         None
     }
 
-    pub fn is_re_calc_topic_rewrite(&self) -> bool {
-        if let Some(flag) = self.re_calc_topic_rewrite.get("flag") {
-            return *flag;
-        } else {
-            self.re_calc_topic_rewrite.insert("flag".to_string(), false);
-        }
-        true
+    pub async fn is_re_calc_topic_rewrite(&self) -> bool {
+        *self.re_calc_topic_rewrite.read().await
     }
 
-    pub fn set_re_calc_topic_rewrite(&self, flag: bool) {
-        self.re_calc_topic_rewrite.insert("flag".to_string(), flag);
+    pub async fn set_re_calc_topic_rewrite(&self, flag: bool) {
+        let mut data = self.re_calc_topic_rewrite.write().await;
+        *data = flag;
     }
 
     pub fn login_success(&self, connect_id: u64, user_name: String) {
@@ -360,6 +357,10 @@ impl MQTTCacheManager {
     // heartbeat
     pub fn report_heartbeat(&self, client_id: String, live_time: ConnectionLiveTime) {
         self.heartbeat_data.insert(client_id, live_time);
+    }
+
+    pub fn get_heartbeat(&self, client_id: &str) -> Option<ConnectionLiveTime> {
+        self.heartbeat_data.get(client_id).map(|data| data.clone())
     }
 
     pub fn remove_heartbeat(&self, client_id: &str) {
@@ -440,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
@@ -467,7 +468,7 @@ mod tests {
     #[tokio::test]
 
     async fn user_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user1 = MqttUser {
             username: "user1".to_string(),
             password: "password1".to_string(),
@@ -507,7 +508,7 @@ mod tests {
 
     #[tokio::test]
     async fn session_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_session";
         let session = MqttSession {
             client_id: client_id.to_string(),
@@ -543,7 +544,7 @@ mod tests {
 
     #[tokio::test]
     async fn connection_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let connect_id = 12345;
         let client_id = "test_client_connection";
         let session = MqttSession {
@@ -583,7 +584,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let topic_name = "test/topic";
         let topic = MQTTTopic {
             topic_id: "topic_1".to_string(),
@@ -615,7 +616,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_id_name_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let topic_name = "test/topic";
         let topic = MQTTTopic {
             topic_id: "topic_1".to_string(),
@@ -640,7 +641,7 @@ mod tests {
 
     #[tokio::test]
     async fn heartbeat_data_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_heartbeat";
         let live_time = ConnectionLiveTime {
             protocol: MqttProtocol::Mqtt3,
@@ -666,7 +667,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_rewrite_rule_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttTopicRewriteRule {
             cluster: cache_manager.broker_cache.cluster_name.clone(),
             action: "publish".to_string(),
@@ -694,7 +695,7 @@ mod tests {
 
     #[tokio::test]
     async fn auto_subscribe_rule_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
             cluster: cache_manager.broker_cache.cluster_name.clone(),
             topic: "auto/sub/topic".to_string(),
@@ -724,7 +725,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_alias_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_alias";
         let connect_id = 1;
         let session = MqttSession {
@@ -764,7 +765,7 @@ mod tests {
 
     #[tokio::test]
     async fn acl_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user_acl = MqttAcl {
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user_acl".to_string(),
@@ -818,7 +819,7 @@ mod tests {
 
     #[tokio::test]
     async fn blacklist_operations() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let blacklist = MqttAclBlackList {
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "blacklist_client".to_string(),

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::grpc::start_grpc_server;
+use crate::{connection::network_connection_gc, grpc::start_grpc_server};
 use admin_server::{
     server::AdminServer,
     state::{HttpState, MQTTContext},
@@ -53,7 +53,7 @@ use mqtt_broker::{
     storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,
 };
-use network_server::common::connection_manager::ConnectionManager as MqttConnectionManager;
+use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
@@ -71,6 +71,7 @@ use tracing::{error, info};
 
 mod cluster_service;
 pub mod common;
+mod connection;
 mod grpc;
 
 pub struct BrokerServer {
@@ -81,6 +82,7 @@ pub struct BrokerServer {
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     rate_limiter_manager: Arc<RateLimiterManager>,
+    connection_manager: Arc<NetworkConnectionManager>,
     broker_cache: Arc<BrokerCacheManager>,
     config: BrokerConfig,
 }
@@ -102,7 +104,11 @@ impl BrokerServer {
         ));
         let rate_limiter_manager = Arc::new(RateLimiterManager::new());
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
-        let broker_cache = Arc::new(BrokerCacheManager::new(config.cluster_name.clone()));
+        let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
+        let connection_manager = Arc::new(NetworkConnectionManager::new(
+            config.network.lock_max_try_mut_times as i32,
+            config.network.lock_try_mut_sleep_time_ms,
+        ));
         let place_params = main_runtime.block_on(async {
             BrokerServer::build_meta_service(
                 client_pool.clone(),
@@ -115,6 +121,7 @@ impl BrokerServer {
             client_pool.clone(),
             broker_cache.clone(),
             rocksdb_engine_handler.clone(),
+            connection_manager.clone(),
         );
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
@@ -128,6 +135,7 @@ impl BrokerServer {
             client_pool,
             rocksdb_engine_handler,
             rate_limiter_manager,
+            connection_manager,
         }
     }
     pub fn start(&self) {
@@ -248,6 +256,12 @@ impl BrokerServer {
             self.register_node(raw_stop_send.clone()).await;
         });
 
+        // connection gc
+        let connection_manager = self.connection_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        server_runtime
+            .spawn(async move { network_connection_gc(connection_manager, raw_stop_send).await });
+
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
     }
@@ -285,6 +299,7 @@ impl BrokerServer {
         client_pool: Arc<ClientPool>,
         broker_cache: Arc<BrokerCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        connection_manager: Arc<NetworkConnectionManager>,
     ) -> MqttBrokerServerParams {
         let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
@@ -301,10 +316,7 @@ impl BrokerServer {
         let arc_storage_driver = Arc::new(storage_driver);
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
-        let connection_manager = Arc::new(MqttConnectionManager::new(
-            config.network.lock_max_try_mut_times as i32,
-            config.network.lock_try_mut_sleep_time_ms,
-        ));
+
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             config.cluster_name.clone(),
@@ -358,9 +370,10 @@ impl BrokerServer {
         mqtt_stop: Option<broadcast::Sender<bool>>,
         journal_stop: Option<broadcast::Sender<bool>>,
     ) {
-        self.broker_cache
-            .set_status(common_base::node_status::NodeStatus::Running);
         self.main_runtime.block_on(async {
+            self.broker_cache
+                .set_status(common_base::node_status::NodeStatus::Running)
+                .await;
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
             info!(
@@ -369,7 +382,8 @@ impl BrokerServer {
             );
 
             self.broker_cache
-                .set_status(common_base::node_status::NodeStatus::Stopping);
+                .set_status(common_base::node_status::NodeStatus::Stopping)
+                .await;
 
             if let Some(sx) = mqtt_stop {
                 if let Err(e) = sx.send(true) {

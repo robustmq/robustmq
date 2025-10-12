@@ -285,7 +285,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_plain_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let password = "test_password".to_string();
 
@@ -322,7 +322,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_md5_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
 
@@ -362,7 +362,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_bcrypt_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
 
@@ -402,7 +402,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_sha256_with_salt() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
         let salt = "random_salt";
@@ -447,7 +447,7 @@ mod tests {
     #[tokio::test]
     #[allow(unused_must_use)]
     async fn test_redis_pbkdf2_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
         let salt = "test_salt";

@@ -69,6 +69,6 @@ pub async fn cluster_config_get(
     State(state): State<Arc<HttpState>>,
     Json(_params): Json<ClusterConfigGetReq>,
 ) -> String {
-    let broker_config = state.broker_cache.get_cluster_config();
+    let broker_config = state.broker_cache.get_cluster_config().await;
     success_response(broker_config)
 }

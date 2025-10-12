@@ -49,7 +49,7 @@ pub async fn clean_flapping_detect(
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        let config = cache_manager.get_flapping_detect_config().clone();
+        let config = cache_manager.get_flapping_detect_config().await;
         cache_manager
             .acl_metadata
             .remove_flapping_detect_conditions(config)
@@ -91,7 +91,7 @@ pub async fn check_flapping_detect(
     // incr metric
     event::incr_client_connection_counter(client_id.clone());
 
-    let config = cache_manager.get_flapping_detect_config();
+    let config = cache_manager.get_flapping_detect_config().await;
     let current_counter = event::get_client_connection_counter(client_id.clone());
     debug!("get current_counter : {current_counter} by client_id: {client_id}");
 

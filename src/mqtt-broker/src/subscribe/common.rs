@@ -16,7 +16,6 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
-
 use common_base::error::common::CommonError;
 use common_base::error::not_record_error;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
@@ -469,7 +468,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let metadata_cache = test_build_mqtt_cache_manager();
+        let metadata_cache = test_build_mqtt_cache_manager().await;
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

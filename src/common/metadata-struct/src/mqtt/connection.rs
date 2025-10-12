@@ -44,10 +44,8 @@ pub struct MQTTConnection {
     // Flags whether to return a detailed error message to the client when an error occurs.
     pub request_problem_info: u8,
     // Flow control part keeps track of how many QOS 1 and QOS 2 messages are still pending on the connection
-    #[serde(skip_serializing, skip_deserializing)]
     pub receive_qos_message: Arc<AtomicIsize>,
     // Flow control part keeps track of how many QOS 1 and QOS 2 messages are still pending on the connection
-    #[serde(skip_serializing, skip_deserializing)]
     pub sender_qos_message: Arc<AtomicIsize>,
     // Time when the connection was created
     pub create_time: u64,

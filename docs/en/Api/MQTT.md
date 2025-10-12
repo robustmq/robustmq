@@ -94,8 +94,8 @@
   "page": 1,                        // Optional, page number
   "sort_field": "connection_id",    // Optional, sort field
   "sort_by": "desc",                // Optional, sort order
-  "filter_field": "protocol",       // Optional, filter field
-  "filter_values": ["MQTT"],        // Optional, filter values
+  "filter_field": "client_id",      // Optional, filter field (e.g., "connection_id", "client_id")
+  "filter_values": ["client001"],   // Optional, filter values
   "exact_match": "true"             // Optional, exact match
 }
 ```
@@ -108,17 +108,96 @@
   "data": {
     "data": [
       {
+        "client_id": "client001",
         "connection_id": 12345,
-        "connection_type": "TCP",
-        "protocol": "MQTT",
-        "source_addr": "192.168.1.100:52341",
-        "create_time": "2024-01-01 10:00:00"
+        "mqtt_connection": {
+          "connect_id": 12345,
+          "client_id": "client001",
+          "is_login": true,
+          "source_ip_addr": "192.168.1.100",
+          "login_user": "user001",
+          "keep_alive": 60,
+          "topic_alias": {},
+          "client_max_receive_maximum": 65535,
+          "max_packet_size": 268435455,
+          "topic_alias_max": 65535,
+          "request_problem_info": 1,
+          "receive_qos_message": 0,
+          "sender_qos_message": 0,
+          "create_time": 1640995200
+        },
+        "network_connection": {
+          "connection_type": "Tcp",
+          "connection_id": 12345,
+          "protocol": "MQTT5",
+          "addr": "192.168.1.100:52341",
+          "last_heartbeat_time": 1640995200,
+          "create_time": 1640995200
+        },
+        "session": {
+          "client_id": "client001",
+          "session_expiry": 3600,
+          "is_contain_last_will": true,
+          "last_will_delay_interval": 30,
+          "create_time": 1640995200,
+          "connection_id": 12345,
+          "broker_id": 1,
+          "reconnect_time": 1640995300,
+          "distinct_time": 1640995400
+        },
+        "heartbeat": {
+          "protocol": "Mqtt5",
+          "keep_live": 60,
+          "heartbeat": 1640995500
+        }
       }
     ],
     "total_count": 100
   }
 }
 ```
+
+**Field Descriptions**:
+
+- **mqtt_connection**: MQTT protocol layer connection information
+  - `connect_id`: Connection ID
+  - `client_id`: MQTT client ID
+  - `is_login`: Whether the client is logged in
+  - `source_ip_addr`: Source IP address of the client
+  - `login_user`: Authenticated username
+  - `keep_alive`: Keep-alive interval in seconds
+  - `topic_alias`: Topic alias mappings for this connection
+  - `client_max_receive_maximum`: Maximum number of QoS 1 and QoS 2 messages that can be received simultaneously
+  - `max_packet_size`: Maximum packet size in bytes
+  - `topic_alias_max`: Maximum number of topic aliases
+  - `request_problem_info`: Whether to return detailed error information (0 or 1)
+  - `receive_qos_message`: Number of QoS 1/2 messages pending receive
+  - `sender_qos_message`: Number of QoS 1/2 messages pending send
+  - `create_time`: Connection creation timestamp
+
+- **network_connection**: Network layer connection information (null if disconnected)
+  - `connection_type`: Connection type (Tcp, Tls, Websocket, Websockets, Quic)
+  - `connection_id`: Network connection ID
+  - `protocol`: Protocol version (MQTT3, MQTT4, MQTT5)
+  - `addr`: Client socket address
+  - `last_heartbeat_time`: Last heartbeat timestamp
+  - `create_time`: Network connection creation timestamp
+
+- **session**: MQTT session information (null if no session exists)
+  - `client_id`: MQTT client ID
+  - `session_expiry`: Session expiry interval in seconds
+  - `is_contain_last_will`: Whether the session contains a last will message
+  - `last_will_delay_interval`: Delay interval for last will message in seconds (optional)
+  - `create_time`: Session creation timestamp
+  - `connection_id`: Associated connection ID (optional)
+  - `broker_id`: Broker node ID hosting the session (optional)
+  - `reconnect_time`: Last reconnection timestamp (optional)
+  - `distinct_time`: Last disconnection timestamp (optional)
+
+- **heartbeat**: Connection heartbeat information (null if not available)
+  - `protocol`: MQTT protocol version (Mqtt3, Mqtt4, Mqtt5)
+  - `keep_live`: Keep-alive interval in seconds
+  - `heartbeat`: Last heartbeat timestamp
 
 ---
 
