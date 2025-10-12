@@ -897,7 +897,6 @@ impl MqttBrokerCommand {
                     table.add_row(row![
                         topic.topic_id,
                         topic.topic_name,
-                        topic.is_contain_retain_message
                     ]);
                 }
                 // output cmd

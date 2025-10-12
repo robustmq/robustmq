@@ -123,29 +123,23 @@ pub async fn set_topic_retain_message_by_req(
 ) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    let mut topic = topic_storage
+    topic_storage
         .get(&req.cluster_name, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     // Update retain message fields
     if req.retain_message.is_empty() {
-        topic.retain_message = None;
-        topic.retain_message_expired_at = None;
-    } else {
-        topic.retain_message = Some(req.retain_message.clone());
-        topic.retain_message_expired_at = Some(req.retain_message_expired_at);
+        let data = StorageData::new(
+            StorageDataType::MqttDeleteRetainMessage,
+            SetTopicRetainMessageRequest::encode_to_vec(req),
+        );
+        raft_machine_apply.client_write(data).await?;
+        return Ok(SetTopicRetainMessageReply {});
     }
 
-    let topic_vec = serde_json::to_vec(&topic)?;
-    let request = CreateTopicRequest {
-        cluster_name: req.cluster_name.clone(),
-        topic_name: req.topic_name.clone(),
-        content: topic_vec,
-    };
-
     let data = StorageData::new(
-        StorageDataType::MqttSetTopic,
-        CreateTopicRequest::encode_to_vec(&request),
+        StorageDataType::MqttSetRetainMessage,
+        SetTopicRetainMessageRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -157,13 +151,13 @@ pub async fn get_topic_retain_message_by_req(
     req: &GetTopicRetainMessageRequest,
 ) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    let topic = topic_storage
-        .get(&req.cluster_name, &req.topic_name)?
+    let message = topic_storage
+        .get_retain_message(&req.cluster_name, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     Ok(GetTopicRetainMessageReply {
-        retain_message: topic.retain_message.clone(),
-        retain_message_expired_at: topic.retain_message_expired_at,
+        retain_message: Some(message.retain_message),
+        retain_message_expired_at: Some(message.retain_message_expired_at),
     })
 }
 

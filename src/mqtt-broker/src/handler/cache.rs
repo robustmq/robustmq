@@ -257,12 +257,6 @@ impl MQTTCacheManager {
         None
     }
 
-    pub fn update_topic_retain_message(&self, topic_name: &str, retain_message: Option<Vec<u8>>) {
-        if let Some(mut topic) = self.topic_info.get_mut(topic_name) {
-            topic.retain_message = retain_message;
-        }
-    }
-
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
         let key = self.topic_rewrite_rule_key(
@@ -599,12 +593,6 @@ mod tests {
         let topic_info = cache_manager.get_topic_by_name(topic_name);
         assert!(topic_info.is_some());
         assert_eq!(topic_info.unwrap().topic_id, topic.topic_id);
-
-        // update retain message
-        let retain_message = Some(vec![1, 2, 3]);
-        cache_manager.update_topic_retain_message(topic_name, retain_message.clone());
-        let updated_topic = cache_manager.get_topic_by_name(topic_name).unwrap();
-        assert_eq!(updated_topic.retain_message, retain_message);
 
         // remove
         cache_manager.delete_topic(&topic_name.to_string(), &topic);

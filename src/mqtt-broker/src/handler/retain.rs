@@ -75,7 +75,6 @@ pub async fn save_retain_message(
         topic_storage
             .delete_retain_message(topic_name.clone())
             .await?;
-        cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
         record_mqtt_retained_dec();
     } else {
         record_retain_recv_metrics(publish.qos);
@@ -86,8 +85,6 @@ pub async fn save_retain_message(
         topic_storage
             .set_retain_message(topic_name.clone(), &retain_message, message_expire)
             .await?;
-
-        cache_manager.update_topic_retain_message(&topic_name, Some(retain_message.encode()));
     }
 
     Ok(())
@@ -183,11 +180,22 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                     continue;
                 };
 
-            let msg = if let Some(message) = topic_storage.get_retain_message(&topic_name).await? {
-                message
+            let topic = if let Some(topic) = context.cache_manager.get_topic_by_name(&topic_name) {
+                topic
             } else {
                 continue;
             };
+
+            if !topic.contain_retain_message {
+                continue;
+            }
+
+            let (message, message_at) = topic_storage.get_retain_message(&topic_name).await?;
+            if message.is_none() || message_at.is_none() {
+                continue;
+            }
+
+            let msg = serde_json::from_str::<MqttMessage>(&message.unwrap())?;
 
             if !is_send_msg_by_bo_local(filter.nolocal, &context.client_id, &msg.client_id) {
                 info!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", context.client_id);

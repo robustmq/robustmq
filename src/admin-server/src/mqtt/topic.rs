@@ -53,7 +53,6 @@ pub async fn topic_list(
             topics.push(TopicListRow {
                 topic_id: topic.topic_id.clone(),
                 topic_name: topic.topic_name.clone(),
-                is_contain_retain_message: topic.retain_message.is_none(),
                 create_time: topic.create_time,
             });
         }
@@ -76,7 +75,6 @@ pub async fn topic_list(
             topics.push(TopicListRow {
                 topic_id: topic.topic_id.clone(),
                 topic_name: topic.topic_name.clone(),
-                is_contain_retain_message: topic.retain_message.is_some(),
                 create_time: topic.create_time,
             });
         }

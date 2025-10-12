@@ -20,9 +20,10 @@ use crate::storage::engine_meta::{
     engine_save_by_meta,
 };
 use crate::storage::keys::{
-    storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
+    storage_key_mqtt_retain_message, storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use rocksdb_engine::RocksDBEngine;
@@ -116,6 +117,39 @@ impl MqttTopicStorage {
         }
         Ok(results)
     }
+
+    pub fn save_retain_message(
+        &self,
+        retain_message: MQTTRetainMessage,
+    ) -> Result<(), MetaServiceError> {
+        let key =
+            storage_key_mqtt_retain_message(&retain_message.cluster_name, &retain_message.topic_id);
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, retain_message)?;
+        Ok(())
+    }
+
+    pub fn delete_retain_message(
+        &self,
+        cluster_name: &str,
+        topic_id: &str,
+    ) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_retain_message(cluster_name, topic_id);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        Ok(())
+    }
+
+    pub fn get_retain_message(
+        &self,
+        cluster_name: &str,
+        topic_id: &str,
+    ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
+        let key = storage_key_mqtt_retain_message(cluster_name, topic_id);
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            let topic = serde_json::from_str::<MQTTRetainMessage>(&data.data)?;
+            return Ok(Some(topic));
+        }
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
@@ -147,8 +181,7 @@ mod tests {
             topic_id: "xxx".to_string(),
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
-            retain_message: None,
-            retain_message_expired_at: None,
+            contain_retain_message: false,
             create_time: now_second(),
         };
         topic_storage
@@ -160,8 +193,7 @@ mod tests {
             topic_id: "xxx".to_string(),
             cluster_name: cluster_name.to_string(),
             topic_name: topic_name.clone(),
-            retain_message: None,
-            retain_message_expired_at: None,
+            contain_retain_message: false,
             create_time: now_second(),
         };
         topic_storage

@@ -36,7 +36,6 @@ pub struct ClientListRow {
 pub struct TopicListRow {
     pub topic_id: String,
     pub topic_name: String,
-    pub is_contain_retain_message: bool,
     pub create_time: u64,
 }
 

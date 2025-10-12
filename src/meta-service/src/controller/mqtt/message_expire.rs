@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::storage::keys::{
+    storage_key_mqtt_last_will_prefix, storage_key_mqtt_retain_message_cluster_prefix,
+};
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
+use crate::storage::mqtt::topic::MqttTopicStorage;
 use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use rocksdb_engine::warp::StorageDataWrap;
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 use tracing::error;
-
-use crate::storage::keys::{
-    storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,
-};
-use crate::storage::mqtt::lastwill::MqttLastWillStorage;
-use crate::storage::mqtt::topic::MqttTopicStorage;
 
 pub struct MessageExpire {
     cluster_name: String,
@@ -42,7 +41,7 @@ impl MessageExpire {
     }
 
     pub async fn retain_message_expire(&self) {
-        let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
+        let search_key = storage_key_mqtt_retain_message_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
         let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
@@ -78,24 +77,16 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let mut value = serde_json::from_str::<MQTTTopic>(&data.data).unwrap();
-
-            if value.retain_message.is_some() {
-                let delete = if let Some(expired_at) = value.retain_message_expired_at {
-                    now_second() >= (data.create_time + expired_at)
-                } else {
-                    false
-                };
-                if delete {
-                    value.retain_message = None;
-                    value.retain_message_expired_at = None;
-                    if let Err(e) =
-                        topic_storage.save(&self.cluster_name, &value.topic_name.clone(), value)
-                    {
-                        error!("{}", e);
-                    }
+            let value = serde_json::from_str::<MQTTRetainMessage>(&data.data).unwrap();
+            let delete = now_second() >= (value.create_time + value.retain_message_expired_at);
+            if delete {
+                if let Err(e) =
+                    topic_storage.delete_retain_message(&self.cluster_name, &value.topic_id)
+                {
+                    error!("{}", e);
                 }
             }
+
             iter.next();
         }
     }
@@ -166,10 +157,9 @@ mod tests {
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::lastwill::LastWillData;
-    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
     use metadata_struct::mqtt::session::MqttSession;
-    use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::common::{LastWillProperties, Publish};
+    use protocol::mqtt::common::LastWillProperties;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use std::time::Duration;
@@ -191,14 +181,17 @@ mod tests {
         let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let mut topic = MQTTTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());
-        let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
-        topic.retain_message = Some(retain_msg.encode());
-        topic.retain_message_expired_at = Some(3);
+        let topic_id = unique_id();
+        let retain_message = MQTTRetainMessage {
+            cluster_name: "t1".to_string(),
+            topic_id: topic_id.clone(),
+            retain_message: "message1".to_string(),
+            retain_message_expired_at: 10,
+            create_time: now_second(),
+        };
 
-        topic_storage
-            .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
-            .unwrap();
+        topic_storage.save_retain_message(retain_message).unwrap();
+
         tokio::spawn(async move {
             loop {
                 message_expire.retain_message_expire().await;
@@ -207,17 +200,21 @@ mod tests {
         });
 
         let start = now_second();
+
         loop {
-            let res = topic_storage.get(&cluster_name, &topic.topic_name).unwrap();
-            let tp = res.unwrap();
-            if tp.retain_message.is_none() {
+            let res = topic_storage
+                .get_retain_message(&cluster_name, &topic_id)
+                .unwrap();
+
+            if res.is_some() {
                 break;
             }
             sleep(Duration::from_millis(100)).await;
         }
 
         let ms = now_second() - start;
-        assert!(ms == 3 || ms == 4);
+
+        assert!(ms == 9 || ms == 11);
     }
 
     #[tokio::test]
