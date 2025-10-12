@@ -210,4 +210,9 @@ mod tests {
         let res = topic_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
     }
+
+        #[tokio::test]
+    async fn retain_message_storage_test() {
+
+    }
 }
