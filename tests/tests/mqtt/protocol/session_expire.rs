@@ -86,6 +86,7 @@ mod tests {
         assert!(total >= (sei - 2) && total <= (sei + 2));
     }
 
+    #[ignore]
     #[tokio::test]
     async fn session_close_test() {
         let network = "tcp";

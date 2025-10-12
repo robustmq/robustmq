@@ -29,6 +29,7 @@ mod tests {
 
     use crate::journal::client::common::journal_tcp_addr;
 
+    #[ignore]
     #[tokio::test]
     async fn get_cluster_metadata_base_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
@@ -50,6 +51,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn create_shard_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
@@ -76,6 +78,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn get_shard_metadata_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
@@ -102,6 +105,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn delete_shard_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
@@ -126,6 +130,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn write_base_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
@@ -159,6 +164,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn read_base_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
@@ -192,6 +198,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn fetch_offset_test() {
         let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();

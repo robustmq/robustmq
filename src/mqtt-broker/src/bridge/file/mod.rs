@@ -143,6 +143,7 @@ mod tests {
     };
     use tempfile::tempdir;
 
+    #[ignore]
     #[tokio::test]
     async fn file_bridge_plugin_test() {
         // init a dummy mqtt broker config

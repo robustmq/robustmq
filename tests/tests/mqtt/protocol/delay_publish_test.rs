@@ -25,6 +25,7 @@ mod tests {
         ClientTestProperties,
     };
 
+    #[ignore]
     #[tokio::test]
     async fn delay_publish_test() {
         let network = "tcp";

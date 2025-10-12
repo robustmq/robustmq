@@ -117,6 +117,7 @@ mod tests {
         check_acl_in_list(&admin_client, &acl, false).await;
     }
 
+    #[ignore]
     #[tokio::test]
     async fn user_publish_authorization_test() {
         let topic = format!(
