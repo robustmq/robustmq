@@ -94,8 +94,8 @@
   "page": 1,                        // 可选，页码
   "sort_field": "connection_id",    // 可选，排序字段
   "sort_by": "desc",                // 可选，排序方式
-  "filter_field": "protocol",       // 可选，过滤字段
-  "filter_values": ["MQTT"],        // 可选，过滤值
+  "filter_field": "client_id",      // 可选，过滤字段（例如："connection_id", "client_id"）
+  "filter_values": ["client001"],   // 可选，过滤值
   "exact_match": "true"             // 可选，精确匹配
 }
 ```
@@ -108,17 +108,96 @@
   "data": {
     "data": [
       {
+        "client_id": "client001",
         "connection_id": 12345,
-        "connection_type": "TCP",
-        "protocol": "MQTT",
-        "source_addr": "192.168.1.100:52341",
-        "create_time": "2024-01-01 10:00:00"
+        "mqtt_connection": {
+          "connect_id": 12345,
+          "client_id": "client001",
+          "is_login": true,
+          "source_ip_addr": "192.168.1.100",
+          "login_user": "user001",
+          "keep_alive": 60,
+          "topic_alias": {},
+          "client_max_receive_maximum": 65535,
+          "max_packet_size": 268435455,
+          "topic_alias_max": 65535,
+          "request_problem_info": 1,
+          "receive_qos_message": 0,
+          "sender_qos_message": 0,
+          "create_time": 1640995200
+        },
+        "network_connection": {
+          "connection_type": "Tcp",
+          "connection_id": 12345,
+          "protocol": "MQTT5",
+          "addr": "192.168.1.100:52341",
+          "last_heartbeat_time": 1640995200,
+          "create_time": 1640995200
+        },
+        "session": {
+          "client_id": "client001",
+          "session_expiry": 3600,
+          "is_contain_last_will": true,
+          "last_will_delay_interval": 30,
+          "create_time": 1640995200,
+          "connection_id": 12345,
+          "broker_id": 1,
+          "reconnect_time": 1640995300,
+          "distinct_time": 1640995400
+        },
+        "heartbeat": {
+          "protocol": "Mqtt5",
+          "keep_live": 60,
+          "heartbeat": 1640995500
+        }
       }
     ],
     "total_count": 100
   }
 }
 ```
+
+**字段说明**:
+
+- **mqtt_connection**: MQTT 协议层连接信息
+  - `connect_id`: 连接ID
+  - `client_id`: MQTT 客户端ID
+  - `is_login`: 客户端是否已登录
+  - `source_ip_addr`: 客户端源IP地址
+  - `login_user`: 已认证的用户名
+  - `keep_alive`: 保活间隔（秒）
+  - `topic_alias`: 该连接的主题别名映射
+  - `client_max_receive_maximum`: 可同时接收的 QoS 1 和 QoS 2 消息的最大数量
+  - `max_packet_size`: 最大数据包大小（字节）
+  - `topic_alias_max`: 主题别名的最大数量
+  - `request_problem_info`: 是否返回详细错误信息（0 或 1）
+  - `receive_qos_message`: 待接收的 QoS 1/2 消息数量
+  - `sender_qos_message`: 待发送的 QoS 1/2 消息数量
+  - `create_time`: 连接创建时间戳
+
+- **network_connection**: 网络层连接信息（断开连接时为 null）
+  - `connection_type`: 连接类型（Tcp, Tls, Websocket, Websockets, Quic）
+  - `connection_id`: 网络连接ID
+  - `protocol`: 协议版本（MQTT3, MQTT4, MQTT5）
+  - `addr`: 客户端套接字地址
+  - `last_heartbeat_time`: 最后心跳时间戳
+  - `create_time`: 网络连接创建时间戳
+
+- **session**: MQTT 会话信息（无会话时为 null）
+  - `client_id`: MQTT 客户端ID
+  - `session_expiry`: 会话过期间隔（秒）
+  - `is_contain_last_will`: 会话是否包含遗愿消息
+  - `last_will_delay_interval`: 遗愿消息延迟间隔（秒，可选）
+  - `create_time`: 会话创建时间戳
+  - `connection_id`: 关联的连接ID（可选）
+  - `broker_id`: 托管会话的 Broker 节点ID（可选）
+  - `reconnect_time`: 最后重连时间戳（可选）
+  - `distinct_time`: 最后断开连接时间戳（可选）
+
+- **heartbeat**: 连接心跳信息（不可用时为 null）
+  - `protocol`: MQTT 协议版本（Mqtt3, Mqtt4, Mqtt5）
+  - `keep_live`: 保活间隔（秒）
+  - `heartbeat`: 最后心跳时间戳
 
 ---
 

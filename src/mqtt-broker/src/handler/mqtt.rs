@@ -821,6 +821,8 @@ impl MqttService {
         };
         self.cache_manager
             .report_heartbeat(connection.client_id, live_time);
+        self.connection_manager
+            .report_heartbeat(connect_id, now_second());
         response_packet_mqtt_ping_resp()
     }
 

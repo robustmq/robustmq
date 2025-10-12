@@ -450,7 +450,7 @@ mod test {
     }
 
     use bytes::Bytes;
-    use protocol::robust::RobustMQProtocol;
+
     #[test]
     fn calc_mqtt_packet_test() {
         let mp: MqttPacket = MqttPacket::Publish(
@@ -465,14 +465,11 @@ mod test {
             None,
         );
 
-        let nc = NetworkConnection {
-            connection_type: NetworkConnectionType::Tcp,
-            addr: get_addr_by_local_hostname(1883).parse().unwrap(),
-            connection_stop_sx: None,
-            connection_id: 100,
-            protocol: Some(RobustMQProtocol::MQTT3),
-            create_time: now_second(),
-        };
+        let nc = NetworkConnection::new(
+            NetworkConnectionType::Tcp,
+            get_addr_by_local_hostname(1883).parse().unwrap(),
+            None,
+        );
         let ty = NetworkConnectionType::Tcp;
         record_mqtt_packet_received_metrics(&nc, &mp, &ty);
         let label = NetworkLabel {

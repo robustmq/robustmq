@@ -68,6 +68,24 @@ impl MetricsCacheManager {
         *self.pre_calc_time.read().await
     }
 
+    pub async fn get_pre_message_in(&self) -> u64 {
+        let pre_time = self.get_calc_time().await;
+        if let Some(val) = self.message_in_num.get(&pre_time) {
+            *val
+        } else {
+            0
+        }
+    }
+
+    pub async fn get_pre_message_out(&self) -> u64 {
+        let pre_time = self.get_calc_time().await;
+        if let Some(val) = self.message_out_num.get(&pre_time) {
+            *val
+        } else {
+            0
+        }
+    }
+
     pub fn record_connection_num(&self, time: u64, num: u64) {
         self.connection_num.insert(time, num);
     }

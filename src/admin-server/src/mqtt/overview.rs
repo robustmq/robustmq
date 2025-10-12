@@ -25,9 +25,6 @@ use common_base::{
     tools::now_second,
 };
 use common_config::broker::broker_config;
-use common_metrics::mqtt::publish::{
-    record_mqtt_messages_received_get, record_mqtt_messages_sent_get,
-};
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
@@ -43,6 +40,7 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
         &state.connection_manager,
         &state.mqtt_context.cache_manager,
         &state.broker_cache,
+        &state.mqtt_context.metrics_manager,
     )
     .await
     {
@@ -93,6 +91,7 @@ async fn cluster_overview_by_req(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     broker_cache: &Arc<BrokerCacheManager>,
+    metrics_manager: &Arc<MetricsCacheManager>,
 ) -> Result<OverViewResp, CommonError> {
     let config = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
@@ -101,8 +100,8 @@ async fn cluster_overview_by_req(
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: record_mqtt_messages_received_get(),
-        message_out_rate: record_mqtt_messages_sent_get(),
+        message_in_rate: metrics_manager.get_pre_message_in().await,
+        message_out_rate: metrics_manager.get_pre_message_out().await,
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
         subscribe_num: subscribe_manager.subscribe_list.len() as u32,

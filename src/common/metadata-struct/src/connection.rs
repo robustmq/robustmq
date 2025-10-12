@@ -54,6 +54,7 @@ pub struct NetworkConnection {
     pub connection_id: u64,
     pub protocol: Option<RobustMQProtocol>,
     pub addr: SocketAddr,
+    pub last_heartbeat_time: u64,
     pub create_time: u64,
     #[serde(skip_serializing, skip_deserializing)]
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
@@ -71,6 +72,7 @@ impl NetworkConnection {
             connection_id,
             protocol: None,
             addr,
+            last_heartbeat_time: now_second(),
             create_time: now_second(),
             connection_stop_sx,
         }
@@ -124,6 +126,10 @@ impl NetworkConnection {
 
     pub fn is_quic(&self) -> bool {
         self.connection_type == NetworkConnectionType::QUIC
+    }
+
+    pub fn set_heartbeat_time(&mut self, time: u64) {
+        self.last_heartbeat_time = time;
     }
 
     pub async fn stop_connection(&self) {

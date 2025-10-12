@@ -359,6 +359,10 @@ impl MQTTCacheManager {
         self.heartbeat_data.insert(client_id, live_time);
     }
 
+    pub fn get_heartbeat(&self, client_id: &str) -> Option<ConnectionLiveTime> {
+        self.heartbeat_data.get(client_id).map(|data| data.clone())
+    }
+
     pub fn remove_heartbeat(&self, client_id: &str) {
         self.heartbeat_data.remove(client_id);
     }
