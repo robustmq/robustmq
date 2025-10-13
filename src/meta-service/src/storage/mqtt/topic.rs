@@ -211,8 +211,6 @@ mod tests {
         assert!(res.is_none());
     }
 
-        #[tokio::test]
-    async fn retain_message_storage_test() {
-
-    }
+    #[tokio::test]
+    async fn retain_message_storage_test() {}
 }

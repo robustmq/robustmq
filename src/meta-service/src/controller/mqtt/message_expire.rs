@@ -71,6 +71,7 @@ impl MessageExpire {
                     continue;
                 }
             };
+
             if !result_key.starts_with(&search_key) {
                 break;
             }
@@ -182,11 +183,12 @@ mod tests {
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
         let topic_name = unique_id();
+        let expired = 10;
         let retain_message = MQTTRetainMessage {
-            cluster_name: "t1".to_string(),
+            cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
             retain_message: "message1".to_string(),
-            retain_message_expired_at: 10,
+            retain_message_expired_at: expired,
             create_time: now_second(),
         };
 
@@ -206,15 +208,15 @@ mod tests {
                 .get_retain_message(&cluster_name, &topic_name)
                 .unwrap();
 
-            if res.is_some() {
+            if res.is_none() {
                 break;
             }
             sleep(Duration::from_millis(100)).await;
         }
 
         let ms = now_second() - start;
-
-        assert!(ms == 9 || ms == 11);
+        println!("ms:{}", ms);
+        assert_eq!(ms, expired)
     }
 
     #[tokio::test]

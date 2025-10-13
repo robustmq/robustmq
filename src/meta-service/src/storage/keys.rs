@@ -276,5 +276,5 @@ pub fn storage_key_mqtt_retain_message_cluster_prefix(cluster_name: &str) -> Str
 }
 
 fn prefix_key(key: String) -> String {
-    format!("/meta/{key}")
+    format!("/meta{key}")
 }

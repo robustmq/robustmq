@@ -40,7 +40,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -160,7 +160,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
             &filter.retain_handling,
             &context.is_new_subs,
         ) {
-            info!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", context.client_id);
+            debug!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", context.client_id);
             continue;
         }
 
@@ -174,6 +174,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
         for topic_name in topic_name_list.iter() {
             let (message, message_at) = topic_storage.get_retain_message(topic_name).await?;
+
             if message.is_none() || message_at.is_none() {
                 continue;
             }
@@ -181,7 +182,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
             let msg = serde_json::from_str::<MqttMessage>(&message.unwrap())?;
 
             if !is_send_msg_by_bo_local(filter.nolocal, &context.client_id, &msg.client_id) {
-                info!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", context.client_id);
+                debug!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", context.client_id);
                 continue;
             }
 
