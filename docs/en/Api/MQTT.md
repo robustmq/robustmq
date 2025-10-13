@@ -299,7 +299,7 @@
 
 #### 4.2 Topic Detail Query
 - **Endpoint**: `POST /api/mqtt/topic/detail`
-- **Description**: Query detailed information for a specific topic, including topic info and subscriber list
+- **Description**: Query detailed information for a specific topic, including basic info, retained message, and subscriber list
 - **Request Parameters**:
 ```json
 {
@@ -314,13 +314,12 @@
   "message": "success",
   "data": {
     "topic_info": {
-      "topic_name": "topic_001",
       "cluster_name": "robustmq-cluster",
       "topic_name": "sensor/temperature",
-      "retain_message": null,
-      "retain_message_expired_at": null,
       "create_time": 1640995200
     },
+    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message_at": 1640995300,
     "sub_list": [
       {
         "client_id": "client001",
@@ -338,20 +337,30 @@
 **Response Field Description**:
 
 - **topic_info**: Topic basic information
-  - `topic_name`: Topic ID
   - `cluster_name`: Cluster name
   - `topic_name`: Topic name
-  - `retain_message`: Retained message content (byte array, can be null)
-  - `retain_message_expired_at`: Retained message expiration timestamp (can be null)
-  - `create_time`: Topic creation timestamp
+  - `create_time`: Topic creation timestamp (seconds)
+
+- **retain_message**: Retained message content
+  - Type: `String` or `null`
+  - Base64 encoded message content
+  - Returns `null` if the topic has no retained message
+
+- **retain_message_at**: Retained message timestamp
+  - Type: `u64` or `null`
+  - Unix timestamp in milliseconds
+  - Indicates when the retained message was created or updated
+  - Returns `null` if there is no retained message
 
 - **sub_list**: List of clients subscribed to this topic
   - `client_id`: Subscriber client ID
-  - `path`: Subscription path (may include wildcards)
+  - `path`: Subscription path (may include wildcards like `+` or `#`)
 
 **Notes**:
-- Returns an error response if the topic does not exist
+- Returns an error response if the topic does not exist: `{"code": 1, "message": "Topic does not exist."}`
 - `sub_list` shows all subscriptions matching this topic, including wildcard subscriptions
+- Retained message content is Base64 encoded and needs to be decoded by clients
+- `retain_message_at` uses millisecond timestamps while `create_time` uses second timestamps
 
 #### 4.3 Topic Rewrite Rules List
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/list`

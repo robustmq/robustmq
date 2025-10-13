@@ -40,7 +40,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -246,7 +246,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 &context.stop_sx,
             )
             .await?;
-            info!(
+            debug!(
                 "retain the successful message sending: client_id: {}, topi_id: {}",
                 context.client_id, topic_name
             );

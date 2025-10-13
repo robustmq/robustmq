@@ -116,8 +116,19 @@ pub async fn topic_detail(
         .subscribe_manager
         .get_topic_subscribe_list(&topic.topic_name);
 
+    let storage = TopicStorage::new(state.client_pool.clone());
+    let (retain_message, retain_message_at) =
+        match storage.get_retain_message(&topic.topic_name).await {
+            Ok((retain_message, retain_message_at)) => (retain_message, retain_message_at),
+            Err(e) => {
+                return error_response(e.to_string());
+            }
+        };
+
     success_response(TopicDetailResp {
         topic_info: topic,
+        retain_message,
+        retain_message_at,
         sub_list,
     })
 }

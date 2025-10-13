@@ -299,7 +299,7 @@
 
 #### 4.2 主题详情查询
 - **接口**: `POST /api/mqtt/topic/detail`
-- **描述**: 查询指定主题的详细信息，包括主题信息和订阅列表
+- **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
 - **请求参数**:
 ```json
 {
@@ -314,13 +314,12 @@
   "message": "success",
   "data": {
     "topic_info": {
-      "topic_name": "topic_001",
       "cluster_name": "robustmq-cluster",
       "topic_name": "sensor/temperature",
-      "retain_message": null,
-      "retain_message_expired_at": null,
       "create_time": 1640995200
     },
+    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message_at": 1640995300,
     "sub_list": [
       {
         "client_id": "client001",
@@ -338,20 +337,30 @@
 **响应字段说明**：
 
 - **topic_info**: 主题基本信息
-  - `topic_name`: 主题ID
   - `cluster_name`: 集群名称
   - `topic_name`: 主题名称
-  - `retain_message`: 保留消息内容（字节数组，可为 null）
-  - `retain_message_expired_at`: 保留消息过期时间戳（可为 null）
-  - `create_time`: 主题创建时间戳
+  - `create_time`: 主题创建时间戳（秒）
+
+- **retain_message**: 保留消息内容
+  - 类型：`String` 或 `null`
+  - Base64 编码的消息内容
+  - 如果主题没有保留消息，则为 `null`
+
+- **retain_message_at**: 保留消息的时间戳
+  - 类型：`u64` 或 `null`
+  - Unix 时间戳（毫秒）
+  - 表示保留消息的创建或更新时间
+  - 如果没有保留消息，则为 `null`
 
 - **sub_list**: 订阅该主题的客户端列表
   - `client_id`: 订阅客户端ID
-  - `path`: 订阅路径（可能包含通配符）
+  - `path`: 订阅路径（可能包含通配符如 `+` 或 `#`）
 
 **注意事项**：
-- 如果主题不存在，将返回错误响应
+- 如果主题不存在，将返回错误响应：`{"code": 1, "message": "Topic does not exist."}`
 - `sub_list` 显示所有匹配该主题的订阅，包括通配符订阅
+- 保留消息内容使用 Base64 编码，客户端需要解码后使用
+- `retain_message_at` 使用毫秒级时间戳，而 `create_time` 使用秒级时间戳
 
 #### 4.3 主题重写规则列表
 - **接口**: `POST /api/mqtt/topic-rewrite/list`

@@ -41,6 +41,8 @@ pub struct TopicListRow {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
     pub topic_info: MQTTTopic,
+    pub retain_message: Option<String>,
+    pub retain_message_at: Option<u64>,
     pub sub_list: Vec<TopicSubscribeInfo>,
 }
 

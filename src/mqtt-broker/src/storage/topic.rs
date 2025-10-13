@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
+use crate::handler::error::MqttBrokerError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::{
@@ -29,9 +31,6 @@ use protocol::meta::meta_service_mqtt::{
     ListTopicRewriteRuleRequest, SetTopicRetainMessageRequest,
 };
 use std::sync::Arc;
-
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::error::MqttBrokerError;
 
 pub struct TopicStorage {
     client_pool: Arc<ClientPool>,
@@ -157,7 +156,17 @@ impl TopicStorage {
         )
         .await?;
 
-        Ok((reply.retain_message, reply.retain_message_expired_at))
+        if reply.retain_message.is_none() {
+            return Ok((reply.retain_message, reply.retain_message_expired_at));
+        }
+
+        let msg = serde_json::from_str::<MqttMessage>(&reply.retain_message.clone().unwrap())?;
+        if msg.payload.is_empty() {
+            return Ok((reply.retain_message, reply.retain_message_expired_at));
+        }
+
+        let content = String::from_utf8(msg.payload.to_vec())?;
+        Ok((Some(content), reply.retain_message_expired_at))
     }
 
     pub async fn all_topic_rewrite_rule(

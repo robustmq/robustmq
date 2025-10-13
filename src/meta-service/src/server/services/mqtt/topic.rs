@@ -151,13 +151,17 @@ pub async fn get_topic_retain_message_by_req(
     req: &GetTopicRetainMessageRequest,
 ) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    let message = topic_storage
-        .get_retain_message(&req.cluster_name, &req.topic_name)?
-        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
+
+    if let Some(message) = topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
+        return Ok(GetTopicRetainMessageReply {
+            retain_message: Some(message.retain_message),
+            retain_message_expired_at: Some(message.retain_message_expired_at),
+        });
+    }
 
     Ok(GetTopicRetainMessageReply {
-        retain_message: Some(message.retain_message),
-        retain_message_expired_at: Some(message.retain_message_expired_at),
+        retain_message: None,
+        retain_message_expired_at: None,
     })
 }
 
