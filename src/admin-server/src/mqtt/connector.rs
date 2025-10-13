@@ -30,6 +30,7 @@ use metadata_struct::mqtt::bridge::{
     config_kafka::KafkaConnectorConfig,
     config_local_file::LocalFileConnectorConfig,
     config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig,
     config_postgres::PostgresConnectorConfig,
     config_pulsar::PulsarConnectorConfig,
     config_rabbitmq::RabbitMQConnectorConfig,
@@ -165,6 +166,9 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         }
         ConnectorType::RabbitMQ => {
             let _rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::MySQL => {
+            let _mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
         }
     }
     Ok(())

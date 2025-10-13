@@ -218,6 +218,7 @@ kafka-protocol = "0.15.1"
 governor = { version = "0.10.1" }
 pulsar = "6.3.1"
 tokio-postgres = "0.7.12"
+sqlx = { version = "0.8", default-features = false }
 mongodb = { version = "2.8", features = ["tokio-runtime"] }
 bson = "2.9"
 lapin = "2.5.0"
