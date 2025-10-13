@@ -25,7 +25,7 @@ use crate::security::login::postgresql::postgresql_check_login;
 use crate::security::login::redis::redis_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::security::storage::AuthType;
-use crate::subscribe::common::get_sub_topic_id_list;
+use crate::subscribe::common::get_sub_topic_name_list;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_config::broker::broker_config;
@@ -230,12 +230,12 @@ impl AuthDriver {
         subscribe: &Subscribe,
     ) -> bool {
         for filter in subscribe.filters.iter() {
-            let topic_list = get_sub_topic_id_list(&self.cache_manager, &filter.path).await;
-            for topic in topic_list {
+            let topic_list = get_sub_topic_name_list(&self.cache_manager, &filter.path).await;
+            for topic_name in topic_list {
                 if !is_allow_acl(
                     &self.cache_manager,
                     connection,
-                    &topic,
+                    &topic_name,
                     MqttAclAction::Subscribe,
                     false,
                     filter.qos,

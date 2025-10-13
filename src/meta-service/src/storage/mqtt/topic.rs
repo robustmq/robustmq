@@ -20,9 +20,10 @@ use crate::storage::engine_meta::{
     engine_save_by_meta,
 };
 use crate::storage::keys::{
-    storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
+    storage_key_mqtt_retain_message, storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use rocksdb_engine::RocksDBEngine;
@@ -63,9 +64,9 @@ impl MqttTopicStorage {
     pub fn get(
         &self,
         cluster_name: &str,
-        topicname: &str,
+        topic_name: &str,
     ) -> Result<Option<MQTTTopic>, MetaServiceError> {
-        let key: String = storage_key_mqtt_topic(cluster_name, topicname);
+        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
             let topic = serde_json::from_str::<MQTTTopic>(&data.data)?;
@@ -116,6 +117,41 @@ impl MqttTopicStorage {
         }
         Ok(results)
     }
+
+    pub fn save_retain_message(
+        &self,
+        retain_message: MQTTRetainMessage,
+    ) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_retain_message(
+            &retain_message.cluster_name,
+            &retain_message.topic_name,
+        );
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, retain_message)?;
+        Ok(())
+    }
+
+    pub fn delete_retain_message(
+        &self,
+        cluster_name: &str,
+        topic_name: &str,
+    ) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        Ok(())
+    }
+
+    pub fn get_retain_message(
+        &self,
+        cluster_name: &str,
+        topic_name: &str,
+    ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
+        let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            let topic = serde_json::from_str::<MQTTRetainMessage>(&data.data)?;
+            return Ok(Some(topic));
+        }
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
@@ -144,11 +180,8 @@ mod tests {
         let cluster_name = "test_cluster".to_string();
         let topic_name = "loboxu".to_string();
         let topic = MQTTTopic {
-            topic_id: "xxx".to_string(),
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
-            retain_message: None,
-            retain_message_expired_at: None,
             create_time: now_second(),
         };
         topic_storage
@@ -157,11 +190,8 @@ mod tests {
 
         let topic_name = "lobo1".to_string();
         let topic = MQTTTopic {
-            topic_id: "xxx".to_string(),
             cluster_name: cluster_name.to_string(),
             topic_name: topic_name.clone(),
-            retain_message: None,
-            retain_message_expired_at: None,
             create_time: now_second(),
         };
         topic_storage
@@ -180,4 +210,7 @@ mod tests {
         let res = topic_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
     }
+
+    #[tokio::test]
+    async fn retain_message_storage_test() {}
 }

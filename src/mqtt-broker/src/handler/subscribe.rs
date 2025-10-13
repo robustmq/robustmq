@@ -66,7 +66,6 @@ pub struct AddExclusivePushContext {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ParseShareQueueSubscribeRequest {
     pub topic_name: String,
-    pub topic_id: String,
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub sub_identifier: Option<usize>,
@@ -176,7 +175,6 @@ pub async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBroker
             &context.subscribe_manager,
             &mut ParseShareQueueSubscribeRequest {
                 topic_name: context.topic.topic_name.to_owned(),
-                topic_id: context.topic.topic_id.to_owned(),
                 client_id: context.client_id.to_owned(),
                 protocol: context.protocol.clone(),
                 sub_identifier,
@@ -230,7 +228,6 @@ pub async fn add_share_push_leader(
         client_id: req.client_id.clone(),
         topic_name: req.topic_name.clone(),
         group_name: Some(req.group_name.clone()),
-        topic_id: req.topic_id.clone(),
         qos: req.filter.qos,
         nolocal: req.filter.nolocal,
         preserve_retain: req.filter.preserve_retain,
@@ -257,14 +254,13 @@ async fn add_share_push_follower(
         group_name: req.group_name.clone(),
         sub_name: req.sub_name.clone(),
         subscription_identifier: req.sub_identifier,
-        topic_id: req.topic_id.clone(),
         topic_name: req.topic_name.clone(),
     };
 
     subscribe_manager.add_share_subscribe_follower(
         &req.client_id,
         &req.group_name,
-        &req.topic_id,
+        &req.topic_name,
         share_sub,
     );
 }
@@ -288,7 +284,6 @@ fn add_exclusive_push(context: AddExclusivePushContext) -> ResultMqttBrokerError
             client_id: context.client_id.to_owned(),
             topic_name: context.topic.topic_name.to_owned(),
             group_name: None,
-            topic_id: context.topic.topic_id.to_owned(),
             qos: context.filter.qos,
             nolocal: context.filter.nolocal,
             preserve_retain: context.filter.preserve_retain,
@@ -306,7 +301,7 @@ fn add_exclusive_push(context: AddExclusivePushContext) -> ResultMqttBrokerError
         context.subscribe_manager.add_exclusive_push(
             &context.client_id,
             &context.filter.path,
-            &context.topic.topic_id,
+            &context.topic.topic_name,
             sub,
         );
     }
@@ -328,7 +323,6 @@ mod tests {
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let topic = MQTTTopic {
             topic_name: "/topic/1/2".to_string(),
-            topic_id: "test-id".to_string(),
             ..Default::default()
         };
         let client_id = unique_id();

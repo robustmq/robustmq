@@ -38,7 +38,7 @@ pub struct LocalFileConnectorConfig {
   "connector_name": "file_connector",
   "connector_type": "LocalFile",
   "config": "{\"local_file_path\": \"/var/log/mqtt_messages.log\"}",
-  "topic_id": "sensor/data",
+  "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": 1,
   "create_time": 1640995200,

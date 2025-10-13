@@ -65,7 +65,7 @@ pub struct PostgresConnectorConfig {
   "connector_name": "postgres_connector_01",
   "connector_type": "Postgres",
   "config": "{\"host\": \"localhost\", \"port\": 5432, \"database\": \"mqtt_data\", \"username\": \"postgres\", \"password\": \"password123\", \"table\": \"mqtt_messages\", \"enable_batch_insert\": true}",
-  "topic_id": "sensor/data",
+  "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": null,
   "create_time": 1640995200,
@@ -191,7 +191,7 @@ robust-ctl mqtt connector create \
   --connector-name <connector_name> \
   --connector-type <connector_type> \
   --config <config> \
-  --topic-id <topic_id>
+  --topic-id <topic_name>
 ```
 
 ### Creating PostgreSQL Connectors

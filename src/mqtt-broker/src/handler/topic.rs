@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use bytes::Bytes;
-
-use common_base::tools::unique_id;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
+use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
 use tokio::time::sleep;
 
@@ -151,12 +148,11 @@ pub async fn try_init_topic(
 
         // create Topic
         let topic_storage = TopicStorage::new(client_pool.clone());
-        let topic_id = unique_id();
         let conf = broker_config();
         let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
             topic
         } else {
-            let topic = MQTTTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
+            let topic = MQTTTopic::new(conf.cluster_name.clone(), topic_name.to_owned());
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };

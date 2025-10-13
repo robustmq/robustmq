@@ -242,7 +242,7 @@ impl BridgePlugin for PostgresBridgePlugin {
                     }
                 }
 
-                val = message_storage.read_topic_message(&config.topic_id, offset, config.record_num) => {
+                val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
                     match val {
                         Ok(data) => {
                             self.connector_manager.report_heartbeat(&self.connector_name);
@@ -267,13 +267,13 @@ impl BridgePlugin for PostgresBridgePlugin {
 
                             // commit offset
                             message_storage
-                                .commit_group_offset(&group_name, &config.topic_id, offset + data.len() as u64)
+                                .commit_group_offset(&group_name, &config.topic_name, offset + data.len() as u64)
                                 .await?;
                         }
                         Err(e) => {
                             error!(
                                 "Connector {} failed to read Topic {} data with error: {}",
-                                self.connector_name, config.topic_id, e
+                                self.connector_name, config.topic_name, e
                             );
                             sleep(Duration::from_millis(100)).await;
                         }

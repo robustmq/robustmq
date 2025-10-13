@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::{CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicListReq, TopicRewriteReq},
+    request::mqtt::{
+        CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicDetailReq, TopicListReq, TopicRewriteReq,
+    },
     response::{
-        mqtt::{TopicListRow, TopicRewriteListRow},
+        mqtt::{TopicDetailResp, TopicListRow, TopicRewriteListRow},
         PageReplyData,
     },
     state::HttpState,
@@ -49,18 +51,29 @@ pub async fn topic_list(
     if let Some(tp) = params.topic_name.clone() {
         if let Some(topic) = state.mqtt_context.cache_manager.get_topic_by_name(&tp) {
             topics.push(TopicListRow {
-                topic_id: topic.topic_id.clone(),
                 topic_name: topic.topic_name.clone(),
-                is_contain_retain_message: topic.retain_message.is_none(),
+                create_time: topic.create_time,
             });
         }
     } else {
+        let topic_type = params.topic_type.as_deref().unwrap_or("all");
         for entry in state.mqtt_context.cache_manager.topic_info.iter() {
             let topic = entry.value();
+            let allow = if topic_type == "system" {
+                entry.topic_name.contains("$")
+            } else if topic_type == "normal" {
+                !entry.topic_name.contains("$")
+            } else {
+                true
+            };
+
+            if !allow {
+                continue;
+            }
+
             topics.push(TopicListRow {
-                topic_id: topic.topic_id.clone(),
                 topic_name: topic.topic_name.clone(),
-                is_contain_retain_message: topic.retain_message.is_none(),
+                create_time: topic.create_time,
             });
         }
     }
@@ -82,6 +95,42 @@ impl Queryable for TopicListRow {
             _ => None,
         }
     }
+}
+
+pub async fn topic_detail(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<TopicDetailReq>,
+) -> String {
+    let topic = if let Some(topic) = state
+        .mqtt_context
+        .cache_manager
+        .get_topic_by_name(&params.topic_name)
+    {
+        topic
+    } else {
+        return error_response("Topic does not exist.".to_string());
+    };
+
+    let sub_list = state
+        .mqtt_context
+        .subscribe_manager
+        .get_topic_subscribe_list(&topic.topic_name);
+
+    let storage = TopicStorage::new(state.client_pool.clone());
+    let (retain_message, retain_message_at) =
+        match storage.get_retain_message(&topic.topic_name).await {
+            Ok((retain_message, retain_message_at)) => (retain_message, retain_message_at),
+            Err(e) => {
+                return error_response(e.to_string());
+            }
+        };
+
+    success_response(TopicDetailResp {
+        topic_info: topic,
+        retain_message,
+        retain_message_at,
+        sub_list,
+    })
 }
 
 pub async fn topic_rewrite_list(
