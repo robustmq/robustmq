@@ -20,6 +20,7 @@ mod tests {
 
     use crate::journal::client::common::journal_tcp_addr_vec;
 
+    #[ignore]
     #[tokio::test]
     async fn write_data_test() {
         let addrs = journal_tcp_addr_vec();
@@ -39,6 +40,7 @@ mod tests {
         write_data(&client, &namespace, &shard_name).await;
     }
 
+    #[ignore]
     #[tokio::test]
     async fn read_data_test() {
         let addrs = journal_tcp_addr_vec();

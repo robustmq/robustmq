@@ -23,11 +23,12 @@ use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
-use common_base::tools::now_mills;
+use common_base::tools::{now_mills, now_second};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -40,7 +41,8 @@ use protocol::meta::meta_service_mqtt::{
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
-    SetAutoSubscribeRuleRequest, SetSubscribeRequest, UpdateSessionRequest,
+    SetAutoSubscribeRuleRequest, SetSubscribeRequest, SetTopicRetainMessageRequest,
+    UpdateSessionRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use rocksdb_engine::RocksDBEngine;
@@ -98,6 +100,42 @@ impl DataRouteMqtt {
         storage.delete(&req.cluster_name, &req.topic_name)?;
         self.cache_manager
             .remove_topic(&req.cluster_name, &req.topic_name);
+        Ok(())
+    }
+
+    // Retain Message
+    pub fn set_retain_message(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+        let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+
+        let topic = if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
+            topic
+        } else {
+            return Ok(());
+        };
+
+        let message = MQTTRetainMessage {
+            cluster_name: req.cluster_name.clone(),
+            topic_name: topic.topic_name,
+            retain_message: req.retain_message,
+            retain_message_expired_at: req.retain_message_expired_at,
+            create_time: now_second(),
+        };
+
+        storage.save_retain_message(message)?;
+        Ok(())
+    }
+
+    pub fn delete_retain_message(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+        let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+
+        let topic = if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
+            topic
+        } else {
+            return Ok(());
+        };
+        storage.delete_retain_message(&req.cluster_name, &topic.topic_name)?;
         Ok(())
     }
 

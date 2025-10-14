@@ -390,7 +390,7 @@ pub struct CreateConnectorArgs {
     #[arg(short, long, required = true)]
     pub config: String,
     #[arg(short, long, required = true)]
-    pub topic_id: String,
+    pub topic_name: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -607,7 +607,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
                 connector_name: arg.connector_name,
                 connector_type: arg.connector_type,
                 config: arg.config,
-                topic_id: arg.topic_id,
+                topic_name: arg.topic_name,
             })
         }
         ConnectorActionType::Delete(arg) => {

@@ -14,23 +14,36 @@
 
 use std::collections::HashMap;
 
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::{
+    connection::NetworkConnection,
+    mqtt::{connection::MQTTConnection, session::MqttSession, topic::MQTTTopic},
+    placement::node::BrokerNode,
+};
+use mqtt_broker::{handler::cache::ConnectionLiveTime, subscribe::manager::TopicSubscribeInfo};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ClientListRow {
+    pub client_id: String,
     pub connection_id: u64,
-    pub connection_type: String,
-    pub protocol: String,
-    pub source_addr: String,
-    pub create_time: String,
+    pub mqtt_connection: MQTTConnection,
+    pub network_connection: Option<NetworkConnection>,
+    pub session: Option<MqttSession>,
+    pub heartbeat: Option<ConnectionLiveTime>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicListRow {
-    pub topic_id: String,
     pub topic_name: String,
-    pub is_contain_retain_message: bool,
+    pub create_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TopicDetailResp {
+    pub topic_info: MQTTTopic,
+    pub retain_message: Option<String>,
+    pub retain_message_at: Option<u64>,
+    pub sub_list: Vec<TopicSubscribeInfo>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -70,7 +83,7 @@ pub struct ConnectorListRow {
     pub connector_name: String,
     pub connector_type: String,
     pub config: String,
-    pub topic_id: String,
+    pub topic_name: String,
     pub status: String,
     pub broker_id: String,
     pub create_time: String,
@@ -166,8 +179,8 @@ pub struct BanLogListRaw {
 pub struct OverViewResp {
     pub node_list: Vec<BrokerNode>,
     pub cluster_name: String,
-    pub message_in_rate: u32,
-    pub message_out_rate: u32,
+    pub message_in_rate: u64,
+    pub message_out_rate: u64,
     pub connection_num: u32,
     pub session_num: u32,
     pub topic_num: u32,

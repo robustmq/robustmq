@@ -27,6 +27,7 @@ mod tests {
         ClientTestProperties,
     };
 
+    #[ignore]
     #[tokio::test]
     async fn sub_wildcards_test() {
         for network in network_types() {

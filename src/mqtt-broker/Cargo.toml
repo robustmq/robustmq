@@ -75,6 +75,7 @@ pulsar.workspace = true
 mongodb.workspace = true
 bson.workspace = true
 lapin.workspace = true
+sqlx = { workspace = true, features = ["mysql", "runtime-tokio"] }
 #security
 r2d2.workspace = true
 r2d2_mysql.workspace = true

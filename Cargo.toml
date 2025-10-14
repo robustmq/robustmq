@@ -203,7 +203,6 @@ rate-limit = { path = "src/common/rate-limit" }
 admin-server = { path = "src/admin-server" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 sysinfo = "0.29.10"
 chrono = "0.4.41"
@@ -218,6 +217,7 @@ kafka-protocol = "0.15.1"
 governor = { version = "0.10.1" }
 pulsar = "6.3.1"
 tokio-postgres = "0.7.12"
+sqlx = { version = "0.8", default-features = false }
 mongodb = { version = "2.8", features = ["tokio-runtime"] }
 bson = "2.9"
 lapin = "2.5.0"

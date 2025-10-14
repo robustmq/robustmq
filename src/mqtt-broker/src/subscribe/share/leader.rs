@@ -149,7 +149,7 @@ impl ShareLeaderPush {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
         let group_id = format!(
             "system_sub_{}_{}_{}",
-            sub_data.group_name, sub_data.sub_name, sub_data.topic_id
+            sub_data.group_name, sub_data.sub_name, sub_data.topic_name
         );
 
         // get current offset by group
@@ -224,7 +224,7 @@ impl ShareLeaderPush {
                                     error!(
                                         "Failed to read message from storage, failure message: {},topic:{},group{}",
                                         e.to_string(),
-                                        &sub_data.topic_id,
+                                        &sub_data.topic_name,
                                         group_id
                                     );
                                     sleep(Duration::from_millis(100)).await;
@@ -264,7 +264,7 @@ async fn read_message_process(
 ) -> Result<(Option<u64>, u64), MqttBrokerError> {
     let results = context
         .message_storage
-        .read_topic_message(&context.sub_data.topic_id, context.offset, 100)
+        .read_topic_message(&context.sub_data.topic_name, context.offset, 100)
         .await?;
 
     let mut push_fn = async |record: &Record| -> ResultMqttBrokerError {
@@ -297,7 +297,7 @@ async fn read_message_process(
                 continue;
             };
 
-            let qos = build_pub_qos(&context.cache_manager, &subscriber);
+            let qos = build_pub_qos(&context.cache_manager, &subscriber).await;
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params
@@ -316,8 +316,8 @@ async fn read_message_process(
                 Ok(Some(param)) => param,
                 Ok(None) => {
                     warn!(
-                        "Build message is empty. group:{}, topic_id:{}, offset: {:?}",
-                        context.group_id, context.sub_data.topic_id, record.offset
+                        "Build message is empty. group:{}, topic_name:{}, offset: {:?}",
+                        context.group_id, context.sub_data.topic_name, record.offset
                     );
                     break;
                 }
@@ -371,7 +371,7 @@ async fn read_message_process(
         // commit offset
         loop_commit_offset(
             &context.message_storage,
-            &context.sub_data.topic_id,
+            &context.sub_data.topic_name,
             &context.group_id,
             record_offset,
         )

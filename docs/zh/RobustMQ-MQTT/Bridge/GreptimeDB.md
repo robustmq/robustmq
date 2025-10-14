@@ -59,7 +59,7 @@ pub struct GreptimeDBConnectorConfig {
   "connector_name": "greptimedb_connector_01",
   "connector_type": "GreptimeDB",
   "config": "{\"server_addr\": \"localhost:4000\", \"database\": \"public\", \"user\": \"greptime_user\", \"password\": \"greptime_pwd\", \"precision\": \"s\"}",
-  "topic_id": "sensor/data",
+  "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": null,
   "create_time": 1640995200,

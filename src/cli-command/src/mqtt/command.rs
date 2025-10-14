@@ -734,20 +734,19 @@ impl MqttBrokerCommand {
 
                 println!("connection list:");
                 table.set_titles(row![
+                    "client_id",
                     "connection_id",
-                    "connection_type",
                     "protocol",
-                    "source_addr",
                     "create_time",
                 ]);
 
                 for client in page_data.data {
+                    let network_conn =  client.network_connection.unwrap();
                     table.add_row(row![
                         client.connection_id,
-                        client.connection_type,
-                        client.protocol,
-                        client.source_addr,
-                        client.create_time,
+                        client.client_id,
+                        network_conn.protocol.unwrap().to_str(),
+                        client.mqtt_connection.create_time,
                     ]);
                 }
                 // output cmd
@@ -869,6 +868,7 @@ impl MqttBrokerCommand {
         // Create request for topic list
         let request = admin_server::request::mqtt::TopicListReq {
             topic_name: None,
+            topic_type: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,
@@ -889,15 +889,13 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
-                    "topic_id",
                     "topic_name",
-                    "is_contain_retain_message",
+                    "create_time",
                 ]);
                 for topic in page_data.data {
                     table.add_row(row![
-                        topic.topic_id,
                         topic.topic_name,
-                        topic.is_contain_retain_message
+                        topic.create_time
                     ]);
                 }
                 // output cmd
@@ -1062,7 +1060,7 @@ impl MqttBrokerCommand {
                         connector.connector_name,
                         connector.connector_type,
                         connector.config,
-                        connector.topic_id,
+                        connector.topic_name,
                         connector.status,
                         connector.broker_id,
                         connector.create_time,

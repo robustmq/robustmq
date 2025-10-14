@@ -30,6 +30,8 @@ use common_metrics::mqtt::packets::record_sent_metrics;
 use common_metrics::mqtt::publish::record_mqtt_message_bytes_sent;
 use common_metrics::mqtt::publish::record_mqtt_messages_sent_inc;
 use common_metrics::mqtt::time::record_mqtt_packet_send_duration;
+use common_metrics::mqtt::topic::record_topic_bytes_sent;
+use common_metrics::mqtt::topic::record_topic_messages_sent;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
@@ -78,8 +80,8 @@ pub async fn build_publish_message(
         &msg.client_id,
     ) {
         debug!(
-            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
-            context.subscriber.client_id, context.subscriber.topic_id
+            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_name: {}",
+            context.subscriber.client_id, context.subscriber.topic_name
         );
         return Ok(None);
     }
@@ -227,10 +229,11 @@ pub async fn send_publish_packet_to_client(
     Ok(())
 }
 
-pub fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
+pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
     let cluster_qos = cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .max_qos;
     min_qos(qos(cluster_qos).unwrap(), subscriber.qos)
@@ -266,7 +269,7 @@ pub async fn push_packet_to_client(
         };
 
         let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
-        let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subsceibe".to_string());
+        let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subscribe".to_string());
 
         send_message_to_client(resp, connection_manager).await
     };
@@ -399,9 +402,12 @@ pub async fn send_message_to_client(
     };
     if let MqttPacket::Publish(publish, _) = packet.clone() {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        record_mqtt_messages_sent_inc(topic_name.clone());
-        record_mqtt_message_bytes_sent(topic_name.clone(), publish.payload.len() as u64);
+        record_mqtt_messages_sent_inc();
+        record_mqtt_message_bytes_sent(publish.payload.len() as u64);
+        record_topic_messages_sent(&topic_name);
+        record_topic_bytes_sent(&topic_name, publish.payload.len() as u64);
     }
+
     if let Some(network) = network_type.clone() {
         record_mqtt_packet_send_duration(
             network,

@@ -94,8 +94,8 @@
   "page": 1,                        // 可选，页码
   "sort_field": "connection_id",    // 可选，排序字段
   "sort_by": "desc",                // 可选，排序方式
-  "filter_field": "protocol",       // 可选，过滤字段
-  "filter_values": ["MQTT"],        // 可选，过滤值
+  "filter_field": "client_id",      // 可选，过滤字段（例如："connection_id", "client_id"）
+  "filter_values": ["client001"],   // 可选，过滤值
   "exact_match": "true"             // 可选，精确匹配
 }
 ```
@@ -108,17 +108,96 @@
   "data": {
     "data": [
       {
+        "client_id": "client001",
         "connection_id": 12345,
-        "connection_type": "TCP",
-        "protocol": "MQTT",
-        "source_addr": "192.168.1.100:52341",
-        "create_time": "2024-01-01 10:00:00"
+        "mqtt_connection": {
+          "connect_id": 12345,
+          "client_id": "client001",
+          "is_login": true,
+          "source_ip_addr": "192.168.1.100",
+          "login_user": "user001",
+          "keep_alive": 60,
+          "topic_alias": {},
+          "client_max_receive_maximum": 65535,
+          "max_packet_size": 268435455,
+          "topic_alias_max": 65535,
+          "request_problem_info": 1,
+          "receive_qos_message": 0,
+          "sender_qos_message": 0,
+          "create_time": 1640995200
+        },
+        "network_connection": {
+          "connection_type": "Tcp",
+          "connection_id": 12345,
+          "protocol": "MQTT5",
+          "addr": "192.168.1.100:52341",
+          "last_heartbeat_time": 1640995200,
+          "create_time": 1640995200
+        },
+        "session": {
+          "client_id": "client001",
+          "session_expiry": 3600,
+          "is_contain_last_will": true,
+          "last_will_delay_interval": 30,
+          "create_time": 1640995200,
+          "connection_id": 12345,
+          "broker_id": 1,
+          "reconnect_time": 1640995300,
+          "distinct_time": 1640995400
+        },
+        "heartbeat": {
+          "protocol": "Mqtt5",
+          "keep_live": 60,
+          "heartbeat": 1640995500
+        }
       }
     ],
     "total_count": 100
   }
 }
 ```
+
+**字段说明**:
+
+- **mqtt_connection**: MQTT 协议层连接信息
+  - `connect_id`: 连接ID
+  - `client_id`: MQTT 客户端ID
+  - `is_login`: 客户端是否已登录
+  - `source_ip_addr`: 客户端源IP地址
+  - `login_user`: 已认证的用户名
+  - `keep_alive`: 保活间隔（秒）
+  - `topic_alias`: 该连接的主题别名映射
+  - `client_max_receive_maximum`: 可同时接收的 QoS 1 和 QoS 2 消息的最大数量
+  - `max_packet_size`: 最大数据包大小（字节）
+  - `topic_alias_max`: 主题别名的最大数量
+  - `request_problem_info`: 是否返回详细错误信息（0 或 1）
+  - `receive_qos_message`: 待接收的 QoS 1/2 消息数量
+  - `sender_qos_message`: 待发送的 QoS 1/2 消息数量
+  - `create_time`: 连接创建时间戳
+
+- **network_connection**: 网络层连接信息（断开连接时为 null）
+  - `connection_type`: 连接类型（Tcp, Tls, Websocket, Websockets, Quic）
+  - `connection_id`: 网络连接ID
+  - `protocol`: 协议版本（MQTT3, MQTT4, MQTT5）
+  - `addr`: 客户端套接字地址
+  - `last_heartbeat_time`: 最后心跳时间戳
+  - `create_time`: 网络连接创建时间戳
+
+- **session**: MQTT 会话信息（无会话时为 null）
+  - `client_id`: MQTT 客户端ID
+  - `session_expiry`: 会话过期间隔（秒）
+  - `is_contain_last_will`: 会话是否包含遗愿消息
+  - `last_will_delay_interval`: 遗愿消息延迟间隔（秒，可选）
+  - `create_time`: 会话创建时间戳
+  - `connection_id`: 关联的连接ID（可选）
+  - `broker_id`: 托管会话的 Broker 节点ID（可选）
+  - `reconnect_time`: 最后重连时间戳（可选）
+  - `distinct_time`: 最后断开连接时间戳（可选）
+
+- **heartbeat**: 连接心跳信息（不可用时为 null）
+  - `protocol`: MQTT 协议版本（Mqtt3, Mqtt4, Mqtt5）
+  - `keep_live`: 保活间隔（秒）
+  - `heartbeat`: 最后心跳时间戳
 
 ---
 
@@ -176,6 +255,7 @@
 ```json
 {
   "topic_name": "sensor/+",         // 可选，按主题名过滤
+  "topic_type": "all",              // 可选，主题类型："all"(全部)、"normal"(普通主题)、"system"(系统主题)，默认为"all"
   "limit": 20,
   "page": 1,
   "sort_field": "topic_name",       // 可选，排序字段
@@ -186,6 +266,12 @@
 }
 ```
 
+**参数说明**：
+- **topic_type**: 主题类型过滤
+  - `"all"` - 返回所有主题（默认值）
+  - `"normal"` - 只返回普通主题（不以 `$` 开头的主题）
+  - `"system"` - 只返回系统主题（以 `$` 开头的主题，如 `$SYS/...`）
+
 - **响应数据结构**:
 ```json
 {
@@ -194,9 +280,10 @@
   "data": {
     "data": [
       {
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true
+        "is_contain_retain_message": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 25
@@ -204,7 +291,78 @@
 }
 ```
 
-#### 4.2 主题重写规则列表
+**响应字段说明**：
+- `topic_name`: 主题ID
+- `topic_name`: 主题名称
+- `is_contain_retain_message`: 是否包含保留消息
+- `create_time`: 主题创建时间戳
+
+#### 4.2 主题详情查询
+- **接口**: `POST /api/mqtt/topic/detail`
+- **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
+- **请求参数**:
+```json
+{
+  "topic_name": "sensor/temperature"  // 必填，主题名称
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "topic_info": {
+      "cluster_name": "robustmq-cluster",
+      "topic_name": "sensor/temperature",
+      "create_time": 1640995200
+    },
+    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message_at": 1640995300,
+    "sub_list": [
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature"
+      },
+      {
+        "client_id": "client002",
+        "path": "sensor/+"
+      }
+    ]
+  }
+}
+```
+
+**响应字段说明**：
+
+- **topic_info**: 主题基本信息
+  - `cluster_name`: 集群名称
+  - `topic_name`: 主题名称
+  - `create_time`: 主题创建时间戳（秒）
+
+- **retain_message**: 保留消息内容
+  - 类型：`String` 或 `null`
+  - Base64 编码的消息内容
+  - 如果主题没有保留消息，则为 `null`
+
+- **retain_message_at**: 保留消息的时间戳
+  - 类型：`u64` 或 `null`
+  - Unix 时间戳（毫秒）
+  - 表示保留消息的创建或更新时间
+  - 如果没有保留消息，则为 `null`
+
+- **sub_list**: 订阅该主题的客户端列表
+  - `client_id`: 订阅客户端ID
+  - `path`: 订阅路径（可能包含通配符如 `+` 或 `#`）
+
+**注意事项**：
+- 如果主题不存在，将返回错误响应：`{"code": 1, "message": "Topic does not exist."}`
+- `sub_list` 显示所有匹配该主题的订阅，包括通配符订阅
+- 保留消息内容使用 Base64 编码，客户端需要解码后使用
+- `retain_message_at` 使用毫秒级时间戳，而 `create_time` 使用秒级时间戳
+
+#### 4.3 主题重写规则列表
 - **接口**: `POST /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -591,7 +749,7 @@
         "connector_name": "kafka_connector",
         "connector_type": "Kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
         "create_time": "2024-01-01 10:00:00",
@@ -612,7 +770,7 @@
   "connector_name": "new_connector",   // 连接器名称
   "connector_type": "Kafka",           // 连接器类型
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // 配置信息（JSON字符串）
-  "topic_id": "sensor/+"               // 关联的主题ID
+  "topic_name": "sensor/+"               // 关联的主题ID
 }
 ```
 
@@ -930,7 +1088,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_name": "kafka_bridge",
     "connector_type": "Kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_id": "sensor/+"
+    "topic_name": "sensor/+"
   }'
 ```
 

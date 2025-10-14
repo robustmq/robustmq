@@ -17,6 +17,7 @@ use crate::quic::stream::QuicFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
@@ -150,6 +151,20 @@ impl ConnectionManager {
 
     pub fn get_tcp_connect_num_check(&self) -> u64 {
         0
+    }
+
+    pub fn report_heartbeat(&self, connect_id: u64, time: u64) {
+        if let Some(mut connect) = self.connections.get_mut(&connect_id) {
+            connect.set_heartbeat_time(time);
+        }
+    }
+
+    pub async fn connection_gc(&self) {
+        for conn in self.connections.iter() {
+            if now_second() - conn.create_time > 1800 {
+                self.close_connect(conn.connection_id).await;
+            }
+        }
     }
 }
 

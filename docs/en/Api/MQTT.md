@@ -94,8 +94,8 @@
   "page": 1,                        // Optional, page number
   "sort_field": "connection_id",    // Optional, sort field
   "sort_by": "desc",                // Optional, sort order
-  "filter_field": "protocol",       // Optional, filter field
-  "filter_values": ["MQTT"],        // Optional, filter values
+  "filter_field": "client_id",      // Optional, filter field (e.g., "connection_id", "client_id")
+  "filter_values": ["client001"],   // Optional, filter values
   "exact_match": "true"             // Optional, exact match
 }
 ```
@@ -108,17 +108,96 @@
   "data": {
     "data": [
       {
+        "client_id": "client001",
         "connection_id": 12345,
-        "connection_type": "TCP",
-        "protocol": "MQTT",
-        "source_addr": "192.168.1.100:52341",
-        "create_time": "2024-01-01 10:00:00"
+        "mqtt_connection": {
+          "connect_id": 12345,
+          "client_id": "client001",
+          "is_login": true,
+          "source_ip_addr": "192.168.1.100",
+          "login_user": "user001",
+          "keep_alive": 60,
+          "topic_alias": {},
+          "client_max_receive_maximum": 65535,
+          "max_packet_size": 268435455,
+          "topic_alias_max": 65535,
+          "request_problem_info": 1,
+          "receive_qos_message": 0,
+          "sender_qos_message": 0,
+          "create_time": 1640995200
+        },
+        "network_connection": {
+          "connection_type": "Tcp",
+          "connection_id": 12345,
+          "protocol": "MQTT5",
+          "addr": "192.168.1.100:52341",
+          "last_heartbeat_time": 1640995200,
+          "create_time": 1640995200
+        },
+        "session": {
+          "client_id": "client001",
+          "session_expiry": 3600,
+          "is_contain_last_will": true,
+          "last_will_delay_interval": 30,
+          "create_time": 1640995200,
+          "connection_id": 12345,
+          "broker_id": 1,
+          "reconnect_time": 1640995300,
+          "distinct_time": 1640995400
+        },
+        "heartbeat": {
+          "protocol": "Mqtt5",
+          "keep_live": 60,
+          "heartbeat": 1640995500
+        }
       }
     ],
     "total_count": 100
   }
 }
 ```
+
+**Field Descriptions**:
+
+- **mqtt_connection**: MQTT protocol layer connection information
+  - `connect_id`: Connection ID
+  - `client_id`: MQTT client ID
+  - `is_login`: Whether the client is logged in
+  - `source_ip_addr`: Source IP address of the client
+  - `login_user`: Authenticated username
+  - `keep_alive`: Keep-alive interval in seconds
+  - `topic_alias`: Topic alias mappings for this connection
+  - `client_max_receive_maximum`: Maximum number of QoS 1 and QoS 2 messages that can be received simultaneously
+  - `max_packet_size`: Maximum packet size in bytes
+  - `topic_alias_max`: Maximum number of topic aliases
+  - `request_problem_info`: Whether to return detailed error information (0 or 1)
+  - `receive_qos_message`: Number of QoS 1/2 messages pending receive
+  - `sender_qos_message`: Number of QoS 1/2 messages pending send
+  - `create_time`: Connection creation timestamp
+
+- **network_connection**: Network layer connection information (null if disconnected)
+  - `connection_type`: Connection type (Tcp, Tls, Websocket, Websockets, Quic)
+  - `connection_id`: Network connection ID
+  - `protocol`: Protocol version (MQTT3, MQTT4, MQTT5)
+  - `addr`: Client socket address
+  - `last_heartbeat_time`: Last heartbeat timestamp
+  - `create_time`: Network connection creation timestamp
+
+- **session**: MQTT session information (null if no session exists)
+  - `client_id`: MQTT client ID
+  - `session_expiry`: Session expiry interval in seconds
+  - `is_contain_last_will`: Whether the session contains a last will message
+  - `last_will_delay_interval`: Delay interval for last will message in seconds (optional)
+  - `create_time`: Session creation timestamp
+  - `connection_id`: Associated connection ID (optional)
+  - `broker_id`: Broker node ID hosting the session (optional)
+  - `reconnect_time`: Last reconnection timestamp (optional)
+  - `distinct_time`: Last disconnection timestamp (optional)
+
+- **heartbeat**: Connection heartbeat information (null if not available)
+  - `protocol`: MQTT protocol version (Mqtt3, Mqtt4, Mqtt5)
+  - `keep_live`: Keep-alive interval in seconds
+  - `heartbeat`: Last heartbeat timestamp
 
 ---
 
@@ -176,6 +255,7 @@
 ```json
 {
   "topic_name": "sensor/+",         // Optional, filter by topic name
+  "topic_type": "all",              // Optional, topic type: "all"(all topics), "normal"(normal topics), "system"(system topics), defaults to "all"
   "limit": 20,
   "page": 1,
   "sort_field": "topic_name",       // Optional, sort field
@@ -186,6 +266,12 @@
 }
 ```
 
+**Parameter Description**:
+- **topic_type**: Topic type filter
+  - `"all"` - Return all topics (default)
+  - `"normal"` - Return only normal topics (topics not starting with `$`)
+  - `"system"` - Return only system topics (topics starting with `$`, such as `$SYS/...`)
+
 - **Response Data Structure**:
 ```json
 {
@@ -194,9 +280,10 @@
   "data": {
     "data": [
       {
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true
+        "is_contain_retain_message": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 25
@@ -204,7 +291,78 @@
 }
 ```
 
-#### 4.2 Topic Rewrite Rules List
+**Response Field Description**:
+- `topic_name`: Topic ID
+- `topic_name`: Topic name
+- `is_contain_retain_message`: Whether contains retained message
+- `create_time`: Topic creation timestamp
+
+#### 4.2 Topic Detail Query
+- **Endpoint**: `POST /api/mqtt/topic/detail`
+- **Description**: Query detailed information for a specific topic, including basic info, retained message, and subscriber list
+- **Request Parameters**:
+```json
+{
+  "topic_name": "sensor/temperature"  // Required, topic name
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "topic_info": {
+      "cluster_name": "robustmq-cluster",
+      "topic_name": "sensor/temperature",
+      "create_time": 1640995200
+    },
+    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message_at": 1640995300,
+    "sub_list": [
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature"
+      },
+      {
+        "client_id": "client002",
+        "path": "sensor/+"
+      }
+    ]
+  }
+}
+```
+
+**Response Field Description**:
+
+- **topic_info**: Topic basic information
+  - `cluster_name`: Cluster name
+  - `topic_name`: Topic name
+  - `create_time`: Topic creation timestamp (seconds)
+
+- **retain_message**: Retained message content
+  - Type: `String` or `null`
+  - Base64 encoded message content
+  - Returns `null` if the topic has no retained message
+
+- **retain_message_at**: Retained message timestamp
+  - Type: `u64` or `null`
+  - Unix timestamp in milliseconds
+  - Indicates when the retained message was created or updated
+  - Returns `null` if there is no retained message
+
+- **sub_list**: List of clients subscribed to this topic
+  - `client_id`: Subscriber client ID
+  - `path`: Subscription path (may include wildcards like `+` or `#`)
+
+**Notes**:
+- Returns an error response if the topic does not exist: `{"code": 1, "message": "Topic does not exist."}`
+- `sub_list` shows all subscriptions matching this topic, including wildcard subscriptions
+- Retained message content is Base64 encoded and needs to be decoded by clients
+- `retain_message_at` uses millisecond timestamps while `create_time` uses second timestamps
+
+#### 4.3 Topic Rewrite Rules List
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
@@ -591,7 +749,7 @@
         "connector_name": "kafka_connector",
         "connector_type": "Kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
         "create_time": "2024-01-01 10:00:00",
@@ -612,7 +770,7 @@
   "connector_name": "new_connector",   // Connector name
   "connector_type": "Kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
-  "topic_id": "sensor/+"               // Associated topic ID
+  "topic_name": "sensor/+"               // Associated topic ID
 }
 ```
 
@@ -930,7 +1088,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_name": "kafka_bridge",
     "connector_type": "Kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_id": "sensor/+"
+    "topic_name": "sensor/+"
   }'
 ```
 

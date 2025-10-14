@@ -1,0 +1,324 @@
+/*
+ * Copyright 2023 RobustMQ Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package journal.engine;
+
+/** Error **/
+message JournalEngineError {
+  string code = 1;
+  string error = 2;
+}
+
+/** Header **/
+enum ApiKey {
+  Unimplemented = 0;
+  Read = 1;
+  Write = 2;
+
+  // shard
+  CreateShard = 3;
+  DeleteShard = 4;
+  ListShard = 5;
+
+  // metadata
+  GetShardMetadata = 6;
+  GetClusterMetadata = 7;
+
+  // Offset
+  FetchOffset = 8;
+}
+
+enum ApiVersion {
+  V0 = 0;
+}
+
+enum ReadType {
+  Offset = 0;
+  Key = 1;
+  Tag = 2;
+}
+
+enum AutoOffsetStrategy {
+  Earliest = 0;
+  Latest = 1;
+  None = 2;
+}
+
+message ReqHeader {
+  ApiKey api_key = 1;
+  ApiVersion api_version = 2;
+}
+
+message RespHeader {
+  ApiKey api_key = 1;
+  ApiVersion api_version = 2;
+  JournalEngineError error = 3;
+}
+
+message ClientSegmentMetadata {
+  uint32 segment_no = 1;
+  uint64 leader = 2;
+  repeated uint64 replicas = 3;
+  int64 start_offset = 4;
+  int64 end_offset = 5;
+  int64 start_timestamp = 6;
+  int64 end_timestamp = 7;
+}
+
+/** Get Cluster Metadata **/
+message GetClusterMetadataReq {
+  ReqHeader header = 1;
+}
+
+message GetClusterMetadataRespBody {
+  repeated GetClusterMetadataNode nodes = 1;
+}
+
+message GetClusterMetadataNode {
+  uint64 node_id = 1;
+  string tcp_addr = 2;
+  string tcps_addr = 3;
+}
+
+message GetClusterMetadataResp {
+  RespHeader header = 1;
+  GetClusterMetadataRespBody body = 2;
+}
+
+/**  Create Shard **/
+message CreateShardReqBody {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 replica_num = 3;
+}
+
+message CreateShardRespBody {}
+
+message CreateShardReq {
+  ReqHeader header = 1;
+  CreateShardReqBody body = 2;
+}
+
+message CreateShardResp {
+  RespHeader header = 1;
+  CreateShardRespBody body = 2;
+}
+
+/**  Delete Shard **/
+message DeleteShardReqBody {
+  string namespace = 1;
+  string shard_name = 2;
+}
+
+message DeleteShardRespBody {}
+
+message DeleteShardReq {
+  ReqHeader header = 1;
+  DeleteShardReqBody body = 2;
+}
+
+message DeleteShardResp {
+  RespHeader header = 1;
+  DeleteShardRespBody body = 2;
+}
+
+/** List Shard **/
+message ListShardReqBody {
+  string namespace = 1;
+  string shard_name = 2;
+}
+
+message ListShardRespBody {
+  repeated bytes shards = 1;
+}
+
+message ListShardReq {
+  ReqHeader header = 1;
+  ListShardReqBody body = 2;
+}
+
+message ListShardResp {
+  RespHeader header = 1;
+  ListShardRespBody body = 2;
+}
+
+/** Get Shard Metadata **/
+message GetShardMetadataReqBody {
+  repeated GetShardMetadataReqShard shards = 1;
+}
+
+message GetShardMetadataReqShard {
+  string namespace = 1;
+  string shard_name = 2;
+}
+
+message GetShardMetadataReq {
+  ReqHeader header = 1;
+  GetShardMetadataReqBody body = 2;
+}
+
+message GetShardMetadataRespBody {
+  repeated GetShardMetadataRespShard shards = 1;
+}
+
+message GetShardMetadataRespShard {
+  string namespace = 1;
+  string shard = 2;
+  int32 active_segment = 3;
+  int64 active_segment_leader = 4;
+  repeated ClientSegmentMetadata segments = 5;
+}
+
+message GetShardMetadataResp {
+  RespHeader header = 1;
+  GetShardMetadataRespBody body = 2;
+}
+
+/** Write Request **/
+message WriteReqBody {
+  repeated WriteReqSegmentMessages data = 1;
+}
+
+message WriteReqSegmentMessages {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 segment = 3;
+  repeated WriteReqMessages messages = 4;
+}
+
+message WriteReqMessages {
+  uint64 pkid = 1;
+  string key = 2;
+  bytes value = 3;
+  repeated string tags = 4;
+}
+
+message WriteRespBody {
+  repeated WriteRespMessage status = 1;
+}
+
+message WriteRespMessage {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 segment = 3;
+  repeated WriteRespMessageStatus messages = 4;
+}
+
+message WriteRespMessageStatus {
+  uint64 offset = 1;
+  uint64 pkid = 2;
+  JournalEngineError error = 3;
+}
+
+message WriteReq {
+  ReqHeader header = 1;
+  WriteReqBody body = 2;
+}
+
+message WriteResp {
+  RespHeader header = 1;
+  WriteRespBody body = 2;
+}
+
+/**  Read Request **/
+message ReadReqBody {
+  repeated ReadReqMessage messages = 2;
+}
+
+message ReadReqMessage {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 segment = 3;
+  ReadType ready_type = 4;
+  ReadReqFilter filter = 5;
+  ReadReqOptions options = 6;
+}
+
+message ReadReqFilter {
+  uint64 timestamp = 1;
+  uint64 offset = 2;
+  string key = 3;
+  string tag = 4;
+}
+
+message ReadReqOptions {
+  uint64 max_size = 1;
+  uint64 max_record = 2;
+}
+
+message ReadRespBody {
+  repeated ReadRespSegmentMessage messages = 1;
+}
+
+message ReadRespSegmentMessage {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 segment = 3;
+  repeated ReadRespMessage messages = 4;
+}
+
+message ReadRespMessage {
+  uint64 offset = 1;
+  string key = 2;
+  bytes value = 3;
+  repeated string tags = 4;
+  uint64 timestamp = 5;
+}
+
+message ReadReq {
+  ReqHeader header = 1;
+  ReadReqBody body = 2;
+}
+
+message ReadResp {
+  RespHeader header = 1;
+  ReadRespBody body = 2;
+}
+
+/** Fetch Offset **/
+message FetchOffsetReqBody {
+  repeated FetchOffsetShard shards = 2;
+}
+
+message FetchOffsetShard {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 segment_no = 3;
+  uint64 timestamp = 4;
+}
+
+message FetchOffsetReq {
+  ReqHeader header = 1;
+  FetchOffsetReqBody body = 2;
+}
+
+message FetchOffsetRespBody {
+  repeated FetchOffsetShardMeta shard_offsets = 2;
+}
+
+message FetchOffsetShardMeta {
+  string namespace = 1;
+  string shard_name = 2;
+  uint32 segment_no = 3;
+  int64 offset = 4;
+  JournalEngineError error = 5;
+}
+
+message FetchOffsetResp {
+  RespHeader header = 1;
+  FetchOffsetRespBody body = 2;
+}

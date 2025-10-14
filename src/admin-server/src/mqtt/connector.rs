@@ -30,6 +30,7 @@ use metadata_struct::mqtt::bridge::{
     config_kafka::KafkaConnectorConfig,
     config_local_file::LocalFileConnectorConfig,
     config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig,
     config_postgres::PostgresConnectorConfig,
     config_pulsar::PulsarConnectorConfig,
     config_rabbitmq::RabbitMQConnectorConfig,
@@ -60,7 +61,7 @@ pub async fn connector_list(
             connector_name: connector.connector_name.clone(),
             connector_type: connector.connector_type.to_string(),
             config: connector.config.clone(),
-            topic_id: connector.topic_id.clone(),
+            topic_name: connector.topic_name.clone(),
             status: connector.status.to_string(),
             broker_id: if let Some(id) = connector.broker_id {
                 id.to_string()
@@ -87,7 +88,7 @@ impl Queryable for ConnectorListRow {
         match field {
             "connector_name" => Some(self.connector_name.clone()),
             "connector_type" => Some(self.connector_type.clone()),
-            "topic_id" => Some(self.topic_id.clone()),
+            "topic_name" => Some(self.topic_name.clone()),
             "status" => Some(self.status.clone()),
             "broker_id" => Some(self.broker_id.clone()),
             _ => None,
@@ -133,7 +134,7 @@ async fn connector_create_inner(
         connector_name: params.connector_name.clone(),
         connector_type,
         config: params.config.clone(),
-        topic_id: params.topic_id.clone(),
+        topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
         broker_id: None,
         create_time: now_second(),
@@ -165,6 +166,9 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         }
         ConnectorType::RabbitMQ => {
             let _rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
+        }
+        ConnectorType::MySQL => {
+            let _mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
         }
     }
     Ok(())

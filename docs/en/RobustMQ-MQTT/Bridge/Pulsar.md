@@ -87,7 +87,7 @@ curl -X POST http://localhost:8080/api/v1/connector \
     "cluster_name": "default-cluster",
     "connector_name": "pulsar-connector-1",
     "connector_type": "pulsar",
-    "topic_id": "mqtt/sensor/+/data",
+    "topic_name": "mqtt/sensor/+/data",
     "config": "{\"server\":\"pulsar://localhost:6650\",\"topic\":\"sensor-data\"}"
   }'
 ```

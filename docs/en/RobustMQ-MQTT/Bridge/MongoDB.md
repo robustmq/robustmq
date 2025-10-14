@@ -110,7 +110,7 @@ The MongoDB connector supports three deployment modes:
   "connector_name": "mongodb_connector_01",
   "connector_type": "MongoDB",
   "config": "{\"host\": \"localhost\", \"port\": 27017, \"database\": \"mqtt_data\", \"collection\": \"mqtt_messages\", \"username\": \"mqtt_user\", \"password\": \"mqtt_pass\", \"deployment_mode\": \"single\"}",
-  "topic_id": "sensor/data",
+  "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": null,
   "create_time": 1640995200,
