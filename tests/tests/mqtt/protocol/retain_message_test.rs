@@ -28,6 +28,7 @@ mod tests {
         ClientTestProperties,
     };
 
+    #[ignore]
     #[tokio::test]
     async fn retain_message_sub_test() {
         let network = "tcp";

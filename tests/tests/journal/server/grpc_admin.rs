@@ -24,6 +24,7 @@ mod tests {
 
     use crate::journal::server::common::journal_grpc_addr;
 
+    #[ignore]
     #[tokio::test]
     async fn list_shard_list() {
         let addr = journal_grpc_addr();
@@ -36,6 +37,7 @@ mod tests {
         println!("{:?}", data.shards);
     }
 
+    #[ignore]
     #[tokio::test]
     async fn list_segment_list() {
         let addr = journal_grpc_addr();

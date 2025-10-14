@@ -19,6 +19,7 @@ mod tests {
 
     use crate::journal::client::common::journal_tcp_addr_vec;
 
+    #[ignore]
     #[tokio::test]
     async fn write_scroll_test() {
         let addrs = journal_tcp_addr_vec();

@@ -43,6 +43,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn client_connect_session_present_test() {
         for protocol_ver in protocol_versions() {

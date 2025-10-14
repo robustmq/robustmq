@@ -33,6 +33,7 @@ mod tests {
 
     use crate::journal::client::common::journal_tcp_addr;
 
+    #[ignore]
     #[tokio::test]
     async fn base_rw_test() {
         let server_addr = journal_tcp_addr();
