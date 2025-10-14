@@ -5887,7 +5887,6 @@ dependencies = [
  "prost-build",
  "prost-validate",
  "prost-validate-build",
- "robustmq-proto-build",
  "robustmq-test",
  "serde",
  "thiserror 1.0.69",
@@ -6563,16 +6562,6 @@ dependencies = [
  "syn 2.0.106",
  "tonic",
  "trybuild",
-]
-
-[[package]]
-name = "robustmq-proto-build"
-version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#8924c2a34c56b7d1449cc7776c791112a9bffd58"
-dependencies = [
- "prost-build",
- "prost-validate-build",
- "tonic-build",
 ]
 
 [[package]]

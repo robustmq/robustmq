@@ -203,7 +203,6 @@ rate-limit = { path = "src/common/rate-limit" }
 admin-server = { path = "src/admin-server" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 sysinfo = "0.29.10"
 chrono = "0.4.41"
