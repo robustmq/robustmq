@@ -21,6 +21,7 @@ use quinn::{ReadToEndError, StoppedError, WriteError};
 use r2d2;
 use rdkafka::error::KafkaError;
 use reqwest::Error as RequestError;
+use sqlx::Error as SqlxError;
 use thiserror::Error;
 use tonic::Status;
 
@@ -267,6 +268,9 @@ pub enum MqttBrokerError {
 
     #[error("RabbitMQ error: {0}")]
     RabbitMQError(#[from] LapinError),
+
+    #[error("Sqlx error: {0}")]
+    SqlxError(#[from] SqlxError),
 }
 
 impl From<MqttBrokerError> for Status {
