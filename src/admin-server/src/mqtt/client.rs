@@ -47,6 +47,7 @@ pub async fn client_list(
             .mqtt_context
             .cache_manager
             .get_heartbeat(&mqtt_client.client_id);
+
         clients.push(ClientListRow {
             connection_id,
             client_id: mqtt_client.client_id.clone(),
@@ -58,7 +59,6 @@ pub async fn client_list(
     }
 
     let filtered = apply_filters(clients, &options);
-    println!("{}", filtered.len());
     let sorted = apply_sorting(filtered, &options);
     let pagination = apply_pagination(sorted, &options);
 
