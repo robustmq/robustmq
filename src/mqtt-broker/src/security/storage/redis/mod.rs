@@ -19,6 +19,7 @@ use axum::async_trait;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_config::security::RedisConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -34,17 +35,29 @@ use schema::{RedisAuthAcl, RedisAuthUser};
 
 pub struct RedisAuthStorageAdapter {
     pool: RedisPool,
+    #[allow(dead_code)]
+    config: RedisConfig,
 }
 
 impl RedisAuthStorageAdapter {
-    pub fn new(addr: String) -> Self {
+    pub fn new(config: RedisConfig) -> Self {
+        // build Redis connection address according to configuration
+        let addr = if config.password.is_empty() {
+            format!("redis://{}/{}", config.redis_addr, config.database)
+        } else {
+            format!(
+                "redis://:{}@{}/{}",
+                config.password, config.redis_addr, config.database
+            )
+        };
+
         let pool = match build_redis_conn_pool(&addr) {
             Ok(data) => data,
             Err(e) => {
-                panic!("{}", e.to_string());
+                panic!("Failed to create Redis connection pool: {}", e);
             }
         };
-        RedisAuthStorageAdapter { pool }
+        RedisAuthStorageAdapter { pool, config }
     }
 }
 
@@ -272,13 +285,21 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common_config::security::RedisConfig;
 
     #[tokio::test]
     #[ignore]
     async fn read_all_user_test() {
-        let addr = "redis://127.0.0.1:6379/0".to_string();
-        init_user(&addr).await;
-        let auth_redis = RedisAuthStorageAdapter::new(addr);
+        let config = RedisConfig {
+            redis_addr: "127.0.0.1:6379".to_string(),
+            mode: "Single".to_string(),
+            database: 0,
+            password: "".to_string(),
+            query: "".to_string(),
+        };
+
+        init_user(&config).await;
+        let auth_redis = RedisAuthStorageAdapter::new(config);
         let result = auth_redis.read_all_user().await;
         assert!(result.is_ok());
         let res = result.unwrap();
@@ -290,9 +311,16 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_user_test() {
-        let addr = "redis://127.0.0.1:6379/0".to_string();
-        init_user(&addr).await;
-        let auth_redis = RedisAuthStorageAdapter::new(addr);
+        let config = RedisConfig {
+            redis_addr: "127.0.0.1:6379".to_string(),
+            mode: "Single".to_string(),
+            database: 0,
+            password: "".to_string(),
+            query: "".to_string(),
+        };
+
+        init_user(&config).await;
+        let auth_redis = RedisAuthStorageAdapter::new(config);
         let username = "robustmq".to_string();
         let result = auth_redis.get_user(username).await;
         assert!(result.is_ok());
@@ -301,8 +329,8 @@ mod tests {
         assert_eq!(user.password, "robustmq@2024");
     }
 
-    async fn init_user(addr: &str) {
-        let auth_redis = RedisAuthStorageAdapter::new(addr.to_string());
+    async fn init_user(config: &RedisConfig) {
+        let auth_redis = RedisAuthStorageAdapter::new(config.clone());
         let user = MqttUser {
             username: "robustmq".to_string(),
             password: "robustmq@2024".to_string(),

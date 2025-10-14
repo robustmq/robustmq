@@ -15,7 +15,6 @@
 use super::Authentication;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
@@ -132,7 +131,6 @@ impl JwtAuth {
 
 /// JWT authentication check entry function
 pub async fn jwt_check_login(
-    driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
     cache_manager: &Arc<MQTTCacheManager>,
     jwt_config: &JwtConfig,
     username: &str,
@@ -145,54 +143,11 @@ pub async fn jwt_check_login(
         cache_manager.clone(),
     );
 
+    // Pure JWT validation without storage fallback
     match jwt_auth.apply().await {
-        Ok(flag) => {
-            if flag {
-                return Ok(true);
-            }
-        }
-        Err(e) => {
-            // if user does not exist, try to get user information from storage layer
-            if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
-                return try_get_check_user_by_driver(
-                    driver,
-                    cache_manager,
-                    jwt_config,
-                    username,
-                    password,
-                )
-                .await;
-            }
-            return Err(e);
-        }
+        Ok(flag) => Ok(flag),
+        Err(e) => Err(e),
     }
-    Ok(false)
-}
-
-/// try to get user from storage driver and verify
-async fn try_get_check_user_by_driver(
-    driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
-    cache_manager: &Arc<MQTTCacheManager>,
-    jwt_config: &JwtConfig,
-    username: &str,
-    password: &str,
-) -> Result<bool, MqttBrokerError> {
-    if let Some(user) = driver.get_user(username.to_owned()).await? {
-        cache_manager.add_user(user.clone());
-
-        let jwt_auth = JwtAuth::new(
-            username.to_owned(),
-            password.to_owned(),
-            jwt_config.clone(),
-            cache_manager.clone(),
-        );
-
-        if jwt_auth.apply().await? {
-            return Ok(true);
-        }
-    }
-
-    Ok(false)
 }
 
 #[async_trait]

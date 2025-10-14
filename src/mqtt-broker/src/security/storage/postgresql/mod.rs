@@ -19,6 +19,7 @@ use axum::async_trait;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_config::security::PostgresConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -29,17 +30,24 @@ mod schema;
 
 pub struct PostgresqlAuthStorageAdapter {
     pool: PostgresPool,
+    #[allow(dead_code)]
+    config: PostgresConfig,
 }
 
 impl PostgresqlAuthStorageAdapter {
-    pub fn new(addr: String) -> Self {
+    pub fn new(config: PostgresConfig) -> Self {
+        let addr = format!(
+            "postgres://{}:{}@{}/{}",
+            config.username, config.password, config.postgre_addr, config.database
+        );
+
         let pool = match build_postgresql_conn_pool(&addr) {
             Ok(data) => data,
             Err(e) => {
-                panic!("{}", e.to_string());
+                panic!("Failed to create PostgreSQL connection pool: {}", e);
             }
         };
-        PostgresqlAuthStorageAdapter { pool }
+        PostgresqlAuthStorageAdapter { pool, config }
     }
 
     fn table_user(&self) -> String {

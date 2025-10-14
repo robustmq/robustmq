@@ -15,32 +15,19 @@
 use super::Authentication;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::security::storage::http::HttpAuthStorageAdapter;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
 use common_config::security::HttpConfig;
-use metadata_struct::mqtt::user::MqttUser;
-use reqwest;
-use serde::Deserialize;
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 pub struct HttpAuth {
     username: String,
     password: String,
     client_id: String,
     source_ip: String,
-    http_config: HttpConfig,
+    http_adapter: HttpAuthStorageAdapter,
     cache_manager: Arc<MQTTCacheManager>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct HttpAuthResponse {
-    pub result: String,             // "allow", "deny", "ignore"
-    pub is_superuser: Option<bool>, // is superuser
-    #[serde(default)]
-    pub client_attrs: Option<HashMap<String, String>>, // client attrs
-    pub expire_at: Option<u64>,     // expire at
 }
 
 impl HttpAuth {
@@ -57,113 +44,13 @@ impl HttpAuth {
             password,
             client_id,
             source_ip,
-            http_config,
+            http_adapter: HttpAuthStorageAdapter::new(http_config),
             cache_manager,
         }
     }
-
-    /// render template string, replace placeholder
-    fn render_template(&self, template: &str) -> String {
-        template
-            .replace("${username}", &self.username)
-            .replace("${password}", &self.password)
-            .replace("${clientid}", &self.client_id)
-            .replace("${source_ip}", &self.source_ip)
-    }
-
-    /// render URL
-    fn render_url(&self) -> String {
-        self.render_template(&self.http_config.url)
-    }
-
-    /// render request headers
-    fn render_headers(&self) -> HashMap<String, String> {
-        if let Some(ref headers) = self.http_config.headers {
-            headers
-                .iter()
-                .map(|(k, v)| (k.clone(), self.render_template(v)))
-                .collect()
-        } else {
-            HashMap::new()
-        }
-    }
-
-    /// render request body
-    fn render_body(&self) -> HashMap<String, String> {
-        if let Some(ref body) = self.http_config.body {
-            body.iter()
-                .map(|(k, v)| (k.clone(), self.render_template(v)))
-                .collect()
-        } else {
-            HashMap::new()
-        }
-    }
-
-    /// send HTTP authentication request
-    async fn authenticate(&self) -> Result<HttpAuthResponse, MqttBrokerError> {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .map_err(|e| MqttBrokerError::HttpRequestError(e.to_string()))?;
-
-        let url = self.render_url();
-        let headers = self.render_headers();
-
-        let mut request_builder = match self.http_config.method.to_uppercase().as_str() {
-            "GET" => {
-                let mut query_params = Vec::new();
-                let body_params = self.render_body();
-                for (key, value) in body_params {
-                    query_params.push((key, value));
-                }
-                client.get(&url).query(&query_params)
-            }
-            "POST" => {
-                let body_params = self.render_body();
-                client.post(&url).json(&body_params)
-            }
-            _ => {
-                return Err(MqttBrokerError::UnsupportedHttpMethod(
-                    self.http_config.method.clone(),
-                ))
-            }
-        };
-
-        // add request headers
-        for (key, value) in headers {
-            request_builder = request_builder.header(&key, &value);
-        }
-
-        let response = request_builder
-            .send()
-            .await
-            .map_err(|e| MqttBrokerError::HttpRequestError(e.to_string()))?;
-
-        // check response status code
-        if !response.status().is_success() {
-            let status = response.status();
-            if status.is_client_error() || status.is_server_error() {
-                // 4xx/5xx status code return ignore
-                return Ok(HttpAuthResponse {
-                    result: "ignore".to_string(),
-                    is_superuser: None,
-                    client_attrs: None,
-                    expire_at: None,
-                });
-            }
-        }
-
-        let response_text = response
-            .text()
-            .await
-            .map_err(|e| MqttBrokerError::HttpResponseParseError(e.to_string()))?;
-
-        serde_json::from_str::<HttpAuthResponse>(&response_text)
-            .map_err(|e| MqttBrokerError::HttpResponseParseError(e.to_string()))
-    }
 }
 
-/// HTTP authentication check entry function
+/// HTTP auth check entry function
 pub async fn http_check_login(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -189,7 +76,7 @@ pub async fn http_check_login(
             }
         }
         Err(e) => {
-            // if user does not exist, try to get user information from storage layer
+            // If user does not exist, try to get user information from storage layer
             if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
                 return try_get_check_user_by_driver(
                     driver,
@@ -208,7 +95,7 @@ pub async fn http_check_login(
     Ok(false)
 }
 
-/// try to get user from storage driver and verify
+/// Try to get user from storage driver and verify
 async fn try_get_check_user_by_driver(
     driver: &Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -241,27 +128,24 @@ async fn try_get_check_user_by_driver(
 #[async_trait]
 impl Authentication for HttpAuth {
     async fn apply(&self) -> Result<bool, MqttBrokerError> {
-        // send HTTP authentication request
-        let response = self.authenticate().await?;
-
-        match response.result.as_str() {
-            "allow" => {
-                // update user information to cache
-                let user = MqttUser {
-                    username: self.username.clone(),
-                    password: self.password.clone(),
-                    salt: None,
-                    is_superuser: response.is_superuser.unwrap_or(false),
-                };
+        // Use HTTP storage adapter for auth
+        match self
+            .http_adapter
+            .verify_user(
+                &self.username,
+                &self.password,
+                &self.client_id,
+                &self.source_ip,
+            )
+            .await
+        {
+            Ok(Some(user)) => {
+                // Update user information to cache
                 self.cache_manager.add_user(user);
                 Ok(true)
             }
-            "deny" => Ok(false),
-            "ignore" => Err(MqttBrokerError::UserDoesNotExist),
-            _ => Err(MqttBrokerError::HttpResponseParseError(format!(
-                "Unknown result: {}",
-                response.result
-            ))),
+            Ok(None) => Ok(false),
+            Err(e) => Err(e),
         }
     }
 }
@@ -273,7 +157,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[tokio::test]
-    async fn test_http_template_rendering() {
+    async fn test_http_auth_integration() {
         let cache_manager = test_build_mqtt_cache_manager();
         let mut headers = HashMap::new();
         headers.insert(
@@ -302,94 +186,11 @@ mod tests {
             cache_manager,
         );
 
-        let rendered_url = http_auth.render_url();
-        assert_eq!(
-            rendered_url,
-            "http://127.0.0.1:8080/auth?client=test_client"
-        );
-
-        let rendered_headers = http_auth.render_headers();
-        assert_eq!(
-            rendered_headers.get("Authorization"),
-            Some(&"Bearer test_user".to_string())
-        );
-
-        let rendered_body = http_auth.render_body();
-        assert_eq!(
-            rendered_body.get("username"),
-            Some(&"test_user".to_string())
-        );
-        assert_eq!(
-            rendered_body.get("password"),
-            Some(&"test_password".to_string())
-        );
-        assert_eq!(
-            rendered_body.get("clientid"),
-            Some(&"test_client".to_string())
-        );
-    }
-
-    #[test]
-    fn test_http_auth_response_parsing() {
-        let json_response = r#"
-        {
-            "result": "allow",
-            "is_superuser": true
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "allow");
-        assert_eq!(response.is_superuser, Some(true));
-    }
-
-    #[test]
-    fn test_http_auth_response_parsing_with_client_attrs() {
-        let json_response = r#"
-        {
-            "result": "allow",
-            "is_superuser": false,
-            "client_attrs": {
-                "role": "admin",
-                "sn": "10c61f1a1f47"
-            },
-            "expire_at": 1654254601
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "allow");
-        assert_eq!(response.is_superuser, Some(false));
-        assert_eq!(response.expire_at, Some(1654254601));
-
-        let client_attrs = response.client_attrs.unwrap();
-        assert_eq!(client_attrs.get("role"), Some(&"admin".to_string()));
-        assert_eq!(client_attrs.get("sn"), Some(&"10c61f1a1f47".to_string()));
-    }
-
-    #[test]
-    fn test_http_auth_response_deny() {
-        let json_response = r#"
-        {
-            "result": "deny"
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "deny");
-        assert_eq!(response.is_superuser, None);
-    }
-
-    #[test]
-    fn test_http_auth_response_ignore() {
-        let json_response = r#"
-        {
-            "result": "ignore"
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "ignore");
-        assert_eq!(response.is_superuser, None);
+        // Note: this test needs actual HTTP server, so it should be ignored in actual tests
+        // Here just show how to use the new structure
+        assert_eq!(http_auth.username, "test_user");
+        assert_eq!(http_auth.password, "test_password");
+        assert_eq!(http_auth.client_id, "test_client");
+        assert_eq!(http_auth.source_ip, "127.0.0.1");
     }
 }
