@@ -236,13 +236,59 @@
         "connection_id": 12345,
         "broker_id": 1,
         "reconnect_time": 1640995300,
-        "distinct_time": 1640995400
+        "distinct_time": 1640995400,
+        "last_will": {
+          "client_id": "client001",
+          "last_will": {
+            "topic": "device/client001/status",
+            "message": "offline",
+            "qos": "AtLeastOnce",
+            "retain": true
+          },
+          "last_will_properties": {
+            "delay_interval": 30,
+            "payload_format_indicator": 0,
+            "message_expiry_interval": 3600,
+            "content_type": "text/plain",
+            "response_topic": null,
+            "correlation_data": null,
+            "user_properties": []
+          }
+        }
       }
     ],
     "total_count": 50
   }
 }
 ```
+
+**字段说明**：
+
+- `client_id`: MQTT 客户端ID
+- `session_expiry`: 会话过期间隔（秒）
+- `is_contain_last_will`: 会话是否包含遗愿消息
+- `last_will_delay_interval`: 遗愿消息延迟间隔（秒，可选）
+- `create_time`: 会话创建时间戳
+- `connection_id`: 关联的连接ID（可选）
+- `broker_id`: 托管会话的 Broker 节点ID（可选）
+- `reconnect_time`: 最后重连时间戳（可选）
+- `distinct_time`: 最后断开连接时间戳（可选）
+
+- **last_will**: 遗愿消息信息（无遗愿消息时为 null）
+  - `client_id`: 客户端ID
+  - `last_will`: 遗愿消息内容（可为 null）
+    - `topic`: 遗愿消息主题（Bytes 类型，显示为字符串）
+    - `message`: 遗愿消息内容（Bytes 类型，显示为字符串）
+    - `qos`: QoS 级别（`AtMostOnce`/`AtLeastOnce`/`ExactlyOnce`）
+    - `retain`: 是否为保留消息
+  - `last_will_properties`: 遗愿消息属性（MQTT 5.0，可为 null）
+    - `delay_interval`: 延迟发送间隔（秒，可选）
+    - `payload_format_indicator`: 载荷格式指示器（0=未指定，1=UTF-8，可选）
+    - `message_expiry_interval`: 消息过期间隔（秒，可选）
+    - `content_type`: 内容类型（如 "text/plain"，可选）
+    - `response_topic`: 响应主题（可选）
+    - `correlation_data`: 相关数据（Bytes 类型，可选）
+    - `user_properties`: 用户属性数组（键值对列表）
 
 ---
 

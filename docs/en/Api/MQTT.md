@@ -236,13 +236,59 @@
         "connection_id": 12345,
         "broker_id": 1,
         "reconnect_time": 1640995300,
-        "distinct_time": 1640995400
+        "distinct_time": 1640995400,
+        "last_will": {
+          "client_id": "client001",
+          "last_will": {
+            "topic": "device/client001/status",
+            "message": "offline",
+            "qos": "AtLeastOnce",
+            "retain": true
+          },
+          "last_will_properties": {
+            "delay_interval": 30,
+            "payload_format_indicator": 0,
+            "message_expiry_interval": 3600,
+            "content_type": "text/plain",
+            "response_topic": null,
+            "correlation_data": null,
+            "user_properties": []
+          }
+        }
       }
     ],
     "total_count": 50
   }
 }
 ```
+
+**Field Descriptions**:
+
+- `client_id`: MQTT client ID
+- `session_expiry`: Session expiry interval in seconds
+- `is_contain_last_will`: Whether the session contains a last will message
+- `last_will_delay_interval`: Delay interval for last will message in seconds (optional)
+- `create_time`: Session creation timestamp
+- `connection_id`: Associated connection ID (optional)
+- `broker_id`: Broker node ID hosting the session (optional)
+- `reconnect_time`: Last reconnection timestamp (optional)
+- `distinct_time`: Last disconnection timestamp (optional)
+
+- **last_will**: Last will message information (null if no last will configured)
+  - `client_id`: Client ID
+  - `last_will`: Last will message content (can be null)
+    - `topic`: Last will message topic (Bytes type, displayed as string)
+    - `message`: Last will message payload (Bytes type, displayed as string)
+    - `qos`: QoS level (`AtMostOnce`/`AtLeastOnce`/`ExactlyOnce`)
+    - `retain`: Whether it's a retained message
+  - `last_will_properties`: Last will properties (MQTT 5.0, can be null)
+    - `delay_interval`: Delay interval in seconds before sending (optional)
+    - `payload_format_indicator`: Payload format indicator (0=unspecified, 1=UTF-8, optional)
+    - `message_expiry_interval`: Message expiry interval in seconds (optional)
+    - `content_type`: Content type (e.g., "text/plain", optional)
+    - `response_topic`: Response topic (optional)
+    - `correlation_data`: Correlation data (Bytes type, optional)
+    - `user_properties`: User properties array (list of key-value pairs)
 
 ---
 

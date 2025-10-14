@@ -22,7 +22,7 @@ use broker_core::tool::wait_cluster_running;
 use common_config::broker::broker_config;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
@@ -88,7 +88,7 @@ pub async fn send_last_will_message_by_req(
     message_storage_adapter: &ArcStorageAdapter,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
-    let data = match serde_json::from_slice::<LastWillData>(req.last_will_message.as_slice()) {
+    let data = match serde_json::from_slice::<MqttLastWillData>(req.last_will_message.as_slice()) {
         Ok(data) => data,
         Err(e) => {
             return Err(MqttBrokerError::CommonError(e.to_string()));

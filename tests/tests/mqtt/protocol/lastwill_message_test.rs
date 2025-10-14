@@ -58,7 +58,7 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        sleep(Duration::from_secs(3)).await;
+        sleep(Duration::from_secs(60)).await;
         distinct_conn_close(cli);
 
         // subscribe

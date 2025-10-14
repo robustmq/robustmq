@@ -19,7 +19,8 @@ use crate::{
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
-use common_base::http_response::success_response;
+use common_base::http_response::{error_response, success_response};
+use mqtt_broker::storage::session::SessionStorage;
 use std::sync::Arc;
 
 pub async fn session_list(
@@ -37,12 +38,19 @@ pub async fn session_list(
     );
 
     let mut sessions = Vec::new();
+    let storage = SessionStorage::new(state.client_pool.clone());
     if let Some(client_id) = params.client_id {
         if let Some(session) = state
             .mqtt_context
             .cache_manager
             .get_session_info(&client_id)
         {
+            let last_will = match storage.get_last_will_message(client_id.clone()).await {
+                Ok(data) => data,
+                Err(e) => {
+                    return error_response(e.to_string());
+                }
+            };
             sessions.push(SessionListRow {
                 client_id: session.client_id.clone(),
                 session_expiry: session.session_expiry,
@@ -53,10 +61,20 @@ pub async fn session_list(
                 broker_id: session.broker_id,
                 reconnect_time: session.reconnect_time,
                 distinct_time: session.distinct_time,
+                last_will,
             });
         }
     } else {
         for (_, session) in state.mqtt_context.cache_manager.session_info.clone() {
+            let last_will = match storage
+                .get_last_will_message(session.client_id.clone())
+                .await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    return error_response(e.to_string());
+                }
+            };
             sessions.push(SessionListRow {
                 client_id: session.client_id.clone(),
                 session_expiry: session.session_expiry,
@@ -67,6 +85,7 @@ pub async fn session_list(
                 broker_id: session.broker_id,
                 reconnect_time: session.reconnect_time,
                 distinct_time: session.distinct_time,
+                last_will,
             });
         }
     }

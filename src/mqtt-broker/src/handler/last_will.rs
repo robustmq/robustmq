@@ -22,7 +22,7 @@ use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
@@ -127,7 +127,7 @@ pub async fn save_last_will_message(
     }
 
     let session_storage = SessionStorage::new(client_pool.clone());
-    let lastwill = LastWillData {
+    let lastwill = MqttLastWillData {
         client_id: client_id.clone(),
         last_will: last_will.clone(),
         last_will_properties: last_will_properties.clone(),
