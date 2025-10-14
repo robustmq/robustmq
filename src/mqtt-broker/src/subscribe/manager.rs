@@ -28,7 +28,6 @@ pub struct ShareSubShareSub {
     pub sub_name: String,
     pub protocol: MqttProtocol,
     pub topic_name: String,
-    pub topic_id: String,
     pub packet_identifier: u16,
     pub filter: Filter,
     pub subscription_identifier: Option<usize>,
@@ -43,14 +42,13 @@ pub struct ShareLeaderSubscribeData {
     pub sub_name: String,
 
     // topic
-    pub topic_id: String,
     pub topic_name: String,
 
     // (client_id, subscriber)
     pub sub_list: DashMap<String, Subscriber>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TopicSubscribeInfo {
     pub client_id: String,
     pub path: String,
@@ -78,16 +76,16 @@ pub struct SubscribeManager {
     //(client_id_path: MqttSubscribe)
     pub subscribe_list: DashMap<String, MqttSubscribe>,
 
-    // (client_id_sub_name_topic_id, Subscriber)
+    // (client_id_sub_name_topic_name, Subscriber)
     pub exclusive_push: DashMap<String, Subscriber>,
 
-    // (client_id_sub_name_topic_id, SubPushThreadData)
+    // (client_id_sub_name_topic_name, SubPushThreadData)
     pub exclusive_push_thread: DashMap<String, SubPushThreadData>,
 
-    // (group_name_topic_id, ShareLeaderSubscribeData)
+    // (group_name_topic_name, ShareLeaderSubscribeData)
     pub share_leader_push: DashMap<String, ShareLeaderSubscribeData>,
 
-    // (group_name_topic_id, SubPushThreadData)
+    // (group_name_topic_name, SubPushThreadData)
     pub share_leader_push_thread: DashMap<String, SubPushThreadData>,
 
     // (client_id_group_name_sub_name,ShareSubShareSub)
@@ -96,7 +94,7 @@ pub struct SubscribeManager {
     // (client_id_group_name_sub_name, SubPushThreadData)
     pub share_follower_resub_thread: DashMap<String, SubPushThreadData>,
 
-    //(topic_id, Vec<TopicSubscribeInfo>)
+    //(topic_name, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
 
     //(client_id, TemporaryNotPushClient)
@@ -160,8 +158,14 @@ impl SubscribeManager {
     }
 
     // push by exclusive subscribe
-    pub fn add_exclusive_push(&self, client_id: &str, path: &str, topic_id: &str, sub: Subscriber) {
-        let key = self.exclusive_key(client_id, path, topic_id);
+    pub fn add_exclusive_push(
+        &self,
+        client_id: &str,
+        path: &str,
+        topic_name: &str,
+        sub: Subscriber,
+    ) {
+        let key = self.exclusive_key(client_id, path, topic_name);
         self.exclusive_push.insert(key, sub);
     }
 
@@ -196,7 +200,7 @@ impl SubscribeManager {
     // Leader push by share subscribe
     pub fn add_share_subscribe_leader(&self, sub_name: &str, sub: Subscriber) {
         let group_name = sub.group_name.clone().unwrap();
-        let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);
+        let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_name);
 
         if let Some(share_sub) = self.share_leader_push.get(&share_leader_key) {
             share_sub.sub_list.insert(sub.client_id.clone(), sub);
@@ -207,7 +211,6 @@ impl SubscribeManager {
                 share_leader_key.clone(),
                 ShareLeaderSubscribeData {
                     group_name: group_name.to_owned(),
-                    topic_id: sub.topic_id.to_owned(),
                     topic_name: sub.topic_name.to_owned(),
                     sub_name: sub_name.to_owned(),
                     path: sub.sub_path,
@@ -256,10 +259,10 @@ impl SubscribeManager {
         &self,
         client_id: &str,
         group_name: &str,
-        topic_id: &str,
+        topic_name: &str,
         share_sub: ShareSubShareSub,
     ) {
-        let key = self.share_follower_key(client_id, group_name, topic_id);
+        let key = self.share_follower_key(client_id, group_name, topic_name);
         self.share_follower_resub.insert(key, share_sub);
     }
 
@@ -323,6 +326,14 @@ impl SubscribeManager {
                     path: path.to_owned(),
                 }],
             );
+        }
+    }
+
+    pub fn get_topic_subscribe_list(&self, topic_name: &str) -> Vec<TopicSubscribeInfo> {
+        if let Some(list) = self.topic_subscribe_list.get(topic_name) {
+            list.clone()
+        } else {
+            Vec::new()
         }
     }
 
@@ -430,15 +441,15 @@ impl SubscribeManager {
         format!("{client_id}_{path}")
     }
 
-    fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_id: &str) -> String {
-        format!("{client_id}_{sub_name}_{topic_id}")
+    fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_name: &str) -> String {
+        format!("{client_id}_{sub_name}_{topic_name}")
     }
 
-    fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_id: &str) -> String {
-        format!("{group_name}_{sub_name}_{topic_id}")
+    fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_name: &str) -> String {
+        format!("{group_name}_{sub_name}_{topic_name}")
     }
-    fn share_follower_key(&self, client_id: &str, group_name: &str, topic_id: &str) -> String {
-        format!("{client_id}_{group_name}_{topic_id}")
+    fn share_follower_key(&self, client_id: &str, group_name: &str, topic_name: &str) -> String {
+        format!("{client_id}_{group_name}_{topic_name}")
     }
 }
 
@@ -489,7 +500,6 @@ mod tests {
             client_id: "client_id_1".to_string(),
             topic_name: "t_name_1".to_string(),
             group_name: Some("g1".to_string()),
-            topic_id: "t_id_1".to_string(),
             qos: QoS::AtLeastOnce,
             nolocal: true,
             preserve_retain: true,
@@ -515,14 +525,13 @@ mod tests {
             group_name: "g1".to_string(),
             sub_name: "s1".to_string(),
             subscription_identifier: None,
-            topic_id: "t1".to_string(),
             topic_name: "tname".to_string(),
         };
         let subscribe_manager = Arc::new(SubscribeManager::new());
         subscribe_manager.add_share_subscribe_follower(
             &share_sub.client_id,
             &share_sub.group_name,
-            &share_sub.topic_id,
+            &share_sub.topic_name,
             share_sub.clone(),
         );
         subscribe_manager.remove_share_subscribe_follower_by_client_id(&share_sub.client_id);

@@ -51,6 +51,18 @@ pub struct SaveMessageContext {
 }
 
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
+    // Whether or not offline messages are enabled
+    // persistent storage must be used to retain the messages.
+    save_retain_message(
+        &context.cache_manager,
+        &context.client_pool,
+        context.topic.topic_name.clone(),
+        &context.client_id,
+        &context.publish,
+        &context.publish_properties,
+    )
+    .await?;
+
     let offline_message_disabled = !context
         .cache_manager
         .broker_cache
@@ -58,6 +70,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .await
         .mqtt_offline_message
         .enable;
+
     let not_exist_subscribe =
         !is_exist_subscribe(&context.subscribe_manager, &context.topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
@@ -79,17 +92,6 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         )
         .await;
     }
-
-    // Persisting retain message data
-    save_retain_message(
-        &context.cache_manager,
-        &context.client_pool,
-        context.topic.topic_name.clone(),
-        &context.client_id,
-        &context.publish,
-        &context.publish_properties,
-    )
-    .await?;
 
     return save_simple_message(
         &context.message_storage_adapter,
@@ -163,7 +165,7 @@ async fn save_simple_message(
     {
         let message_storage = MessageStorage::new(message_storage_adapter.clone());
         let offsets = message_storage
-            .append_topic_message(&topic.topic_id, vec![record])
+            .append_topic_message(&topic.topic_name, vec![record])
             .await?;
         return Ok(Some(format!("{offsets:?}")));
     }

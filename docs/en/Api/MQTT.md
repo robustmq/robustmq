@@ -255,6 +255,7 @@
 ```json
 {
   "topic_name": "sensor/+",         // Optional, filter by topic name
+  "topic_type": "all",              // Optional, topic type: "all"(all topics), "normal"(normal topics), "system"(system topics), defaults to "all"
   "limit": 20,
   "page": 1,
   "sort_field": "topic_name",       // Optional, sort field
@@ -265,6 +266,12 @@
 }
 ```
 
+**Parameter Description**:
+- **topic_type**: Topic type filter
+  - `"all"` - Return all topics (default)
+  - `"normal"` - Return only normal topics (topics not starting with `$`)
+  - `"system"` - Return only system topics (topics starting with `$`, such as `$SYS/...`)
+
 - **Response Data Structure**:
 ```json
 {
@@ -273,9 +280,10 @@
   "data": {
     "data": [
       {
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true
+        "is_contain_retain_message": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 25
@@ -283,7 +291,78 @@
 }
 ```
 
-#### 4.2 Topic Rewrite Rules List
+**Response Field Description**:
+- `topic_name`: Topic ID
+- `topic_name`: Topic name
+- `is_contain_retain_message`: Whether contains retained message
+- `create_time`: Topic creation timestamp
+
+#### 4.2 Topic Detail Query
+- **Endpoint**: `POST /api/mqtt/topic/detail`
+- **Description**: Query detailed information for a specific topic, including basic info, retained message, and subscriber list
+- **Request Parameters**:
+```json
+{
+  "topic_name": "sensor/temperature"  // Required, topic name
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "topic_info": {
+      "cluster_name": "robustmq-cluster",
+      "topic_name": "sensor/temperature",
+      "create_time": 1640995200
+    },
+    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message_at": 1640995300,
+    "sub_list": [
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature"
+      },
+      {
+        "client_id": "client002",
+        "path": "sensor/+"
+      }
+    ]
+  }
+}
+```
+
+**Response Field Description**:
+
+- **topic_info**: Topic basic information
+  - `cluster_name`: Cluster name
+  - `topic_name`: Topic name
+  - `create_time`: Topic creation timestamp (seconds)
+
+- **retain_message**: Retained message content
+  - Type: `String` or `null`
+  - Base64 encoded message content
+  - Returns `null` if the topic has no retained message
+
+- **retain_message_at**: Retained message timestamp
+  - Type: `u64` or `null`
+  - Unix timestamp in milliseconds
+  - Indicates when the retained message was created or updated
+  - Returns `null` if there is no retained message
+
+- **sub_list**: List of clients subscribed to this topic
+  - `client_id`: Subscriber client ID
+  - `path`: Subscription path (may include wildcards like `+` or `#`)
+
+**Notes**:
+- Returns an error response if the topic does not exist: `{"code": 1, "message": "Topic does not exist."}`
+- `sub_list` shows all subscriptions matching this topic, including wildcard subscriptions
+- Retained message content is Base64 encoded and needs to be decoded by clients
+- `retain_message_at` uses millisecond timestamps while `create_time` uses second timestamps
+
+#### 4.3 Topic Rewrite Rules List
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
@@ -670,7 +749,7 @@
         "connector_name": "kafka_connector",
         "connector_type": "Kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
-        "topic_id": "topic_001",
+        "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
         "create_time": "2024-01-01 10:00:00",
@@ -691,7 +770,7 @@
   "connector_name": "new_connector",   // Connector name
   "connector_type": "Kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
-  "topic_id": "sensor/+"               // Associated topic ID
+  "topic_name": "sensor/+"               // Associated topic ID
 }
 ```
 
@@ -1009,7 +1088,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_name": "kafka_bridge",
     "connector_type": "Kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_id": "sensor/+"
+    "topic_name": "sensor/+"
   }'
 ```
 

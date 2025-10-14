@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auto_subscribe_rule;
-pub mod bridge;
-pub mod connection;
-pub mod lastwill;
-pub mod message;
-pub mod node_extend;
-pub mod retain_message;
-pub mod session;
-pub mod subscribe_data;
-pub mod topic;
-pub mod topic_rewrite_rule;
-pub mod user;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
+pub struct MQTTRetainMessage {
+    pub cluster_name: String,
+    pub topic_name: String,
+    pub retain_message: String,
+    pub retain_message_expired_at: u64,
+    pub create_time: u64,
+}
+
+impl MQTTRetainMessage {
+    pub fn encode(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+}

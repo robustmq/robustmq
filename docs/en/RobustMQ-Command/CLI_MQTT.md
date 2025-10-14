@@ -197,7 +197,7 @@ robust-ctl mqtt connector create \
   --connector-name <CONNECTOR_NAME> \
   --connector-type <CONNECTOR_TYPE> \
   --config <CONFIG> \
-  --topic-id <TOPIC_ID>
+  --topic-id <topic_name>
 
 # Delete connector
 robust-ctl mqtt connector delete --connector-name <CONNECTOR_NAME>

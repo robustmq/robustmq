@@ -36,7 +36,7 @@ use super::{
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
-    pub topic_id: String,
+    pub topic_name: String,
     pub record_num: u64,
 }
 
@@ -163,7 +163,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
@@ -200,7 +200,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
@@ -235,7 +235,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
@@ -270,7 +270,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
@@ -305,7 +305,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
@@ -387,7 +387,7 @@ mod tests {
         MQTTConnector {
             connector_name: "test_connector".to_string(),
             connector_type: ConnectorType::LocalFile,
-            topic_id: "test_topic".to_string(),
+            topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
             status: MQTTStatus::Running,
             broker_id: Some(1),
@@ -400,11 +400,11 @@ mod tests {
     #[test]
     fn test_bridge_plugin_read_config_creation() {
         let config = BridgePluginReadConfig {
-            topic_id: "test_topic".to_string(),
+            topic_name: "test_topic".to_string(),
             record_num: 100,
         };
 
-        assert_eq!(config.topic_id, "test_topic");
+        assert_eq!(config.topic_name, "test_topic");
         assert_eq!(config.record_num, 100);
     }
 
@@ -444,7 +444,7 @@ mod tests {
         connector.config = r#"{"local_file_path": "/tmp/test.txt"}"#.to_string();
         connector_manager.add_connector(&connector);
 
-        let shard_name = connector.topic_id.clone();
+        let shard_name = connector.topic_name.clone();
         storage_adapter
             .create_shard(ShardInfo {
                 namespace: "default".to_string(),

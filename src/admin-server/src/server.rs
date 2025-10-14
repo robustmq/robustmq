@@ -30,7 +30,7 @@ use crate::{
             subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
-        topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
+        topic::{topic_detail, topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
     path::*,
@@ -123,6 +123,7 @@ impl AdminServer {
             .route(MQTT_SESSION_LIST_PATH, post(session_list))
             // topic
             .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
+            .route(MQTT_TOPIC_DETAIL_PATH, post(topic_detail))
             // topic-rewrite
             .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
             .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))

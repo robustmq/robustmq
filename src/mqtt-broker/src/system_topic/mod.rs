@@ -384,7 +384,7 @@ pub(crate) async fn write_topic_data(
         Ok(topic) => {
             let message_storage = MessageStorage::new(message_storage_adapter.clone());
             match message_storage
-                .append_topic_message(&topic.topic_id, vec![record])
+                .append_topic_message(&topic.topic_name, vec![record])
                 .await
             {
                 Ok(_) => {}
@@ -431,7 +431,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
         let message_storage_adapter = build_memory_storage_driver();
@@ -458,7 +458,7 @@ mod test {
         let results = message_storage_adapter
             .read_by_offset(
                 cluster_name().to_owned(),
-                topic.topic_id.to_owned(),
+                topic.topic_name.to_owned(),
                 0,
                 read_config,
             )
@@ -486,7 +486,7 @@ mod test {
         let cache_manger = test_build_mqtt_cache_manager().await;
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
         let expect_data = "test_data".to_string();
         super::report_system_data(
@@ -507,7 +507,7 @@ mod test {
         let results = message_storage_adapter
             .read_by_offset(
                 cluster_name().to_owned(),
-                mqtt_topic.topic_id.clone(),
+                mqtt_topic.topic_name.clone(),
                 0,
                 read_config,
             )
