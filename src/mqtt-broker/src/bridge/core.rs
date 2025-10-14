@@ -340,7 +340,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
