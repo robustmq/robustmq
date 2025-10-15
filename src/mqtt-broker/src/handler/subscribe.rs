@@ -340,18 +340,16 @@ mod tests {
             rewrite_sub_path: None,
         });
         assert!(res.is_ok());
-        println!("{:?}", subscribe_manager.topic_subscribe_list);
-        println!("{:?}", subscribe_manager.exclusive_push);
-        assert_eq!(subscribe_manager.topic_subscribe_list.len(), 1);
-        assert_eq!(subscribe_manager.exclusive_push.len(), 1);
+        assert_eq!(subscribe_manager.topic_subscribe_list().len(), 1);
+        assert_eq!(subscribe_manager.exclusive_push_list().len(), 1);
 
-        for (_, sub) in subscribe_manager.exclusive_push.clone() {
+        for (_, sub) in subscribe_manager.exclusive_push_list() {
             assert_eq!(sub.client_id, client_id);
             assert_eq!(sub.sub_path, ex_path.to_owned());
             assert_eq!(sub.topic_name, topic.topic_name.to_owned());
         }
 
-        for (to, sub) in subscribe_manager.topic_subscribe_list.clone() {
+        for (to, sub) in subscribe_manager.topic_subscribe_list() {
             for raw in sub {
                 assert_eq!(raw.client_id, client_id);
                 assert_eq!(raw.path, ex_path.to_owned());

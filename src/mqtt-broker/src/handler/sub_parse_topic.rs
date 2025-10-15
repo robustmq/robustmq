@@ -63,7 +63,7 @@ async fn parse_subscribe_by_new_topic(
 ) {
     let conf = broker_config();
 
-    for (_, subscribe) in subscribe_manager.subscribe_list.clone() {
+    for (_, subscribe) in subscribe_manager.list_subscribe() {
         if subscribe.broker_id != conf.broker_id {
             continue;
         }

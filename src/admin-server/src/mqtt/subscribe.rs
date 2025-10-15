@@ -51,7 +51,7 @@ pub async fn subscribe_list(
     );
 
     let mut subscribes = Vec::new();
-    for (_, sub) in state.mqtt_context.subscribe_manager.subscribe_list.clone() {
+    for (_, sub) in state.mqtt_context.subscribe_manager.list_subscribe() {
         subscribes.push(SubscribeListRow {
             broker_id: sub.broker_id,
             client_id: sub.client_id,

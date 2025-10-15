@@ -87,11 +87,10 @@ impl ExclusivePush {
     async fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
-        for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread.clone() {
+        for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread_list() {
             if !self
                 .subscribe_manager
-                .exclusive_push
-                .contains_key(&exclusive_key)
+                .contain_exclusive_push(&exclusive_key)
             {
                 if let Err(e) = sx.sender.send(true) {
                     error!(
@@ -100,8 +99,7 @@ impl ExclusivePush {
                     );
                 }
                 self.subscribe_manager
-                    .exclusive_push_thread
-                    .remove(&exclusive_key);
+                    .remove_exclusive_push_thread(&exclusive_key);
             }
         }
     }
@@ -109,11 +107,10 @@ impl ExclusivePush {
     // Handles exclusive subscription push tasks
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
-        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_push.clone() {
+        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_push_list() {
             if self
                 .subscribe_manager
-                .exclusive_push_thread
-                .contains_key(&exclusive_key)
+                .contain_exclusive_push_thread(&exclusive_key)
             {
                 continue;
             }
@@ -128,7 +125,7 @@ impl ExclusivePush {
             let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
 
             // Subscribe to the data push thread
-            self.subscribe_manager.exclusive_push_thread.insert(
+            self.subscribe_manager.add_exclusive_push_thread(
                 exclusive_key.clone(),
                 SubPushThreadData {
                     push_success_record_num: 0,
@@ -152,9 +149,7 @@ impl ExclusivePush {
                     Ok(offset) => offset,
                     Err(e) => {
                         error!("{}", e);
-                        subscribe_manager
-                            .exclusive_push_thread
-                            .remove(&exclusive_key);
+                        subscribe_manager.remove_exclusive_push_thread(&exclusive_key);
                         return;
                     }
                 };
@@ -171,7 +166,7 @@ impl ExclusivePush {
                                         subscriber.topic_name
                                     );
 
-                                    subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
+                                    subscribe_manager.remove_exclusive_push_thread(&exclusive_key);
                                     break;
                                 }
                             }

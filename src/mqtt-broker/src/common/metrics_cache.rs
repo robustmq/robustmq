@@ -200,7 +200,7 @@ pub fn metrics_record_thread(
                 .record_connection_num(now, connection_manager.connections.len() as u64);
             metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u64);
             metrics_cache_manager
-                .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u64);
+                .record_subscribe_num(now, subscribe_manager.list_subscribe().len() as u64);
 
             // message in
             let message_in = record_mqtt_messages_received_get();
@@ -254,8 +254,10 @@ pub fn metrics_record_thread(
             record_mqtt_connections_set(connection_manager.connections.len() as i64);
             record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
             record_mqtt_topics_set(cache_manager.topic_info.len() as i64);
-            record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
-            record_mqtt_subscriptions_shared_set(subscribe_manager.share_leader_push.len() as i64);
+            record_mqtt_subscribers_set(subscribe_manager.list_subscribe().len() as i64);
+            record_mqtt_subscriptions_shared_set(
+                subscribe_manager.share_leader_push_list().len() as i64
+            );
             Ok(())
         };
         loop_select_ticket(record_func, time_window, &stop_send).await;
