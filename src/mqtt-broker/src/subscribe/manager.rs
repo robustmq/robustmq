@@ -67,7 +67,7 @@ pub struct SubPushThreadData {
     pub last_push_time: u64,
     pub last_run_time: u64,
     pub create_time: u64,
-    #[serde(skip)]
+    #[serde(skip_serializing, skip_deserializing)]
     pub sender: Sender<bool>,
 }
 
@@ -95,7 +95,10 @@ pub struct SubscribeManager {
     share_follower_resub_thread: DashMap<String, SubPushThreadData>,
 
     //(topic_name, Vec<TopicSubscribeInfo>)
-    topic_subscribe: DashMap<String, Vec<TopicSubscribeInfo>>,
+    topic_subscribes: DashMap<String, Vec<TopicSubscribeInfo>>,
+
+    //(client_id,(path,Vec<String>))
+    subscribe_topics: DashMap<String, DashMap<String, Vec<String>>>,
 
     //(client_id, TemporaryNotPushClient)
     not_push_client: DashMap<String, TemporaryNotPushClient>,
@@ -117,8 +120,9 @@ impl SubscribeManager {
             exclusive_push_thread: DashMap::with_capacity(8),
             share_leader_push_thread: DashMap::with_capacity(8),
             share_follower_resub_thread: DashMap::with_capacity(8),
-            topic_subscribe: DashMap::with_capacity(8),
+            topic_subscribes: DashMap::with_capacity(8),
             not_push_client: DashMap::with_capacity(8),
+            subscribe_topics: DashMap::with_capacity(8),
         }
     }
 
@@ -167,6 +171,7 @@ impl SubscribeManager {
     ) {
         let key = self.exclusive_key(client_id, path, topic_name);
         self.exclusive_push.insert(key, sub);
+        self.add_subscribe_topics(client_id, path, topic_name);
     }
 
     pub fn exclusive_push_list(&self) -> DashMap<String, Subscriber> {
@@ -197,7 +202,7 @@ impl SubscribeManager {
         }
     }
 
-    //exclusive push thread
+    // exclusive push thread
     pub fn exclusive_push_thread_list(&self) -> DashMap<String, SubPushThreadData> {
         self.exclusive_push_thread.clone()
     }
@@ -272,8 +277,12 @@ impl SubscribeManager {
         let group_name = sub.group_name.clone().unwrap();
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_name);
 
+        self.add_subscribe_topics(&sub.client_id, &sub.sub_path, &sub.topic_name);
+
         if let Some(share_sub) = self.share_leader_push.get(&share_leader_key) {
-            share_sub.sub_list.insert(sub.client_id.clone(), sub);
+            share_sub
+                .sub_list
+                .insert(sub.client_id.clone(), sub.clone());
         } else {
             let sub_list = DashMap::with_capacity(2);
             sub_list.insert(sub.client_id.clone(), sub.clone());
@@ -471,17 +480,17 @@ impl SubscribeManager {
 
     // topic subscribe
     pub fn topic_subscribe_list(&self) -> DashMap<String, Vec<TopicSubscribeInfo>> {
-        self.topic_subscribe.clone()
+        self.topic_subscribes.clone()
     }
 
     pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
-        if let Some(mut list) = self.topic_subscribe.get_mut(topic_name) {
+        if let Some(mut list) = self.topic_subscribes.get_mut(topic_name) {
             list.push(TopicSubscribeInfo {
                 client_id: client_id.to_owned(),
                 path: path.to_owned(),
             });
         } else {
-            self.topic_subscribe.insert(
+            self.topic_subscribes.insert(
                 topic_name.to_owned(),
                 vec![TopicSubscribeInfo {
                     client_id: client_id.to_owned(),
@@ -492,7 +501,7 @@ impl SubscribeManager {
     }
 
     pub fn get_topic_subscribe_list(&self, topic_name: &str) -> Vec<TopicSubscribeInfo> {
-        if let Some(list) = self.topic_subscribe.get(topic_name) {
+        if let Some(list) = self.topic_subscribes.get(topic_name) {
             list.clone()
         } else {
             Vec::new()
@@ -500,14 +509,14 @@ impl SubscribeManager {
     }
 
     pub fn contain_topic_subscribe(&self, topic_name: &str) -> bool {
-        if let Some(list) = self.topic_subscribe.get(topic_name) {
+        if let Some(list) = self.topic_subscribes.get(topic_name) {
             return !list.is_empty();
         }
         false
     }
 
     pub fn is_exclusive_subscribe(&self, topic_name: &str) -> bool {
-        if let Some(list) = self.topic_subscribe.get(topic_name) {
+        if let Some(list) = self.topic_subscribes.get(topic_name) {
             for raw in list.iter() {
                 if raw.path.starts_with("$exclusive") {
                     return true;
@@ -518,14 +527,52 @@ impl SubscribeManager {
     }
 
     fn remove_topic_subscribe_by_client_id(&self, topic_name: &str, client_id: &str) {
-        if let Some(mut list) = self.topic_subscribe.get_mut(topic_name) {
+        if let Some(mut list) = self.topic_subscribes.get_mut(topic_name) {
             list.retain(|x| x.client_id != *client_id);
         }
     }
 
     pub fn remove_topic_subscribe_by_path(&self, topic_name: &str, client_id: &str, path: &str) {
-        if let Some(mut list) = self.topic_subscribe.get_mut(topic_name) {
+        if let Some(mut list) = self.topic_subscribes.get_mut(topic_name) {
             list.retain(|x| x.path != *path && x.client_id != *client_id);
+        }
+    }
+
+    // subscribe_topics
+    pub fn get_subscribe_topics_by_client_id_path(
+        &self,
+        client_id: &str,
+        path: &str,
+    ) -> Vec<String> {
+        if let Some(list) = self.subscribe_topics.get(client_id) {
+            if let Some(res) = list.get(path) {
+                return res.clone();
+            }
+        }
+        Vec::new()
+    }
+
+    pub fn add_subscribe_topics(&self, client_id: &str, path: &str, topic_name: &str) {
+        if let Some(list) = self.subscribe_topics.get_mut(client_id) {
+            if let Some(mut data) = list.get_mut(path) {
+                data.push(topic_name.to_string());
+            } else {
+                list.insert(path.to_string(), vec![topic_name.to_string()]);
+            }
+        } else {
+            let data = DashMap::with_capacity(2);
+            data.insert(path.to_string(), vec![topic_name.to_string()]);
+            self.subscribe_topics.insert(client_id.to_string(), data);
+        }
+    }
+
+    pub fn remove_subscribe_topics_by_client_id(&self, client_id: &str) {
+        self.subscribe_topics.remove(client_id);
+    }
+
+    pub fn remove_subscribe_topics_by_client_id_path(&self, client_id: &str, path: &str) {
+        if let Some(list) = self.subscribe_topics.get_mut(client_id) {
+            list.remove(path);
         }
     }
 
@@ -600,7 +647,7 @@ impl SubscribeManager {
     }
 
     // key
-    fn subscribe_key(&self, client_id: &str, path: &str) -> String {
+    pub fn subscribe_key(&self, client_id: &str, path: &str) -> String {
         format!("{client_id}_{path}")
     }
 
@@ -608,10 +655,15 @@ impl SubscribeManager {
         format!("{client_id}_{sub_name}_{topic_name}")
     }
 
-    fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_name: &str) -> String {
+    pub fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_name: &str) -> String {
         format!("{group_name}_{sub_name}_{topic_name}")
     }
-    fn share_follower_key(&self, client_id: &str, group_name: &str, topic_name: &str) -> String {
+    pub fn share_follower_key(
+        &self,
+        client_id: &str,
+        group_name: &str,
+        topic_name: &str,
+    ) -> String {
         format!("{client_id}_{group_name}_{topic_name}")
     }
 }
@@ -636,7 +688,7 @@ mod tests {
         let path = "/topic/path";
 
         subscribe_manager.add_topic_subscribe(topic_name, &client_id, path);
-        assert_eq!(subscribe_manager.topic_subscribe.len(), 1);
+        assert_eq!(subscribe_manager.topic_subscribes.len(), 1);
         assert!(subscribe_manager.contain_topic_subscribe(topic_name));
         assert!(!subscribe_manager.is_exclusive_subscribe(topic_name));
         subscribe_manager.remove_topic_subscribe_by_client_id(topic_name, &client_id);
@@ -645,7 +697,7 @@ mod tests {
 
         let path = "$exclusive/path";
         subscribe_manager.add_topic_subscribe(topic_name, &client_id, path);
-        assert_eq!(subscribe_manager.topic_subscribe.len(), 1);
+        assert_eq!(subscribe_manager.topic_subscribes.len(), 1);
         assert!(subscribe_manager.contain_topic_subscribe(topic_name));
         assert!(subscribe_manager.is_exclusive_subscribe(topic_name));
 

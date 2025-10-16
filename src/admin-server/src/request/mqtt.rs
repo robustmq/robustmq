@@ -61,8 +61,45 @@ pub struct SubscribeListReq {
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
 }
+
 #[derive(Deserialize, Debug)]
-pub struct SubscribeDetailReq {}
+pub struct SubscribeDetailReq {
+    pub client_id: String,
+    pub path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubscribeDetailRep {
+    pub topic_list: Vec<SubTopicRaw>,
+    pub group_info: Option<SubGroupInfoRaw>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubTopicRaw {
+    pub client_id: String,
+    pub path: String,
+    pub topic_name: String,
+    pub push_thread: Option<SubPushThreadDataRaw>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubGroupInfoRaw {
+    pub broker_id: u64,
+    pub broker_addr: String,
+    pub extend_info: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubPushThreadDataRaw {
+    pub push_success_record_num: u64,
+    pub push_error_record_num: u64,
+    pub last_push_time: u64,
+    pub last_run_time: u64,
+    pub create_time: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubPushThreadRaw {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AutoSubscribeListReq {
