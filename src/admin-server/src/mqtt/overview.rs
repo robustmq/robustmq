@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::OverviewMetricsReq,
+    request::mqtt::{MonitorDataReq, OverviewMetricsReq},
     response::mqtt::{OverViewMetricsResp, OverViewResp},
     state::HttpState,
 };
@@ -63,26 +63,20 @@ async fn cluster_overview_metrics_by_req(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
     request: &OverviewMetricsReq,
 ) -> Result<OverViewMetricsResp, CommonError> {
-    let start_time = if request.start_time == 0 {
-        now_second() - 3600
-    } else {
-        request.start_time
-    };
-    let end_time = if request.end_time == 0 {
-        now_second()
-    } else {
-        request.end_time
-    };
-    let reply = OverViewMetricsResp {
-        connection_num: metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
-        topic_num: metrics_cache_manager.get_topic_num_by_time(start_time, end_time),
-        subscribe_num: metrics_cache_manager.get_subscribe_num_by_time(start_time, end_time),
-        message_in_num: metrics_cache_manager.get_message_in_num_by_time(start_time, end_time),
-        message_out_num: metrics_cache_manager.get_message_out_num_by_time(start_time, end_time),
-        message_drop_num: metrics_cache_manager.get_message_drop_num_by_time(start_time, end_time),
-    };
-
-    Ok(reply)
+    OverViewMetricsResp {
+        connection_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.connection_num.clone()),
+        topic_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.topic_num.clone()),
+        subscribe_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.subscribe_num.clone()),
+        message_in_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.message_in_num.clone()),
+        message_out_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.message_out_num.clone()),
+        message_drop_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.message_drop_num.clone()),
+    }
 }
 
 async fn cluster_overview_by_req(
@@ -121,6 +115,28 @@ async fn cluster_overview_by_req(
         quic_connection_num: connection_manager.quic_write_list.len() as u32,
     };
     let _ = subscribe_manager.snapshot_info();
+
+    Ok(reply)
+}
+
+async fn cluster_monitor_data_req(
+    metrics_cache_manager: &Arc<MetricsCacheManager>,
+    request: &MonitorDataReq,
+) -> Result<OverViewMetricsResp, CommonError> {
+    let reply = OverViewMetricsResp {
+        connection_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.connection_num.clone()),
+        topic_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.topic_num.clone()),
+        subscribe_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.subscribe_num.clone()),
+        message_in_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.message_in_num.clone()),
+        message_out_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.message_out_num.clone()),
+        message_drop_num: metrics_cache_manager
+            .convert_monitor_data(metrics_cache_manager.message_drop_num.clone()),
+    };
 
     Ok(reply)
 }

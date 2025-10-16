@@ -16,9 +16,11 @@ use mqtt_broker::subscribe::{common::Subscriber, manager::ShareLeaderSubscribeDa
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
-pub struct OverviewMetricsReq {
-    pub start_time: u64,
-    pub end_time: u64,
+pub struct OverviewMetricsReq {}
+
+#[derive(Deserialize)]
+pub struct MonitorDataReq {
+    pub data_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

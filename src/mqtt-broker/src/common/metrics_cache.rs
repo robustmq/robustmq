@@ -35,12 +35,24 @@ pub struct MetricsCacheManager {
     pub connection_num: DashMap<u64, u64>,
     pub topic_num: DashMap<u64, u64>,
     pub subscribe_num: DashMap<u64, u64>,
+    // message in
     pub message_in_num: DashMap<u64, u64>,
     pub message_in_num_total: DashMap<u64, u64>,
+    // message out
     pub message_out_num: DashMap<u64, u64>,
-    pub message_drop_num: DashMap<u64, u64>,
     pub message_out_num_total: DashMap<u64, u64>,
+    // message drop
+    pub message_drop_num: DashMap<u64, u64>,
     pub message_drop_num_total: DashMap<u64, u64>,
+    // topic in
+    pub topic_in_num: DashMap<String, DashMap<u64, u64>>,
+    pub topic_in_total_num: DashMap<String, DashMap<u64, u64>>,
+    // topic out
+    pub topic_out_num: DashMap<String, DashMap<u64, u64>>,
+    pub topic_out_total_num: DashMap<String, DashMap<u64, u64>>,
+    // subscribe out
+    pub subscribe_out_num: DashMap<String, DashMap<u64, u64>>,
+    pub subscribe_out_total_num: DashMap<String, DashMap<u64, u64>>,
 }
 
 impl MetricsCacheManager {
@@ -55,6 +67,12 @@ impl MetricsCacheManager {
             message_out_num_total: DashMap::with_capacity(4),
             message_drop_num: DashMap::with_capacity(4),
             message_drop_num_total: DashMap::with_capacity(4),
+            topic_in_num: DashMap::with_capacity(4),
+            topic_in_total_num: DashMap::with_capacity(4),
+            topic_out_num: DashMap::with_capacity(4),
+            topic_out_total_num: DashMap::with_capacity(4),
+            subscribe_out_num: DashMap::with_capacity(4),
+            subscribe_out_total_num: DashMap::with_capacity(4),
             pre_calc_time: Arc::new(RwLock::new(0)),
         }
     }
@@ -113,69 +131,13 @@ impl MetricsCacheManager {
         self.message_drop_num_total.insert(time, total);
     }
 
-    pub fn get_connection_num_by_time(
-        &self,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
-        self.search_by_time(self.connection_num.clone(), start_time, end_time)
-    }
-
-    pub fn get_topic_num_by_time(
-        &self,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
-        self.search_by_time(self.topic_num.clone(), start_time, end_time)
-    }
-
-    pub fn get_subscribe_num_by_time(
-        &self,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
-        self.search_by_time(self.subscribe_num.clone(), start_time, end_time)
-    }
-
-    pub fn get_message_in_num_by_time(
-        &self,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
-        self.search_by_time(self.message_in_num.clone(), start_time, end_time)
-    }
-
-    pub fn get_message_out_num_by_time(
-        &self,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
-        self.search_by_time(self.message_out_num.clone(), start_time, end_time)
-    }
-
-    pub fn get_message_drop_num_by_time(
-        &self,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
-        self.search_by_time(self.message_drop_num.clone(), start_time, end_time)
-    }
-
-    // Get the value within a given time interval
-    fn search_by_time(
-        &self,
-        data_list: DashMap<u64, u64>,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<HashMap<String, u64>> {
+    pub fn convert_monitor_data(&self, data_list: DashMap<u64, u64>) -> Vec<HashMap<String, u64>> {
         let mut results = Vec::new();
         for (time, value) in data_list {
-            if time >= start_time && time <= end_time {
-                let mut raw = HashMap::new();
-                raw.insert("date".to_string(), time);
-                raw.insert("value".to_string(), value);
-                results.push(raw);
-            }
+            let mut raw = HashMap::new();
+            raw.insert("date".to_string(), time);
+            raw.insert("value".to_string(), value);
+            results.push(raw);
         }
         results
     }
@@ -214,7 +176,7 @@ pub fn metrics_record_thread(
             metrics_cache_manager.record_message_in_num(
                 now,
                 message_in,
-                message_in - pre_message_in,
+                calc_value(message_in, pre_message_in, time_window),
             );
 
             // message out
@@ -228,7 +190,7 @@ pub fn metrics_record_thread(
             metrics_cache_manager.record_message_out_num(
                 now,
                 message_out,
-                message_out - pre_message_out,
+                calc_value(message_out, pre_message_out, time_window),
             );
 
             // message drop
@@ -242,7 +204,7 @@ pub fn metrics_record_thread(
             metrics_cache_manager.record_message_drop_num(
                 now,
                 message_drop,
-                message_drop - pre_message_drop,
+                calc_value(message_drop, pre_message_drop, time_window),
             );
             metrics_cache_manager.set_calc_time(now).await;
 
@@ -272,7 +234,7 @@ pub fn metrics_gc_thread(
     tokio::spawn(async move {
         let record_func = async || -> ResultCommonError {
             let now_time = now_second();
-            let save_time = 3600 * 24 * 3;
+            let save_time = 3600;
 
             // connection_num
             for (time, _) in metrics_cache_manager.connection_num.clone() {
@@ -320,6 +282,10 @@ pub fn metrics_gc_thread(
         };
         loop_select_ticket(record_func, 3600, &stop_send).await;
     });
+}
+
+fn calc_value(max_value: u64, min_value: u64, time_window: u64) -> u64 {
+    (max_value - min_value) / time_window
 }
 
 #[cfg(test)]
@@ -395,37 +361,37 @@ mod test {
         let end_time = now + 8;
         assert_eq!(
             metrics_cache_manager
-                .get_connection_num_by_time(start_time, end_time)
+                .convert_monitor_data(metrics_cache_manager.connection_num.clone())
                 .len(),
             7
         );
         assert_eq!(
             metrics_cache_manager
-                .get_topic_num_by_time(start_time, end_time)
+                .convert_monitor_data(metrics_cache_manager.topic_num.clone())
                 .len(),
             7
         );
         assert_eq!(
             metrics_cache_manager
-                .get_subscribe_num_by_time(start_time, end_time)
+                .convert_monitor_data(metrics_cache_manager.subscribe_num.clone())
                 .len(),
             7
         );
         assert_eq!(
             metrics_cache_manager
-                .get_message_in_num_by_time(start_time, end_time)
+                .convert_monitor_data(metrics_cache_manager.message_in_num.clone())
                 .len(),
             7
         );
         assert_eq!(
             metrics_cache_manager
-                .get_message_out_num_by_time(start_time, end_time)
+                .convert_monitor_data(metrics_cache_manager.message_out_num.clone())
                 .len(),
             7
         );
         assert_eq!(
             metrics_cache_manager
-                .get_message_drop_num_by_time(start_time, end_time)
+                .convert_monitor_data(metrics_cache_manager.message_drop_num.clone())
                 .len(),
             7
         );
