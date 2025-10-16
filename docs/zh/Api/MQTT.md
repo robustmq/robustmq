@@ -509,9 +509,128 @@
 
 #### 5.2 订阅详情查询
 - **接口**: `POST /api/mqtt/subscribe/detail`
-- **描述**: 查询订阅详情
-- **请求参数**: 空 JSON 对象
-- **响应**: 当前返回空字符串（功能待实现）
+- **描述**: 查询订阅详情，支持查询独占订阅和共享订阅的详细信息
+- **请求参数**:
+```json
+{
+  "client_id": "client001",    // 客户端ID
+  "path": "sensor/temperature" // 订阅路径
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "share_sub": false,        // 是否为共享订阅
+    "group_leader_info": null, // 共享订阅组Leader信息（仅共享订阅有值）
+    "topic_list": [            // 匹配的主题列表
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature",
+        "topic_name": "sensor/temperature",
+        "exclusive_push_data": {  // 独占订阅推送数据（共享订阅为null）
+          "protocol": "MQTTv5",
+          "client_id": "client001",
+          "sub_path": "sensor/temperature",
+          "rewrite_sub_path": null,
+          "topic_name": "sensor/temperature",
+          "group_name": null,
+          "qos": "AtLeastOnce",
+          "nolocal": false,
+          "preserve_retain": true,
+          "retain_forward_rule": "SendAtSubscribe",
+          "subscription_identifier": null,
+          "create_time": 1704067200000
+        },
+        "share_push_data": null,  // 共享订阅推送数据（独占订阅为null）
+        "push_thread": {          // 推送线程统计信息（可选）
+          "push_success_record_num": 1520,  // 推送成功次数
+          "push_error_record_num": 3,       // 推送失败次数
+          "last_push_time": 1704067800000,  // 最后推送时间（毫秒时间戳）
+          "last_run_time": 1704067810000,   // 最后运行时间（毫秒时间戳）
+          "create_time": 1704067200000      // 创建时间（毫秒时间戳）
+        }
+      }
+    ]
+  }
+}
+```
+
+**共享订阅响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "share_sub": true,
+    "group_leader_info": {        // 共享订阅组的Leader信息
+      "broker_id": 1,
+      "broker_addr": "127.0.0.1:1883",
+      "extend_info": "{}"
+    },
+    "topic_list": [
+      {
+        "client_id": "client001",
+        "path": "$share/group1/sensor/+",
+        "topic_name": "sensor/temperature",
+        "exclusive_push_data": null,
+        "share_push_data": {      // 共享订阅Leader推送数据
+          "path": "$share/group1/sensor/+",
+          "group_name": "group1",
+          "sub_name": "sensor/+",
+          "topic_name": "sensor/temperature",
+          "sub_list": {           // 共享组内的订阅者列表
+            "client001": {
+              "protocol": "MQTTv5",
+              "client_id": "client001",
+              "sub_path": "$share/group1/sensor/+",
+              "rewrite_sub_path": null,
+              "topic_name": "sensor/temperature",
+              "group_name": "group1",
+              "qos": "AtLeastOnce",
+              "nolocal": false,
+              "preserve_retain": false,
+              "retain_forward_rule": "SendAtSubscribe",
+              "subscription_identifier": null,
+              "create_time": 1704067200000
+            }
+          }
+        },
+        "push_thread": {
+          "push_success_record_num": 2540,
+          "push_error_record_num": 5,
+          "last_push_time": 1704067900000,
+          "last_run_time": 1704067910000,
+          "create_time": 1704067200000
+        }
+      }
+    ]
+  }
+}
+```
+
+**字段说明**:
+- **share_sub**: 布尔值，标识是否为共享订阅
+- **group_leader_info**: 仅共享订阅时返回，包含该共享组的Leader Broker信息
+  - `broker_id`: Leader Broker的ID
+  - `broker_addr`: Leader Broker的地址
+  - `extend_info`: 扩展信息（JSON字符串）
+- **topic_list**: 匹配订阅路径的实际主题列表
+  - `client_id`: 客户端ID
+  - `path`: 订阅路径（可能包含通配符或共享订阅前缀）
+  - `topic_name`: 实际匹配的主题名称
+  - `exclusive_push_data`: 独占订阅的推送数据（共享订阅时为null）
+  - `share_push_data`: 共享订阅的推送数据（独占订阅时为null）
+  - `push_thread`: 推送线程的统计信息（可选）
+
+**注意事项**:
+- 如果订阅路径包含通配符（如 `+` 或 `#`），`topic_list` 可能包含多个实际匹配的主题
+- 独占订阅和共享订阅的数据结构不同，通过 `share_sub` 字段区分
+- 共享订阅的路径格式为 `$share/{group_name}/{topic_filter}`
+- 所有时间戳均为毫秒级Unix时间戳
 
 #### 5.3 自动订阅规则管理
 

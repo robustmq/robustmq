@@ -14,9 +14,9 @@
 
 use crate::{
     request::mqtt::{
-        AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq, SubGroupInfoRaw,
-        SubPushThreadDataRaw, SubTopicRaw, SubscribeDetailRep, SubscribeDetailReq,
-        SubscribeListReq,
+        AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq,
+        ShareSubscribeDetailReq, SubGroupLeaderRaw, SubPushThreadDataRaw, SubTopicRaw,
+        SubscribeDetailRep, SubscribeDetailReq, SubscribeListReq,
     },
     response::{
         mqtt::{AutoSubscribeListRow, SlowSubscribeListRow, SubscribeListRow},
@@ -27,8 +27,9 @@ use crate::{
 };
 use axum::{extract::State, Json};
 use common_base::{
+    error::common::CommonError,
     http_response::{error_response, success_response},
-    utils::{time_util::timestamp_to_local_datetime, topic_util::is_exclusive_sub},
+    utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::mqtt::{
     auto_subscribe_rule::MqttAutoSubscribeRule, subscribe_data::is_mqtt_share_subscribe,
@@ -36,7 +37,7 @@ use metadata_struct::mqtt::{
 use mqtt_broker::{
     handler::error::MqttBrokerError,
     storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage},
-    subscribe::common::{decode_share_group_and_path, get_share_sub_leader},
+    subscribe::common::{decode_share_group_and_path, get_share_sub_leader, is_share_sub_leader},
 };
 use protocol::mqtt::common::{qos, retain_forward_rule};
 use std::sync::Arc;
@@ -95,47 +96,81 @@ pub async fn subscribe_detail(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<SubscribeDetailReq>,
 ) -> String {
-    let sub = if let Some(sub) = state
-        .mqtt_context
-        .subscribe_manager
-        .get_subscribe(&params.client_id, &params.path)
-    {
-        sub
-    } else {
-        return error_response(MqttBrokerError::SubscriptionPathNotExists(params.path).to_string());
+    if is_mqtt_share_subscribe(&params.path) {
+        let (group, _) = decode_share_group_and_path(&params.path);
+        let leader = match is_share_sub_leader(&state.client_pool, &group).await {
+            Ok(data) => data,
+            Err(e) => {
+                return error_response(e.to_string());
+            }
+        };
+
+        // Forward the request to the leader of the group
+        if leader {
+            //
+            return "".to_string();
+        }
+
+        // current node is leader
+        let (topic_list, group_leader_info) = match share_sub_detail(&state, &params).await {
+            Ok(data) => data,
+            Err(e) => {
+                return error_response(e.to_string());
+            }
+        };
+        return success_response(SubscribeDetailRep {
+            share_sub: true,
+            topic_list,
+            group_leader_info: Some(group_leader_info),
+        });
+    }
+
+    let topic_list = match exclusive_sub_detail(&state, &params).await {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
     };
+    success_response(SubscribeDetailRep {
+        share_sub: false,
+        topic_list,
+        group_leader_info: None,
+    })
+}
 
-    let mut topic_list = Vec::new();
+pub async fn share_subscribe_detail(
+    State(_state): State<Arc<HttpState>>,
+    Json(_params): Json<ShareSubscribeDetailReq>,
+) -> String {
+    success_response("".to_string())
+}
 
+async fn exclusive_sub_detail(
+    state: &Arc<HttpState>,
+    params: &SubscribeDetailReq,
+) -> Result<Vec<SubTopicRaw>, MqttBrokerError> {
+    let mut topic_list: Vec<SubTopicRaw> = Vec::new();
     for topic_name in state
         .mqtt_context
         .subscribe_manager
         .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
     {
-        let sub_data = if is_exclusive_sub(&params.path) {
-            let key = state
-                .mqtt_context
-                .subscribe_manager
-                .subscribe_key(&params.client_id, &params.path);
+        let key = state.mqtt_context.subscribe_manager.exclusive_key(
+            &params.client_id,
+            &params.path,
+            &topic_name,
+        );
 
-            state
-                .mqtt_context
-                .subscribe_manager
-                .get_exclusive_push_thread(&key)
-        } else {
-            let (group, sub_name) = decode_share_group_and_path(&sub.path);
-            let key = state.mqtt_context.subscribe_manager.share_leader_key(
-                &group,
-                &sub_name,
-                &topic_name,
-            );
-            state
-                .mqtt_context
-                .subscribe_manager
-                .get_share_leader_push_thread(&key)
-        };
+        let push_data = state
+            .mqtt_context
+            .subscribe_manager
+            .get_exclusive_push(&key);
 
-        let push_thread = if let Some(data) = sub_data {
+        let push_thread = if let Some(data) = state
+            .mqtt_context
+            .subscribe_manager
+            .get_exclusive_push_thread(&key)
+        {
             Some(SubPushThreadDataRaw {
                 push_error_record_num: data.push_error_record_num,
                 push_success_record_num: data.push_success_record_num,
@@ -146,34 +181,80 @@ pub async fn subscribe_detail(
         } else {
             None
         };
+
         topic_list.push(SubTopicRaw {
             client_id: params.client_id.clone(),
             path: params.path.clone(),
             topic_name,
+            exclusive_push_data: push_data,
+            share_push_data: None,
             push_thread,
         });
     }
 
-    let mut group_info = None;
-    if is_mqtt_share_subscribe(&params.path) {
-        let (group, _) = decode_share_group_and_path(&params.path);
-        let reply = match get_share_sub_leader(&state.client_pool, &group).await {
-            Ok(data) => data,
-            Err(e) => {
-                return error_response(e.to_string());
-            }
+    Ok(topic_list)
+}
+
+async fn share_sub_detail(
+    state: &Arc<HttpState>,
+    params: &SubscribeDetailReq,
+) -> Result<(Vec<SubTopicRaw>, SubGroupLeaderRaw), CommonError> {
+    let (group, sub_name) = decode_share_group_and_path(&params.path);
+    let mut topic_list = Vec::new();
+
+    // topic list
+    for topic_name in state
+        .mqtt_context
+        .subscribe_manager
+        .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
+    {
+        let key =
+            state
+                .mqtt_context
+                .subscribe_manager
+                .share_leader_key(&group, &sub_name, &topic_name);
+
+        let push_thread = if let Some(data) = state
+            .mqtt_context
+            .subscribe_manager
+            .get_share_leader_push_thread(&key)
+        {
+            Some(SubPushThreadDataRaw {
+                push_error_record_num: data.push_error_record_num,
+                push_success_record_num: data.push_success_record_num,
+                last_push_time: data.last_push_time,
+                last_run_time: data.last_run_time,
+                create_time: data.create_time,
+            })
+        } else {
+            None
         };
-        group_info = Some(SubGroupInfoRaw {
-            broker_addr: reply.broker_addr.clone(),
-            broker_id: reply.broker_id,
-            extend_info: reply.extend_info.clone(),
-        })
+
+        let leader_push_data = state
+            .mqtt_context
+            .subscribe_manager
+            .get_share_leader_push(&key);
+
+        topic_list.push(SubTopicRaw {
+            client_id: params.client_id.clone(),
+            path: params.path.clone(),
+            topic_name,
+            exclusive_push_data: None,
+            share_push_data: leader_push_data,
+            push_thread,
+        });
     }
 
-    success_response(SubscribeDetailRep {
-        topic_list,
-        group_info,
-    })
+    // group info
+    let (group, _) = decode_share_group_and_path(&params.path);
+    let reply = get_share_sub_leader(&state.client_pool, &group).await?;
+    let group_leader_info: SubGroupLeaderRaw = SubGroupLeaderRaw {
+        broker_addr: reply.broker_addr.clone(),
+        broker_id: reply.broker_id,
+        extend_info: reply.extend_info.clone(),
+    };
+
+    Ok((topic_list, group_leader_info))
 }
 
 pub async fn auto_subscribe_list(

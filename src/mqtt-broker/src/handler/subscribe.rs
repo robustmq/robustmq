@@ -33,7 +33,7 @@ use tracing::error;
 
 use crate::subscribe::{
     common::{
-        decode_share_group_and_path, get_share_sub_leader, is_match_sub_and_topic, Subscriber,
+        decode_share_group_and_path, is_match_sub_and_topic, is_share_sub_leader, Subscriber,
     },
     manager::{ShareSubShareSub, SubscribeManager},
 };
@@ -70,7 +70,7 @@ pub struct ParseShareQueueSubscribeRequest {
     pub protocol: MqttProtocol,
     pub sub_identifier: Option<usize>,
     pub filter: Filter,
-    pub sub_name: String,
+    pub sub_path: String,
     pub group_name: String,
     pub pkid: u16,
 }
@@ -180,7 +180,7 @@ pub async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBroker
                 sub_identifier,
                 filter: context.filter.clone(),
                 pkid: context.pkid,
-                sub_name: "".to_string(),
+                sub_path: "".to_string(),
                 group_name: "".to_string(),
             },
         )
@@ -205,12 +205,10 @@ async fn parse_share_subscribe(
 ) -> ResultMqttBrokerError {
     let (group_name, sub_name) = decode_share_group_and_path(&req.filter.path);
     req.group_name = format!("{group_name}_{sub_name}");
-    req.sub_name = sub_name;
-    let conf = broker_config();
+    req.sub_path = sub_name;
 
-    if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
-        let reply = get_share_sub_leader(client_pool, &req.group_name).await?;
-        if reply.broker_id == conf.broker_id {
+    if is_match_sub_and_topic(&req.sub_path, &req.topic_name).is_ok() {
+        if is_share_sub_leader(client_pool, &req.group_name).await? {
             add_share_push_leader(subscribe_manager, req).await;
         } else {
             add_share_push_follower(subscribe_manager, req).await;
@@ -237,9 +235,7 @@ pub async fn add_share_push_leader(
         rewrite_sub_path: None,
         create_time: now_second(),
     };
-
-    subscribe_manager.add_topic_subscribe(&req.topic_name, &req.client_id, &req.filter.path);
-    subscribe_manager.add_share_subscribe_leader(&req.sub_name, sub);
+    subscribe_manager.add_share_subscribe_leader(&req.sub_path, sub);
 }
 
 async fn add_share_push_follower(
@@ -252,7 +248,7 @@ async fn add_share_push_follower(
         packet_identifier: req.pkid,
         filter: req.filter.clone(),
         group_name: req.group_name.clone(),
-        sub_name: req.sub_name.clone(),
+        sub_path: req.sub_path.clone(),
         subscription_identifier: req.sub_identifier,
         topic_name: req.topic_name.clone(),
     };
@@ -275,7 +271,7 @@ fn add_exclusive_push(context: AddExclusivePushContext) -> ResultMqttBrokerError
     let new_path = if let Some(sub_path) = context.rewrite_sub_path.clone() {
         sub_path
     } else {
-        path
+        path.clone()
     };
 
     if is_match_sub_and_topic(&new_path, &context.topic.topic_name).is_ok() {

@@ -509,9 +509,128 @@
 
 #### 5.2 Subscription Detail Query
 - **Endpoint**: `POST /api/mqtt/subscribe/detail`
-- **Description**: Query subscription details
-- **Request Parameters**: Empty JSON object
-- **Response**: Currently returns empty string (feature to be implemented)
+- **Description**: Query subscription details, supports both exclusive and shared subscription details
+- **Request Parameters**:
+```json
+{
+  "client_id": "client001",    // Client ID
+  "path": "sensor/temperature" // Subscription path
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "share_sub": false,        // Whether this is a shared subscription
+    "group_leader_info": null, // Shared subscription group leader info (only for shared subscriptions)
+    "topic_list": [            // List of matched topics
+      {
+        "client_id": "client001",
+        "path": "sensor/temperature",
+        "topic_name": "sensor/temperature",
+        "exclusive_push_data": {  // Exclusive subscription push data (null for shared subscriptions)
+          "protocol": "MQTTv5",
+          "client_id": "client001",
+          "sub_path": "sensor/temperature",
+          "rewrite_sub_path": null,
+          "topic_name": "sensor/temperature",
+          "group_name": null,
+          "qos": "AtLeastOnce",
+          "nolocal": false,
+          "preserve_retain": true,
+          "retain_forward_rule": "SendAtSubscribe",
+          "subscription_identifier": null,
+          "create_time": 1704067200000
+        },
+        "share_push_data": null,  // Shared subscription push data (null for exclusive subscriptions)
+        "push_thread": {          // Push thread statistics (optional)
+          "push_success_record_num": 1520,  // Successful push count
+          "push_error_record_num": 3,       // Failed push count
+          "last_push_time": 1704067800000,  // Last push time (millisecond timestamp)
+          "last_run_time": 1704067810000,   // Last run time (millisecond timestamp)
+          "create_time": 1704067200000      // Create time (millisecond timestamp)
+        }
+      }
+    ]
+  }
+}
+```
+
+**Shared Subscription Response Example**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "share_sub": true,
+    "group_leader_info": {        // Leader info for the shared subscription group
+      "broker_id": 1,
+      "broker_addr": "127.0.0.1:1883",
+      "extend_info": "{}"
+    },
+    "topic_list": [
+      {
+        "client_id": "client001",
+        "path": "$share/group1/sensor/+",
+        "topic_name": "sensor/temperature",
+        "exclusive_push_data": null,
+        "share_push_data": {      // Shared subscription leader push data
+          "path": "$share/group1/sensor/+",
+          "group_name": "group1",
+          "sub_name": "sensor/+",
+          "topic_name": "sensor/temperature",
+          "sub_list": {           // Subscriber list in the shared group
+            "client001": {
+              "protocol": "MQTTv5",
+              "client_id": "client001",
+              "sub_path": "$share/group1/sensor/+",
+              "rewrite_sub_path": null,
+              "topic_name": "sensor/temperature",
+              "group_name": "group1",
+              "qos": "AtLeastOnce",
+              "nolocal": false,
+              "preserve_retain": false,
+              "retain_forward_rule": "SendAtSubscribe",
+              "subscription_identifier": null,
+              "create_time": 1704067200000
+            }
+          }
+        },
+        "push_thread": {
+          "push_success_record_num": 2540,
+          "push_error_record_num": 5,
+          "last_push_time": 1704067900000,
+          "last_run_time": 1704067910000,
+          "create_time": 1704067200000
+        }
+      }
+    ]
+  }
+}
+```
+
+**Field Descriptions**:
+- **share_sub**: Boolean value indicating whether this is a shared subscription
+- **group_leader_info**: Only returned for shared subscriptions, contains the leader broker information for the shared group
+  - `broker_id`: Leader broker's ID
+  - `broker_addr`: Leader broker's address
+  - `extend_info`: Extended information (JSON string)
+- **topic_list**: List of actual topics matching the subscription path
+  - `client_id`: Client ID
+  - `path`: Subscription path (may include wildcards or shared subscription prefix)
+  - `topic_name`: Actual matched topic name
+  - `exclusive_push_data`: Push data for exclusive subscriptions (null for shared subscriptions)
+  - `share_push_data`: Push data for shared subscriptions (null for exclusive subscriptions)
+  - `push_thread`: Statistics for push thread (optional)
+
+**Notes**:
+- If the subscription path contains wildcards (like `+` or `#`), `topic_list` may contain multiple actual matched topics
+- Exclusive and shared subscriptions have different data structures, distinguished by the `share_sub` field
+- Shared subscription path format is `$share/{group_name}/{topic_filter}`
+- All timestamps are millisecond Unix timestamps
 
 #### 5.3 Auto Subscribe Rule Management
 

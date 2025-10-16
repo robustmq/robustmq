@@ -144,7 +144,7 @@ impl ShareLeaderPush {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
         let group_id = format!(
             "system_sub_{}_{}_{}",
-            sub_data.group_name, sub_data.sub_name, sub_data.topic_name
+            sub_data.group_name, sub_data.sub_path, sub_data.topic_name
         );
 
         // get current offset by group
@@ -172,7 +172,7 @@ impl ShareLeaderPush {
         tokio::spawn(async move {
             info!(
                 "Share leader push data thread for GroupName {}/{},Topic [{}] was started successfully",
-                sub_data.group_name, sub_data.sub_name, sub_data.topic_name
+                sub_data.group_name, sub_data.sub_path, sub_data.topic_name
             );
 
             let mut seq = 1;
@@ -413,7 +413,7 @@ async fn get_subscribe_by_random(
     mut seq: u64,
 ) -> Option<Subscriber> {
     loop {
-        if let Some(sub_list) = subscribe_manager.get_remove_share_leader_push(share_leader_key) {
+        if let Some(sub_list) = subscribe_manager.get_share_leader_push(share_leader_key) {
             let index = seq % (sub_list.sub_list.len() as u64);
             let keys: Vec<String> = sub_list
                 .sub_list

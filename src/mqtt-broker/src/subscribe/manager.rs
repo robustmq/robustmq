@@ -25,7 +25,7 @@ use tokio::sync::broadcast::Sender;
 pub struct ShareSubShareSub {
     pub client_id: String,
     pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
     pub protocol: MqttProtocol,
     pub topic_name: String,
     pub packet_identifier: u16,
@@ -39,7 +39,7 @@ pub struct ShareLeaderSubscribeData {
 
     // group
     pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
 
     // topic
     pub topic_name: String,
@@ -76,10 +76,10 @@ pub struct SubscribeManager {
     //(client_id_path: MqttSubscribe)
     subscribe_list: DashMap<String, MqttSubscribe>,
 
-    // (client_id_sub_name_topic_name, Subscriber)
+    // (client_id_sub_path_topic_name, Subscriber)
     exclusive_push: DashMap<String, Subscriber>,
 
-    // (client_id_sub_name_topic_name, SubPushThreadData)
+    // (client_id_sub_path_topic_name, SubPushThreadData)
     exclusive_push_thread: DashMap<String, SubPushThreadData>,
 
     // (group_name_topic_name, ShareLeaderSubscribeData)
@@ -88,10 +88,10 @@ pub struct SubscribeManager {
     // (group_name_topic_name, SubPushThreadData)
     share_leader_push_thread: DashMap<String, SubPushThreadData>,
 
-    // (client_id_group_name_sub_name,ShareSubShareSub)
+    // (client_id_group_name_topic_name,ShareSubShareSub)
     share_follower_resub: DashMap<String, ShareSubShareSub>,
 
-    // (client_id_group_name_sub_name, SubPushThreadData)
+    // (client_id_group_name_topic_name, SubPushThreadData)
     share_follower_resub_thread: DashMap<String, SubPushThreadData>,
 
     //(topic_name, Vec<TopicSubscribeInfo>)
@@ -182,6 +182,14 @@ impl SubscribeManager {
         self.exclusive_push.len() as u64
     }
 
+    pub fn get_exclusive_push(&self, exclusive_key: &str) -> Option<Subscriber> {
+        if let Some(data) = self.exclusive_push.get(exclusive_key) {
+            return Some(data.clone());
+        }
+
+        None
+    }
+
     pub fn contain_exclusive_push(&self, exclusive_key: &str) -> bool {
         self.exclusive_push.contains_key(exclusive_key)
     }
@@ -263,7 +271,7 @@ impl SubscribeManager {
         self.share_leader_push.remove(share_leader_key);
     }
 
-    pub fn get_remove_share_leader_push(
+    pub fn get_share_leader_push(
         &self,
         share_leader_key: &str,
     ) -> Option<ShareLeaderSubscribeData> {
@@ -273,12 +281,15 @@ impl SubscribeManager {
         None
     }
 
-    pub fn add_share_subscribe_leader(&self, sub_name: &str, sub: Subscriber) {
+    pub fn add_share_subscribe_leader(&self, sub_path: &str, sub: Subscriber) {
         let group_name = sub.group_name.clone().unwrap();
-        let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_name);
+        let share_leader_key = self.share_leader_key(&group_name, sub_path, &sub.topic_name);
 
+        // add topic-sub, sub-topic
         self.add_subscribe_topics(&sub.client_id, &sub.sub_path, &sub.topic_name);
+        self.add_topic_subscribe(&sub.topic_name, &sub.client_id, &sub.sub_path);
 
+        // add leader push data
         if let Some(share_sub) = self.share_leader_push.get(&share_leader_key) {
             share_sub
                 .sub_list
@@ -291,7 +302,7 @@ impl SubscribeManager {
                 ShareLeaderSubscribeData {
                     group_name: group_name.to_owned(),
                     topic_name: sub.topic_name.to_owned(),
-                    sub_name: sub_name.to_owned(),
+                    sub_path: sub_path.to_owned(),
                     path: sub.sub_path,
                     sub_list,
                 },
@@ -555,7 +566,9 @@ impl SubscribeManager {
     pub fn add_subscribe_topics(&self, client_id: &str, path: &str, topic_name: &str) {
         if let Some(list) = self.subscribe_topics.get_mut(client_id) {
             if let Some(mut data) = list.get_mut(path) {
-                data.push(topic_name.to_string());
+                if !data.contains(&topic_name.to_string()) {
+                    data.push(topic_name.to_string());
+                }
             } else {
                 list.insert(path.to_string(), vec![topic_name.to_string()]);
             }
@@ -651,12 +664,12 @@ impl SubscribeManager {
         format!("{client_id}_{path}")
     }
 
-    fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_name: &str) -> String {
-        format!("{client_id}_{sub_name}_{topic_name}")
+    pub fn exclusive_key(&self, client_id: &str, sub_path: &str, topic_name: &str) -> String {
+        format!("{client_id}_{sub_path}_{topic_name}")
     }
 
-    pub fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_name: &str) -> String {
-        format!("{group_name}_{sub_name}_{topic_name}")
+    pub fn share_leader_key(&self, group_name: &str, sub_path: &str, topic_name: &str) -> String {
+        format!("{group_name}_{sub_path}_{topic_name}")
     }
     pub fn share_follower_key(
         &self,
@@ -738,7 +751,7 @@ mod tests {
             packet_identifier: 1,
             filter: Filter::default(),
             group_name: "g1".to_string(),
-            sub_name: "s1".to_string(),
+            sub_path: "s1".to_string(),
             subscription_identifier: None,
             topic_name: "tname".to_string(),
         };

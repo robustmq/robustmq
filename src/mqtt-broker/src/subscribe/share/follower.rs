@@ -64,7 +64,7 @@ pub struct ProcessPacketContext {
     pub follower_sub_leader_client_id: String,
     pub mqtt_client_id: String,
     pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub sub_key: String,
 }
@@ -76,7 +76,7 @@ pub struct ConnAckContext {
     pub follower_sub_leader_pkid: u16,
     pub mqtt_client_id: String,
     pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub sub_key: String,
     pub stop_sx: Sender<bool>,
@@ -143,6 +143,12 @@ impl ShareFollowerResub {
         let conf = broker_config();
 
         for (follower_resub_key, share_sub) in self.subscribe_manager.share_follower_resub_list() {
+            if share_sub.protocol == MqttProtocol::Mqtt3
+                || share_sub.protocol == MqttProtocol::Mqtt4
+            {
+                continue;
+            }
+
             let metadata_cache = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
 
@@ -162,7 +168,7 @@ impl ShareFollowerResub {
                     sub_identifier: share_sub.subscription_identifier,
                     filter: share_sub.filter.clone(),
                     pkid: share_sub.packet_identifier,
-                    sub_name: share_sub.sub_name,
+                    sub_path: share_sub.sub_path,
                     group_name: share_sub.group_name,
                 };
                 add_share_push_leader(&self.subscribe_manager, &req).await;
@@ -173,12 +179,6 @@ impl ShareFollowerResub {
             let extend_info: MqttNodeExtend =
                 serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
 
-            if share_sub.protocol == MqttProtocol::Mqtt3
-                || share_sub.protocol == MqttProtocol::Mqtt4
-            {
-                continue;
-            }
-
             if self
                 .subscribe_manager
                 .contain_share_follower_resub_thread(&follower_resub_key)
@@ -188,8 +188,8 @@ impl ShareFollowerResub {
 
             if !is_port_open(&extend_info.mqtt_addr) {
                 warn!(
-                    "Leader node {} has an unconnected network, and the Follower's subscription thread cannot start normally. client_id:[{}], group_name:[{}], sub_name:[{}]",
-                    extend_info.mqtt_addr, share_sub.client_id, share_sub.group_name, share_sub.sub_name
+                    "Leader node {} has an unconnected network, and the Follower's subscription thread cannot start normally. client_id:[{}], group_name:[{}], sub_path:[{}]",
+                    extend_info.mqtt_addr, share_sub.client_id, share_sub.group_name, share_sub.sub_path
                 );
                 continue;
             }
@@ -255,15 +255,15 @@ async fn resub_sub_mqtt5(
 ) -> ResultMqttBrokerError {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
-    let sub_name = share_sub.sub_name.clone();
+    let sub_path = share_sub.sub_path.clone();
     let follower_sub_leader_client_id = format!("resub_{}_{}", get_local_ip(), unique_id());
     let follower_sub_leader_pkid: u16 = 1;
 
     info!(
-        "ReSub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was start successfully",
+        "ReSub mqtt5 thread for client_id:[{}], group_name:[{}], sub_path:[{}] was start successfully",
         mqtt_client_id,
         group_name,
-        sub_name,
+        sub_path,
     );
 
     // Connect to the share subscribe leader
@@ -278,10 +278,10 @@ async fn resub_sub_mqtt5(
                 if let Ok(flag) = val {
                     if flag {
                         info!(
-                            "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
+                            "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_path:[{}] was stopped successfully",
                             mqtt_client_id,
                             group_name,
-                            sub_name,
+                            sub_path,
                         );
                         try_close_connection(&write_stream, &share_sub.filter.path, follower_sub_leader_pkid).await;
                         break;
@@ -301,7 +301,7 @@ async fn resub_sub_mqtt5(
                         follower_sub_leader_client_id: follower_sub_leader_client_id.clone(),
                         mqtt_client_id: mqtt_client_id.clone(),
                         group_name: group_name.clone(),
-                        sub_name: sub_name.clone(),
+                        sub_path: sub_path.clone(),
                         subscribe_manager: subscribe_manager.clone(),
                         sub_key: follower_resub_key.to_string(),
                     };
@@ -331,7 +331,7 @@ async fn process_packet(
                 follower_sub_leader_pkid: context.follower_sub_leader_pkid,
                 mqtt_client_id: context.mqtt_client_id.clone(),
                 group_name: context.group_name.clone(),
-                sub_name: context.sub_name.clone(),
+                sub_path: context.sub_path.clone(),
                 subscribe_manager: context.subscribe_manager.clone(),
                 sub_key: context.sub_key.clone(),
                 stop_sx: context.stop_sx.clone(),
@@ -435,8 +435,8 @@ async fn process_conn_ack_packet(
         .await?;
         return Ok(());
     }
-    Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
-                            error message: {connack:?},{connack_properties:?}", context.mqtt_client_id, context.group_name, context.sub_name)))
+    Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_path:[{}] Follower forwarding subscription connection request error,
+                            error message: {connack:?},{connack_properties:?}", context.mqtt_client_id, context.group_name, context.sub_path)))
 }
 
 async fn process_sub_ack(suback: SubAck) -> ResultMqttBrokerError {

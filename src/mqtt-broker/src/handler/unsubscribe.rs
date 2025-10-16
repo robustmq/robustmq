@@ -56,7 +56,7 @@ fn unsubscribe_by_path(
 
             // share leader
             for (_, data) in subscribe_manager.share_leader_push_list() {
-                if !(data.group_name == group_name && data.sub_name == sub_name) {
+                if !(data.group_name == group_name && data.sub_path == sub_name) {
                     continue;
                 }
                 if let Some((_, share_sub)) = data.sub_list.remove(client_id) {

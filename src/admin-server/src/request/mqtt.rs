@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use mqtt_broker::subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -68,10 +69,17 @@ pub struct SubscribeDetailReq {
     pub path: String,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct ShareSubscribeDetailReq {
+    pub client_id: String,
+    pub group_name: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubscribeDetailRep {
+    pub share_sub: bool,
+    pub group_leader_info: Option<SubGroupLeaderRaw>,
     pub topic_list: Vec<SubTopicRaw>,
-    pub group_info: Option<SubGroupInfoRaw>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -79,11 +87,13 @@ pub struct SubTopicRaw {
     pub client_id: String,
     pub path: String,
     pub topic_name: String,
+    pub exclusive_push_data: Option<Subscriber>,
+    pub share_push_data: Option<ShareLeaderSubscribeData>,
     pub push_thread: Option<SubPushThreadDataRaw>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SubGroupInfoRaw {
+pub struct SubGroupLeaderRaw {
     pub broker_id: u64,
     pub broker_addr: String,
     pub extend_info: String,
