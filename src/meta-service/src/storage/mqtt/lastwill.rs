@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 
 use crate::core::error::MetaServiceError;
 use crate::storage::engine_meta::{
@@ -38,7 +38,7 @@ impl MqttLastWillStorage {
         &self,
         cluster_name: &str,
         client_id: &str,
-        last_will_message: LastWillData,
+        last_will_message: MqttLastWillData,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, last_will_message)?;
@@ -49,11 +49,11 @@ impl MqttLastWillStorage {
         &self,
         cluster_name: &str,
         client_id: &str,
-    ) -> Result<Option<LastWillData>, MetaServiceError> {
+    ) -> Result<Option<MqttLastWillData>, MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         let result = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         if let Some(data) = result {
-            return Ok(Some(serde_json::from_str::<LastWillData>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<MqttLastWillData>(&data.data)?));
         }
         Ok(None)
     }
@@ -72,7 +72,7 @@ mod tests {
     use broker_core::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::mqtt::lastwill::LastWillData;
+    use metadata_struct::mqtt::lastwill::MqttLastWillData;
     use metadata_struct::mqtt::session::MqttSession;
     use rocksdb_engine::RocksDBEngine;
 
@@ -100,7 +100,7 @@ mod tests {
             .unwrap();
 
         let lastwill_storage = MqttLastWillStorage::new(rs.clone());
-        let last_will_message = LastWillData {
+        let last_will_message = MqttLastWillData {
             client_id: client_id.clone(),
             last_will: None,
             last_will_properties: None,

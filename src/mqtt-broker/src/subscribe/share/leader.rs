@@ -84,17 +84,15 @@ impl ShareLeaderPush {
     pub fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
-        for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread.clone() {
+        for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread_list() {
             if !self
                 .subscribe_manager
-                .share_leader_push
-                .contains_key(&share_leader_key)
+                .contain_share_leader_push(&share_leader_key)
             {
                 match sx.sender.send(true) {
                     Ok(_) => {
                         self.subscribe_manager
-                            .share_leader_push_thread
-                            .remove(&share_leader_key);
+                            .remove_share_leader_push_thread(&share_leader_key);
                     }
                     Err(err) => {
                         error!("stop sub share thread error, error message:{}", err);
@@ -104,26 +102,24 @@ impl ShareLeaderPush {
         }
 
         // gc
-        for (key, raw) in self.subscribe_manager.share_leader_push.clone() {
+        for (key, raw) in self.subscribe_manager.share_leader_push_list() {
             if raw.sub_list.is_empty() {
-                self.subscribe_manager.share_leader_push.remove(&key);
+                self.subscribe_manager.remove_share_leader_push(&key);
             }
         }
     }
 
     pub async fn start_push_thread(&self) {
         // Periodically verify if any push tasks are not started. If so, the thread is started
-        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_push.clone() {
+        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_push_list() {
             if sub_data.sub_list.is_empty() {
                 if let Some(sx) = self
                     .subscribe_manager
-                    .share_leader_push_thread
-                    .get(&share_leader_key)
+                    .get_share_leader_push_thread(&share_leader_key)
                 {
                     if sx.sender.send(true).is_ok() {
                         self.subscribe_manager
-                            .share_leader_push
-                            .remove(&share_leader_key);
+                            .remove_share_leader_push(&share_leader_key);
                     }
                 }
             }
@@ -131,8 +127,7 @@ impl ShareLeaderPush {
             // start push data thread
             if !self
                 .subscribe_manager
-                .share_leader_push_thread
-                .contains_key(&share_leader_key)
+                .contain_share_leader_push_thread(&share_leader_key)
             {
                 if let Err(e) = self.push_by_round_robin(share_leader_key, sub_data).await {
                     error!("{:?}", e);
@@ -149,7 +144,7 @@ impl ShareLeaderPush {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
         let group_id = format!(
             "system_sub_{}_{}_{}",
-            sub_data.group_name, sub_data.sub_name, sub_data.topic_name
+            sub_data.group_name, sub_data.sub_path, sub_data.topic_name
         );
 
         // get current offset by group
@@ -157,7 +152,7 @@ impl ShareLeaderPush {
         let mut offset = message_storage.get_group_offset(&group_id).await?;
 
         // save push thread
-        self.subscribe_manager.share_leader_push_thread.insert(
+        self.subscribe_manager.add_share_leader_push_thread(
             share_leader_key.clone(),
             SubPushThreadData {
                 push_success_record_num: 0,
@@ -177,7 +172,7 @@ impl ShareLeaderPush {
         tokio::spawn(async move {
             info!(
                 "Share leader push data thread for GroupName {}/{},Topic [{}] was started successfully",
-                sub_data.group_name, sub_data.sub_name, sub_data.topic_name
+                sub_data.group_name, sub_data.sub_path, sub_data.topic_name
             );
 
             let mut seq = 1;
@@ -236,9 +231,7 @@ impl ShareLeaderPush {
                 }
             }
 
-            subscribe_manager
-                .share_leader_push_thread
-                .remove(&share_leader_key);
+            subscribe_manager.remove_share_leader_push_thread(&share_leader_key);
         });
         Ok(())
     }
@@ -420,7 +413,7 @@ async fn get_subscribe_by_random(
     mut seq: u64,
 ) -> Option<Subscriber> {
     loop {
-        if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
+        if let Some(sub_list) = subscribe_manager.get_share_leader_push(share_leader_key) {
             let index = seq % (sub_list.sub_list.len() as u64);
             let keys: Vec<String> = sub_list
                 .sub_list
@@ -430,10 +423,7 @@ async fn get_subscribe_by_random(
 
             if let Some(key) = keys.get(index as usize) {
                 if let Some(subscribe) = sub_list.sub_list.get(key) {
-                    if !subscribe_manager
-                        .not_push_client
-                        .contains_key(&subscribe.client_id)
-                    {
+                    if !subscribe_manager.contain_not_push_client(&subscribe.client_id) {
                         return Some(subscribe.clone());
                     }
                 }

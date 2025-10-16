@@ -47,6 +47,7 @@ pub const MQTT_TOPIC_REWRITE_DELETE_PATH: &str = "/mqtt/topic-rewrite/delete";
 // MQTT Subscribe API paths
 pub const MQTT_SUBSCRIBE_LIST_PATH: &str = "/mqtt/subscribe/list";
 pub const MQTT_SUBSCRIBE_DETAIL_PATH: &str = "/mqtt/subscribe/detail";
+pub const MQTT_SHARE_SUBSCRIBE_DETAIL_PATH: &str = "/mqtt/subscribe/share-detail";
 
 // MQTT Auto Subscribe API paths
 pub const MQTT_AUTO_SUBSCRIBE_LIST_PATH: &str = "/mqtt/auto-subscribe/list";

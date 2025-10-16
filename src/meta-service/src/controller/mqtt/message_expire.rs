@@ -20,7 +20,7 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use rocksdb_engine::warp::StorageDataWrap;
 use rocksdb_engine::RocksDBEngine;
@@ -132,7 +132,7 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let value = serde_json::from_str::<LastWillData>(&data.data).unwrap();
+            let value = serde_json::from_str::<MqttLastWillData>(&data.data).unwrap();
             if let Some(properties) = value.last_will_properties {
                 let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
                     now_second() >= ((expiry_interval as u64) + data.create_time)
@@ -157,7 +157,7 @@ mod tests {
     use broker_core::rocksdb::column_family_list;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
-    use metadata_struct::mqtt::lastwill::LastWillData;
+    use metadata_struct::mqtt::lastwill::MqttLastWillData;
     use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::LastWillProperties;
@@ -235,7 +235,7 @@ mod tests {
             message_expiry_interval: Some(3),
             ..Default::default()
         };
-        let last_will_message = LastWillData {
+        let last_will_message = MqttLastWillData {
             client_id: client_id.clone(),
             last_will: None,
             last_will_properties: Some(last_will_properties),

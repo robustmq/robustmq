@@ -19,7 +19,7 @@ mod tests {
     use common_base::tools::unique_id;
     use grpc_clients::meta::mqtt::call::placement_save_last_will_message;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::lastwill::LastWillData;
+    use metadata_struct::mqtt::lastwill::MqttLastWillData;
     use protocol::meta::meta_service_mqtt::SaveLastWillMessageRequest;
 
     use crate::common::get_placement_addr;
@@ -32,7 +32,7 @@ mod tests {
         let cluster_name: String = unique_id();
         let client_id: String = unique_id();
 
-        let last_will_message = LastWillData {
+        let last_will_message = MqttLastWillData {
             client_id: client_id.clone(),
             last_will: None,
             last_will_properties: None,

@@ -21,7 +21,7 @@ use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will_message};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::broker::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
 use rocksdb_engine::warp::StorageDataWrap;
@@ -264,7 +264,7 @@ pub async fn send_last_will(
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     client_id: String,
-    lastwill: LastWillData,
+    lastwill: MqttLastWillData,
 ) {
     let request = SendLastWillMessageRequest {
         client_id: client_id.clone(),

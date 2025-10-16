@@ -230,18 +230,32 @@ pub fn decode_share_group_and_path(path: &str) -> (String, String) {
     }
 }
 
-fn decode_share_info(sub_name: &str) -> (String, String) {
-    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
+fn decode_share_info(sub_path: &str) -> (String, String) {
+    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
-    let sub_name = format!("/{}", str_slice.join("/"));
-    (group_name, sub_name)
+    let sub_path = format!("/{}", str_slice.join("/"));
+    (group_name, sub_path)
 }
 
-fn decode_queue_info(sub_name: &str) -> String {
-    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
+fn decode_queue_info(sub_path: &str) -> String {
+    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
     str_slice.remove(0);
     format!("/{}", str_slice.join("/"))
+}
+
+pub async fn is_share_sub_leader(
+    client_pool: &Arc<ClientPool>,
+    group_name: &String,
+) -> Result<bool, CommonError> {
+    let conf = broker_config();
+    let req = GetShareSubLeaderRequest {
+        cluster_name: conf.cluster_name.to_owned(),
+        group_name: group_name.to_owned(),
+    };
+    let reply =
+        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
+    Ok(reply.broker_id == conf.broker_id)
 }
 
 pub async fn get_share_sub_leader(

@@ -166,6 +166,8 @@ service MqttService {
   //
   //Returns: An empty struct.
   rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns (SaveLastWillMessageReply) {}
+  
+  rpc GetLastWillMessage(GetLastWillMessageRequest) returns (GetLastWillMessageReply) {}
 
   //Returns a list of ACLs based on the parameters of the request
   //
@@ -493,6 +495,18 @@ message SaveLastWillMessageRequest {
 }
 
 message SaveLastWillMessageReply {}
+
+message GetLastWillMessageRequest {
+  //The name of the cluster.
+  string cluster_name = 1;
+
+  //The id of the client.
+  string client_id = 2;
+}
+
+message GetLastWillMessageReply {
+  optional bytes message =1;
+}
 
 message ListAclRequest {
   //The name of the cluster.

@@ -18,6 +18,7 @@ use crate::controller::mqtt::call_broker::{
 use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -25,10 +26,11 @@ use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,
-    GetTopicRetainMessageRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetLastWillMessageReply,
+    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::pin::Pin;
@@ -176,6 +178,20 @@ pub async fn save_last_will_message_by_req(
 
     raft_machine_apply.client_write(data).await?;
     Ok(SaveLastWillMessageReply {})
+}
+
+pub async fn get_last_will_message_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &GetLastWillMessageRequest,
+) -> Result<GetLastWillMessageReply, MetaServiceError> {
+    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
+    if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
+        return Ok(GetLastWillMessageReply {
+            message: Some(will.encode()),
+        });
+    }
+
+    Ok(GetLastWillMessageReply { message: None })
 }
 
 pub async fn create_topic_rewrite_rule_by_req(

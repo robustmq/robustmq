@@ -16,7 +16,10 @@ use std::collections::HashMap;
 
 use metadata_struct::{
     connection::NetworkConnection,
-    mqtt::{connection::MQTTConnection, session::MqttSession, topic::MQTTTopic},
+    mqtt::{
+        connection::MQTTConnection, lastwill::MqttLastWillData, session::MqttSession,
+        topic::MQTTTopic,
+    },
     placement::node::BrokerNode,
 };
 use mqtt_broker::{handler::cache::ConnectionLiveTime, subscribe::manager::TopicSubscribeInfo};
@@ -150,6 +153,7 @@ pub struct SessionListRow {
     pub broker_id: Option<u64>,
     pub reconnect_time: Option<u64>,
     pub distinct_time: Option<u64>,
+    pub last_will: Option<MqttLastWillData>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
