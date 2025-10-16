@@ -14,10 +14,10 @@
 
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttAuthStorage,
-    MqttFlappingDetect, MqttKeepAlive, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig,
-    MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor,
-    Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
+    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttFlappingDetect,
+    MqttKeepAlive, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
+    MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
+    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
 use common_base::enum_type::delay_type::DelayType;
 use common_base::runtime::get_runtime_worker_threads;
@@ -91,15 +91,6 @@ pub fn default_mqtt_server() -> MqttServer {
     }
 }
 
-pub fn default_mqtt_auth_storage() -> MqttAuthStorage {
-    MqttAuthStorage {
-        storage_type: "placement".to_string(),
-        journal_addr: "".to_string(),
-        mysql_addr: "".to_string(),
-        postgres_addr: "".to_string(),
-        redis_addr: "".to_string(),
-    }
-}
 pub fn default_mqtt_keep_alive() -> MqttKeepAlive {
     MqttKeepAlive {
         enable: true,
@@ -111,7 +102,6 @@ pub fn default_mqtt_keep_alive() -> MqttKeepAlive {
 
 pub fn default_mqtt_auth_config() -> MqttAuthConfig {
     MqttAuthConfig {
-        auth_type: "password".to_string(), // password or jwt or psk ...
         authn_config: AuthnConfig::default(),
         authz_config: AuthzConfig::default(),
     }

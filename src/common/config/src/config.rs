@@ -15,9 +15,9 @@
 use super::default::{
     default_broker_id, default_cluster_name, default_flapping_detect, default_grpc_port,
     default_journal_runtime, default_journal_server, default_journal_storage, default_meta_addrs,
-    default_mqtt_auth_config, default_mqtt_auth_storage, default_mqtt_keep_alive,
-    default_mqtt_message_storage, default_mqtt_offline_message, default_mqtt_protocol_config,
-    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
+    default_mqtt_auth_config, default_mqtt_keep_alive, default_mqtt_message_storage,
+    default_mqtt_offline_message, default_mqtt_protocol_config, default_mqtt_runtime,
+    default_mqtt_schema, default_mqtt_security, default_mqtt_server,
     default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
     default_place_runtime, default_rocksdb, default_roles, default_runtime,
 };
@@ -85,9 +85,6 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_mqtt_keep_alive")]
     pub mqtt_keep_alive: MqttKeepAlive,
-
-    #[serde(default = "default_mqtt_auth_storage")]
-    pub mqtt_auth_storage: MqttAuthStorage,
 
     #[serde(default = "default_mqtt_auth_config")]
     pub mqtt_auth_config: MqttAuthConfig,
@@ -195,16 +192,9 @@ pub struct MqttServer {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MqttAuthStorage {
-    pub storage_type: String,
-
-    pub journal_addr: String,
-
-    pub mysql_addr: String,
-
-    pub postgres_addr: String,
-
-    pub redis_addr: String,
+pub struct MqttAuthConfig {
+    pub authn_config: AuthnConfig,
+    pub authz_config: AuthzConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -216,20 +206,10 @@ pub struct MqttKeepAlive {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MqttAuthConfig {
-    pub auth_type: String,
-    pub authn_config: AuthnConfig,
-    pub authz_config: AuthzConfig,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MqttMessageStorage {
     pub storage_type: String,
-
     pub journal_addr: String,
-
     pub mysql_addr: String,
-
     pub rocksdb_data_path: String,
     pub rocksdb_max_open_files: Option<i32>,
 }
