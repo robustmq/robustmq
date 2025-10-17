@@ -19,6 +19,8 @@ use serde::{Deserialize, Serialize};
 pub struct MonitorDataReq {
     pub data_type: String,
     pub topic_name: Option<String>,
+    pub client_id: Option<String>,
+    pub path: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

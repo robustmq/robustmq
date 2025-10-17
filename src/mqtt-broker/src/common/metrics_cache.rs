@@ -386,8 +386,6 @@ fn record_basic_metrics_thread(
             // message out
             let num = record_mqtt_messages_sent_get();
             let pre_num = metrics_cache_manager.get_pre_message_out().await;
-            println!("messages_sent:{}", num);
-            println!("messages_sent pre_num:{}", pre_num);
             metrics_cache_manager
                 .record_message_out_num(now, num, calc_value(num, pre_num, time_window))
                 .await;
@@ -419,16 +417,22 @@ fn record_topic_metrics_thread(
                 // topic in
                 let num = get_topic_messages_written(&topic);
                 let pre_num = metrics_cache_manager.get_topic_in_pre_total(&topic, num);
-                metrics_cache_manager
-                    .record_message_in_num(now, pre_num, calc_value(num, pre_num, time_window))
-                    .await;
+                metrics_cache_manager.record_topic_in_num(
+                    &topic,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
 
                 // topic out
                 let num = get_topic_messages_sent(&topic);
                 let pre_num = metrics_cache_manager.get_topic_out_pre_total(&topic, num);
-                metrics_cache_manager
-                    .record_message_out_num(now, num, calc_value(num, pre_num, time_window))
-                    .await;
+                metrics_cache_manager.record_topic_out_num(
+                    &topic,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
             }
 
             Ok(())
@@ -448,6 +452,7 @@ fn record_subscribe_metrics_thread(
             let now: u64 = now_second();
 
             for (_, sub) in subscribe_manager.list_subscribe() {
+                // send success
                 let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, true);
                 let pre_num = metrics_cache_manager.get_subscribe_send_pre_total(
                     &sub.client_id,
@@ -464,6 +469,7 @@ fn record_subscribe_metrics_thread(
                     calc_value(num, pre_num, time_window),
                 );
 
+                // send failure
                 let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, false);
                 let pre_num = metrics_cache_manager.get_subscribe_send_pre_total(
                     &sub.client_id,
@@ -482,6 +488,7 @@ fn record_subscribe_metrics_thread(
             }
 
             for (_, sub) in subscribe_manager.exclusive_push_list() {
+                // send success
                 let num = get_subscribe_topic_messages_sent(
                     &sub.client_id,
                     &sub.sub_path,
@@ -496,6 +503,7 @@ fn record_subscribe_metrics_thread(
                     true,
                     num,
                 );
+
                 metrics_cache_manager.record_subscribe_topic_send_num(
                     &sub.client_id,
                     &sub.sub_path,
@@ -506,6 +514,7 @@ fn record_subscribe_metrics_thread(
                     calc_value(num, pre_num, time_window),
                 );
 
+                // send failure
                 let num = get_subscribe_topic_messages_sent(
                     &sub.client_id,
                     &sub.sub_path,
@@ -615,7 +624,7 @@ fn get_max_key_value(data: &DashMap<u64, u64>) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use crate::common::metrics_cache::{MetricsCacheManager, calc_value, get_max_key_value};
+    use crate::common::metrics_cache::{calc_value, get_max_key_value, MetricsCacheManager};
     use common_base::tools::now_second;
     use dashmap::DashMap;
 

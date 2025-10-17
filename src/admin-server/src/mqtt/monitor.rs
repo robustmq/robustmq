@@ -30,7 +30,10 @@ pub enum MonitorDataType {
     MessageDropNum,
     TopicInNum,
     TopicOutNum,
-    SubscribeSendNum,
+    SubscribeSendSuccessNum,
+    SubscribeSendFailureNum,
+    SubscribeTopicSendSuccessNum,
+    SubscribeTopicSendFailureNum,
 }
 
 impl FromStr for MonitorDataType {
@@ -46,7 +49,10 @@ impl FromStr for MonitorDataType {
             "message_drop_num" => Ok(MonitorDataType::MessageDropNum),
             "topic_in_num" => Ok(MonitorDataType::TopicInNum),
             "topic_out_num" => Ok(MonitorDataType::TopicOutNum),
-            "subscribe_send_num" => Ok(MonitorDataType::SubscribeSendNum),
+            "subscribe_send_success_num" => Ok(MonitorDataType::SubscribeSendSuccessNum),
+            "subscribe_send_failure_num" => Ok(MonitorDataType::SubscribeSendFailureNum),
+            "subscribe_topic_send_success_num" => Ok(MonitorDataType::SubscribeTopicSendSuccessNum),
+            "subscribe_topic_send_failure_num" => Ok(MonitorDataType::SubscribeTopicSendFailureNum),
             _ => Err(format!("Unknown monitor data type: {}", s)),
         }
     }
@@ -96,7 +102,60 @@ pub async fn monitor_data(
             }
         }
 
-        MonitorDataType::SubscribeSendNum => DashMap::new(),
+        MonitorDataType::SubscribeSendSuccessNum => {
+            if params.client_id.is_some() && params.path.is_some() {
+                state.mqtt_context.metrics_manager.get_subscribe_send_num(
+                    &params.client_id.unwrap(),
+                    &params.path.unwrap(),
+                    true,
+                )
+            } else {
+                DashMap::new()
+            }
+        }
+        MonitorDataType::SubscribeSendFailureNum => {
+            if params.client_id.is_some() && params.path.is_some() {
+                state.mqtt_context.metrics_manager.get_subscribe_send_num(
+                    &params.client_id.unwrap(),
+                    &params.path.unwrap(),
+                    false,
+                )
+            } else {
+                DashMap::new()
+            }
+        }
+
+        MonitorDataType::SubscribeTopicSendSuccessNum => {
+            if params.client_id.is_some() && params.path.is_some() && params.topic_name.is_some() {
+                state
+                    .mqtt_context
+                    .metrics_manager
+                    .get_subscribe_topic_send_num(
+                        &params.client_id.unwrap(),
+                        &params.path.unwrap(),
+                        &params.topic_name.unwrap(),
+                        true,
+                    )
+            } else {
+                DashMap::new()
+            }
+        }
+
+        MonitorDataType::SubscribeTopicSendFailureNum => {
+            if params.client_id.is_some() && params.path.is_some() && params.topic_name.is_some() {
+                state
+                    .mqtt_context
+                    .metrics_manager
+                    .get_subscribe_topic_send_num(
+                        &params.client_id.unwrap(),
+                        &params.path.unwrap(),
+                        &params.topic_name.unwrap(),
+                        false,
+                    )
+            } else {
+                DashMap::new()
+            }
+        }
     };
 
     let resp = state

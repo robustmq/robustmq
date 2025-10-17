@@ -57,21 +57,34 @@
 - **Request Parameters**:
 ```json
 {
-  "data_type": "connection_num",    // Required, monitoring data type
-  "topic_name": "sensor/temperature" // Optional, required only when data_type is topic_in_num or topic_out_num
+  "data_type": "connection_num",      // Required, monitoring data type
+  "topic_name": "sensor/temperature", // Optional, required for certain types
+  "client_id": "client001",           // Optional, required for certain types
+  "path": "sensor/+"                  // Optional, required for certain types
 }
 ```
 
 **Supported Monitoring Data Types (data_type)**:
+
+**Basic Monitoring Types** (no additional parameters required):
 - `connection_num` - Number of connections
 - `topic_num` - Number of topics
 - `subscribe_num` - Number of subscriptions
 - `message_in_num` - Number of messages received
 - `message_out_num` - Number of messages sent
 - `message_drop_num` - Number of messages dropped
-- `topic_in_num` - Number of messages received for a specific topic (requires topic_name)
-- `topic_out_num` - Number of messages sent for a specific topic (requires topic_name)
-- `subscribe_send_num` - Number of subscription sends (reserved, not yet implemented)
+
+**Topic-Level Monitoring Types** (requires `topic_name`):
+- `topic_in_num` - Number of messages received for a specific topic
+- `topic_out_num` - Number of messages sent for a specific topic
+
+**Subscription-Level Monitoring Types** (requires `client_id` and `path`):
+- `subscribe_send_success_num` - Number of successfully sent messages to subscription
+- `subscribe_send_failure_num` - Number of failed sent messages to subscription
+
+**Subscription-Topic-Level Monitoring Types** (requires `client_id`, `path` and `topic_name`):
+- `subscribe_topic_send_success_num` - Number of successfully sent messages to subscription for specific topic
+- `subscribe_topic_send_failure_num` - Number of failed sent messages to subscription for specific topic
 
 - **Response Data Structure**:
 ```json
@@ -119,7 +132,11 @@ Query message count for a specific topic:
 **Notes**:
 - Data retention period: By default, data from the last 1 hour is retained
 - Data sampling interval: According to system configuration, typically 60 seconds
-- When `data_type` is `topic_in_num` or `topic_out_num`, the `topic_name` parameter must be provided, otherwise an empty array is returned
+- **Parameter Requirements**:
+  - Topic-level monitoring (`topic_in_num`, `topic_out_num`): Must provide `topic_name`
+  - Subscription-level monitoring (`subscribe_send_success_num`, `subscribe_send_failure_num`): Must provide `client_id` and `path`
+  - Subscription-topic-level monitoring (`subscribe_topic_send_success_num`, `subscribe_topic_send_failure_num`): Must provide `client_id`, `path` and `topic_name`
+  - If required parameters are missing, an empty array will be returned
 - Returned data is naturally sorted by timestamp
 
 ---
@@ -1266,6 +1283,25 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
   -H "Content-Type: application/json" \
   -d '{
     "data_type": "topic_in_num",
+    "topic_name": "sensor/temperature"
+  }'
+
+# Query subscription send success count
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "subscribe_send_success_num",
+    "client_id": "client001",
+    "path": "sensor/+"
+  }'
+
+# Query subscription topic send failure count
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "subscribe_topic_send_failure_num",
+    "client_id": "client001",
+    "path": "sensor/+",
     "topic_name": "sensor/temperature"
   }'
 ```

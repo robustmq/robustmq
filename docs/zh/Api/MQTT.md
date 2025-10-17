@@ -57,21 +57,34 @@
 - **请求参数**:
 ```json
 {
-  "data_type": "connection_num",    // 必填，监控数据类型
-  "topic_name": "sensor/temperature" // 可选，仅当 data_type 为 topic_in_num 或 topic_out_num 时需要
+  "data_type": "connection_num",      // 必填，监控数据类型
+  "topic_name": "sensor/temperature", // 可选，部分类型需要
+  "client_id": "client001",           // 可选，部分类型需要
+  "path": "sensor/+"                  // 可选，部分类型需要
 }
 ```
 
 **支持的监控数据类型 (data_type)**：
+
+**基础监控类型**（无需额外参数）：
 - `connection_num` - 连接数
 - `topic_num` - 主题数
 - `subscribe_num` - 订阅数
 - `message_in_num` - 消息接收数
 - `message_out_num` - 消息发送数
 - `message_drop_num` - 消息丢弃数
-- `topic_in_num` - 指定主题的接收消息数（需要提供 topic_name）
-- `topic_out_num` - 指定主题的发送消息数（需要提供 topic_name）
-- `subscribe_send_num` - 订阅发送数（预留，暂未实现）
+
+**主题级监控类型**（需要 `topic_name`）：
+- `topic_in_num` - 指定主题的接收消息数
+- `topic_out_num` - 指定主题的发送消息数
+
+**订阅级监控类型**（需要 `client_id` 和 `path`）：
+- `subscribe_send_success_num` - 订阅发送成功消息数
+- `subscribe_send_failure_num` - 订阅发送失败消息数
+
+**订阅主题级监控类型**（需要 `client_id`、`path` 和 `topic_name`）：
+- `subscribe_topic_send_success_num` - 订阅指定主题发送成功消息数
+- `subscribe_topic_send_failure_num` - 订阅指定主题发送失败消息数
 
 - **响应数据结构**:
 ```json
@@ -119,7 +132,11 @@
 **注意事项**：
 - 数据保留时长：默认保留最近 1 小时的数据
 - 数据采样间隔：根据系统配置，通常为 60 秒
-- 当 `data_type` 为 `topic_in_num` 或 `topic_out_num` 时，必须提供 `topic_name` 参数，否则返回空数组
+- **参数要求**：
+  - 主题级监控（`topic_in_num`、`topic_out_num`）：必须提供 `topic_name`
+  - 订阅级监控（`subscribe_send_success_num`、`subscribe_send_failure_num`）：必须提供 `client_id` 和 `path`
+  - 订阅主题级监控（`subscribe_topic_send_success_num`、`subscribe_topic_send_failure_num`）：必须提供 `client_id`、`path` 和 `topic_name`
+  - 如果缺少必需参数，将返回空数组
 - 返回的数据按时间戳自然排序
 
 ---
@@ -1266,6 +1283,25 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
   -H "Content-Type: application/json" \
   -d '{
     "data_type": "topic_in_num",
+    "topic_name": "sensor/temperature"
+  }'
+
+# 查询订阅发送成功数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "subscribe_send_success_num",
+    "client_id": "client001",
+    "path": "sensor/+"
+  }'
+
+# 查询订阅主题发送失败数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "subscribe_topic_send_failure_num",
+    "client_id": "client001",
+    "path": "sensor/+",
     "topic_name": "sensor/temperature"
   }'
 ```
