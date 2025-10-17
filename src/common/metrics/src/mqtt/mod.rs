@@ -18,5 +18,6 @@ pub mod packets;
 pub mod publish;
 pub mod session;
 pub mod statistics;
+pub mod subscribe;
 pub mod time;
 pub mod topic;

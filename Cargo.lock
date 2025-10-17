@@ -43,6 +43,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
+ "dashmap",
  "grpc-clients",
  "lazy_static",
  "metadata-struct",

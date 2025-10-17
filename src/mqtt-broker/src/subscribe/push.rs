@@ -400,6 +400,7 @@ pub async fn send_message_to_client(
         protocol_version: protocol.to_u8(),
         packet: packet.clone(),
     };
+
     if let MqttPacket::Publish(publish, _) = packet.clone() {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
         record_mqtt_messages_sent_inc();

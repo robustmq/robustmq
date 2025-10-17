@@ -347,7 +347,7 @@ pub fn calc_mqtt_packet_size(packet_wrapper: MqttPacketWrapper) -> usize {
     calc_mqtt_packet_len(packet_wrapper).unwrap_or_default()
 }
 
-fn calc_mqtt_packet_len(packet_wrapper: MqttPacketWrapper) -> Result<usize, MQTTProtocolError> {
+pub fn calc_mqtt_packet_len(packet_wrapper: MqttPacketWrapper) -> Result<usize, MQTTProtocolError> {
     let packet = packet_wrapper.packet;
     let protocol_version = packet_wrapper.protocol_version;
     let mut buffer = BytesMut::new();

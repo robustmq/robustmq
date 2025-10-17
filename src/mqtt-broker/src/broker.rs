@@ -180,7 +180,7 @@ impl MqttBrokerServer {
                 cache_manager.clone(),
                 subscribe_manager.clone(),
                 connection_manager.clone(),
-                1,
+                30,
                 raw_stop_send.clone(),
             );
 

@@ -243,6 +243,13 @@ impl MQTTCacheManager {
         None
     }
 
+    pub fn get_all_topic_name(&self) -> Vec<String> {
+        self.topic_info
+            .iter()
+            .map(|topic| topic.topic_name.clone())
+            .collect()
+    }
+
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
         let key = self.topic_rewrite_rule_key(

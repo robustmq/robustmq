@@ -41,6 +41,7 @@ tower.workspace = true
 lazy_static.workspace = true
 chrono.workspace = true
 rate-limit.workspace = true
+dashmap.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

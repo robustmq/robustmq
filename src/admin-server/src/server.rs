@@ -19,7 +19,8 @@ use crate::{
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
         client::client_list,
         connector::{connector_create, connector_delete, connector_list},
-        overview::{overview, overview_metrics},
+        monitor::monitor_data,
+        overview::overview,
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
@@ -53,7 +54,7 @@ use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
 use tokio::fs;
 use tower_http::{cors::CorsLayer, services::ServeDir};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub struct AdminServer {}
 
@@ -116,7 +117,8 @@ impl AdminServer {
         Router::new()
             // overview
             .route(MQTT_OVERVIEW_PATH, post(overview))
-            .route(MQTT_OVERVIEW_METRICS_PATH, post(overview_metrics))
+            // monitor
+            .route(MQTT_MONITOR_PATH, post(monitor_data))
             // client
             .route(MQTT_CLIENT_LIST_PATH, post(client_list))
             // session
@@ -245,13 +247,13 @@ async fn base_middleware(
         200..=299 => {
             if duration_ms > 1000 {
                 // Slow requests (>1s)
-                warn!(
+                info!(
                     "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
                     format_size(request_size), format_size(response_size)
                 );
             } else {
-                info!(
+                debug!(
                     "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method,
                     uri,
@@ -294,7 +296,7 @@ async fn base_middleware(
             );
         }
         _ => {
-            info!(
+            debug!(
                 "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                 method,
                 uri,

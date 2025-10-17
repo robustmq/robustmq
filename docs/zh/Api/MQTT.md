@@ -51,32 +51,93 @@
 }
 ```
 
-#### 1.2 集群监控指标
-- **接口**: `POST /api/mqtt/overview/metrics`
-- **描述**: 获取指定时间范围内的集群监控指标
+#### 1.2 监控数据查询
+- **接口**: `POST /api/mqtt/monitor/data`
+- **描述**: 获取指定类型的监控数据时间序列
 - **请求参数**:
 ```json
 {
-  "start_time": 1640995200,  // Unix 时间戳，开始时间
-  "end_time": 1640998800     // Unix 时间戳，结束时间
+  "data_type": "connection_num",      // 必填，监控数据类型
+  "topic_name": "sensor/temperature", // 可选，部分类型需要
+  "client_id": "client001",           // 可选，部分类型需要
+  "path": "sensor/+"                  // 可选，部分类型需要
 }
 ```
+
+**支持的监控数据类型 (data_type)**：
+
+**基础监控类型**（无需额外参数）：
+- `connection_num` - 连接数
+- `topic_num` - 主题数
+- `subscribe_num` - 订阅数
+- `message_in_num` - 消息接收数
+- `message_out_num` - 消息发送数
+- `message_drop_num` - 消息丢弃数
+
+**主题级监控类型**（需要 `topic_name`）：
+- `topic_in_num` - 指定主题的接收消息数
+- `topic_out_num` - 指定主题的发送消息数
+
+**订阅级监控类型**（需要 `client_id` 和 `path`）：
+- `subscribe_send_success_num` - 订阅发送成功消息数
+- `subscribe_send_failure_num` - 订阅发送失败消息数
+
+**订阅主题级监控类型**（需要 `client_id`、`path` 和 `topic_name`）：
+- `subscribe_topic_send_success_num` - 订阅指定主题发送成功消息数
+- `subscribe_topic_send_failure_num` - 订阅指定主题发送失败消息数
 
 - **响应数据结构**:
 ```json
 {
   "code": 0,
   "message": "success",
-  "data": {
-    "connection_num": "[{\"timestamp\":1640995200,\"value\":1500}]",
-    "topic_num": "[{\"timestamp\":1640995200,\"value\":50}]", 
-    "subscribe_num": "[{\"timestamp\":1640995200,\"value\":2000}]",
-    "message_in_num": "[{\"timestamp\":1640995200,\"value\":10000}]",
-    "message_out_num": "[{\"timestamp\":1640995200,\"value\":8500}]",
-    "message_drop_num": "[{\"timestamp\":1640995200,\"value\":15}]"
-  }
+  "data": [
+    {
+      "date": 1640995200,
+      "value": 1500
+    },
+    {
+      "date": 1640995260,
+      "value": 1520
+    },
+    {
+      "date": 1640995320,
+      "value": 1485
+    }
+  ]
 }
 ```
+
+**字段说明**：
+- `date`: Unix 时间戳（秒）
+- `value`: 该时间点的监控数值
+
+**请求示例**：
+
+查询连接数：
+```json
+{
+  "data_type": "connection_num"
+}
+```
+
+查询指定主题的消息数：
+```json
+{
+  "data_type": "topic_in_num",
+  "topic_name": "sensor/temperature"
+}
+```
+
+**注意事项**：
+- 数据保留时长：默认保留最近 1 小时的数据
+- 数据采样间隔：根据系统配置，通常为 60 秒
+- **参数要求**：
+  - 主题级监控（`topic_in_num`、`topic_out_num`）：必须提供 `topic_name`
+  - 订阅级监控（`subscribe_send_success_num`、`subscribe_send_failure_num`）：必须提供 `client_id` 和 `path`
+  - 订阅主题级监控（`subscribe_topic_send_success_num`、`subscribe_topic_send_failure_num`）：必须提供 `client_id`、`path` 和 `topic_name`
+  - 如果缺少必需参数，将返回空数组
+- 返回的数据按时间戳自然排序
 
 ---
 
@@ -1206,6 +1267,43 @@
 curl -X POST http://localhost:8080/api/mqtt/overview \
   -H "Content-Type: application/json" \
   -d '{}'
+```
+
+### 查询监控数据
+```bash
+# 查询连接数监控数据
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connection_num"
+  }'
+
+# 查询指定主题的消息接收数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "topic_in_num",
+    "topic_name": "sensor/temperature"
+  }'
+
+# 查询订阅发送成功数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "subscribe_send_success_num",
+    "client_id": "client001",
+    "path": "sensor/+"
+  }'
+
+# 查询订阅主题发送失败数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "subscribe_topic_send_failure_num",
+    "client_id": "client001",
+    "path": "sensor/+",
+    "topic_name": "sensor/temperature"
+  }'
 ```
 
 ### 查询客户端列表

@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    request::mqtt::OverviewMetricsReq,
-    response::mqtt::{OverViewMetricsResp, OverViewResp},
-    state::HttpState,
-};
-use axum::{extract::State, Json};
+use crate::{response::mqtt::OverViewResp, state::HttpState};
+use axum::extract::State;
 use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
-    tools::now_second,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -49,42 +44,6 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     }
 }
 
-pub async fn overview_metrics(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<OverviewMetricsReq>,
-) -> String {
-    match cluster_overview_metrics_by_req(&state.mqtt_context.metrics_manager, &params).await {
-        Ok(data) => success_response(data),
-        Err(e) => error_response(e.to_string()),
-    }
-}
-
-async fn cluster_overview_metrics_by_req(
-    metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: &OverviewMetricsReq,
-) -> Result<OverViewMetricsResp, CommonError> {
-    let start_time = if request.start_time == 0 {
-        now_second() - 3600
-    } else {
-        request.start_time
-    };
-    let end_time = if request.end_time == 0 {
-        now_second()
-    } else {
-        request.end_time
-    };
-    let reply = OverViewMetricsResp {
-        connection_num: metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
-        topic_num: metrics_cache_manager.get_topic_num_by_time(start_time, end_time),
-        subscribe_num: metrics_cache_manager.get_subscribe_num_by_time(start_time, end_time),
-        message_in_num: metrics_cache_manager.get_message_in_num_by_time(start_time, end_time),
-        message_out_num: metrics_cache_manager.get_message_out_num_by_time(start_time, end_time),
-        message_drop_num: metrics_cache_manager.get_message_drop_num_by_time(start_time, end_time),
-    };
-
-    Ok(reply)
-}
-
 async fn cluster_overview_by_req(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
@@ -100,8 +59,8 @@ async fn cluster_overview_by_req(
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: metrics_manager.get_pre_message_in().await,
-        message_out_rate: metrics_manager.get_pre_message_out().await,
+        message_in_rate: metrics_manager.get_message_out_rate(),
+        message_out_rate: metrics_manager.get_message_out_rate(),
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
         subscribe_num: subscribe_manager.subscribe_list_len() as u32,
