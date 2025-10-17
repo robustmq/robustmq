@@ -31,6 +31,10 @@ use broker_core::rocksdb::RocksDBEngine;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_base::tools::now_second;
+use common_metrics::mqtt::subscribe::record_subscribe_bytes_sent;
+use common_metrics::mqtt::subscribe::record_subscribe_messages_sent;
+use common_metrics::mqtt::subscribe::record_subscribe_topic_bytes_sent;
+use common_metrics::mqtt::subscribe::record_subscribe_topic_messages_sent;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::QoS;
@@ -192,6 +196,8 @@ impl ExclusivePush {
                                     Ok(offset_op) => {
                                         if let Some(off) = offset_op{
                                             offset = off + 1;
+                                            record_subscribe_messages_sent(&subscriber.client_id, &subscriber.sub_path, true);
+                                            record_subscribe_topic_messages_sent(&subscriber.client_id, &subscriber.sub_path, &subscriber.topic_name, true);
                                         } else {
                                             sleep(Duration::from_millis(100)).await;
                                         }
@@ -203,6 +209,8 @@ impl ExclusivePush {
                                             subscriber.topic_name.clone(),
                                             group_id.clone()
                                         );
+                                        record_subscribe_messages_sent(&subscriber.client_id, &subscriber.sub_path, false);
+                                        record_subscribe_topic_messages_sent(&subscriber.client_id, &subscriber.sub_path, &subscriber.topic_name, false);
                                         sleep(Duration::from_millis(100)).await;
                                     }
                                 }
@@ -294,6 +302,19 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         )
         .await?;
 
+        record_subscribe_bytes_sent(
+            &context.subscriber.client_id,
+            &context.subscriber.sub_path,
+            record.data.len() as u64,
+            true,
+        );
+        record_subscribe_topic_bytes_sent(
+            &context.subscriber.client_id,
+            &context.subscriber.sub_path,
+            &context.subscriber.topic_name,
+            record.data.len() as u64,
+            true,
+        );
         Ok(())
     };
 
@@ -321,7 +342,6 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         success_num as u64,
         error_num as u64,
     );
-
     if results.is_empty() {
         return Ok(None);
     }

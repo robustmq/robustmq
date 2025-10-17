@@ -64,16 +64,16 @@ pub async fn monitor_data(
     };
 
     let data = match data_type {
-        MonitorDataType::ConnectionNum => state.mqtt_context.metrics_manager.connection_num.clone(),
-        MonitorDataType::TopicNum => state.mqtt_context.metrics_manager.topic_num.clone(),
-        MonitorDataType::SubscribeNum => state.mqtt_context.metrics_manager.subscribe_num.clone(),
-        MonitorDataType::MessageInNum => state.mqtt_context.metrics_manager.message_in_num.clone(),
-        MonitorDataType::MessageOutNum => {
-            state.mqtt_context.metrics_manager.message_out_num.clone()
-        }
+        MonitorDataType::ConnectionNum => state.mqtt_context.metrics_manager.get_connection_num(),
+        MonitorDataType::TopicNum => state.mqtt_context.metrics_manager.get_topic_num(),
+        MonitorDataType::SubscribeNum => state.mqtt_context.metrics_manager.get_subscribe_num(),
+        MonitorDataType::MessageInNum => state.mqtt_context.metrics_manager.get_message_in_num(),
+        MonitorDataType::MessageOutNum => state.mqtt_context.metrics_manager.get_message_out_num(),
+
         MonitorDataType::MessageDropNum => {
-            state.mqtt_context.metrics_manager.message_drop_num.clone()
+            state.mqtt_context.metrics_manager.get_message_drop_num()
         }
+
         MonitorDataType::TopicInNum => {
             if let Some(topic_name) = params.topic_name {
                 state
@@ -84,6 +84,7 @@ pub async fn monitor_data(
                 DashMap::new()
             }
         }
+
         MonitorDataType::TopicOutNum => {
             if let Some(topic_name) = params.topic_name {
                 state
@@ -94,6 +95,7 @@ pub async fn monitor_data(
                 DashMap::new()
             }
         }
+
         MonitorDataType::SubscribeSendNum => DashMap::new(),
     };
 
