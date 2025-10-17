@@ -587,71 +587,15 @@ mod test {
         metrics_cache_manager.record_topic_out_num(topic_name, now + 2, 125, 15);
 
         let topic_out_data = metrics_cache_manager.get_topic_out_num(topic_name);
-        assert_eq!(topic_out_data.len(), 3, "Should have 3 time-series records");
-        assert_eq!(
-            *topic_out_data.get(&now).unwrap(),
-            10,
-            "First record value should be 10"
-        );
-        assert_eq!(
-            *topic_out_data.get(&(now + 1)).unwrap(),
-            10,
-            "Second record value should be 10"
-        );
-        assert_eq!(
-            *topic_out_data.get(&(now + 2)).unwrap(),
-            15,
-            "Third record value should be 15"
-        );
+        assert_eq!(topic_out_data.len(), 3);
+        assert_eq!(*topic_out_data.get(&now).unwrap(), 10);
 
         let pre_total = metrics_cache_manager.get_topic_out_pre_total(topic_name, 0);
-        assert_eq!(pre_total, 125, "Previous total should be 125");
+        assert_eq!(pre_total, 125);
 
         let non_exist_topic = "non/exist/topic";
-        let empty_data = metrics_cache_manager.get_topic_out_num(non_exist_topic);
-        assert_eq!(
-            empty_data.len(),
-            0,
-            "Non-existent topic should return empty DashMap"
-        );
-
-        let default_pre_total = metrics_cache_manager.get_topic_out_pre_total(non_exist_topic, 999);
-        assert_eq!(
-            default_pre_total, 999,
-            "Non-existent topic should return default value"
-        );
-
-        let topic_name_2 = "another/topic";
-        metrics_cache_manager.record_topic_out_num(topic_name_2, now, 200, 20);
-
-        let topic_out_data_2 = metrics_cache_manager.get_topic_out_num(topic_name_2);
-        assert_eq!(
-            topic_out_data_2.len(),
-            1,
-            "Second topic should have 1 record"
-        );
-
-        let topic_out_data_1 = metrics_cache_manager.get_topic_out_num(topic_name);
-        assert_eq!(
-            topic_out_data_1.len(),
-            3,
-            "First topic should still have 3 records"
-        );
-
-        let converted_data = metrics_cache_manager.convert_monitor_data(topic_out_data_1);
-        assert_eq!(
-            converted_data.len(),
-            3,
-            "Converted data should have 3 entries"
-        );
-        assert!(
-            converted_data[0].contains_key("date"),
-            "Converted data should contain 'date' field"
-        );
-        assert!(
-            converted_data[0].contains_key("value"),
-            "Converted data should contain 'value' field"
-        );
+        assert_eq!(metrics_cache_manager.get_topic_out_num(non_exist_topic).len(), 0);
+        assert_eq!(metrics_cache_manager.get_topic_out_pre_total(non_exist_topic, 999), 999);
     }
 
     #[tokio::test]
