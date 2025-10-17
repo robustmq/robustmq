@@ -46,8 +46,8 @@ pub const METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND: &str = "subscribe_topic_send";
 
 #[derive(Default, Clone)]
 pub struct MetricsCacheManager {
-    pub data_num: DashMap<String, DashMap<u64, u64>>,
-    pub pre_data_num: DashMap<String, u64>,
+    data_num: DashMap<String, DashMap<u64, u64>>,
+    pre_data_num: DashMap<String, u64>,
 }
 
 impl MetricsCacheManager {
@@ -317,10 +317,12 @@ impl MetricsCacheManager {
         let now_time = now_second();
         let save_time = 3600;
 
-        for raw in self.data_num.iter() {
-            for data in raw.value().iter() {
-                if (data.key() + save_time) < now_time {
-                    raw.value().remove(data.key());
+        for (key, value) in self.data_num.clone() {
+            for (time, _) in value {
+                if (time + save_time) < now_time {
+                    if let Some(data) = self.data_num.get_mut(&key) {
+                        data.remove(&time);
+                    }
                 }
             }
         }
@@ -571,107 +573,112 @@ fn calc_value(max_value: u64, min_value: u64, time_window: u64) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use crate::common::tool::test_build_mqtt_cache_manager;
-    use std::{
-        net::{Ipv4Addr, SocketAddrV4},
-        sync::Arc,
-        time::Duration,
-    };
-
-    use crate::{
-        common::metrics_cache::{
-            metrics_gc_thread, metrics_record_thread, MetricsCacheManager,
-            METRICS_TYPE_KEY_CONNECTION_NUM, METRICS_TYPE_KEY_SUBSCRIBE_NUM,
-            METRICS_TYPE_KEY_TOPIC_NUM,
-        },
-        subscribe::manager::SubscribeManager,
-    };
+    use crate::common::metrics_cache::MetricsCacheManager;
     use common_base::tools::now_second;
-    use dashmap::DashMap;
-    use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-    use network_server::common::connection_manager::ConnectionManager;
-    use tokio::{sync::broadcast, time::sleep};
 
     #[tokio::test]
-    pub async fn minute_test() {
-        let mut times = 0;
-        loop {
-            if times >= 1 {
-                break;
-            }
-            let now = now_second();
-            if now.is_multiple_of(60) {
-                println!("{now}");
-                times += 1;
-            }
-            sleep(Duration::from_secs(1)).await;
-        }
+    pub async fn test_topic_out_metrics() {
+        let metrics_cache_manager = MetricsCacheManager::new();
+        let topic_name = "test/topic";
+        let now = now_second();
+
+        metrics_cache_manager.record_topic_out_num(topic_name, now, 100, 10);
+        metrics_cache_manager.record_topic_out_num(topic_name, now + 1, 110, 10);
+        metrics_cache_manager.record_topic_out_num(topic_name, now + 2, 125, 15);
+
+        let topic_out_data = metrics_cache_manager.get_topic_out_num(topic_name);
+        assert_eq!(topic_out_data.len(), 3, "Should have 3 time-series records");
+        assert_eq!(
+            *topic_out_data.get(&now).unwrap(),
+            10,
+            "First record value should be 10"
+        );
+        assert_eq!(
+            *topic_out_data.get(&(now + 1)).unwrap(),
+            10,
+            "Second record value should be 10"
+        );
+        assert_eq!(
+            *topic_out_data.get(&(now + 2)).unwrap(),
+            15,
+            "Third record value should be 15"
+        );
+
+        let pre_total = metrics_cache_manager.get_topic_out_pre_total(topic_name, 0);
+        assert_eq!(pre_total, 125, "Previous total should be 125");
+
+        let non_exist_topic = "non/exist/topic";
+        let empty_data = metrics_cache_manager.get_topic_out_num(non_exist_topic);
+        assert_eq!(
+            empty_data.len(),
+            0,
+            "Non-existent topic should return empty DashMap"
+        );
+
+        let default_pre_total = metrics_cache_manager.get_topic_out_pre_total(non_exist_topic, 999);
+        assert_eq!(
+            default_pre_total, 999,
+            "Non-existent topic should return default value"
+        );
+
+        let topic_name_2 = "another/topic";
+        metrics_cache_manager.record_topic_out_num(topic_name_2, now, 200, 20);
+
+        let topic_out_data_2 = metrics_cache_manager.get_topic_out_num(topic_name_2);
+        assert_eq!(
+            topic_out_data_2.len(),
+            1,
+            "Second topic should have 1 record"
+        );
+
+        let topic_out_data_1 = metrics_cache_manager.get_topic_out_num(topic_name);
+        assert_eq!(
+            topic_out_data_1.len(),
+            3,
+            "First topic should still have 3 records"
+        );
+
+        let converted_data = metrics_cache_manager.convert_monitor_data(topic_out_data_1);
+        assert_eq!(
+            converted_data.len(),
+            3,
+            "Converted data should have 3 entries"
+        );
+        assert!(
+            converted_data[0].contains_key("date"),
+            "Converted data should contain 'date' field"
+        );
+        assert!(
+            converted_data[0].contains_key("value"),
+            "Converted data should contain 'value' field"
+        );
     }
 
     #[tokio::test]
-    pub async fn metrics_cache_test() {
-        let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
-        let (stop_send, _) = broadcast::channel(2);
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let subscribe_manager = Arc::new(SubscribeManager::new());
+    pub async fn test_metrics_gc() {
+        let metrics_cache_manager = MetricsCacheManager::new();
+        let topic_name = "test/gc/topic";
+        let now = now_second();
+        let save_time = 3600;
 
-        // add mock connection
-        let connection_mgr = ConnectionManager::new(3, 1000);
-        connection_mgr.add_connection(NetworkConnection::new(
-            NetworkConnectionType::Tls,
-            std::net::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)),
-            None,
-        ));
-        let connection_manager = Arc::new(connection_mgr);
+        let old_time = now - save_time - 100;
+        metrics_cache_manager.record_topic_out_num(topic_name, old_time, 100, 10);
+        metrics_cache_manager.record_topic_out_num(topic_name, now, 200, 20);
 
-        metrics_gc_thread(metrics_cache_manager.clone(), stop_send.clone());
-        metrics_record_thread(
-            metrics_cache_manager.clone(),
-            cache_manager,
-            subscribe_manager,
-            connection_manager,
-            1,
-            stop_send,
+        let data_before_gc = metrics_cache_manager.get_topic_out_num(topic_name);
+        assert_eq!(data_before_gc.len(), 2, "Should have 2 records before GC");
+
+        metrics_cache_manager.gc();
+
+        let data_after_gc = metrics_cache_manager.get_topic_out_num(topic_name);
+        assert_eq!(data_after_gc.len(), 1, "Should have 1 record after GC");
+        assert!(
+            data_after_gc.contains_key(&now),
+            "Should keep recent data after GC"
         );
-
-        sleep(Duration::from_secs(10)).await;
-
-        // Get data from data_num map
-        let connection_data = metrics_cache_manager
-            .data_num
-            .get(METRICS_TYPE_KEY_CONNECTION_NUM)
-            .map(|v| v.clone())
-            .unwrap_or_else(DashMap::new);
-        let topic_data = metrics_cache_manager
-            .data_num
-            .get(METRICS_TYPE_KEY_TOPIC_NUM)
-            .map(|v| v.clone())
-            .unwrap_or_else(DashMap::new);
-        let subscribe_data = metrics_cache_manager
-            .data_num
-            .get(METRICS_TYPE_KEY_SUBSCRIBE_NUM)
-            .map(|v| v.clone())
-            .unwrap_or_else(DashMap::new);
-
-        assert_eq!(connection_data.len(), 10);
-        assert_eq!(topic_data.len(), 10);
-        assert_eq!(subscribe_data.len(), 10);
-
-        assert_eq!(
-            metrics_cache_manager
-                .convert_monitor_data(connection_data)
-                .len(),
-            7
-        );
-        assert_eq!(
-            metrics_cache_manager.convert_monitor_data(topic_data).len(),
-            7
-        );
-        assert_eq!(
-            metrics_cache_manager
-                .convert_monitor_data(subscribe_data)
-                .len(),
-            7
+        assert!(
+            !data_after_gc.contains_key(&old_time),
+            "Should remove old data after GC"
         );
     }
 }
