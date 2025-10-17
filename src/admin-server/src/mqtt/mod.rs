@@ -17,6 +17,7 @@ pub mod advanced;
 pub mod blacklist;
 pub mod client;
 pub mod connector;
+pub mod monitor;
 pub mod overview;
 pub mod schema;
 pub mod session;

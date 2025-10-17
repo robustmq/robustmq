@@ -19,7 +19,8 @@ use crate::{
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
         client::client_list,
         connector::{connector_create, connector_delete, connector_list},
-        overview::{overview, overview_metrics},
+        monitor::monitor_data,
+        overview::overview,
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
@@ -116,7 +117,8 @@ impl AdminServer {
         Router::new()
             // overview
             .route(MQTT_OVERVIEW_PATH, post(overview))
-            .route(MQTT_OVERVIEW_METRICS_PATH, post(overview_metrics))
+            // monitor
+            .route(MQTT_MONITOR_PATH, post(monitor_data))
             // client
             .route(MQTT_CLIENT_LIST_PATH, post(client_list))
             // session

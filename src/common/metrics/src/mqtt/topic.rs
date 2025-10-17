@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{counter_metric_inc, counter_metric_inc_by, register_counter_metric};
+use crate::{
+    counter_metric_get, counter_metric_inc, counter_metric_inc_by, register_counter_metric,
+};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -74,6 +76,24 @@ pub fn record_topic_bytes_sent(topic: &str, bytes: u64) {
         topic: topic.to_string(),
     };
     counter_metric_inc_by!(TOPIC_BYTES_SENT, label, bytes);
+}
+
+pub fn get_topic_messages_written(topic: &str) -> u64 {
+    let label = TopicLabel {
+        topic: topic.to_string(),
+    };
+    let mut result = 0u64;
+    counter_metric_get!(TOPIC_MESSAGES_WRITTEN, label, result);
+    result
+}
+
+pub fn get_topic_messages_sent(topic: &str) -> u64 {
+    let label = TopicLabel {
+        topic: topic.to_string(),
+    };
+    let mut result = 0u64;
+    counter_metric_get!(TOPIC_MESSAGES_SENT, label, result);
+    result
 }
 
 #[cfg(test)]

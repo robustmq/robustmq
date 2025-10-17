@@ -27,7 +27,7 @@ pub const CLUSTER_CONFIG_GET_PATH: &str = "/cluster/config/get";
 
 // MQTT Overview API paths
 pub const MQTT_OVERVIEW_PATH: &str = "/mqtt/overview";
-pub const MQTT_OVERVIEW_METRICS_PATH: &str = "/mqtt/overview/metrics";
+pub const MQTT_MONITOR_PATH: &str = "/mqtt/monitor/data";
 
 // MQTT Client API paths
 pub const MQTT_CLIENT_LIST_PATH: &str = "/mqtt/client/list";

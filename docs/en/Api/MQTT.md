@@ -51,32 +51,76 @@
 }
 ```
 
-#### 1.2 Cluster Monitoring Metrics
-- **Endpoint**: `POST /api/mqtt/overview/metrics`
-- **Description**: Get cluster monitoring metrics for specified time range
+#### 1.2 Monitor Data Query
+- **Endpoint**: `POST /api/mqtt/monitor/data`
+- **Description**: Get time series monitoring data for a specified metric type
 - **Request Parameters**:
 ```json
 {
-  "start_time": 1640995200,  // Unix timestamp, start time
-  "end_time": 1640998800     // Unix timestamp, end time
+  "data_type": "connection_num",    // Required, monitoring data type
+  "topic_name": "sensor/temperature" // Optional, required only when data_type is topic_in_num or topic_out_num
 }
 ```
+
+**Supported Monitoring Data Types (data_type)**:
+- `connection_num` - Number of connections
+- `topic_num` - Number of topics
+- `subscribe_num` - Number of subscriptions
+- `message_in_num` - Number of messages received
+- `message_out_num` - Number of messages sent
+- `message_drop_num` - Number of messages dropped
+- `topic_in_num` - Number of messages received for a specific topic (requires topic_name)
+- `topic_out_num` - Number of messages sent for a specific topic (requires topic_name)
+- `subscribe_send_num` - Number of subscription sends (reserved, not yet implemented)
 
 - **Response Data Structure**:
 ```json
 {
   "code": 0,
   "message": "success",
-  "data": {
-    "connection_num": "[{\"timestamp\":1640995200,\"value\":1500}]",
-    "topic_num": "[{\"timestamp\":1640995200,\"value\":50}]", 
-    "subscribe_num": "[{\"timestamp\":1640995200,\"value\":2000}]",
-    "message_in_num": "[{\"timestamp\":1640995200,\"value\":10000}]",
-    "message_out_num": "[{\"timestamp\":1640995200,\"value\":8500}]",
-    "message_drop_num": "[{\"timestamp\":1640995200,\"value\":15}]"
-  }
+  "data": [
+    {
+      "date": 1640995200,
+      "value": 1500
+    },
+    {
+      "date": 1640995260,
+      "value": 1520
+    },
+    {
+      "date": 1640995320,
+      "value": 1485
+    }
+  ]
 }
 ```
+
+**Field Descriptions**:
+- `date`: Unix timestamp (seconds)
+- `value`: Metric value at that time point
+
+**Request Examples**:
+
+Query connection count:
+```json
+{
+  "data_type": "connection_num"
+}
+```
+
+Query message count for a specific topic:
+```json
+{
+  "data_type": "topic_in_num",
+  "topic_name": "sensor/temperature"
+}
+```
+
+**Notes**:
+- Data retention period: By default, data from the last 1 hour is retained
+- Data sampling interval: According to system configuration, typically 60 seconds
+- When `data_type` is `topic_in_num` or `topic_out_num`, the `topic_name` parameter must be provided, otherwise an empty array is returned
+- Returned data is naturally sorted by timestamp
 
 ---
 
@@ -1206,6 +1250,24 @@
 curl -X POST http://localhost:8080/api/mqtt/overview \
   -H "Content-Type: application/json" \
   -d '{}'
+```
+
+### Query Monitor Data
+```bash
+# Query connection count monitoring data
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connection_num"
+  }'
+
+# Query message received count for a specific topic
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "topic_in_num",
+    "topic_name": "sensor/temperature"
+  }'
 ```
 
 ### Query Client List

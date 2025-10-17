@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    request::mqtt::{MonitorDataReq, OverviewMetricsReq},
-    response::mqtt::{OverViewMetricsResp, OverViewResp},
-    state::HttpState,
-};
-use axum::{extract::State, Json};
+use crate::{response::mqtt::OverViewResp, state::HttpState};
+use axum::extract::State;
 use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
-    tools::now_second,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -46,36 +41,6 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     {
         Ok(data) => success_response(data),
         Err(e) => error_response(e.to_string()),
-    }
-}
-
-pub async fn overview_metrics(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<OverviewMetricsReq>,
-) -> String {
-    match cluster_overview_metrics_by_req(&state.mqtt_context.metrics_manager, &params).await {
-        Ok(data) => success_response(data),
-        Err(e) => error_response(e.to_string()),
-    }
-}
-
-async fn cluster_overview_metrics_by_req(
-    metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: &OverviewMetricsReq,
-) -> Result<OverViewMetricsResp, CommonError> {
-    OverViewMetricsResp {
-        connection_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.connection_num.clone()),
-        topic_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.topic_num.clone()),
-        subscribe_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.subscribe_num.clone()),
-        message_in_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.message_in_num.clone()),
-        message_out_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.message_out_num.clone()),
-        message_drop_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.message_drop_num.clone()),
     }
 }
 
@@ -115,28 +80,6 @@ async fn cluster_overview_by_req(
         quic_connection_num: connection_manager.quic_write_list.len() as u32,
     };
     let _ = subscribe_manager.snapshot_info();
-
-    Ok(reply)
-}
-
-async fn cluster_monitor_data_req(
-    metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: &MonitorDataReq,
-) -> Result<OverViewMetricsResp, CommonError> {
-    let reply = OverViewMetricsResp {
-        connection_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.connection_num.clone()),
-        topic_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.topic_num.clone()),
-        subscribe_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.subscribe_num.clone()),
-        message_in_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.message_in_num.clone()),
-        message_out_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.message_out_num.clone()),
-        message_drop_num: metrics_cache_manager
-            .convert_monitor_data(metrics_cache_manager.message_drop_num.clone()),
-    };
 
     Ok(reply)
 }
