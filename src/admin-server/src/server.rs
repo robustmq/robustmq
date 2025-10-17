@@ -54,7 +54,7 @@ use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
 use tokio::fs;
 use tower_http::{cors::CorsLayer, services::ServeDir};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub struct AdminServer {}
 
@@ -247,13 +247,13 @@ async fn base_middleware(
         200..=299 => {
             if duration_ms > 1000 {
                 // Slow requests (>1s)
-                warn!(
+                info!(
                     "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
                     format_size(request_size), format_size(response_size)
                 );
             } else {
-                info!(
+                debug!(
                     "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method,
                     uri,
@@ -296,7 +296,7 @@ async fn base_middleware(
             );
         }
         _ => {
-            info!(
+            debug!(
                 "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                 method,
                 uri,

@@ -59,8 +59,8 @@ async fn cluster_overview_by_req(
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: metrics_manager.get_pre_message_in().await,
-        message_out_rate: metrics_manager.get_pre_message_out().await,
+        message_in_rate: metrics_manager.get_message_out_rate(),
+        message_out_rate: metrics_manager.get_message_out_rate(),
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
         subscribe_num: subscribe_manager.subscribe_list_len() as u32,

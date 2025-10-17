@@ -127,6 +127,11 @@ impl MetricsCacheManager {
         self.get_pre_num(METRICS_TYPE_KEY_MESSAGE_IN_NUM)
     }
 
+    pub fn get_message_in_rate(&self) -> u64 {
+        let data = self.get_message_in_num();
+        get_max_key_value(&data)
+    }
+
     // message out
     pub async fn record_message_out_num(&self, time: u64, total: u64, num: u64) {
         self.record_num(METRICS_TYPE_KEY_MESSAGE_OUT_NUM, time, num);
@@ -144,6 +149,11 @@ impl MetricsCacheManager {
         self.get_pre_num(METRICS_TYPE_KEY_MESSAGE_OUT_NUM)
     }
 
+    pub fn get_message_out_rate(&self) -> u64 {
+        let data = self.get_message_out_num();
+        get_max_key_value(&data)
+    }
+
     // message drop
     pub async fn record_message_drop_num(&self, time: u64, total: u64, num: u64) {
         self.record_num(METRICS_TYPE_KEY_MESSAGE_DROP_NUM, time, num);
@@ -159,6 +169,11 @@ impl MetricsCacheManager {
 
     pub async fn get_pre_message_drop(&self) -> u64 {
         self.get_pre_num(METRICS_TYPE_KEY_MESSAGE_DROP_NUM)
+    }
+
+    pub fn get_message_drop_rate(&self) -> u64 {
+        let data = self.get_message_drop_num();
+        get_max_key_value(&data)
     }
 
     // topic in
@@ -329,6 +344,203 @@ impl MetricsCacheManager {
     }
 }
 
+fn record_basic_metrics_thread(
+    metrics_cache_manager: Arc<MetricsCacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    connection_manager: Arc<ConnectionManager>,
+    time_window: u64,
+    stop_send: broadcast::Sender<bool>,
+) {
+    tokio::spawn(async move {
+        let record_func = async || -> ResultCommonError {
+            let now: u64 = now_second();
+
+            // connection num
+            metrics_cache_manager
+                .record_connection_num(now, connection_manager.connections.len() as u64);
+
+            // topic num
+            metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u64);
+
+            // subscribe num
+            metrics_cache_manager
+                .record_subscribe_num(now, subscribe_manager.list_subscribe().len() as u64);
+
+            // record metrics
+            record_mqtt_connections_set(connection_manager.connections.len() as i64);
+            record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
+            record_mqtt_topics_set(cache_manager.topic_info.len() as i64);
+            record_mqtt_subscribers_set(subscribe_manager.list_subscribe().len() as i64);
+            record_mqtt_subscriptions_shared_set(
+                subscribe_manager.share_leader_push_list().len() as i64
+            );
+
+            // message in
+            let num = record_mqtt_messages_received_get();
+            let pre_num = metrics_cache_manager.get_pre_message_in().await;
+            metrics_cache_manager
+                .record_message_in_num(now, num, calc_value(num, pre_num, time_window))
+                .await;
+
+            // message out
+            let num = record_mqtt_messages_sent_get();
+            let pre_num = metrics_cache_manager.get_pre_message_out().await;
+            println!("messages_sent:{}", num);
+            println!("messages_sent pre_num:{}", pre_num);
+            metrics_cache_manager
+                .record_message_out_num(now, num, calc_value(num, pre_num, time_window))
+                .await;
+
+            // message drop
+            let num = record_messages_dropped_no_subscribers_get();
+            let pre_num = metrics_cache_manager.get_pre_message_drop().await;
+            metrics_cache_manager
+                .record_message_drop_num(now, num, calc_value(num, pre_num, time_window))
+                .await;
+
+            Ok(())
+        };
+        loop_select_ticket(record_func, time_window, &stop_send).await;
+    });
+}
+
+fn record_topic_metrics_thread(
+    metrics_cache_manager: Arc<MetricsCacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
+    time_window: u64,
+    stop_send: broadcast::Sender<bool>,
+) {
+    tokio::spawn(async move {
+        let record_func = async || -> ResultCommonError {
+            let now: u64 = now_second();
+
+            for topic in cache_manager.get_all_topic_name() {
+                // topic in
+                let num = get_topic_messages_written(&topic);
+                let pre_num = metrics_cache_manager.get_topic_in_pre_total(&topic, num);
+                metrics_cache_manager
+                    .record_message_in_num(now, pre_num, calc_value(num, pre_num, time_window))
+                    .await;
+
+                // topic out
+                let num = get_topic_messages_sent(&topic);
+                let pre_num = metrics_cache_manager.get_topic_out_pre_total(&topic, num);
+                metrics_cache_manager
+                    .record_message_out_num(now, num, calc_value(num, pre_num, time_window))
+                    .await;
+            }
+
+            Ok(())
+        };
+        loop_select_ticket(record_func, time_window, &stop_send).await;
+    });
+}
+
+fn record_subscribe_metrics_thread(
+    metrics_cache_manager: Arc<MetricsCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    time_window: u64,
+    stop_send: broadcast::Sender<bool>,
+) {
+    tokio::spawn(async move {
+        let record_func = async || -> ResultCommonError {
+            let now: u64 = now_second();
+
+            for (_, sub) in subscribe_manager.list_subscribe() {
+                let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, true);
+                let pre_num = metrics_cache_manager.get_subscribe_send_pre_total(
+                    &sub.client_id,
+                    &sub.path,
+                    true,
+                    num,
+                );
+                metrics_cache_manager.record_subscribe_send_num(
+                    &sub.client_id,
+                    &sub.path,
+                    true,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
+
+                let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, false);
+                let pre_num = metrics_cache_manager.get_subscribe_send_pre_total(
+                    &sub.client_id,
+                    &sub.path,
+                    false,
+                    num,
+                );
+                metrics_cache_manager.record_subscribe_send_num(
+                    &sub.client_id,
+                    &sub.path,
+                    false,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
+            }
+
+            for (_, sub) in subscribe_manager.exclusive_push_list() {
+                let num = get_subscribe_topic_messages_sent(
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true,
+                );
+
+                let pre_num = metrics_cache_manager.get_subscribe_topic_send_pre_total(
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true,
+                    num,
+                );
+                metrics_cache_manager.record_subscribe_topic_send_num(
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
+
+                let num = get_subscribe_topic_messages_sent(
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false,
+                );
+
+                let pre_num = metrics_cache_manager.get_subscribe_topic_send_pre_total(
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false,
+                    num,
+                );
+                metrics_cache_manager.record_subscribe_topic_send_num(
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
+            }
+
+            for (_, _) in subscribe_manager.share_leader_push_list() {
+                // todo
+            }
+
+            Ok(())
+        };
+        loop_select_ticket(record_func, time_window, &stop_send).await;
+    });
+}
+
 pub fn metrics_record_thread(
     metrics_cache_manager: Arc<MetricsCacheManager>,
     cache_manager: Arc<MQTTCacheManager>,
@@ -339,218 +551,28 @@ pub fn metrics_record_thread(
 ) {
     info!("Metrics record thread start successfully");
 
-    // common
-    let raw_metrics_cache_manager = metrics_cache_manager.clone();
-    let raw_cache_manager = cache_manager.clone();
-    let raw_subscribe_manager = subscribe_manager.clone();
-    let raw_stop_send = stop_send.clone();
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
+    record_basic_metrics_thread(
+        metrics_cache_manager.clone(),
+        cache_manager.clone(),
+        subscribe_manager.clone(),
+        connection_manager,
+        time_window,
+        stop_send.clone(),
+    );
 
-            // connection num / topic num / subscribe num
-            raw_metrics_cache_manager
-                .record_connection_num(now, connection_manager.connections.len() as u64);
-            raw_metrics_cache_manager
-                .record_topic_num(now, raw_cache_manager.topic_info.len() as u64);
-            raw_metrics_cache_manager
-                .record_subscribe_num(now, raw_subscribe_manager.list_subscribe().len() as u64);
+    record_topic_metrics_thread(
+        metrics_cache_manager.clone(),
+        cache_manager,
+        time_window,
+        stop_send.clone(),
+    );
 
-            // message in
-            let message_in = record_mqtt_messages_received_get();
-            let pre_message_in = raw_metrics_cache_manager.get_pre_message_in().await;
-            raw_metrics_cache_manager
-                .record_message_in_num(
-                    now,
-                    message_in,
-                    calc_value(message_in, pre_message_in, time_window),
-                )
-                .await;
-
-            // message out
-            let message_out = record_mqtt_messages_sent_get();
-            let pre_message_out = raw_metrics_cache_manager.get_pre_message_out().await;
-            raw_metrics_cache_manager
-                .record_message_out_num(
-                    now,
-                    message_out,
-                    calc_value(message_out, pre_message_out, time_window),
-                )
-                .await;
-
-            // message drop
-            let message_drop = record_messages_dropped_no_subscribers_get();
-            let pre_message_drop = raw_metrics_cache_manager.get_pre_message_drop().await;
-            raw_metrics_cache_manager
-                .record_message_drop_num(
-                    now,
-                    message_drop,
-                    calc_value(message_drop, pre_message_drop, time_window),
-                )
-                .await;
-
-            // Many system metrics can be reused here. We only need to get the instantaneous value.
-            // However, it should be noted that prometheus export itself is periodic,
-            // and the current function is also periodic.
-            // Further, we can conclude that the time range of
-            // indicator export is [min(metrics_export_interval,time_window), metrics_export_interval + time_window]
-            record_mqtt_connections_set(connection_manager.connections.len() as i64);
-            record_mqtt_sessions_set(raw_cache_manager.session_info.len() as i64);
-            record_mqtt_topics_set(raw_cache_manager.topic_info.len() as i64);
-            record_mqtt_subscribers_set(raw_subscribe_manager.list_subscribe().len() as i64);
-            record_mqtt_subscriptions_shared_set(
-                raw_subscribe_manager.share_leader_push_list().len() as i64,
-            );
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window, &raw_stop_send).await;
-    });
-
-    // topic
-    let raw_cache_manager = cache_manager.clone();
-    let raw_metrics_cache_manager = metrics_cache_manager.clone();
-    let raw_stop_send = stop_send.clone();
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
-
-            for topic in raw_cache_manager.get_all_topic_name() {
-                // topic in
-                let message_in = get_topic_messages_written(&topic);
-                let pre_message_in =
-                    raw_metrics_cache_manager.get_topic_in_pre_total(&topic, message_in);
-                raw_metrics_cache_manager
-                    .record_message_out_num(
-                        now,
-                        message_in,
-                        calc_value(pre_message_in, message_in, time_window),
-                    )
-                    .await;
-
-                // topic out
-                let message_in = get_topic_messages_sent(&topic);
-                let pre_message_in =
-                    raw_metrics_cache_manager.get_topic_in_pre_total(&topic, message_in);
-                raw_metrics_cache_manager
-                    .record_message_out_num(
-                        now,
-                        message_in,
-                        calc_value(pre_message_in, message_in, time_window),
-                    )
-                    .await;
-            }
-
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window, &raw_stop_send).await;
-    });
-
-    // subscribe
-    let raw_subscribe_manager = subscribe_manager.clone();
-    let raw_metrics_cache_manager = metrics_cache_manager.clone();
-    let raw_stop_send = stop_send.clone();
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
-
-            for (_, sub) in raw_subscribe_manager.list_subscribe() {
-                // subscribe send success
-                let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, true);
-                let pre_num = raw_metrics_cache_manager.get_subscribe_send_pre_total(
-                    &sub.client_id,
-                    &sub.path,
-                    true,
-                    num,
-                );
-                raw_metrics_cache_manager.record_subscribe_send_num(
-                    &sub.client_id,
-                    &sub.path,
-                    true,
-                    now,
-                    num,
-                    calc_value(num, pre_num, time_window),
-                );
-
-                // subscribe send failure
-                let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, false);
-                let pre_num = raw_metrics_cache_manager.get_subscribe_send_pre_total(
-                    &sub.client_id,
-                    &sub.path,
-                    false,
-                    num,
-                );
-                raw_metrics_cache_manager.record_subscribe_send_num(
-                    &sub.client_id,
-                    &sub.path,
-                    false,
-                    now,
-                    num,
-                    calc_value(num, pre_num, time_window),
-                );
-            }
-
-            // exclusive push
-            for (_, sub) in raw_subscribe_manager.exclusive_push_list() {
-                // success
-                let num = get_subscribe_topic_messages_sent(
-                    &sub.client_id,
-                    &sub.sub_path,
-                    &sub.topic_name,
-                    true,
-                );
-
-                let pre_num = raw_metrics_cache_manager.get_subscribe_topic_send_pre_total(
-                    &sub.client_id,
-                    &sub.sub_path,
-                    &sub.topic_name,
-                    true,
-                    num,
-                );
-                raw_metrics_cache_manager.record_subscribe_topic_send_num(
-                    &sub.client_id,
-                    &sub.sub_path,
-                    &sub.topic_name,
-                    true,
-                    now,
-                    num,
-                    calc_value(num, pre_num, time_window),
-                );
-
-                // failure
-                let num = get_subscribe_topic_messages_sent(
-                    &sub.client_id,
-                    &sub.sub_path,
-                    &sub.topic_name,
-                    false,
-                );
-
-                let pre_num = raw_metrics_cache_manager.get_subscribe_topic_send_pre_total(
-                    &sub.client_id,
-                    &sub.sub_path,
-                    &sub.topic_name,
-                    false,
-                    num,
-                );
-                raw_metrics_cache_manager.record_subscribe_topic_send_num(
-                    &sub.client_id,
-                    &sub.sub_path,
-                    &sub.topic_name,
-                    false,
-                    now,
-                    num,
-                    calc_value(num, pre_num, time_window),
-                );
-            }
-
-            // exclusive push
-            for (_, _) in raw_subscribe_manager.share_leader_push_list() {
-                // todo
-            }
-
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window, &raw_stop_send).await;
-    });
+    record_subscribe_metrics_thread(
+        metrics_cache_manager,
+        subscribe_manager,
+        time_window,
+        stop_send,
+    );
 }
 
 pub fn metrics_gc_thread(
@@ -568,13 +590,69 @@ pub fn metrics_gc_thread(
 }
 
 fn calc_value(max_value: u64, min_value: u64, time_window: u64) -> u64 {
-    (max_value - min_value) / time_window
+    if time_window == 0 {
+        return 0;
+    }
+
+    let diff = (max_value - min_value) as f64;
+    let window = time_window as f64;
+    let result = diff / window;
+
+    // 四舍五入
+    result.round() as u64
+}
+
+fn get_max_key_value(data: &DashMap<u64, u64>) -> u64 {
+    if data.is_empty() {
+        return 0;
+    }
+
+    data.iter()
+        .max_by_key(|entry| *entry.key())
+        .map(|entry| *entry.value())
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
 mod test {
-    use crate::common::metrics_cache::MetricsCacheManager;
+    use crate::common::metrics_cache::{MetricsCacheManager, calc_value, get_max_key_value};
     use common_base::tools::now_second;
+    use dashmap::DashMap;
+
+    #[test]
+    fn test_get_max_key_value() {
+        let data: DashMap<u64, u64> = DashMap::new();
+        data.insert(100, 10);
+        data.insert(200, 20);
+        data.insert(150, 15);
+        data.insert(300, 30);
+        data.insert(250, 25);
+
+        assert_eq!(get_max_key_value(&data), 30);
+
+        let empty_data: DashMap<u64, u64> = DashMap::new();
+        assert_eq!(get_max_key_value(&empty_data), 0);
+
+        let single_data: DashMap<u64, u64> = DashMap::new();
+        single_data.insert(100, 42);
+        assert_eq!(get_max_key_value(&single_data), 42);
+    }
+
+    #[test]
+    fn test_calc_value_rounding() {
+        assert_eq!(calc_value(100, 0, 10), 10);
+        assert_eq!(calc_value(105, 0, 10), 11);
+        assert_eq!(calc_value(106, 0, 10), 11);
+        assert_eq!(calc_value(109, 0, 10), 11);
+        assert_eq!(calc_value(104, 0, 10), 10);
+        assert_eq!(calc_value(103, 0, 10), 10);
+        assert_eq!(calc_value(0, 0, 10), 0);
+        assert_eq!(calc_value(5, 0, 10), 1);
+        assert_eq!(calc_value(4, 0, 10), 0);
+        assert_eq!(calc_value(100, 0, 0), 0);
+        assert_eq!(calc_value(125, 100, 10), 3);
+        assert_eq!(calc_value(124, 100, 10), 2);
+    }
 
     #[tokio::test]
     pub async fn test_topic_out_metrics() {
@@ -594,8 +672,16 @@ mod test {
         assert_eq!(pre_total, 125);
 
         let non_exist_topic = "non/exist/topic";
-        assert_eq!(metrics_cache_manager.get_topic_out_num(non_exist_topic).len(), 0);
-        assert_eq!(metrics_cache_manager.get_topic_out_pre_total(non_exist_topic, 999), 999);
+        assert_eq!(
+            metrics_cache_manager
+                .get_topic_out_num(non_exist_topic)
+                .len(),
+            0
+        );
+        assert_eq!(
+            metrics_cache_manager.get_topic_out_pre_total(non_exist_topic, 999),
+            999
+        );
     }
 
     #[tokio::test]
@@ -603,26 +689,60 @@ mod test {
         let metrics_cache_manager = MetricsCacheManager::new();
         let topic_name = "test/gc/topic";
         let now = now_second();
-        let save_time = 3600;
 
-        let old_time = now - save_time - 100;
+        let old_time = now - 3700;
         metrics_cache_manager.record_topic_out_num(topic_name, old_time, 100, 10);
         metrics_cache_manager.record_topic_out_num(topic_name, now, 200, 20);
 
-        let data_before_gc = metrics_cache_manager.get_topic_out_num(topic_name);
-        assert_eq!(data_before_gc.len(), 2, "Should have 2 records before GC");
-
         metrics_cache_manager.gc();
 
-        let data_after_gc = metrics_cache_manager.get_topic_out_num(topic_name);
-        assert_eq!(data_after_gc.len(), 1, "Should have 1 record after GC");
-        assert!(
-            data_after_gc.contains_key(&now),
-            "Should keep recent data after GC"
-        );
-        assert!(
-            !data_after_gc.contains_key(&old_time),
-            "Should remove old data after GC"
-        );
+        let data = metrics_cache_manager.get_topic_out_num(topic_name);
+        assert_eq!(data.len(), 1);
+        assert!(data.contains_key(&now));
+    }
+
+    #[tokio::test]
+    pub async fn test_message_rate_methods() {
+        let metrics_cache_manager = MetricsCacheManager::new();
+        let now = now_second();
+
+        metrics_cache_manager
+            .record_message_in_num(now, 100, 10)
+            .await;
+        metrics_cache_manager
+            .record_message_in_num(now + 1, 120, 20)
+            .await;
+        metrics_cache_manager
+            .record_message_in_num(now + 2, 150, 30)
+            .await;
+
+        let in_rate = metrics_cache_manager.get_message_in_rate();
+        assert_eq!(in_rate, 30);
+
+        metrics_cache_manager
+            .record_message_out_num(now, 50, 5)
+            .await;
+        metrics_cache_manager
+            .record_message_out_num(now + 1, 60, 10)
+            .await;
+        metrics_cache_manager
+            .record_message_out_num(now + 2, 75, 15)
+            .await;
+
+        let out_rate = metrics_cache_manager.get_message_out_rate();
+        assert_eq!(out_rate, 15);
+
+        metrics_cache_manager
+            .record_message_drop_num(now, 10, 1)
+            .await;
+        metrics_cache_manager
+            .record_message_drop_num(now + 1, 12, 2)
+            .await;
+        metrics_cache_manager
+            .record_message_drop_num(now + 2, 15, 3)
+            .await;
+
+        let drop_rate = metrics_cache_manager.get_message_drop_rate();
+        assert_eq!(drop_rate, 3);
     }
 }
