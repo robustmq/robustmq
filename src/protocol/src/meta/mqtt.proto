@@ -166,7 +166,7 @@ service MqttService {
   //
   //Returns: An empty struct.
   rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns (SaveLastWillMessageReply) {}
-  
+
   rpc GetLastWillMessage(GetLastWillMessageRequest) returns (GetLastWillMessageReply) {}
 
   //Returns a list of ACLs based on the parameters of the request
@@ -419,10 +419,10 @@ message GetTopicRetainMessageRequest {
 
 message GetTopicRetainMessageReply {
   //The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
-  optional string retain_message = 1;
+  string retain_message = 1;
 
   //The parameter is the expiration time of the retain message. The unit is seconds.
-  optional uint64 retain_message_expired_at = 2;
+  uint64 retain_message_expired_at = 2;
 }
 
 message ListSessionRequest {
@@ -505,7 +505,7 @@ message GetLastWillMessageRequest {
 }
 
 message GetLastWillMessageReply {
-  optional bytes message =1;
+  bytes message =1;
 }
 
 message ListAclRequest {

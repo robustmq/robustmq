@@ -156,14 +156,14 @@ pub async fn get_topic_retain_message_by_req(
 
     if let Some(message) = topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
         return Ok(GetTopicRetainMessageReply {
-            retain_message: Some(message.retain_message),
-            retain_message_expired_at: Some(message.retain_message_expired_at),
+            retain_message: message.retain_message,
+            retain_message_expired_at: message.retain_message_expired_at,
         });
     }
 
     Ok(GetTopicRetainMessageReply {
-        retain_message: None,
-        retain_message_expired_at: None,
+        retain_message: String::new(),
+        retain_message_expired_at: 0,
     })
 }
 
@@ -187,11 +187,13 @@ pub async fn get_last_will_message_by_req(
     let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
     if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
         return Ok(GetLastWillMessageReply {
-            message: Some(will.encode()),
+            message: will.encode(),
         });
     }
 
-    Ok(GetLastWillMessageReply { message: None })
+    Ok(GetLastWillMessageReply {
+        message: Vec::new(),
+    })
 }
 
 pub async fn create_topic_rewrite_rule_by_req(

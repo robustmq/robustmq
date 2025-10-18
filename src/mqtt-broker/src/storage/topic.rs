@@ -156,17 +156,23 @@ impl TopicStorage {
         )
         .await?;
 
-        if reply.retain_message.is_none() {
-            return Ok((reply.retain_message, reply.retain_message_expired_at));
+        if reply.retain_message.is_empty() {
+            return Ok((
+                Some(reply.retain_message),
+                Some(reply.retain_message_expired_at),
+            ));
         }
 
-        let msg = serde_json::from_str::<MqttMessage>(&reply.retain_message.clone().unwrap())?;
+        let msg = serde_json::from_str::<MqttMessage>(&reply.retain_message)?;
         if msg.payload.is_empty() {
-            return Ok((reply.retain_message, reply.retain_message_expired_at));
+            return Ok((
+                Some(reply.retain_message),
+                Some(reply.retain_message_expired_at),
+            ));
         }
 
         let content = String::from_utf8(msg.payload.to_vec())?;
-        Ok((Some(content), reply.retain_message_expired_at))
+        Ok((Some(content), Some(reply.retain_message_expired_at)))
     }
 
     pub async fn all_topic_rewrite_rule(
