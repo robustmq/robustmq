@@ -149,6 +149,13 @@ impl MQTTCacheManager {
     }
 
     // session
+    pub fn get_session_client_id_list(&self) -> Vec<String> {
+        self.session_info
+            .iter()
+            .map(|session| session.client_id.clone())
+            .collect()
+    }
+
     pub fn add_session(&self, client_id: &str, session: &MqttSession) {
         self.session_info
             .insert(client_id.to_owned(), session.to_owned());

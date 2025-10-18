@@ -86,6 +86,10 @@
 - `subscribe_topic_send_success_num` - Number of successfully sent messages to subscription for specific topic
 - `subscribe_topic_send_failure_num` - Number of failed sent messages to subscription for specific topic
 
+**Session-Level Monitoring Types** (requires `client_id`):
+- `session_in_num` - Number of messages received by session
+- `session_out_num` - Number of messages sent by session
+
 - **Response Data Structure**:
 ```json
 {
@@ -136,6 +140,7 @@ Query message count for a specific topic:
   - Topic-level monitoring (`topic_in_num`, `topic_out_num`): Must provide `topic_name`
   - Subscription-level monitoring (`subscribe_send_success_num`, `subscribe_send_failure_num`): Must provide `client_id` and `path`
   - Subscription-topic-level monitoring (`subscribe_topic_send_success_num`, `subscribe_topic_send_failure_num`): Must provide `client_id`, `path` and `topic_name`
+  - Session-level monitoring (`session_in_num`, `session_out_num`): Must provide `client_id`
   - If required parameters are missing, an empty array will be returned
 - Returned data is naturally sorted by timestamp
 
@@ -1303,6 +1308,22 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
     "client_id": "client001",
     "path": "sensor/+",
     "topic_name": "sensor/temperature"
+  }'
+
+# Query session received message count
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_in_num",
+    "client_id": "client001"
+  }'
+
+# Query session sent message count
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_out_num",
+    "client_id": "client001"
   }'
 ```
 

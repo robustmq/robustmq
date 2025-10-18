@@ -86,6 +86,10 @@
 - `subscribe_topic_send_success_num` - 订阅指定主题发送成功消息数
 - `subscribe_topic_send_failure_num` - 订阅指定主题发送失败消息数
 
+**会话级监控类型**（需要 `client_id`）：
+- `session_in_num` - 会话接收消息数
+- `session_out_num` - 会话发送消息数
+
 - **响应数据结构**:
 ```json
 {
@@ -136,6 +140,7 @@
   - 主题级监控（`topic_in_num`、`topic_out_num`）：必须提供 `topic_name`
   - 订阅级监控（`subscribe_send_success_num`、`subscribe_send_failure_num`）：必须提供 `client_id` 和 `path`
   - 订阅主题级监控（`subscribe_topic_send_success_num`、`subscribe_topic_send_failure_num`）：必须提供 `client_id`、`path` 和 `topic_name`
+  - 会话级监控（`session_in_num`、`session_out_num`）：必须提供 `client_id`
   - 如果缺少必需参数，将返回空数组
 - 返回的数据按时间戳自然排序
 
@@ -1303,6 +1308,22 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
     "client_id": "client001",
     "path": "sensor/+",
     "topic_name": "sensor/temperature"
+  }'
+
+# 查询会话接收消息数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_in_num",
+    "client_id": "client001"
+  }'
+
+# 查询会话发送消息数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_out_num",
+    "client_id": "client001"
   }'
 ```
 
