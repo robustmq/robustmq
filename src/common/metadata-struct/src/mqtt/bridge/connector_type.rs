@@ -15,6 +15,7 @@
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
 pub enum ConnectorType {
@@ -44,38 +45,20 @@ impl Display for ConnectorType {
     }
 }
 
-pub fn connector_type_for_string(connector_type: String) -> Result<ConnectorType, CommonError> {
-    if CONNECTOR_TYPE_FILE == connector_type {
-        return Ok(ConnectorType::LocalFile);
-    }
+impl FromStr for ConnectorType {
+    type Err = CommonError;
 
-    if CONNECTOR_TYPE_KAFKA == connector_type {
-        return Ok(ConnectorType::Kafka);
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            CONNECTOR_TYPE_FILE => Ok(ConnectorType::LocalFile),
+            CONNECTOR_TYPE_KAFKA => Ok(ConnectorType::Kafka),
+            CONNECTOR_TYPE_GREPTIMEDB => Ok(ConnectorType::GreptimeDB),
+            CONNECTOR_TYPE_PULSAR => Ok(ConnectorType::Pulsar),
+            CONNECTOR_TYPE_POSTGRES => Ok(ConnectorType::Postgres),
+            CONNECTOR_TYPE_MONGODB => Ok(ConnectorType::MongoDB),
+            CONNECTOR_TYPE_RABBITMQ => Ok(ConnectorType::RabbitMQ),
+            CONNECTOR_TYPE_MYSQL => Ok(ConnectorType::MySQL),
+            _ => Err(CommonError::IneligibleConnectorType(s.to_string())),
+        }
     }
-
-    if CONNECTOR_TYPE_GREPTIMEDB == connector_type {
-        return Ok(ConnectorType::GreptimeDB);
-    }
-
-    if CONNECTOR_TYPE_PULSAR == connector_type {
-        return Ok(ConnectorType::Pulsar);
-    }
-
-    if CONNECTOR_TYPE_POSTGRES == connector_type {
-        return Ok(ConnectorType::Postgres);
-    }
-
-    if CONNECTOR_TYPE_MONGODB == connector_type {
-        return Ok(ConnectorType::MongoDB);
-    }
-
-    if CONNECTOR_TYPE_RABBITMQ == connector_type {
-        return Ok(ConnectorType::RabbitMQ);
-    }
-
-    if CONNECTOR_TYPE_MYSQL == connector_type {
-        return Ok(ConnectorType::MySQL);
-    }
-
-    Err(CommonError::IneligibleConnectorType(connector_type))
 }

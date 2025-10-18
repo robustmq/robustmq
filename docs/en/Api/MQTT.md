@@ -984,7 +984,7 @@ Query message count for a specific topic:
     "data": [
       {
         "connector_name": "kafka_connector",
-        "connector_type": "Kafka",
+        "connector_type": "kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
         "topic_name": "topic_001",
         "status": "Running",
@@ -1005,7 +1005,7 @@ Query message count for a specific topic:
 ```json
 {
   "connector_name": "new_connector",   // Connector name
-  "connector_type": "Kafka",           // Connector type
+  "connector_type": "kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
   "topic_name": "sensor/+"               // Associated topic ID
 }
@@ -1016,15 +1016,17 @@ Query message count for a specific topic:
 **Kafka Connector**:
 ```json
 {
-  "connector_type": "Kafka",
-  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"acks\":\"all\"}"
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\"}"
 }
 ```
+
+> Note: The `key` field is required but can be an empty string. If you need to specify a message key, set it to a specific value, such as `"key":"sensor_data"`.
 
 **Pulsar Connector**:
 ```json
 {
-  "connector_type": "Pulsar",
+  "connector_type": "pulsar",
   "config": "{\"server\":\"pulsar://localhost:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\"}"
 }
 ```
@@ -1032,47 +1034,47 @@ Query message count for a specific topic:
 **RabbitMQ Connector**:
 ```json
 {
-  "connector_type": "RabbitMQ",
-  "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\"}"
+  "connector_type": "rabbitmq",
+  "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false}"
 }
 ```
 
 **GreptimeDB Connector**:
 ```json
 {
-  "connector_type": "GreptimeDB",
-  "config": "{\"server_addr\":\"localhost:4000\",\"database\":\"public\",\"user\":\"greptime_user\",\"password\":\"greptime_pwd\",\"precision\":\"s\"}"
+  "connector_type": "greptime",
+  "config": "{\"server_addr\":\"localhost:4000\",\"database\":\"public\",\"user\":\"greptime_user\",\"password\":\"greptime_pwd\",\"precision\":\"Second\"}"
 }
 ```
 
 **PostgreSQL Connector**:
 ```json
 {
-  "connector_type": "Postgres",
-  "config": "{\"host\":\"localhost\",\"port\":5432,\"database\":\"mqtt_data\",\"username\":\"postgres\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"enable_batch_insert\":true}"
+  "connector_type": "postgres",
+  "config": "{\"host\":\"localhost\",\"port\":5432,\"database\":\"mqtt_data\",\"username\":\"postgres\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"pool_size\":10,\"enable_batch_insert\":true,\"enable_upsert\":false,\"conflict_columns\":\"id\"}"
 }
 ```
 
 **MySQL Connector**:
 ```json
 {
-  "connector_type": "MySQL",
-  "config": "{\"host\":\"localhost\",\"port\":3306,\"database\":\"mqtt_data\",\"username\":\"root\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"enable_batch_insert\":true,\"enable_upsert\":false}"
+  "connector_type": "mysql",
+  "config": "{\"host\":\"localhost\",\"port\":3306,\"database\":\"mqtt_data\",\"username\":\"root\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"pool_size\":10,\"enable_batch_insert\":true,\"enable_upsert\":false,\"conflict_columns\":\"id\"}"
 }
 ```
 
 **MongoDB Connector**:
 ```json
 {
-  "connector_type": "MongoDB",
-  "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"deployment_mode\":\"single\"}"
+  "connector_type": "mongodb",
+  "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"auth_source\":\"admin\",\"deployment_mode\":\"single\",\"enable_tls\":false,\"max_pool_size\":10,\"min_pool_size\":2}"
 }
 ```
 
 **Local File Connector**:
 ```json
 {
-  "connector_type": "LocalFile",
+  "connector_type": "file",
   "config": "{\"local_file_path\":\"/tmp/mqtt_messages.log\"}"
 }
 ```
@@ -1299,14 +1301,14 @@ Query message count for a specific topic:
 - `Username`: Username
 
 ### Connector Type (connector_type)
-- `Kafka`: Apache Kafka message queue
-- `Pulsar`: Apache Pulsar message queue
-- `RabbitMQ`: RabbitMQ message queue
-- `GreptimeDB`: GreptimeDB time-series database
-- `Postgres`: PostgreSQL relational database
-- `MySQL`: MySQL relational database
-- `MongoDB`: MongoDB NoSQL database
-- `LocalFile`: Local file storage
+- `kafka`: Apache Kafka message queue
+- `pulsar`: Apache Pulsar message queue
+- `rabbitmq`: RabbitMQ message queue
+- `greptime`: GreptimeDB time-series database
+- `postgres`: PostgreSQL relational database
+- `mysql`: MySQL relational database
+- `mongodb`: MongoDB NoSQL database
+- `file`: Local file storage
 
 ### Schema Type (schema_type)
 - `json`: JSON Schema
@@ -1430,7 +1432,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "connector_name": "kafka_bridge",
-    "connector_type": "Kafka",
+    "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
   }'
