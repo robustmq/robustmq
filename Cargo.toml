@@ -172,7 +172,7 @@ hex = "0.4.3"
 base64 = "0.22.1"
 jsonwebtoken = { version = "10.0.0", default-features = false, features = ["use_pem", "rust_crypto"] }
 
-#format
+# format
 prettytable-rs = "^0.10"
 ## workspaces members
 mqtt-broker = { path = "src/mqtt-broker" }
@@ -216,16 +216,15 @@ async-stream = "0.3.6"
 kafka-protocol = "0.15.1"
 governor = { version = "0.10.1" }
 pulsar = "6.3.1"
-tokio-postgres = "0.7.12"
 sqlx = { version = "0.8", default-features = false }
 mongodb = { version = "2.8", features = ["tokio-runtime"] }
 bson = "2.9"
 lapin = "2.5.0"
 
-#pprof
+# pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }
 
-#http
+# http
 hyper = { version = "1.6.0", features = ["server", "http1"] }
 async-trait = "0.1.88"
 env_logger = "0.10.0"

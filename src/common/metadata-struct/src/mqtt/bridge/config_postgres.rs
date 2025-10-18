@@ -22,6 +22,7 @@ pub struct PostgresConnectorConfig {
     pub username: String,
     pub password: String,
     pub table: String,
+    pub sql_template: Option<String>,
     pub pool_size: Option<u32>,
     pub enable_batch_insert: Option<bool>,
     pub enable_upsert: Option<bool>,
@@ -29,10 +30,22 @@ pub struct PostgresConnectorConfig {
 }
 
 impl PostgresConnectorConfig {
-    pub fn connection_string(&self) -> String {
+    pub fn connection_url(&self) -> String {
         format!(
-            "host={} port={} dbname={} user={} password={}",
-            self.host, self.port, self.database, self.username, self.password
+            "postgres://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.database
         )
+    }
+
+    pub fn get_pool_size(&self) -> u32 {
+        self.pool_size.unwrap_or(10)
+    }
+
+    pub fn is_batch_insert_enabled(&self) -> bool {
+        self.enable_batch_insert.unwrap_or(false)
+    }
+
+    pub fn is_upsert_enabled(&self) -> bool {
+        self.enable_upsert.unwrap_or(false)
     }
 }
