@@ -95,6 +95,13 @@ pub async fn load_metadata_cache(
         schema_manager.add_schema(schema.clone());
     }
 
+    // load all schema binds
+    let schema_storage = SchemaStorage::new(client_pool.clone());
+    let schemas = schema_storage.list_bind().await?;
+    for schema in schemas.iter() {
+        schema_manager.add_bind(schema);
+    }
+
     // load all auto subscribe rule
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
     let auto_subscribe_rules = auto_subscribe_storage.list_auto_subscribe_rule().await?;
