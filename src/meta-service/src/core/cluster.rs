@@ -22,8 +22,8 @@ use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::placement::cluster::ClusterInfo;
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::cluster::ClusterInfo;
+use metadata_struct::meta::node::BrokerNode;
 use prost::Message as _;
 use protocol::meta::meta_service_inner::{
     RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,

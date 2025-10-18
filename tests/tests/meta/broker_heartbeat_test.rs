@@ -17,7 +17,7 @@ mod tests {
     use std::time::Duration;
 
     use common_base::tools::now_second;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
     use protocol::meta::meta_service_inner::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;

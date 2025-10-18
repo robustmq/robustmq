@@ -22,7 +22,7 @@ mod tests {
         get_resource_config, node_list, register_node, set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use protocol::meta::meta_service_inner::{
         ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest,
         ExistsIdempotentDataRequest, GetResourceConfigRequest, NodeListRequest,

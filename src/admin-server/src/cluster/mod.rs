@@ -16,14 +16,22 @@ use std::sync::Arc;
 
 use crate::{
     request::cluster::{ClusterConfigGetReq, ClusterConfigSetReq},
+    response::ClusterInfoResp,
     state::HttpState,
 };
 use axum::{extract::State, Json};
+use broker_core::cluster::ClusterStorage;
 use common_base::{
     enum_type::feature_type::FeatureType,
     http_response::{error_response, success_response},
+    version::version,
 };
+use metadata_struct::meta::status::MetaStatus;
 use std::str::FromStr;
+
+pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
+    format!("RobustMQ API {}", version())
+}
 
 pub async fn cluster_config_set(
     State(_state): State<Arc<HttpState>>,
@@ -71,4 +79,31 @@ pub async fn cluster_config_get(
 ) -> String {
     let broker_config = state.broker_cache.get_cluster_config().await;
     success_response(broker_config)
+}
+
+pub async fn cluster_info(
+    State(state): State<Arc<HttpState>>,
+    Json(_params): Json<serde_json::Value>,
+) -> String {
+    let cluster_storage = ClusterStorage::new(state.client_pool.clone());
+    let meta_data = match cluster_storage.meta_cluster_status().await {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+    let data = match serde_json::from_str::<MetaStatus>(&meta_data) {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+    let cluster_info = ClusterInfoResp {
+        version: version(),
+        cluster_name: state.broker_cache.cluster_name.clone(),
+        start_time: state.broker_cache.get_start_time(),
+        broker_node_list: state.broker_cache.node_list(),
+        meta: data,
+    };
+    success_response(cluster_info)
 }

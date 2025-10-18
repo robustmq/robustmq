@@ -20,7 +20,7 @@ mod tests {
     use grpc_clients::meta::inner::call::register_node;
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use protocol::meta::meta_service_inner::RegisterNodeRequest;
     use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
 

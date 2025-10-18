@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use metadata_struct::meta::{node::BrokerNode, status::MetaStatus};
 use serde::{Deserialize, Serialize};
 
 pub mod journal;
@@ -22,4 +23,13 @@ pub mod mqtt;
 pub struct PageReplyData<T> {
     pub data: T,
     pub total_count: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ClusterInfoResp {
+    pub version: String,
+    pub cluster_name: String,
+    pub start_time: u64,
+    pub broker_node_list: Vec<BrokerNode>,
+    pub meta: MetaStatus,
 }

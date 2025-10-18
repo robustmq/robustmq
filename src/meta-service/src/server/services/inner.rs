@@ -43,7 +43,8 @@ pub async fn cluster_status_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
     let mut reply = ClusterStatusReply::default();
-    let status = raft_machine_apply.raft_node.metrics().borrow().clone();
+    let status: openraft::RaftMetrics<crate::raft::type_config::TypeConfig> =
+        raft_machine_apply.raft_node.metrics().borrow().clone();
 
     reply.content = match serde_json::to_string(&status) {
         Ok(data) => data,

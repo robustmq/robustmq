@@ -980,6 +980,7 @@ dependencies = [
  "dashmap",
  "grpc-clients",
  "metadata-struct",
+ "openraft",
  "protocol",
  "rocksdb-engine",
  "serde",

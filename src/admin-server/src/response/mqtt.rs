@@ -14,11 +14,11 @@
 
 use metadata_struct::{
     connection::NetworkConnection,
+    meta::node::BrokerNode,
     mqtt::{
         connection::MQTTConnection, lastwill::MqttLastWillData, session::MqttSession,
         topic::MQTTTopic,
     },
-    placement::node::BrokerNode,
 };
 use mqtt_broker::{handler::cache::ConnectionLiveTime, subscribe::manager::TopicSubscribeInfo};
 use serde::{Deserialize, Serialize};

@@ -16,7 +16,7 @@ cluster_name = "broker-server"
 broker_id = 1
 roles = ["meta", "broker"]
 grpc_port = 1228
-admin_port = 8080
+http_port = 8080
 meta_addrs = { 1 = "127.0.0.1:1228" }
 
 [rocksdb]

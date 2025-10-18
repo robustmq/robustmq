@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    cluster::{cluster_config_get, cluster_config_set},
+    cluster::{cluster_config_get, cluster_config_set, cluster_info},
     mqtt::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
@@ -31,7 +31,10 @@ use crate::{
             share_subscribe_detail, slow_subscribe_list, subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
-        topic::{topic_detail, topic_list, topic_rewrite_create, topic_rewrite_list},
+        topic::{
+            topic_detail, topic_list, topic_rewrite_create, topic_rewrite_delete,
+            topic_rewrite_list,
+        },
         user::{user_create, user_delete, user_list},
     },
     path::*,
@@ -40,14 +43,13 @@ use crate::{
 use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::{
-    extract::{ConnectInfo, Request, State},
+    extract::{ConnectInfo, Request},
     http::{HeaderMap, Method, Uri},
     middleware::{self, Next},
     response::Response,
-    routing::{get, post},
+    routing::post,
     Router,
 };
-use common_base::version::version;
 use common_metrics::http::record_http_request;
 use reqwest::StatusCode;
 use std::path::PathBuf;
@@ -107,7 +109,7 @@ impl AdminServer {
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route(STATUS_PATH, get(index))
+            .route(STATUS_PATH, post(cluster_info))
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
@@ -129,7 +131,7 @@ impl AdminServer {
             // topic-rewrite
             .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
             .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
-            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_list))
+            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_rewrite_delete))
             // subscribe
             .route(MQTT_SUBSCRIBE_LIST_PATH, post(subscribe_list))
             .route(MQTT_SUBSCRIBE_DETAIL_PATH, post(subscribe_detail))
@@ -379,10 +381,6 @@ fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
         }
     }
     socket_addr.ip().to_string()
-}
-
-pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
-    format!("RobustMQ API {}", version())
 }
 
 #[cfg(test)]

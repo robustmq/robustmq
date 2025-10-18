@@ -22,8 +22,8 @@ use grpc_clients::meta::inner::call::{
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
-use metadata_struct::placement::node::BrokerNode;
 use protocol::meta::meta_service_inner::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
     NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
@@ -39,7 +39,7 @@ impl ClusterStorage {
         ClusterStorage { client_pool }
     }
 
-    pub async fn place_cluster_status(&self) -> Result<String, CommonError> {
+    pub async fn meta_cluster_status(&self) -> Result<String, CommonError> {
         let request = ClusterStatusRequest {};
         let conf = broker_config();
         let reply =

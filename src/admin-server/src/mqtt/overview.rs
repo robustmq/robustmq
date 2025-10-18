@@ -54,7 +54,7 @@ async fn cluster_overview_by_req(
 ) -> Result<OverViewResp, CommonError> {
     let config = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let placement_status = cluster_storage.place_cluster_status().await?;
+    let placement_status = cluster_storage.meta_cluster_status().await?;
     let node_list = broker_cache.node_list();
 
     let reply = OverViewResp {
