@@ -28,7 +28,6 @@ use protocol::meta::meta_service_mqtt::{
     CreateSessionRequest, DeleteSessionRequest, GetLastWillMessageRequest, ListSessionRequest,
     SaveLastWillMessageRequest, UpdateSessionRequest,
 };
-use rdkafka::message::ToBytes;
 
 pub struct SessionStorage {
     client_pool: Arc<ClientPool>,
@@ -168,11 +167,11 @@ impl SessionStorage {
             request,
         )
         .await?;
-        if reply.message.is_none() {
+        if reply.message.is_empty() {
             return Ok(None);
         }
 
-        let data = serde_json::from_slice::<MqttLastWillData>(reply.message.unwrap().to_bytes())?;
+        let data = serde_json::from_slice::<MqttLastWillData>(&reply.message)?;
         Ok(Some(data))
     }
 }
