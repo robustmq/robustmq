@@ -173,9 +173,10 @@ impl BrokerServer {
             broker_cache: broker_cache.clone(),
             rate_limiter_manager: self.rate_limiter_manager.clone(),
         });
+        let http_port = self.config.http_port;
         server_runtime.spawn(async move {
             let admin_server = AdminServer::new();
-            admin_server.start(8080, state).await;
+            admin_server.start(http_port, state).await;
         });
 
         // check grpc server ready

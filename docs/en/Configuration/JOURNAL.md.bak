@@ -16,7 +16,7 @@ Journal engine is RobustMQ's persistent storage layer, responsible for:
 
 ### Server Port Configuration
 ```toml
-[journal_server]
+[journal.server]
 tcp_port = 1778              # Journal service TCP port
 ```
 
@@ -32,7 +32,7 @@ tcp_port = 1778              # Journal service TCP port
 
 ### Runtime Configuration
 ```toml
-[journal_runtime]
+[journal.runtime]
 enable_auto_create_shard = true   # Enable automatic shard creation
 shard_replica_num = 2            # Shard replica count
 max_segment_size = 1073741824    # Maximum segment file size (bytes)
@@ -57,7 +57,7 @@ max_segment_size = 1073741824    # Maximum segment file size (bytes)
 
 ### Storage Configuration
 ```toml
-[journal_storage]
+[journal.storage]
 data_path = [
     "./data/journal/data1",
     "./data/journal/data2",
@@ -91,17 +91,17 @@ roles = ["journal"]
 grpc_port = 1228
 
 # Journal server configuration
-[journal_server]
+[journal.server]
 tcp_port = 1778
 
 # Journal runtime configuration
-[journal_runtime]
+[journal.runtime]
 enable_auto_create_shard = true
 shard_replica_num = 1          # Single replica for development
 max_segment_size = 104857600   # 100MB, suitable for development testing
 
 # Journal storage configuration
-[journal_storage]
+[journal.storage]
 data_path = ["./data/journal"]
 rocksdb_max_open_files = 5000
 ```
@@ -115,17 +115,17 @@ roles = ["journal"]
 grpc_port = 1228
 
 # Journal server configuration
-[journal_server]
+[journal.server]
 tcp_port = 1778
 
 # Journal runtime configuration
-[journal_runtime]
+[journal.runtime]
 enable_auto_create_shard = true
 shard_replica_num = 3          # Three replicas for production
 max_segment_size = 2147483648  # 2GB, suitable for high throughput
 
 # Journal storage configuration
-[journal_storage]
+[journal.storage]
 data_path = [
     "/data1/robustmq/journal",
     "/data2/robustmq/journal",
@@ -138,12 +138,12 @@ rocksdb_max_open_files = 50000
 ### High Performance Configuration
 ```toml
 # High performance Journal configuration
-[journal_runtime]
+[journal.runtime]
 enable_auto_create_shard = true
 shard_replica_num = 3
 max_segment_size = 4294967296  # 4GB, reduce file switching frequency
 
-[journal_storage]
+[journal.storage]
 data_path = [
     "/nvme1/robustmq/journal",  # Use NVMe SSD
     "/nvme2/robustmq/journal",
@@ -183,10 +183,10 @@ export ROBUSTMQ_JOURNAL_STORAGE_ROCKSDB_MAX_OPEN_FILES=50000
 
 ### Write Performance Optimization
 ```toml
-[journal_runtime]
+[journal.runtime]
 max_segment_size = 4294967296    # Increase segment file size, reduce file switching
 
-[journal_storage]
+[journal.storage]
 rocksdb_max_open_files = 100000  # Increase file handles
 data_path = [
     "/ssd1/journal",             # Use high-speed SSD
@@ -200,22 +200,22 @@ queue_size = 50000              # Increase queue capacity
 
 ### Storage Space Optimization
 ```toml
-[journal_runtime]
+[journal.runtime]
 max_segment_size = 536870912     # 512MB, moderate segment size
 shard_replica_num = 2           # Appropriate replica count
 
-[journal_storage]
+[journal.storage]
 data_path = ["/data/journal"]    # Single path, save space
 ```
 
 ### Reliability Optimization
 ```toml
-[journal_runtime]
+[journal.runtime]
 enable_auto_create_shard = true
 shard_replica_num = 3           # Three replicas ensure reliability
 max_segment_size = 1073741824   # 1GB segment size
 
-[journal_storage]
+[journal.storage]
 data_path = [
     "/raid1/journal",           # Use RAID storage
     "/raid2/journal"
@@ -291,7 +291,7 @@ rocksdb_max_open_files = 30000
 log_config = "./config/debug-tracing.toml"
 
 # Reduce segment file size for debugging
-[journal_runtime]
+[journal.runtime]
 max_segment_size = 10485760  # 10MB
 
 # Enable performance profiling
