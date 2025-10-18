@@ -809,13 +809,19 @@
     "data": [
       {
         "username": "admin",
-        "is_superuser": true
+        "is_superuser": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 10
   }
 }
 ```
+
+**字段说明**：
+- `username`: 用户名
+- `is_superuser`: 是否为超级用户
+- `create_time`: 用户创建时间戳（秒）
 
 #### 6.2 创建用户
 - **接口**: `POST /api/mqtt/user/create`
@@ -1015,11 +1021,59 @@
 }
 ```
 
+**Pulsar 连接器**:
+```json
+{
+  "connector_type": "Pulsar",
+  "config": "{\"server\":\"pulsar://localhost:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\"}"
+}
+```
+
+**RabbitMQ 连接器**:
+```json
+{
+  "connector_type": "RabbitMQ",
+  "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\"}"
+}
+```
+
+**GreptimeDB 连接器**:
+```json
+{
+  "connector_type": "GreptimeDB",
+  "config": "{\"server_addr\":\"localhost:4000\",\"database\":\"public\",\"user\":\"greptime_user\",\"password\":\"greptime_pwd\",\"precision\":\"s\"}"
+}
+```
+
+**PostgreSQL 连接器**:
+```json
+{
+  "connector_type": "Postgres",
+  "config": "{\"host\":\"localhost\",\"port\":5432,\"database\":\"mqtt_data\",\"username\":\"postgres\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"enable_batch_insert\":true}"
+}
+```
+
+**MySQL 连接器**:
+```json
+{
+  "connector_type": "MySQL",
+  "config": "{\"host\":\"localhost\",\"port\":3306,\"database\":\"mqtt_data\",\"username\":\"root\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"enable_batch_insert\":true,\"enable_upsert\":false}"
+}
+```
+
+**MongoDB 连接器**:
+```json
+{
+  "connector_type": "MongoDB",
+  "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"deployment_mode\":\"single\"}"
+}
+```
+
 **文件连接器**:
 ```json
 {
-  "connector_type": "File",
-  "config": "{\"path\":\"/tmp/mqtt_messages.log\",\"max_file_size\":\"100MB\"}"
+  "connector_type": "LocalFile",
+  "config": "{\"local_file_path\":\"/tmp/mqtt_messages.log\"}"
 }
 ```
 
@@ -1245,8 +1299,14 @@
 - `Username`: 用户名
 
 ### 连接器类型 (connector_type)
-- `Kafka`: Kafka消息队列
-- `File`: 本地文件
+- `Kafka`: Apache Kafka 消息队列
+- `Pulsar`: Apache Pulsar 消息队列
+- `RabbitMQ`: RabbitMQ 消息队列
+- `GreptimeDB`: GreptimeDB 时序数据库
+- `Postgres`: PostgreSQL 关系型数据库
+- `MySQL`: MySQL 关系型数据库
+- `MongoDB`: MongoDB NoSQL 数据库
+- `LocalFile`: 本地文件存储
 
 ### Schema 类型 (schema_type)
 - `json`: JSON Schema

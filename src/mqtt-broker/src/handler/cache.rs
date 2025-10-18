@@ -468,12 +468,14 @@ mod tests {
             password: "password1".to_string(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         let user2 = MqttUser {
             username: "user2".to_string(),
             password: "password2".to_string(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
 
         // add

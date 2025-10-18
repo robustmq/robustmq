@@ -75,7 +75,7 @@ mod test {
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-    use common_base::tools::local_hostname;
+    use common_base::tools::{local_hostname, now_second};
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
@@ -96,6 +96,7 @@ mod test {
             password: "lobo_123".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
 
         cache_manager.add_user(user.clone());

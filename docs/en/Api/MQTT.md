@@ -809,13 +809,19 @@ Query message count for a specific topic:
     "data": [
       {
         "username": "admin",
-        "is_superuser": true
+        "is_superuser": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 10
   }
 }
 ```
+
+**Field Descriptions**:
+- `username`: Username
+- `is_superuser`: Whether it's a superuser
+- `create_time`: User creation timestamp (seconds)
 
 #### 6.2 Create User
 - **Endpoint**: `POST /api/mqtt/user/create`
@@ -1015,11 +1021,59 @@ Query message count for a specific topic:
 }
 ```
 
-**File Connector**:
+**Pulsar Connector**:
 ```json
 {
-  "connector_type": "File",
-  "config": "{\"path\":\"/tmp/mqtt_messages.log\",\"max_file_size\":\"100MB\"}"
+  "connector_type": "Pulsar",
+  "config": "{\"server\":\"pulsar://localhost:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\"}"
+}
+```
+
+**RabbitMQ Connector**:
+```json
+{
+  "connector_type": "RabbitMQ",
+  "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\"}"
+}
+```
+
+**GreptimeDB Connector**:
+```json
+{
+  "connector_type": "GreptimeDB",
+  "config": "{\"server_addr\":\"localhost:4000\",\"database\":\"public\",\"user\":\"greptime_user\",\"password\":\"greptime_pwd\",\"precision\":\"s\"}"
+}
+```
+
+**PostgreSQL Connector**:
+```json
+{
+  "connector_type": "Postgres",
+  "config": "{\"host\":\"localhost\",\"port\":5432,\"database\":\"mqtt_data\",\"username\":\"postgres\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"enable_batch_insert\":true}"
+}
+```
+
+**MySQL Connector**:
+```json
+{
+  "connector_type": "MySQL",
+  "config": "{\"host\":\"localhost\",\"port\":3306,\"database\":\"mqtt_data\",\"username\":\"root\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"enable_batch_insert\":true,\"enable_upsert\":false}"
+}
+```
+
+**MongoDB Connector**:
+```json
+{
+  "connector_type": "MongoDB",
+  "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"deployment_mode\":\"single\"}"
+}
+```
+
+**Local File Connector**:
+```json
+{
+  "connector_type": "LocalFile",
+  "config": "{\"local_file_path\":\"/tmp/mqtt_messages.log\"}"
 }
 ```
 
@@ -1245,8 +1299,14 @@ Query message count for a specific topic:
 - `Username`: Username
 
 ### Connector Type (connector_type)
-- `Kafka`: Kafka message queue
-- `File`: Local file
+- `Kafka`: Apache Kafka message queue
+- `Pulsar`: Apache Pulsar message queue
+- `RabbitMQ`: RabbitMQ message queue
+- `GreptimeDB`: GreptimeDB time-series database
+- `Postgres`: PostgreSQL relational database
+- `MySQL`: MySQL relational database
+- `MongoDB`: MongoDB NoSQL database
+- `LocalFile`: Local file storage
 
 ### Schema Type (schema_type)
 - `json`: JSON Schema

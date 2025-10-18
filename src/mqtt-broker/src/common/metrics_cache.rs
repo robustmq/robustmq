@@ -658,16 +658,23 @@ pub fn metrics_record_thread(
 
     record_topic_metrics_thread(
         metrics_cache_manager.clone(),
-        cache_manager,
+        cache_manager.clone(),
         time_window,
         stop_send.clone(),
     );
 
     record_subscribe_metrics_thread(
-        metrics_cache_manager,
-        subscribe_manager,
+        metrics_cache_manager.clone(),
+        subscribe_manager.clone(),
         time_window,
-        stop_send,
+        stop_send.clone(),
+    );
+
+    record_session_metrics_thread(
+        metrics_cache_manager.clone(),
+        cache_manager.clone(),
+        time_window,
+        stop_send.clone(),
     );
 }
 

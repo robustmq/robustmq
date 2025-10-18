@@ -90,6 +90,7 @@ export const sidebar = [
                     { text: "RabbitMQ", link: "/zh/RobustMQ-MQTT/Bridge/RabbitMQ" },
                     { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
                     { text: "PostgreSQL", link: "/zh/RobustMQ-MQTT/Bridge/PostgreSQL" },
+                    { text: "MySQL", link: "/zh/RobustMQ-MQTT/Bridge/MySQL" },
                     { text: "MongoDB", link: "/zh/RobustMQ-MQTT/Bridge/MongoDB" },
                 ]
             },

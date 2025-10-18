@@ -59,6 +59,7 @@ pub struct TopicRewriteListRow {
 pub struct UserListRow {
     pub username: String,
     pub is_superuser: bool,
+    pub create_time: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

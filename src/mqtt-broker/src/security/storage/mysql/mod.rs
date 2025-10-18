@@ -16,9 +16,9 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
 use common_config::security::MysqlConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -76,6 +76,8 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 password: raw.1.clone(),
                 salt: raw.2.clone(),
                 is_superuser: raw.3 == 1,
+                // todo bugfix
+                create_time: now_second(),
             };
             results.insert(raw.0.clone(), user);
         }
@@ -140,6 +142,8 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 password: value.1.clone(),
                 salt: value.2.clone(),
                 is_superuser: value.3 == 1,
+                // todo bugfix
+                create_time: now_second(),
             }));
         }
         return Ok(None);

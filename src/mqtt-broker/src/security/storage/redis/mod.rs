@@ -16,9 +16,9 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
 use common_config::security::RedisConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -86,6 +86,8 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                                 Some(redis_user.salt)
                             },
                             is_superuser: redis_user.is_superuser == 1,
+                            // todo bugfix
+                            create_time: now_second(),
                         };
                         results.insert(redis_user.username, user);
                     }
@@ -170,6 +172,8 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                     Some(redis_user.salt)
                 },
                 is_superuser: redis_user.is_superuser == 1,
+                // todo bugfix
+                create_time: now_second(),
             })),
             Err(_) => Ok(None),
         }
@@ -336,6 +340,8 @@ mod tests {
             password: "robustmq@2024".to_string(),
             salt: None,
             is_superuser: false,
+            // todo bugfix
+            create_time: now_second(),
         };
         let _ = auth_redis.save_user(user).await;
     }

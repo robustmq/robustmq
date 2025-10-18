@@ -279,6 +279,7 @@ impl Authentication for MySQL {
 mod tests {
     use super::*;
     use crate::common::tool::test_build_mqtt_cache_manager;
+    use common_base::tools::now_second;
     use common_config::security::PasswordConfig;
     use metadata_struct::mqtt::user::MqttUser;
 
@@ -294,6 +295,7 @@ mod tests {
             password: password.clone(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 
@@ -334,6 +336,7 @@ mod tests {
             password: stored_hash,
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 
@@ -374,6 +377,7 @@ mod tests {
             password: stored_hash,
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 

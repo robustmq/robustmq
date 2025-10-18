@@ -19,7 +19,10 @@ use crate::{
     tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
-use common_base::http_response::{error_response, success_response};
+use common_base::{
+    http_response::{error_response, success_response},
+    tools::now_second,
+};
 use metadata_struct::mqtt::user::MqttUser;
 use mqtt_broker::security::AuthDriver;
 use std::sync::Arc;
@@ -56,6 +59,7 @@ pub async fn user_list(
         let user_raw = UserListRow {
             username: ele.1.username,
             is_superuser: ele.1.is_superuser,
+            create_time: ele.1.create_time,
         };
         users.push(user_raw);
     }
@@ -88,6 +92,7 @@ pub async fn user_create(
         password: params.password.clone(),
         salt: None,
         is_superuser: params.is_superuser,
+        create_time: now_second(),
     };
 
     let auth_driver = AuthDriver::new(

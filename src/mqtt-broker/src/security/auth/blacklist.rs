@@ -138,6 +138,7 @@ mod test {
             password: "lobo_123".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
 
         cache_manager.add_user(user.clone());

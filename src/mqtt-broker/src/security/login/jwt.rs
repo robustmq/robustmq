@@ -18,6 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
+use common_base::tools::now_second;
 use common_config::security::JwtConfig;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use metadata_struct::mqtt::user::MqttUser;
@@ -170,6 +171,7 @@ impl Authentication for JwtAuth {
             password: self.password.clone(),
             salt: None,
             is_superuser: claims.is_superuser.unwrap_or(false),
+            create_time: now_second(),
         };
         self.cache_manager.add_user(user);
 
