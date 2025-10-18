@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::storage::user::UserStorage;
@@ -33,6 +34,7 @@ mod tests {
             password: password.clone(),
             salt: None,
             is_superuser,
+            create_time: now_second(),
         };
         user_storage.save_user(user_info).await.unwrap();
 

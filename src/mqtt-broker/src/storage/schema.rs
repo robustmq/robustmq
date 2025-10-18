@@ -15,13 +15,15 @@
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_config::broker::broker_config;
 use grpc_clients::{
-    meta::inner::call::{bind_schema, create_schema, delete_schema, list_schema, un_bind_schema},
+    meta::inner::call::{
+        bind_schema, create_schema, delete_schema, list_bind_schema, list_schema, un_bind_schema,
+    },
     pool::ClientPool,
 };
-use metadata_struct::schema::SchemaData;
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::meta::meta_service_inner::{
-    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest,
-    UnBindSchemaRequest,
+    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
+    ListSchemaRequest, UnBindSchemaRequest,
 };
 use std::sync::Arc;
 
@@ -98,5 +100,24 @@ impl SchemaStorage {
         un_bind_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
         Ok(())
+    }
+
+    pub async fn list_bind(&self) -> Result<Vec<SchemaResourceBind>, CommonError> {
+        let config = broker_config();
+        let request = ListBindSchemaRequest {
+            cluster_name: config.cluster_name.clone(),
+            schema_name: "".to_string(),
+            resource_name: "".to_string(),
+        };
+
+        let reply =
+            list_bind_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
+        let mut results = Vec::new();
+        for raw in reply.schema_binds {
+            results.push(serde_json::from_slice::<SchemaResourceBind>(
+                raw.as_slice(),
+            )?);
+        }
+        Ok(results)
     }
 }

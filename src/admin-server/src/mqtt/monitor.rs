@@ -34,6 +34,8 @@ pub enum MonitorDataType {
     SubscribeSendFailureNum,
     SubscribeTopicSendSuccessNum,
     SubscribeTopicSendFailureNum,
+    SessionInNum,
+    SessionOutNum,
 }
 
 impl FromStr for MonitorDataType {
@@ -53,6 +55,8 @@ impl FromStr for MonitorDataType {
             "subscribe_send_failure_num" => Ok(MonitorDataType::SubscribeSendFailureNum),
             "subscribe_topic_send_success_num" => Ok(MonitorDataType::SubscribeTopicSendSuccessNum),
             "subscribe_topic_send_failure_num" => Ok(MonitorDataType::SubscribeTopicSendFailureNum),
+            "session_in_num" => Ok(MonitorDataType::SessionInNum),
+            "session_out_num" => Ok(MonitorDataType::SessionOutNum),
             _ => Err(format!("Unknown monitor data type: {}", s)),
         }
     }
@@ -152,6 +156,28 @@ pub async fn monitor_data(
                         &params.topic_name.unwrap(),
                         false,
                     )
+            } else {
+                DashMap::new()
+            }
+        }
+
+        MonitorDataType::SessionInNum => {
+            if params.client_id.is_some() {
+                state
+                    .mqtt_context
+                    .metrics_manager
+                    .get_session_in_num(&params.client_id.unwrap())
+            } else {
+                DashMap::new()
+            }
+        }
+
+        MonitorDataType::SessionOutNum => {
+            if params.client_id.is_some() {
+                state
+                    .mqtt_context
+                    .metrics_manager
+                    .get_session_out_num(&params.client_id.unwrap())
             } else {
                 DashMap::new()
             }

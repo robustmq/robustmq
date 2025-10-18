@@ -16,6 +16,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
+use common_base::tools::now_second;
 use common_config::security::HttpConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -206,6 +207,8 @@ impl HttpAuthStorageAdapter {
                 password: password.to_string(),
                 salt: None,
                 is_superuser: response.is_superuser.unwrap_or(false),
+                // todo bugfix
+                create_time: now_second(),
             })),
             "deny" => Ok(None),
             "ignore" => Err(MqttBrokerError::UserDoesNotExist),

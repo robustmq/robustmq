@@ -20,6 +20,7 @@ pub struct MqttUser {
     pub password: String,
     pub salt: Option<String>,
     pub is_superuser: bool,
+    pub create_time: u64,
 }
 
 impl MqttUser {

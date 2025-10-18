@@ -6,7 +6,7 @@
 
 ### 网络端口配置
 ```toml
-[mqtt.server]
+[mqtt_server]
 tcp_port = 1883              # MQTT TCP 端口
 tls_port = 1884              # MQTT TLS 端口
 websocket_port = 8083        # WebSocket 端口
@@ -26,14 +26,40 @@ quic_port = 9083            # QUIC 协议端口
 
 ---
 
+## MQTT 心跳保持配置
+
+### Keep Alive 配置
+```toml
+[mqtt_keep_alive]
+enable = true                # 是否启用心跳检测
+default_time = 180          # 默认心跳间隔(秒)
+max_time = 3600            # 最大心跳间隔(秒)
+default_timeout = 2        # 默认超时次数
+```
+
+### 配置说明
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `enable` | `bool` | `true` | 是否启用 Keep Alive 心跳检测 |
+| `default_time` | `u16` | `180` | 默认心跳间隔时间（秒） |
+| `max_time` | `u16` | `3600` | 最大心跳间隔时间（秒） |
+| `default_timeout` | `u16` | `2` | 连续超时次数后断开连接 |
+
+---
+
 ## MQTT 认证存储配置
 
 ### 认证存储配置
 ```toml
-[mqtt.auth.storage]
+[mqtt_auth_config]
+# 认证配置
+[mqtt_auth_config.authn_config]
 storage_type = "placement"    # 存储类型
-journal_addr = ""            # Journal 地址
-mysql_addr = ""              # MySQL 地址
+
+# 授权配置
+[mqtt_auth_config.authz_config]
+# 授权相关配置
 ```
 
 ### 配置说明
@@ -55,7 +81,7 @@ mysql_addr = ""              # MySQL 地址
 
 ### 消息存储配置
 ```toml
-[mqtt.message.storage]
+[mqtt_message_storage]
 storage_type = "memory"       # 存储类型
 journal_addr = ""            # Journal 地址
 mysql_addr = ""              # MySQL 地址
@@ -85,7 +111,7 @@ rocksdb_max_open_files = 10000  # RocksDB 最大打开文件数
 
 ### 运行时配置
 ```toml
-[mqtt.runtime]
+[mqtt_runtime]
 default_user = "admin"        # 默认用户名
 default_password = "robustmq" # 默认密码
 max_connection_num = 1000000  # 最大连接数
@@ -105,14 +131,12 @@ max_connection_num = 1000000  # 最大连接数
 
 ### 协议参数配置
 ```toml
-[mqtt.protocol]
+[mqtt_protocol_config]
 max_session_expiry_interval = 1800      # 最大会话过期间隔(秒)
 default_session_expiry_interval = 30    # 默认会话过期间隔(秒)
 topic_alias_max = 65535                 # 主题别名最大值
 max_qos = 2                            # 最大 QoS 级别
 max_packet_size = 10485760             # 最大数据包大小(字节)
-max_server_keep_alive = 3600           # 最大保持连接时间(秒)
-default_server_keep_alive = 60         # 默认保持连接时间(秒)
 receive_max = 65535                    # 接收最大值
 client_pkid_persistent = false        # 客户端包ID持久化
 max_message_expiry_interval = 3600     # 最大消息过期间隔(秒)
@@ -127,9 +151,8 @@ max_message_expiry_interval = 3600     # 最大消息过期间隔(秒)
 | `topic_alias_max` | `u16` | `65535` | 主题别名最大数量 |
 | `max_qos` | `u8` | `2` | 支持的最大 QoS 级别 |
 | `max_packet_size` | `u32` | `10485760` | 单个 MQTT 数据包最大大小（字节） |
-| `max_server_keep_alive` | `u16` | `3600` | 服务器端最大保持连接时间（秒） |
-| `default_server_keep_alive` | `u16` | `60` | 服务器端默认保持连接时间（秒） |
 | `receive_max` | `u16` | `65535` | 未确认的 PUBLISH 数据包最大数量 |
+| `max_message_expiry_interval` | `u64` | `3600` | 消息最大过期时间（秒） |
 | `client_pkid_persistent` | `bool` | `false` | 是否持久化客户端包标识符 |
 
 ---
@@ -138,7 +161,7 @@ max_message_expiry_interval = 3600     # 最大消息过期间隔(秒)
 
 ### 安全配置
 ```toml
-[mqtt.security]
+[mqtt_security]
 secret_free_login = false            # 是否允许免密登录
 is_self_protection_status = false   # 是否启用自我保护模式
 ```
@@ -156,7 +179,7 @@ is_self_protection_status = false   # 是否启用自我保护模式
 
 ### 离线消息配置
 ```toml
-[mqtt.offline_message]
+[mqtt_offline_message]
 enable = true                # 是否启用离线消息
 expire_ms = 3600000         # 消息过期时间(毫秒)
 max_messages_num = 1000     # 最大离线消息数量
@@ -176,13 +199,10 @@ max_messages_num = 1000     # 最大离线消息数量
 
 ### 系统监控配置
 ```toml
-[mqtt.system_monitor]
-enable = false                        # 是否启用系统监控
-os_cpu_check_interval_ms = 60000     # CPU 检查间隔(毫秒)
-os_cpu_high_watermark = 70.0         # CPU 高水位线(%)
-os_cpu_low_watermark = 50.0          # CPU 低水位线(%)
-os_memory_check_interval_ms = 60000  # 内存检查间隔(毫秒)
-os_memory_high_watermark = 80.0      # 内存高水位线(%)
+[mqtt_system_monitor]
+enable = false                  # 是否启用系统监控
+os_cpu_high_watermark = 70.0   # CPU 高水位线(%)
+os_memory_high_watermark = 80.0 # 内存高水位线(%)
 ```
 
 ### 配置说明
@@ -190,10 +210,7 @@ os_memory_high_watermark = 80.0      # 内存高水位线(%)
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `enable` | `bool` | `false` | 是否启用系统资源监控 |
-| `os_cpu_check_interval_ms` | `u64` | `60000` | CPU 使用率检查间隔（毫秒） |
 | `os_cpu_high_watermark` | `f32` | `70.0` | CPU 使用率高水位线（百分比） |
-| `os_cpu_low_watermark` | `f32` | `50.0` | CPU 使用率低水位线（百分比） |
-| `os_memory_check_interval_ms` | `u64` | `60000` | 内存使用率检查间隔（毫秒） |
 | `os_memory_high_watermark` | `f32` | `80.0` | 内存使用率高水位线（百分比） |
 
 ---
@@ -202,9 +219,9 @@ os_memory_high_watermark = 80.0      # 内存高水位线(%)
 
 ### 慢订阅配置
 ```toml
-[mqtt.slow_subscribe]
+[mqtt_slow_subscribe_config]
 enable = false               # 是否启用慢订阅检测
-max_store_num = 1000        # 最大存储数量
+record_time = 1000          # 记录时间阈值(毫秒)
 delay_type = "Whole"        # 延迟类型
 ```
 
@@ -213,7 +230,7 @@ delay_type = "Whole"        # 延迟类型
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `enable` | `bool` | `false` | 是否启用慢订阅检测 |
-| `max_store_num` | `u32` | `1000` | 慢订阅记录最大存储数量 |
+| `record_time` | `u64` | `1000` | 慢订阅记录时间阈值（毫秒） |
 | `delay_type` | `DelayType` | `Whole` | 延迟计算类型：Whole, Partial |
 
 ---
@@ -222,7 +239,7 @@ delay_type = "Whole"        # 延迟类型
 
 ### 抖动检测配置
 ```toml
-[mqtt.flapping_detect]
+[mqtt_flapping_detect]
 enable = false                    # 是否启用连接抖动检测
 window_time = 60                 # 时间窗口(秒)
 max_client_connections = 15      # 最大连接次数
@@ -244,7 +261,7 @@ ban_time = 300                   # 封禁时间(秒)
 
 ### Schema 验证配置
 ```toml
-[mqtt.schema]
+[mqtt_schema]
 enable = true                        # 是否启用 Schema 验证
 strategy = "ALL"                     # 验证策略
 failed_operation = "Discard"         # 验证失败操作

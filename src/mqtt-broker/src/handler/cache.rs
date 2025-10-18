@@ -149,6 +149,13 @@ impl MQTTCacheManager {
     }
 
     // session
+    pub fn get_session_client_id_list(&self) -> Vec<String> {
+        self.session_info
+            .iter()
+            .map(|session| session.client_id.clone())
+            .collect()
+    }
+
     pub fn add_session(&self, client_id: &str, session: &MqttSession) {
         self.session_info
             .insert(client_id.to_owned(), session.to_owned());
@@ -461,12 +468,14 @@ mod tests {
             password: "password1".to_string(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         let user2 = MqttUser {
             username: "user2".to_string(),
             password: "password2".to_string(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
 
         // add

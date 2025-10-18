@@ -39,6 +39,10 @@ pub fn default_grpc_port() -> u32 {
     1228
 }
 
+pub fn default_http_port() -> u32 {
+    8080
+}
+
 pub fn default_meta_addrs() -> Table {
     let mut nodes = Table::new();
     nodes.insert(

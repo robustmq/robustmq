@@ -20,18 +20,14 @@ use crate::handler::cache::{
 };
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
+use crate::handler::metrics::record_publish_send_metrics;
+use crate::handler::metrics::record_send_metrics;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
 use common_base::tools::now_mills;
-use common_metrics::mqtt::packets::record_sent_metrics;
-use common_metrics::mqtt::publish::record_mqtt_message_bytes_sent;
-use common_metrics::mqtt::publish::record_mqtt_messages_sent_inc;
-use common_metrics::mqtt::time::record_mqtt_packet_send_duration;
-use common_metrics::mqtt::topic::record_topic_bytes_sent;
-use common_metrics::mqtt::topic::record_topic_messages_sent;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
@@ -39,7 +35,6 @@ use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::mqtt::common::mqtt_packet_to_string;
 use protocol::mqtt::common::qos;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::robust::RobustMQPacket;
@@ -271,7 +266,7 @@ pub async fn push_packet_to_client(
         let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
         let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subscribe".to_string());
 
-        send_message_to_client(resp, connection_manager).await
+        send_message_to_client(resp, connection_manager, cache_manager).await
     };
 
     retry_tool_fn_timeout(action_fn, stop_sx, "push_packet_to_client").await
@@ -364,6 +359,7 @@ pub async fn wait_packet_ack(
 pub async fn send_message_to_client(
     resp: ResponsePackage,
     connection_manager: &Arc<ConnectionManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> ResultMqttBrokerError {
     let start = now_mills();
     let protocol =
@@ -403,20 +399,16 @@ pub async fn send_message_to_client(
 
     if let MqttPacket::Publish(publish, _) = packet.clone() {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        record_mqtt_messages_sent_inc();
-        record_mqtt_message_bytes_sent(publish.payload.len() as u64);
-        record_topic_messages_sent(&topic_name);
-        record_topic_bytes_sent(&topic_name, publish.payload.len() as u64);
-    }
-
-    if let Some(network) = network_type.clone() {
-        record_mqtt_packet_send_duration(
-            network,
-            mqtt_packet_to_string(&packet),
-            (now_mills() - start) as f64,
+        let connection = cache_manager.get_connection(resp.connection_id).unwrap();
+        record_publish_send_metrics(
+            &connection.client_id,
+            resp.connection_id,
+            &topic_name,
+            publish.payload.len() as u64,
         );
     }
-    record_sent_metrics(&wrapper, format!("{:?}", network_type));
+
+    record_send_metrics(&wrapper, &packet, network_type, start);
     Ok(())
 }
 

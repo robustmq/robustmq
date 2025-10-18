@@ -36,7 +36,7 @@ register_histogram_metric_ms_with_default_buckets!(
     NetworkLabel
 );
 
-pub fn record_mqtt_packet_process_duration(
+pub fn record_packet_process_duration(
     network_type: NetworkConnectionType,
     packet: String,
     duration_ms: f64,
@@ -48,7 +48,7 @@ pub fn record_mqtt_packet_process_duration(
     histogram_metric_observe!(MQTT_PACKET_PROCESS_DURATION_MS, duration_ms, label);
 }
 
-pub fn record_mqtt_packet_send_duration(
+pub fn record_packet_send_duration(
     network_type: NetworkConnectionType,
     packet: String,
     duration_ms: f64,

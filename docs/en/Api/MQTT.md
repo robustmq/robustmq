@@ -86,6 +86,10 @@
 - `subscribe_topic_send_success_num` - Number of successfully sent messages to subscription for specific topic
 - `subscribe_topic_send_failure_num` - Number of failed sent messages to subscription for specific topic
 
+**Session-Level Monitoring Types** (requires `client_id`):
+- `session_in_num` - Number of messages received by session
+- `session_out_num` - Number of messages sent by session
+
 - **Response Data Structure**:
 ```json
 {
@@ -136,6 +140,7 @@ Query message count for a specific topic:
   - Topic-level monitoring (`topic_in_num`, `topic_out_num`): Must provide `topic_name`
   - Subscription-level monitoring (`subscribe_send_success_num`, `subscribe_send_failure_num`): Must provide `client_id` and `path`
   - Subscription-topic-level monitoring (`subscribe_topic_send_success_num`, `subscribe_topic_send_failure_num`): Must provide `client_id`, `path` and `topic_name`
+  - Session-level monitoring (`session_in_num`, `session_out_num`): Must provide `client_id`
   - If required parameters are missing, an empty array will be returned
 - Returned data is naturally sorted by timestamp
 
@@ -804,13 +809,19 @@ Query message count for a specific topic:
     "data": [
       {
         "username": "admin",
-        "is_superuser": true
+        "is_superuser": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 10
   }
 }
 ```
+
+**Field Descriptions**:
+- `username`: Username
+- `is_superuser`: Whether it's a superuser
+- `create_time`: User creation timestamp (seconds)
 
 #### 6.2 Create User
 - **Endpoint**: `POST /api/mqtt/user/create`
@@ -973,7 +984,7 @@ Query message count for a specific topic:
     "data": [
       {
         "connector_name": "kafka_connector",
-        "connector_type": "Kafka",
+        "connector_type": "kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
         "topic_name": "topic_001",
         "status": "Running",
@@ -994,7 +1005,7 @@ Query message count for a specific topic:
 ```json
 {
   "connector_name": "new_connector",   // Connector name
-  "connector_type": "Kafka",           // Connector type
+  "connector_type": "kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
   "topic_name": "sensor/+"               // Associated topic ID
 }
@@ -1005,16 +1016,66 @@ Query message count for a specific topic:
 **Kafka Connector**:
 ```json
 {
-  "connector_type": "Kafka",
-  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"acks\":\"all\"}"
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\"}"
 }
 ```
 
-**File Connector**:
+> Note: The `key` field is required but can be an empty string. If you need to specify a message key, set it to a specific value, such as `"key":"sensor_data"`.
+
+**Pulsar Connector**:
 ```json
 {
-  "connector_type": "File",
-  "config": "{\"path\":\"/tmp/mqtt_messages.log\",\"max_file_size\":\"100MB\"}"
+  "connector_type": "pulsar",
+  "config": "{\"server\":\"pulsar://localhost:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\"}"
+}
+```
+
+**RabbitMQ Connector**:
+```json
+{
+  "connector_type": "rabbitmq",
+  "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false}"
+}
+```
+
+**GreptimeDB Connector**:
+```json
+{
+  "connector_type": "greptime",
+  "config": "{\"server_addr\":\"localhost:4000\",\"database\":\"public\",\"user\":\"greptime_user\",\"password\":\"greptime_pwd\",\"precision\":\"Second\"}"
+}
+```
+
+**PostgreSQL Connector**:
+```json
+{
+  "connector_type": "postgres",
+  "config": "{\"host\":\"localhost\",\"port\":5432,\"database\":\"mqtt_data\",\"username\":\"postgres\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"pool_size\":10,\"enable_batch_insert\":true,\"enable_upsert\":false,\"conflict_columns\":\"id\"}"
+}
+```
+
+**MySQL Connector**:
+```json
+{
+  "connector_type": "mysql",
+  "config": "{\"host\":\"localhost\",\"port\":3306,\"database\":\"mqtt_data\",\"username\":\"root\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"pool_size\":10,\"enable_batch_insert\":true,\"enable_upsert\":false,\"conflict_columns\":\"id\"}"
+}
+```
+
+**MongoDB Connector**:
+```json
+{
+  "connector_type": "mongodb",
+  "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"auth_source\":\"admin\",\"deployment_mode\":\"single\",\"enable_tls\":false,\"max_pool_size\":10,\"min_pool_size\":2}"
+}
+```
+
+**Local File Connector**:
+```json
+{
+  "connector_type": "file",
+  "config": "{\"local_file_path\":\"/tmp/mqtt_messages.log\"}"
 }
 ```
 
@@ -1240,8 +1301,14 @@ Query message count for a specific topic:
 - `Username`: Username
 
 ### Connector Type (connector_type)
-- `Kafka`: Kafka message queue
-- `File`: Local file
+- `kafka`: Apache Kafka message queue
+- `pulsar`: Apache Pulsar message queue
+- `rabbitmq`: RabbitMQ message queue
+- `greptime`: GreptimeDB time-series database
+- `postgres`: PostgreSQL relational database
+- `mysql`: MySQL relational database
+- `mongodb`: MongoDB NoSQL database
+- `file`: Local file storage
 
 ### Schema Type (schema_type)
 - `json`: JSON Schema
@@ -1304,6 +1371,22 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
     "path": "sensor/+",
     "topic_name": "sensor/temperature"
   }'
+
+# Query session received message count
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_in_num",
+    "client_id": "client001"
+  }'
+
+# Query session sent message count
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_out_num",
+    "client_id": "client001"
+  }'
 ```
 
 ### Query Client List
@@ -1349,7 +1432,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "connector_name": "kafka_bridge",
-    "connector_type": "Kafka",
+    "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
   }'

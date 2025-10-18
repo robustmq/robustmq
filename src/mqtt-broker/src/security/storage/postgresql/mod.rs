@@ -16,9 +16,9 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
 use common_config::security::PostgresConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -79,6 +79,8 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
                 password,
                 salt,
                 is_superuser: is_superuser == 1,
+                // todo bugfix
+                create_time: now_second(),
             };
             results.insert(username, user);
         }
@@ -153,6 +155,8 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
                 password,
                 salt,
                 is_superuser: is_superuser == 1,
+                // todo bugfix
+                create_time: now_second(),
             }));
         }
         return Ok(None);

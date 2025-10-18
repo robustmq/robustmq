@@ -19,6 +19,7 @@ use common_metrics::mqtt::publish::{
     record_messages_dropped_no_subscribers_get, record_mqtt_messages_received_get,
     record_mqtt_messages_sent_get,
 };
+use common_metrics::mqtt::session::{get_session_messages_in, get_session_messages_out};
 use common_metrics::mqtt::statistics::{
     record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscribers_set,
     record_mqtt_subscriptions_shared_set, record_mqtt_topics_set,
@@ -43,6 +44,8 @@ pub const METRICS_TYPE_KEY_TOPIC_IN_NUM: &str = "topic_in";
 pub const METRICS_TYPE_KEY_TOPIC_OUT_NUM: &str = "topic_out";
 pub const METRICS_TYPE_KEY_SUBSCRIBE_SEND: &str = "subscribe_send";
 pub const METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND: &str = "subscribe_topic_send";
+pub const METRICS_TYPE_KEY_SESSION_IN_NUM: &str = "session_in";
+pub const METRICS_TYPE_KEY_SESSION_OUT_NUM: &str = "session_out";
 
 #[derive(Default, Clone)]
 pub struct MetricsCacheManager {
@@ -214,6 +217,52 @@ impl MetricsCacheManager {
     pub fn get_topic_out_pre_total(&self, topic: &str, num: u64) -> u64 {
         let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_OUT_NUM, topic);
         self.pre_data_num.get(&key).map(|v| *v).unwrap_or(num)
+    }
+
+    // session in
+    pub fn record_session_in_num(&self, client_id: &str, time: u64, total: u64, num: u64) {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
+        self.record_num(&key, time, num);
+        self.record_pre_num(&key, total);
+    }
+
+    pub fn get_session_in_num(&self, client_id: &str) -> DashMap<u64, u64> {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
+        self.data_num
+            .get(&key)
+            .map(|v| v.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn get_session_in_pre_total(&self, client_id: &str, num: u64) -> u64 {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
+        self.pre_data_num
+            .get(&key)
+            .map(|v: dashmap::mapref::one::Ref<'_, String, u64>| *v)
+            .unwrap_or(num)
+    }
+
+    // session out
+    pub fn record_session_out_num(&self, client_id: &str, time: u64, total: u64, num: u64) {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
+        self.record_num(&key, time, num);
+        self.record_pre_num(&key, total);
+    }
+
+    pub fn get_session_out_num(&self, client_id: &str) -> DashMap<u64, u64> {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
+        self.data_num
+            .get(&key)
+            .map(|v| v.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn get_session_out_pre_total(&self, client_id: &str, num: u64) -> u64 {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
+        self.pre_data_num
+            .get(&key)
+            .map(|v: dashmap::mapref::one::Ref<'_, String, u64>| *v)
+            .unwrap_or(num)
     }
 
     // subscribe send
@@ -441,6 +490,44 @@ fn record_topic_metrics_thread(
     });
 }
 
+fn record_session_metrics_thread(
+    metrics_cache_manager: Arc<MetricsCacheManager>,
+    cache_manager: Arc<MQTTCacheManager>,
+    time_window: u64,
+    stop_send: broadcast::Sender<bool>,
+) {
+    tokio::spawn(async move {
+        let record_func = async || -> ResultCommonError {
+            let now: u64 = now_second();
+
+            for client_id in cache_manager.get_session_client_id_list() {
+                // session in
+                let num = get_session_messages_in(&client_id);
+                let pre_num = metrics_cache_manager.get_session_in_pre_total(&client_id, num);
+                metrics_cache_manager.record_session_in_num(
+                    &client_id,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
+
+                // session out
+                let num = get_session_messages_out(&client_id);
+                let pre_num = metrics_cache_manager.get_session_out_pre_total(&client_id, num);
+                metrics_cache_manager.record_session_out_num(
+                    &client_id,
+                    now,
+                    num,
+                    calc_value(num, pre_num, time_window),
+                );
+            }
+
+            Ok(())
+        };
+        loop_select_ticket(record_func, time_window, &stop_send).await;
+    });
+}
+
 fn record_subscribe_metrics_thread(
     metrics_cache_manager: Arc<MetricsCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -571,16 +658,23 @@ pub fn metrics_record_thread(
 
     record_topic_metrics_thread(
         metrics_cache_manager.clone(),
-        cache_manager,
+        cache_manager.clone(),
         time_window,
         stop_send.clone(),
     );
 
     record_subscribe_metrics_thread(
-        metrics_cache_manager,
-        subscribe_manager,
+        metrics_cache_manager.clone(),
+        subscribe_manager.clone(),
         time_window,
-        stop_send,
+        stop_send.clone(),
+    );
+
+    record_session_metrics_thread(
+        metrics_cache_manager.clone(),
+        cache_manager.clone(),
+        time_window,
+        stop_send.clone(),
     );
 }
 

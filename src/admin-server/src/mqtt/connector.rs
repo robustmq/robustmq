@@ -26,20 +26,14 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::mqtt::bridge::{
-    config_greptimedb::GreptimeDBConnectorConfig,
-    config_kafka::KafkaConnectorConfig,
-    config_local_file::LocalFileConnectorConfig,
-    config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig,
-    config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig,
-    config_rabbitmq::RabbitMQConnectorConfig,
-    connector::MQTTConnector,
-    connector_type::{connector_type_for_string, ConnectorType},
-    status::MQTTStatus,
+    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
+    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 pub async fn connector_list(
     State(state): State<Arc<HttpState>>,
@@ -125,7 +119,7 @@ async fn connector_create_inner(
     state: &Arc<HttpState>,
     params: CreateConnectorReq,
 ) -> ResultCommonError {
-    let connector_type = connector_type_for_string(params.connector_type.clone())?;
+    let connector_type = ConnectorType::from_str(&params.connector_type)?;
     connector_config_validator(&connector_type, &params.config)?;
 
     let storage = ConnectorStorage::new(state.client_pool.clone());

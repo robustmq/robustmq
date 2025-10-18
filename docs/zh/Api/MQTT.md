@@ -86,6 +86,10 @@
 - `subscribe_topic_send_success_num` - 订阅指定主题发送成功消息数
 - `subscribe_topic_send_failure_num` - 订阅指定主题发送失败消息数
 
+**会话级监控类型**（需要 `client_id`）：
+- `session_in_num` - 会话接收消息数
+- `session_out_num` - 会话发送消息数
+
 - **响应数据结构**:
 ```json
 {
@@ -136,6 +140,7 @@
   - 主题级监控（`topic_in_num`、`topic_out_num`）：必须提供 `topic_name`
   - 订阅级监控（`subscribe_send_success_num`、`subscribe_send_failure_num`）：必须提供 `client_id` 和 `path`
   - 订阅主题级监控（`subscribe_topic_send_success_num`、`subscribe_topic_send_failure_num`）：必须提供 `client_id`、`path` 和 `topic_name`
+  - 会话级监控（`session_in_num`、`session_out_num`）：必须提供 `client_id`
   - 如果缺少必需参数，将返回空数组
 - 返回的数据按时间戳自然排序
 
@@ -804,13 +809,19 @@
     "data": [
       {
         "username": "admin",
-        "is_superuser": true
+        "is_superuser": true,
+        "create_time": 1640995200
       }
     ],
     "total_count": 10
   }
 }
 ```
+
+**字段说明**：
+- `username`: 用户名
+- `is_superuser`: 是否为超级用户
+- `create_time`: 用户创建时间戳（秒）
 
 #### 6.2 创建用户
 - **接口**: `POST /api/mqtt/user/create`
@@ -973,7 +984,7 @@
     "data": [
       {
         "connector_name": "kafka_connector",
-        "connector_type": "Kafka",
+        "connector_type": "kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
         "topic_name": "topic_001",
         "status": "Running",
@@ -994,7 +1005,7 @@
 ```json
 {
   "connector_name": "new_connector",   // 连接器名称
-  "connector_type": "Kafka",           // 连接器类型
+  "connector_type": "kafka",           // 连接器类型
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // 配置信息（JSON字符串）
   "topic_name": "sensor/+"               // 关联的主题ID
 }
@@ -1005,16 +1016,66 @@
 **Kafka 连接器**:
 ```json
 {
-  "connector_type": "Kafka",
-  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"acks\":\"all\"}"
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\"}"
+}
+```
+
+> 注意：`key` 字段必须提供，但可以为空字符串。如果需要指定消息键，可以设置为具体值，如 `"key":"sensor_data"`。
+
+**Pulsar 连接器**:
+```json
+{
+  "connector_type": "pulsar",
+  "config": "{\"server\":\"pulsar://localhost:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\"}"
+}
+```
+
+**RabbitMQ 连接器**:
+```json
+{
+  "connector_type": "rabbitmq",
+  "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false}"
+}
+```
+
+**GreptimeDB 连接器**:
+```json
+{
+  "connector_type": "greptime",
+  "config": "{\"server_addr\":\"localhost:4000\",\"database\":\"public\",\"user\":\"greptime_user\",\"password\":\"greptime_pwd\",\"precision\":\"Second\"}"
+}
+```
+
+**PostgreSQL 连接器**:
+```json
+{
+  "connector_type": "postgres",
+  "config": "{\"host\":\"localhost\",\"port\":5432,\"database\":\"mqtt_data\",\"username\":\"postgres\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"pool_size\":10,\"enable_batch_insert\":true,\"enable_upsert\":false,\"conflict_columns\":\"id\"}"
+}
+```
+
+**MySQL 连接器**:
+```json
+{
+  "connector_type": "mysql",
+  "config": "{\"host\":\"localhost\",\"port\":3306,\"database\":\"mqtt_data\",\"username\":\"root\",\"password\":\"password123\",\"table\":\"mqtt_messages\",\"pool_size\":10,\"enable_batch_insert\":true,\"enable_upsert\":false,\"conflict_columns\":\"id\"}"
+}
+```
+
+**MongoDB 连接器**:
+```json
+{
+  "connector_type": "mongodb",
+  "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"auth_source\":\"admin\",\"deployment_mode\":\"single\",\"enable_tls\":false,\"max_pool_size\":10,\"min_pool_size\":2}"
 }
 ```
 
 **文件连接器**:
 ```json
 {
-  "connector_type": "File",
-  "config": "{\"path\":\"/tmp/mqtt_messages.log\",\"max_file_size\":\"100MB\"}"
+  "connector_type": "file",
+  "config": "{\"local_file_path\":\"/tmp/mqtt_messages.log\"}"
 }
 ```
 
@@ -1240,8 +1301,14 @@
 - `Username`: 用户名
 
 ### 连接器类型 (connector_type)
-- `Kafka`: Kafka消息队列
-- `File`: 本地文件
+- `kafka`: Apache Kafka 消息队列
+- `pulsar`: Apache Pulsar 消息队列
+- `rabbitmq`: RabbitMQ 消息队列
+- `greptime`: GreptimeDB 时序数据库
+- `postgres`: PostgreSQL 关系型数据库
+- `mysql`: MySQL 关系型数据库
+- `mongodb`: MongoDB NoSQL 数据库
+- `file`: 本地文件存储
 
 ### Schema 类型 (schema_type)
 - `json`: JSON Schema
@@ -1304,6 +1371,22 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
     "path": "sensor/+",
     "topic_name": "sensor/temperature"
   }'
+
+# 查询会话接收消息数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_in_num",
+    "client_id": "client001"
+  }'
+
+# 查询会话发送消息数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "session_out_num",
+    "client_id": "client001"
+  }'
 ```
 
 ### 查询客户端列表
@@ -1349,7 +1432,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "connector_name": "kafka_bridge",
-    "connector_type": "Kafka",
+    "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
   }'

@@ -73,7 +73,7 @@ impl MqttUserStorage {
 mod tests {
     use crate::storage::mqtt::user::MqttUserStorage;
     use broker_core::rocksdb::column_family_list;
-    use common_base::utils::file_utils::test_temp_dir;
+    use common_base::{tools::now_second, utils::file_utils::test_temp_dir};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::user::MqttUser;
     use rocksdb_engine::RocksDBEngine;
@@ -97,6 +97,7 @@ mod tests {
             password: "pwd123".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
         user_storage.save(&cluster_name, &username, user).unwrap();
 
@@ -106,6 +107,7 @@ mod tests {
             password: "pwd1231".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
         user_storage.save(&cluster_name, &username, user).unwrap();
 

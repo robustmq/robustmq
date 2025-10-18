@@ -43,6 +43,9 @@ roles = ["meta", "broker", "journal"]
 # gRPC port
 grpc_port = 1228
 
+# HTTP port
+http_port = 8080
+
 # Metadata center addresses
 [meta_addrs]
 1 = "127.0.0.1:1228"
@@ -56,6 +59,7 @@ grpc_port = 1228
 | `broker_id` | `u64` | `1` | Unique node identifier |
 | `roles` | `array` | `["meta", "broker"]` | Node roles: meta(metadata), broker(MQTT), journal(log) |
 | `grpc_port` | `u32` | `1228` | gRPC service port |
+| `http_port` | `u32` | `8080` | HTTP API service port |
 | `meta_addrs` | `table` | `{1 = "127.0.0.1:1228"}` | Metadata center node address mapping |
 
 ---
