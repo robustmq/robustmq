@@ -18,10 +18,10 @@ use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_postgres::PostgresConnectorConfig,
 };
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
-use tokio_postgres::{Client, NoTls};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
@@ -56,37 +56,40 @@ impl PostgresBridgePlugin {
         }
     }
 
-    pub async fn connect(&self) -> Result<Client, common_base::error::common::CommonError> {
-        let connection_string = self.config.connection_string();
-
-        let (client, connection) = tokio_postgres::connect(&connection_string, NoTls).await?;
-
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                error!("PostgreSQL connection error: {}", e);
-            }
-        });
-
-        Ok(client)
+    async fn create_pool(&self) -> Result<Pool<Postgres>, sqlx::Error> {
+        PgPoolOptions::new()
+            .max_connections(self.config.get_pool_size())
+            .connect(&self.config.connection_url())
+            .await
     }
 
-    pub async fn append(&self, records: &Vec<Record>, client: &Client) -> ResultMqttBrokerError {
+    pub async fn append(
+        &self,
+        records: &Vec<Record>,
+        pool: &Pool<Postgres>,
+    ) -> ResultMqttBrokerError {
         if records.is_empty() {
             return Ok(());
         }
 
-        let enable_batch = self.config.enable_batch_insert.unwrap_or(false);
-
-        if enable_batch {
-            self.batch_insert(records, client).await
+        if self.config.is_batch_insert_enabled() {
+            if self.config.sql_template.is_some() {
+                warn!(
+                    "Connector {}: sql_template is not applied in batch mode; default batch INSERT will be used",
+                    self.connector_name
+                );
+            }
+            self.batch_insert(records, pool).await
         } else {
-            self.single_insert(records, client).await
+            self.single_insert(records, pool).await
         }
     }
 
-    async fn single_insert(&self, records: &Vec<Record>, client: &Client) -> ResultMqttBrokerError {
-        let enable_upsert = self.config.enable_upsert.unwrap_or(false);
-
+    async fn single_insert(
+        &self,
+        records: &Vec<Record>,
+        pool: &Pool<Postgres>,
+    ) -> ResultMqttBrokerError {
         for record in records {
             let client_id = &record.key;
             let timestamp = record.timestamp as i64;
@@ -98,17 +101,18 @@ impl PostgresBridgePlugin {
                 .unwrap_or_else(|| "unknown".to_string());
             let payload_str = String::from_utf8_lossy(&record.data).to_string();
 
-            let sql = if enable_upsert {
-                let conflict_columns = self
-                    .config
-                    .conflict_columns
-                    .as_deref()
-                    .unwrap_or("client_id, topic");
-
-                format!(
-                    "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT ({}) DO UPDATE SET timestamp = EXCLUDED.timestamp, payload = EXCLUDED.payload, data = EXCLUDED.data",
-                    self.config.table, conflict_columns
-                )
+            let base_sql = if let Some(template) = &self.config.sql_template {
+                let placeholder_count = (1..=10)
+                    .filter(|i| template.contains(&format!("${}", i)))
+                    .count();
+                if placeholder_count != 5 {
+                    warn!(
+                        "Connector {}: sql_template expects 5 placeholders, but found {}. Using provided template with binds (client_id, topic, timestamp, payload, data) in order.",
+                        self.connector_name,
+                        placeholder_count
+                    );
+                }
+                template.clone()
             } else {
                 format!(
                     "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5)",
@@ -116,44 +120,40 @@ impl PostgresBridgePlugin {
                 )
             };
 
-            client
-                .execute(
-                    &sql,
-                    &[client_id, &topic, &timestamp, &payload_str, &record.data],
+            let sql = if self.config.is_upsert_enabled() {
+                let conflict_columns = self
+                    .config
+                    .conflict_columns
+                    .as_deref()
+                    .unwrap_or("client_id, topic");
+
+                format!(
+                    "{} ON CONFLICT ({}) DO UPDATE SET timestamp = EXCLUDED.timestamp, payload = EXCLUDED.payload, data = EXCLUDED.data",
+                    base_sql, conflict_columns
                 )
+            } else {
+                base_sql
+            };
+
+            sqlx::query(&sql)
+                .bind(client_id)
+                .bind(&topic)
+                .bind(timestamp)
+                .bind(&payload_str)
+                .bind(&record.data)
+                .execute(pool)
                 .await?;
         }
 
         Ok(())
     }
 
-    async fn batch_insert(&self, records: &Vec<Record>, client: &Client) -> ResultMqttBrokerError {
-        let enable_upsert = self.config.enable_upsert.unwrap_or(false);
-        let base_sql = if enable_upsert {
-            let conflict_columns = self
-                .config
-                .conflict_columns
-                .as_deref()
-                .unwrap_or("client_id, topic");
-
-            format!(
-                "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ",
-                self.config.table
-            ) + &format!(
-                " ON CONFLICT ({}) DO UPDATE SET timestamp = EXCLUDED.timestamp, payload = EXCLUDED.payload, data = EXCLUDED.data",
-                conflict_columns
-            )
-        } else {
-            format!(
-                "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ",
-                self.config.table
-            )
-        };
-
-        // Pre-allocate vectors with capacity to reduce allocations
+    async fn batch_insert(
+        &self,
+        records: &Vec<Record>,
+        pool: &Pool<Postgres>,
+    ) -> ResultMqttBrokerError {
         let mut value_placeholders = Vec::with_capacity(records.len());
-        let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            Vec::with_capacity(records.len() * 5);
         let mut param_index = 1;
 
         let mut client_ids = Vec::with_capacity(records.len());
@@ -191,16 +191,38 @@ impl PostgresBridgePlugin {
             param_index += 5;
         }
 
+        let base_sql = format!(
+            "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES {}",
+            self.config.table,
+            value_placeholders.join(", ")
+        );
+
+        let sql = if self.config.is_upsert_enabled() {
+            let conflict_columns = self
+                .config
+                .conflict_columns
+                .as_deref()
+                .unwrap_or("client_id, topic");
+
+            format!(
+                "{} ON CONFLICT ({}) DO UPDATE SET timestamp = EXCLUDED.timestamp, payload = EXCLUDED.payload, data = EXCLUDED.data",
+                base_sql, conflict_columns
+            )
+        } else {
+            base_sql
+        };
+
+        let mut query = sqlx::query(&sql);
         for i in 0..records.len() {
-            params.push(&client_ids[i]);
-            params.push(&topics[i]);
-            params.push(&timestamps[i]);
-            params.push(&payloads[i]);
-            params.push(&data_vec[i]);
+            query = query
+                .bind(&client_ids[i])
+                .bind(&topics[i])
+                .bind(timestamps[i])
+                .bind(&payloads[i])
+                .bind(&data_vec[i]);
         }
 
-        let sql = format!("{}{}", base_sql, value_placeholders.join(", "));
-        client.execute(&sql, &params).await?;
+        query.execute(pool).await?;
 
         Ok(())
     }
@@ -213,21 +235,16 @@ impl BridgePlugin for PostgresBridgePlugin {
         let group_name = self.connector_name.clone();
         let mut recv = self.stop_send.subscribe();
 
-        let client = match self.connect().await {
-            Ok(client) => client,
+        let pool = match self.create_pool().await {
+            Ok(p) => p,
             Err(e) => {
                 error!(
-                    "Connector {} failed to connect to PostgreSQL: {}",
+                    "Connector {} failed to create PostgreSQL connection pool: {}",
                     self.connector_name, e
                 );
                 return Err(e.into());
             }
         };
-
-        info!(
-            "Connector {} successfully connected to PostgreSQL database: {}",
-            self.connector_name, self.config.database
-        );
 
         loop {
             let offset = message_storage.get_group_offset(&group_name).await?;
@@ -252,17 +269,9 @@ impl BridgePlugin for PostgresBridgePlugin {
                                 continue;
                             }
 
-                            if let Err(e) = self.append(&data, &client).await {
-                                error!(
-                                    "Connector {} failed to write data to PostgreSQL table {}, error: {}",
-                                    self.connector_name, self.config.table, e
-                                );
+                            if let Err(e) = self.append(&data, &pool).await {
+                                error!("Connector {} failed to write data to PostgreSQL table {}, error message: {}", self.connector_name, self.config.table, e);
                                 sleep(Duration::from_millis(100)).await;
-                            } else {
-                                info!(
-                                    "Connector {} successfully wrote {} records to PostgreSQL table {}",
-                                    self.connector_name, data.len(), self.config.table
-                                );
                             }
 
                             // commit offset
@@ -271,10 +280,7 @@ impl BridgePlugin for PostgresBridgePlugin {
                                 .await?;
                         }
                         Err(e) => {
-                            error!(
-                                "Connector {} failed to read Topic {} data with error: {}",
-                                self.connector_name, config.topic_name, e
-                            );
+                            error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name, config.topic_name, e);
                             sleep(Duration::from_millis(100)).await;
                         }
                     }

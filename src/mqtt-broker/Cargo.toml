@@ -47,7 +47,6 @@ axum-server.workspace = true
 rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
 mysql.workspace = true
-tokio-postgres.workspace = true
 tracing.workspace = true
 ipnet.workspace = true
 os_info.workspace = true
@@ -75,8 +74,8 @@ pulsar.workspace = true
 mongodb.workspace = true
 bson.workspace = true
 lapin.workspace = true
-sqlx = { workspace = true, features = ["mysql", "runtime-tokio"] }
-#security
+sqlx = { workspace = true, features = ["mysql", "postgres", "runtime-tokio"] }
+# security
 r2d2.workspace = true
 r2d2_mysql.workspace = true
 r2d2_postgres.workspace = true
