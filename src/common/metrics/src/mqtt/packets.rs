@@ -248,7 +248,7 @@ pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
 }
 
 // Record metrics related to packets received by the server
-pub fn record_mqtt_packet_received_metrics(
+pub fn record_packet_received_metrics(
     connection: &NetworkConnection,
     pkg: &MqttPacket,
     network_type: &NetworkConnectionType,
@@ -301,7 +301,7 @@ pub fn record_mqtt_packet_received_metrics(
 }
 
 // Record metrics related to messages pushed to the client
-pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: String) {
+pub fn record_packet_send_metrics(packet_wrapper: &MqttPacketWrapper, network_type: String) {
     let qos_str = if let MqttPacket::Publish(publish, _) = packet_wrapper.packet.clone() {
         format!("{}", publish.qos as u8)
     } else {
@@ -471,7 +471,7 @@ mod test {
             None,
         );
         let ty = NetworkConnectionType::Tcp;
-        record_mqtt_packet_received_metrics(&nc, &mp, &ty);
+        record_packet_received_metrics(&nc, &mp, &ty);
         let label = NetworkLabel {
             network: ty.to_string(),
         };

@@ -16,7 +16,7 @@ use crate::common::{
     channel::RequestChannel,
     packet::{RequestPackage, ResponsePackage},
 };
-use common_metrics::mqtt::packets::record_mqtt_packet_received_metrics;
+use common_metrics::mqtt::packets::record_packet_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
 use tokio::sync::mpsc::Receiver;
@@ -50,7 +50,7 @@ pub async fn read_packet(
     match pack.clone() {
         RobustMQPacket::KAFKA(_) => {}
         RobustMQPacket::MQTT(pack) => {
-            record_mqtt_packet_received_metrics(connection, &pack, network_type);
+            record_packet_received_metrics(connection, &pack, network_type);
         }
     }
 

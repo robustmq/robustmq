@@ -18,11 +18,7 @@ use std::sync::Arc;
 use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::{now_mills, now_second};
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
-use common_metrics::mqtt::publish::{
-    record_mqtt_message_bytes_received, record_mqtt_messages_delayed_inc,
-    record_mqtt_messages_received_inc,
-};
-use common_metrics::mqtt::topic::{record_topic_bytes_written, record_topic_messages_written};
+use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -53,6 +49,7 @@ use crate::handler::cache::{
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
 use crate::handler::last_will::save_last_will_message;
+use crate::handler::metrics::record_publish_receive_metrics;
 use crate::handler::response::{
     build_puback, build_pubrec, response_packet_mqtt_connect_fail,
     response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,
@@ -494,15 +491,17 @@ impl MqttService {
             }
         };
 
-        record_mqtt_messages_received_inc();
-        record_mqtt_message_bytes_received(publish.payload.len() as u64);
-        record_topic_messages_written(&topic_name);
-        record_topic_bytes_written(&topic_name, publish.payload.len() as u64);
-
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager
             .add_topic_alias(connect_id, &topic_name, publish_properties);
+
+        record_publish_receive_metrics(
+            &client_id,
+            connect_id,
+            &topic_name,
+            publish.payload.len() as u64,
+        );
 
         match publish.qos {
             QoS::AtMostOnce => None,

@@ -30,7 +30,7 @@ use common_metrics::mqtt::event::{
     record_mqtt_connection_failed, record_mqtt_connection_success, record_mqtt_subscribe_failed,
     record_mqtt_subscribe_success, record_mqtt_unsubscribe_success,
 };
-use common_metrics::mqtt::time::record_mqtt_packet_process_duration;
+use common_metrics::mqtt::time::record_packet_process_duration;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
@@ -206,7 +206,7 @@ impl Command for MQTTHandlerCommand {
             }
         }
 
-        record_mqtt_packet_process_duration(
+        record_packet_process_duration(
             tcp_connection.connection_type,
             mqtt_packet_to_string(&packet),
             (now_mills() - start) as f64,

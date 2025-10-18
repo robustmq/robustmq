@@ -27,6 +27,7 @@ pub mod inner;
 pub mod keep_alive;
 pub mod last_will;
 pub mod message;
+pub mod metrics;
 pub mod mqtt;
 pub mod offline_message;
 pub mod response;
