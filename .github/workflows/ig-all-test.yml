@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 300
     container:
-      image: amd64/rust
+      image: rust:latest
     steps:
       - name: Check initial disk space
         run: df -h

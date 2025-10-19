@@ -79,9 +79,9 @@ jobs:
   # Compilation checks with shared cache
   # Run cargo check and clippy together to share compilation cache
   compile-and-lint:
-    container:
-      image: amd64/rust
     runs-on: ubuntu-latest
+    container:
+      image: rust:latest
     steps:
       - uses: actions/checkout@v4
       

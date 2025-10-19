@@ -23,13 +23,30 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Cache apt packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-apt-${{ hashFiles('.github/actions/setup-builder/action.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-
+      continue-on-error: true
+    
     - name: Install Build Dependencies
       shell: bash
       run: |
-        apt-get update
-        apt-get install -y protobuf-compiler
-        apt-get install -y llvm libclang-dev
-        apt-get install -y cmake
+        # Only update if cache miss
+        if [ ! -f /var/cache/apt/archives/lock ]; then
+          apt-get update
+        fi
+        # Install all dependencies in one command for better caching
+        apt-get install -y \
+          protobuf-compiler \
+          llvm \
+          libclang-dev \
+          cmake \
+          pkg-config \
+          libssl-dev
     - uses: dtolnay/rust-toolchain@master
       with:
         # Read version from rust-toolchain.toml in repo root

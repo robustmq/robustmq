@@ -41,16 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     container:
-      image: amd64/rust
+      image: rust:latest
     steps:
-      - name: Install build dependencies
-        run: |
-          apt-get update
-          apt-get install -y clang libclang-dev cmake libssl-dev pkg-config
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-
       - uses: actions/checkout@v4
 
       - name: Setup Rust toolchain and cache

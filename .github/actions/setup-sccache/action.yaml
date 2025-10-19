@@ -36,8 +36,18 @@ runs:
           echo "SCCACHE_GHA_ENABLED=false" >> $GITHUB_ENV
           # Use local filesystem cache instead
           echo "SCCACHE_DIR=$HOME/.cache/sccache" >> $GITHUB_ENV
-          echo "SCCACHE_CACHE_SIZE=2G" >> $GITHUB_ENV
+          # Increase cache size to 5GB for better hit rate
+          echo "SCCACHE_CACHE_SIZE=5G" >> $GITHUB_ENV
         else
           echo "⚠️ sccache not available, continuing without cache"
         fi
+    
+    - name: Cache sccache directory
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/sccache
+        key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-sccache-
+      continue-on-error: true
 
