@@ -42,6 +42,7 @@ lazy_static.workspace = true
 chrono.workspace = true
 rate-limit.workspace = true
 dashmap.workspace = true
+validator = { version = "0.18", features = ["derive"] }
 
 [dev-dependencies]
 mockall.workspace = true

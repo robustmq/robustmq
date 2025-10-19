@@ -14,6 +14,7 @@
 
 use mqtt_broker::subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData};
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
 #[derive(Deserialize)]
 pub struct MonitorDataReq {
@@ -53,8 +54,9 @@ pub struct TopicDetailReq {
     pub topic_name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct TopicDeleteRep {
+    #[validate(length(min = 1, max = 256, message = "Topic name length must be between 1-256"))]
     pub topic_name: String,
 }
 
@@ -138,8 +140,9 @@ pub struct CreateAutoSubscribeReq {
     pub retained_handling: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAutoSubscribeReq {
+    #[validate(length(min = 1, max = 256, message = "Topic name length must be between 1-256"))]
     pub topic_name: String,
 }
 
@@ -162,8 +165,9 @@ pub struct CreateUserReq {
     pub is_superuser: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteUserReq {
+    #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
     pub username: String,
 }
 
@@ -186,10 +190,25 @@ pub struct CreateBlackListReq {
     pub desc: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteBlackListReq {
+    #[validate(length(min = 1, max = 50, message = "Blacklist type length must be between 1-50"))]
+    #[validate(custom(function = "validate_blacklist_type"))]
     pub blacklist_type: String,
+    
+    #[validate(length(min = 1, max = 256, message = "Resource name length must be between 1-256"))]
     pub resource_name: String,
+}
+
+fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::ValidationError> {
+    match blacklist_type {
+        "ClientId" | "IpAddress" | "Username" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_blacklist_type");
+            err.message = Some(std::borrow::Cow::from("Blacklist type must be ClientId, IpAddress or Username"));
+            Err(err)
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -211,10 +230,25 @@ pub struct CreateTopicRewriteReq {
     pub regex: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteTopicRewriteReq {
+    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
+    #[validate(custom(function = "validate_rewrite_action"))]
     pub action: String,
+    
+    #[validate(length(min = 1, max = 256, message = "Source topic length must be between 1-256"))]
     pub source_topic: String,
+}
+
+fn validate_rewrite_action(action: &str) -> Result<(), validator::ValidationError> {
+    match action {
+        "All" | "Publish" | "Subscribe" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_rewrite_action");
+            err.message = Some(std::borrow::Cow::from("Action must be All, Publish or Subscribe"));
+            Err(err)
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -238,14 +272,61 @@ pub struct CreateAclReq {
     pub permission: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAclReq {
+    #[validate(length(min = 1, max = 50, message = "Resource type length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_resource_type"))]
     pub resource_type: String,
+    
+    #[validate(length(min = 1, max = 256, message = "Resource name length must be between 1-256"))]
     pub resource_name: String,
+    
+    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
     pub topic: String,
+    
+    #[validate(length(max = 128, message = "IP length cannot exceed 128"))]
     pub ip: String,
+    
+    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_action"))]
     pub action: String,
+    
+    #[validate(length(min = 1, max = 50, message = "Permission length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_permission"))]
     pub permission: String,
+}
+
+fn validate_acl_resource_type(resource_type: &str) -> Result<(), validator::ValidationError> {
+    match resource_type {
+        "ClientId" | "Username" | "IpAddress" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_acl_resource_type");
+            err.message = Some(std::borrow::Cow::from("Resource type must be ClientId, Username or IpAddress"));
+            Err(err)
+        }
+    }
+}
+
+fn validate_acl_action(action: &str) -> Result<(), validator::ValidationError> {
+    match action {
+        "Publish" | "Subscribe" | "All" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_acl_action");
+            err.message = Some(std::borrow::Cow::from("Action must be Publish, Subscribe or All"));
+            Err(err)
+        }
+    }
+}
+
+fn validate_acl_permission(permission: &str) -> Result<(), validator::ValidationError> {
+    match permission {
+        "Allow" | "Deny" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_acl_permission");
+            err.message = Some(std::borrow::Cow::from("Permission must be Allow or Deny"));
+            Err(err)
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -267,8 +348,9 @@ pub struct CreateConnectorReq {
     pub topic_name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteConnectorReq {
+    #[validate(length(min = 1, max = 128, message = "Connector name length must be between 1-128"))]
     pub connector_name: String,
 }
 
@@ -291,8 +373,9 @@ pub struct CreateSchemaReq {
     pub desc: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteSchemaReq {
+    #[validate(length(min = 1, max = 128, message = "Schema name length must be between 1-128"))]
     pub schema_name: String,
 }
 
@@ -315,9 +398,12 @@ pub struct CreateSchemaBindReq {
     pub resource_name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteSchemaBindReq {
+    #[validate(length(min = 1, max = 128, message = "Schema name length must be between 1-128"))]
     pub schema_name: String,
+    
+    #[validate(length(min = 1, max = 256, message = "Resource name length must be between 1-256"))]
     pub resource_name: String,
 }
 

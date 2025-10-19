@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{AclListReq, CreateAclReq, DeleteAclReq},
     response::{mqtt::AclListRow, PageReplyData},
     state::HttpState,
@@ -141,7 +142,7 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
 
 pub async fn acl_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteAclReq>,
+    ValidatedJson(params): ValidatedJson<DeleteAclReq>,
 ) -> String {
     match acl_delete_inner(&state, &params).await {
         Ok(_) => success_response("success"),

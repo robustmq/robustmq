@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{ConnectorListReq, CreateConnectorReq, DeleteConnectorReq},
     response::{mqtt::ConnectorListRow, PageReplyData},
     state::HttpState,
@@ -102,7 +103,7 @@ pub async fn connector_create(
 
 pub async fn connector_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteConnectorReq>,
+    ValidatedJson(params): ValidatedJson<DeleteConnectorReq>,
 ) -> String {
     let storage = ConnectorStorage::new(state.client_pool.clone());
     if let Err(e) = storage

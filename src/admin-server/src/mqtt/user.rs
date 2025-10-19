@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{CreateUserReq, DeleteUserReq, UserListReq},
     response::{mqtt::UserListRow, PageReplyData},
     state::HttpState,
@@ -107,7 +108,7 @@ pub async fn user_create(
 
 pub async fn user_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteUserReq>,
+    ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
     let auth_driver = AuthDriver::new(
         state.mqtt_context.cache_manager.clone(),

@@ -20,6 +20,7 @@ use mqtt_broker::{handler::error::MqttBrokerError, storage::schema::SchemaStorag
 use std::sync::Arc;
 
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{
         CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
         SchemaBindListReq, SchemaListReq,
@@ -114,7 +115,7 @@ pub async fn schema_create_inner(
 
 pub async fn schema_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteSchemaReq>,
+    ValidatedJson(params): ValidatedJson<DeleteSchemaReq>,
 ) -> String {
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
     if let Err(e) = schema_storage.delete(params.schema_name.clone()).await {
@@ -205,7 +206,7 @@ pub async fn schema_bind_create(
 
 pub async fn schema_bind_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteSchemaBindReq>,
+    ValidatedJson(params): ValidatedJson<DeleteSchemaBindReq>,
 ) -> String {
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
     if let Err(e) = schema_storage

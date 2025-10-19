@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::request::mqtt::TopicDeleteRep;
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{
-        CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicDetailReq, TopicListReq, TopicRewriteReq,
+        CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicDeleteRep, TopicDetailReq,
+        TopicListReq, TopicRewriteReq,
     },
     response::{
         mqtt::{TopicDetailResp, TopicListRow, TopicRewriteListRow},
@@ -136,7 +137,7 @@ pub async fn topic_detail(
 
 pub async fn topic_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicDeleteRep>,
+    ValidatedJson(params): ValidatedJson<TopicDeleteRep>,
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage.delete_topic(params.topic_name.clone()).await {
@@ -229,7 +230,7 @@ pub async fn topic_rewrite_create(
 
 pub async fn topic_rewrite_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteTopicRewriteReq>,
+    ValidatedJson(params): ValidatedJson<DeleteTopicRewriteReq>,
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage

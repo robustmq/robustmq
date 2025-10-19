@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{
         AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq,
         ShareSubscribeDetailReq, SubGroupLeaderRaw, SubPushThreadDataRaw, SubTopicRaw,
@@ -343,7 +344,7 @@ pub async fn auto_subscribe_create(
 
 pub async fn auto_subscribe_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteAutoSubscribeReq>,
+    ValidatedJson(params): ValidatedJson<DeleteAutoSubscribeReq>,
 ) -> String {
     let auto_subscribe_storage = AutoSubscribeStorage::new(state.client_pool.clone());
     if let Err(e) = auto_subscribe_storage
