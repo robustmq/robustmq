@@ -54,6 +54,10 @@ jobs:
           rm -rf /usr/local/lib/android 2>/dev/null || true
           rm -rf /opt/ghc 2>/dev/null || true
           rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          rm -rf /usr/share/swift 2>/dev/null || true
+          rm -rf /usr/local/share/boost 2>/dev/null || true
+          # Clean apt cache
+          apt-get clean
           df -h
 
       - uses: actions/checkout@v4
@@ -76,13 +80,24 @@ jobs:
           # Set compiler flags for smaller binaries
           echo "CARGO_PROFILE_RELEASE_LTO=thin" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
+          # Reduce debug info in release builds (saves ~40% space)
+          echo "CARGO_PROFILE_RELEASE_DEBUG=0" >> $GITHUB_ENV
           # Set optimal parallel jobs (balance speed and memory)
           echo "CARGO_BUILD_JOBS=8" >> $GITHUB_ENV
           # Disable incremental for release builds (saves space)
           echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+          # Reduce sccache size to save space
+          echo "SCCACHE_CACHE_SIZE=2G" >> $GITHUB_ENV
 
       - name: Check disk space before test
         run: df -h
+
+      - name: Clean before test
+        run: |
+          # Remove debug build artifacts before starting tests
+          rm -rf target/debug/deps/*.rlib 2>/dev/null || true
+          rm -rf target/debug/build 2>/dev/null || true
+          df -h
 
       - name: Run tests
         run: sh ./scripts/mqtt-ig.sh
