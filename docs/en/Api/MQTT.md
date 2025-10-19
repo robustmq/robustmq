@@ -772,6 +772,13 @@ Query message count for a specific topic:
 }
 ```
 
+- **Parameter Validation Rules**:
+  - `topic`: Length must be between 1-256 characters
+  - `qos`: Must be 0, 1, or 2
+  - `no_local`: Boolean value
+  - `retain_as_published`: Boolean value
+  - `retained_handling`: Must be 0, 1, or 2
+
 - **Response**: Returns "Created successfully!" on success
 
 ##### 5.3.3 Delete Auto Subscribe Rule
@@ -1064,6 +1071,12 @@ Query message count for a specific topic:
 }
 ```
 
+- **Parameter Validation Rules**:
+  - `connector_name`: Length must be between 1-128 characters
+  - `connector_type`: Length must be between 1-50 characters, must be `kafka`, `pulsar`, `rabbitmq`, `greptime`, `postgres`, `mysql`, `mongodb`, or `file`
+  - `config`: Length must be between 1-4096 characters
+  - `topic_name`: Length must be between 1-256 characters
+
 **Connector Types and Configuration Examples**：
 
 **Kafka Connector**:
@@ -1186,6 +1199,12 @@ Query message count for a specific topic:
 }
 ```
 
+- **Parameter Validation Rules**:
+  - `schema_name`: Length must be between 1-128 characters
+  - `schema_type`: Length must be between 1-50 characters, must be `json`, `avro`, or `protobuf`
+  - `schema`: Length must be between 1-8192 characters
+  - `desc`: Length cannot exceed 500 characters
+
 **Schema Type Examples**：
 
 **JSON Schema**:
@@ -1266,6 +1285,10 @@ Query message count for a specific topic:
 }
 ```
 
+- **Parameter Validation Rules**:
+  - `schema_name`: Length must be between 1-128 characters
+  - `resource_name`: Length must be between 1-256 characters
+
 - **Response**: Returns "Created successfully!" on success
 
 ##### 10.4.3 Delete Schema Binding
@@ -1296,6 +1319,11 @@ Query message count for a specific topic:
   "retain": false                 // Optional, whether to retain message, default false
 }
 ```
+
+- **Parameter Validation Rules**:
+  - `topic`: Length must be between 1-256 characters
+  - `payload`: Length cannot exceed 1MB (1048576 bytes)
+  - `retain`: Boolean value
 
 - **Response Data Structure**:
 ```json
