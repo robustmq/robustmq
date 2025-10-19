@@ -54,6 +54,11 @@ pub struct TopicDetailReq {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct TopicDeleteRep {
+    pub topic_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SubscribeListReq {
     pub client_id: Option<String>,
     pub limit: Option<u32>,
