@@ -36,8 +36,6 @@ jobs:
         with:
           # Fail the build on critical vulnerabilities
           fail-on-severity: critical
-          # Allow moderate and lower severity
-          allow-licenses: Apache-2.0, MIT, BSD-3-Clause, BSD-2-Clause, ISC
-          # Deny copyleft licenses
-          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          # Deny copyleft licenses (only use deny-licenses, not both allow and deny)
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-2.0, LGPL-3.0
 
