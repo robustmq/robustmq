@@ -538,6 +538,12 @@ Query message count for a specific topic:
 }
 ```
 
+- **Parameter Validation Rules**:
+  - `action`: Length must be between 1-50 characters, must be `All`, `Publish`, or `Subscribe`
+  - `source_topic`: Length must be between 1-256 characters
+  - `dest_topic`: Length must be between 1-256 characters
+  - `regex`: Length must be between 1-500 characters
+
 - **Response**: Returns "success" on success
 
 #### 4.6 Delete Topic Rewrite Rule
@@ -863,6 +869,11 @@ Query message count for a specific topic:
 }
 ```
 
+- **Parameter Validation Rules**:
+  - `username`: Length must be between 1-64 characters
+  - `password`: Length must be between 1-128 characters
+  - `is_superuser`: Boolean value
+
 - **Response**: Returns "Created successfully!" on success
 
 #### 6.3 Delete User
@@ -920,6 +931,14 @@ Query message count for a specific topic:
   "permission": "Allow"              // Permission: Allow, Deny
 }
 ```
+
+- **Parameter Validation Rules**:
+  - `resource_type`: Length must be between 1-50 characters, must be `ClientId`, `Username`, or `IpAddress`
+  - `resource_name`: Length must be between 1-256 characters
+  - `topic`: Length must be between 1-256 characters
+  - `ip`: Length cannot exceed 128 characters
+  - `action`: Length must be between 1-50 characters, must be `Publish`, `Subscribe`, or `All`
+  - `permission`: Length must be between 1-50 characters, must be `Allow` or `Deny`
 
 - **Response**: Returns "Created successfully!" on success
 
@@ -979,6 +998,12 @@ Query message count for a specific topic:
   "desc": "Blocked for security"       // Description
 }
 ```
+
+- **Parameter Validation Rules**:
+  - `blacklist_type`: Length must be between 1-50 characters, must be `ClientId`, `IpAddress`, or `Username`
+  - `resource_name`: Length must be between 1-256 characters
+  - `end_time`: Must be greater than 0
+  - `desc`: Length cannot exceed 500 characters
 
 - **Response**: Returns "Created successfully!" on success
 

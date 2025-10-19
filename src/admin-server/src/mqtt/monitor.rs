@@ -18,8 +18,17 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
 use dashmap::DashMap;
+use serde::Deserialize;
 
-use crate::{request::mqtt::MonitorDataReq, state::HttpState};
+use crate::state::HttpState;
+
+#[derive(Deserialize)]
+pub struct MonitorDataReq {
+    pub data_type: String,
+    pub topic_name: Option<String>,
+    pub client_id: Option<String>,
+    pub path: Option<String>,
+}
 
 pub enum MonitorDataType {
     ConnectionNum,

@@ -538,6 +538,12 @@
 }
 ```
 
+- **参数验证规则**:
+  - `action`: 长度必须在 1-50 个字符之间，必须是 `All`、`Publish` 或 `Subscribe`
+  - `source_topic`: 长度必须在 1-256 个字符之间
+  - `dest_topic`: 长度必须在 1-256 个字符之间
+  - `regex`: 长度必须在 1-500 个字符之间
+
 - **响应**: 成功返回 "success"
 
 #### 4.6 删除主题重写规则
@@ -766,6 +772,13 @@
 }
 ```
 
+- **参数验证规则**:
+  - `topic`: 长度必须在 1-256 个字符之间
+  - `qos`: 必须是 0、1 或 2
+  - `no_local`: 布尔值
+  - `retain_as_published`: 布尔值
+  - `retained_handling`: 必须是 0、1 或 2
+
 - **响应**: 成功返回 "success"
 
 ##### 5.3.3 删除自动订阅规则
@@ -863,6 +876,11 @@
 }
 ```
 
+- **参数验证规则**:
+  - `username`: 长度必须在 1-64 个字符之间
+  - `password`: 长度必须在 1-128 个字符之间
+  - `is_superuser`: 布尔值
+
 - **响应**: 成功返回 "Created successfully!"
 
 #### 6.3 删除用户
@@ -920,6 +938,14 @@
   "permission": "Allow"              // 权限：Allow, Deny
 }
 ```
+
+- **参数验证规则**:
+  - `resource_type`: 长度必须在 1-50 个字符之间，必须是 `ClientId`、`Username` 或 `IpAddress`
+  - `resource_name`: 长度必须在 1-256 个字符之间
+  - `topic`: 长度必须在 1-256 个字符之间
+  - `ip`: 长度不能超过 128 个字符
+  - `action`: 长度必须在 1-50 个字符之间，必须是 `Publish`、`Subscribe` 或 `All`
+  - `permission`: 长度必须在 1-50 个字符之间，必须是 `Allow` 或 `Deny`
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -980,6 +1006,12 @@
 }
 ```
 
+- **参数验证规则**:
+  - `blacklist_type`: 长度必须在 1-50 个字符之间，必须是 `ClientId`、`IpAddress` 或 `Username`
+  - `resource_name`: 长度必须在 1-256 个字符之间
+  - `end_time`: 必须大于 0
+  - `desc`: 长度不能超过 500 个字符
+
 - **响应**: 成功返回 "Created successfully!"
 
 #### 8.3 删除黑名单
@@ -1038,6 +1070,12 @@
   "topic_name": "sensor/+"               // 关联的主题ID
 }
 ```
+
+- **参数验证规则**:
+  - `connector_name`: 长度必须在 1-128 个字符之间
+  - `connector_type`: 长度必须在 1-50 个字符之间，必须是 `kafka`、`pulsar`、`rabbitmq`、`greptime`、`postgres`、`mysql`、`mongodb` 或 `file`
+  - `config`: 长度必须在 1-4096 个字符之间
+  - `topic_name`: 长度必须在 1-256 个字符之间
 
 **连接器类型和配置示例**：
 
@@ -1161,6 +1199,12 @@
 }
 ```
 
+- **参数验证规则**:
+  - `schema_name`: 长度必须在 1-128 个字符之间
+  - `schema_type`: 长度必须在 1-50 个字符之间，必须是 `json`、`avro` 或 `protobuf`
+  - `schema`: 长度必须在 1-8192 个字符之间
+  - `desc`: 长度不能超过 500 个字符
+
 **Schema 类型示例**：
 
 **JSON Schema**:
@@ -1241,6 +1285,10 @@
 }
 ```
 
+- **参数验证规则**:
+  - `schema_name`: 长度必须在 1-128 个字符之间
+  - `resource_name`: 长度必须在 1-256 个字符之间
+
 - **响应**: 成功返回 "Created successfully!"
 
 ##### 10.4.3 删除 Schema 绑定
@@ -1271,6 +1319,11 @@
   "retain": false                 // 可选，是否保留消息，默认false
 }
 ```
+
+- **参数验证规则**:
+  - `topic`: 长度必须在 1-256 个字符之间
+  - `payload`: 长度不能超过 1MB (1048576字节)
+  - `retain`: 布尔值
 
 - **响应数据结构**:
 ```json

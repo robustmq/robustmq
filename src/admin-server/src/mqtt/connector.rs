@@ -13,12 +13,85 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::{ConnectorListReq, CreateConnectorReq, DeleteConnectorReq},
-    response::{mqtt::ConnectorListRow, PageReplyData},
+    extractor::ValidatedJson,
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConnectorListReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateConnectorReq {
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Connector name length must be between 1-128"
+    ))]
+    pub connector_name: String,
+
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Connector type length must be between 1-50"
+    ))]
+    #[validate(custom(function = "validate_connector_type"))]
+    pub connector_type: String,
+
+    #[validate(length(min = 1, max = 4096, message = "Config length must be between 1-4096"))]
+    pub config: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Topic name length must be between 1-256"
+    ))]
+    pub topic_name: String,
+}
+
+fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
+    match connector_type {
+        "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
+        | "file" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_connector_type");
+            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb or file"));
+            Err(err)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeleteConnectorReq {
+    pub connector_name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ConnectorListRow {
+    pub connector_name: String,
+    pub connector_type: String,
+    pub config: String,
+    pub topic_name: String,
+    pub status: String,
+    pub broker_id: String,
+    pub create_time: String,
+    pub update_time: String,
+}
+
 use common_base::{
     error::ResultCommonError,
     http_response::{error_response, success_response},
@@ -92,7 +165,7 @@ impl Queryable for ConnectorListRow {
 
 pub async fn connector_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateConnectorReq>,
+    ValidatedJson(params): ValidatedJson<CreateConnectorReq>,
 ) -> String {
     if let Err(e) = connector_create_inner(&state, params).await {
         return error_response(e.to_string());

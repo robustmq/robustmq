@@ -13,15 +13,49 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::SystemAlarmListReq,
-    response::{
-        mqtt::{BanLogListRaw, FlappingDetectListRaw, SystemAlarmListRow},
+    state::HttpState,
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
-    state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SystemAlarmListReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SystemAlarmListRow {
+    pub name: String,
+    pub message: String,
+    pub create_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct FlappingDetectListRaw {
+    pub client_id: String,
+    pub before_last_windows_connections: u64,
+    pub first_request_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BanLogListRaw {
+    pub ban_type: String,
+    pub resource_name: String,
+    pub ban_source: String,
+    pub end_time: String,
+    pub create_time: String,
+}
+
 use common_base::{
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,

@@ -13,19 +13,144 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::{
-        AutoSubscribeListReq, CreateAutoSubscribeReq, DeleteAutoSubscribeReq,
-        ShareSubscribeDetailReq, SubGroupLeaderRaw, SubPushThreadDataRaw, SubTopicRaw,
-        SubscribeDetailRep, SubscribeDetailReq, SubscribeListReq,
-    },
-    response::{
-        mqtt::{AutoSubscribeListRow, SlowSubscribeListRow, SubscribeListRow},
+    extractor::ValidatedJson,
+    state::HttpState,
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
-    state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
+use mqtt_broker::subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubscribeListReq {
+    pub client_id: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SubscribeDetailReq {
+    pub client_id: String,
+    pub path: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ShareSubscribeDetailReq {
+    pub client_id: String,
+    pub group_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubscribeDetailRep {
+    pub share_sub: bool,
+    pub group_leader_info: Option<SubGroupLeaderRaw>,
+    pub topic_list: Vec<SubTopicRaw>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubTopicRaw {
+    pub client_id: String,
+    pub path: String,
+    pub topic_name: String,
+    pub exclusive_push_data: Option<Subscriber>,
+    pub share_push_data: Option<ShareLeaderSubscribeData>,
+    pub push_thread: Option<SubPushThreadDataRaw>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubGroupLeaderRaw {
+    pub broker_id: u64,
+    pub broker_addr: String,
+    pub extend_info: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubPushThreadDataRaw {
+    pub push_success_record_num: u64,
+    pub push_error_record_num: u64,
+    pub last_push_time: u64,
+    pub last_run_time: u64,
+    pub create_time: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubPushThreadRaw {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AutoSubscribeListReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateAutoSubscribeReq {
+    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
+    pub topic: String,
+
+    #[validate(range(max = 2, message = "QoS must be 0, 1 or 2"))]
+    pub qos: u32,
+
+    pub no_local: bool,
+    pub retain_as_published: bool,
+
+    #[validate(range(max = 2, message = "Retained handling must be 0, 1 or 2"))]
+    pub retained_handling: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeleteAutoSubscribeReq {
+    pub topic_name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SubscribeListRow {
+    pub client_id: String,
+    pub path: String,
+    pub broker_id: u64,
+    pub protocol: String,
+    pub qos: String,
+    pub no_local: u32,
+    pub preserve_retain: u32,
+    pub retain_handling: String,
+    pub create_time: String,
+    pub pk_id: u32,
+    pub properties: String,
+    pub is_share_sub: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AutoSubscribeListRow {
+    pub topic: String,
+    pub qos: String,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub retained_handling: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SlowSubscribeListRow {
+    pub client_id: String,
+    pub topic_name: String,
+    pub time_span: u64,
+    pub node_info: String,
+    pub create_time: String,
+    pub subscribe_name: String,
+}
+
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
@@ -302,7 +427,7 @@ impl Queryable for AutoSubscribeListRow {
 
 pub async fn auto_subscribe_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateAutoSubscribeReq>,
+    ValidatedJson(params): ValidatedJson<CreateAutoSubscribeReq>,
 ) -> String {
     let qos_new = if let Some(qos) = qos(params.qos as u8) {
         qos

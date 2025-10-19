@@ -14,19 +14,34 @@
 
 use std::sync::Arc;
 
-use crate::{
-    request::cluster::{ClusterConfigGetReq, ClusterConfigSetReq},
-    response::ClusterInfoResp,
-    state::HttpState,
-};
+use crate::state::HttpState;
 use axum::{extract::State, Json};
+use metadata_struct::meta::{node::BrokerNode, status::MetaStatus};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClusterConfigGetReq {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ClusterConfigSetReq {
+    pub config_type: String,
+    pub config: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ClusterInfoResp {
+    pub version: String,
+    pub cluster_name: String,
+    pub start_time: u64,
+    pub broker_node_list: Vec<BrokerNode>,
+    pub meta: MetaStatus,
+}
 use broker_core::cluster::ClusterStorage;
 use common_base::{
     enum_type::feature_type::FeatureType,
     http_response::{error_response, success_response},
     version::version,
 };
-use metadata_struct::meta::status::MetaStatus;
 use std::str::FromStr;
 
 pub async fn index(State(_state): State<Arc<HttpState>>) -> String {

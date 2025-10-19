@@ -12,4 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
+
 pub mod query;
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct PageReplyData<T> {
+    pub data: T,
+    pub total_count: usize,
+}

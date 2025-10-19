@@ -13,12 +13,42 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::SessionListReq,
-    response::{mqtt::SessionListRow, PageReplyData},
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SessionListReq {
+    pub client_id: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SessionListRow {
+    pub client_id: String,
+    pub session_expiry: u64,
+    pub is_contain_last_will: bool,
+    pub last_will_delay_interval: Option<u64>,
+    pub create_time: u64,
+    pub connection_id: Option<u64>,
+    pub broker_id: Option<u64>,
+    pub reconnect_time: Option<u64>,
+    pub distinct_time: Option<u64>,
+    pub last_will: Option<MqttLastWillData>,
+}
+
 use common_base::http_response::{error_response, success_response};
 use mqtt_broker::storage::session::SessionStorage;
 use std::sync::Arc;

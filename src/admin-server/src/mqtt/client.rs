@@ -13,13 +13,43 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::ClientListReq,
-    response::{mqtt::ClientListRow, PageReplyData},
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
 use common_base::http_response::success_response;
+use metadata_struct::{
+    connection::NetworkConnection,
+    mqtt::{connection::MQTTConnection, session::MqttSession},
+};
+use mqtt_broker::handler::cache::ConnectionLiveTime;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClientListReq {
+    pub source_ip: Option<String>,
+    pub connection_id: Option<u64>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ClientListRow {
+    pub client_id: String,
+    pub connection_id: u64,
+    pub mqtt_connection: MQTTConnection,
+    pub network_connection: Option<NetworkConnection>,
+    pub session: Option<MqttSession>,
+    pub heartbeat: Option<ConnectionLiveTime>,
+}
 use std::sync::Arc;
 
 pub async fn client_list(

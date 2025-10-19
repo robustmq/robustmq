@@ -12,12 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    request::mqtt::PublishReq,
-    response::mqtt::{ReadMessageRow, SendMessageResp, ReadReq},
-    state::HttpState,
-};
+use crate::{extractor::ValidatedJson, state::HttpState};
 use axum::{extract::State, Json};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct PublishReq {
+    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
+    pub topic: String,
+
+    #[validate(length(
+        max = 1048576,
+        message = "Payload length cannot exceed 1MB (1048576 bytes)"
+    ))]
+    pub payload: String,
+
+    pub retain: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReadReq {
+    pub topic: String,
+    pub offset: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SendMessageResp {
+    pub offsets: Vec<u64>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ReadMessageResp {
+    pub messages: Vec<ReadMessageRow>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ReadMessageRow {
+    pub offset: u64,
+    pub content: String,
+    pub timestamp: u64,
+}
+
 use bytes::Bytes;
 use common_base::{
     error::common::CommonError,
@@ -33,7 +69,10 @@ use mqtt_broker::{
 use protocol::mqtt::common::{Publish, PublishProperties};
 use std::sync::Arc;
 
-pub async fn send(State(state): State<Arc<HttpState>>, Json(params): Json<PublishReq>) -> String {
+pub async fn send(
+    State(state): State<Arc<HttpState>>,
+    ValidatedJson(params): ValidatedJson<PublishReq>,
+) -> String {
     match send_inner(state, params).await {
         Ok(offsets) => success_response(SendMessageResp { offsets }),
         Err(e) => error_response(e.to_string()),
@@ -97,7 +136,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
 
 pub async fn read(State(state): State<Arc<HttpState>>, Json(params): Json<ReadReq>) -> String {
     match read_inner(state, params).await {
-        Ok(messages) => success_response(crate::response::mqtt::ReadMessageResp { messages }),
+        Ok(messages) => success_response(ReadMessageResp { messages }),
         Err(e) => error_response(e.to_string()),
     }
 }

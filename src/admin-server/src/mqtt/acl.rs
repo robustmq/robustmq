@@ -13,12 +13,117 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::{AclListReq, CreateAclReq, DeleteAclReq},
-    response::{mqtt::AclListRow, PageReplyData},
+    extractor::ValidatedJson,
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AclListReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateAclReq {
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Resource type length must be between 1-50"
+    ))]
+    #[validate(custom(function = "validate_acl_resource_type"))]
+    pub resource_type: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Resource name length must be between 1-256"
+    ))]
+    pub resource_name: String,
+
+    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
+    pub topic: String,
+
+    #[validate(length(max = 128, message = "IP length cannot exceed 128"))]
+    pub ip: String,
+
+    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_action"))]
+    pub action: String,
+
+    #[validate(length(min = 1, max = 50, message = "Permission length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_permission"))]
+    pub permission: String,
+}
+
+fn validate_acl_resource_type(resource_type: &str) -> Result<(), validator::ValidationError> {
+    match resource_type {
+        "ClientId" | "Username" | "IpAddress" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_acl_resource_type");
+            err.message = Some(std::borrow::Cow::from(
+                "Resource type must be ClientId, Username or IpAddress",
+            ));
+            Err(err)
+        }
+    }
+}
+
+fn validate_acl_action(action: &str) -> Result<(), validator::ValidationError> {
+    match action {
+        "Publish" | "Subscribe" | "All" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_acl_action");
+            err.message = Some(std::borrow::Cow::from(
+                "Action must be Publish, Subscribe or All",
+            ));
+            Err(err)
+        }
+    }
+}
+
+fn validate_acl_permission(permission: &str) -> Result<(), validator::ValidationError> {
+    match permission {
+        "Allow" | "Deny" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_acl_permission");
+            err.message = Some(std::borrow::Cow::from("Permission must be Allow or Deny"));
+            Err(err)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeleteAclReq {
+    pub resource_type: String,
+    pub resource_name: String,
+    pub topic: String,
+    pub ip: String,
+    pub action: String,
+    pub permission: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct AclListRow {
+    pub resource_type: String,
+    pub resource_name: String,
+    pub topic: String,
+    pub ip: String,
+    pub action: String,
+    pub permission: String,
+}
+
 use common_base::{
     enum_type::mqtt::acl::{
         mqtt_acl_action::MqttAclAction, mqtt_acl_permission::MqttAclPermission,
@@ -91,7 +196,7 @@ impl Queryable for AclListRow {
 
 pub async fn acl_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateAclReq>,
+    ValidatedJson(params): ValidatedJson<CreateAclReq>,
 ) -> String {
     match acl_create_inner(&state, &params).await {
         Ok(_) => success_response("success"),

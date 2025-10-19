@@ -33,14 +33,12 @@ where
     type Rejection = (StatusCode, String);
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
-        let Json(value) = Json::<T>::from_request(req, state)
-            .await
-            .map_err(|err| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    error_response(format!("JSON parsing failed: {}", err)),
-                )
-            })?;
+        let Json(value) = Json::<T>::from_request(req, state).await.map_err(|err| {
+            (
+                StatusCode::BAD_REQUEST,
+                error_response(format!("JSON parsing failed: {}", err)),
+            )
+        })?;
 
         value.validate().map_err(|err| {
             let error_message = format_validation_errors(&err);
@@ -56,7 +54,7 @@ where
 
 fn format_validation_errors(errors: &validator::ValidationErrors) -> String {
     let mut messages = Vec::new();
-    
+
     for (field, field_errors) in errors.field_errors() {
         for error in field_errors {
             let message = if let Some(msg) = &error.message {
@@ -67,11 +65,10 @@ fn format_validation_errors(errors: &validator::ValidationErrors) -> String {
             messages.push(message);
         }
     }
-    
+
     if messages.is_empty() {
         "Unknown validation error".to_string()
     } else {
         messages.join("; ")
     }
 }
-

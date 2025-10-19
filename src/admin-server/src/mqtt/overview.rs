@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{response::mqtt::OverViewResp, state::HttpState};
+use crate::state::HttpState;
 use axum::extract::State;
 use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
@@ -21,12 +21,37 @@ use common_base::{
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::node::BrokerNode;
 use mqtt_broker::{
     common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct OverViewResp {
+    pub node_list: Vec<BrokerNode>,
+    pub cluster_name: String,
+    pub message_in_rate: u64,
+    pub message_out_rate: u64,
+    pub connection_num: u32,
+    pub session_num: u32,
+    pub topic_num: u32,
+    pub placement_status: String,
+    pub tcp_connection_num: u32,
+    pub tls_connection_num: u32,
+    pub websocket_connection_num: u32,
+    pub quic_connection_num: u32,
+    pub subscribe_num: u32,
+    pub exclusive_subscribe_num: u32,
+    pub share_subscribe_leader_num: u32,
+    pub share_subscribe_resub_num: u32,
+    pub exclusive_subscribe_thread_num: u32,
+    pub share_subscribe_leader_thread_num: u32,
+    pub share_subscribe_follower_thread_num: u32,
+}
 
 pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     match cluster_overview_by_req(

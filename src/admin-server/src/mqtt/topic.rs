@@ -12,26 +12,125 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::request::mqtt::TopicDeleteRep;
 use crate::{
-    request::mqtt::{
-        CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicDetailReq, TopicListReq, TopicRewriteReq,
-    },
-    response::{
-        mqtt::{TopicDetailResp, TopicListRow, TopicRewriteListRow},
+    extractor::ValidatedJson,
+    state::HttpState,
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
-    state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
 use axum::{extract::State, Json};
 use common_base::{
     http_response::{error_response, success_response},
     tools::now_mills,
 };
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use mqtt_broker::storage::topic::TopicStorage;
+use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicListReq {
+    pub topic_name: Option<String>,
+    pub topic_type: Option<String>, // "all", "normal", "system"
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicDetailReq {
+    pub topic_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicDeleteRep {
+    pub topic_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicRewriteReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateTopicRewriteReq {
+    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
+    #[validate(custom(function = "validate_rewrite_action"))]
+    pub action: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Source topic length must be between 1-256"
+    ))]
+    pub source_topic: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Dest topic length must be between 1-256"
+    ))]
+    pub dest_topic: String,
+
+    #[validate(length(min = 1, max = 500, message = "Regex length must be between 1-500"))]
+    pub regex: String,
+}
+
+fn validate_rewrite_action(action: &str) -> Result<(), validator::ValidationError> {
+    match action {
+        "All" | "Publish" | "Subscribe" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_rewrite_action");
+            err.message = Some(std::borrow::Cow::from(
+                "Action must be All, Publish or Subscribe",
+            ));
+            Err(err)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeleteTopicRewriteReq {
+    pub action: String,
+    pub source_topic: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TopicListRow {
+    pub topic_name: String,
+    pub create_time: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TopicDetailResp {
+    pub topic_info: MQTTTopic,
+    pub retain_message: Option<String>,
+    pub retain_message_at: Option<u64>,
+    pub sub_list: Vec<TopicSubscribeInfo>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TopicRewriteListRow {
+    pub source_topic: String,
+    pub dest_topic: String,
+    pub regex: String,
+    pub action: String,
+}
 
 pub async fn topic_list(
     State(state): State<Arc<HttpState>>,
@@ -192,7 +291,7 @@ impl Queryable for TopicRewriteListRow {
 
 pub async fn topic_rewrite_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateTopicRewriteReq>,
+    ValidatedJson(params): ValidatedJson<CreateTopicRewriteReq>,
 ) -> String {
     let rule = MqttTopicRewriteRule {
         cluster: state.broker_cache.cluster_name.clone(),
