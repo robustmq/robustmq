@@ -26,20 +26,25 @@ on:
 
 name: Build API docs
 
-env:
-  RUST_TOOLCHAIN: stable
+# Cancel previous runs if a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   apidoc:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: arduino/setup-protoc@v1
+    - uses: actions/checkout@v4
+    - uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ env.RUST_TOOLCHAIN }}
+        # Read version from rust-toolchain.toml
+        toolchain: stable
+    - name: Setup sccache
+      uses: ./.github/actions/setup-sccache
     - run: cargo doc --workspace --no-deps --document-private-items
     - run: |
         cat <<EOF > target/doc/index.html

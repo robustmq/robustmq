@@ -41,7 +41,7 @@ rate-limit.workspace = true
 dashmap.workspace = true
 storage-adapter.workspace = true
 bytes.workspace = true
-validator = { version = "0.18", features = ["derive"] }
+validator.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

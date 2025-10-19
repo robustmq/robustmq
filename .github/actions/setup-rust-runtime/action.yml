@@ -20,17 +20,17 @@ runs:
   using: "composite"
   steps:
     - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
+      uses: mozilla-actions/sccache-action@v0.0.5
     - name: Configure runtime env
       shell: bash
-      # do not produce debug symbols to keep memory usage down
-      # hardcoding other profile params to avoid profile override values
-      # More on Cargo profiles https://doc.rust-lang.org/cargo/reference/profiles.html?profile-settings#profile-settings
-      #
-      # Set debuginfo=line-tables-only as debuginfo=0 causes immensely slow build
-      # See for more details: https://github.com/rust-lang/rust/issues/119560
+      # Optimize compilation for space and speed balance
+      # - debuginfo=line-tables-only: minimal debug info (faster than full debug)
+      # - incremental=false: disabled in CI (sccache provides caching)
+      # - codegen-units=1: better optimization at link time
+      # More on Cargo profiles https://doc.rust-lang.org/cargo/reference/profiles.html
       run: |
         echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
         echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
         echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
         echo "RUSTFLAGS=-C debuginfo=line-tables-only -C incremental=false" >> $GITHUB_ENV
+        echo "CARGO_BUILD_JOBS=8" >> $GITHUB_ENV

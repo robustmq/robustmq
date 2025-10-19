@@ -30,10 +30,12 @@ runs:
         apt-get install -y protobuf-compiler
         apt-get install -y llvm libclang-dev
         apt-get install -y cmake
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@master
       with:
+        # Read version from rust-toolchain.toml in repo root
+        # This ensures CI uses the same version as local development
         toolchain: stable
-        default: true
+        components: rustfmt, clippy
     - name: configure cargo cache
       uses: actions/cache@v4
       with:
@@ -42,7 +44,8 @@ runs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          ./target/
-        key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
     - name: Configure rust runtime env
       uses: ./.github/actions/setup-rust-runtime

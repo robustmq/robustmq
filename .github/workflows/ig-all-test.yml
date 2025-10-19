@@ -28,6 +28,11 @@ on:
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
 
+# Cancel previous runs if a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -39,6 +44,18 @@ jobs:
     container:
       image: amd64/rust
     steps:
+      - name: Check initial disk space
+        run: df -h
+
+      - name: Free up disk space before build
+        run: |
+          # Remove unnecessary files to free up space (in container, already root)
+          rm -rf /usr/share/dotnet 2>/dev/null || true
+          rm -rf /usr/local/lib/android 2>/dev/null || true
+          rm -rf /opt/ghc 2>/dev/null || true
+          rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          df -h
+
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -47,12 +64,64 @@ jobs:
         uses: ./.github/actions/setup-builder
 
       - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1
+        uses: taiki-e/install-action@v2
         with:
-          crate: cargo-nextest
-          args: --locked
+          tool: nextest
 
-      - uses: actions/checkout@v3
+      - name: Setup sccache
+        uses: ./.github/actions/setup-sccache
+
+      - name: Optimize build environment
+        run: |
+          # Set compiler flags for smaller binaries
+          echo "CARGO_PROFILE_RELEASE_LTO=thin" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
+          # Set optimal parallel jobs (avoid OOM)
+          echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
+
+      - name: Pre-build dependencies to leverage cache
+        run: |
+          # Warm up build cache by checking compilation without linking
+          cargo check --release --package cmd --bin broker-server 2>/dev/null || true
+          echo "Dependency check phase completed"
+
+      - name: Check disk space before test
+        run: df -h
 
       - name: Run tests
         run: sh ./scripts/mqtt-ig.sh
+
+      - name: Check disk space after test
+        if: always()
+        run: df -h
+
+      - name: Show target directory size
+        if: always()
+        run: du -sh target/* | sort -rh | head -10
+
+      - name: Clean test artifacts and large files
+        if: always()
+        run: |
+          # Clean test artifacts
+          rm -rf target/nextest
+          rm -rf target/debug/incremental
+          rm -rf target/release/incremental
+          # Clean large build artifacts
+          rm -rf target/debug/deps
+          rm -rf target/debug/build
+          rm -rf target/release/build
+          # Clean temporary files
+          find target -type f -name "*-????????????????" -delete 2>/dev/null || true
+          # Clean test binaries (usually large)
+          find target -name "*test*" -type f -delete 2>/dev/null || true
+          # Clean .rlib files (intermediate objects, can be large)
+          find target/release -name "*.rlib" -delete 2>/dev/null || true
+          find target/debug -name "*.rlib" -delete 2>/dev/null || true
+
+      - name: Check disk space after cleanup
+        if: always()
+        run: df -h
+
+      - name: Show sccache stats
+        if: always()
+        run: sccache --show-stats

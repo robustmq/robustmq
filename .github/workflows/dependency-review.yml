@@ -12,31 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Free Disk Space (Ubuntu)
+name: Dependency Review
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
-  free-disk-space:
+  dependency-review:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail the build on critical vulnerabilities
+          fail-on-severity: critical
+          # Allow moderate and lower severity
+          allow-licenses: Apache-2.0, MIT, BSD-3-Clause, BSD-2-Clause, ISC
+          # Deny copyleft licenses
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
 
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
-      with:
-        # this might remove tools that are actually needed,
-        # if set to "true" but frees about 6 GB
-        tool-cache: false
-        
-        # all of these default to true, but feel free to set to
-        # "false" if necessary for your workflow
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        docker-images: true
-        swap-storage: true

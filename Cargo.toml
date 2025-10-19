@@ -202,6 +202,7 @@ governor = "0.10.1"
 os_info = "3.8.2"
 sysinfo = "0.29.10"
 local-ip-address = "0.6.1"
+num_cpus = "1.16"
 
 # ====================
 # Testing
