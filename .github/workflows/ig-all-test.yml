@@ -37,10 +37,25 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  linux-tests:
-    name: cargo test
+  # Split tests into separate jobs to avoid disk space issues
+  # Each job gets independent 14GB disk space
+  integration-tests:
+    name: ${{ matrix.test-name }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 300
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test-name: "Meta Tests"
+            test-filter: "meta"
+            test-packages: "--package grpc-clients --package robustmq-test"
+          - test-name: "Journal Tests"
+            test-filter: "journal"
+            test-packages: "--package robustmq-test"
+          - test-name: "MQTT Tests"
+            test-filter: "mqtt"
+            test-packages: "--package robustmq-test"
     container:
       image: rust:latest
     steps:
@@ -92,15 +107,32 @@ jobs:
       - name: Check disk space before test
         run: df -h
 
-      - name: Clean before test
+      - name: Build broker-server in release mode
         run: |
-          # Remove debug build artifacts before starting tests
-          rm -rf target/debug/deps/*.rlib 2>/dev/null || true
-          rm -rf target/debug/build 2>/dev/null || true
+          echo "Building broker-server..."
+          cargo build --release --package cmd --bin broker-server
+          # Strip debug symbols to save space
+          strip target/release/broker-server 2>/dev/null || true
           df -h
 
-      - name: Run tests
-        run: sh ./scripts/mqtt-ig.sh
+      - name: Start broker-server
+        run: |
+          echo "Starting broker-server..."
+          nohup target/release/broker-server >> broker.log 2>&1 &
+          # Wait for broker to start
+          sleep 5
+          echo "Broker started"
+
+      - name: Run ${{ matrix.test-name }}
+        run: |
+          echo "Running ${{ matrix.test-name }}..."
+          cargo nextest run ${{ matrix.test-packages }} --test mod -- ${{ matrix.test-filter }}
+
+      - name: Show broker logs on failure
+        if: failure()
+        run: |
+          echo "=== Broker logs ==="
+          tail -100 broker.log || true
 
       - name: Check disk space after test
         if: always()
@@ -110,24 +142,17 @@ jobs:
         if: always()
         run: du -sh target/* | sort -rh | head -10
 
-      - name: Clean test artifacts and large files
+      - name: Clean test artifacts
         if: always()
         run: |
+          # Kill broker
+          pkill -f broker-server || true
           # Clean test artifacts
           rm -rf target/nextest
-          rm -rf target/debug/incremental
+          rm -rf target/release/broker-server
+          rm -rf target/release/deps/broker_server*
           rm -rf target/release/incremental
-          # Clean large build artifacts
-          rm -rf target/debug/deps
-          rm -rf target/debug/build
-          rm -rf target/release/build
-          # Clean temporary files
-          find target -type f -name "*-????????????????" -delete 2>/dev/null || true
-          # Clean test binaries (usually large)
-          find target -name "*test*" -type f -delete 2>/dev/null || true
-          # Clean .rlib files (intermediate objects, can be large)
-          find target/release -name "*.rlib" -delete 2>/dev/null || true
-          find target/debug -name "*.rlib" -delete 2>/dev/null || true
+          rm -rf broker.log
 
       - name: Check disk space after cleanup
         if: always()
