@@ -19,7 +19,6 @@ runs:
   steps:
     - name: Setup sccache
       uses: mozilla-actions/sccache-action@v0.0.5
-      shell: bash
     
     - name: Configure sccache environment
       shell: bash
