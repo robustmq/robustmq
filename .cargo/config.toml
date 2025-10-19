@@ -1,0 +1,86 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Cargo Build Configuration
+# This file optimizes build performance and reduces disk space usage
+
+[build]
+# Parallel jobs - use all CPU cores for maximum speed
+jobs = 14              # Your CPU core count (adjust if different)
+incremental = true     # Enable incremental compilation
+
+# Optimize for faster compilation during development
+[target.'cfg(all())']
+# Use mold linker for MUCH faster linking (10x+ faster than ld64)
+# Install: brew install mold
+# Uncomment after installing mold:
+# rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/mold"]
+
+# Alternative: Use zld (faster than ld64, slower than mold)
+# Install: brew install michaeleisel/zld/zld
+# Uncomment after installing zld:
+# rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/zld"]
+
+# macOS-specific optimizations
+[target.x86_64-apple-darwin]
+# Use split debuginfo + faster linking
+rustflags = [
+    "-C", "split-debuginfo=unpacked",
+    "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
+]
+
+[target.aarch64-apple-darwin]
+# Use split debuginfo + faster linking
+rustflags = [
+    "-C", "split-debuginfo=unpacked",
+    "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
+]
+
+# Network settings
+[net]
+# Use git CLI for better performance with large repositories
+git-fetch-with-cli = true
+
+# Registry settings
+[registry]
+# Use sparse registry protocol for faster index updates (Rust 1.68+)
+default = "sparse"
+
+# Term settings - better progress output
+[term]
+verbose = false
+color = 'auto'
+progress.when = 'auto'
+progress.width = 80
+
+# Future incompatibility warnings
+[future-incompat-report]
+frequency = 'never'  # Don't generate reports (reduces disk I/O)
+
+# Test execution settings
+[env]
+# Set test threads based on CPU cores (can be overridden per test)
+RUST_TEST_THREADS = "14"
+# Reduce test output verbosity
+RUST_TEST_NOCAPTURE = "0"
+# Use faster allocator for tests (if available)
+# CARGO_PROFILE_TEST_OPT_LEVEL = "0"
+
+# Source replacement (optional - uncomment if using mirrors)
+# [source.crates-io]
+# replace-with = "ustc"
+# 
+# [source.ustc]
+# registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+

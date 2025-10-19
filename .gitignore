@@ -11,11 +11,8 @@
 # ====================
 # Cargo Configuration
 # ====================
-# Local cargo config (keep personal settings out of repo)
-.cargo/
-# But allow recommended templates for team reference
-!.cargo/*.recommended
-!.cargo/*.example
+# .cargo/ directory is tracked in this project
+# It contains project-wide configurations like audit.toml and recommended settings
 
 # ====================
 # Testing & Benchmarking
