@@ -72,9 +72,13 @@ fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::Valida
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteBlackListReq {
+    #[validate(length(min = 1, max = 50, message = "Blacklist type length must be between 1-50"))]
+    #[validate(custom(function = "validate_blacklist_type"))]
     pub blacklist_type: String,
+
+    #[validate(length(min = 1, max = 256, message = "Resource name length must be between 1-256"))]
     pub resource_name: String,
 }
 
@@ -180,7 +184,7 @@ pub async fn blacklist_create(
 
 pub async fn blacklist_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteBlackListReq>,
+    ValidatedJson(params): ValidatedJson<DeleteBlackListReq>,
 ) -> String {
     let blacklist_type = match get_blacklist_type_by_str(&params.blacklist_type) {
         Ok(blacklist_type) => blacklist_type,

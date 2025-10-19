@@ -47,8 +47,9 @@ pub struct CreateUserReq {
     pub is_superuser: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteUserReq {
+    #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
     pub username: String,
 }
 
@@ -147,7 +148,7 @@ pub async fn user_create(
 
 pub async fn user_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteUserReq>,
+    ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
     let auth_driver = AuthDriver::new(
         state.mqtt_context.cache_manager.clone(),
