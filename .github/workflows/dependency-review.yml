@@ -36,8 +36,8 @@ jobs:
         with:
           # Fail the build on critical vulnerabilities
           fail-on-severity: critical
-          # Only deny strong copyleft licenses
-          # Note: LGPL is allowed as it's commonly used in dual-licensed dependencies
-          # where we can choose the permissive license option
-          deny-licenses: GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, AGPL-3.0
+          # Note: License checking is handled by cargo-deny in code-style workflow
+          # dependency-review-action doesn't understand Rust's multi-license system well
+          # (e.g., "MIT OR Apache-2.0 OR LGPL" allows us to choose MIT/Apache)
+          # So we skip license checks here and rely on cargo-deny for accurate license validation
 

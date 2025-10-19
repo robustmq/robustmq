@@ -45,10 +45,13 @@ jobs:
         with:
           tool: cargo-audit
       
-      - name: Run cargo audit
-        run: cargo audit --deny warnings
+      - name: Run cargo audit (vulnerabilities only)
+        # Only fail on actual security vulnerabilities, not unmaintained warnings
+        # Unmaintained dependencies are reported but don't fail the build
+        run: cargo audit
       
-      - name: Check for unmaintained dependencies
+      - name: Check for unmaintained dependencies (warning only)
+        # Report unmaintained dependencies but don't fail
         run: cargo audit --deny unmaintained
         continue-on-error: true
 
