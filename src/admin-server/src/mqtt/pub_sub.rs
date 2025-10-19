@@ -94,6 +94,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
             return Err(CommonError::CommonError(e.to_string()));
         }
     }
+
     let mut offset = Vec::new();
     let message_expire = now_second() + 3600;
     if let Some(record) =
@@ -103,6 +104,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
             .append_topic_message(&params.topic.clone(), vec![record])
             .await?;
     }
+    
     Ok(offset)
 }
 
