@@ -40,13 +40,11 @@ dependencies = [
  "axum",
  "broker-core",
  "bytes",
- "chrono",
  "common-base",
  "common-config",
  "common-metrics",
  "dashmap",
  "grpc-clients",
- "lazy_static",
  "metadata-struct",
  "mockall",
  "mqtt-broker",
@@ -60,7 +58,6 @@ dependencies = [
  "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
- "tower 0.5.2",
  "tower-http 0.5.2",
  "tracing",
  "validator",
@@ -1434,10 +1431,7 @@ dependencies = [
 name = "common-config"
 version = "0.2.2"
 dependencies = [
- "bytes",
  "common-base",
- "crc32fast",
- "dashmap",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -1452,7 +1446,6 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
- "hyper",
  "metadata-struct",
  "prometheus-client",
  "protocol",
@@ -2914,7 +2907,6 @@ dependencies = [
 name = "grpc-clients"
 version = "0.2.2"
 dependencies = [
- "axum",
  "bytes",
  "common-base",
  "dashmap",
@@ -3614,7 +3606,6 @@ dependencies = [
 name = "journal-client"
 version = "0.2.2"
 dependencies = [
- "axum",
  "bytes",
  "common-base",
  "dashmap",
@@ -4087,7 +4078,6 @@ dependencies = [
  "common-base",
  "crc32fast",
  "dashmap",
- "lazy_static",
  "protocol",
  "pulsar",
  "serde",
@@ -4246,10 +4236,8 @@ dependencies = [
 name = "mqtt-broker"
 version = "0.2.2"
 dependencies = [
- "anyhow",
  "async-stream",
  "axum",
- "axum-extra",
  "axum-server",
  "base64 0.22.1",
  "bcrypt",
@@ -4269,7 +4257,6 @@ dependencies = [
  "grpc-clients",
  "hex",
  "hmac",
- "humantime",
  "ipnet",
  "jsonwebtoken",
  "lapin",
@@ -4313,10 +4300,7 @@ dependencies = [
  "tokio-rustls 0.26.4",
  "tokio-util",
  "tonic",
- "tonic-web",
- "tower-http 0.5.2",
  "tracing",
- "tracing-appender",
 ]
 
 [[package]]
@@ -4620,6 +4604,16 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "num_cpus"
+version = "1.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
+dependencies = [
+ "hermit-abi 0.5.2",
+ "libc",
 ]
 
 [[package]]
@@ -6579,6 +6573,7 @@ dependencies = [
  "dashmap",
  "futures",
  "metadata-struct",
+ "num_cpus",
  "rocksdb",
  "serde",
  "serde_json",

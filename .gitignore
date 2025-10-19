@@ -1,25 +1,203 @@
-target
-src/cmd/target
-build
-.vscode
-./log
+# ====================
+# Rust Build Artifacts
+# ====================
+/target/
+**/*.rs.bk
+*.pdb
+
+# Note: Cargo.lock is tracked for this application (binary) project
+# For library projects, you would add: Cargo.lock
+
+# ====================
+# Cargo Configuration
+# ====================
+# Local cargo config (keep personal settings out of repo)
+.cargo/
+# But allow recommended templates for team reference
+!.cargo/*.recommended
+!.cargo/*.example
+
+# ====================
+# Testing & Benchmarking
+# ====================
+# Nextest artifacts
+.nextest/
+/target/nextest/
+
+# Test data and temporary files
+/target/tmp/
+*.profraw
+*.profdata
+
+# Criterion benchmark results
+/target/criterion/
+
+# ====================
+# Build Output & Distribution
+# ====================
+/build/
+/dist/
+/release/
+
+# Note: /bin/ contains shell scripts and is tracked in this project
+# Compiled binaries are placed in /target/ instead
+
+# ====================
+# Runtime Data & Logs
+# ====================
+# Data directories
+/data/
+
+# Log files
+*.log
+logs/
+*.log.*
+*.log.gz
+
+# PID files
+*.pid
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# RocksDB data
+*.sst
+*.log
+
+# ====================
+# IDE & Editors
+# ====================
+# JetBrains IDEs (IntelliJ IDEA, CLion, RustRover)
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.code-workspace
+
+# Vim
+*.swp
+*.swo
+*.swn
+*~
+.*.sw[op]
+Session.vim
+
+# Emacs
+*~
+\#*\#
+.\#*
+.dir-locals.el
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Helix
+.helix/
+
+# ====================
+# Operating System Files
+# ====================
+# macOS
 .DS_Store
-log/*
-src/rlog/log/server.log
-logs
-nohup.out
-.idea
-/precommit_venv/
-robust-data*
-process_logs
-data/*
-/docs/.vitepress/dist/
-/docs/.vitepress/cache/
-/node_modules/
-**/node_modules/
-jn-1.log
-pc-1.log
-config/log-config/mqtt-tracing.toml
-config/log-config/place-tracing.toml
-.cargo
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+
+# ====================
+# Dependencies & Package Managers
+# ====================
+node_modules/
+package-lock.json  # For workspace, use pnpm-lock.yaml instead
+
+# Nix
+result
+result-*
+
+# ====================
+# Documentation
+# ====================
+docs/.vitepress/dist
+docs/.vitepress/cache
+
+# ====================
+# Project Specific
+# ====================
+# Meta service data
 src/meta-service/data
+
+# Example/test configuration (keep templates, ignore instances)
+config/server.toml.local
+*.toml.local
+
+# Certificates and keys (security)
+config/certs/*.key
+config/certs/*.crt
+config/certs/*.pem
+!config/certs/.gitkeep
+
+# ====================
+# Temporary & Cache Files
+# ====================
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# ====================
+# Profiling & Debugging
+# ====================
+# pprof outputs
+*.pprof
+flamegraph.svg
+perf.data
+perf.data.old
+
+# Valgrind
+vgcore.*
+*.valgrind
+
+# Core dumps
+core
+core.*
+
+# ====================
+# CI/CD & Deployment
+# ====================
+# Kubernetes local configs
+*.kubeconfig
+.kube/
+
+# Docker volumes
+.docker/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# ====================
+# Backup Files
+# ====================
+*.bak
+*.backup
+*.old
+*~

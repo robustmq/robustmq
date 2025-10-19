@@ -30,6 +30,7 @@ futures.workspace = true
 metadata-struct.workspace = true
 tempfile.workspace = true
 common-metrics.workspace = true
+num_cpus = "1.16"
 
 [dev-dependencies]
 tokio.workspace = true

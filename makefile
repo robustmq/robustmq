@@ -39,20 +39,30 @@ build-win-arm64-release: ## Build windows arm64 version robustmq.
 
 ##@ Test
 .PHONY: test
-test:  ## Unit testing for Robustmq
+test:  ## Unit testing for Robustmq (with auto-cleanup)
+	@echo "Running unit tests..."
+	/bin/bash ./scripts/unit-test.sh dev
+	@echo "Cleaning up test artifacts..."
+	@$(MAKE) clean-test-artifacts
+
+.PHONY: test-no-clean
+test-no-clean:  ## Unit testing without cleanup (for debugging)
 	/bin/bash ./scripts/unit-test.sh dev
 
 .PHONY: mqtt-ig-test
 mqtt-ig-test:  ## Integration testing for MQTT Broker
 	/bin/bash ./scripts/mqtt-ig-test.sh dev
+	@$(MAKE) clean-test-artifacts
 
 .PHONY: place-ig-test
 place-ig-test:  ## Integration testing for Meta Service
 	/bin/bash ./scripts/place-ig-test.sh dev
+	@$(MAKE) clean-test-artifacts
 
 .PHONY: journal-ig-test
 journal-ig-test:  ## Integration testing for Journal Engine
 	/bin/bash ./scripts/journal-ig-test.sh dev
+	@$(MAKE) clean-test-artifacts
 
 ##@ Install
 .PHONY: install
@@ -88,6 +98,39 @@ install-dry-run: ## Show what would be installed without actually installing
 clean:  ## Clean the project.
 	cargo clean
 	rm -rf build
+
+.PHONY: clean-incremental
+clean-incremental:  ## Clean incremental compilation cache (saves space)
+	@echo "Cleaning incremental compilation cache..."
+	@rm -rf target/*/incremental
+	@echo "Done! Incremental cache cleaned."
+
+.PHONY: clean-deps
+clean-deps:  ## Clean dependency artifacts
+	@echo "Cleaning dependency artifacts..."
+	@find target -name "deps" -type d -exec rm -rf {} + 2>/dev/null || true
+	@echo "Done! Dependency artifacts cleaned."
+
+.PHONY: clean-debug
+clean-debug:  ## Clean only debug builds (keeps release)
+	@echo "Cleaning debug builds..."
+	@rm -rf target/debug
+	@echo "Done! Debug builds cleaned."
+
+.PHONY: clean-test-artifacts
+clean-test-artifacts:  ## Clean test artifacts (nextest cache, test binaries)
+	@echo "Cleaning test artifacts..."
+	@rm -rf target/nextest
+	@find target -type f -name "*-????????????????" -delete 2>/dev/null || true
+	@find target/debug -type f -perm +111 -name "*test*" -delete 2>/dev/null || true
+	@echo "Done! Test artifacts cleaned."
+
+.PHONY: clean-light
+clean-light:  ## Light clean (incremental + test artifacts, keeps compiled deps)
+	@echo "Performing light clean..."
+	@$(MAKE) clean-incremental
+	@$(MAKE) clean-test-artifacts
+	@echo "Done! Light clean completed."
 
 .PHONY: help
 help: ## Display help messages.
