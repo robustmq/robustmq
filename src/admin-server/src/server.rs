@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{cluster_config_get, cluster_config_set},
     mqtt::{
@@ -126,10 +127,11 @@ impl AdminServer {
             // topic
             .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
             .route(MQTT_TOPIC_DETAIL_PATH, post(topic_detail))
+            .route(MQTT_ACL_DELETE_PATH, post(topic_delete))
             // topic-rewrite
             .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
             .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
-            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_list))
+            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_rewrite_delete))
             // subscribe
             .route(MQTT_SUBSCRIBE_LIST_PATH, post(subscribe_list))
             .route(MQTT_SUBSCRIBE_DETAIL_PATH, post(subscribe_detail))
