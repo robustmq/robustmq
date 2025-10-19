@@ -35,10 +35,8 @@ runs:
     - name: Install Build Dependencies
       shell: bash
       run: |
-        # Only update if cache miss
-        if [ ! -f /var/cache/apt/archives/lock ]; then
-          apt-get update
-        fi
+        # Update package lists (required in fresh containers)
+        apt-get update
         # Install all dependencies in one command for better caching
         apt-get install -y \
           protobuf-compiler \
