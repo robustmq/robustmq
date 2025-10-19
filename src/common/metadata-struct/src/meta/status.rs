@@ -125,7 +125,7 @@ mod tests {
         assert!(!status.is_follower());
         assert!(!status.is_candidate());
         assert_eq!(status.vote.leader_id.node_id, 1);
-        assert_eq!(status.vote.committed, true);
+        assert!(status.vote.committed);
     }
 
     #[test]
