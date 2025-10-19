@@ -113,7 +113,11 @@ pub struct CreateAutoSubscribeReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAutoSubscribeReq {
-    #[validate(length(min = 1, max = 256, message = "Topic name length must be between 1-256"))]
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Topic name length must be between 1-256"
+    ))]
     pub topic_name: String,
 }
 

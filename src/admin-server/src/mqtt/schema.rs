@@ -76,7 +76,11 @@ fn validate_schema_type(schema_type: &str) -> Result<(), validator::ValidationEr
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteSchemaReq {
-    #[validate(length(min = 1, max = 128, message = "Schema name length must be between 1-128"))]
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Schema name length must be between 1-128"
+    ))]
     pub schema_name: String,
 }
 
@@ -112,7 +116,11 @@ pub struct CreateSchemaBindReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteSchemaBindReq {
-    #[validate(length(min = 1, max = 128, message = "Schema name length must be between 1-128"))]
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Schema name length must be between 1-128"
+    ))]
     pub schema_name: String,
 
     #[validate(length(

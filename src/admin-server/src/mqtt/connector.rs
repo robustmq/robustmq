@@ -77,7 +77,11 @@ fn validate_connector_type(connector_type: &str) -> Result<(), validator::Valida
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteConnectorReq {
-    #[validate(length(min = 1, max = 256, message = "Connector name length must be between 1-256"))]
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Connector name length must be between 1-256"
+    ))]
     pub connector_name: String,
 }
 

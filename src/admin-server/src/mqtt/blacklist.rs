@@ -74,11 +74,19 @@ fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::Valida
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteBlackListReq {
-    #[validate(length(min = 1, max = 50, message = "Blacklist type length must be between 1-50"))]
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Blacklist type length must be between 1-50"
+    ))]
     #[validate(custom(function = "validate_blacklist_type"))]
     pub blacklist_type: String,
 
-    #[validate(length(min = 1, max = 256, message = "Resource name length must be between 1-256"))]
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Resource name length must be between 1-256"
+    ))]
     pub resource_name: String,
 }
 

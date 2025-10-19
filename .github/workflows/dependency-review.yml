@@ -36,6 +36,8 @@ jobs:
         with:
           # Fail the build on critical vulnerabilities
           fail-on-severity: critical
-          # Deny copyleft licenses (only use deny-licenses, not both allow and deny)
-          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-2.0, LGPL-3.0
+          # Only deny strong copyleft licenses
+          # Note: LGPL is allowed as it's commonly used in dual-licensed dependencies
+          # where we can choose the permissive license option
+          deny-licenses: GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, AGPL-3.0
 

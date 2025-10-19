@@ -106,7 +106,11 @@ fn validate_acl_permission(permission: &str) -> Result<(), validator::Validation
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAclReq {
-    #[validate(length(min = 1, max = 50, message = "Resource type length must be between 1-50"))]
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Resource type length must be between 1-50"
+    ))]
     #[validate(custom(function = "validate_acl_resource_type"))]
     pub resource_type: String,
 

@@ -36,11 +36,11 @@ impl RocksDBEngine {
     pub fn new(data_path: &str, max_open_files: i32, cf_list: Vec<String>) -> Self {
         let opts: Options = Self::open_db_opts(max_open_files);
         let path = data_path.to_string();
-        
+
         // Create shared cache for all column families (512MB total)
         // This is more memory-efficient than per-CF caches
         let shared_cache = Cache::new_lru_cache(512 * 1024 * 1024);
-        
+
         let mut cf_column_family = Vec::new();
         for cf in cf_list {
             // Use optimized column family options with shared cache
@@ -272,7 +272,7 @@ impl RocksDBEngine {
         let mut block_opts = BlockBasedOptions::default();
         block_opts.set_bloom_filter(10.0, false);
         block_opts.set_block_size(4 * 1024);
-        
+
         // Use shared cache across all column families
         block_opts.set_block_cache(shared_cache);
         block_opts.set_cache_index_and_filter_blocks(true);
@@ -280,7 +280,7 @@ impl RocksDBEngine {
         block_opts.set_index_type(rocksdb::BlockBasedIndexType::TwoLevelIndexSearch);
         block_opts.set_partition_filters(true);
         block_opts.set_whole_key_filtering(true);
-        
+
         opts.set_block_based_table_factory(&block_opts);
 
         // ========== Level Compaction ==========
@@ -362,11 +362,11 @@ impl RocksDBEngine {
         // Warm data (L2): LZ4 for balanced performance
         // Cold data (L3+): Zstd for better compression ratio
         opts.set_compression_per_level(&[
-            DBCompressionType::None,  // Level 0: no compression (hot data)
-            DBCompressionType::None,  // Level 1: no compression
-            DBCompressionType::Lz4,   // Level 2: LZ4 (warm data)
-            DBCompressionType::Lz4,   // Level 3: LZ4
-            DBCompressionType::Zstd,  // Level 4+: Zstd (cold data, better ratio)
+            DBCompressionType::None, // Level 0: no compression (hot data)
+            DBCompressionType::None, // Level 1: no compression
+            DBCompressionType::Lz4,  // Level 2: LZ4 (warm data)
+            DBCompressionType::Lz4,  // Level 3: LZ4
+            DBCompressionType::Zstd, // Level 4+: Zstd (cold data, better ratio)
         ]);
 
         // Compression options for Zstd
