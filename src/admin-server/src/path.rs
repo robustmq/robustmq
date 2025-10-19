@@ -38,6 +38,7 @@ pub const MQTT_SESSION_LIST_PATH: &str = "/mqtt/session/list";
 // MQTT Topic API paths
 pub const MQTT_TOPIC_LIST_PATH: &str = "/mqtt/topic/list";
 pub const MQTT_TOPIC_DETAIL_PATH: &str = "/mqtt/topic/detail";
+pub const MQTT_TOPIC_DELETE_PATH: &str = "/mqtt/topic/delete";
 
 // MQTT Topic Rewrite API paths
 pub const MQTT_TOPIC_REWRITE_LIST_PATH: &str = "/mqtt/topic-rewrite/list";
