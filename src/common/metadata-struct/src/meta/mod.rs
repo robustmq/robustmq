@@ -13,6 +13,5 @@
 // limitations under the License.
 
 pub mod cluster;
-pub mod journal;
-pub mod meta;
-pub mod mqtt;
+pub mod node;
+pub mod status;

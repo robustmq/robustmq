@@ -14,7 +14,7 @@
 
 use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
-    cluster::{cluster_config_get, cluster_config_set},
+    cluster::{cluster_config_get, cluster_config_set, cluster_info},
     mqtt::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
@@ -22,6 +22,7 @@ use crate::{
         connector::{connector_create, connector_delete, connector_list},
         monitor::monitor_data,
         overview::overview,
+        pub_sub::{read, send},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
@@ -41,14 +42,13 @@ use crate::{
 use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::{
-    extract::{ConnectInfo, Request, State},
+    extract::{ConnectInfo, Request},
     http::{HeaderMap, Method, Uri},
     middleware::{self, Next},
     response::Response,
-    routing::{get, post},
+    routing::post,
     Router,
 };
-use common_base::version::version;
 use common_metrics::http::record_http_request;
 use reqwest::StatusCode;
 use std::path::PathBuf;
@@ -108,7 +108,7 @@ impl AdminServer {
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route(STATUS_PATH, get(index))
+            .route(STATUS_PATH, post(cluster_info))
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
@@ -127,7 +127,7 @@ impl AdminServer {
             // topic
             .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
             .route(MQTT_TOPIC_DETAIL_PATH, post(topic_detail))
-            .route(MQTT_ACL_DELETE_PATH, post(topic_delete))
+            .route(MQTT_TOPIC_DELETE_PATH, post(topic_delete))
             // topic-rewrite
             .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
             .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
@@ -173,6 +173,9 @@ impl AdminServer {
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, post(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, post(ban_log_list))
+            // message
+            .route(MQTT_MESSAGE_SEND_PATH, post(send))
+            .route(MQTT_MESSAGE_READ_PATH, post(read))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
@@ -381,10 +384,6 @@ fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
         }
     }
     socket_addr.ip().to_string()
-}
-
-pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
-    format!("RobustMQ API {}", version())
 }
 
 #[cfg(test)]

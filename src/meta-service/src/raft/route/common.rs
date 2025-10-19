@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::placement::cluster::ClusterInfo;
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::cluster::ClusterInfo;
+use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message as _;
 use protocol::meta::meta_service_inner::{
@@ -172,7 +172,7 @@ mod tests {
     use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use rocksdb_engine::RocksDBEngine;
 
     use crate::core::cache::CacheManager;

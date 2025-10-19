@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::bridge::manager::ConnectorManager;
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::inner::{
     delete_session_by_req, send_last_will_message_by_req, update_cache_by_req,
@@ -36,6 +37,7 @@ pub struct GrpcInnerServices {
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: ArcStorageAdapter,
+    metrics_manager: Arc<MetricsCacheManager>,
 }
 
 impl GrpcInnerServices {
@@ -46,6 +48,7 @@ impl GrpcInnerServices {
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: ArcStorageAdapter,
+        metrics_manager: Arc<MetricsCacheManager>,
     ) -> Self {
         GrpcInnerServices {
             cache_manager,
@@ -54,6 +57,7 @@ impl GrpcInnerServices {
             client_pool,
             message_storage_adapter,
             schema_manager,
+            metrics_manager,
         }
     }
 }
@@ -70,6 +74,8 @@ impl MqttBrokerInnerService for GrpcInnerServices {
             &self.connector_manager,
             &self.subscribe_manager,
             &self.schema_manager,
+            &self.message_storage_adapter,
+            &self.metrics_manager,
             &req,
         )
         .await

@@ -598,6 +598,10 @@ impl SubscribeManager {
         self.remove_not_push_client(client_id);
     }
 
+    pub fn remove_topic(&self, _topic_name: &str) {
+        // todo
+    }
+
     // info
     pub fn snapshot_info(&self) -> HashMap<String, Vec<String>> {
         let exclusive_push_key: Vec<String> = self

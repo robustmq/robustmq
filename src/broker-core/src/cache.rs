@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::node::BrokerNode;
 use tokio::sync::RwLock;
 
 pub struct BrokerCacheManager {
@@ -98,7 +98,7 @@ mod tests {
     use crate::cache::BrokerCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::default_broker_config;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
 
     #[tokio::test]
     async fn start_time_operations() {

@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::{CreateUserReq, DeleteUserReq};
+    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
     use common_base::tools::unique_id;
 
     use crate::mqtt::protocol::common::{

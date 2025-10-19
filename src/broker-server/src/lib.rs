@@ -172,7 +172,9 @@ impl BrokerServer {
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache: broker_cache.clone(),
             rate_limiter_manager: self.rate_limiter_manager.clone(),
+            storage_adapter: self.mqtt_params.message_storage_adapter.clone(),
         });
+
         let http_port = self.config.http_port;
         server_runtime.spawn(async move {
             let admin_server = AdminServer::new();

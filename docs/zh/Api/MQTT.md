@@ -474,7 +474,35 @@
 - 保留消息内容使用 Base64 编码，客户端需要解码后使用
 - `retain_message_at` 使用毫秒级时间戳，而 `create_time` 使用秒级时间戳
 
-#### 4.3 主题重写规则列表
+#### 4.3 删除主题
+- **接口**: `POST /api/mqtt/topic/delete`
+- **描述**: 删除指定的主题
+- **请求参数**:
+```json
+{
+  "topic_name": "sensor/temperature"  // 必填，要删除的主题名称
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": "success"
+}
+```
+
+**字段说明**：
+- `topic_name`: 要删除的主题名称
+
+**注意事项**：
+- 删除主题会删除该主题的所有数据，包括保留消息
+- 如果主题不存在或删除失败，将返回错误响应
+- 此操作不可逆，请谨慎使用
+- 删除主题不会自动取消该主题的订阅，订阅仍会保留
+
+#### 4.4 主题重写规则列表
 - **接口**: `POST /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -497,7 +525,7 @@
 }
 ```
 
-#### 4.3 创建主题重写规则
+#### 4.5 创建主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/create`
 - **描述**: 创建新的主题重写规则
 - **请求参数**:
@@ -510,9 +538,15 @@
 }
 ```
 
+- **参数验证规则**:
+  - `action`: 长度必须在 1-50 个字符之间，必须是 `All`、`Publish` 或 `Subscribe`
+  - `source_topic`: 长度必须在 1-256 个字符之间
+  - `dest_topic`: 长度必须在 1-256 个字符之间
+  - `regex`: 长度必须在 1-500 个字符之间
+
 - **响应**: 成功返回 "success"
 
-#### 4.4 删除主题重写规则
+#### 4.6 删除主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/delete`
 - **描述**: 删除主题重写规则
 - **请求参数**:
@@ -738,6 +772,13 @@
 }
 ```
 
+- **参数验证规则**:
+  - `topic`: 长度必须在 1-256 个字符之间
+  - `qos`: 必须是 0、1 或 2
+  - `no_local`: 布尔值
+  - `retain_as_published`: 布尔值
+  - `retained_handling`: 必须是 0、1 或 2
+
 - **响应**: 成功返回 "success"
 
 ##### 5.3.3 删除自动订阅规则
@@ -835,6 +876,11 @@
 }
 ```
 
+- **参数验证规则**:
+  - `username`: 长度必须在 1-64 个字符之间
+  - `password`: 长度必须在 1-128 个字符之间
+  - `is_superuser`: 布尔值
+
 - **响应**: 成功返回 "Created successfully!"
 
 #### 6.3 删除用户
@@ -892,6 +938,14 @@
   "permission": "Allow"              // 权限：Allow, Deny
 }
 ```
+
+- **参数验证规则**:
+  - `resource_type`: 长度必须在 1-50 个字符之间，必须是 `ClientId`、`Username` 或 `IpAddress`
+  - `resource_name`: 长度必须在 1-256 个字符之间
+  - `topic`: 长度必须在 1-256 个字符之间
+  - `ip`: 长度不能超过 128 个字符
+  - `action`: 长度必须在 1-50 个字符之间，必须是 `Publish`、`Subscribe` 或 `All`
+  - `permission`: 长度必须在 1-50 个字符之间，必须是 `Allow` 或 `Deny`
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -952,6 +1006,12 @@
 }
 ```
 
+- **参数验证规则**:
+  - `blacklist_type`: 长度必须在 1-50 个字符之间，必须是 `ClientId`、`IpAddress` 或 `Username`
+  - `resource_name`: 长度必须在 1-256 个字符之间
+  - `end_time`: 必须大于 0
+  - `desc`: 长度不能超过 500 个字符
+
 - **响应**: 成功返回 "Created successfully!"
 
 #### 8.3 删除黑名单
@@ -1010,6 +1070,12 @@
   "topic_name": "sensor/+"               // 关联的主题ID
 }
 ```
+
+- **参数验证规则**:
+  - `connector_name`: 长度必须在 1-128 个字符之间
+  - `connector_type`: 长度必须在 1-50 个字符之间，必须是 `kafka`、`pulsar`、`rabbitmq`、`greptime`、`postgres`、`mysql`、`mongodb` 或 `file`
+  - `config`: 长度必须在 1-4096 个字符之间
+  - `topic_name`: 长度必须在 1-256 个字符之间
 
 **连接器类型和配置示例**：
 
@@ -1133,6 +1199,12 @@
 }
 ```
 
+- **参数验证规则**:
+  - `schema_name`: 长度必须在 1-128 个字符之间
+  - `schema_type`: 长度必须在 1-50 个字符之间，必须是 `json`、`avro` 或 `protobuf`
+  - `schema`: 长度必须在 1-8192 个字符之间
+  - `desc`: 长度不能超过 500 个字符
+
 **Schema 类型示例**：
 
 **JSON Schema**:
@@ -1213,6 +1285,10 @@
 }
 ```
 
+- **参数验证规则**:
+  - `schema_name`: 长度必须在 1-128 个字符之间
+  - `resource_name`: 长度必须在 1-256 个字符之间
+
 - **响应**: 成功返回 "Created successfully!"
 
 ##### 10.4.3 删除 Schema 绑定
@@ -1230,9 +1306,102 @@
 
 ---
 
-### 11. 系统监控
+### 11. 消息管理
 
-#### 11.1 系统告警列表
+#### 11.1 发送消息
+- **接口**: `POST /api/mqtt/message/send`
+- **描述**: 通过HTTP API发送MQTT消息到指定主题
+- **请求参数**:
+```json
+{
+  "topic": "sensor/temperature",  // 必填，主题名称
+  "payload": "25.5",              // 必填，消息内容
+  "retain": false                 // 可选，是否保留消息，默认false
+}
+```
+
+- **参数验证规则**:
+  - `topic`: 长度必须在 1-256 个字符之间
+  - `payload`: 长度不能超过 1MB (1048576字节)
+  - `retain`: 布尔值
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "offsets": [12345]  // 消息在主题中的offset列表
+  }
+}
+```
+
+**字段说明**：
+- `topic`: 消息发送的目标主题
+- `payload`: 消息的内容（字符串格式）
+- `retain`: 是否保留消息
+  - `true`: 消息将作为保留消息存储，新订阅者会收到该消息
+  - `false`: 普通消息，不会保留
+- `offsets`: 消息成功写入后返回的offset数组，表示消息在存储中的位置
+
+**注意事项**：
+- 发送的消息使用QoS 1（至少一次）级别
+- 如果主题不存在，系统会自动创建
+- 消息默认过期时间为3600秒（1小时）
+- 发送者的client_id格式为：`{cluster_name}_{broker_id}`
+
+#### 11.2 读取消息
+- **接口**: `POST /api/mqtt/message/read`
+- **描述**: 从指定主题读取消息
+- **请求参数**:
+```json
+{
+  "topic": "sensor/temperature",  // 必填，主题名称
+  "offset": 0                     // 必填，起始offset
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "messages": [
+      {
+        "offset": 12345,
+        "content": "25.5",
+        "timestamp": 1640995200000
+      },
+      {
+        "offset": 12346,
+        "content": "26.0",
+        "timestamp": 1640995260000
+      }
+    ]
+  }
+}
+```
+
+**字段说明**：
+- `topic`: 要读取消息的主题名称
+- `offset`: 起始offset，从该位置开始读取消息
+- `messages`: 消息列表（最多返回100条）
+  - `offset`: 消息的offset
+  - `content`: 消息内容（字符串格式）
+  - `timestamp`: 消息时间戳（毫秒）
+
+**注意事项**：
+- 每次请求最多返回100条消息
+- offset表示消息在主题中的顺序位置
+- 如果指定的offset超出范围，将返回空消息列表
+- 时间戳为毫秒级Unix时间戳
+
+---
+
+### 12. 系统监控
+
+#### 12.1 系统告警列表
 - **接口**: `POST /api/mqtt/system-alarm/list`
 - **描述**: 查询系统告警列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -1255,7 +1424,7 @@
 }
 ```
 
-#### 11.2 连接抖动检测列表
+#### 12.2 连接抖动检测列表
 - **接口**: `POST /api/mqtt/flapping_detect/list`
 - **描述**: 查询连接抖动检测列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -1401,6 +1570,15 @@ curl -X POST http://localhost:8080/api/mqtt/client/list \
   }'
 ```
 
+### 删除主题
+```bash
+curl -X POST http://localhost:8080/api/mqtt/topic/delete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic_name": "sensor/temperature"
+  }'
+```
+
 ### 创建用户
 ```bash
 curl -X POST http://localhost:8080/api/mqtt/user/create \
@@ -1447,6 +1625,27 @@ curl -X POST http://localhost:8080/api/mqtt/schema/create \
     "schema_type": "json",
     "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",
     "desc": "Sensor data validation schema"
+  }'
+```
+
+### 发送消息
+```bash
+curl -X POST http://localhost:8080/api/mqtt/message/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "sensor/temperature",
+    "payload": "25.5",
+    "retain": false
+  }'
+```
+
+### 读取消息
+```bash
+curl -X POST http://localhost:8080/api/mqtt/message/read \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "sensor/temperature",
+    "offset": 0
   }'
 ```
 

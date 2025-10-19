@@ -39,6 +39,7 @@ version = "0.2.2"
 dependencies = [
  "axum",
  "broker-core",
+ "bytes",
  "chrono",
  "common-base",
  "common-config",
@@ -56,11 +57,13 @@ dependencies = [
  "schema-register",
  "serde",
  "serde_json",
+ "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.5.2",
  "tower-http 0.5.2",
  "tracing",
+ "validator",
 ]
 
 [[package]]
@@ -980,6 +983,7 @@ dependencies = [
  "dashmap",
  "grpc-clients",
  "metadata-struct",
+ "openraft",
  "protocol",
  "rocksdb-engine",
  "serde",
@@ -3361,6 +3365,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "418a0a6fab821475f634efe3ccc45c013f742efe03d853e8d3355d5cb850ecf8"
 dependencies = [
  "matches",
+ "unicode-bidi",
+ "unicode-normalization",
+]
+
+[[package]]
+name = "idna"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "634d9b1461af396cad843f47fdba5597a4f9e6ddd4bfb6ff5d85028c25cb12f6"
+dependencies = [
  "unicode-bidi",
  "unicode-normalization",
 ]
@@ -8745,6 +8759,36 @@ dependencies = [
  "uritemplate-next",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "validator"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db79c75af171630a3148bd3e6d7c4f42b6a9a014c2945bc5ed0020cbb8d9478e"
+dependencies = [
+ "idna 0.5.0",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "url",
+ "validator_derive",
+]
+
+[[package]]
+name = "validator_derive"
+version = "0.18.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df0bcf92720c40105ac4b2dda2a4ea3aa717d4d6a862cc217da653a4bd5c6b10"
+dependencies = [
+ "darling 0.20.11",
+ "once_cell",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]

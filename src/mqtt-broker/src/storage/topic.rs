@@ -52,11 +52,11 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn delete_topic(&self, topic_name: String) -> ResultMqttBrokerError {
+    pub async fn delete_topic(&self, topic_name: &str) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteTopicRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name,
+            topic_name: topic_name.to_string(),
         };
         placement_delete_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())

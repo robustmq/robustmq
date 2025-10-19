@@ -23,7 +23,7 @@ mod tests {
         },
         ClientTestProperties,
     };
-    use admin_server::request::mqtt::CreateTopicRewriteReq;
+    use admin_server::mqtt::topic::CreateTopicRewriteReq;
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, MessageBuilder};
     use tokio::time::sleep;

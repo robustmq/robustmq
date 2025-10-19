@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::mqtt::pub_sub::error_info;
-use admin_server::{client::AdminHttpClient, request::cluster::ClusterConfigSetReq};
+use admin_server::{client::AdminHttpClient, cluster::ClusterConfigSetReq};
 use common_config::config::BrokerConfig;
 
 #[derive(Clone)]
@@ -54,7 +54,7 @@ impl ClusterCommand {
     async fn set_cluster_config(
         &self,
         params: ClusterCliCommandParam,
-        cli_request: admin_server::request::cluster::ClusterConfigSetReq,
+        cli_request: admin_server::cluster::ClusterConfigSetReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));

@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::{
+    use admin_server::mqtt::schema::{
         CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
     };
     use apache_avro::{Schema, Writer};

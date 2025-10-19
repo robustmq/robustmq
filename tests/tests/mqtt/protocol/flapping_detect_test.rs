@@ -18,7 +18,7 @@ mod tests {
         broker_addr, build_conn_pros, build_create_conn_pros, create_test_env, distinct_conn,
     };
     use crate::mqtt::protocol::ClientTestProperties;
-    use admin_server::request::cluster::ClusterConfigSetReq;
+    use admin_server::cluster::ClusterConfigSetReq;
     use common_base::tools::unique_id;
     use common_config::config::BrokerConfig;
     use paho_mqtt::Client;

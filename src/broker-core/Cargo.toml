@@ -31,3 +31,4 @@ dashmap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 rocksdb-engine.workspace = true
+openraft.workspace = true

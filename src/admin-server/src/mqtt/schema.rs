@@ -17,20 +17,117 @@ use common_base::http_response::{error_response, success_response};
 use common_config::broker::broker_config;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
 use mqtt_broker::{handler::error::MqttBrokerError, storage::schema::SchemaStorage};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use validator::Validate;
 
 use crate::{
-    request::mqtt::{
-        CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
-        SchemaBindListReq, SchemaListReq,
-    },
-    response::{
-        mqtt::{SchemaBindListRow, SchemaListRow},
+    extractor::ValidatedJson,
+    state::HttpState,
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
-    state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
 };
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SchemaListReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateSchemaReq {
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Schema name length must be between 1-128"
+    ))]
+    pub schema_name: String,
+
+    #[validate(length(min = 1, max = 50, message = "Schema type length must be between 1-50"))]
+    #[validate(custom(function = "validate_schema_type"))]
+    pub schema_type: String,
+
+    #[validate(length(min = 1, max = 8192, message = "Schema length must be between 1-8192"))]
+    pub schema: String,
+
+    #[validate(length(max = 500, message = "Description length cannot exceed 500"))]
+    pub desc: String,
+}
+
+fn validate_schema_type(schema_type: &str) -> Result<(), validator::ValidationError> {
+    match schema_type {
+        "json" | "avro" | "protobuf" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_schema_type");
+            err.message = Some(std::borrow::Cow::from(
+                "Schema type must be json, avro or protobuf",
+            ));
+            Err(err)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeleteSchemaReq {
+    pub schema_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SchemaBindListReq {
+    pub resource_name: Option<String>,
+    pub schema_name: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateSchemaBindReq {
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Schema name length must be between 1-128"
+    ))]
+    pub schema_name: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Resource name length must be between 1-256"
+    ))]
+    pub resource_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DeleteSchemaBindReq {
+    pub schema_name: String,
+    pub resource_name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SchemaListRow {
+    pub name: String,
+    pub schema_type: String,
+    pub desc: String,
+    pub schema: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SchemaBindListRow {
+    pub data_type: String,
+    pub data: Vec<String>,
+}
 
 pub async fn schema_list(
     State(state): State<Arc<HttpState>>,
@@ -78,7 +175,7 @@ impl Queryable for SchemaListRow {
 
 pub async fn schema_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateSchemaReq>,
+    ValidatedJson(params): ValidatedJson<CreateSchemaReq>,
 ) -> String {
     if let Err(e) = schema_create_inner(state, params).await {
         return error_response(e.to_string());
@@ -183,7 +280,7 @@ impl Queryable for SchemaBindListRow {
 
 pub async fn schema_bind_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateSchemaBindReq>,
+    ValidatedJson(params): ValidatedJson<CreateSchemaBindReq>,
 ) -> String {
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
     if let Err(e) = schema_storage

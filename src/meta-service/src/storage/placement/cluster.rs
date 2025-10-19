@@ -15,7 +15,7 @@
 use crate::storage::engine_meta::{engine_prefix_list_by_cluster, engine_save_by_meta};
 use crate::storage::keys::{key_cluster, key_cluster_prefix};
 use common_base::error::common::CommonError;
-use metadata_struct::placement::cluster::ClusterInfo;
+use metadata_struct::meta::cluster::ClusterInfo;
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
@@ -53,7 +53,7 @@ impl ClusterStorage {
 #[cfg(test)]
 mod test {
     use broker_core::rocksdb::column_family_list;
-    use metadata_struct::placement::cluster::ClusterInfo;
+    use metadata_struct::meta::cluster::ClusterInfo;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;

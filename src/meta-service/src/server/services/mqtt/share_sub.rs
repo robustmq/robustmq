@@ -226,7 +226,7 @@ mod tests {
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
 

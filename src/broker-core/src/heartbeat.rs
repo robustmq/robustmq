@@ -69,7 +69,7 @@ struct MetaServiceStatus {
 pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
     let fun = async move || -> Result<Option<bool>, CommonError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        let data = cluster_storage.place_cluster_status().await?;
+        let data = cluster_storage.meta_cluster_status().await?;
         let status = serde_json::from_str::<MetaServiceStatus>(&data)?;
         if status.current_leader > 0 {
             info!(

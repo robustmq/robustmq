@@ -235,8 +235,9 @@ impl MQTTCacheManager {
         self.topic_info.insert(topic_name.to_owned(), topic.clone());
     }
 
-    pub fn delete_topic(&self, topic_name: &String) {
+    pub fn delete_topic(&self, topic_name: &str) {
         self.topic_info.remove(topic_name);
+        // todo
     }
 
     pub fn topic_exists(&self, topic_name: &str) -> bool {
@@ -430,7 +431,7 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::now_second;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
     #[tokio::test]
@@ -597,7 +598,7 @@ mod tests {
         assert_eq!(topic_info.unwrap().topic_name, topic.topic_name);
 
         // remove
-        cache_manager.delete_topic(&topic_name.to_string());
+        cache_manager.delete_topic(topic_name);
 
         // get again
         let topic_info_after_remove = cache_manager.get_topic_by_name(topic_name);
@@ -617,7 +618,7 @@ mod tests {
         cache_manager.add_topic(topic_name, &topic);
 
         // remove
-        cache_manager.delete_topic(&topic_name.to_string());
+        cache_manager.delete_topic(topic_name);
 
         // get again
         let topic_name_from_id_after_remove = cache_manager.get_topic_by_name(&topic.topic_name);
