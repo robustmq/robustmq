@@ -15,45 +15,42 @@
 VERSION=`grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2`
 echo "Version: ${VERSION}"
 
-# Skip cargo clean in CI to preserve cached dependencies
-# Only clean locally to ensure fresh builds
-if [ -z "$CI" ]; then
-  echo "Running cargo clean (local mode)"
-  cargo clean
-else
-  echo "Skipping cargo clean (CI mode - using cached builds)"
-  # Clean only test artifacts to save space
-  rm -rf target/nextest
-  rm -rf target/debug/incremental
-  find target -type f -name "*-????????????????" -delete 2>/dev/null || true
-fi
+# Clean test artifacts to save disk space (preserve build cache)
+echo "Cleaning test artifacts..."
+rm -rf target/nextest
+rm -rf target/debug/incremental
+find target -type f -name "*-????????????????" -delete 2>/dev/null || true
 
-# Build broker-server in release mode for CI (saves ~60% space)
-# In local dev, use debug mode for faster iteration
-if [ -n "$CI" ]; then
-  echo "Building broker-server in release mode (CI)"
-  cargo build --release --package cmd --bin broker-server
-  # Strip debug symbols to save more space (~30% reduction)
-  strip target/release/broker-server 2>/dev/null || true
-  nohup target/release/broker-server >> 1.log 2>&1 &
-else
-  echo "Running broker-server in debug mode (local)"
-  nohup cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
-fi
+# Build broker-server in release mode (saves ~60% disk space vs debug)
+echo "Building broker-server in release mode..."
+cargo build --release --package cmd --bin broker-server
 
-# Wait a bit for broker to start
+# Strip debug symbols to save more space (~30% reduction)
+strip target/release/broker-server 2>/dev/null || true
+
+# Start broker in background
+echo "Starting broker-server..."
+nohup target/release/broker-server >> 1.log 2>&1 &
+
+# Wait for broker to start
 sleep 5
 
-# Run tests (still in debug mode for faster compilation)
-# cargo nextest run --package grpc-clients --test mod -- meta
-# cargo nextest run --package robustmq-test --test mod -- meta
-# cargo nextest run --package robustmq-test --test mod -- journal
+# Run integration tests
+echo "Running integration tests..."
+echo "1/4 Running grpc-clients meta tests..."
+cargo nextest run --package grpc-clients --test mod -- meta
+
+echo "2/4 Running robustmq-test meta tests..."
+cargo nextest run --package robustmq-test --test mod -- meta
+
+echo "3/4 Running journal tests..."
+cargo nextest run --package robustmq-test --test mod -- journal
+
+echo "4/4 Running MQTT tests..."
 cargo nextest run --package robustmq-test --test mod -- mqtt
 
-# Clean up broker artifacts after tests (only in CI)
-if [ -n "$CI" ]; then
-  echo "Cleaning broker artifacts"
-  rm -rf target/release/broker-server
-  rm -rf target/release/deps/broker_server*
-  rm -rf target/release/incremental
-fi
+# Clean up broker artifacts after tests
+echo "Cleaning broker artifacts..."
+rm -rf target/release/broker-server
+rm -rf target/release/deps/broker_server*
+rm -rf target/release/incremental

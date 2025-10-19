@@ -77,24 +77,34 @@ Files to update when:
 ## Makefile Commands
 
 ```bash
-# Code quality checks
-make codecheck              # Run all code quality checks
+# Development
+make dev                    # Run broker-server in development mode
+make fmt                    # Format code with rustfmt
+make check                  # Quick compilation check
+make clippy                 # Run clippy linter
+make codecheck              # Run all code quality checks (format, clippy, license)
+make doc                    # Generate documentation
 
 # Build
-make build                  # Build local version
-make build-mac-arm64-release  # Build for macOS ARM64
+make build                  # Build debug version for local development
+make build-release          # Build optimized release version
+make build-server           # Build broker-server binary
 
 # Test
-make test                   # Run unit tests
+make test                   # Run unit tests with cleanup
+make test-all               # Run all tests including integration tests
 make mqtt-ig-test           # Run MQTT integration tests
 
 # Clean
-make clean                  # Full clean
-make clean-incremental      # Clean cache only
-make clean-light            # Light clean
+make clean                  # Full clean (removes all build artifacts)
+make clean-light            # Light clean (cache and test artifacts only)
+make clean-test-artifacts   # Clean test artifacts
+
+# Install
+make install                # Install RobustMQ binaries to system
 
 # Help
-make help                   # Show all commands
+make help                   # Display this help message
 ```
 
 ## Pre-commit Setup

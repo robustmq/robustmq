@@ -99,12 +99,9 @@ jobs:
           echo "CARGO_BUILD_JOBS=10" >> $GITHUB_ENV
           echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
       
-      - name: Cargo check (fast pre-compile)
-        run: cargo check --workspace --lib --bins
-      
-      - name: Cargo clippy (with compilation cache)
+      - name: Cargo clippy (includes compilation check)
+        # Clippy includes cargo check, so we skip separate check step
         # Only check main targets, skip benches to save time
-        # benches are rarely modified and checked in bench workflow
         run: cargo clippy --workspace --all-targets --tests -- -D warnings
       
       - name: Show sccache stats

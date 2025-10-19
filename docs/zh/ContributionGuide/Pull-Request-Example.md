@@ -58,19 +58,25 @@ git commit -m "fix: 修复示例Bug"
 
 ### 6. 集成测试
 
-务必进行以下集成测试，确保代码质量：
+务必进行以下代码质量检查和测试：
 
 | 测试类型                  | 命令                     |
 |---------------------------|-------------------------|
+| 代码质量检查              | `make codecheck`        |
 | 单元测试                  | `make test`             |
-| MQTT Broker 集成测试      | `make mqtt-ig-test`     |
-| Meta Service 集成测试 | `make place-ig-test`    |
-| Journal Engine 集成测试   | `make journal-ig-test`  |
+| 所有测试（单元+集成）     | `make test-all`         |
+| 仅 MQTT 集成测试          | `make mqtt-ig-test`     |
 
 ```shell
+# 运行代码质量检查（格式化、clippy、许可证）
+make codecheck
+
+# 运行所有测试
+make test-all
+
+# 或分别运行
+make test
 make mqtt-ig-test
-make place-ig-test
-make journal-ig-test
 ```
 
 以上测试通过后，提交分支：
@@ -92,10 +98,8 @@ git fetch upstream
 git checkout pr-example
 # 合并主分支最新代码
 git merge upstream/main
-# 再次执行集成测试
-make mqtt-ig-test
-make place-ig-test
-make journal-ig-test
+# 再次执行测试
+make test-all
 # 提交合并后的代码
 git commit -m "Merge upstream main into pr-example"
 git push origin pr-example

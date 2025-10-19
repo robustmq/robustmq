@@ -76,14 +76,8 @@ jobs:
           # Set compiler flags for smaller binaries
           echo "CARGO_PROFILE_RELEASE_LTO=thin" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
-          # Set optimal parallel jobs (avoid OOM)
-          echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
-
-      - name: Pre-build dependencies to leverage cache
-        run: |
-          # Warm up build cache by checking compilation without linking
-          cargo check --release --package cmd --bin broker-server 2>/dev/null || true
-          echo "Dependency check phase completed"
+          # Set optimal parallel jobs (balance speed and memory)
+          echo "CARGO_BUILD_JOBS=8" >> $GITHUB_ENV
 
       - name: Check disk space before test
         run: df -h

@@ -53,6 +53,9 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain and cache
+        uses: ./.github/actions/setup-builder
+
       - name: Install nextest and cargo-expand
         uses: taiki-e/install-action@v2
         with:
@@ -63,8 +66,8 @@ jobs:
 
       - name: Optimize build environment
         run: |
-          # Set optimal parallel jobs to avoid OOM
-          echo "CARGO_BUILD_JOBS=8" >> $GITHUB_ENV
+          # Set optimal parallel jobs for unit tests
+          echo "CARGO_BUILD_JOBS=10" >> $GITHUB_ENV
 
       - name: Run tests with CI profile
         run: sh ./scripts/unit-test.sh ci
