@@ -64,15 +64,25 @@ jobs:
 
       - name: Free up disk space before build
         run: |
-          # Remove unnecessary files to free up space (in container, already root)
+          # Aggressive disk space cleanup
+          echo "Initial disk space:"
+          df -h
+          # Remove all unnecessary system files
           rm -rf /usr/share/dotnet 2>/dev/null || true
           rm -rf /usr/local/lib/android 2>/dev/null || true
           rm -rf /opt/ghc 2>/dev/null || true
           rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
           rm -rf /usr/share/swift 2>/dev/null || true
           rm -rf /usr/local/share/boost 2>/dev/null || true
-          # Clean apt cache
+          rm -rf /usr/local/.ghcup 2>/dev/null || true
+          rm -rf /usr/share/miniconda 2>/dev/null || true
+          rm -rf /usr/local/share/chromium 2>/dev/null || true
+          # Clean package caches
           apt-get clean
+          rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+          # Clean docker if any
+          docker system prune -af 2>/dev/null || true
+          echo "After cleanup:"
           df -h
 
       - uses: actions/checkout@v4
@@ -87,32 +97,38 @@ jobs:
         with:
           tool: nextest
 
-      - name: Setup sccache
-        uses: ./.github/actions/setup-sccache
-
       - name: Optimize build environment
         run: |
-          # Set compiler flags for smaller binaries
+          # Aggressive space-saving compiler flags
           echo "CARGO_PROFILE_RELEASE_LTO=thin" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
-          # Reduce debug info in release builds (saves ~40% space)
-          echo "CARGO_PROFILE_RELEASE_DEBUG=0" >> $GITHUB_ENV
-          # Set optimal parallel jobs (balance speed and memory)
-          echo "CARGO_BUILD_JOBS=8" >> $GITHUB_ENV
-          # Disable incremental for release builds (saves space)
+          # No debug info at all (saves ~50% space)
+          echo "CARGO_PROFILE_RELEASE_DEBUG=false" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_STRIP=symbols" >> $GITHUB_ENV
+          # Reduce parallel jobs to save memory and disk
+          echo "CARGO_BUILD_JOBS=4" >> $GITHUB_ENV
+          # Disable incremental (saves space)
           echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
-          # Reduce sccache size to save space
-          echo "SCCACHE_CACHE_SIZE=2G" >> $GITHUB_ENV
+          # Skip sccache to save disk space (critical for 14GB limit)
+          echo "RUSTC_WRAPPER=" >> $GITHUB_ENV
 
       - name: Check disk space before test
         run: df -h
 
       - name: Build broker-server in release mode
         run: |
-          echo "Building broker-server..."
+          echo "Building broker-server (with minimal dependencies)..."
+          # Only build broker-server and its direct dependencies
           cargo build --release --package cmd --bin broker-server
-          # Strip debug symbols to save space
-          strip target/release/broker-server 2>/dev/null || true
+          echo "Build complete, checking space..."
+          df -h
+          # Immediately clean build artifacts we don't need
+          echo "Cleaning build artifacts..."
+          rm -rf target/release/deps/*.rlib 2>/dev/null || true
+          rm -rf target/release/build 2>/dev/null || true
+          rm -rf target/release/incremental 2>/dev/null || true
+          rm -rf target/release/.fingerprint 2>/dev/null || true
+          echo "After cleanup:"
           df -h
 
       - name: Start broker-server
