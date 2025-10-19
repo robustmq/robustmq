@@ -120,9 +120,5 @@ jobs:
 
       - name: Show sccache stats
         if: always()
-        run: |
-          if command -v sccache &> /dev/null; then
-            sccache --show-stats
-          else
-            echo "sccache not available, skipping stats"
-          fi
+        continue-on-error: true
+        run: sccache --show-stats || echo "sccache not available"
