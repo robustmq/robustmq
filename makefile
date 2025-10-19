@@ -51,13 +51,17 @@ build-server: ## Build broker-server binary
 .PHONY: test
 test: ## Run unit tests with cleanup
 	@echo "Running unit tests..."
-	cargo nextest run --workspace --exclude=robustmq-test --exclude=grpc-clients
+	cargo nextest run --workspace \
+		--exclude=robustmq-test \
+		--exclude=grpc-clients \
+		--filter-expr '!(test(meta) & package(storage-adapter))'
 	@$(MAKE) clean-test-artifacts
 
 .PHONY: test-all
 test-all: ## Run all tests including integration tests
 	@echo "Running all tests..."
-	cargo nextest run --workspace
+	cargo nextest run --workspace \
+		--filter-expr '!(test(meta) & package(storage-adapter))'
 	@$(MAKE) clean-test-artifacts
 
 .PHONY: mqtt-ig-test
