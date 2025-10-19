@@ -598,7 +598,7 @@ mod tests {
         assert_eq!(topic_info.unwrap().topic_name, topic.topic_name);
 
         // remove
-        cache_manager.delete_topic(&topic_name.to_string());
+        cache_manager.delete_topic(topic_name);
 
         // get again
         let topic_info_after_remove = cache_manager.get_topic_by_name(topic_name);
@@ -618,7 +618,7 @@ mod tests {
         cache_manager.add_topic(topic_name, &topic);
 
         // remove
-        cache_manager.delete_topic(&topic_name.to_string());
+        cache_manager.delete_topic(topic_name);
 
         // get again
         let topic_name_from_id_after_remove = cache_manager.get_topic_by_name(&topic.topic_name);

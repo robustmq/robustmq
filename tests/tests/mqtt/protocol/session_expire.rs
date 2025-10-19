@@ -14,8 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use admin_server::request::mqtt::SessionListReq;
-    use admin_server::response::mqtt::SessionListRow;
+    use admin_server::mqtt::session::{SessionListReq, SessionListRow};
     use common_base::tools::{now_second, unique_id};
     use paho_mqtt::{Message, QOS_1};
     use std::time::Duration;

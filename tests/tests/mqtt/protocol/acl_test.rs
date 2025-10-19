@@ -21,10 +21,8 @@ mod tests {
 
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::{
-        AclListReq, CreateAclReq, CreateUserReq, DeleteAclReq, DeleteUserReq,
-    };
-    use admin_server::response::mqtt::AclListRow;
+    use admin_server::mqtt::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
+    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
