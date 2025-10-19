@@ -97,8 +97,8 @@ jobs:
       - name: Optimize build environment
         run: |
           echo "CARGO_BUILD_JOBS=10" >> $GITHUB_ENV
-          # Enable incremental compilation for clippy (faster, worth the disk space)
-          echo "CARGO_INCREMENTAL=1" >> $GITHUB_ENV
+          # Disable incremental compilation (required for sccache)
+          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
       
       - name: Cargo clippy (includes compilation check)
         # Clippy includes cargo check, so we skip separate check step
