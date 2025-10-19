@@ -23,6 +23,7 @@ use mqtt_broker::{
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::RateLimiterManager;
 use schema_register::schema::SchemaRegisterManager;
+use storage_adapter::storage::ArcStorageAdapter;
 
 #[derive(Clone)]
 pub struct HttpState {
@@ -32,6 +33,7 @@ pub struct HttpState {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub mqtt_context: MQTTContext,
     pub rate_limiter_manager: Arc<RateLimiterManager>,
+    pub storage_adapter: ArcStorageAdapter,
 }
 
 #[derive(Clone)]

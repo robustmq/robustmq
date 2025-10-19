@@ -39,6 +39,7 @@ version = "0.2.2"
 dependencies = [
  "axum",
  "broker-core",
+ "bytes",
  "chrono",
  "common-base",
  "common-config",
@@ -56,6 +57,7 @@ dependencies = [
  "schema-register",
  "serde",
  "serde_json",
+ "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.5.2",

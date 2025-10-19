@@ -1230,9 +1230,97 @@ Query message count for a specific topic:
 
 ---
 
-### 11. System Monitoring
+### 11. Message Management
 
-#### 11.1 System Alarm List
+#### 11.1 Send Message
+- **Endpoint**: `POST /api/mqtt/message/send`
+- **Description**: Send MQTT message to specified topic via HTTP API
+- **Request Parameters**:
+```json
+{
+  "topic": "sensor/temperature",  // Required, topic name
+  "payload": "25.5",              // Required, message content
+  "retain": false                 // Optional, whether to retain message, default false
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "offsets": [12345]  // Offset list of messages in the topic
+  }
+}
+```
+
+**Field Descriptions**:
+- `topic`: Target topic for message delivery
+- `payload`: Message content (string format)
+- `retain`: Whether to retain message
+  - `true`: Message will be stored as retained message, new subscribers will receive it
+  - `false`: Regular message, will not be retained
+- `offsets`: Array of offsets returned after message is successfully written, indicating message position in storage
+
+**Notes**:
+- Messages are sent with QoS 1 (at least once) level
+- Topic will be automatically created if it doesn't exist
+- Default message expiry time is 3600 seconds (1 hour)
+- Sender's client_id format: `{cluster_name}_{broker_id}`
+
+#### 11.2 Read Messages
+- **Endpoint**: `POST /api/mqtt/message/read`
+- **Description**: Read messages from specified topic
+- **Request Parameters**:
+```json
+{
+  "topic": "sensor/temperature",  // Required, topic name
+  "offset": 0                     // Required, starting offset
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "messages": [
+      {
+        "offset": 12345,
+        "content": "25.5",
+        "timestamp": 1640995200000
+      },
+      {
+        "offset": 12346,
+        "content": "26.0",
+        "timestamp": 1640995260000
+      }
+    ]
+  }
+}
+```
+
+**Field Descriptions**:
+- `topic`: Topic name to read messages from
+- `offset`: Starting offset to begin reading messages
+- `messages`: Message list (maximum 100 messages returned)
+  - `offset`: Message offset
+  - `content`: Message content (string format)
+  - `timestamp`: Message timestamp (milliseconds)
+
+**Notes**:
+- Maximum of 100 messages returned per request
+- Offset represents the sequential position of messages in the topic
+- Empty message list will be returned if specified offset is out of range
+- Timestamp is in millisecond Unix timestamp format
+
+---
+
+### 12. System Monitoring
+
+#### 12.1 System Alarm List
 - **Endpoint**: `POST /api/mqtt/system-alarm/list`
 - **Description**: Query system alarm list
 - **Request Parameters**: Supports common pagination and filtering parameters
@@ -1255,7 +1343,7 @@ Query message count for a specific topic:
 }
 ```
 
-#### 11.2 Flapping Detection List
+#### 12.2 Flapping Detection List
 - **Endpoint**: `POST /api/mqtt/flapping_detect/list`
 - **Description**: Query flapping detection list
 - **Request Parameters**: Supports common pagination and filtering parameters
@@ -1447,6 +1535,27 @@ curl -X POST http://localhost:8080/api/mqtt/schema/create \
     "schema_type": "json",
     "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",
     "desc": "Sensor data validation schema"
+  }'
+```
+
+### Send Message
+```bash
+curl -X POST http://localhost:8080/api/mqtt/message/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "sensor/temperature",
+    "payload": "25.5",
+    "retain": false
+  }'
+```
+
+### Read Messages
+```bash
+curl -X POST http://localhost:8080/api/mqtt/message/read \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "sensor/temperature",
+    "offset": 0
   }'
 ```
 

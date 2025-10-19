@@ -21,6 +21,7 @@ use crate::{
         connector::{connector_create, connector_delete, connector_list},
         monitor::monitor_data,
         overview::overview,
+        pub_sub::{read, send},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
@@ -173,6 +174,9 @@ impl AdminServer {
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, post(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, post(ban_log_list))
+            // message
+            .route(MQTT_MESSAGE_SEND_PATH, post(send))
+            .route(MQTT_MESSAGE_READ_PATH, post(read))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

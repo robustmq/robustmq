@@ -161,6 +161,22 @@ pub struct SystemAlarmListRow {
     pub message: String,
     pub create_time: u64,
 }
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SendMessageResp {
+    pub offsets: Vec<u64>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ReadMessageResp {
+    pub messages: Vec<ReadMessageRow>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ReadMessageRow {
+    pub offset: u64,
+    pub content: String,
+    pub timestamp: u64,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FlappingDetectListRaw {

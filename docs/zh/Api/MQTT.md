@@ -1230,9 +1230,97 @@
 
 ---
 
-### 11. 系统监控
+### 11. 消息管理
 
-#### 11.1 系统告警列表
+#### 11.1 发送消息
+- **接口**: `POST /api/mqtt/message/send`
+- **描述**: 通过HTTP API发送MQTT消息到指定主题
+- **请求参数**:
+```json
+{
+  "topic": "sensor/temperature",  // 必填，主题名称
+  "payload": "25.5",              // 必填，消息内容
+  "retain": false                 // 可选，是否保留消息，默认false
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "offsets": [12345]  // 消息在主题中的offset列表
+  }
+}
+```
+
+**字段说明**：
+- `topic`: 消息发送的目标主题
+- `payload`: 消息的内容（字符串格式）
+- `retain`: 是否保留消息
+  - `true`: 消息将作为保留消息存储，新订阅者会收到该消息
+  - `false`: 普通消息，不会保留
+- `offsets`: 消息成功写入后返回的offset数组，表示消息在存储中的位置
+
+**注意事项**：
+- 发送的消息使用QoS 1（至少一次）级别
+- 如果主题不存在，系统会自动创建
+- 消息默认过期时间为3600秒（1小时）
+- 发送者的client_id格式为：`{cluster_name}_{broker_id}`
+
+#### 11.2 读取消息
+- **接口**: `POST /api/mqtt/message/read`
+- **描述**: 从指定主题读取消息
+- **请求参数**:
+```json
+{
+  "topic": "sensor/temperature",  // 必填，主题名称
+  "offset": 0                     // 必填，起始offset
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "messages": [
+      {
+        "offset": 12345,
+        "content": "25.5",
+        "timestamp": 1640995200000
+      },
+      {
+        "offset": 12346,
+        "content": "26.0",
+        "timestamp": 1640995260000
+      }
+    ]
+  }
+}
+```
+
+**字段说明**：
+- `topic`: 要读取消息的主题名称
+- `offset`: 起始offset，从该位置开始读取消息
+- `messages`: 消息列表（最多返回100条）
+  - `offset`: 消息的offset
+  - `content`: 消息内容（字符串格式）
+  - `timestamp`: 消息时间戳（毫秒）
+
+**注意事项**：
+- 每次请求最多返回100条消息
+- offset表示消息在主题中的顺序位置
+- 如果指定的offset超出范围，将返回空消息列表
+- 时间戳为毫秒级Unix时间戳
+
+---
+
+### 12. 系统监控
+
+#### 12.1 系统告警列表
 - **接口**: `POST /api/mqtt/system-alarm/list`
 - **描述**: 查询系统告警列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -1255,7 +1343,7 @@
 }
 ```
 
-#### 11.2 连接抖动检测列表
+#### 12.2 连接抖动检测列表
 - **接口**: `POST /api/mqtt/flapping_detect/list`
 - **描述**: 查询连接抖动检测列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -1447,6 +1535,27 @@ curl -X POST http://localhost:8080/api/mqtt/schema/create \
     "schema_type": "json",
     "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",
     "desc": "Sensor data validation schema"
+  }'
+```
+
+### 发送消息
+```bash
+curl -X POST http://localhost:8080/api/mqtt/message/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "sensor/temperature",
+    "payload": "25.5",
+    "retain": false
+  }'
+```
+
+### 读取消息
+```bash
+curl -X POST http://localhost:8080/api/mqtt/message/read \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "sensor/temperature",
+    "offset": 0
   }'
 ```
 
