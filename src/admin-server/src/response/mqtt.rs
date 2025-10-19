@@ -33,6 +33,12 @@ pub struct ClientListRow {
     pub heartbeat: Option<ConnectionLiveTime>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReadReq {
+    pub topic: String,
+    pub offset: u64,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicListRow {
     pub topic_name: String,

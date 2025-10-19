@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    response::mqtt::{ReadMessageRow, SendMessageResp},
+    request::mqtt::PublishReq,
+    response::mqtt::{ReadMessageRow, SendMessageResp, ReadReq},
     state::HttpState,
 };
 use axum::{extract::State, Json};
@@ -30,21 +31,7 @@ use mqtt_broker::{
     storage::message::MessageStorage,
 };
 use protocol::mqtt::common::{Publish, PublishProperties};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PublishReq {
-    pub topic: String,
-    pub payload: String,
-    pub retain: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SubscribeReq {
-    pub topic: String,
-    pub offset: u64,
-}
 
 pub async fn send(State(state): State<Arc<HttpState>>, Json(params): Json<PublishReq>) -> String {
     match send_inner(state, params).await {
@@ -108,7 +95,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
     Ok(offset)
 }
 
-pub async fn read(State(state): State<Arc<HttpState>>, Json(params): Json<SubscribeReq>) -> String {
+pub async fn read(State(state): State<Arc<HttpState>>, Json(params): Json<ReadReq>) -> String {
     match read_inner(state, params).await {
         Ok(messages) => success_response(crate::response::mqtt::ReadMessageResp { messages }),
         Err(e) => error_response(e.to_string()),
@@ -117,7 +104,7 @@ pub async fn read(State(state): State<Arc<HttpState>>, Json(params): Json<Subscr
 
 pub async fn read_inner(
     state: Arc<HttpState>,
-    params: SubscribeReq,
+    params: ReadReq,
 ) -> Result<Vec<ReadMessageRow>, CommonError> {
     let message_storage = MessageStorage::new(state.storage_adapter.clone());
     let mut results = Vec::new();

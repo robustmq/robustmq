@@ -474,7 +474,35 @@
 - 保留消息内容使用 Base64 编码，客户端需要解码后使用
 - `retain_message_at` 使用毫秒级时间戳，而 `create_time` 使用秒级时间戳
 
-#### 4.3 主题重写规则列表
+#### 4.3 删除主题
+- **接口**: `POST /api/mqtt/topic/delete`
+- **描述**: 删除指定的主题
+- **请求参数**:
+```json
+{
+  "topic_name": "sensor/temperature"  // 必填，要删除的主题名称
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": "success"
+}
+```
+
+**字段说明**：
+- `topic_name`: 要删除的主题名称
+
+**注意事项**：
+- 删除主题会删除该主题的所有数据，包括保留消息
+- 如果主题不存在或删除失败，将返回错误响应
+- 此操作不可逆，请谨慎使用
+- 删除主题不会自动取消该主题的订阅，订阅仍会保留
+
+#### 4.4 主题重写规则列表
 - **接口**: `POST /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表
 - **请求参数**: 支持通用分页和过滤参数
@@ -497,7 +525,7 @@
 }
 ```
 
-#### 4.3 创建主题重写规则
+#### 4.5 创建主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/create`
 - **描述**: 创建新的主题重写规则
 - **请求参数**:
@@ -512,7 +540,7 @@
 
 - **响应**: 成功返回 "success"
 
-#### 4.4 删除主题重写规则
+#### 4.6 删除主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/delete`
 - **描述**: 删除主题重写规则
 - **请求参数**:
@@ -1486,6 +1514,15 @@ curl -X POST http://localhost:8080/api/mqtt/client/list \
     "page": 1,
     "sort_field": "connection_id",
     "sort_by": "desc"
+  }'
+```
+
+### 删除主题
+```bash
+curl -X POST http://localhost:8080/api/mqtt/topic/delete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic_name": "sensor/temperature"
   }'
 ```
 

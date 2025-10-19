@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    extractor::ValidatedJson,
     request::mqtt::{BlackListListReq, CreateBlackListReq, DeleteBlackListReq},
     response::{mqtt::BlackListListRow, PageReplyData},
     state::HttpState,
@@ -85,7 +86,7 @@ impl Queryable for BlackListListRow {
 
 pub async fn blacklist_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateBlackListReq>,
+    ValidatedJson(params): ValidatedJson<CreateBlackListReq>,
 ) -> String {
     let blacklist_type = match get_blacklist_type_by_str(&params.blacklist_type) {
         Ok(blacklist_type) => blacklist_type,

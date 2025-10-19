@@ -474,7 +474,35 @@ Query message count for a specific topic:
 - Retained message content is Base64 encoded and needs to be decoded by clients
 - `retain_message_at` uses millisecond timestamps while `create_time` uses second timestamps
 
-#### 4.3 Topic Rewrite Rules List
+#### 4.3 Delete Topic
+- **Endpoint**: `POST /api/mqtt/topic/delete`
+- **Description**: Delete a specified topic
+- **Request Parameters**:
+```json
+{
+  "topic_name": "sensor/temperature"  // Required, topic name to delete
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": "success"
+}
+```
+
+**Field Descriptions**:
+- `topic_name`: Name of the topic to delete
+
+**Notes**:
+- Deleting a topic will remove all data for that topic, including retained messages
+- Returns an error response if the topic does not exist or deletion fails
+- This operation is irreversible, use with caution
+- Deleting a topic does not automatically unsubscribe from it; subscriptions will remain
+
+#### 4.4 Topic Rewrite Rules List
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
@@ -497,7 +525,7 @@ Query message count for a specific topic:
 }
 ```
 
-#### 4.3 Create Topic Rewrite Rule
+#### 4.5 Create Topic Rewrite Rule
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/create`
 - **Description**: Create new topic rewrite rule
 - **Request Parameters**:
@@ -512,7 +540,7 @@ Query message count for a specific topic:
 
 - **Response**: Returns "success" on success
 
-#### 4.4 Delete Topic Rewrite Rule
+#### 4.6 Delete Topic Rewrite Rule
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/delete`
 - **Description**: Delete topic rewrite rule
 - **Request Parameters**:
@@ -1486,6 +1514,15 @@ curl -X POST http://localhost:8080/api/mqtt/client/list \
     "page": 1,
     "sort_field": "connection_id",
     "sort_by": "desc"
+  }'
+```
+
+### Delete Topic
+```bash
+curl -X POST http://localhost:8080/api/mqtt/topic/delete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic_name": "sensor/temperature"
   }'
 ```
 
