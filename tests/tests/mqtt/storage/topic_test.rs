@@ -45,10 +45,7 @@ mod tests {
         let result = topic_storage.all().await.unwrap();
         assert!(!result.is_empty());
 
-        topic_storage
-            .delete_topic(topic_name.clone())
-            .await
-            .unwrap();
+        topic_storage.delete_topic(&topic_name).await.unwrap();
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap();
         assert!(result.is_none());

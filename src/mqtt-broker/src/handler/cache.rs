@@ -235,8 +235,9 @@ impl MQTTCacheManager {
         self.topic_info.insert(topic_name.to_owned(), topic.clone());
     }
 
-    pub fn delete_topic(&self, topic_name: &String) {
+    pub fn delete_topic(&self, topic_name: &str) {
         self.topic_info.remove(topic_name);
+        // todo
     }
 
     pub fn topic_exists(&self, topic_name: &str) -> bool {

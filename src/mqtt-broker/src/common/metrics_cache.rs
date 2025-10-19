@@ -376,6 +376,15 @@ impl MetricsCacheManager {
         results
     }
 
+    // remove
+    pub fn remove_topic(&self, _topic_name: &str) {
+        // todo
+    }
+
+    pub fn remove_subscribe(&self) {}
+
+    pub fn remove_session(&self) {}
+
     // gc
     pub fn gc(&self) {
         let now_time = now_second();

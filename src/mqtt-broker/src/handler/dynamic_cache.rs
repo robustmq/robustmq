@@ -15,8 +15,10 @@
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
+use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
@@ -36,6 +38,7 @@ use protocol::broker::broker_mqtt_inner::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::info;
 
 pub async fn load_metadata_cache(
@@ -129,6 +132,8 @@ pub async fn update_cache_metadata(
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
+    message_storage_adapter: &ArcStorageAdapter,
+    metrics_manager: &Arc<MetricsCacheManager>,
     request: UpdateMqttCacheRequest,
 ) -> ResultMqttBrokerError {
     match request.resource_type() {
@@ -188,7 +193,14 @@ pub async fn update_cache_metadata(
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let topic = serde_json::from_str::<MQTTTopic>(&request.data)?;
-                cache_manager.delete_topic(&topic.topic_name);
+                delete_topic(
+                    cache_manager,
+                    &topic.topic_name,
+                    message_storage_adapter,
+                    subscribe_manager,
+                    metrics_manager,
+                )
+                .await?;
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {

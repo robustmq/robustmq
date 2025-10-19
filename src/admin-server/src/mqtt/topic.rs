@@ -139,15 +139,9 @@ pub async fn topic_delete(
     Json(params): Json<TopicDeleteRep>,
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
-    if let Err(e) = topic_storage.delete_topic(params.topic_name.clone()).await {
+    if let Err(e) = topic_storage.delete_topic(&params.topic_name).await {
         return error_response(e.to_string());
     }
-
-    state
-        .mqtt_context
-        .cache_manager
-        .delete_topic(&params.topic_name);
-
     success_response("success")
 }
 

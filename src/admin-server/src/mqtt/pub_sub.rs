@@ -104,7 +104,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
             .append_topic_message(&params.topic.clone(), vec![record])
             .await?;
     }
-    
+
     Ok(offset)
 }
 

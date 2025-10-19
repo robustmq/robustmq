@@ -166,6 +166,7 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
         mqtt_params.schema_manager.clone(),
         mqtt_params.client_pool.clone(),
         mqtt_params.message_storage_adapter.clone(),
+        mqtt_params.metrics_cache_manager.clone(),
     )
 }
 
