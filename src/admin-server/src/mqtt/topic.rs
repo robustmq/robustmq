@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::request::mqtt::TopicDeleteRep;
 use crate::{
     request::mqtt::{
         CreateTopicRewriteReq, DeleteTopicRewriteReq, TopicDetailReq, TopicListReq, TopicRewriteReq,
@@ -131,6 +132,23 @@ pub async fn topic_detail(
         retain_message_at,
         sub_list,
     })
+}
+
+pub async fn topic_delete(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<TopicDeleteRep>,
+) -> String {
+    let topic_storage = TopicStorage::new(state.client_pool.clone());
+    if let Err(e) = topic_storage.delete_topic(params.topic_name.clone()).await {
+        return error_response(e.to_string());
+    }
+
+    state
+        .mqtt_context
+        .cache_manager
+        .delete_topic(&params.topic_name);
+
+    success_response("success")
 }
 
 pub async fn topic_rewrite_list(
