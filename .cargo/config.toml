@@ -47,6 +47,14 @@ rustflags = [
     "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
 ]
 
+# Linux-specific optimizations (for CI)
+[target.x86_64-unknown-linux-gnu]
+# Use lld linker for much faster linking (2-5x faster than ld)
+linker = "clang"
+rustflags = [
+    "-C", "link-arg=-fuse-ld=lld",
+]
+
 # Network settings
 [net]
 # Use git CLI for better performance with large repositories

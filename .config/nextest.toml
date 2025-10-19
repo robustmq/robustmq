@@ -43,7 +43,7 @@ success-output = "never"
 
 # CI profile - more strict, less storage
 [profile.ci]
-test-threads = 8
+test-threads = 10  # Match CARGO_BUILD_JOBS in CI workflows
 retries = 0
 slow-timeout = { period = "120s", terminate-after = 2 }
 

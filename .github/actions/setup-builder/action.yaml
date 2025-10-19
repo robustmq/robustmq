@@ -46,7 +46,9 @@ runs:
           libclang-dev \
           cmake \
           pkg-config \
-          libssl-dev
+          libssl-dev \
+          clang \
+          lld
     - uses: dtolnay/rust-toolchain@master
       with:
         # Read version from rust-toolchain.toml in repo root

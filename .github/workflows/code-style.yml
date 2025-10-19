@@ -97,7 +97,8 @@ jobs:
       - name: Optimize build environment
         run: |
           echo "CARGO_BUILD_JOBS=10" >> $GITHUB_ENV
-          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+          # Enable incremental compilation for clippy (faster, worth the disk space)
+          echo "CARGO_INCREMENTAL=1" >> $GITHUB_ENV
       
       - name: Cargo clippy (includes compilation check)
         # Clippy includes cargo check, so we skip separate check step
@@ -106,7 +107,12 @@ jobs:
       
       - name: Show sccache stats
         if: always()
-        run: sccache --show-stats
+        run: |
+          if command -v sccache &> /dev/null; then
+            sccache --show-stats
+          else
+            echo "sccache not available, skipping stats"
+          fi
       
       - name: Clean large artifacts
         if: always()

@@ -60,6 +60,8 @@ jobs:
         run: |
           # Set optimal parallel jobs for unit tests
           echo "CARGO_BUILD_JOBS=10" >> $GITHUB_ENV
+          # Disable incremental for tests (saves space, tests are quick)
+          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
 
       - name: Run tests with CI profile
         run: sh ./scripts/unit-test.sh ci
@@ -80,4 +82,9 @@ jobs:
 
       - name: Show sccache stats
         if: always()
-        run: sccache --show-stats
+        run: |
+          if command -v sccache &> /dev/null; then
+            sccache --show-stats
+          else
+            echo "sccache not available, skipping stats"
+          fi
