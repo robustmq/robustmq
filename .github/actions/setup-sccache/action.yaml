@@ -19,10 +19,20 @@ runs:
   steps:
     - name: Setup sccache
       uses: mozilla-actions/sccache-action@v0.0.5
+      continue-on-error: true
+      id: sccache
     
     - name: Configure sccache environment
+      if: steps.sccache.outcome == 'success'
       shell: bash
       run: |
         echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
         echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+    
+    - name: Fallback without sccache
+      if: steps.sccache.outcome != 'success'
+      shell: bash
+      run: |
+        echo "⚠️ sccache setup failed, continuing without cache"
+        echo "RUSTC_WRAPPER=" >> $GITHUB_ENV
 
