@@ -18,7 +18,7 @@
 # ==============================================================================
 # Stage 1: Planner - Generate dependency recipe using cargo-chef
 # ==============================================================================
-FROM lukemathwalker/cargo-chef:latest-rust-1.90 AS planner
+FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
 
 WORKDIR /build
 
