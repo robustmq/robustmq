@@ -224,10 +224,10 @@ Join our growing community of developers, users, and contributors:
     <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
   </div>
 
-- **个人微信**: If the group QR code has expired, add the developer's personal WeChat:
+- **微信公众号**: If the group QR code has expired, Welcome to follow our official WeChat account!
 
   <div align="center">
-    <img src="docs/images/wechat.jpg" alt="Personal WeChat QR Code" width="200" />
+    <img src="docs/images/WeChat-Official-Account.png" alt="Personal WeChat QR Code" width="200" />
   </div>
 
 ## 📄 License
