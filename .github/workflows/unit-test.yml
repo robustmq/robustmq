@@ -35,8 +35,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # Use pre-built cache image with all dependencies compiled
-  CACHE_IMAGE: ghcr.io/${{ github.repository }}/rust-deps:latest
 
 jobs:
   unit-tests:
@@ -57,8 +55,8 @@ jobs:
             packages: "-p protocol -p network-server -p rocksdb-engine"
     container:
       # 🚀 Use pre-built image with all dependencies compiled!
-      # Falls back to rust:latest if cache image doesn't exist yet
-      image: ${{ env.CACHE_IMAGE }}
+      # Image: ghcr.io/<owner>/<repo>/rust-deps:latest
+      image: ghcr.io/${{ github.repository }}/rust-deps:latest
       options: --user root
       credentials:
         username: ${{ github.actor }}
@@ -74,7 +72,7 @@ jobs:
 
       - name: Check cache image status
         run: |
-          echo "📦 Using cache image: $CACHE_IMAGE"
+          echo "📦 Using cache image: ghcr.io/${{ github.repository }}/rust-deps:latest"
           echo "🔍 Checking pre-compiled dependencies..."
           if [ -d "/build/target" ]; then
             echo "✅ Found pre-compiled dependencies!"
