@@ -117,15 +117,15 @@ COPY --from=builder /build/Cargo.lock /build/Cargo.lock
 
 # Configure Rust environment
 ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
 ENV CARGO_BUILD_JOBS=10
 ENV CARGO_INCREMENTAL=0
 ENV RUST_BACKTRACE=1
 
 # Set up linker configuration
-RUN mkdir -p /usr/local/cargo
-COPY --from=builder /usr/local/cargo/.cargo/config.toml /usr/local/cargo/config.toml 2>/dev/null || \
-    echo '[target.x86_64-unknown-linux-gnu]\nlinker = "clang"\nrustflags = ["-C", "link-arg=-fuse-ld=lld"]' \
-    > /usr/local/cargo/config.toml
+RUN mkdir -p /usr/local/cargo/.cargo
+RUN echo '[target.x86_64-unknown-linux-gnu]\nlinker = "clang"\nrustflags = ["-C", "link-arg=-fuse-ld=lld"]' \
+    > /usr/local/cargo/.cargo/config.toml
 
 # Health check: verify dependencies are cached
 RUN echo "✅ Dependency cache image built successfully!" && \
