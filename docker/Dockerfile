@@ -26,7 +26,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src/*/Cargo.toml ./src/*/
 COPY src/common/*/Cargo.toml ./src/common/*/
 COPY tests/Cargo.toml ./tests/
-COPY protocol/build.rs ./protocol/
+COPY src/protocol/build.rs ./src/protocol/
 
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json
