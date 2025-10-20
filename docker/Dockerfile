@@ -17,7 +17,7 @@
 # ==============================================================================
 
 # Stage 1: Planner - Generate dependency recipe
-FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
+FROM lukemathwalker/cargo-chef:0.1.73-rust-1.90.0 AS planner
 
 WORKDIR /robustmq
 
