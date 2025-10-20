@@ -28,6 +28,17 @@ COPY src/common/*/Cargo.toml ./src/common/*/
 COPY tests/Cargo.toml ./tests/
 COPY src/protocol/build.rs ./src/protocol/
 
+# Create dummy source files so cargo-chef can analyze the workspace
+RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
+RUN find src -name "Cargo.toml" -exec dirname {} \; | while read dir; do \
+      if [ -f "$dir/src/main.rs" ] || grep -q "bin" "$dir/Cargo.toml" 2>/dev/null; then \
+        echo "fn main() {}" > "$dir/src/main.rs"; \
+      else \
+        echo "" > "$dir/src/lib.rs"; \
+      fi \
+    done
+RUN mkdir -p tests/src && echo "" > tests/src/lib.rs
+
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json
 
