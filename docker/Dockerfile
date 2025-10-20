@@ -17,7 +17,7 @@
 # ==============================================================================
 
 # Stage 1: Planner - Generate dependency recipe
-FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
+FROM lukemathwalker/cargo-chef:latest-rust-1.90 AS planner
 
 WORKDIR /robustmq
 
@@ -55,7 +55,7 @@ RUN curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${P
     && rm "protoc-${PROTOC_VERSION}-linux-x86_64.zip"
 
 # Install cargo-chef for dependency caching
-RUN cargo install cargo-chef --version 0.1.68
+RUN cargo install cargo-chef --locked
 
 # Set environment variables for compilation
 ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/ \
