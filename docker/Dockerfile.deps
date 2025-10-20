@@ -18,9 +18,12 @@
 # ==============================================================================
 # Stage 1: Planner - Generate dependency recipe using cargo-chef
 # ==============================================================================
-FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
+FROM rust:1.90.0-bookworm AS planner
 
 WORKDIR /build
+
+# Install cargo-chef
+RUN cargo install cargo-chef
 
 # Copy all Cargo.toml and Cargo.lock files
 COPY Cargo.toml Cargo.lock ./
