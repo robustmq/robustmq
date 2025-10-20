@@ -13,9 +13,28 @@
 # limitations under the License.
 
 # ==============================================================================
-# Build Stage
+# Build Stage - Using cargo-chef for better dependency caching
 # ==============================================================================
-FROM rust:1.70-bookworm AS builder
+
+# Stage 1: Planner - Generate dependency recipe
+FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
+
+WORKDIR /robustmq
+
+# Copy all Cargo files to generate recipe
+COPY Cargo.toml Cargo.lock ./
+COPY src/*/Cargo.toml ./src/*/
+COPY src/common/*/Cargo.toml ./src/common/*/
+COPY tests/Cargo.toml ./tests/
+COPY protocol/build.rs ./protocol/
+
+# Generate recipe.json with full dependency graph
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 2: Builder - Compile dependencies and application
+FROM rust:1.90.0-bookworm AS builder
+
+WORKDIR /robustmq
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -26,6 +45,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     ca-certificates \
     curl \
+    lld \
     && rm -rf /var/lib/apt/lists/*
 
 # Install protoc (Protocol Buffers compiler)
@@ -34,33 +54,23 @@ RUN curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${P
     && unzip "protoc-${PROTOC_VERSION}-linux-x86_64.zip" -d /usr/local \
     && rm "protoc-${PROTOC_VERSION}-linux-x86_64.zip"
 
+# Install cargo-chef for dependency caching
+RUN cargo install cargo-chef --version 0.1.68
+
 # Set environment variables for compilation
-ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/
-ENV PATH="/usr/local/bin:${PATH}"
+ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/ \
+    PATH="/usr/local/bin:${PATH}"
 
-# Create app directory
-WORKDIR /robustmq
+# Copy dependency recipe from planner
+COPY --from=planner /robustmq/recipe.json recipe.json
 
-# Copy dependency files first for better cache utilization
-COPY Cargo.toml Cargo.lock ./
-COPY src/*/Cargo.toml ./src/*/
-COPY src/common/*/Cargo.toml ./src/common/*/
-COPY tests/Cargo.toml ./tests/
-
-# Create dummy source files to build dependencies
-RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
-RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} touch {}/src/lib.rs
-
-# Build dependencies (this will be cached unless Cargo.toml changes)
-RUN cargo build --release || true
-
-# Remove dummy source files
-RUN find . -name "*.rs" -delete
+# Build dependencies - this layer is cached unless Cargo.lock changes
+RUN cargo chef cook --release --recipe-path recipe.json
 
 # Copy the actual source code
 COPY . .
 
-# Build the application
+# Build the application (dependencies are already compiled)
 RUN cargo build --release \
     && strip target/release/broker-server \
     && strip target/release/cli-command \
