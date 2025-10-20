@@ -157,6 +157,7 @@ config/certs/*.pem
 *.tmp
 *.temp
 *.cache
+!.github/Dockerfile.cache  # Exception: CI cache image definition must be committed
 .cache/
 
 # ====================
