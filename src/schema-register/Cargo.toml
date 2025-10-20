@@ -34,5 +34,4 @@ valico.workspace = true
 serde_json.workspace = true
 apache-avro.workspace = true
 serde.workspace = true
-protobuf.workspace = true
 protofish.workspace = true

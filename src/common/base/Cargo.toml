@@ -46,7 +46,6 @@ apache-avro.workspace = true
 crc32fast.workspace = true
 tempfile.workspace = true
 chrono.workspace = true
-chrono-tz.workspace = true
 anyhow.workspace = true
 quinn.workspace = true
 rustls.workspace = true
@@ -55,6 +54,7 @@ r2d2_mysql.workspace = true
 r2d2_postgres.workspace = true
 redis.workspace = true
 governor.workspace = true
+chrono-tz.workspace = true
 
 # A custom cfg for enabling tokio-console in tracing-subscriber
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`

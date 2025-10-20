@@ -153,7 +153,10 @@ RobustMQ provides a build script to automatically package installation packages 
 - **💻 [Command Reference](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)** - CLI commands and usage
 - **🎛️ [Web Console](https://github.com/robustmq/robustmq-copilot)** - Management interface
 
-<img src="docs/images/web-ui.png" alt="Web UI" width="600">
+<div align="center">
+  <img src="docs/images/web-ui.jpg" alt="Web UI" width="45%" style="margin-right: 2%;">
+  <img src="docs/images/web-ui-cluster.jpg" alt="Web UI Cluster" width="45%">
+</div>
 
 ## 💻 Development
 
@@ -227,7 +230,7 @@ Join our growing community of developers, users, and contributors:
 - **微信公众号**: If the group QR code has expired, Welcome to follow our official WeChat account!
 
   <div align="center">
-    <img src="docs/images/WeChat-Official-Account.png" alt="Personal WeChat QR Code" width="200" />
+    <img src="docs/images/WeChat-Official-Account.jpg" alt="Personal WeChat QR Code" width="200" />
   </div>
 
 ## 📄 License

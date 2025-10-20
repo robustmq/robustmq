@@ -87,6 +87,5 @@ jsonwebtoken.workspace = true
 
 [dev-dependencies]
 # test
-googletest.workspace = true
 robustmq-test.workspace = true
 tempfile.workspace = true
