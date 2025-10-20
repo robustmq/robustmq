@@ -27,8 +27,7 @@ RUN cargo install cargo-chef
 
 # Copy all Cargo.toml and Cargo.lock files
 COPY Cargo.toml Cargo.lock ./
-COPY src/*/Cargo.toml ./src/*/
-COPY src/common/*/Cargo.toml ./src/common/*/
+COPY src/ ./src/
 COPY tests/Cargo.toml ./tests/
 
 # Create dummy main.rs for packages with binaries
