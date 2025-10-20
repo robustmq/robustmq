@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: thehanimo/pr-title-checker@v1.3.4
+      - uses: thehanimo/pr-title-checker@v1.4.3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           pass_on_octokit_error: false
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: thehanimo/pr-title-checker@v1.3.4
+      - uses: thehanimo/pr-title-checker@v1.4.3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           pass_on_octokit_error: false
