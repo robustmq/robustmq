@@ -44,7 +44,7 @@ jobs:
     container:
       image: rust:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install rustfmt
         run: rustup component add rustfmt
       - name: cargo rust-fmt
@@ -55,7 +55,7 @@ jobs:
     container:
       image: rust:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install cargo-deny
         uses: taiki-e/install-action@v2
         with:
@@ -68,7 +68,7 @@ jobs:
     container:
       image: rust:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install typos
         uses: taiki-e/install-action@v2
         with:
@@ -83,7 +83,7 @@ jobs:
     container:
       image: rust:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
