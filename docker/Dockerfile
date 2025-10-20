@@ -26,18 +26,27 @@ COPY Cargo.toml Cargo.lock ./
 COPY src/*/Cargo.toml ./src/*/
 COPY src/common/*/Cargo.toml ./src/common/*/
 COPY tests/Cargo.toml ./tests/
-COPY src/protocol/build.rs ./src/protocol/
 
-# Create dummy source files so cargo-chef can analyze the workspace
-RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
-RUN find src -name "Cargo.toml" -exec dirname {} \; | while read dir; do \
-      if [ -f "$dir/src/main.rs" ] || grep -q "bin" "$dir/Cargo.toml" 2>/dev/null; then \
-        echo "fn main() {}" > "$dir/src/main.rs"; \
-      else \
-        echo "" > "$dir/src/lib.rs"; \
-      fi \
+# Create dummy main.rs for packages with binaries
+RUN mkdir -p src/cmd/src && echo 'fn main() {}' > src/cmd/src/main.rs
+RUN mkdir -p src/cli-command/src && echo 'fn main() {}' > src/cli-command/src/main.rs
+RUN mkdir -p src/cli-bench/src && echo 'fn main() {}' > src/cli-bench/src/main.rs
+
+# Create dummy lib.rs for all library packages
+RUN for dir in src/admin-server src/amqp-broker src/broker-core src/broker-server \
+               src/delay-message src/grpc-clients src/journal-client src/journal-server \
+               src/kafka-broker src/message-expire src/meta-service src/mqtt-broker \
+               src/robustmq-macro src/schema-register src/storage-adapter \
+               src/common/base src/common/config src/common/metadata-struct \
+               src/common/metrics src/common/network-server src/common/pprof-monitor \
+               src/common/rate-limit src/common/rocksdb-engine src/common/security \
+               src/common/third-driver tests; do \
+      mkdir -p "$dir/src" && echo '' > "$dir/src/lib.rs"; \
     done
-RUN mkdir -p tests/src && echo "" > tests/src/lib.rs
+
+# Create protocol package with build.rs
+RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
+COPY src/protocol/build.rs ./src/protocol/
 
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json
