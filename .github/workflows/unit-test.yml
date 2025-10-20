@@ -51,7 +51,7 @@ jobs:
           - group: "Storage & Services"
             packages: "-p storage-adapter -p meta-service -p journal-server -p journal-client -p schema-register"
           - group: "Protocol & Network"
-            packages: "-p protocol -p network-server -p grpc-clients -p rocksdb-engine"
+            packages: "-p protocol -p network-server -p rocksdb-engine"
     container:
       image: rust:latest
     steps:
@@ -77,6 +77,7 @@ jobs:
 
       - name: Run ${{ matrix.group }} tests
         run: |
+          # Match makefile test command: exclude robustmq-test, grpc-clients
           cargo nextest run \
             --profile=ci \
             ${{ matrix.packages }} \
