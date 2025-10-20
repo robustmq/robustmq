@@ -1,0 +1,113 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ==============================================================================
+# CI Dependency Cache Image
+# ==============================================================================
+# This Dockerfile uses cargo-chef to pre-compile ALL dependencies for CI.
+# It creates a Docker image with all 864 dependencies compiled, so that
+# unit tests only need to compile the project code (2-3 minutes vs 25 minutes).
+#
+# Usage:
+#   - This image is automatically built when Cargo.lock changes
+#   - unit-test.yml uses this image to speed up tests
+#   - Stores compiled dependencies in /usr/local/cargo and /build/target
+# ==============================================================================
+
+# ==============================================================================
+# Stage 1: Planner - Generate dependency recipe
+# ==============================================================================
+FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
+
+WORKDIR /build
+
+# Copy all Cargo.toml and Cargo.lock files
+COPY Cargo.toml Cargo.lock ./
+COPY src/*/Cargo.toml ./src/*/
+COPY src/common/*/Cargo.toml ./src/common/*/
+COPY tests/Cargo.toml ./tests/
+COPY protocol/build.rs ./protocol/
+
+# Generate recipe.json - this contains the dependency graph
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ==============================================================================
+# Stage 2: Builder - Compile all dependencies
+# ==============================================================================
+FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS builder
+
+WORKDIR /build
+
+# Install system dependencies (same as CI environment)
+RUN apt-get update && apt-get install -y \
+    protobuf-compiler \
+    llvm \
+    libclang-dev \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    clang \
+    lld \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set environment for faster builds
+ENV CARGO_BUILD_JOBS=10 \
+    CARGO_INCREMENTAL=0 \
+    RUSTC_WRAPPER="" \
+    CARGO_TERM_COLOR=always
+
+# Copy recipe from planner
+COPY --from=planner /build/recipe.json recipe.json
+
+# Build dependencies - this is the expensive part!
+# This layer will be cached unless Cargo.lock changes
+RUN cargo chef cook --recipe-path recipe.json --tests
+
+# ==============================================================================
+# Stage 3: Runtime - Final image with compiled dependencies
+# ==============================================================================
+FROM rust:1.90.0-bookworm AS runtime
+
+WORKDIR /build
+
+# Install system dependencies (for running cargo build/test)
+RUN apt-get update && apt-get install -y \
+    protobuf-compiler \
+    llvm \
+    libclang-dev \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    clang \
+    lld \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy compiled dependencies from builder
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+COPY --from=builder /build/target /build/target
+
+# Set environment variables
+ENV CARGO_BUILD_JOBS=10 \
+    CARGO_INCREMENTAL=0 \
+    CARGO_TERM_COLOR=always \
+    RUSTC_WRAPPER=""
+
+# Verify cargo is working
+RUN cargo --version && rustc --version
+
+# Default command
+CMD ["/bin/bash"]
+
