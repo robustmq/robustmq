@@ -51,8 +51,13 @@ pub struct TopicDetailReq {
     pub topic_name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct TopicDeleteRep {
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Topic name length must be between 1-256"
+    ))]
     pub topic_name: String,
 }
 
@@ -104,9 +109,17 @@ fn validate_rewrite_action(action: &str) -> Result<(), validator::ValidationErro
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteTopicRewriteReq {
+    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
+    #[validate(custom(function = "validate_rewrite_action"))]
     pub action: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Source topic length must be between 1-256"
+    ))]
     pub source_topic: String,
 }
 
@@ -235,7 +248,7 @@ pub async fn topic_detail(
 
 pub async fn topic_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicDeleteRep>,
+    ValidatedJson(params): ValidatedJson<TopicDeleteRep>,
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage.delete_topic(&params.topic_name).await {
@@ -322,7 +335,7 @@ pub async fn topic_rewrite_create(
 
 pub async fn topic_rewrite_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteTopicRewriteReq>,
+    ValidatedJson(params): ValidatedJson<DeleteTopicRewriteReq>,
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage

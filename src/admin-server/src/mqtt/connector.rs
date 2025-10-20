@@ -75,8 +75,13 @@ fn validate_connector_type(connector_type: &str) -> Result<(), validator::Valida
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteConnectorReq {
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Connector name length must be between 1-256"
+    ))]
     pub connector_name: String,
 }
 
@@ -175,7 +180,7 @@ pub async fn connector_create(
 
 pub async fn connector_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteConnectorReq>,
+    ValidatedJson(params): ValidatedJson<DeleteConnectorReq>,
 ) -> String {
     let storage = ConnectorStorage::new(state.client_pool.clone());
     if let Err(e) = storage

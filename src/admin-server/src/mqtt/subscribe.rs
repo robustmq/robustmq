@@ -111,8 +111,13 @@ pub struct CreateAutoSubscribeReq {
     pub retained_handling: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAutoSubscribeReq {
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Topic name length must be between 1-256"
+    ))]
     pub topic_name: String,
 }
 
@@ -468,7 +473,7 @@ pub async fn auto_subscribe_create(
 
 pub async fn auto_subscribe_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteAutoSubscribeReq>,
+    ValidatedJson(params): ValidatedJson<DeleteAutoSubscribeReq>,
 ) -> String {
     let auto_subscribe_storage = AutoSubscribeStorage::new(state.client_pool.clone());
     if let Err(e) = auto_subscribe_storage

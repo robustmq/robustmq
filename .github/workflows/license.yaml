@@ -27,11 +27,17 @@ on:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
+
+# Cancel previous runs if a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   license-header-check:
     runs-on: ubuntu-latest
     name: license-header-check
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Check License Header
-      uses: korandoru/hawkeye@v3
+      uses: korandoru/hawkeye@v5

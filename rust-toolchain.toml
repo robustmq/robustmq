@@ -13,8 +13,13 @@
 # limitations under the License.
 
 [toolchain]
-channel = "stable"
-components = [ "rustfmt", "rust-src", "rust-analyzer"]
+# Use latest stable Rust version
+# Locking to a specific version ensures reproducibility across team and CI
+channel = "1.90.0"
+components = [ "rustfmt", "rust-src", "rust-analyzer", "clippy" ]
 # The component named miri is supported in the nightly version
 # so we will use it until the stable version can be supported.
 # components = [ "rustfmt", "rust-src", "miri", "rust-analyzer"]
+
+# Note: Update this version periodically (e.g., quarterly) after testing
+# Check latest version: https://github.com/rust-lang/rust/releases

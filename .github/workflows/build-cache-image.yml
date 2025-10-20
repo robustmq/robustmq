@@ -1,0 +1,141 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build CI Cache Image
+
+# Trigger when dependencies change or manually
+on:
+  push:
+    paths:
+      - 'Cargo.lock'              # Dependencies changed
+      - 'Cargo.toml'              # Workspace config changed
+      - 'src/*/Cargo.toml'        # Any package dependencies changed
+      - 'src/common/*/Cargo.toml' # Common package dependencies changed
+      - '.github/Dockerfile.cache' # Dockerfile itself changed
+    branches:
+      - main
+      - develop
+      - 'dev-*'
+  workflow_dispatch:               # Allow manual trigger
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild without cache'
+        required: false
+        default: 'false'
+
+# Only one cache build at a time
+concurrency:
+  group: cache-image-build
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write  # For pushing to ghcr.io
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/rust-deps
+
+jobs:
+  build-and-push:
+    name: Build and Push Cache Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Use branch name for cache tags
+            type=ref,event=branch
+            # Use 'latest' for main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Add date tag for tracking
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+
+      - name: Check if cache exists
+        id: cache_check
+        run: |
+          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 2>/dev/null; then
+            echo "cache_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Cache image exists"
+          else
+            echo "cache_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Cache image does not exist, will build from scratch"
+          fi
+
+      - name: Build and push cache image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: .github/Dockerfile.cache
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Use cache from previous builds
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          cache-to: type=inline
+          # Build arguments
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Image size and info
+        run: |
+          echo "📦 Pulling built image for inspection..."
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo ""
+          echo "📊 Image Details:"
+          docker images ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo ""
+          echo "🔍 Image Layers:"
+          docker history ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --human --no-trunc | head -20
+
+      - name: Summary
+        run: |
+          echo "## ✅ Cache Image Built Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "- This image will be automatically used by \`unit-test\` workflow" >> $GITHUB_STEP_SUMMARY
+          echo "- Expected test time: **2-5 minutes** (down from 25 minutes)" >> $GITHUB_STEP_SUMMARY
+          echo "- Image contains all 864 pre-compiled dependencies" >> $GITHUB_STEP_SUMMARY
+

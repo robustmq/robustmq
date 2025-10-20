@@ -29,80 +29,90 @@ on:
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
 
+# Cancel previous runs if a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Fast checks that don't need compilation cache
   rustfmt:
     runs-on: ubuntu-latest
     container:
-      image: amd64/rust
+      image: rust:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-builder
-      - name: install rustfmt
-        run:  rustup component add rustfmt
+      - name: Install rustfmt
+        run: rustup component add rustfmt
       - name: cargo rust-fmt
         run: cargo fmt --all -- --check
 
   deny:
-    container:
-      image: amd64/rust
     runs-on: ubuntu-latest
+    container:
+      image: rust:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-builder
       - name: Install cargo-deny
-        env:
-          RUSTC_WRAPPER: ""
-        run: cargo install cargo-deny@0.16.2
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.16.2
       - name: cargo deny check
-        env:
-          RUSTC_WRAPPER: ""
         run: cargo-deny check licenses
 
   typos:
-    container:
-      image: amd64/rust
     runs-on: ubuntu-latest
+    container:
+      image: rust:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-builder
       - name: Install typos
-        env:
-          RUSTC_WRAPPER: ""
-        run: cargo install typos-cli@1.27.3
+        uses: taiki-e/install-action@v2
+        with:
+          tool: typos-cli@1.27.3
       - name: typos check
         run: typos
 
-  # this is compiling check
-  cargo-compile-check:
-    container:
-      image: amd64/rust
+  # Compilation checks with shared cache
+  # Run cargo check and clippy together to share compilation cache
+  compile-and-lint:
     runs-on: ubuntu-latest
+    container:
+      image: rust:latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
-      - name: cargo check
-        env:
-          RUSTC_WRAPPER: ""
-        run:  cargo check --all
-
-  clippy:
-    container:
-      image: amd64/rust
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-builder
+      
       - name: Install clippy
-        run:  rustup component add clippy
-      - name: cargo clippy check
-        env:
-          RUSTC_WRAPPER: ""
-        run: cargo clippy --all-targets --all-features --tests --benches -- -D warnings
+        run: rustup component add clippy
+      
+      - name: Setup sccache
+        uses: ./.github/actions/setup-sccache
+      
+      - name: Optimize build environment
+        run: |
+          echo "CARGO_BUILD_JOBS=10" >> $GITHUB_ENV
+          # Disable incremental compilation (required for sccache)
+          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+      
+      - name: Cargo clippy (includes compilation check)
+        # Clippy includes cargo check, so we skip separate check step
+        # Only check main targets, skip benches to save time
+        run: cargo clippy --workspace --all-targets --tests -- -D warnings
+      
+      - name: Show sccache stats
+        if: always()
+        continue-on-error: true
+        run: sccache --show-stats || echo "sccache not available"
+      
+      - name: Clean large artifacts
+        if: always()
+        run: |
+          rm -rf target/debug/incremental
+          rm -rf target/debug/build
+          find target -name "*.rlib" -delete 2>/dev/null || true

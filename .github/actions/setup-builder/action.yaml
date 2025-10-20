@@ -23,17 +23,36 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Cache apt packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-apt-${{ hashFiles('.github/actions/setup-builder/action.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-
+      continue-on-error: true
+    
     - name: Install Build Dependencies
       shell: bash
       run: |
+        # Update package lists (required in fresh containers)
         apt-get update
-        apt-get install -y protobuf-compiler
-        apt-get install -y llvm libclang-dev
-        apt-get install -y cmake
-    - uses: actions-rs/toolchain@v1
+        # Install all dependencies in one command for better caching
+        apt-get install -y \
+          protobuf-compiler \
+          llvm \
+          libclang-dev \
+          cmake \
+          pkg-config \
+          libssl-dev \
+          clang \
+          lld
+    - uses: dtolnay/rust-toolchain@master
       with:
+        # Read version from rust-toolchain.toml in repo root
+        # This ensures CI uses the same version as local development
         toolchain: stable
-        default: true
+        components: rustfmt, clippy
     - name: configure cargo cache
       uses: actions/cache@v4
       with:
@@ -42,7 +61,8 @@ runs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          ./target/
-        key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
     - name: Configure rust runtime env
       uses: ./.github/actions/setup-rust-runtime

@@ -53,115 +53,63 @@ edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-anyhow = { version = "1.0.98" }
-rustls-pki-types = { version = "1.11.0" }
-bindgen = { version = "0.69.5" }
-## async lib
-futures = "0.3"
+# ====================
+# Async Runtime & Utilities
+# ====================
 tokio = { version = "1.45.1", features = ["full"] }
 tokio-util = { version = "0.7.15", features = ["full"] }
-tokio-rustls = { version = "0.26", default-features = false, features = [
-    "logging",
-    "tls12",
-    "ring",
-] }
-rustls = { version = "0.23.23", default-features = false }
-rustls-pemfile = "2"
-## axum
+futures = "0.3.31"
+futures-util = "0.3.31"
+async-trait = "0.1.88"
+async-stream = "0.3.6"
+
+# ====================
+# Serialization
+# ====================
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3.3"
+toml = "0.8.8"
+
+# ====================
+# Web Framework (Axum)
+# ====================
 axum = { version = "0.7.2", features = ["ws", "http1", "http2"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
-mysql = "*"
-## serde lib
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-humantime-serde = "1.1.1"
-## cmd lib
-clap-cargo = "0.14.1"
-clap = { version = "4.4.7", features = ["derive"] }
-## unit test lib
-mockall = "0.13.1"
-googletest = "0.13.0"
-temp-env = "0.3.6"
-## text handle lib
-regex = "1.10.4"
-grep = "0.3.2"
-## observability
-prometheus = "0.14.0"
-prometheus_exporter = "0.8"
-prometheus-client = "0.23.1"
-## logging
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
-tracing-appender = { version = "0.2.0" }
-# opentelemetry
-opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
-    "trace",
-] }
-opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
-    "rt-tokio",
-] }
-opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
-    "grpc-tonic",
-] }
-# prost
+hyper = { version = "1.6.0", features = ["server", "http1"] }
+tower = "0.5.2"
+tower-http = { version = "0.5.2", features = ["fs", "cors"] }
+
+# ====================
+# gRPC & Protocol Buffers
+# ====================
+tonic = "0.12.3"
+tonic-build = "0.12.3"
+tonic-web = "0.12.3"
 prost = "0.13.2"
 prost-build = "0.13.2"
 prost-validate = { version = "0.2.6", features = ["derive"] }
 prost-validate-build = "0.2.6"
-# tonic
-tonic = "0.12.3"
-tonic-build = "0.12.3"
-tonic-web = "0.12.3"
-tower = "0.5.2"
-tower-http = { version = "0.5.2", features = ["fs", "cors"] }
-# quic
-quinn = "0.11.6"
-rcgen = "0.13.2"
-## other
-signal-hook = "0.3.17"
-lazy_static = "^1.4"
-thiserror = "1"
-bytes = { version = "1", features = ["serde"] }
-futures-util = "0.3.30"
-rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
-bincode = "1.3.3"
-ahash = "0.8.7"
-byteorder = "1.5.0"
-toml = "0.8.8"
-uuid = { version = "1.7.0", features = ["v4"] }
-mobc = "0.9.0"
-dashmap = { version = "6.1.0", features = ["serde"] }
-snowflake = "1.3.0"
-reqwest = { version = "0.12.23", features = ["json"] }
-rumqttc = "0.24.0"
-paho-mqtt = { version = "0.13.3", default-features = false, features = [
-    "bundled",
-    "ssl",
-] }
-ipnet = "2.3.0"
-os_info = "3.8.2"
-openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
-    "serde",
-    "type-alias",
-] }
-validator = { version = "0.19", features = ["derive"] }
-rand = "0.8.5"
-opendal = { version = "0.51", features = ["services-s3"] }
-valico = "4.0.0"
-apache-avro = { version = "0.17.0" }
 protobuf = "3.7.1"
-protobuf-codegen = "3.7.1"
-protofish = { version = "0.5.2" }
-rdkafka-sys = "4.8.0"
-rdkafka = { version = "0.37.0" }
-crc32fast = "1.4.2"
-console-subscriber = "0.4.1"
-r2d2_postgres = "0.18.2"
-r2d2_mysql = "25.0.0"
-r2d2 = "0.8.10"
-redis = { version = "0.32.6", features = ["r2d2"] }
+protofish = "0.5.2"
+
+# ====================
+# TLS & Security
+# ====================
+rustls = { version = "0.23.23", default-features = false }
+rustls-pemfile = "2.2.0"
+rustls-pki-types = "1.11.0"
+tokio-rustls = { version = "0.26", default-features = false, features = ["logging", "tls12", "ring"] }
+
+# ====================
+# QUIC Protocol
+# ====================
+quinn = "0.11.6"
+
+# ====================
+# Cryptography & Hashing
+# ====================
 md5 = "0.8.0"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
@@ -172,74 +120,197 @@ hex = "0.4.3"
 base64 = "0.22.1"
 jsonwebtoken = { version = "10.0.0", default-features = false, features = ["use_pem", "rust_crypto"] }
 
-# format
-prettytable-rs = "^0.10"
-## workspaces members
+# ====================
+# Database & Storage
+# ====================
+rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
+mysql = "25.0.0"
+redis = { version = "0.32.6", features = ["r2d2"] }
+mongodb = { version = "2.8", features = ["tokio-runtime"] }
+sqlx = { version = "0.8", default-features = false }
+r2d2 = "0.8.10"
+r2d2_mysql = "25.0.0"
+r2d2_postgres = "0.18.2"
+mobc = "0.9.0"
+opendal = { version = "0.51", features = ["services-s3"] }
+
+# ====================
+# Message Queue & Streaming
+# ====================
+rdkafka = "0.37.0"
+kafka-protocol = "0.15.1"
+pulsar = "6.3.1"
+lapin = "2.5.0"
+paho-mqtt = { version = "0.13.3", default-features = false, features = ["bundled", "ssl"] }
+
+# ====================
+# Distributed Systems
+# ====================
+openraft = { git = "https://github.com/databendlabs/openraft.git", features = ["serde", "type-alias"] }
+
+# ====================
+# Observability & Logging
+# ====================
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
+tracing-appender = "0.2.0"
+prometheus = "0.14.0"
+prometheus-client = "0.23.1"
+console-subscriber = "0.4.1"
+opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["trace"] }
+opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["rt-tokio"] }
+opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["grpc-tonic"] }
+pprof = { version = "0.14.0", features = ["flamegraph"] }
+
+# ====================
+# CLI & Command Line Tools
+# ====================
+clap = { version = "4.4.7", features = ["derive"] }
+clap-cargo = "0.14.1"
+prettytable-rs = "0.10"
+
+# ====================
+# Data Validation & Schema
+# ====================
+validator = { version = "0.19", features = ["derive"] }
+valico = "4.0.0"
+apache-avro = "0.17.0"
+
+# ====================
+# Utilities
+# ====================
+anyhow = "1.0.98"
+thiserror = "1.0"
+lazy_static = "1.4"
+bytes = { version = "1", features = ["serde"] }
+uuid = { version = "1.7.0", features = ["v4"] }
+dashmap = { version = "6.1.0", features = ["serde"] }
+rand = "0.8.5"
+regex = "1.10.4"
+grep = "0.3.2"
+byteorder = "1.5.0"
+crc32fast = "1.4.2"
+ipnet = "2.3.0"
+reqwest = { version = "0.12.23", features = ["json"] }
+tempfile = "3.9.0"
+chrono = "0.4.41"
+chrono-tz = "0.10.3"
+bson = "2.9"
+strum = "0.27"
+strum_macros = "0.27"
+governor = "0.10.1"
+os_info = "3.8.2"
+sysinfo = "0.29.10"
+local-ip-address = "0.6.1"
+num_cpus = "1.16"
+
+# ====================
+# Testing
+# ====================
+mockall = "0.13.1"
+googletest = "0.13.0"
+
+# ====================
+# Macro & Proc-Macro
+# ====================
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"
+macrotest = "1.1.0"
+trybuild = "1.0"
+
+# ====================
+# Internal Workspace Members
+# ====================
+# Broker Components
 mqtt-broker = { path = "src/mqtt-broker" }
-core- = { path = "src/amqp-broker" }
+amqp-broker = { path = "src/amqp-broker" }
+kafka-broker = { path = "src/kafka-broker" }
 broker-server = { path = "src/broker-server" }
 broker-core = { path = "src/broker-core" }
-kafka-broker = { path = "src/kafka-broker" }
-delay-message = { path = "src/delay-message" }
+
+# Meta & Journal Services
 meta-service = { path = "src/meta-service" }
-schema-register = { path = "src/schema-register" }
-message-expire = { path = "src/message-expire" }
-cli-command = { path = "src/cli-command" }
-cli-bench = { path = "src/cli-bench" }
-grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }
 journal-client = { path = "src/journal-client" }
-storage-adapter = { path = "src/storage-adapter" }
+
+# Message Processing
+delay-message = { path = "src/delay-message" }
+message-expire = { path = "src/message-expire" }
+schema-register = { path = "src/schema-register" }
+
+# CLI Tools
+cli-command = { path = "src/cli-command" }
+cli-bench = { path = "src/cli-bench" }
 cmd = { path = "src/cmd" }
+
+# Admin & Management
+admin-server = { path = "src/admin-server" }
+
+# Client Libraries
+grpc-clients = { path = "src/grpc-clients" }
+storage-adapter = { path = "src/storage-adapter" }
+
+# Common Libraries
 common-base = { path = "src/common/base" }
 common-config = { path = "src/common/config" }
+common-metrics = { path = "src/common/metrics" }
+common-security = { path = "src/common/security" }
+network-server = { path = "src/common/network-server" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
 metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
-network-server = { path = "src/common/network-server" }
-common-metrics = { path = "src/common/metrics" }
-common-security = { path = "src/common/security" }
 rate-limit = { path = "src/common/rate-limit" }
-admin-server = { path = "src/admin-server" }
-protocol = { path = "src/protocol" }
-robustmq-test = { path = "tests" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
-sysinfo = "0.29.10"
-chrono = "0.4.41"
-chrono-tz = "0.10.3"
-# other
-tempfile = "3.9.0"
-humantime = "2.2.0"
-strum = "0.27"
-strum_macros = "0.27"
-async-stream = "0.3.6"
-kafka-protocol = "0.15.1"
-governor = { version = "0.10.1" }
-pulsar = "6.3.1"
-sqlx = { version = "0.8", default-features = false }
-mongodb = { version = "2.8", features = ["tokio-runtime"] }
-bson = "2.9"
-lapin = "2.5.0"
 
-# pprof
-pprof = { version = "0.14.0", features = ["flamegraph"] }
+# Protocol & Macros
+protocol = { path = "src/protocol" }
+robustmq-macro = { path = "src/robustmq-macro" }
 
-# http
-hyper = { version = "1.6.0", features = ["server", "http1"] }
-async-trait = "0.1.88"
-env_logger = "0.10.0"
-local-ip-address = "0.6.1"
-macrotest = "1.1.0"
-proc-macro2 = "1"
-quote = "1"
-syn = "2"
-trybuild = "1.0"
+# Testing
+robustmq-test = { path = "tests" }
+
+# ====================
+# Build Profiles
+# ====================
 
 [profile.dev]
-overflow-checks = false
-incremental = true
+# Development profile - optimized for fastest compilation
+overflow-checks = false    # Disable overflow checks for faster dev builds
+incremental = true         # Enable incremental compilation (auto-cleaned periodically)
+opt-level = 0              # No optimization (fastest compile time)
+split-debuginfo = "unpacked"  # Reduce disk usage on macOS/Linux
+codegen-units = 256        # Maximum parallel compilation
+debug = 1                  # Reduced debug info (line tables only) - faster linking
+
+# Optimize dependencies even in dev mode for better runtime performance
+[profile.dev.package."*"]
+opt-level = 3              # Full optimization for dependencies
+debug = false              # No debug info for dependencies
 
 [profile.release]
-codegen-units = 1
-lto = true
-overflow-checks = false
+# Release profile - optimized for performance
+codegen-units = 1          # Better optimization (slower compile, faster runtime)
+lto = true                 # Link-time optimization
+overflow-checks = false    # No runtime overhead
+opt-level = 3              # Maximum optimization
+strip = true               # Strip symbols to reduce binary size
+
+[profile.test]
+# Test profile - optimized for fast compilation and reduced disk usage
+inherits = "dev"
+opt-level = 0              # No optimization for faster test compilation
+debug = 1                  # Minimal debug info (line tables only)
+split-debuginfo = "unpacked"  # Reduce disk usage
+incremental = true         # Enable incremental compilation
+codegen-units = 256        # Maximum parallelism
+
+# Optimize test dependencies for better runtime performance
+[profile.test.package."*"]
+opt-level = 2              # Moderate optimization for dependencies
+debug = false              # No debug info for dependencies
+
+[profile.bench]
+# Benchmark profile - similar to release but with debug info
+inherits = "release"
+debug = true               # Keep debug info for profiling

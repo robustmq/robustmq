@@ -1,0 +1,39 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# cargo-audit configuration
+# This file configures security auditing behavior
+# Documentation: https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# Ignore these advisories (with reasoning)
+ignore = [
+    # Unmaintained dependencies that are still functional and have no security issues
+    "RUSTSEC-2024-0436", # paste crate is unmaintained but still functional (used by kafka-protocol)
+    "RUSTSEC-2024-0370", # proc-macro-error is unmaintained but still functional (used by prost-validate)
+    "RUSTSEC-2025-0052", # async-std discontinued (used by pulsar client, will migrate eventually)
+    "RUSTSEC-2024-0388", # derivative is unmaintained (used by mongodb driver)
+    "RUSTSEC-2024-0384", # instant is unmaintained (used by lapin via async-io)
+    
+    # Security vulnerabilities with known workarounds or pending fixes
+    "RUSTSEC-2023-0071", # rsa Marvin Attack - no fix available yet, monitoring upstream
+    "RUSTSEC-2024-0421", # idna Punycode issue - indirect dependency via trust-dns-proto, will upgrade when mongodb updates
+]
+
+# Ignore yanked crates
+# ignore-yanked = false
+
+# Report informational advisories
+# informational-warnings = ["unmaintained", "unsound", "notice"]
+

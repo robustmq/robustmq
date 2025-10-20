@@ -14,11 +14,43 @@
 
 VERSION=`grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2`
 echo "Version: ${VERSION}"
-cargo clean
 
-nohup cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
+# Clean test artifacts to save disk space (preserve build cache)
+echo "Cleaning test artifacts..."
+rm -rf target/nextest
+rm -rf target/debug/incremental
+find target -type f -name "*-????????????????" -delete 2>/dev/null || true
 
-# cargo nextest run --package grpc-clients --test mod -- meta
-# cargo nextest run --package robustmq-test --test mod -- meta
-# cargo nextest run --package robustmq-test --test mod -- journal
+# Build broker-server in release mode (saves ~60% disk space vs debug)
+echo "Building broker-server in release mode..."
+cargo build --release --package cmd --bin broker-server
+
+# Strip debug symbols to save more space (~30% reduction)
+strip target/release/broker-server 2>/dev/null || true
+
+# Start broker in background
+echo "Starting broker-server..."
+nohup target/release/broker-server >> 1.log 2>&1 &
+
+# Wait for broker to start
+sleep 5
+
+# Run integration tests
+echo "Running integration tests..."
+echo "1/4 Running grpc-clients meta tests..."
+cargo nextest run --package grpc-clients --test mod -- meta
+
+echo "2/4 Running robustmq-test meta tests..."
+cargo nextest run --package robustmq-test --test mod -- meta
+
+echo "3/4 Running journal tests..."
+cargo nextest run --package robustmq-test --test mod -- journal
+
+echo "4/4 Running MQTT tests..."
 cargo nextest run --package robustmq-test --test mod -- mqtt
+
+# Clean up broker artifacts after tests
+echo "Cleaning broker artifacts..."
+rm -rf target/release/broker-server
+rm -rf target/release/deps/broker_server*
+rm -rf target/release/incremental

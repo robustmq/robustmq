@@ -21,7 +21,6 @@ license.workspace = true
 
 [dependencies]
 bytes.workspace = true
-axum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true

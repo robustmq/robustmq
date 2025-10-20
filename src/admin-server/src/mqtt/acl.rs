@@ -104,13 +104,35 @@ fn validate_acl_permission(permission: &str) -> Result<(), validator::Validation
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAclReq {
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Resource type length must be between 1-50"
+    ))]
+    #[validate(custom(function = "validate_acl_resource_type"))]
     pub resource_type: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Resource name length must be between 1-256"
+    ))]
     pub resource_name: String,
+
+    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
     pub topic: String,
+
+    #[validate(length(max = 128, message = "IP length cannot exceed 128"))]
     pub ip: String,
+
+    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_action"))]
     pub action: String,
+
+    #[validate(length(min = 1, max = 50, message = "Permission length must be between 1-50"))]
+    #[validate(custom(function = "validate_acl_permission"))]
     pub permission: String,
 }
 
@@ -246,7 +268,7 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
 
 pub async fn acl_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteAclReq>,
+    ValidatedJson(params): ValidatedJson<DeleteAclReq>,
 ) -> String {
     match acl_delete_inner(&state, &params).await {
         Ok(_) => success_response("success"),

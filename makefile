@@ -1,94 +1,103 @@
-# The arguments for building images.
-VERSION:=$(shell grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
+# Copyright 2023 RobustMQ Team
+# Makefile for RobustMQ development and build tasks
+
+VERSION := $(shell grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
+
+##@ Development
+.PHONY: dev
+dev: ## Run broker-server in development mode
+	cargo run --package cmd --bin broker-server
+
+.PHONY: fmt
+fmt: ## Format code with rustfmt
+	cargo fmt --all
+
+.PHONY: check
+check: ## Quick compilation check
+	cargo check --workspace
+
+.PHONY: clippy
+clippy: ## Run clippy linter
+	cargo clippy --workspace --all-targets --tests -- -D warnings
+
+.PHONY: codecheck
+codecheck: ## Run all code quality checks (format, clippy, license)
+	@echo "Running code quality checks..."
+	hawkeye format
+	cargo fmt --all
+	cargo fmt --all -- --check
+	cargo clippy --workspace --all-targets --tests -- -D warnings
+	cargo-deny check licenses
+	@echo "✅ All checks passed!"
+
+.PHONY: doc
+doc: ## Generate documentation
+	cargo doc --workspace --no-deps --open
 
 ##@ Build
 .PHONY: build
-build: ## Build local machine version robustmq.
-	/bin/bash scripts/build-release.sh local $(VERSION)
+build: ## Build debug version for local development
+	cargo build --workspace
 
-# MacOS
-.PHONY: build-mac-x86_64-release
-build-mac-x86_64-release: ## Build mac x86_64 version robustmq.
-	/bin/bash scripts/build-release.sh mac-x86_64 $(VERSION)
+.PHONY: build-release
+build-release: ## Build optimized release version
+	cargo build --workspace --release
 
-.PHONY: build-mac-arm64-release
-build-mac-arm64-release: ## Build mac arm64 version robustmq.
-	/bin/bash scripts/build-release.sh mac-arm64 $(VERSION)
-
-# Linux
-.PHONY: build-linux-x86_64-release
-build-linux-x86_64-release: ## Build linux x86_64 version robustmq.
-	/bin/bash scripts/build-release.sh linux-x86_64 $(VERSION)
-
-.PHONY: build-linux-arm64-release
-build-linux-arm64-release: ## Build linux arm64 version robustmq.
-	/bin/bash scripts/build-release.sh linux-arm64 $(VERSION)
-
-# Windows
-.PHONY: build-win-x86_64-release
-build-win-x86_64-release: ## Build windows x86 64bit version robustmq.
-	/bin/bash scripts/build-release.sh win-x86_64 $(VERSION)
-
-.PHONY: build-win-x86-release
-build-win-x86-release: ## Build windows x86 32bit version robustmq.
-	/bin/bash scripts/build-release.sh win-x86 $(VERSION)
-
-.PHONY: build-win-arm64-release
-build-win-arm64-release: ## Build windows arm64 version robustmq.
-	/bin/bash scripts/build-release.sh win-arm64 $(VERSION)
+.PHONY: build-server
+build-server: ## Build broker-server binary
+	cargo build --package cmd --bin broker-server --release
 
 ##@ Test
 .PHONY: test
-test:  ## Unit testing for Robustmq
-	/bin/bash ./scripts/unit-test.sh dev
+test: ## Run unit tests with cleanup
+	@echo "Running unit tests..."
+	cargo nextest run --workspace \
+		--exclude=robustmq-test \
+		--exclude=grpc-clients \
+		--filter-expr '!(test(meta) & package(storage-adapter))'
+	@$(MAKE) clean-test-artifacts
+
+.PHONY: test-all
+test-all: ## Run all tests including integration tests
+	@echo "Running all tests..."
+	cargo nextest run --workspace \
+		--filter-expr '!(test(meta) & package(storage-adapter))'
+	@$(MAKE) clean-test-artifacts
 
 .PHONY: mqtt-ig-test
-mqtt-ig-test:  ## Integration testing for MQTT Broker
-	/bin/bash ./scripts/mqtt-ig-test.sh dev
+mqtt-ig-test: ## Run MQTT integration tests
+	/bin/bash ./scripts/mqtt-ig.sh
+	@$(MAKE) clean-test-artifacts
 
-.PHONY: place-ig-test
-place-ig-test:  ## Integration testing for Meta Service
-	/bin/bash ./scripts/place-ig-test.sh dev
-
-.PHONY: journal-ig-test
-journal-ig-test:  ## Integration testing for Journal Engine
-	/bin/bash ./scripts/journal-ig-test.sh dev
-
-##@ Install
-.PHONY: install
-install: ## Install RobustMQ server (latest version)
-	/bin/bash scripts/install.sh
-
-.PHONY: install-server
-install-server: ## Install RobustMQ server component
-	COMPONENT=server /bin/bash scripts/install.sh
-
-.PHONY: install-operator
-install-operator: ## Install RobustMQ Kubernetes operator
-	COMPONENT=operator /bin/bash scripts/install.sh
-
-.PHONY: install-all
-install-all: ## Install all RobustMQ components
-	COMPONENT=all /bin/bash scripts/install.sh
-
-.PHONY: install-version
-install-version: ## Install specific version (usage: make install-version VERSION=v0.1.0)
-	VERSION=$(VERSION) /bin/bash scripts/install.sh
-
-.PHONY: install-dir
-install-dir: ## Install to custom directory (usage: make install-dir INSTALL_DIR=/usr/local/bin)
-	INSTALL_DIR=$(INSTALL_DIR) /bin/bash scripts/install.sh
-
-.PHONY: install-dry-run
-install-dry-run: ## Show what would be installed without actually installing
-	DRY_RUN=true /bin/bash scripts/install.sh
-
-##@ Other
+##@ Clean
 .PHONY: clean
-clean:  ## Clean the project.
+clean: ## Full clean (removes all build artifacts)
 	cargo clean
 	rm -rf build
 
+.PHONY: clean-light
+clean-light: ## Light clean (cache and test artifacts only)
+	@echo "Light cleaning..."
+	@rm -rf target/*/incremental
+	@rm -rf target/nextest
+	@rm -rf target/debug/build
+	@find target -type f -name "*-????????????????" -delete 2>/dev/null || true
+	@echo "✅ Done!"
+
+.PHONY: clean-test-artifacts
+clean-test-artifacts: ## Clean test artifacts
+	@rm -rf target/nextest
+	@find target -type f -name "*-????????????????" -delete 2>/dev/null || true
+	@find target -name "*test*" -type f -delete 2>/dev/null || true
+
+##@ Install
+.PHONY: install
+install: ## Install RobustMQ binaries to system
+	/bin/bash scripts/install.sh
+
+##@ Help
 .PHONY: help
-help: ## Display help messages.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+help: ## Display this help message
+	@awk 'BEGIN {FS = ":.*##"; printf "\n\033[1mUsage:\033[0m\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+.DEFAULT_GOAL := help
