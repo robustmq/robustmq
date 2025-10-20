@@ -124,7 +124,7 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = ["use_
 # Database & Storage
 # ====================
 rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
-mysql = "25.0.0"
+mysql = "26.0.1"
 redis = { version = "0.32.6", features = ["r2d2"] }
 mongodb = { version = "2.8", features = ["tokio-runtime"] }
 sqlx = { version = "0.8", default-features = false }
