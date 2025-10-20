@@ -140,7 +140,7 @@ opendal = { version = "0.51", features = ["services-s3"] }
 rdkafka = "0.37.0"
 kafka-protocol = "0.15.1"
 pulsar = "6.3.1"
-lapin = "2.5.0"
+lapin = "3.7.1"
 paho-mqtt = { version = "0.13.3", default-features = false, features = ["bundled", "ssl"] }
 
 # ====================
