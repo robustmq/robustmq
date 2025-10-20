@@ -51,6 +51,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Defaults
 VERSION="latest"
+VERSION_SET="false"   # track if user explicitly set --version
 ORG=""
 NAME="robustmq"
 REGISTRY="ghcr"       # ghcr | dockerhub
@@ -81,7 +82,7 @@ EOF
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --version) VERSION="$2"; shift 2 ;;
+        --version) VERSION="$2"; VERSION_SET="true"; shift 2 ;;
         --org) ORG="$2"; shift 2 ;;
         --name) NAME="$2"; shift 2 ;;
         --registry) REGISTRY="$2"; shift 2 ;;
@@ -97,6 +98,37 @@ if [[ -z "$ORG" ]]; then
     err "--org is required"
     usage
     exit 1
+fi
+
+# Try to auto-detect version from Cargo.toml if user didn't provide one
+detect_workspace_version() {
+    local cargo_file="$PROJECT_ROOT/Cargo.toml"
+    if [[ ! -f "$cargo_file" ]]; then
+        return 1
+    fi
+    # Extract version from [workspace.package]
+    local version_line
+    version_line=$(awk '
+        BEGIN { in_section=0 }
+        /^\[workspace\.package\]/ { in_section=1; next }
+        /^\[/ { if (in_section==1) exit; in_section=0 }
+        in_section==1 && /^version\s*=\s*"[^"]+"/ { print; exit }
+    ' "$cargo_file") || true
+
+    if [[ -n "$version_line" ]]; then
+        echo "$version_line" | sed -E 's/.*"([^"]+)".*/\1/'
+        return 0
+    fi
+    return 1
+}
+
+if [[ "$VERSION_SET" == "false" ]]; then
+    if auto_v=$(detect_workspace_version); then
+        VERSION="$auto_v"
+        log "Auto-detected version from Cargo.toml: $VERSION"
+    else
+        warn "Could not detect version from Cargo.toml; using default: $VERSION"
+    fi
 fi
 
 case "$REGISTRY" in

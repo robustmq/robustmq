@@ -23,5 +23,6 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
 Use the script:
 ```bash
-./docker/build-and-push-app.sh --version 0.2.0 --org socutes --registry ghcr --push-latest
+./docker/build-and-push-app.sh --org socutes --registry ghcr --push-latest
+# The script auto-detects version from Cargo.toml (workspace.package.version)
 ```
