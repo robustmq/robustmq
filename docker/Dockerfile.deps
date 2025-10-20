@@ -74,7 +74,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install cargo tools
-RUN cargo install sccache cargo-nextest --locked
+RUN cargo install sccache cargo-nextest cargo-chef --locked
 
 # Copy recipe from planner
 COPY --from=planner /build/recipe.json recipe.json
