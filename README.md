@@ -155,6 +155,43 @@ RobustMQ provides a build script to automatically package installation packages 
 
 <img src="docs/images/web-ui.png" alt="Web UI" width="600">
 
+## 💻 Development
+
+### CI/CD & Docker Images
+
+RobustMQ uses a pre-built dependency cache image strategy to significantly speed up CI/CD pipelines:
+
+**🚀 Performance:**
+- **With cache image:** 2-3 minutes (dependencies pre-compiled)
+- **Without cache:** 15-18 minutes (compile everything from scratch)
+- **5-10x faster** build times in CI/CD!
+
+**📦 Image:**
+- **Location:** `ghcr.io/socutes/robustmq/rust-deps:latest`
+- **Contents:** Rust 1.90.0 + all dependencies (~300 crates) pre-compiled
+- **Size:** ~8-10 GB
+- **Maintenance:** Manually updated (see `docker/README.md`)
+
+**🔄 Update Frequency:**
+The dependency image is updated:
+- Every 2-4 weeks (during active development)
+- When Rust version upgrades
+- When 20+ dependencies change
+- When CI build time exceeds 8 minutes
+
+**ℹ️ For Contributors:**
+Don't worry about the cache image! Even if it's slightly outdated, Cargo will only recompile changed dependencies (~1-2 minutes extra), still 3-4x faster than no cache.
+
+**🛠️ For Maintainers:**
+To rebuild and push the dependency image:
+
+```bash
+cd docker/
+./build-and-push.sh
+```
+
+See [`docker/README.md`](docker/README.md) for detailed documentation.
+
 ## 🤝 Contributing
 
 We welcome contributions from the community! RobustMQ is an open-source project, and we're excited to collaborate with developers interested in Rust, distributed systems, and message queues.

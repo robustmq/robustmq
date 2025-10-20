@@ -54,37 +54,42 @@ jobs:
           - group: "Protocol & Network"
             packages: "-p protocol -p network-server -p rocksdb-engine"
     container:
-      # 🚀 Use pre-built image with all dependencies compiled!
-      # Image: ghcr.io/<owner>/<repo>/rust-deps:latest
-      image: ghcr.io/${{ github.repository }}/rust-deps:latest
+      # 🚀 Use manually-maintained pre-built image with all dependencies!
+      # Built from: docker/Dockerfile.deps
+      # See docker/README.md for maintenance guide
+      image: ghcr.io/socutes/robustmq/rust-deps:latest
       options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    
+    env:
+      CARGO_BUILD_JOBS: 10
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: 1
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-
-      - name: Check cache image status
+      - name: Show dependency cache status
         run: |
-          echo "📦 Using cache image: ghcr.io/${{ github.repository }}/rust-deps:latest"
+          echo "📦 Image: ghcr.io/socutes/robustmq/rust-deps:latest"
           echo "🔍 Checking pre-compiled dependencies..."
           if [ -d "/build/target" ]; then
-            echo "✅ Found pre-compiled dependencies!"
-            echo "📊 Dependency cache size:"
-            du -sh /build/target 2>/dev/null || echo "N/A"
+            echo "✅ Found dependency cache!"
+            du -sh /build/target 2>/dev/null || echo "Cache size: N/A"
           else
-            echo "⚠️ No cache found, will compile from scratch"
+            echo "⚠️ No cache found (will compile from scratch)"
           fi
+          echo ""
+          echo "🔧 Installed tools:"
+          cargo --version
+          cargo nextest --version || echo "nextest not found"
 
       - name: Build project code
         run: |
-          echo "🔨 Building project code (dependencies already compiled)..."
+          echo "🔨 Building ${{ matrix.group }}..."
           cargo build --workspace ${{ matrix.packages }} --tests
           echo "✅ Build complete!"
 

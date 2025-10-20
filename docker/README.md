@@ -1,267 +1,323 @@
-# RobustMQ Docker Deployment
+# RobustMQ Docker Images
 
-This directory contains Docker configurations for deploying RobustMQ in various modes.
+This directory contains Docker-related files for RobustMQ project.
+
+## 📦 Available Images
+
+### 1. Dependency Base Image (`rust-deps`)
+
+**Purpose:** Pre-compiled Rust dependencies for CI/CD acceleration
+
+**Image:** `ghcr.io/socutes/robustmq/rust-deps:latest`
+
+**What's Inside:**
+- Rust 1.90.0 toolchain
+- All system dependencies (protobuf, llvm, clang, lld, etc.)
+- All Cargo dependencies pre-compiled (~300 crates)
+- Build tools (cargo-nextest, sccache)
+
+**Build Time:** ~20-40 minutes (first time)
+
+**Image Size:** ~8-10 GB
+
+---
 
 ## 🚀 Quick Start
 
-### All-in-One Deployment (Recommended for Development)
+### Build Dependency Image Locally
 
 ```bash
-# Build and start RobustMQ with all services in one container
-docker-compose up -d robustmq
+# 1. Login to GitHub Container Registry
+echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
-# View logs
-docker-compose logs -f robustmq
+# 2. Build and push the image
+cd docker/
+./build-and-push.sh
 
-# Stop
-docker-compose down
+# 3. (Optional) Build with custom tag
+./build-and-push.sh rust-1.90
+./build-and-push.sh 2025-10-20
 ```
 
-### Microservices Deployment (Recommended for Production)
-
-```bash
-# Start all microservices
-docker-compose --profile microservices up -d
-
-# Or start individual services
-docker-compose up -d meta-service
-docker-compose up -d mqtt-broker
-docker-compose up -d journal-service
-```
-
-### With Monitoring Stack
-
-```bash
-# Start RobustMQ with Prometheus, Grafana, and Jaeger
-docker-compose --profile monitoring up -d
-```
-
-## 📋 Available Services
-
-### Core Services
-
-| Service | Ports | Description |
-|---------|-------|-------------|
-| `robustmq` | 1883, 1884, 8083, 8084, 9092, 1228, 5672, 8080 | All-in-one deployment |
-| `meta-service` | 1228 | Metadata management and cluster coordination |
-| `mqtt-broker` | 1883, 1884, 8083, 8084, 8080 | MQTT protocol handler |
-| `journal-service` | 1229 | Persistent storage layer |
-
-### Monitoring Services (Optional)
-
-| Service | Port | Credentials | Description |
-|---------|------|-------------|-------------|
-| `prometheus` | 9090 | - | Metrics collection |
-| `grafana` | 3000 | admin/admin | Metrics visualization |
-| `jaeger` | 16686 | - | Distributed tracing |
-
-## 🛠️ Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ROBUSTMQ_ROLES` | `meta,broker,journal` | Comma-separated list of roles |
-| `ROBUSTMQ_CONFIG_PATH` | `/robustmq/config/server.toml` | Configuration file path |
-| `ROBUSTMQ_LOG_PATH` | `/robustmq/logs` | Log directory |
-| `ROBUSTMQ_DATA_PATH` | `/robustmq/data` | Data directory |
-| `RUST_LOG` | `info` | Log level |
-
-### Configuration Files
-
-Place your configuration files in the `config/` directory:
-
-- `server.toml` - All-in-one configuration
-- `meta-service.toml` - Meta service specific
-- `mqtt-broker.toml` - MQTT broker specific  
-- `journal-service.toml` - Journal service specific
-
-## 🔧 Building Custom Images
-
-### Build Specific Stages
-
-```bash
-# All-in-one (default)
-docker build -f docker/Dockerfile --target all-in-one -t robustmq:latest .
-
-# Meta service only
-docker build -f docker/Dockerfile --target meta-service -t robustmq:meta .
-
-# MQTT broker only
-docker build -f docker/Dockerfile --target mqtt-broker -t robustmq:mqtt .
-
-# Journal service only
-docker build -f docker/Dockerfile --target journal-service -t robustmq:journal .
-
-# Development image
-docker build -f docker/Dockerfile --target development -t robustmq:dev .
-```
-
-### Multi-platform Build
-
-```bash
-# Build for multiple architectures
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -f docker/Dockerfile \
-  -t robustmq:latest \
-  --push .
-```
-
-## 📊 Monitoring
-
-### Accessing Monitoring Tools
-
-1. **Grafana**: <http://localhost:3000> (admin/admin)
-2. **Prometheus**: <http://localhost:9090>
-3. **Jaeger**: <http://localhost:16686>
-
-### Health Checks
-
-```bash
-# Check service health
-curl http://localhost:8080/api/status
-
-# Check service status via CLI
-docker exec robustmq ./libs/cli-command mqtt status
-```
-
-## 🔄 Development Workflow
-
-### Local Development
-
-```bash
-# Start development container
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-
-# Access container for debugging
-docker exec -it robustmq bash
-
-# View real-time logs
-docker-compose logs -f robustmq
-```
-
-### Testing
-
-```bash
-# Run integration tests
-docker-compose exec robustmq ./libs/cli-bench mqtt --help
-
-# MQTT client test
-docker run --rm -it --network docker_default \
-  eclipse-mosquitto mosquitto_pub \
-  -h robustmq -p 1883 \
-  -t "test/topic" -m "Hello RobustMQ"
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Port conflicts**: Ensure ports are not already in use
-2. **Permission denied**: Check file permissions in mounted volumes
-3. **Configuration errors**: Validate TOML syntax in config files
-
-### Debug Commands
-
-```bash
-# Check container status
-docker-compose ps
-
-# View detailed logs
-docker-compose logs --details robustmq
-
-# Check resource usage
-docker stats robustmq
-
-# Access container shell
-docker exec -it robustmq bash
-```
-
-### Log Locations
-
-- Container logs: `docker-compose logs`
-- Application logs: `./logs/` (mounted volume)
-- System logs: `/robustmq/logs/` (inside container)
-
-## 📁 Directory Structure
-
-```text
-docker/
-├── Dockerfile              # Main Dockerfile with multi-stage builds
-├── docker-compose.yml      # Service definitions
-├── .dockerignore           # Files to exclude from build context
-├── README.md               # This file
-├── config/                 # Configuration templates
-│   ├── server.toml.template
-│   ├── meta-service.toml.template
-│   ├── mqtt-broker.toml.template
-│   └── journal-service.toml.template
-└── monitoring/             # Monitoring configurations
-    ├── prometheus.yml
-    └── grafana/
-        ├── dashboards/
-        └── datasources/
-```
-
-## 🔒 Security Considerations
-
-1. **Non-root user**: Containers run as `robustmq` user
-2. **Read-only configs**: Configuration mounted as read-only
-3. **Network isolation**: Services use dedicated Docker network
-4. **Resource limits**: Configure appropriate CPU and memory limits
-
-## 📈 Performance Tuning
-
-### Resource Limits
-
-Add to your `docker-compose.yml`:
+### Use in GitHub Actions
 
 ```yaml
-services:
-  robustmq:
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '1.0'
-          memory: 1G
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/socutes/robustmq/rust-deps:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build project
+        run: cargo build --workspace
+        # ⚡ Dependencies already compiled!
+      
+      - name: Run tests
+        run: cargo nextest run --workspace
 ```
 
-### Volume Performance
+---
 
-For better I/O performance, consider using:
+## 📋 Files in This Directory
 
-- Local SSD storage for data volumes
-- Separate volumes for logs and data
-- Regular cleanup of log files
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Production image for RobustMQ application |
+| `Dockerfile.deps` | Dependency base image (maintained manually) |
+| `build-and-push.sh` | Script to build and push `rust-deps` image |
+| `README.md` | This file |
 
-## 🔄 Backup and Recovery
+---
 
-### Data Backup
+## 🔄 Update Strategy
+
+### When to Rebuild `rust-deps` Image?
+
+✅ **Should rebuild when:**
+- Cargo.lock has 20+ dependency changes
+- Rust version upgrades (e.g., 1.90 → 1.91)
+- System dependencies change (protobuf version, etc.)
+- CI build time consistently exceeds 8 minutes
+
+❌ **No need to rebuild when:**
+- Only project code changes
+- 1-5 dependency updates (Cargo handles incrementally)
+- Documentation changes
+- Configuration file changes
+
+### How Often?
+
+**Recommended frequency:**
+- **Active development:** Every 2-4 weeks
+- **Stable phase:** Monthly
+- **On-demand:** When CI becomes slow
+
+### Monitoring CI Performance
+
+Add this to workflows to track dependency cache health:
+
+```yaml
+- name: Check cache health
+  run: |
+    START=$(date +%s)
+    cargo build --workspace
+    END=$(date +%s)
+    DURATION=$((END - START))
+    echo "Build time: ${DURATION}s"
+    if [ $DURATION -gt 480 ]; then
+      echo "⚠️ Build took >8min, consider updating rust-deps image"
+    fi
+```
+
+---
+
+## 🏷️ Version Tagging Strategy
+
+### Recommended Tags
+
+| Tag Pattern | Use Case | Example |
+|------------|----------|---------|
+| `latest` | Development branches | Always up-to-date |
+| `rust-X.Y` | Rust version pin | `rust-1.90`, `rust-1.91` |
+| `YYYY-MM-DD` | Date-based versions | `2025-10-20` |
+| `vX.Y.Z` | Release versions | `v0.1.35`, `v0.2.0` |
+
+### Example Workflow Usage
+
+```yaml
+# Development - use latest
+container:
+  image: ghcr.io/socutes/robustmq/rust-deps:latest
+
+# Release - use pinned version
+container:
+  image: ghcr.io/socutes/robustmq/rust-deps:v0.2.0
+```
+
+---
+
+## 💡 How It Works
+
+### Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  rust-deps Image                        │
+│  ├─ Rust 1.90.0                         │
+│  ├─ System deps (protobuf, etc.)        │
+│  ├─ 300+ dependencies pre-compiled ✅   │
+│  └─ cargo-nextest, sccache              │
+└─────────────────────────────────────────┘
+              ↓ Pull in CI
+┌─────────────────────────────────────────┐
+│  GitHub Actions Container               │
+│  ├─ Checkout code                       │
+│  ├─ cargo build (only project code)     │
+│  └─ cargo test                          │
+│                                          │
+│  Time: 2-3 minutes ⚡                   │
+│  vs 15-18 minutes without cache 🐌      │
+└─────────────────────────────────────────┘
+```
+
+### What Happens When Dependencies Update?
+
+**Scenario:** You updated 10 dependencies in Cargo.lock
 
 ```bash
-# Backup data volumes
-docker run --rm -v docker_robustmq_data:/data -v $(pwd):/backup \
-  alpine tar czf /backup/robustmq-data-backup.tar.gz -C /data .
+# In CI container (using rust-deps:latest)
+cargo build --workspace
 
-# Restore data volumes
-docker run --rm -v docker_robustmq_data:/data -v $(pwd):/backup \
-  alpine tar xzf /backup/robustmq-data-backup.tar.gz -C /data
+# Cargo intelligently handles this:
+✅ 290 dependencies → Use cached (0s)
+⚠️  10 dependencies  → Download + compile (~1-2 min)
+🔨 Project code     → Compile (~2 min)
+
+# Total: ~3-4 minutes (still 4x faster than no cache!)
 ```
 
-### Configuration Backup
+**Key Point:** Even with outdated image, you still benefit from 90%+ cache hit rate!
+
+---
+
+## 🔧 Troubleshooting
+
+### Image Too Large
 
 ```bash
-# Backup configurations
-cp -r config/ config-backup-$(date +%Y%m%d)/
+# Check image size
+docker images ghcr.io/socutes/robustmq/rust-deps:latest
+
+# If >15GB, consider:
+# 1. Clean up old layers
+docker builder prune --all
+
+# 2. Rebuild from scratch
+docker build --no-cache -f docker/Dockerfile.deps -t IMAGE .
 ```
 
-## 📞 Support
+### Build Fails During `cargo chef cook`
 
-For issues and questions:
+```bash
+# Common causes:
+# 1. Cargo.toml syntax errors
+# 2. Missing build.rs files
+# 3. Workspace structure changes
 
-- GitHub Issues: <https://github.com/robustmq/robustmq/issues>
-- Documentation: <https://robustmq.com/>
-- Discord: <https://discord.gg/sygeGRh5>
+# Debug:
+docker build -f docker/Dockerfile.deps --target planner -t debug .
+docker run --rm -it debug /bin/bash
+# Then manually run: cargo chef prepare
+```
+
+### Push to GHCR Fails
+
+```bash
+# Ensure you're logged in
+echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+
+# Verify token has 'write:packages' permission
+# Create token at: https://github.com/settings/tokens
+
+# Check package visibility
+# Visit: https://github.com/users/YOUR_USERNAME/packages/container/robustmq%2Frust-deps/settings
+```
+
+### CI Cannot Pull Image
+
+```yaml
+# Make sure credentials are set
+container:
+  image: ghcr.io/socutes/robustmq/rust-deps:latest
+  credentials:
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}  # ← Required!
+
+# Check package visibility (should be public or accessible to repo)
+```
+
+---
+
+## 📊 Performance Comparison
+
+### Without Dependency Cache
+
+```
+Download dependencies:     2-3 minutes
+Compile dependencies:     10-12 minutes
+Compile project code:      2-3 minutes
+─────────────────────────────────────
+Total:                    15-18 minutes 🐌
+```
+
+### With Dependency Cache (Image Fresh)
+
+```
+Download dependencies:     0 seconds ✅
+Compile dependencies:      0 seconds ✅
+Compile project code:      2-3 minutes
+─────────────────────────────────────
+Total:                     2-3 minutes ⚡ (5-6x faster!)
+```
+
+### With Dependency Cache (Image 1 Month Old)
+
+```
+Download dependencies:     20-30 seconds (10 updated deps)
+Compile dependencies:      1-2 minutes (10 updated deps)
+Compile project code:      2-3 minutes
+─────────────────────────────────────
+Total:                     4-6 minutes ⚡ (3x faster!)
+```
+
+---
+
+## 🎯 Best Practices
+
+### For Maintainers
+
+1. **Calendar Reminder:** Set monthly reminder to rebuild image
+2. **Monitor CI Times:** Watch for consistent slowdowns
+3. **Version Tags:** Use semantic versions for releases
+4. **Document Updates:** Note major dependency changes in commit messages
+
+### For Contributors
+
+1. **Don't Worry:** Image doesn't need to be perfectly in sync
+2. **Report Slowness:** If CI takes >10 minutes, notify maintainers
+3. **Local Development:** Use normal `cargo build` (no special image needed)
+
+### For Release Managers
+
+1. **Pin Versions:** Use tagged images for release branches
+2. **Test Image:** Verify new image works before pushing
+3. **Backup Tags:** Keep previous versions for rollback
+
+---
+
+## 📚 Related Documentation
+
+- [GitHub Actions Workflows](../.github/workflows/)
+- [Build Scripts](../scripts/)
+- [Project README](../README.md)
+
+---
+
+## 🤝 Contributing
+
+If you improve the dependency image or build process:
+
+1. Test locally first
+2. Document changes in this README
+3. Update version tags appropriately
+4. Notify team in PR description
+
+---
+
+**Questions?** Open an issue or ask in discussions!

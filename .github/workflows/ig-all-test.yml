@@ -57,78 +57,46 @@ jobs:
             test-filter: "mqtt"
             test-packages: "--package robustmq-test"
     container:
-      image: rust:latest
+      # 🚀 Use manually-maintained pre-built image with all dependencies!
+      # Built from: docker/Dockerfile.deps
+      # See docker/README.md for maintenance guide
+      image: ghcr.io/socutes/robustmq/rust-deps:latest
+      options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    env:
+      CARGO_BUILD_JOBS: 8
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_RELEASE_DEBUG: false
+      CARGO_PROFILE_RELEASE_STRIP: symbols
+      RUST_BACKTRACE: 1
+    
     steps:
-      - name: Check initial disk space
-        run: df -h
-
-      - name: Free up disk space before build
-        run: |
-          # Aggressive disk space cleanup
-          echo "Initial disk space:"
-          df -h
-          # Remove all unnecessary system files
-          rm -rf /usr/share/dotnet 2>/dev/null || true
-          rm -rf /usr/local/lib/android 2>/dev/null || true
-          rm -rf /opt/ghc 2>/dev/null || true
-          rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
-          rm -rf /usr/share/swift 2>/dev/null || true
-          rm -rf /usr/local/share/boost 2>/dev/null || true
-          rm -rf /usr/local/.ghcup 2>/dev/null || true
-          rm -rf /usr/share/miniconda 2>/dev/null || true
-          rm -rf /usr/local/share/chromium 2>/dev/null || true
-          # Clean package caches
-          apt-get clean
-          rm -rf /var/lib/apt/lists/* 2>/dev/null || true
-          # Clean docker if any
-          docker system prune -af 2>/dev/null || true
-          echo "After cleanup:"
-          df -h
-
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: set up build configure
-        uses: ./.github/actions/setup-builder
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-
-      - name: Optimize build environment
+      - name: Check disk space
         run: |
-          # Aggressive space-saving compiler flags
-          echo "CARGO_PROFILE_RELEASE_LTO=thin" >> $GITHUB_ENV
-          echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
-          # No debug info at all (saves ~50% space)
-          echo "CARGO_PROFILE_RELEASE_DEBUG=false" >> $GITHUB_ENV
-          echo "CARGO_PROFILE_RELEASE_STRIP=symbols" >> $GITHUB_ENV
-          # Reduce parallel jobs to save memory and disk
-          echo "CARGO_BUILD_JOBS=4" >> $GITHUB_ENV
-          # Disable incremental (saves space)
-          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
-          # Skip sccache to save disk space (critical for 14GB limit)
-          echo "RUSTC_WRAPPER=" >> $GITHUB_ENV
-
-      - name: Check disk space before test
-        run: df -h
-
-      - name: Build broker-server in release mode
-        run: |
-          echo "Building broker-server (with minimal dependencies)..."
-          # Only build broker-server and its direct dependencies
-          cargo build --release --package cmd --bin broker-server
-          echo "Build complete, checking space..."
+          echo "📊 Initial disk space:"
           df -h
-          # Immediately clean build artifacts we don't need
-          echo "Cleaning build artifacts..."
-          rm -rf target/release/deps/*.rlib 2>/dev/null || true
-          rm -rf target/release/build 2>/dev/null || true
-          rm -rf target/release/incremental 2>/dev/null || true
-          rm -rf target/release/.fingerprint 2>/dev/null || true
-          echo "After cleanup:"
+          echo ""
+          echo "🔍 Dependency cache status:"
+          if [ -d "/build/target" ]; then
+            echo "✅ Found pre-compiled dependencies!"
+            du -sh /build/target 2>/dev/null || echo "N/A"
+          else
+            echo "⚠️ No dependency cache"
+          fi
+
+      - name: Build broker-server
+        run: |
+          echo "🔨 Building broker-server in release mode..."
+          cargo build --release --package cmd --bin broker-server
+          echo "✅ Build complete"
           df -h
 
       - name: Start broker-server
@@ -150,31 +118,13 @@ jobs:
           echo "=== Broker logs ==="
           tail -100 broker.log || true
 
-      - name: Check disk space after test
-        if: always()
-        run: df -h
-
-      - name: Show target directory size
-        if: always()
-        run: du -sh target/* | sort -rh | head -10
-
-      - name: Clean test artifacts
+      - name: Cleanup
         if: always()
         run: |
-          # Kill broker
+          # Kill broker process
           pkill -f broker-server || true
-          # Clean test artifacts
+          # Clean test artifacts to free space
           rm -rf target/nextest
-          rm -rf target/release/broker-server
-          rm -rf target/release/deps/broker_server*
-          rm -rf target/release/incremental
           rm -rf broker.log
-
-      - name: Check disk space after cleanup
-        if: always()
-        run: df -h
-
-      - name: Show sccache stats
-        if: always()
-        continue-on-error: true
-        run: sccache --show-stats || echo "sccache not available"
+          echo "📊 Final disk space:"
+          df -h
