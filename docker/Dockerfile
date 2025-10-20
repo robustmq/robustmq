@@ -17,7 +17,7 @@
 # ==============================================================================
 
 # Stage 1: Planner - Generate dependency recipe
-FROM lukemathwalker/cargo-chef:0.1.68-rust-1.90.0 AS planner
+FROM lukemathwalker/cargo-chef:latest-rust-1.90 AS planner
 
 WORKDIR /robustmq
 
@@ -26,7 +26,27 @@ COPY Cargo.toml Cargo.lock ./
 COPY src/*/Cargo.toml ./src/*/
 COPY src/common/*/Cargo.toml ./src/common/*/
 COPY tests/Cargo.toml ./tests/
-COPY protocol/build.rs ./protocol/
+
+# Create dummy main.rs for packages with binaries
+RUN mkdir -p src/cmd/src && echo 'fn main() {}' > src/cmd/src/main.rs
+RUN mkdir -p src/cli-command/src && echo 'fn main() {}' > src/cli-command/src/main.rs
+RUN mkdir -p src/cli-bench/src && echo 'fn main() {}' > src/cli-bench/src/main.rs
+
+# Create dummy lib.rs for all library packages
+RUN for dir in src/admin-server src/amqp-broker src/broker-core src/broker-server \
+               src/delay-message src/grpc-clients src/journal-client src/journal-server \
+               src/kafka-broker src/message-expire src/meta-service src/mqtt-broker \
+               src/robustmq-macro src/schema-register src/storage-adapter \
+               src/common/base src/common/config src/common/metadata-struct \
+               src/common/metrics src/common/network-server src/common/pprof-monitor \
+               src/common/rate-limit src/common/rocksdb-engine src/common/security \
+               src/common/third-driver tests; do \
+      mkdir -p "$dir/src" && echo '' > "$dir/src/lib.rs"; \
+    done
+
+# Create protocol package with build.rs
+RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
+COPY src/protocol/build.rs ./src/protocol/
 
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json
@@ -55,7 +75,7 @@ RUN curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${P
     && rm "protoc-${PROTOC_VERSION}-linux-x86_64.zip"
 
 # Install cargo-chef for dependency caching
-RUN cargo install cargo-chef --version 0.1.68
+RUN cargo install cargo-chef --locked
 
 # Set environment variables for compilation
 ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/ \

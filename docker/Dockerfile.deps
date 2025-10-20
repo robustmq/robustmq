@@ -1,41 +1,33 @@
-# Copyright 2023 RobustMQ Team
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 # ==============================================================================
-# CI Dependency Cache Image
+# RobustMQ Dependency Base Image
 # ==============================================================================
-# This Dockerfile uses cargo-chef to pre-compile ALL dependencies for CI.
-# It creates a Docker image with all 864 dependencies compiled, so that
-# unit tests only need to compile the project code (2-3 minutes vs 25 minutes).
-#
+# 
+# Purpose: Pre-compile all Rust dependencies to speed up CI/CD pipelines
+# 
 # Usage:
-#   - This image is automatically built when Cargo.lock changes
-#   - unit-test.yml uses this image to speed up tests
-#   - Stores compiled dependencies in /usr/local/cargo and /build/target
+#   1. Build locally: ./build-and-push.sh
+#   2. Use in CI: container.image = ghcr.io/socutes/robustmq/rust-deps:latest
+#
+# Update Frequency:
+#   - When Cargo.lock has major changes (20+ dependencies)
+#   - When Rust version upgrades
+#   - When CI becomes noticeably slower (>8 minutes)
+#
 # ==============================================================================
 
 # ==============================================================================
-# Stage 1: Planner - Generate dependency recipe
+# Stage 1: Planner - Generate dependency recipe using cargo-chef
 # ==============================================================================
-FROM lukemathwalker/cargo-chef:latest-rust-1.90 AS planner
+FROM rust:1.90.0-bookworm AS planner
 
 WORKDIR /build
 
+# Install cargo-chef
+RUN cargo install cargo-chef
+
 # Copy all Cargo.toml and Cargo.lock files
 COPY Cargo.toml Cargo.lock ./
-COPY src/*/Cargo.toml ./src/*/
-COPY src/common/*/Cargo.toml ./src/common/*/
+COPY src/ ./src/
 COPY tests/Cargo.toml ./tests/
 
 # Create dummy main.rs for packages with binaries
@@ -65,11 +57,11 @@ RUN cargo chef prepare --recipe-path recipe.json
 # ==============================================================================
 # Stage 2: Builder - Compile all dependencies
 # ==============================================================================
-FROM lukemathwalker/cargo-chef:latest-rust-1.90 AS builder
+FROM rust:1.90.0-bookworm AS builder
 
 WORKDIR /build
 
-# Install system dependencies (same as CI environment)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     llvm \
@@ -79,30 +71,33 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     clang \
     lld \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Set environment for faster builds
-ENV CARGO_BUILD_JOBS=10 \
-    CARGO_INCREMENTAL=0 \
-    RUSTC_WRAPPER="" \
-    CARGO_TERM_COLOR=always
+# Install cargo tools
+RUN cargo install sccache cargo-nextest --locked
 
 # Copy recipe from planner
 COPY --from=planner /build/recipe.json recipe.json
 
-# Build dependencies - this is the expensive part!
-# This layer will be cached unless Cargo.lock changes
-RUN cargo chef cook --recipe-path recipe.json --tests
+# Configure build environment
+ENV CARGO_BUILD_JOBS=8
+ENV CARGO_INCREMENTAL=0
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/build/.sccache
+
+# Cook dependencies - this is the slow part that we want to cache!
+# This compiles all dependencies in Cargo.lock
+RUN --mount=type=cache,target=/build/.sccache \
+    cargo chef cook --release --workspace --recipe-path recipe.json
 
 # ==============================================================================
-# Stage 3: Runtime - Final image with compiled dependencies
+# Stage 3: Final - Base image with all dependencies compiled
 # ==============================================================================
-FROM rust:1.90.0-bookworm AS runtime
+FROM rust:1.90.0-bookworm
 
 WORKDIR /build
 
-# Install system dependencies (for running cargo build/test)
+# Install system dependencies (runtime + build tools)
 RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     llvm \
@@ -112,24 +107,35 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     clang \
     lld \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cargo tools
+RUN cargo install cargo-nextest --locked
 
 # Copy compiled dependencies from builder
 COPY --from=builder /usr/local/cargo /usr/local/cargo
 COPY --from=builder /build/target /build/target
+COPY --from=builder /build/Cargo.lock /build/Cargo.lock
 
-# Set environment variables
-ENV CARGO_BUILD_JOBS=10 \
-    CARGO_INCREMENTAL=0 \
-    CARGO_TERM_COLOR=always \
-    RUSTC_WRAPPER=""
+# Configure Rust environment
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+ENV CARGO_BUILD_JOBS=10
+ENV CARGO_INCREMENTAL=0
+ENV RUST_BACKTRACE=1
 
-# Verify cargo is working
-RUN cargo --version && rustc --version
+# Set up linker configuration
+RUN mkdir -p /usr/local/cargo/.cargo
+RUN echo '[target.x86_64-unknown-linux-gnu]\nlinker = "clang"\nrustflags = ["-C", "link-arg=-fuse-ld=lld"]' \
+    > /usr/local/cargo/.cargo/config.toml
+
+# Health check: verify dependencies are cached
+RUN echo "✅ Dependency cache image built successfully!" && \
+    echo "📦 Cached dependencies:" && \
+    du -sh /build/target 2>/dev/null || echo "Target size: N/A" && \
+    echo "🔧 Installed tools:" && \
+    cargo nextest --version
 
 # Default command
 CMD ["/bin/bash"]
 
-
-# Trigger build
