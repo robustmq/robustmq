@@ -73,104 +73,60 @@ RobustMQ is a next-generation, high-performance, multi-protocol message queue bu
 
 ## 🚀 Quick Start
 
-### Installation Options
-
-#### Option 1: Build from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/robustmq/robustmq.git
-cd robustmq
-
-# Build and run
-cargo run --package cmd --bin broker-server
-```
-
-#### Option 2: Pre-built Binaries
-
-**Method 1: Manual Download**
-
-Visit the [releases page](https://github.com/robustmq/robustmq/releases) and download the appropriate package for your platform:
-
-```bash
-# Example for Linux x86_64 (replace with your platform)
-wget https://github.com/robustmq/robustmq/releases/latest/download/robustmq-v0.1.30-linux-amd64.tar.gz
-
-# Extract the package
-tar -xzf robustmq-v0.1.30-linux-amd64.tar.gz
-cd robustmq-v0.1.30-linux-amd64
-
-# Run the server
-./bin/robust-server start
-```
-
-**Available platforms**: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`, `windows-amd64`
-
-**Method 2: Automated Install Script** (Recommended)
+### One-Line Installation (Recommended)
 
 ```bash
 # Install latest version automatically
 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 
-# Install specific version
-VERSION=v0.1.35 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-
-# Install to custom directory
-INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-
-# Or download the script first to review it
-wget https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh
-chmod +x install.sh
-./install.sh --help  # See available options
-```
-
-**Installation Options:**
-- `--version VERSION`: Install specific version (default: latest)
-- `--dir DIRECTORY`: Installation directory (default: auto-detect)
-- `--silent`: Silent installation
-- `--force`: Force installation even if already exists
-- `--dry-run`: Show what would be installed without actually installing
-
-#### Option 3: Docker (Coming Soon)
-
-```bash
-docker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:latest
-```
-
-### Verify Installation
-
-Once RobustMQ is running, you should see output similar to:
-
-<img src="docs/images/console-start.png" alt="Console Start" width="600">
-
-**Quick verification:**
-```bash
-# Check if binaries are installed
-broker-server --version
-cli-command --help
-cli-bench --help
-
 # Start the server
 broker-server start
-
-# Check server status
-cli-command status
 ```
 
-You can verify the installation by connecting with any MQTT client to `localhost:1883` or using the web console.
+### Other Installation Methods
 
-## 🔧 Build Script
+- **📦 [Pre-built Binaries](https://github.com/robustmq/robustmq/releases)** - Download for your platform
+- **🔨 [Build from Source](https://robustmq.com/QuickGuide/Build-and-Package.html)** - Compile from source code
+- **🐳 [Docker](https://robustmq.com/InstallationDeployment/Docker.html)** - Container deployment (Coming Soon)
 
-RobustMQ provides a build script to automatically package installation packages for your local system:
+### Quick Verification
 
 ```bash
-# Build for current platform (includes server binaries and web UI)
-./scripts/build.sh
+# Check installation
+broker-server --version
+cli-command status
+
+# Connect with MQTT client to localhost:1883
 ```
 
-📚 **For advanced build options, cross-platform compilation, and detailed instructions, please refer to our documentation:**
-- **🇺🇸 [Build and Package Guide (English)](https://robustmq.com/en/QuickGuide/Build-and-Package.html)**
-- **🇨🇳 [构建和打包指南 (中文)](https://robustmq.com/zh/QuickGuide/Build-and-Package.html)**
+📚 **For detailed installation instructions, see our [Installation Guide](https://robustmq.com/InstallationDeployment/Overview.html)**
+
+🇨🇳 **中文用户请查看 [快速安装指南](docs/zh/QuickGuide/Quick-Install.md)**
+
+## 🔧 Development
+
+### Build from Source
+
+```bash
+# Clone and build
+git clone https://github.com/robustmq/robustmq.git
+cd robustmq
+cargo run --package cmd --bin broker-server
+```
+
+### Build Scripts
+
+```bash
+# Build package for current platform
+./scripts/build.sh
+
+# Build with frontend
+./scripts/build.sh --with-frontend
+```
+
+📚 **For advanced build options and cross-platform compilation:**
+- **🇺🇸 [Build Guide (English)](https://robustmq.com/en/QuickGuide/Build-and-Package.html)**
+- **🇨🇳 [构建指南 (中文)](https://robustmq.com/zh/QuickGuide/Build-and-Package.html)**
 
 ## 📚 Documentation
 
@@ -187,64 +143,32 @@ RobustMQ provides a build script to automatically package installation packages 
 
 ## 💻 Development
 
-### CI/CD & Docker Images
+### Fast CI/CD Builds
 
-RobustMQ uses a pre-built dependency cache image strategy to significantly speed up CI/CD pipelines:
+RobustMQ uses pre-built dependency cache images to speed up CI/CD pipelines:
 
-**🚀 Performance:**
-- **With cache image:** 2-3 minutes (dependencies pre-compiled)
-- **Without cache:** 15-18 minutes (compile everything from scratch)
-- **5-10x faster** build times in CI/CD!
+- **⚡ 5-10x faster** build times (2-3 min vs 15-18 min)
+- **📦 Cache Image:** `ghcr.io/socutes/robustmq/rust-deps:latest`
+- **🔄 Auto-updated** when dependencies change
 
-**📦 Image:**
-- **Location:** `ghcr.io/socutes/robustmq/rust-deps:latest`
-- **Contents:** Rust 1.90.0 + all dependencies (~300 crates) pre-compiled
-- **Size:** ~8-10 GB
-- **Maintenance:** Manually updated (see `scripts/README.md`)
-
-**🔄 Update Frequency:**
-The dependency image is updated:
-- Every 2-4 weeks (during active development)
-- When Rust version upgrades
-- When 20+ dependencies change
-- When CI build time exceeds 8 minutes
-
-**ℹ️ For Contributors:**
-Don't worry about the cache image! Even if it's slightly outdated, Cargo will only recompile changed dependencies (~1-2 minutes extra), still 3-4x faster than no cache.
-
-**🛠️ For Maintainers:**
-To rebuild and push the dependency image:
-
-```bash
-cd docker/
-./build-and-push.sh
-```
-
-See [`scripts/README.md`](scripts/README.md) for detailed documentation.
+📚 **For CI/CD optimization details, see [Build Documentation](scripts/README.md)**
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! RobustMQ is an open-source project, and we're excited to collaborate with developers interested in Rust, distributed systems, and message queues.
+We welcome contributions! Please see our [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) for details.
 
-### How to Contribute
-
-1. **📋 Read our [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html)**
-2. **🔍 Check [Good First Issues](https://github.com/robustmq/robustmq/labels/good%20first%20issue)**
-3. **🍴 Fork the repository**
-4. **🌿 Create a feature branch**
-5. **✅ Make your changes with tests**
-6. **📤 Submit a pull request**
+**Quick Start:**
+1. **🔍 Check [Good First Issues](https://github.com/robustmq/robustmq/labels/good%20first%20issue)**
+2. **🍴 Fork and create a feature branch**
+3. **✅ Make changes with tests**
+4. **📤 Submit a pull request**
 
 
 ## 🌐 Community
 
-Join our growing community of developers, users, and contributors:
-
-### 💬 Discussion & Support
-
-- **🎮 [Discord Server](https://discord.gg/sygeGRh5)** - Real-time chat, questions, and collaboration
+- **🎮 [Discord](https://discord.gg/sygeGRh5)** - Real-time chat and collaboration
 - **🐛 [GitHub Issues](https://github.com/robustmq/robustmq/issues)** - Bug reports and feature requests
-- **💡 [GitHub Discussions](https://github.com/robustmq/robustmq/discussions)** - General discussions and ideas
+- **💡 [GitHub Discussions](https://github.com/robustmq/robustmq/discussions)** - General discussions
 
 ### 🇨🇳 Chinese Community
 
@@ -254,10 +178,10 @@ Join our growing community of developers, users, and contributors:
     <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
   </div>
 
-- **微信公众号**: If the group QR code has expired, Welcome to follow our official WeChat account!
+- **微信公众号**: If the group QR code has expired, welcome to follow our official WeChat account!
 
   <div align="center">
-    <img src="docs/images/WeChat-Official-Account.jpg" alt="Personal WeChat QR Code" width="200" />
+    <img src="docs/images/WeChat-Official-Account.jpg" alt="WeChat Official Account QR Code" width="200" />
   </div>
 
 ## 📄 License

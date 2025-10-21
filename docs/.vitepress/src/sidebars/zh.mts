@@ -23,6 +23,7 @@ export const sidebar = [
         text: "快速启动",
         collapsed: true,
         items: [
+            { text: "快速安装", link: "/zh/QuickGuide/Quick-Install" },
             { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
             { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
         ],
