@@ -106,17 +106,13 @@ detect_workspace_version() {
     if [[ ! -f "$cargo_file" ]]; then
         return 1
     fi
-    # Extract version from [workspace.package]
-    local version_line
-    version_line=$(awk '
-        BEGIN { in_section=0 }
-        /^\[workspace\.package\]/ { in_section=1; next }
-        /^\[/ { if (in_section==1) exit; in_section=0 }
-        in_section==1 && /^version\s*=\s*"[^"]+"/ { print; exit }
-    ' "$cargo_file") || true
-
-    if [[ -n "$version_line" ]]; then
-        echo "$version_line" | sed -E 's/.*"([^"]+)".*/\1/'
+    
+    # Use simpler grep approach instead of complex awk
+    local version
+    version=$(grep -E '^version\s*=\s*"[^"]+"' "$cargo_file" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    
+    if [[ -n "$version" ]]; then
+        echo "$version"
         return 0
     fi
     return 1

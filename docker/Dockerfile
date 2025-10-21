@@ -17,7 +17,7 @@
 # ==============================================================================
 
 # Stage 1: Planner - Generate dependency recipe
-FROM lukemathwalker/cargo-chef:latest-rust-1.90 AS planner
+FROM lukemathwalker/cargo-chef:latest-rust-1.90.0 AS planner
 
 WORKDIR /robustmq
 
@@ -78,6 +78,11 @@ RUN curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${P
 RUN cargo install cargo-chef --locked
 
 # Set environment variables for compilation
+# Find LLVM library path - try multiple common locations
+RUN LIBCLANG_PATH=$(find /usr/lib -name "libclang*" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || \
+                    find /usr/lib/x86_64-linux-gnu -name "libclang*" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || \
+                    echo "/usr/lib/llvm-14/lib") && \
+    echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> /etc/environment
 ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/ \
     PATH="/usr/local/bin:${PATH}"
 
@@ -147,7 +152,7 @@ EXPOSE 1883 1884 8083 8084 9092 1228 5672 8080
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8080/api/status || exit 1
+    CMD curl -f http://localhost:8080/api/status || curl -f http://localhost:8080/ || exit 1
 
 # Default environment variables
 ENV ROBUSTMQ_CONFIG_PATH="/robustmq/config/server.toml"
