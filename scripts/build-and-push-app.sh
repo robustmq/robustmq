@@ -120,11 +120,11 @@ detect_workspace_version() {
     if [[ ! -f "$cargo_file" ]]; then
         return 1
     fi
-    
+
     # Use simpler grep approach instead of complex awk
     local version
     version=$(grep -E '^version\s*=\s*"[^"]+"' "$cargo_file" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-    
+
     if [[ -n "$version" ]]; then
         echo "$version"
         return 0
@@ -256,5 +256,3 @@ if [[ "$PUSH_LATEST" == "true" ]]; then
 fi
 
 ok "All done."
-
-
