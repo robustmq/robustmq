@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
-use common_base::error::common::CommonError;
-use rocksdb_engine::storage::{
-    engine_delete, engine_exists, engine_get, engine_prefix_list, engine_save,
+use crate::{
+    rocksdb::RocksDBEngine,
+    storage::{
+        base::{engine_delete, engine_exists, engine_get, engine_prefix_list, engine_save},
+        family::DB_COLUMN_FAMILY_META_RAFT_STORE,
+    },
+    warp::StorageDataWrap,
 };
-use rocksdb_engine::warp::StorageDataWrap;
-use rocksdb_engine::RocksDBEngine;
+use common_base::error::common::CommonError;
 use serde::Serialize;
 use std::sync::Arc;
 
-pub fn engine_save_by_meta<T>(
+pub fn engine_save_by_raft_store<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
     value: T,
@@ -32,57 +34,57 @@ where
 {
     engine_save(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META,
-        "meta",
+        DB_COLUMN_FAMILY_META_RAFT_STORE,
+        "raft_store",
         key_name,
         value,
     )
 }
 
-pub fn engine_get_by_cluster(
+pub fn engine_get_by_raft_store(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<Option<StorageDataWrap>, CommonError> {
     engine_get(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META,
-        "meta",
+        DB_COLUMN_FAMILY_META_RAFT_STORE,
+        "raft_store",
         key_name,
     )
 }
 
-pub fn engine_exists_by_cluster(
+pub fn engine_exists_by_raft_store(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<bool, CommonError> {
     engine_exists(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META,
-        "meta",
+        DB_COLUMN_FAMILY_META_RAFT_STORE,
+        "raft_store",
         key_name,
     )
 }
 
-pub fn engine_delete_by_cluster(
+pub fn engine_delete_by_raft_store(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<(), CommonError> {
     engine_delete(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META,
-        "meta",
+        DB_COLUMN_FAMILY_META_RAFT_STORE,
+        "raft_store",
         key_name,
     )
 }
 
-pub fn engine_prefix_list_by_cluster(
+pub fn engine_prefix_list_by_raft_store(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, CommonError> {
     engine_prefix_list(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META,
-        "meta",
+        DB_COLUMN_FAMILY_META_RAFT_STORE,
+        "raft_store",
         prefix_key_name,
     )
 }

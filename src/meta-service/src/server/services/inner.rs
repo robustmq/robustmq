@@ -35,7 +35,7 @@ use protocol::meta::meta_service_inner::{
     SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
     SetResourceConfigRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::debug;
 

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::engine::{
+use crate::rocksdb::RocksDBEngine;
+use crate::storage::engine::{
     rocksdb_engine_delete, rocksdb_engine_delete_range, rocksdb_engine_exists, rocksdb_engine_get,
     rocksdb_engine_list_by_mode, rocksdb_engine_list_by_prefix, rocksdb_engine_save,
 };
 use crate::warp::StorageDataWrap;
-use crate::RocksDBEngine;
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use common_metrics::rocksdb::{

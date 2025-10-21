@@ -17,11 +17,11 @@ use std::time::Duration;
 
 use common_base::tools::now_second;
 use metadata_struct::journal::segment::SegmentStatus;
-use rocksdb_engine::engine::{
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::engine::{
     rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_list_by_prefix_to_map,
     rocksdb_engine_save,
 };
-use rocksdb_engine::RocksDBEngine;
 use tokio::select;
 use tokio::sync::broadcast::{self, Receiver};
 use tokio::time::sleep;
@@ -340,7 +340,7 @@ mod tests {
     use std::time::Duration;
 
     use common_base::tools::now_second;
-    use rocksdb_engine::engine::rocksdb_engine_list_by_prefix_to_map;
+    use rocksdb_engine::storage::engine::rocksdb_engine_list_by_prefix_to_map;
     use tokio::time::sleep;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};

@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod cache;
-pub mod cluster;
-pub mod heartbeat;
-pub mod tool;
+pub mod base;
+pub mod broker;
+pub mod engine;
+pub mod family;
+pub mod meta;
+pub mod raft_log;
+pub mod raft_store;

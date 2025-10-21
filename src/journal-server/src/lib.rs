@@ -19,7 +19,7 @@ use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use core::cache::{load_metadata_cache, CacheManager};
 use grpc_clients::pool::ClientPool;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };

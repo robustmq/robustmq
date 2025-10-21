@@ -23,7 +23,7 @@ use protocol::journal::journal_engine::{
     GetShardMetadataResp, GetShardMetadataRespBody, JournalEngineError, ListShardResp,
     ListShardRespBody, ReadResp, ReadRespBody, RespHeader, WriteResp, WriteRespBody,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use tracing::{debug, error, info};
 
 use super::cluster::ClusterHandler;

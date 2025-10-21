@@ -34,7 +34,7 @@ use protocol::meta::meta_service_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
     ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub fn list_session_by_req(

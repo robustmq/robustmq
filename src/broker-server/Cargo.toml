@@ -47,3 +47,4 @@ admin-server.workspace = true
 broker-core.workspace = true
 common-metrics.workspace = true
 rate-limit.workspace = true
+rocksdb-engine.workspace = true

@@ -45,7 +45,7 @@ use protocol::meta::meta_service_mqtt::{
     UpdateSessionRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

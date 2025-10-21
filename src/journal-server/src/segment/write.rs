@@ -25,7 +25,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use protocol::journal::journal_engine::{WriteReqBody, WriteRespMessage, WriteRespMessageStatus};
 use protocol::journal::journal_record::JournalRecord;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

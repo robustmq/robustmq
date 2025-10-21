@@ -21,7 +21,7 @@ use protocol::meta::meta_service_journal::{
     ListShardReply, ListShardRequest, UpdateSegmentMetaReply, UpdateSegmentMetaRequest,
     UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 

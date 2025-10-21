@@ -19,9 +19,8 @@ use crate::raft::route::journal::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
 use bincode::{deserialize, serialize};
-use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use data::{StorageData, StorageDataType};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::{rocksdb::RocksDBEngine, storage::family::DB_COLUMN_FAMILY_META};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
@@ -338,8 +337,8 @@ mod test {
     use crate::core::cache::CacheManager;
 
     use super::DataRoute;
-    use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META;
     use std::sync::Arc;
     use tempfile::tempdir;
 

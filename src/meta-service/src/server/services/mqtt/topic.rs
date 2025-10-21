@@ -32,7 +32,7 @@ use protocol::meta::meta_service_mqtt::{
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetTopicRetainMessageReply,
     SetTopicRetainMessageRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
 use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;

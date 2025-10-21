@@ -598,8 +598,32 @@ impl SubscribeManager {
         self.remove_not_push_client(client_id);
     }
 
-    pub fn remove_topic(&self, _topic_name: &str) {
-        // todo
+    pub fn remove_topic(&self, topic_name: &str) {
+        for (key, subscriber) in self.exclusive_push.clone() {
+            if subscriber.topic_name == *topic_name {
+                self.exclusive_push.remove(&key);
+            }
+        }
+
+        for (key, subscriber) in self.share_leader_push.clone() {
+            if subscriber.topic_name == *topic_name {
+                self.share_leader_push.remove(&key);
+            }
+        }
+
+        for (key, subscriber) in self.share_follower_resub.clone() {
+            if subscriber.topic_name == *topic_name {
+                self.share_follower_resub.remove(&key);
+            }
+        }
+
+        self.topic_subscribes.remove(topic_name);
+
+        if let Some(list) = self.subscribe_topics.get_mut(topic_name) {
+            for mut raw in list.iter_mut() {
+                raw.retain(|x| *x != topic_name);
+            }
+        }
     }
 
     // info

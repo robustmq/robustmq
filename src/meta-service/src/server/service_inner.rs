@@ -43,7 +43,7 @@ use protocol::meta::meta_service_inner::{
     SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
     UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 

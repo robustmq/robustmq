@@ -17,14 +17,14 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::journal::shard::JournalShard;
 
-use crate::storage::engine_meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
-};
 use crate::storage::keys::{
     key_all_shard, key_shard, key_shard_cluster_prefix, key_shard_namespace_prefix,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 pub struct ShardStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -109,10 +109,10 @@ impl ShardStorage {
 
 #[cfg(test)]
 mod tests {
-    use broker_core::rocksdb::column_family_list;
     use common_base::tools::unique_id;
     use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use tempfile::tempdir;
 

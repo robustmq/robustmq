@@ -12,8 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod cache;
-pub mod cluster;
-pub mod heartbeat;
-pub mod tool;
+pub const INNER_TOPIC_MQTT_DATA: &str = "__inner_topic_mqtt_data";

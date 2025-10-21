@@ -32,7 +32,7 @@ use protocol::meta::meta_service_mqtt::{
     ListSubscribeReply, ListSubscribeRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::warn;
 

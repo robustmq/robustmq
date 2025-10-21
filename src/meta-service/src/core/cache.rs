@@ -35,7 +35,7 @@ use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
