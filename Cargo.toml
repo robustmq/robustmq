@@ -295,8 +295,6 @@ opt-level = 3              # Maximum optimization
 strip = true               # Strip symbols to reduce binary size
 
 [profile.test]
-# Test profile - optimized for fast compilation and reduced disk usage
-inherits = "dev"
 opt-level = 0              # No optimization for faster test compilation
 debug = 1                  # Minimal debug info (line tables only)
 split-debuginfo = "unpacked"  # Reduce disk usage
@@ -309,6 +307,4 @@ opt-level = 2              # Moderate optimization for dependencies
 debug = false              # No debug info for dependencies
 
 [profile.bench]
-# Benchmark profile - similar to release but with debug info
-inherits = "release"
 debug = true               # Keep debug info for profiling

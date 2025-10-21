@@ -109,14 +109,27 @@ cd robustmq-v0.1.30-linux-amd64
 **Method 2: Automated Install Script** (Recommended)
 
 ```bash
-# Download and install automatically
+# Install latest version automatically
 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+
+# Install specific version
+VERSION=v0.1.35 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+
+# Install to custom directory
+INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 
 # Or download the script first to review it
 wget https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh
 chmod +x install.sh
 ./install.sh --help  # See available options
 ```
+
+**Installation Options:**
+- `--version VERSION`: Install specific version (default: latest)
+- `--dir DIRECTORY`: Installation directory (default: auto-detect)
+- `--silent`: Silent installation
+- `--force`: Force installation even if already exists
+- `--dry-run`: Show what would be installed without actually installing
 
 #### Option 3: Docker (Coming Soon)
 
@@ -129,6 +142,20 @@ docker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:latest
 Once RobustMQ is running, you should see output similar to:
 
 <img src="docs/images/console-start.png" alt="Console Start" width="600">
+
+**Quick verification:**
+```bash
+# Check if binaries are installed
+broker-server --version
+cli-command --help
+cli-bench --help
+
+# Start the server
+broker-server start
+
+# Check server status
+cli-command status
+```
 
 You can verify the installation by connecting with any MQTT client to `localhost:1883` or using the web console.
 
@@ -173,7 +200,7 @@ RobustMQ uses a pre-built dependency cache image strategy to significantly speed
 - **Location:** `ghcr.io/socutes/robustmq/rust-deps:latest`
 - **Contents:** Rust 1.90.0 + all dependencies (~300 crates) pre-compiled
 - **Size:** ~8-10 GB
-- **Maintenance:** Manually updated (see `docker/README.md`)
+- **Maintenance:** Manually updated (see `scripts/README.md`)
 
 **🔄 Update Frequency:**
 The dependency image is updated:
@@ -193,7 +220,7 @@ cd docker/
 ./build-and-push.sh
 ```
 
-See [`docker/README.md`](docker/README.md) for detailed documentation.
+See [`scripts/README.md`](scripts/README.md) for detailed documentation.
 
 ## 🤝 Contributing
 

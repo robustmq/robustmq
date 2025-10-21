@@ -55,7 +55,6 @@ ARCH_TYPE=""
 VERSION="${VERSION:-latest}"
 GITHUB_ORG="robustmq"
 GITHUB_REPO="robustmq"
-COMPONENT="${COMPONENT:-server}"  # server, operator, or all
 INSTALL_DIR="${INSTALL_DIR:-}"
 SILENT="${SILENT:-false}"
 FORCE="${FORCE:-false}"
@@ -99,7 +98,6 @@ show_help() {
     echo -e "${BOLD}OPTIONS:${NC}"
     echo "    -h, --help              Show this help message"
     echo "    -v, --version VERSION   Install specific version (default: latest)"
-    echo "    -c, --component COMP    Component to install: server, operator, or all (default: server)"
     echo "    -d, --dir DIRECTORY     Installation directory (default: auto-detect)"
     echo "    -s, --silent            Silent installation"
     echo "    -f, --force             Force installation even if already exists"
@@ -107,32 +105,23 @@ show_help() {
     echo
     echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
     echo "    VERSION                 Version to install"
-    echo "    COMPONENT              Component to install"
     echo "    INSTALL_DIR            Installation directory"
     echo "    SILENT                 Silent mode (true/false)"
     echo "    FORCE                  Force installation (true/false)"
     echo "    DRY_RUN                Dry run mode (true/false)"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
-    echo "    # Install latest server"
+    echo "    # Install latest version"
     echo "    $0"
     echo
     echo "    # Install specific version"
     echo "    VERSION=v0.1.0 $0"
-    echo
-    echo "    # Install operator component"
-    echo "    COMPONENT=operator $0"
     echo
     echo "    # Install to custom directory"
     echo "    INSTALL_DIR=/usr/local/bin $0"
     echo
     echo "    # Silent installation"
     echo "    SILENT=true $0"
-    echo
-    echo -e "${BOLD}COMPONENTS:${NC}"
-    echo "    server                 RobustMQ server binary"
-    echo "    operator               RobustMQ Kubernetes operator"
-    echo "    all                    All components"
     echo
     echo "For more information, visit: https://github.com/robustmq/robustmq"
 }
@@ -261,7 +250,6 @@ get_latest_version() {
 }
 
 check_platform_support() {
-    local component="$1"
     local platform="${OS_TYPE}-${ARCH_TYPE}"
 
     # Check if this platform is supported based on build.sh logic
@@ -336,57 +324,50 @@ verify_checksum() {
     fi
 }
 
-install_component() {
-    local component="$1"
-    local binary_name=""
-    local package_prefix=""
-
-    case "$component" in
-        server)
-            binary_name="robustmq"
-            package_prefix="robustmq"
-            ;;
-        operator)
-            binary_name="robustmq-operator"
-            package_prefix="robustmq-operator"
-            ;;
-        *)
-            log_error "Unknown component: $component"
-            return 1
-            ;;
-    esac
-
+install_robustmq() {
     # Convert platform format to match release naming convention
     local platform="${OS_TYPE}-${ARCH_TYPE}"
 
-    # Package naming follows the pattern: {package_prefix}-{VERSION}-{platform}.tar.gz
-    local archive_name="${package_prefix}-${VERSION}-${platform}.tar.gz"
+    # Package naming follows the pattern: robustmq-{VERSION}-{platform}.tar.gz
+    local archive_name="robustmq-${VERSION}-${platform}.tar.gz"
     local download_url="https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/releases/download/${VERSION}/${archive_name}"
     local temp_dir
     temp_dir=$(mktemp -d)
     local temp_file="${temp_dir}/${archive_name}"
-    local final_path="${INSTALL_DIR}/${binary_name}"
+
+    # Define binaries to install
+    local binaries_to_install=("broker-server" "cli-command" "cli-bench")
 
     # Check if already installed
-    if [ -f "$final_path" ] && [ "$FORCE" != "true" ]; then
-        local existing_version
-        existing_version=$("$final_path" --version 2>/dev/null | head -n1 || echo "unknown")
-        log_warning "${binary_name} is already installed at $final_path (${existing_version})"
+    local already_installed=true
+    for binary in "${binaries_to_install[@]}"; do
+        local final_path="${INSTALL_DIR}/${binary}"
+        if [ ! -f "$final_path" ] || [ "$FORCE" = "true" ]; then
+            already_installed=false
+            break
+        fi
+    done
+
+    if [ "$already_installed" = "true" ] && [ "$FORCE" != "true" ]; then
+        log_warning "RobustMQ is already installed"
         log_info "Use FORCE=true to overwrite the existing installation"
         return 0
     fi
 
     if [ "$DRY_RUN" = "true" ]; then
-        log_info "[DRY RUN] Would install ${binary_name} ${VERSION} to ${final_path}"
+        log_info "[DRY RUN] Would install RobustMQ ${VERSION} to ${INSTALL_DIR}"
+        for binary in "${binaries_to_install[@]}"; do
+            log_info "[DRY RUN] Would install ${binary}"
+        done
         return 0
     fi
 
-    log_step "Installing ${binary_name} ${VERSION}..."
+    log_step "Installing RobustMQ ${VERSION}..."
 
     # Download the archive
     log_info "Downloading ${archive_name}..."
     if ! download_file "$download_url" "$temp_file"; then
-        log_error "Failed to download ${binary_name}"
+        log_error "Failed to download RobustMQ"
         log_info "Download URL: $download_url"
         log_info "Please check:"
         log_info "  1. Version '$VERSION' exists for platform '$platform'"
@@ -400,64 +381,74 @@ install_component() {
     verify_checksum "$temp_file" "$download_url" || true
 
     # Extract the archive
-    log_info "Extracting ${binary_name}..."
+    log_info "Extracting RobustMQ..."
     if ! tar -xzf "$temp_file" -C "$temp_dir"; then
         log_error "Failed to extract ${archive_name}"
         rm -rf "$temp_dir"
         return 1
     fi
 
-    # Find the binary in the extracted files
-    # Based on build.sh logic, binaries are in libs/ directory
-    local extracted_binary=""
-    local search_paths=(
-        "libs/${binary_name}"
-        "bin/${binary_name}"
-        "${binary_name}"
-    )
+    # Install each binary
+    local installed_count=0
+    for binary in "${binaries_to_install[@]}"; do
+        local final_path="${INSTALL_DIR}/${binary}"
+        
+        # Find the binary in the extracted files
+        # Based on build.sh logic, binaries are in libs/ directory
+        local extracted_binary=""
+        local search_paths=(
+            "libs/${binary}"
+            "bin/${binary}"
+            "${binary}"
+        )
 
-    # Try different possible locations for the binary
-    for search_path in "${search_paths[@]}"; do
-        local full_path=$(find "$temp_dir" -path "*/${search_path}" -type f | head -n1)
-        if [ -n "$full_path" ] && [ -f "$full_path" ]; then
-            extracted_binary="$full_path"
-            break
+        # Try different possible locations for the binary
+        for search_path in "${search_paths[@]}"; do
+            local full_path=$(find "$temp_dir" -path "*/${search_path}" -type f | head -n1)
+            if [ -n "$full_path" ] && [ -f "$full_path" ]; then
+                extracted_binary="$full_path"
+                break
+            fi
+        done
+
+        # If not found in expected paths, try generic search
+        if [ -z "$extracted_binary" ]; then
+            extracted_binary=$(find "$temp_dir" -name "$binary" -type f | head -n1)
+        fi
+
+        if [ -z "$extracted_binary" ]; then
+            log_warning "Binary ${binary} not found in the archive, skipping..."
+            continue
+        fi
+
+        # Install the binary
+        log_info "Installing ${binary} to ${final_path}..."
+        if ! cp "$extracted_binary" "$final_path"; then
+            log_error "Failed to install ${binary} to ${final_path}"
+            continue
+        fi
+
+        # Make it executable
+        chmod +x "$final_path"
+        installed_count=$((installed_count + 1))
+        
+        # Verify installation
+        if "$final_path" --version >/dev/null 2>&1; then
+            log_success "${binary} installed successfully"
+        else
+            log_success "${binary} installed to ${final_path}"
         fi
     done
-
-    # If not found in expected paths, try generic search
-    if [ -z "$extracted_binary" ]; then
-        extracted_binary=$(find "$temp_dir" -name "$binary_name" -type f | head -n1)
-    fi
-
-    if [ -z "$extracted_binary" ]; then
-        log_error "Binary ${binary_name} not found in the archive"
-        log_info "Archive contents:"
-        find "$temp_dir" -type f | head -10
-        rm -rf "$temp_dir"
-        return 1
-    fi
-
-    # Install the binary
-    log_info "Installing ${binary_name} to ${final_path}..."
-    if ! mv "$extracted_binary" "$final_path"; then
-        log_error "Failed to install ${binary_name} to ${final_path}"
-        rm -rf "$temp_dir"
-        return 1
-    fi
-
-    # Make it executable
-    chmod +x "$final_path"
 
     # Clean up
     rm -rf "$temp_dir"
 
-    # Verify installation
-    if "$final_path" --version >/dev/null 2>&1; then
-        log_success "${binary_name} ${VERSION} installed successfully to ${final_path}"
-    else
-        log_success "${binary_name} ${VERSION} installed to ${final_path}"
+    if [ $installed_count -eq 0 ]; then
+        log_error "No binaries were installed"
+        return 1
     fi
+
+    log_success "RobustMQ ${VERSION} installed successfully ($installed_count binaries)"
 }
 
 add_to_path() {
@@ -493,24 +484,10 @@ show_completion_message() {
     log_success "Installation completed successfully!"
     echo
     echo -e "${BOLD}Next steps:${NC}"
-
-    case "$COMPONENT" in
-        server)
-            echo "  1. Run '${INSTALL_DIR}/robustmq --help' to see available options"
-            echo "  2. Start the server: '${INSTALL_DIR}/robustmq'"
-            echo "  3. Check the documentation: https://robustmq.com/docs"
-            ;;
-        operator)
-            echo "  1. Deploy to Kubernetes: 'kubectl apply -f operator/robustmq.yaml'"
-            echo "  2. Create a RobustMQ instance: 'kubectl apply -f operator/sample-robustmq.yaml'"
-            echo "  3. Check the operator documentation: https://robustmq.com/docs/operator"
-            ;;
-        all)
-            echo "  1. For server: Run '${INSTALL_DIR}/robustmq --help'"
-            echo "  2. For operator: Deploy to Kubernetes with 'kubectl apply -f operator/robustmq.yaml'"
-            echo "  3. Check the documentation: https://robustmq.com/docs"
-            ;;
-    esac
+    echo "  1. Run '${INSTALL_DIR}/broker-server --help' to see available options"
+    echo "  2. Start the server: '${INSTALL_DIR}/broker-server start'"
+    echo "  3. Use CLI tools: '${INSTALL_DIR}/cli-command' and '${INSTALL_DIR}/cli-bench'"
+    echo "  4. Check the documentation: https://robustmq.com/docs"
 
     echo
     echo -e "${BLUE}Support:${NC}"
@@ -529,10 +506,6 @@ main() {
                 ;;
             -v|--version)
                 VERSION="$2"
-                shift 2
-                ;;
-            -c|--component)
-                COMPONENT="$2"
                 shift 2
                 ;;
             -d|--dir)
@@ -559,16 +532,6 @@ main() {
         esac
     done
 
-    # Validate component
-    case "$COMPONENT" in
-        server|operator|all)
-            ;;
-        *)
-            log_error "Invalid component: $COMPONENT"
-            log_info "Valid components: server, operator, all"
-            exit 1
-            ;;
-    esac
 
     if [ "$SILENT" != "true" ]; then
         echo -e "${BOLD}${BLUE}🚀 RobustMQ Installation Script${NC}"
@@ -583,10 +546,9 @@ main() {
 
     log_info "Detected system: ${OS_TYPE}/${ARCH_TYPE}"
     log_info "Installation directory: ${INSTALL_DIR}"
-    log_info "Component: ${COMPONENT}"
 
     # Check platform support
-    if ! check_platform_support "$COMPONENT"; then
+    if ! check_platform_support; then
         exit 1
     fi
 
@@ -601,19 +563,8 @@ main() {
         log_info "Running in dry-run mode..."
     fi
 
-    # Install components
-    case "$COMPONENT" in
-        server)
-            install_component "server"
-            ;;
-        operator)
-            install_component "operator"
-            ;;
-        all)
-            install_component "server"
-            install_component "operator"
-            ;;
-    esac
+    # Install RobustMQ
+    install_robustmq
 
     # Add to PATH if needed
     if [ "$DRY_RUN" != "true" ] && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
