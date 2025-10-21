@@ -486,7 +486,7 @@ pub async fn auto_subscribe_delete(
     state
         .mqtt_context
         .cache_manager
-        .delete_auto_subscribe_rule(&state.broker_cache.cluster_name, &params.topic_name);
+        .delete_auto_subscribe_rule( &params.topic_name);
 
     success_response("success")
 }
