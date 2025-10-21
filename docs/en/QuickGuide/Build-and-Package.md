@@ -1,255 +1,159 @@
 # RobustMQ Build and Package Guide
 
-This guide covers how to compile and package RobustMQ, including local builds, Docker image builds, and release processes.
+This guide covers how to build and package RobustMQ.
 
-## Table of Contents
+## 📦 Build Artifacts Overview
 
-- [Environment Setup](#environment-setup)
-- [Quick Start](#quick-start)
-- [Build Options](#build-options)
-- [Docker Build](#docker-build)
-- [Output Results](#output-results)
-- [Release Process](#release-process)
-- [Common Issues](#common-issues)
+RobustMQ build process generates the following types of artifacts:
 
-## Environment Setup
+| Artifact Type | File Format | Build Command | Purpose |
+|---------------|-------------|---------------|---------|
+| **Installation Package** | `.tar.gz` archive | `make build` / `make build-full` | Binary package for user download and installation |
+| **Docker Image** | Docker image | `make docker-app-*` | Containerized deployment |
+| **Dependency Image** | Docker image | `make docker-deps` | CI/CD build acceleration |
+| **GitHub Release** | Online release page | `make release` | User download and view releases |
 
-Please refer to [Build Development Environment](../ContributionGuide/ContributingCode/Build-Develop-Env.md) to complete the development environment configuration.
+### Artifact Details
 
-### Additional Dependencies (Optional)
+- **`.tar.gz` Installation Package**: Contains Rust-compiled binaries, configuration files, startup scripts, etc. Users can extract and run directly
+- **Docker Image**: Containerized RobustMQ application, supports Docker and Kubernetes deployment
+- **Dependency Image**: Pre-compiled Rust dependency cache, used to accelerate CI/CD build process
+- **GitHub Release**: Online release page, users can download installation packages through browser
 
-- **Frontend Build**: `pnpm` and `git` installed (only required when using `--with-frontend`)
-- **Docker Build**: `docker` installed and running (only required when using `--with-docker`)
+## 🚀 Quick Start
 
-> **Note**: If required tools are missing, the build script will automatically detect and display detailed installation instructions, including commands for different operating systems.
+### Using Make Commands (Recommended)
 
-## Quick Start
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make build` | Basic build | Auto-read from Cargo.toml | Build current platform package (without frontend) |
+| `make build-full` | Full build | Auto-read from Cargo.toml | Build complete package with frontend |
+| `make build-version VERSION=v0.1.30` | Specific version build | Manual specification | Build package with specific version |
+| `make build-clean` | Clean rebuild | Auto-read from Cargo.toml | Clean and rebuild |
 
-### 1. Clone Project
+> **Version Note**: When version is not specified, all build commands automatically read the current version number from the `Cargo.toml` file in the project root directory.
 
-```bash
-git clone https://github.com/robustmq/robustmq.git
-cd robustmq
-```
+## 🐳 Docker Image Build
 
-### 2. Basic Build
+### Dependency Image (CI/CD Optimization)
 
-```bash
-# Build current platform package (using version from Cargo.toml)
-./scripts/build.sh
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make docker-deps` | Build dependency image | Auto-read from Cargo.toml | Build CI/CD dependency cache image |
+| `make docker-deps-tag TAG=2025-10-20` | Build tagged dependency image | Manual tag specification | Build dependency image with specific tag |
 
-# Build complete package with frontend
-./scripts/build.sh --with-frontend
+### Application Image
 
-# Build Docker image
-./scripts/build.sh --with-docker
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'` | Flexible app image build | Manual specification | Application image build with custom parameters |
+| `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | GHCR app image | Manual specification | Build and push to GitHub Container Registry |
+| `make docker-app-dockerhub ORG=yourorg VERSION=0.2.0` | Docker Hub app image | Manual specification | Build and push to Docker Hub |
 
-# Build with specific version
-./scripts/build.sh --version v0.1.31
-```
+## 🚀 Version Release
 
-> **Version Note**: If `--version` parameter is not specified, the build script will automatically read the version number from the `Cargo.toml` file in the project root directory.
-
-### 3. View Build Results
-
-```bash
-ls -la build/
-# Example output:
-# robustmq-0.1.35-darwin-arm64.tar.gz
-```
-
-## Build Options
-
-### build.sh Script
-
-`scripts/build.sh` is the main build script that supports the following options:
-
-```bash
-./scripts/build.sh [OPTIONS]
-
-Options:
-  -h, --help              Show help message
-  -v, --version VERSION   Specify version (default: read from Cargo.toml in project root)
-  --with-frontend         Include frontend build
-  --with-docker           Build Docker image
-  --clean                 Clean build directory
-```
-
-### Usage Scenarios
-
-#### Scenario 1: Development Testing
-```bash
-# Quick build for current platform (automatically uses version from Cargo.toml)
-./scripts/build.sh
-```
-
-#### Scenario 2: Complete Release Package
-```bash
-# Build complete package with frontend (automatically clones frontend code)
-./scripts/build.sh --with-frontend
-
-# Build complete release package with specific version
-./scripts/build.sh --with-frontend --version v0.1.31
-```
-
-#### Scenario 3: Docker Image Build
-```bash
-# Build Docker image
-./scripts/build.sh --with-docker
-
-# Build Docker image with specific version
-./scripts/build.sh --with-docker --version v0.1.31
-```
-
-#### Scenario 4: Clean Rebuild
-```bash
-# Clean and rebuild
-./scripts/build.sh --clean --with-frontend
-```
-
-## Docker Build
-
-### Build Docker Image
-
-```bash
-# Build Docker image
-./scripts/build.sh --with-docker
-```
-
-### Output Results
-
-After build completion, Docker images will be generated:
-- `robustmq/robustmq:{version}` - Version tagged image
-- `robustmq/robustmq:latest` - Latest tagged image
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make release` | Create new release | Auto-read from Cargo.toml | Create GitHub release and upload package |
+| `make release-version VERSION=v0.1.30` | Specific version release | Manual specification | Create GitHub release with specific version |
+| `make release-upload VERSION=v0.1.30` | Upload to existing release | Manual specification | Upload package to existing GitHub release |
 
 ### Prerequisites
 
-- `docker` installed and running
-- Docker build based on `docker/Dockerfile` file
-- Script automatically checks Docker command and daemon status
-
-## Output Results
-
-### Regular Build
-After build completion, files will be generated in the `build/` directory:
-- `robustmq-{version}-{platform}.tar.gz` - Installation package
-
-### Package Structure
-
-```text
-robustmq-0.1.35-darwin-arm64/
-├── bin/           # Source bin directory (startup scripts, etc.)
-├── libs/          # Rust compiled binary files
-│   ├── broker-server
-│   ├── cli-command
-│   └── cli-bench
-├── config/        # Source config directory (configuration files)
-├── dist/          # Frontend build artifacts (if frontend included)
-├── LICENSE        # License file
-└── package-info.txt # Package information file (includes version info)
-```
-
-## Release Process
-
-### release.sh Script
-
-`scripts/release.sh` is used for automated GitHub release process:
-
-#### Basic Usage
-
 ```bash
-# Release new version (create release and upload package)
-./scripts/release.sh
-
-# Only upload current system package to existing release
-./scripts/release.sh --upload-only
-
-# Specify version
-./scripts/release.sh --version v0.1.31
+# Set GitHub Token
+export GITHUB_TOKEN="your_github_token_here"
 ```
 
-#### Environment Variables
+## 📦 Output Results
 
-```bash
-# Required: GitHub personal access token
-export GITHUB_TOKEN="your_github_token"
-```
+### Build Artifacts
 
-#### Release Steps
+| Artifact Type | File Location | Content Description | Purpose |
+|---------------|---------------|---------------------|---------|
+| **Installation Package** | `build/robustmq-{version}-{platform}.tar.gz` | Compressed binary installation package | User download and install RobustMQ |
+| **Package Info** | `build/robustmq-{version}-{platform}/package-info.txt` | Version, platform, build time metadata | Understand package details |
+| **Docker Image** | `robustmq/robustmq:{version}` | Containerized RobustMQ application | Docker deployment and running |
+| **Dependency Image** | `ghcr.io/socutes/robustmq/rust-deps:latest` | Rust dependency cache image | Accelerate CI/CD builds |
+| **GitHub Release** | `https://github.com/robustmq/robustmq/releases/tag/{version}` | Online release page | User download and view release notes |
 
-1. **Set GitHub Token**
-   ```bash
-   export GITHUB_TOKEN="your_token_here"
-   ```
+### Installation Package Structure
 
-2. **Execute Release**
-   ```bash
-   # Release new version
-   ./scripts/release.sh
-   
-   # Or only upload package to existing version
-   ./scripts/release.sh --upload-only
-   ```
+| Directory/File | Content Type | Specific Content | Purpose |
+|----------------|--------------|-----------------|---------|
+| `bin/` | Startup scripts | `robust-server`, `robust-ctl`, `robust-bench` | System startup and management scripts |
+| `libs/` | Binary executables | `broker-server`, `cli-command`, `cli-bench` | Core Rust-compiled binary programs |
+| `config/` | Configuration files | `server.toml`, `server-tracing.toml` | Service configuration and logging configuration |
+| `dist/` | Frontend static files | HTML, CSS, JavaScript files | Web management interface (if frontend included) |
+| `LICENSE` | License file | Apache 2.0 license text | Legal license information |
+| `package-info.txt` | Metadata file | Version, platform, build time, binary list | Package detailed information |
 
-## Common Issues
+## 📋 Use Cases
 
-### Q: Docker build fails
+| Scenario | Command | Artifact | Description |
+|----------|---------|----------|-------------|
+| **Development Testing** | `make build` | Local `.tar.gz` installation package | Quick build test package for local development and testing |
+| **Release Preparation** | `make build-full` | Local complete `.tar.gz` installation package | Build complete release package with frontend for official release |
+| **CI/CD Optimization** | `make docker-deps` | Docker dependency cache image | Build Rust dependency cache image to accelerate CI/CD build process |
+| **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry |
+| **Version Release** | `make release` | GitHub release page + installation package | Create GitHub release and upload installation package for user download |
+| **Multi-platform Release** | `make release-upload VERSION=v0.1.31` | Update GitHub release | Add current platform installation package to existing GitHub release |
 
-**A:** Check the following:
+## ⚠️ Notes
 
-1. Is Docker installed and running
-2. Does `docker/Dockerfile` file exist
-3. Is Docker daemon running normally
+### Build Script Limitations
 
-```bash
-# Check Docker status
-docker info
-```
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Current system platform | ✅ | Only builds for current system platform |
+| Auto version detection | ✅ | Automatically reads version from Cargo.toml |
+| Release mode build | ✅ | Uses `cargo build --release` |
+| Auto frontend clone | ✅ | Automatically clones frontend code |
+| Cross-compilation | ❌ | Does not support cross-compilation |
 
-### Q: GitHub release fails
+### Release Script Limitations
 
-**A:** Check the following:
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Frontend build | ✅ | Always includes frontend build |
+| Current platform | ✅ | Always builds current system platform |
+| Existing release upload | ❌ | `--upload-only` requires existing release |
 
-1. Is GitHub Token set correctly
-2. Does Token have sufficient permissions
-3. Is network connection normal
+## 🔧 Environment Requirements
 
-### Q: Where are build artifacts
+| Type | Tool | Purpose | Required |
+|------|------|---------|----------|
+| **Basic** | Rust (`cargo`, `rustup`) | Rust compilation | ✅ Required |
+| **Frontend** | `pnpm` | Frontend package management | 🔶 Optional |
+| **Frontend** | `git` | Clone frontend code | 🔶 Optional |
+| **Docker** | `docker` | Docker environment | 🔶 Optional |
+| **Release** | `curl` | API requests | 🔶 Optional |
+| **Release** | `jq` | JSON parsing | 🔶 Optional |
+| **Release** | `GITHUB_TOKEN` | GitHub access token | 🔶 Optional |
 
-**A:** Default location is `./build/` directory:
+## 🆘 Common Issues
 
-```bash
-ls -la build/
-# View all build artifacts
-find build/ -name "*.tar.gz"
-```
+### Build Failure Troubleshooting
 
-### Q: How to verify build artifacts
+| Issue | Check Command | Solution |
+|-------|---------------|----------|
+| Rust environment issue | `cargo --version` | Install Rust environment |
+| Docker environment issue | `docker info` | Start Docker service |
+| Network connection issue | `ping github.com` | Check network connection |
 
-**A:** Extract and test:
+### Release Failure Troubleshooting
 
-```bash
-# Extract and test
-tar -xzf robustmq-0.1.35-darwin-arm64.tar.gz
-cd robustmq-0.1.35-darwin-arm64
+| Issue | Check Command | Solution |
+|-------|---------------|----------|
+| GitHub Token issue | `echo $GITHUB_TOKEN` | Set correct Token |
+| Token permission issue | `curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user` | Check Token permissions |
+| Network connection issue | `curl -I https://api.github.com` | Check network connection |
 
-# Test binary files
-./libs/broker-server --help
-./libs/cli-command --help
-./libs/cli-bench --help
+### View Build Artifacts
 
-# View package information
-cat package-info.txt
-cat VERSION
-```
-
-## Notes
-
-- ✅ Only builds for current system platform
-- ✅ When `--version` is not specified, automatically reads version from Cargo.toml file in project root
-- ✅ Uses `cargo build --release` for Rust project builds
-- ✅ Frontend build is optional, automatically clones robustmq-copilot code from GitHub
-- ✅ Always pulls latest code before building frontend (git pull)
-- ✅ Docker build based on `docker/Dockerfile` file
-- ✅ Docker build checks Docker command and daemon status
-- ❌ Does not support cross-compilation
+| Operation | Command | Description |
+|-----------|---------|-------------|
+| View build directory | `ls -la build/` | View all build artifacts |
+| Extract and test | `tar -xzf build/robustmq-*.tar.gz` | Extract installation package |
+| Test binary | `./robustmq-*/libs/broker-server --help` | Test executable files |
+| View package info | `cat robustmq-*/package-info.txt` | View package detailed information |

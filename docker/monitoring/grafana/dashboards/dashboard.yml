@@ -12,26 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "schema-register"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+# Grafana dashboard provisioning configuration
+apiVersion: 1
 
-
-[dependencies]
-bytes.workspace = true
-axum.workspace = true
-thiserror.workspace = true
-common-base.workspace = true
-metadata-struct.workspace = true
-dashmap.workspace = true
-tokio.workspace = true
-tokio-util.workspace = true
-tracing.workspace = true
-futures.workspace = true
-valico.workspace = true
-serde_json.workspace = true
-apache-avro.workspace = true
-serde.workspace = true
-protofish.workspace = true
+providers:
+  - name: 'RobustMQ Dashboards'
+    orgId: 1
+    folder: 'RobustMQ'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

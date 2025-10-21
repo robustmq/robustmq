@@ -43,7 +43,6 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Configuration variables (simplified)
 VERSION="${VERSION:-}"
 BUILD_FRONTEND="${BUILD_FRONTEND:-false}"
-BUILD_DOCKER="${BUILD_DOCKER:-false}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/build}"
 
 # Helper functions
@@ -77,7 +76,6 @@ show_help() {
     echo "    -h, --help              Show this help message"
     echo "    -v, --version VERSION   Build version (default: auto-detect from Cargo.toml)"
     echo "    --with-frontend         Build with frontend"
-    echo "    --with-docker           Build Docker image"
     echo "    --clean                 Clean build directory before building"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
@@ -90,8 +88,6 @@ show_help() {
     echo "    # Build with frontend"
     echo "    $0 --with-frontend"
     echo
-    echo "    # Build Docker image"
-    echo "    $0 --with-docker"
     echo
     echo -e "${BOLD}NOTES:${NC}"
     echo "    - Always builds for current platform only"
@@ -225,20 +221,6 @@ check_dependencies() {
         fi
     fi
 
-    if [ "$BUILD_DOCKER" = "true" ]; then
-        if ! command -v docker >/dev/null 2>&1; then
-            log_error "docker command not found. Please install Docker."
-            echo
-            log_info "Installation instructions:"
-            log_info "  macOS:   brew install --cask docker"
-            log_info "  Ubuntu:  sudo apt-get install docker.io"
-            log_info "  CentOS:  sudo yum install docker"
-            log_info "  Windows: Download Docker Desktop from https://docker.com/"
-            log_info "  Or visit: https://docs.docker.com/get-docker/"
-            echo
-            return 1
-        fi
-    fi
 }
 
 build_frontend() {
@@ -454,52 +436,6 @@ EOF
     cd "$PROJECT_ROOT"
 }
 
-build_docker_image() {
-    if [ "$BUILD_DOCKER" != "true" ]; then
-        return 0
-    fi
-
-    local version="$1"
-    local dockerfile_path="$PROJECT_ROOT/docker/Dockerfile"
-
-    log_step "Building Docker image"
-
-    if [ ! -f "$dockerfile_path" ]; then
-        log_error "Dockerfile not found at $dockerfile_path"
-        return 1
-    fi
-
-    # Check if Docker daemon is running
-    if ! docker info >/dev/null 2>&1; then
-        log_error "Docker daemon is not running. Please start Docker."
-        return 1
-    fi
-
-    local image_name="robustmq/robustmq"
-    local image_tag="$version"
-    local full_image_name="$image_name:$image_tag"
-
-    log_info "Building Docker image: $full_image_name"
-    log_info "Using Dockerfile: $dockerfile_path"
-
-    # Build the Docker image
-    cd "$PROJECT_ROOT"
-    
-    if docker build -f "$dockerfile_path" -t "$full_image_name" .; then
-        log_success "Docker image built successfully: $full_image_name"
-        
-        # Also tag as latest
-        docker tag "$full_image_name" "$image_name:latest"
-        log_success "Tagged as latest: $image_name:latest"
-        
-        # Show image info
-        log_info "Docker image details:"
-        docker images "$image_name" --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || docker images "$image_name"
-    else
-        log_error "Failed to build Docker image"
-        return 1
-    fi
-}
 
 main() {
     # Parse command line arguments
@@ -515,10 +451,6 @@ main() {
                 ;;
             --with-frontend)
                 BUILD_FRONTEND="true"
-                shift
-                ;;
-            --with-docker)
-                BUILD_DOCKER="true"
                 shift
                 ;;
             --clean)
@@ -560,7 +492,6 @@ main() {
     log_info "Platform: $platform"
     log_info "Rust Target: $rust_target"
     log_info "Build Frontend: $BUILD_FRONTEND"
-    log_info "Build Docker: $BUILD_DOCKER"
     log_info "Output Directory: $OUTPUT_DIR"
     echo
 
@@ -585,33 +516,16 @@ main() {
         exit 1
     fi
 
-    # Create package (skip if only building Docker)
-    if [ "$BUILD_DOCKER" != "true" ] || [ "$BUILD_FRONTEND" = "true" ]; then
-        create_package "$VERSION" "$platform" "$rust_target"
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-    fi
-
-    # Build Docker image if requested
-    if [ "$BUILD_DOCKER" = "true" ]; then
-        build_docker_image "$VERSION"
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
+    # Create package
+    create_package "$VERSION" "$platform" "$rust_target"
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
 
     # Show completion message
     echo
     log_success "Build completed successfully!"
-    
-    if [ "$BUILD_DOCKER" != "true" ] || [ "$BUILD_FRONTEND" = "true" ]; then
-        log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$platform.tar.gz"
-    fi
-    
-    if [ "$BUILD_DOCKER" = "true" ]; then
-        log_info "Docker image created: robustmq/robustmq:$VERSION"
-    fi
+    log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$platform.tar.gz"
 }
 
 # Run main function

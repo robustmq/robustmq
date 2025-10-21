@@ -23,6 +23,7 @@ export const sidebar = [
         text: "QuickGuide",
         collapsed: true,
         items: [
+            { text: "Quick Install", link: "/en/QuickGuide/Quick-Install" },
             { text: "Public Server", link: "/en/QuickGuide/PublicMqttServer" },
             { text: "Experience RobustMQ MQTT", link: "/en/QuickGuide/Experience-MQTT" },
         ],

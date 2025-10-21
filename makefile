@@ -8,24 +8,13 @@ VERSION := $(shell grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
 dev: ## Run broker-server in development mode
 	cargo run --package cmd --bin broker-server
 
-.PHONY: fmt
-fmt: ## Format code with rustfmt
-	cargo fmt --all
-
-.PHONY: check
-check: ## Quick compilation check
-	cargo check --workspace
-
-.PHONY: clippy
-clippy: ## Run clippy linter
-	cargo clippy --workspace --all-targets --tests -- -D warnings
-
 .PHONY: codecheck
-codecheck: ## Run all code quality checks (format, clippy, license)
+codecheck: ## Run all code quality checks (format, check, clippy, license)
 	@echo "Running code quality checks..."
 	hawkeye format
 	cargo fmt --all
 	cargo fmt --all -- --check
+	cargo check --workspace
 	cargo clippy --workspace --all-targets --tests -- -D warnings
 	cargo-deny check licenses
 	@echo "✅ All checks passed!"
@@ -36,16 +25,95 @@ doc: ## Generate documentation
 
 ##@ Build
 .PHONY: build
-build: ## Build debug version for local development
-	cargo build --workspace
+build: ## Build current platform package (basic build without frontend)
+	@echo "Building current platform package..."
+	./scripts/build.sh
 
-.PHONY: build-release
-build-release: ## Build optimized release version
-	cargo build --workspace --release
+.PHONY: build-full
+build-full: ## Build complete package with frontend (auto-clone frontend repo, build web UI, create tarball)
+	@echo "Building complete package with frontend..."
+	@echo "This will:"
+	@echo "  • Clone robustmq-copilot frontend repository"
+	@echo "  • Build web UI with pnpm"
+	@echo "  • Compile Rust binaries in release mode"
+	@echo "  • Create package: build/robustmq-{version}-{platform}.tar.gz"
+	./scripts/build.sh --with-frontend
 
-.PHONY: build-server
-build-server: ## Build broker-server binary
-	cargo build --package cmd --bin broker-server --release
+.PHONY: build-version
+build-version: ## Build package with specific version (usage: make build-version VERSION=v0.1.30)
+	@echo "Building package with version: $(VERSION)"
+	./scripts/build.sh --version $(VERSION)
+
+.PHONY: build-clean
+build-clean: ## Clean build directory and rebuild package (removes all build artifacts first)
+	@echo "Cleaning and rebuilding package..."
+	@echo "This will:"
+	@echo "  • Remove build/ directory completely"
+	@echo "  • Rebuild everything from scratch"
+	@echo "  • Create package: build/robustmq-{version}-{platform}.tar.gz"
+	./scripts/build.sh --clean
+
+##@ Docker
+.PHONY: docker-deps
+docker-deps: ## Build and push dependency base image to GHCR (for CI/CD optimization)
+	@echo "Building dependency base image..."
+	@echo "This will:"
+	@echo "  • Build Rust dependency cache image (~8-10GB)"
+	@echo "  • Push to ghcr.io/socutes/robustmq/rust-deps:latest"
+	@echo "  • Requires Docker and GHCR login"
+	@echo "  • Takes 20-40 minutes on first build"
+	./scripts/build-and-push-deps.sh
+
+.PHONY: docker-deps-tag
+docker-deps-tag: ## Build and push dependency image with specific tag (usage: make docker-deps-tag TAG=2025-10-20)
+	@echo "Building dependency image with tag: $(TAG)"
+	./scripts/build-and-push-deps.sh $(TAG)
+
+.PHONY: docker-app
+docker-app: ## Build and push application image to registry (requires ARGS parameter)
+	@echo "Building application image..."
+	@echo "This will:"
+	@echo "  • Build RobustMQ application Docker image"
+	@echo "  • Push to specified registry (GHCR or Docker Hub)"
+	@echo "  • Usage: make docker-app ARGS='--org yourorg --version 0.2.0'"
+	@echo "  • Example: make docker-app ARGS='--org socutes --version 0.2.0 --registry ghcr'"
+	./scripts/build-and-push-app.sh $(ARGS)
+
+.PHONY: docker-app-ghcr
+docker-app-ghcr: ## Build and push application image to GHCR (usage: make docker-app-ghcr ORG=yourorg VERSION=0.2.0)
+	@echo "Building application image for GHCR..."
+	./scripts/build-and-push-app.sh --org $(ORG) --version $(VERSION) --registry ghcr --push-latest
+
+.PHONY: docker-app-dockerhub
+docker-app-dockerhub: ## Build and push application image to Docker Hub (usage: make docker-app-dockerhub ORG=yourorg VERSION=0.2.0)
+	@echo "Building application image for Docker Hub..."
+	./scripts/build-and-push-app.sh --org $(ORG) --version $(VERSION) --registry dockerhub
+
+##@ Release
+.PHONY: release
+release: ## Create new GitHub release and upload package
+	@echo "Creating new GitHub release..."
+	@echo "This will:"
+	@echo "  • Create GitHub release with current version"
+	@echo "  • Build and upload package for current platform"
+	@echo "  • Requires GITHUB_TOKEN environment variable"
+	./scripts/release.sh
+
+.PHONY: release-version
+release-version: ## Create new GitHub release with specific version (usage: make release-version VERSION=v0.1.30)
+	@echo "Creating GitHub release with version: $(VERSION)"
+	./scripts/release.sh --version $(VERSION)
+
+.PHONY: release-upload
+release-upload: ## Upload package to existing release (usage: make release-upload VERSION=v0.1.30)
+	@echo "Uploading package to existing release: $(VERSION)"
+	./scripts/release.sh --upload-only --version $(VERSION)
+
+##@ Install
+.PHONY: install
+install: ## Auto-download and install RobustMQ
+	@echo "Installing RobustMQ..."
+	./scripts/install.sh
 
 ##@ Test
 .PHONY: test
@@ -55,19 +123,10 @@ test: ## Run unit tests with cleanup
 		--exclude=robustmq-test \
 		--exclude=grpc-clients \
 		--filter-expr '!(test(meta) & package(storage-adapter))'
-	@$(MAKE) clean-test-artifacts
 
-.PHONY: test-all
-test-all: ## Run all tests including integration tests
-	@echo "Running all tests..."
-	cargo nextest run --workspace \
-		--filter-expr '!(test(meta) & package(storage-adapter))'
-	@$(MAKE) clean-test-artifacts
-
-.PHONY: mqtt-ig-test
-mqtt-ig-test: ## Run MQTT integration tests
-	/bin/bash ./scripts/mqtt-ig.sh
-	@$(MAKE) clean-test-artifacts
+.PHONY: ig-test
+ig-test: ## Run MQTT integration tests
+	/bin/bash ./scripts/ig-test.sh
 
 ##@ Clean
 .PHONY: clean
@@ -83,17 +142,6 @@ clean-light: ## Light clean (cache and test artifacts only)
 	@rm -rf target/debug/build
 	@find target -type f -name "*-????????????????" -delete 2>/dev/null || true
 	@echo "✅ Done!"
-
-.PHONY: clean-test-artifacts
-clean-test-artifacts: ## Clean test artifacts
-	@rm -rf target/nextest
-	@find target -type f -name "*-????????????????" -delete 2>/dev/null || true
-	@find target -name "*test*" -type f -delete 2>/dev/null || true
-
-##@ Install
-.PHONY: install
-install: ## Install RobustMQ binaries to system
-	/bin/bash scripts/install.sh
 
 ##@ Help
 .PHONY: help

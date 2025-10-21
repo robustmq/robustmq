@@ -97,16 +97,10 @@ FROM rust:1.90.0-bookworm
 
 WORKDIR /build
 
-# Install system dependencies (runtime + build tools)
+# Install only runtime dependencies (build tools already installed in builder stage)
 RUN apt-get update && apt-get install -y \
-    protobuf-compiler \
-    llvm \
-    libclang-dev \
-    cmake \
-    pkg-config \
-    libssl-dev \
-    clang \
-    lld \
+    ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install cargo tools

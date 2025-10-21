@@ -12,26 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "schema-register"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+# Grafana datasource configuration for Prometheus
+apiVersion: 1
 
-
-[dependencies]
-bytes.workspace = true
-axum.workspace = true
-thiserror.workspace = true
-common-base.workspace = true
-metadata-struct.workspace = true
-dashmap.workspace = true
-tokio.workspace = true
-tokio-util.workspace = true
-tracing.workspace = true
-futures.workspace = true
-valico.workspace = true
-serde_json.workspace = true
-apache-avro.workspace = true
-serde.workspace = true
-protofish.workspace = true
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      cacheLevel: 'High'
+      disableRecordingRules: false
+      incrementalQueryOverTimeWindow: 7d
+      queryTimeout: 60s
+      timeInterval: 15s

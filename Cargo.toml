@@ -91,7 +91,6 @@ prost = "0.13.2"
 prost-build = "0.13.2"
 prost-validate = { version = "0.2.6", features = ["derive"] }
 prost-validate-build = "0.2.6"
-protobuf = "3.7.1"
 protofish = "0.5.2"
 
 # ====================
@@ -194,7 +193,6 @@ ipnet = "2.3.0"
 reqwest = { version = "0.12.23", features = ["json"] }
 tempfile = "3.9.0"
 chrono = "0.4.41"
-chrono-tz = "0.10.3"
 bson = "2.9"
 strum = "0.27"
 strum_macros = "0.27"
@@ -203,12 +201,12 @@ os_info = "3.8.2"
 sysinfo = "0.29.10"
 local-ip-address = "0.6.1"
 num_cpus = "1.16"
+chrono-tz = "0.10.3"
 
 # ====================
 # Testing
 # ====================
 mockall = "0.13.1"
-googletest = "0.13.0"
 
 # ====================
 # Macro & Proc-Macro
@@ -297,8 +295,6 @@ opt-level = 3              # Maximum optimization
 strip = true               # Strip symbols to reduce binary size
 
 [profile.test]
-# Test profile - optimized for fast compilation and reduced disk usage
-inherits = "dev"
 opt-level = 0              # No optimization for faster test compilation
 debug = 1                  # Minimal debug info (line tables only)
 split-debuginfo = "unpacked"  # Reduce disk usage
@@ -311,6 +307,4 @@ opt-level = 2              # Moderate optimization for dependencies
 debug = false              # No debug info for dependencies
 
 [profile.bench]
-# Benchmark profile - similar to release but with debug info
-inherits = "release"
 debug = true               # Keep debug info for profiling

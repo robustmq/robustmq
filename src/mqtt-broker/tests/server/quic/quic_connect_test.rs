@@ -23,8 +23,6 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     use crate::server::quic::{client::QuicClient, quic_common::set_up};
-    use googletest::assert_that;
-    use googletest::matchers::eq;
     use protocol::mqtt::common::MqttPacket;
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
@@ -38,7 +36,7 @@ mod tests {
         let ip_client_addr = client.local_addr();
         tokio::spawn(async move {
             let conn = server.accept_connection().await.unwrap();
-            assert_that!(conn.remote_address(), eq(ip_client_addr));
+            assert_eq!(conn.remote_address(), ip_client_addr);
         });
 
         let connection = client.connect(ip_server_addr, "127.0.0.1");

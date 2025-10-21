@@ -11,32 +11,32 @@
 
 ## 运行 Broker
 
-### 1. 下载并解压二进制包
+### 1. 自动安装 RobustMQ
 
-首先，我们需要下载并解压 RobustMQ 的二进制包：
+使用自动安装脚本快速安装 RobustMQ：
 
 ```bash
-# 下载最新版本的二进制包（以 v1.0.0 为例）
-wget https://github.com/robustmq/robustmq/releases/download/v0.1.33/robustmq-v0.1.33-linux-amd64.tar.gz
+# 自动安装最新版本
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 
-# 解压二进制包
-tar -xzf robustmq-v0.1.33-linux-amd64.tar.gz
+# 或者安装特定版本
+VERSION=v0.1.35 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 
-# 进入解压后的目录
-cd robustmq-v0.1.33-linux-amd64
+# 或者使用 Make 命令（如果已克隆仓库）
+make install
 ```
 
 ### 2. 启动 RobustMQ Broker
 
 ```bash
 # 启动 Broker（使用默认配置）
-./bin/broker-server start
+broker-server start
 
 # 或者使用配置文件启动
-./bin/broker-server start config/server.toml
+broker-server start config/server.toml
 
 # 后台启动
-nohup ./bin/broker-server start > broker.log 2>&1 &
+nohup broker-server start > broker.log 2>&1 &
 ```
 
 ### 3. 验证 Broker 启动状态
@@ -52,15 +52,15 @@ Broker 启动成功后，您应该看到类似以下的输出：
 
 ### 4. 查看集群状态
 
-RobustMQ 提供了强大的命令行管理工具 `robust-ctl`，让我们来查看集群运行状态：
+RobustMQ 提供了强大的命令行管理工具 `cli-command`，让我们来查看集群运行状态：
 
 ```bash
 # 查看集群运行状态
-$ ./bin/robust-ctl status
+$ cli-command status
 
 🚀 Checking RobustMQ status...
 ✅ RobustMQ Status: Online
-📋 Version: RobustMQ 0.1.33
+📋 Version: RobustMQ 0.1.35
 🌐 Server: 127.0.0.1:8080
 ```
 现实如上信息，表示节点启动成功。
@@ -122,14 +122,14 @@ mqttx bench sub -h localhost -p 1883 -t "test/bench" -c 50
 
 ```bash
 # 终端 1: 启动 Broker
-./bin/broker-server start
+broker-server start
 ```
 
 ### 步骤 2: 查看集群配置
 
 ```bash
 # 终端 2: 查看集群状态
-./bin/robust-ctl status
+cli-command status
 ```
 
 ### 步骤 3: 订阅消息
