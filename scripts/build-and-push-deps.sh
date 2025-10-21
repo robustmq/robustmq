@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # ==============================================================================
 # RobustMQ Dependency Base Image Builder
 # ==============================================================================
@@ -56,19 +70,19 @@ log_error() {
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     # Check Docker
     if ! command -v docker &> /dev/null; then
         log_error "Docker is not installed"
         exit 1
     fi
-    
+
     # Check Docker daemon
     if ! docker info &> /dev/null; then
         log_error "Docker daemon is not running"
         exit 1
     fi
-    
+
     # Check disk space (need at least 20GB)
     local available_space
     available_space=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | sed 's/G//')
@@ -80,7 +94,7 @@ check_prerequisites() {
             exit 1
         fi
     fi
-    
+
     log_success "All prerequisites met"
 }
 
@@ -101,12 +115,12 @@ show_build_info() {
 build_image() {
     log_info "Building Docker image..."
     log_info "This may take 20-40 minutes on first build..."
-    
+
     cd "$PROJECT_ROOT"
-    
+
     local start_time
     start_time=$(date +%s)
-    
+
     # Build with buildkit for better caching
     DOCKER_BUILDKIT=1 docker build \
         --file docker/Dockerfile.deps \
@@ -115,33 +129,33 @@ build_image() {
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         --progress=plain \
         .
-    
+
     local end_time
     end_time=$(date +%s)
     local duration=$((end_time - start_time))
-    
+
     log_success "Build completed in ${duration} seconds ($((duration / 60)) minutes)"
 }
 
 # Show image information
 show_image_info() {
     log_info "Image information:"
-    
+
     local image_size
     image_size=$(docker images "${FULL_IMAGE}" --format "{{.Size}}")
     echo "  Size: ${image_size}"
-    
+
     local image_id
     image_id=$(docker images "${FULL_IMAGE}" --format "{{.ID}}")
     echo "  ID:   ${image_id}"
-    
+
     echo ""
 }
 
 # Test the image
 test_image() {
     log_info "Testing image..."
-    
+
     # Quick smoke test
     if docker run --rm "${FULL_IMAGE}" bash -c "cargo --version && cargo nextest --version"; then
         log_success "Image test passed"
@@ -154,7 +168,7 @@ test_image() {
 # Push to registry
 push_image() {
     log_info "Pushing to GitHub Container Registry..."
-    
+
     # Push versioned tag
     if docker push "${FULL_IMAGE}"; then
         log_success "Pushed ${FULL_IMAGE}"
@@ -163,7 +177,7 @@ push_image() {
         log_warning "Make sure you're logged in: echo \$GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin"
         exit 1
     fi
-    
+
     # Also push 'latest' if building a specific version
     if [ "$TAG" != "latest" ]; then
         if docker push "${IMAGE_BASE}:latest"; then
@@ -226,4 +240,3 @@ trap 'log_error "Build interrupted by user"; exit 130' INT
 
 # Run main function
 main "$@"
-

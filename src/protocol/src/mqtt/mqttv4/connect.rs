@@ -15,20 +15,42 @@
 use super::*;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
-fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
+const MQTT_CONTROL_PACKET_TYPE_CONNECT: u8 = 0b0001_0000;
+const MQTT_PROTOCOL_VERSION_3_1_1: u8 = 0b0000_0100;
+const MQTT_LENGTH_MSB: usize = 1;
+const MQTT_LENGTH_LSB: usize = 1;
+const MQTT_PROTOCOL_NAME_DESCRIPTION_LENGTH: usize = MQTT_LENGTH_MSB + MQTT_LENGTH_LSB;
+const MQTT_PROTOCOL_NAME_LENGTH: usize = "MQTT".len();
+const MQTT_CONNECT_PROTOCOL_LEVEL_LENGTH: usize = 1;
+const MQTT_CONNECT_ACKNOWLEDGE_FLAGS_LENGTH: usize = 1;
+const MQTT_KEEP_ALIVE_DESCRIPTION_LENGTH: usize = 2;
+
+fn remaining_length(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
+    variable_header_length() + payload_length(connect, login, will)
+}
+
+fn variable_header_length() -> usize {
     /*
      * len is the variable header length which consists of four fields in the following order:
      * Protocol Name, Protocol Version, Connect Flags, and Keep Alive.
      * The first 2 bytes means MSB (the 1st one 0x0) and LSB (the 2nd one 0x4 - 4bytes means the length of "MQTT").
      * The 3rd byte to the 6th one are fixed with MQTT, which illustrates the protocol is MQTT
      */
-    let mut len = 2 + "MQTT".len()      // protocol name
-                              + 1       // protocol version
-                              + 1       // connect flags
-                              + 2; // keep alive
+    MQTT_PROTOCOL_NAME_DESCRIPTION_LENGTH
+        + MQTT_PROTOCOL_NAME_LENGTH
+        + MQTT_CONNECT_PROTOCOL_LEVEL_LENGTH
+        + MQTT_CONNECT_ACKNOWLEDGE_FLAGS_LENGTH
+        + MQTT_KEEP_ALIVE_DESCRIPTION_LENGTH
+}
 
-    //check later what the following 2 bytes mean for client id, for length?
-    len += 2 + connect.client_id.len(); // client id length is mandatory and resides at the very beginning of payload
+fn payload_length(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
+    let mut len = 0;
+
+    //  check later what the following 2 bytes mean for client id, for length?
+    // client id length is mandatory and resides at the very beginning of payload
+    len += MQTT_LENGTH_MSB;
+    len += MQTT_LENGTH_LSB;
+    len += connect.client_id.len();
 
     // last will length
     if let Some(w) = will {
@@ -86,15 +108,16 @@ pub fn write(
     will: &Option<LastWill>,
     buffer: &mut BytesMut,
 ) -> Result<usize, MQTTProtocolError> {
-    let len = self::len(connect, login, will);
-    let fix_header = 0b0001_0000;
-    buffer.put_u8(fix_header); // fixheader byte1 0x10
+    // fixed header
+    buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT); // fixheader byte1 0x10
+    let len = remaining_length(connect, login, will);
+
     let count = write_remaining_length(buffer, len)?;
+
+    // variable header
     write_mqtt_string(buffer, "MQTT");
-
-    buffer.put_u8(0x04);
+    buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
     let flags_index = 1 + count + 2 + 4 + 1;
-
     let mut connect_flags = 0;
     if connect.clean_session {
         connect_flags |= 0x02;
@@ -118,13 +141,18 @@ pub fn write(
 }
 
 pub mod will {
-
     use super::*;
 
     pub fn len(will: &LastWill) -> usize {
         let mut len = 0;
         //check later what the following 2 bytes mean for will topic and message, for length?
-        len += 2 + will.topic.len() + 2 + will.message.len();
+
+        len += MQTT_LENGTH_MSB + MQTT_LENGTH_LSB; // will topic length
+        len += will.topic.len();
+
+        len += MQTT_LENGTH_MSB + MQTT_LENGTH_LSB; // will message length
+        len += will.message.len();
+
         len
     }
 
@@ -174,7 +202,6 @@ pub mod will {
 }
 
 pub mod login {
-
     use super::*;
 
     pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, MQTTProtocolError> {
@@ -205,11 +232,15 @@ pub mod login {
         let mut len = 0;
 
         if !login.username.is_empty() {
-            len += 2 + login.username.len();
+            len += MQTT_LENGTH_MSB;
+            len += MQTT_LENGTH_LSB;
+            len += login.username.len();
         }
 
         if !login.password.is_empty() {
-            len += 2 + login.password.len();
+            len += MQTT_LENGTH_MSB;
+            len += MQTT_LENGTH_LSB;
+            len += login.password.len();
         }
 
         len
@@ -237,6 +268,55 @@ pub mod login {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    // test fixed header, variable header and payload for connect packet
+    #[tokio::test]
+    async fn test_connect_fixed_header_length() {
+        let connect = Connect {
+            keep_alive: 0,
+            client_id: "test_id".to_string(),
+            clean_session: false,
+        };
+
+        let mut buffer = BytesMut::new();
+
+        write(&connect, &None, &None, &mut buffer).unwrap();
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+
+        // connect packet type
+        assert_eq!(fixed_header.byte1, 0b0001_0000);
+        // fixed header length
+        assert_eq!(fixed_header.fixed_header_len, 2);
+        // remaining length
+        assert_eq!(
+            fixed_header.remaining_len,
+            variable_header_length() + 2 + connect.client_id.len()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_connect_variable_header() {
+        let connect = Connect {
+            keep_alive: 0,
+            client_id: "test_id".to_string(),
+            clean_session: false,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connect, &None, &None, &mut buffer).unwrap();
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (protocol_level, connect, login, lass_will) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+
+        assert_eq!(protocol_level, MQTT_PROTOCOL_VERSION_3_1_1); // protocol level
+        assert_eq!(connect.keep_alive, connect.keep_alive);
+        assert_eq!(connect.client_id, connect.client_id);
+        assert_eq!(connect.clean_session, connect.clean_session);
+        assert!(login.is_none());
+        assert!(lass_will.is_none());
+    }
 
     #[test]
     fn test_connect() {
