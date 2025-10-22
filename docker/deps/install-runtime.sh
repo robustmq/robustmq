@@ -53,18 +53,12 @@ try_install() {
 # Define packages to install
 PACKAGES="ca-certificates curl clang lld libclang-dev"
 
-# Try with official Debian repository first
-echo "Trying with official Debian repository..."
-if apt-get update && apt-get install -y $PACKAGES; then
-    echo "Successfully installed with official Debian repository"
-    exit 0
-fi
-
 # Try with multiple mirrors in order of reliability (lowest load first)
 try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
 try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || \
-try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || {
-    echo "All stable mirrors failed!"
+try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || \
+try_install "Official" "deb.debian.org" "$PACKAGES" || {
+    echo "All mirrors failed!"
     echo "Please check your network connection and try again."
     exit 1
 }
