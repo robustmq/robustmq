@@ -94,15 +94,44 @@ jobs:
           if [ -d "/build/target" ]; then
             echo "✅ Found pre-compiled dependencies!"
             du -sh /build/target 2>/dev/null || echo "N/A"
+            echo "🔍 Checking for compiled crates:"
+            find /build/target -name "*.rlib" | wc -l | xargs echo "Compiled libraries:"
+            find /build/target -name "*.rmeta" | wc -l | xargs echo "Metadata files:"
           else
             echo "⚠️ No dependency cache (will compile from scratch)"
+          fi
+          echo ""
+          echo "📋 Environment variables:"
+          echo "CARGO_TARGET_DIR: $CARGO_TARGET_DIR"
+          echo "CARGO_INCREMENTAL: $CARGO_INCREMENTAL"
+
+      - name: Verify cache usage
+        run: |
+          echo "🔍 Verifying cache usage..."
+          if [ -d "/build/target" ]; then
+            echo "📊 Cache statistics before build:"
+            du -sh /build/target 2>/dev/null || echo "Cache size: N/A"
+            echo "📦 Cached dependencies count:"
+            find /build/target -name "*.rlib" | wc -l | xargs echo "Libraries:"
+            find /build/target -name "*.rmeta" | wc -l | xargs echo "Metadata:"
           fi
 
       - name: Build broker-server
         run: |
           echo "🔨 Building broker-server in release mode..."
+          echo "📋 Build environment:"
+          echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR"
+          echo "  CARGO_INCREMENTAL: $CARGO_INCREMENTAL"
+          echo "  CARGO_BUILD_JOBS: $CARGO_BUILD_JOBS"
+          echo ""
           cargo build --release --package cmd --bin broker-server
           echo "✅ Build complete"
+          
+          # Show cache usage after build
+          if [ -d "/build/target" ]; then
+            echo "📊 Cache statistics after build:"
+            du -sh /build/target 2>/dev/null || echo "Cache size: N/A"
+          fi
           df -h
 
       - name: Start broker-server
