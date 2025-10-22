@@ -18,7 +18,7 @@
 # ============================================================================
 #
 # Purpose:
-#   Build the RobustMQ application Docker image (docker/Dockerfile) and push
+#   Build the RobustMQ application Docker image (docker/robustmq/Dockerfile) and push
 #   it to a container registry (GHCR or Docker Hub).
 #
 # Prerequisites:
@@ -158,7 +158,7 @@ IMAGE_LOCAL="${NAME}:${VERSION}"
 IMAGE_REMOTE="${REG_PREFIX}/${NAME}:${VERSION}"
 
 log "Project root: $PROJECT_ROOT"
-log "Dockerfile:   docker/Dockerfile"
+log "Dockerfile:   docker/robustmq/Dockerfile"
 log "Registry:     $REGISTRY"
 log "Image name:   $IMAGE_REMOTE"
 if [[ -n "$TARGET_STAGE" ]]; then log "Target stage:  $TARGET_STAGE"; fi
@@ -169,9 +169,9 @@ cd "$PROJECT_ROOT"
 # Build step
 log "Building image... this could take a few minutes"
 
-BUILD_ARGS=( -f docker/Dockerfile -t "$IMAGE_LOCAL" . )
+BUILD_ARGS=( -f docker/robustmq/Dockerfile -t "$IMAGE_LOCAL" . )
 if [[ -n "$TARGET_STAGE" ]]; then
-    BUILD_ARGS=( -f docker/Dockerfile --target "$TARGET_STAGE" -t "$IMAGE_LOCAL" . )
+    BUILD_ARGS=( -f docker/robustmq/Dockerfile --target "$TARGET_STAGE" -t "$IMAGE_LOCAL" . )
 fi
 
 if [[ -n "$PLATFORM" ]]; then

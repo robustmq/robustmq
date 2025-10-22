@@ -18,6 +18,7 @@
 # ==============================================================================
 # Stage 1: Planner - Generate dependency recipe using cargo-chef
 # ==============================================================================
+# Use a more stable base image with fallback
 FROM rust:1.90.0-bookworm AS planner
 
 WORKDIR /build
@@ -61,54 +62,12 @@ FROM rust:1.90.0-bookworm AS builder
 
 WORKDIR /build
 
-# Install system dependencies with mirror fallback
-RUN apt-get update && \
-    apt-get install -y \
-        protobuf-compiler \
-        llvm \
-        libclang-dev \
-        cmake \
-        pkg-config \
-        libssl-dev \
-        clang \
-        lld \
-    || (echo "Retrying with Aliyun mirror..." && \
-        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            protobuf-compiler \
-            llvm \
-            libclang-dev \
-            cmake \
-            pkg-config \
-            libssl-dev \
-            clang \
-            lld) \
-    || (echo "Retrying with Tsinghua mirror..." && \
-        sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            protobuf-compiler \
-            llvm \
-            libclang-dev \
-            cmake \
-            pkg-config \
-            libssl-dev \
-            clang \
-            lld) \
-    || (echo "Retrying with USTC mirror..." && \
-        sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            protobuf-compiler \
-            llvm \
-            libclang-dev \
-            cmake \
-            pkg-config \
-            libssl-dev \
-            clang \
-            lld) && \
-    rm -rf /var/lib/apt/lists/*
+# Copy and run install script
+COPY docker/deps/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh && \
+    /tmp/install-deps.sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /tmp/install-deps.sh
 
 # Install cargo tools
 RUN cargo install sccache cargo-nextest cargo-chef --locked
@@ -134,30 +93,12 @@ FROM rust:1.90.0-bookworm
 
 WORKDIR /build
 
-# Install only runtime dependencies with mirror fallback
-RUN apt-get update && \
-    apt-get install -y \
-        ca-certificates \
-        curl \
-    || (echo "Retrying with Aliyun mirror..." && \
-        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            ca-certificates \
-            curl) \
-    || (echo "Retrying with Tsinghua mirror..." && \
-        sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            ca-certificates \
-            curl) \
-    || (echo "Retrying with USTC mirror..." && \
-        sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            ca-certificates \
-            curl) && \
-    rm -rf /var/lib/apt/lists/*
+# Copy and run runtime install script
+COPY docker/deps/install-runtime.sh /tmp/install-runtime.sh
+RUN chmod +x /tmp/install-runtime.sh && \
+    /tmp/install-runtime.sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /tmp/install-runtime.sh
 
 # Install cargo tools
 RUN cargo install cargo-nextest --locked

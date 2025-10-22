@@ -118,7 +118,7 @@ show_build_info() {
     echo ""
 }
 
-# Build the image
+# Build the image with retry mechanism
 build_image() {
     log_info "Building Docker image..."
     log_info "This may take 20-40 minutes on first build..."
@@ -128,20 +128,37 @@ build_image() {
     local start_time
     start_time=$(date +%s)
     
-    # Build with buildkit for better caching
-    DOCKER_BUILDKIT=1 docker build \
-        --file docker/Dockerfile.deps \
-        --tag "${FULL_IMAGE}" \
-        --tag "${IMAGE_BASE}:latest" \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        --progress=plain \
-        .
+    # Build with retry mechanism
+    local max_retries=3
+    local retry_count=0
     
-    local end_time
-    end_time=$(date +%s)
-    local duration=$((end_time - start_time))
+    while [ $retry_count -lt $max_retries ]; do
+        log_info "Building attempt $((retry_count + 1))/$max_retries..."
+        
+        if DOCKER_BUILDKIT=1 docker build \
+            --file docker/deps/Dockerfile.deps \
+            --tag "${FULL_IMAGE}" \
+            --tag "${IMAGE_BASE}:latest" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --progress=plain \
+            .; then
+            local end_time
+            end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+            log_success "Build completed in ${duration} seconds ($((duration / 60)) minutes)"
+            return 0
+        else
+            log_warning "Build attempt $((retry_count + 1)) failed"
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_info "Retrying in 10 seconds..."
+                sleep 10
+            fi
+        fi
+    done
     
-    log_success "Build completed in ${duration} seconds ($((duration / 60)) minutes)"
+    log_error "Build failed after $max_retries attempts"
+    exit 1
 }
 
 # Show image information
@@ -231,10 +248,21 @@ ${BLUE}💡 Tip:${NC} Add this to your calendar for monthly builds!
 EOF
 }
 
+# Pre-build check
+pre_build_check() {
+    log_info "Running pre-build checks..."
+    if ! ./scripts/pre-build-check.sh; then
+        log_error "Pre-build check failed"
+        exit 1
+    fi
+    log_success "Pre-build checks passed"
+}
+
 # Main execution
 main() {
     show_build_info
     check_prerequisites
+    pre_build_check
     build_image
     show_image_info
     test_image
