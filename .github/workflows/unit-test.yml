@@ -55,8 +55,9 @@ jobs:
             packages: "-p protocol -p network-server -p rocksdb-engine"
     container:
       # 🚀 Use manually-maintained pre-built image with all dependencies!
-      # Built from: docker/Dockerfile.deps
-      # See docker/README.md for maintenance guide
+      # Built from: docker/Dockerfile.deps (offline build)
+      # To build: make docker-deps
+      # Image must be manually pushed to ghcr.io/socutes/robustmq/rust-deps:latest
       image: ghcr.io/socutes/robustmq/rust-deps:latest
       options: --user root
       credentials:
@@ -71,6 +72,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Verify cache image exists
+        run: |
+          echo "🔍 Checking if cache image exists..."
+          if docker pull ghcr.io/socutes/robustmq/rust-deps:latest 2>/dev/null; then
+            echo "✅ Cache image found and pulled successfully"
+          else
+            echo "❌ Cache image not found!"
+            echo "Please build and push the cache image manually:"
+            echo "  1. Run: make docker-deps"
+            echo "  2. Push to: ghcr.io/socutes/robustmq/rust-deps:latest"
+            exit 1
+          fi
 
       - name: Show dependency cache status
         run: |
