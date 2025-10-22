@@ -1,26 +1,26 @@
 # RobustMQ Dependency Cache Image
 
-这个目录包含用于构建 Rust 依赖缓存镜像的所有文件。
+This directory contains all files for building the Rust dependency cache image.
 
-## 文件说明
+## Files
 
-- `Dockerfile.deps` - 主要的依赖缓存镜像构建文件
-- `install-deps.sh` - 系统依赖安装脚本（带镜像源回退）
-- `install-runtime.sh` - 运行时依赖安装脚本（带镜像源回退）
+- `Dockerfile.deps` - Main dependency cache image build file
+- `install-deps.sh` - System dependency installation script (with mirror fallback)
+- `install-runtime.sh` - Runtime dependency installation script (with mirror fallback)
 
-## 用途
+## Purpose
 
-这个镜像用于加速 CI/CD 构建过程，包含所有预编译的 Rust 依赖项。
+This image is used to accelerate CI/CD build processes, containing all pre-compiled Rust dependencies.
 
-## 构建命令
+## Build Command
 
 ```bash
 make docker-deps
 ```
 
-## 镜像信息
+## Image Information
 
-- **镜像名称**: `ghcr.io/socutes/robustmq/rust-deps:latest`
-- **大小**: ~8-10GB
-- **构建时间**: 20-40 分钟（首次）
-- **包含**: 864 个预编译依赖项
+- **Image Name**: `ghcr.io/socutes/robustmq/rust-deps:latest`
+- **Size**: ~8-10GB
+- **Build Time**: 20-40 minutes (first time)
+- **Contains**: 864 pre-compiled dependencies

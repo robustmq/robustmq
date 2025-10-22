@@ -1,31 +1,54 @@
 # RobustMQ Application Image
 
-这个目录包含用于构建 RobustMQ 应用镜像的所有文件。
+This directory contains all files for building the RobustMQ application image, including the application image and monitoring configuration.
 
-## 文件说明
+## Files
 
-- `Dockerfile` - 主要的应用镜像构建文件
-- `docker-compose.yml` - 本地开发环境配置
+- `Dockerfile` - Main application image build file
+- `docker-compose.yml` - Local development environment configuration
+- `monitoring/` - Monitoring configuration directory
+  - `prometheus.yml` - Prometheus configuration
+  - `grafana/` - Grafana dashboards and configuration
 
-## 用途
+## Purpose
 
-这个镜像用于部署 RobustMQ 应用程序，包含完整的运行时环境。
+This directory is used to deploy RobustMQ applications, containing a complete runtime environment and monitoring stack.
 
-## 构建命令
+## Build Commands
 
 ```bash
-# 构建并推送到 GHCR
+# Build and push to GHCR
 make docker-app-ghcr ORG=yourorg VERSION=0.2.0
 
-# 构建并推送到 Docker Hub
+# Build and push to Docker Hub
 make docker-app-dockerhub ORG=yourorg VERSION=0.2.0
 
-# 自定义构建
+# Custom build
 make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'
 ```
 
-## 镜像信息
+## Deployment Commands
 
-- **多阶段构建**: meta-service, mqtt-broker, admin-server
-- **支持平台**: linux/amd64, linux/arm64
-- **注册表**: GHCR 或 Docker Hub
+```bash
+# Start RobustMQ (basic mode)
+docker-compose up -d
+
+# Start RobustMQ + monitoring
+docker-compose --profile monitoring up -d
+
+# Start microservices mode
+docker-compose --profile microservices up -d
+```
+
+## Monitoring Access
+
+- **RobustMQ Admin**: http://localhost:8080
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3000 (admin/admin)
+
+## Image Information
+
+- **Multi-stage build**: meta-service, mqtt-broker, admin-server
+- **Supported platforms**: linux/amd64, linux/arm64
+- **Registry**: GHCR or Docker Hub
+- **Monitoring stack**: Prometheus + Grafana + Jaeger
