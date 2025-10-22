@@ -273,23 +273,27 @@ set_package_visibility() {
     local package_name="rust-deps"
     local org_name="robustmq"
     
-    # Use GitHub API to set package visibility to public
-    local api_url="https://api.github.com/orgs/${org_name}/packages/container/${package_name}"
-    
     log_info "Making package public: ${package_name}"
+    log_warning "API call may fail due to GitHub API limitations"
+    log_info "Manual setup required:"
+    log_info "1. Visit: https://github.com/users/${org_name}/packages/container/package/${org_name}%2F${package_name}"
+    log_info "2. Click 'Package settings'"
+    log_info "3. Change visibility to 'Public'"
+    log_info "4. Confirm the change"
+    
+    # Try API call but don't fail if it doesn't work
+    local api_url="https://api.github.com/user/packages/container/${org_name}%2F${package_name}"
     
     if curl -s -X PATCH \
         -H "Accept: application/vnd.github+json" \
         -H "Authorization: Bearer $GITHUB_TOKEN" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
         "$api_url" \
-        -d '{"visibility":"public"}' > /dev/null; then
-        log_success "Package ${package_name} is now public"
-        log_info "Package URL: https://github.com/orgs/${org_name}/packages/container/${package_name}"
+        -d '{"visibility":"public"}' > /dev/null 2>&1; then
+        log_success "Package ${package_name} is now public via API"
     else
-        log_warning "Failed to set package visibility to public"
-        log_info "You may need to set it manually at: https://github.com/orgs/${org_name}/packages/container/${package_name}"
-        log_info "Or the package might already be public"
+        log_warning "API call failed - manual setup required"
+        log_info "Please set the package to public manually using the URL above"
     fi
 }
 

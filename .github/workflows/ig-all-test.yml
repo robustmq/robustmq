@@ -90,12 +90,16 @@ jobs:
           df -h
           echo ""
           echo "🔍 Dependency cache status:"
+          echo "📦 Using image: ghcr.io/robustmq/robustmq/rust-deps:latest"
           if [ -d "/build/target" ]; then
             echo "✅ Found pre-compiled dependencies!"
             du -sh /build/target 2>/dev/null || echo "N/A"
           else
             echo "⚠️ No dependency cache"
           fi
+          echo ""
+          echo "💡 If cache is missing, ensure the package is public:"
+          echo "   https://github.com/users/robustmq/packages/container/package/robustmq%2Frust-deps"
 
       - name: Build broker-server
         run: |

@@ -81,6 +81,9 @@ jobs:
       - name: Verify cache image exists
         run: |
           echo "🔍 Checking if cache image exists..."
+          # Login to GHCR first
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
           if docker pull ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null; then
             echo "✅ Cache image found and pulled successfully"
           else
@@ -88,6 +91,7 @@ jobs:
             echo "Please build and push the cache image manually:"
             echo "  1. Run: make docker-deps"
             echo "  2. Push to: ghcr.io/robustmq/robustmq/rust-deps:latest"
+            echo "  3. Or check if the package is public at: https://github.com/users/robustmq/packages/container/package/robustmq%2Frust-deps"
             exit 1
           fi
 
