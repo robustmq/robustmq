@@ -61,17 +61,30 @@ FROM rust:1.90.0-bookworm AS builder
 
 WORKDIR /build
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    protobuf-compiler \
-    llvm \
-    libclang-dev \
-    cmake \
-    pkg-config \
-    libssl-dev \
-    clang \
-    lld \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies with retry mechanism
+RUN apt-get update && \
+    (apt-get install -y \
+        protobuf-compiler \
+        llvm \
+        libclang-dev \
+        cmake \
+        pkg-config \
+        libssl-dev \
+        clang \
+        lld \
+    || (echo "Retrying with different mirror..." && \
+        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+        apt-get update && \
+        apt-get install -y \
+            protobuf-compiler \
+            llvm \
+            libclang-dev \
+            cmake \
+            pkg-config \
+            libssl-dev \
+            clang \
+            lld)) && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install cargo tools
 RUN cargo install sccache cargo-nextest cargo-chef --locked
@@ -98,10 +111,17 @@ FROM rust:1.90.0-bookworm
 WORKDIR /build
 
 # Install only runtime dependencies (build tools already installed in builder stage)
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    (apt-get install -y \
+        ca-certificates \
+        curl \
+    || (echo "Retrying with different mirror..." && \
+        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+        apt-get update && \
+        apt-get install -y \
+            ca-certificates \
+            curl)) && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install cargo tools
 RUN cargo install cargo-nextest --locked
