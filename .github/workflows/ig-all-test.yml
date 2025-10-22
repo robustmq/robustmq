@@ -57,10 +57,10 @@ jobs:
             test-filter: "mqtt"
             test-packages: "--package robustmq-test"
     container:
-      # 🚀 Use manually-maintained pre-built image with all dependencies!
+      # 🚀 Use pre-built image with all dependencies for faster CI
       # Built from: docker/Dockerfile.deps
       # See docker/README.md for maintenance guide
-      image: ghcr.io/socutes/robustmq/rust-deps:latest
+      image: ghcr.io/robustmq/robustmq/rust-deps:latest
       options: --user root
       credentials:
         username: ${{ github.actor }}

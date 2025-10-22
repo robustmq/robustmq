@@ -39,8 +39,10 @@ RobustMQ 构建过程会生成以下类型的产物：
 
 | 命令 | 功能 | 版本来源 | 说明 |
 |------|------|----------|------|
-| `make docker-deps` | 构建依赖镜像 | 自动读取 Cargo.toml | 构建 CI/CD 依赖缓存镜像 |
+| `make docker-deps` | 构建依赖镜像 | 自动读取 Cargo.toml | 构建 CI/CD 依赖缓存镜像，自动推送到用户 GitHub 账户 |
 | `make docker-deps-tag TAG=2025-10-20` | 构建带标签依赖镜像 | 手动指定标签 | 构建指定标签的依赖镜像 |
+
+> **权限说明**：依赖镜像会自动推送到您的 GitHub Container Registry (`ghcr.io/{your-username}/robustmq/rust-deps`)，避免权限问题。
 
 ### 应用镜像
 
@@ -49,6 +51,27 @@ RobustMQ 构建过程会生成以下类型的产物：
 | `make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'` | 灵活应用镜像构建 | 手动指定 | 支持自定义参数的应用镜像构建 |
 | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | GHCR 应用镜像 | 手动指定 | 构建并推送到 GitHub Container Registry |
 | `make docker-app-dockerhub ORG=yourorg VERSION=0.2.0` | Docker Hub 应用镜像 | 手动指定 | 构建并推送到 Docker Hub |
+
+### Docker 目录结构
+
+```
+docker/
+├── deps/                    # 依赖镜像相关文件
+│   ├── Dockerfile.deps     # 依赖镜像 Dockerfile
+│   ├── install-deps.sh     # 系统依赖安装脚本
+│   ├── install-runtime.sh  # 运行时依赖安装脚本
+│   ├── .dockerignore       # 依赖镜像构建忽略文件
+│   └── README.md           # 依赖镜像说明文档
+└── robustmq/               # 应用镜像相关文件
+    ├── Dockerfile          # 应用镜像 Dockerfile
+    ├── docker-compose.yml  # 本地开发 Docker Compose
+    ├── monitoring/         # 监控配置
+    │   ├── prometheus.yml  # Prometheus 配置
+    │   ├── grafana/        # Grafana 配置
+    │   └── jaeger/         # Jaeger 配置
+    ├── .dockerignore       # 应用镜像构建忽略文件
+    └── README.md           # 应用镜像说明文档
+```
 
 ## 🚀 版本发布
 
@@ -61,9 +84,15 @@ RobustMQ 构建过程会生成以下类型的产物：
 ### 前置条件
 
 ```bash
-# 设置 GitHub Token
+# 设置 GitHub Token（必需）
 export GITHUB_TOKEN="your_github_token_here"
 ```
+
+> **权限说明**：
+> - 依赖镜像推送到固定的组织：`ghcr.io/robustmq/robustmq/rust-deps`
+> - 应用镜像推送到指定的组织或用户账户
+> - 确保您的 `GITHUB_TOKEN` 有 `write:packages` 权限
+> - 确保您有 `robustmq` 组织的写权限
 
 ## 📦 输出结果
 
@@ -74,7 +103,7 @@ export GITHUB_TOKEN="your_github_token_here"
 | **安装包** | `build/robustmq-{version}-{platform}.tar.gz` | 压缩的二进制安装包 | 用户下载安装 RobustMQ |
 | **包信息** | `build/robustmq-{version}-{platform}/package-info.txt` | 版本、平台、构建时间等元数据 | 了解包的详细信息 |
 | **Docker 镜像** | `robustmq/robustmq:{version}` | 容器化的 RobustMQ 应用 | Docker 部署和运行 |
-| **依赖镜像** | `ghcr.io/socutes/robustmq/rust-deps:latest` | Rust 依赖缓存镜像 | 加速 CI/CD 构建 |
+| **依赖镜像** | `ghcr.io/robustmq/robustmq/rust-deps:latest` | Rust 依赖缓存镜像 | 加速 CI/CD 构建，存储在 robustmq 组织下 |
 | **GitHub 发布** | `https://github.com/robustmq/robustmq/releases/tag/{version}` | 在线发布页面 | 用户下载和查看发布说明 |
 
 ### 安装包结构详解
@@ -95,11 +124,39 @@ export GITHUB_TOKEN="your_github_token_here"
 |------|------|------|------|
 | **开发测试** | `make build` | 本地 `.tar.gz` 安装包 | 快速构建测试包，用于本地开发和测试 |
 | **发布准备** | `make build-full` | 本地完整 `.tar.gz` 安装包 | 构建包含前端的完整发布包，用于正式发布 |
-| **CI/CD 优化** | `make docker-deps` | Docker 依赖缓存镜像 | 构建 Rust 依赖缓存镜像，加速 CI/CD 构建过程 |
+| **CI/CD 优化** | `make docker-deps` | Docker 依赖缓存镜像 | 构建 Rust 依赖缓存镜像，推送到 robustmq 组织，加速 CI/CD 构建过程 |
 | **应用部署** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker 应用镜像 | 构建并推送应用镜像到 GitHub Container Registry |
 | **版本发布** | `make release` | GitHub 发布页面 + 安装包 | 创建 GitHub 发布并上传安装包，用户可下载 |
 | **多平台发布** | `make release-upload VERSION=v0.1.31` | 更新 GitHub 发布 | 为现有 GitHub 发布添加当前平台的安装包 |
 
+
+## 🔧 Docker 构建改进
+
+### 权限问题修复
+
+**问题**：之前构建依赖镜像时可能遇到 `permission_denied: create_package` 错误。
+
+**解决方案**：
+- 使用固定的组织名称：`ghcr.io/robustmq/robustmq/rust-deps`
+- 统一镜像命名，便于 CI/CD 管理
+- 确保构建者有 robustmq 组织的写权限
+
+### 网络问题修复
+
+**问题**：构建过程中可能遇到网络连接问题（如 502 Bad Gateway）。
+
+**解决方案**：
+- 实现了多镜像源自动切换
+- 支持官方 Debian、阿里云、清华大学、中科大、163、华为云、腾讯云等镜像源
+- 自动重试机制，提高构建成功率
+
+### 构建优化
+
+**改进**：
+- 分离依赖镜像和应用镜像的构建逻辑
+- 优化 `.dockerignore` 文件，减少构建上下文
+- 添加预构建检查，确保基础镜像可用
+- 自动登录 GitHub Container Registry
 
 ## ⚠️ 注意事项
 
@@ -143,6 +200,15 @@ export GITHUB_TOKEN="your_github_token_here"
 | Docker 环境问题 | `docker info` | 启动 Docker 服务 |
 | 网络连接问题 | `ping github.com` | 检查网络连接 |
 
+### Docker 构建失败排查
+
+| 问题 | 检查命令 | 解决方案 |
+|------|----------|----------|
+| Docker 环境问题 | `docker info` | 启动 Docker 服务 |
+| 权限问题 | `echo $GITHUB_TOKEN` | 设置正确的 GitHub Token |
+| 网络连接问题 | `docker pull rust:1.90.0-bookworm` | 检查 Docker Hub 连接 |
+| 镜像推送失败 | `docker login ghcr.io` | 手动登录 GitHub Container Registry |
+
 ### 发布失败排查
 
 | 问题 | 检查命令 | 解决方案 |
@@ -159,3 +225,12 @@ export GITHUB_TOKEN="your_github_token_here"
 | 解压测试 | `tar -xzf build/robustmq-*.tar.gz` | 解压安装包 |
 | 测试二进制 | `./robustmq-*/libs/broker-server --help` | 测试可执行文件 |
 | 查看包信息 | `cat robustmq-*/package-info.txt` | 查看包详细信息 |
+
+### 查看 Docker 镜像
+
+| 操作 | 命令 | 说明 |
+|------|------|------|
+| 查看本地镜像 | `docker images | grep robustmq` | 查看本地构建的镜像 |
+| 查看依赖镜像 | `docker images | grep rust-deps` | 查看依赖缓存镜像 |
+| 测试镜像 | `docker run --rm ghcr.io/robustmq/robustmq/rust-deps:latest rustc --version` | 测试依赖镜像 |
+| 查看镜像历史 | `docker history ghcr.io/robustmq/robustmq/rust-deps:latest` | 查看镜像构建历史 |

@@ -54,11 +54,11 @@ jobs:
           - group: "Protocol & Network"
             packages: "-p protocol -p network-server -p rocksdb-engine"
     container:
-      # 🚀 Use manually-maintained pre-built image with all dependencies!
+      # 🚀 Use pre-built image with all dependencies for faster CI
       # Built from: docker/Dockerfile.deps (offline build)
       # To build: make docker-deps
-      # Image must be manually pushed to ghcr.io/socutes/robustmq/rust-deps:latest
-      image: ghcr.io/socutes/robustmq/rust-deps:latest
+      # Image must be manually pushed to ghcr.io/robustmq/robustmq/rust-deps:latest
+      image: ghcr.io/robustmq/robustmq/rust-deps:latest
       options: --user root
       credentials:
         username: ${{ github.actor }}
@@ -76,19 +76,19 @@ jobs:
       - name: Verify cache image exists
         run: |
           echo "🔍 Checking if cache image exists..."
-          if docker pull ghcr.io/socutes/robustmq/rust-deps:latest 2>/dev/null; then
+          if docker pull ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null; then
             echo "✅ Cache image found and pulled successfully"
           else
             echo "❌ Cache image not found!"
             echo "Please build and push the cache image manually:"
             echo "  1. Run: make docker-deps"
-            echo "  2. Push to: ghcr.io/socutes/robustmq/rust-deps:latest"
+            echo "  2. Push to: ghcr.io/robustmq/robustmq/rust-deps:latest"
             exit 1
           fi
 
       - name: Show dependency cache status
         run: |
-          echo "📦 Image: ghcr.io/socutes/robustmq/rust-deps:latest"
+          echo "📦 Image: ghcr.io/robustmq/robustmq/rust-deps:latest"
           echo "🔍 Checking pre-compiled dependencies..."
           if [ -d "/build/target" ]; then
             echo "✅ Found dependency cache!"

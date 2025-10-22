@@ -51,9 +51,8 @@ get_github_user() {
     fi
 }
 
-# Use user's GitHub username for package naming to avoid permission issues
-readonly GITHUB_USERNAME=$(get_github_user)
-readonly IMAGE_BASE="ghcr.io/${GITHUB_USERNAME}/robustmq/rust-deps"
+# Use fixed organization name for consistent CI/CD
+readonly IMAGE_BASE="ghcr.io/robustmq/robustmq/rust-deps"
 readonly TAG="${1:-latest}"
 readonly FULL_IMAGE="${IMAGE_BASE}:${TAG}"
 
@@ -166,9 +165,10 @@ auto_login_ghcr() {
     log_info "Checking repository permissions..."
     log_info "Using package: ${IMAGE_BASE}"
     
-    # Since we're using the user's own GitHub username, they should have permission
-    log_info "Package will be created under your GitHub account: $github_user"
-    log_info "Package URL: https://github.com/$github_user/robustmq/pkgs/container/rust-deps"
+    # Check if user has write access to the robustmq organization
+    log_info "Package will be created under: ghcr.io/robustmq/robustmq/rust-deps"
+    log_info "Package URL: https://github.com/robustmq/robustmq/pkgs/container/rust-deps"
+    log_warning "Ensure you have write access to the robustmq organization"
 }
 
 # Display build information
@@ -286,16 +286,12 @@ ${GREEN}🎉 Successfully built and pushed dependency image!${NC}
 
 ${BLUE}📋 Next Steps:${NC}
 
-1️⃣  Update GitHub Actions workflows to use your image:
+1️⃣  Update GitHub Actions workflows to use the image:
    container:
      image: ${FULL_IMAGE}
      credentials:
        username: \${{ github.actor }}
        password: \${{ secrets.GITHUB_TOKEN }}
-
-2️⃣  Or use the original image if you have access:
-   container:
-     image: ghcr.io/socutes/robustmq/rust-deps:latest
 
 3️⃣  Verify in CI that workflows use the new image
 
@@ -310,12 +306,12 @@ ${BLUE}📊 When to Rebuild:${NC}
 
 ${BLUE}🔖 Version Tags:${NC}
 
-Your Image:  ${FULL_IMAGE}
-Latest:      ${IMAGE_BASE}:latest
+Image:      ${FULL_IMAGE}
+Latest:     ${IMAGE_BASE}:latest
 
 ${BLUE}💡 Tips:${NC}
-- Your image is stored under your GitHub account
-- You can share this image with your team
+- Image is stored under the robustmq organization
+- Ensure you have write access to the organization
 - Add this to your calendar for monthly builds!
 
 EOF
