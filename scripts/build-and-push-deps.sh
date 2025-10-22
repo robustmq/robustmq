@@ -260,6 +260,37 @@ push_image() {
             log_warning "Failed to push latest tag (non-fatal)"
         fi
     fi
+    
+    # Set package visibility to public
+    set_package_visibility
+}
+
+# Set package visibility to public
+set_package_visibility() {
+    log_info "Setting package visibility to public..."
+    
+    # Extract package name from image
+    local package_name="rust-deps"
+    local org_name="robustmq"
+    
+    # Use GitHub API to set package visibility to public
+    local api_url="https://api.github.com/orgs/${org_name}/packages/container/${package_name}"
+    
+    log_info "Making package public: ${package_name}"
+    
+    if curl -s -X PATCH \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "$api_url" \
+        -d '{"visibility":"public"}' > /dev/null; then
+        log_success "Package ${package_name} is now public"
+        log_info "Package URL: https://github.com/orgs/${org_name}/packages/container/${package_name}"
+    else
+        log_warning "Failed to set package visibility to public"
+        log_info "You may need to set it manually at: https://github.com/orgs/${org_name}/packages/container/${package_name}"
+        log_info "Or the package might already be public"
+    fi
 }
 
 # Show usage instructions
@@ -295,6 +326,7 @@ Latest:     ${IMAGE_BASE}:latest
 
 ${BLUE}💡 Tips:${NC}
 - Image is stored under the robustmq organization
+- Package is automatically set to public for easy access
 - Ensure you have write access to the organization
 - Add this to your calendar for monthly builds!
 

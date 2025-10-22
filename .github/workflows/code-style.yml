@@ -34,6 +34,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Grant necessary permissions for package access
+permissions:
+  contents: read
+  packages: read
+
 env:
   CARGO_TERM_COLOR: always
 
