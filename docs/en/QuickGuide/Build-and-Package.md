@@ -39,8 +39,9 @@ RobustMQ build process generates the following types of artifacts:
 
 | Command | Function | Version Source | Description |
 |---------|----------|----------------|-------------|
-| `make docker-deps` | Build dependency image | Auto-read from Cargo.toml | Build CI/CD dependency cache image |
+| `make docker-deps` | Build dependency image | Auto-read from Cargo.toml | Build CI/CD dependency cache image, push to robustmq organization |
 | `make docker-deps-tag TAG=2025-10-20` | Build tagged dependency image | Manual tag specification | Build dependency image with specific tag |
+| `make docker-deps-force` | Force rebuild dependency image | Auto-read from Cargo.toml | Clean cache and force rebuild, ensure complete reconstruction |
 
 ### Application Image
 
@@ -101,6 +102,7 @@ export GITHUB_TOKEN="your_github_token_here"
 | **Development Testing** | `make build` | Local `.tar.gz` installation package | Quick build test package for local development and testing |
 | **Release Preparation** | `make build-full` | Local complete `.tar.gz` installation package | Build complete release package with frontend for official release |
 | **CI/CD Optimization** | `make docker-deps` | Docker dependency cache image | Build Rust dependency cache image, push to robustmq organization, accelerate CI/CD build process |
+| **Force Rebuild** | `make docker-deps-force` | Docker dependency cache image | Clean cache and force rebuild, resolve cache issues, ensure complete reconstruction |
 | **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry |
 | **Version Release** | `make release` | GitHub release page + installation package | Create GitHub release and upload installation package for user download |
 | **Multi-platform Release** | `make release-upload VERSION=v0.1.31` | Update GitHub release | Add current platform installation package to existing GitHub release |
@@ -132,6 +134,28 @@ export GITHUB_TOKEN="your_github_token_here"
 - Optimized `.dockerignore` files to reduce build context
 - Added pre-build checks to ensure base images are available
 - Automatic GitHub Container Registry login
+- Support for force rebuild to resolve cache issues
+
+### Force Rebuild
+
+**When to use**:
+- Dependency package cache is not working
+- Image build issues occur
+- Need to completely clean cache and rebuild
+
+**Usage methods**:
+```bash
+# Method 1: Use make target (recommended)
+make docker-deps-force
+
+# Method 2: Use script directly
+./scripts/build-and-push-deps.sh latest --no-cache
+
+# Method 3: Manual cleanup then build
+docker builder prune -f
+docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest
+make docker-deps
+```
 
 ## ⚠️ Notes
 

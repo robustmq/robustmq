@@ -143,24 +143,78 @@ auto_login_ghcr() {
         exit 1
     fi
     
-    # Get GitHub username from token for login
+    # Get GitHub username from token for login with retry
     local github_user
-    github_user=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
+    local max_retries=3
+    local retry_count=0
+    
+    while [ $retry_count -lt $max_retries ]; do
+        log_info "Getting GitHub username (attempt $((retry_count + 1))/$max_retries)..."
+        
+        # Try to get GitHub username with timeout and retry
+        local api_response
+        api_response=$(curl -s --connect-timeout 10 --max-time 30 \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user 2>/dev/null || echo "")
+        
+        if [ -n "$api_response" ]; then
+            github_user=$(echo "$api_response" | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
+            if [ -n "$github_user" ]; then
+                log_success "Got GitHub username: $github_user"
+                break
+            fi
+        fi
+        
+        log_warning "Failed to get GitHub username, retrying..."
+        retry_count=$((retry_count + 1))
+        if [ $retry_count -lt $max_retries ]; then
+            sleep 5
+        fi
+    done
+    
     if [ -z "$github_user" ]; then
-        log_warning "Could not determine GitHub username, using 'github'"
+        log_warning "Could not determine GitHub username after $max_retries attempts, using 'github'"
         github_user="github"
     fi
     
     log_info "Logging in to GHCR as $github_user..."
     
-    # Login to GHCR
-    if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$github_user" --password-stdin; then
-        log_success "Successfully logged in to GHCR"
-    else
-        log_error "Failed to login to GHCR"
-        log_info "Please check your GITHUB_TOKEN and try again"
-        exit 1
-    fi
+    # Login to GHCR with retry mechanism
+    retry_count=0
+    while [ $retry_count -lt $max_retries ]; do
+        log_info "Login attempt $((retry_count + 1))/$max_retries..."
+        
+        # Capture login output for better error reporting
+        local login_output
+        login_output=$(echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$github_user" --password-stdin 2>&1)
+        local login_exit_code=$?
+        
+        if [ $login_exit_code -eq 0 ]; then
+            log_success "Successfully logged in to GHCR"
+            return 0
+        else
+            log_warning "Login attempt $((retry_count + 1)) failed"
+            if [ $retry_count -eq 0 ]; then
+                # Show error details on first failure
+                log_info "Login error details: $login_output"
+            fi
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_info "Retrying in 10 seconds..."
+                sleep 10
+            fi
+        fi
+    done
+    
+    log_error "Failed to login to GHCR after $max_retries attempts"
+    log_info "Troubleshooting steps:"
+    log_info "1. Verify your GITHUB_TOKEN is valid and not expired"
+    log_info "2. Check network connection to ghcr.io"
+    log_info "3. Ensure token has 'write:packages' permission"
+    log_info "4. Try running: docker logout ghcr.io && docker login ghcr.io"
+    log_info "5. Check if you have access to the robustmq organization"
+    exit 1
     
     # Check if user has permission to push to the repository
     log_info "Checking repository permissions..."
@@ -354,6 +408,8 @@ ${BLUE}💡 Tips:${NC}
 - Package is automatically set to public for easy access
 - Ensure you have write access to the organization
 - Add this to your calendar for monthly builds!
+- GHCR login includes automatic retry logic (3 attempts)
+- Use --no-cache flag for force rebuild: ./scripts/build-and-push-deps.sh latest --no-cache
 
 EOF
 }

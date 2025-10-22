@@ -39,10 +39,11 @@ RobustMQ 构建过程会生成以下类型的产物：
 
 | 命令 | 功能 | 版本来源 | 说明 |
 |------|------|----------|------|
-| `make docker-deps` | 构建依赖镜像 | 自动读取 Cargo.toml | 构建 CI/CD 依赖缓存镜像，自动推送到用户 GitHub 账户 |
+| `make docker-deps` | 构建依赖镜像 | 自动读取 Cargo.toml | 构建 CI/CD 依赖缓存镜像，推送到 robustmq 组织 |
 | `make docker-deps-tag TAG=2025-10-20` | 构建带标签依赖镜像 | 手动指定标签 | 构建指定标签的依赖镜像 |
+| `make docker-deps-force` | 强制重新构建依赖镜像 | 自动读取 Cargo.toml | 清理缓存后强制重新构建，确保完全重建 |
 
-> **权限说明**：依赖镜像会自动推送到您的 GitHub Container Registry (`ghcr.io/{your-username}/robustmq/rust-deps`)，避免权限问题。
+> **权限说明**：依赖镜像推送到固定的组织：`ghcr.io/robustmq/robustmq/rust-deps`，确保您有 robustmq 组织的写权限。
 
 ### 应用镜像
 
@@ -125,6 +126,7 @@ export GITHUB_TOKEN="your_github_token_here"
 | **开发测试** | `make build` | 本地 `.tar.gz` 安装包 | 快速构建测试包，用于本地开发和测试 |
 | **发布准备** | `make build-full` | 本地完整 `.tar.gz` 安装包 | 构建包含前端的完整发布包，用于正式发布 |
 | **CI/CD 优化** | `make docker-deps` | Docker 依赖缓存镜像 | 构建 Rust 依赖缓存镜像，推送到 robustmq 组织，加速 CI/CD 构建过程 |
+| **强制重建** | `make docker-deps-force` | Docker 依赖缓存镜像 | 清理缓存后强制重新构建，解决缓存问题，确保完全重建 |
 | **应用部署** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker 应用镜像 | 构建并推送应用镜像到 GitHub Container Registry |
 | **版本发布** | `make release` | GitHub 发布页面 + 安装包 | 创建 GitHub 发布并上传安装包，用户可下载 |
 | **多平台发布** | `make release-upload VERSION=v0.1.31` | 更新 GitHub 发布 | 为现有 GitHub 发布添加当前平台的安装包 |
@@ -157,6 +159,28 @@ export GITHUB_TOKEN="your_github_token_here"
 - 优化 `.dockerignore` 文件，减少构建上下文
 - 添加预构建检查，确保基础镜像可用
 - 自动登录 GitHub Container Registry
+- 支持强制重新构建，解决缓存问题
+
+### 强制重新构建
+
+**何时使用**：
+- 依赖包缓存没有生效
+- 镜像构建出现问题
+- 需要完全清理缓存重新构建
+
+**使用方法**：
+```bash
+# 方法 1：使用 make 目标（推荐）
+make docker-deps-force
+
+# 方法 2：直接使用脚本
+./scripts/build-and-push-deps.sh latest --no-cache
+
+# 方法 3：手动清理后构建
+docker builder prune -f
+docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest
+make docker-deps
+```
 
 ## ⚠️ 注意事项
 
