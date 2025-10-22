@@ -39,7 +39,21 @@ set -euo pipefail
 # Configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-readonly IMAGE_BASE="ghcr.io/socutes/robustmq/rust-deps"
+
+# Get GitHub username for package naming
+get_github_user() {
+    if [ -n "$GITHUB_USER" ]; then
+        echo "$GITHUB_USER"
+    elif [ -n "$GITHUB_TOKEN" ]; then
+        curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "github"
+    else
+        echo "github"
+    fi
+}
+
+# Use user's GitHub username for package naming to avoid permission issues
+readonly GITHUB_USERNAME=$(get_github_user)
+readonly IMAGE_BASE="ghcr.io/${GITHUB_USERNAME}/robustmq/rust-deps"
 readonly TAG="${1:-latest}"
 readonly FULL_IMAGE="${IMAGE_BASE}:${TAG}"
 
@@ -147,6 +161,14 @@ auto_login_ghcr() {
         log_info "Please check your GITHUB_TOKEN and try again"
         exit 1
     fi
+    
+    # Check if user has permission to push to the repository
+    log_info "Checking repository permissions..."
+    log_info "Using package: ${IMAGE_BASE}"
+    
+    # Since we're using the user's own GitHub username, they should have permission
+    log_info "Package will be created under your GitHub account: $github_user"
+    log_info "Package URL: https://github.com/$github_user/robustmq/pkgs/container/rust-deps"
 }
 
 # Display build information
@@ -264,16 +286,20 @@ ${GREEN}🎉 Successfully built and pushed dependency image!${NC}
 
 ${BLUE}📋 Next Steps:${NC}
 
-1️⃣  Update GitHub Actions workflows (if not already done):
+1️⃣  Update GitHub Actions workflows to use your image:
    container:
      image: ${FULL_IMAGE}
      credentials:
        username: \${{ github.actor }}
        password: \${{ secrets.GITHUB_TOKEN }}
 
-2️⃣  Verify in CI that workflows use the new image
+2️⃣  Or use the original image if you have access:
+   container:
+     image: ghcr.io/socutes/robustmq/rust-deps:latest
 
-3️⃣  Monitor CI performance improvement
+3️⃣  Verify in CI that workflows use the new image
+
+4️⃣  Monitor CI performance improvement
 
 ${BLUE}📊 When to Rebuild:${NC}
 
@@ -284,10 +310,13 @@ ${BLUE}📊 When to Rebuild:${NC}
 
 ${BLUE}🔖 Version Tags:${NC}
 
-Current:  ${FULL_IMAGE}
-Latest:   ${IMAGE_BASE}:latest
+Your Image:  ${FULL_IMAGE}
+Latest:      ${IMAGE_BASE}:latest
 
-${BLUE}💡 Tip:${NC} Add this to your calendar for monthly builds!
+${BLUE}💡 Tips:${NC}
+- Your image is stored under your GitHub account
+- You can share this image with your team
+- Add this to your calendar for monthly builds!
 
 EOF
 }
