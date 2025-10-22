@@ -271,17 +271,20 @@ build_image() {
     while [ $retry_count -lt $max_retries ]; do
         log_info "Building attempt $((retry_count + 1))/$max_retries..."
         
-        # Capture build output for analysis
-        local build_output
-        build_output=$(DOCKER_BUILDKIT=1 docker build \
+        # Build with real-time output
+        log_info "Starting Docker build with real-time output..."
+        if DOCKER_BUILDKIT=1 docker build \
             --file docker/deps/Dockerfile.deps \
             --tag "${FULL_IMAGE}" \
             --tag "${IMAGE_BASE}:latest" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --progress=plain \
             ${NO_CACHE} \
-            . 2>&1)
-        local build_exit_code=$?
+            .; then
+            local build_exit_code=0
+        else
+            local build_exit_code=$?
+        fi
         
         if [ $build_exit_code -eq 0 ]; then
             local end_time
@@ -307,22 +310,12 @@ build_image() {
             log_warning "Build attempt $((retry_count + 1)) failed"
             
             # Analyze build failure
-            if echo "$build_output" | grep -q "502 Bad Gateway\|502 Gateway Timeout"; then
-                log_warning "Network issue detected (502 error)"
-            elif echo "$build_output" | grep -q "incremental compilation is prohibited"; then
-                log_error "Sccache conflict detected: CARGO_INCREMENTAL=1 conflicts with sccache"
-                log_info "This should be fixed in the Dockerfile (CARGO_INCREMENTAL=0 during build)"
-                exit 1
-            elif echo "$build_output" | grep -q "cargo chef cook.*exit code: 101"; then
-                log_error "Cargo chef cook failed - likely sccache/incremental compilation conflict"
-                log_info "Check Dockerfile.deps: CARGO_INCREMENTAL should be 0 when using sccache"
-                exit 1
-            elif echo "$build_output" | grep -q "failed to solve\|failed to build"; then
-                log_warning "Docker build failure detected"
-            elif echo "$build_output" | grep -q "no space left on device"; then
-                log_error "Insufficient disk space"
-                exit 1
-            fi
+            log_info "Check the build output above for error details"
+            log_info "Common issues:"
+            log_info "  • Network problems (502 errors)"
+            log_info "  • Sccache conflicts (incremental compilation prohibited)"
+            log_info "  • Insufficient disk space"
+            log_info "  • Missing system dependencies"
             
             retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
@@ -333,8 +326,12 @@ build_image() {
     done
     
     log_error "Build failed after $max_retries attempts"
-    log_info "Last build output:"
-    echo "$build_output" | tail -20
+    log_info "Please check the build output above for detailed error information"
+    log_info "Troubleshooting tips:"
+    log_info "1. Check network connectivity"
+    log_info "2. Ensure sufficient disk space (>10GB)"
+    log_info "3. Verify system dependencies are installed"
+    log_info "4. Try running: make docker-deps (without --no-cache)"
     exit 1
 }
 
