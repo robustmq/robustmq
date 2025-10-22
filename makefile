@@ -84,33 +84,47 @@ docker-deps-force: ## Force rebuild dependency image without cache (clean rebuil
 	./scripts/build-and-push-deps.sh latest --no-cache
 
 .PHONY: docker-deps-test-push
-docker-deps-test-push: ## Test and push existing dependency image (usage: make docker-deps-test-push IMAGE_ID=7b8530a246e5)
+docker-deps-test-push: ## Test and push existing dependency image (auto-detect image ID or use IMAGE_ID parameter)
 	@echo "Testing and pushing existing dependency image..."
 	@echo "This will:"
-	@echo "  • Test existing image: $(IMAGE_ID)"
+	@echo "  • Auto-detect image ID from ghcr.io/robustmq/robustmq/rust-deps:latest"
 	@echo "  • Verify Rust tools, cargo nextest, system dependencies"
 	@echo "  • Tag and push to ghcr.io/robustmq/robustmq/rust-deps:latest"
 	@echo "  • Skip rebuilding (much faster)"
-	@if [ -z "$(IMAGE_ID)" ]; then \
-		echo "❌ Error: IMAGE_ID is required"; \
-		echo "Usage: make docker-deps-test-push IMAGE_ID=7b8530a246e5"; \
-		exit 1; \
+	@echo ""
+	@if [ -n "$(IMAGE_ID)" ]; then \
+		echo "Using provided IMAGE_ID: $(IMAGE_ID)"; \
+		IMAGE_ID_TO_USE="$(IMAGE_ID)"; \
+	else \
+		echo "Auto-detecting image ID from ghcr.io/robustmq/robustmq/rust-deps:latest..."; \
+		IMAGE_ID_TO_USE=$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format "{{.ID}}" 2>/dev/null || echo ""); \
+		if [ -z "$$IMAGE_ID_TO_USE" ]; then \
+			echo "❌ Error: ghcr.io/robustmq/robustmq/rust-deps:latest not found locally"; \
+			echo "Available images:"; \
+			docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq|rust-deps)" || echo "No robustmq images found"; \
+			echo ""; \
+			echo "Please either:"; \
+			echo "  1. Build the image first: make docker-deps"; \
+			echo "  2. Specify IMAGE_ID manually: make docker-deps-test-push IMAGE_ID=<id>"; \
+			exit 1; \
+		fi; \
+		echo "Found image ID: $$IMAGE_ID_TO_USE"; \
 	fi
-	@echo "Testing image: $(IMAGE_ID)"
+	@echo "Testing image: $$IMAGE_ID_TO_USE"
 	@echo "Testing Rust tools..."
-	@docker run --rm $(IMAGE_ID) bash -c "cargo --version && rustc --version" || (echo "❌ Rust tools test failed" && exit 1)
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "cargo --version && rustc --version" || (echo "❌ Rust tools test failed" && exit 1)
 	@echo "✅ Rust tools working"
 	@echo "Testing cargo nextest..."
-	@docker run --rm $(IMAGE_ID) bash -c "cargo nextest --version" || (echo "❌ cargo nextest test failed" && exit 1)
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "cargo nextest --version" || (echo "❌ cargo nextest test failed" && exit 1)
 	@echo "✅ cargo nextest working"
 	@echo "Testing system dependencies..."
-	@docker run --rm $(IMAGE_ID) bash -c "clang --version && echo 'lld: \$$(which ld.lld)' && cmake --version" || (echo "❌ System dependencies test failed" && exit 1)
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "clang --version && echo 'lld: \$$(which ld.lld)' && cmake --version" || (echo "❌ System dependencies test failed" && exit 1)
 	@echo "✅ System dependencies working"
 	@echo "Testing cached dependencies..."
-	@docker run --rm $(IMAGE_ID) bash -c "du -sh /build/target 2>/dev/null || echo 'Target size: N/A'" || (echo "❌ Cached dependencies test failed" && exit 1)
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "du -sh /build/target 2>/dev/null || echo 'Target size: N/A'" || (echo "❌ Cached dependencies test failed" && exit 1)
 	@echo "✅ Cached dependencies found"
 	@echo "Tagging image..."
-	@docker tag $(IMAGE_ID) ghcr.io/robustmq/robustmq/rust-deps:latest
+	@docker tag $$IMAGE_ID_TO_USE ghcr.io/robustmq/robustmq/rust-deps:latest
 	@echo "Pushing image to GHCR..."
 	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
 	@echo "✅ Image pushed successfully!"
@@ -119,6 +133,37 @@ docker-deps-test-push: ## Test and push existing dependency image (usage: make d
 	@echo "1️⃣  Update GitHub Actions workflows to use the image"
 	@echo "2️⃣  Verify in CI that workflows use the new image"
 	@echo "3️⃣  Monitor CI performance improvement"
+
+.PHONY: docker-deps-clean
+docker-deps-clean: ## Clean all local dependency images and build cache (saves disk space)
+	@echo "Cleaning local dependency images and build cache..."
+	@echo "This will:"
+	@echo "  • Remove all robustmq/rust-deps images (local and remote tags)"
+	@echo "  • Remove dangling images from failed builds"
+	@echo "  • Clean Docker build cache"
+	@echo "  • Free up significant disk space"
+	@echo ""
+	@echo "Current disk usage:"
+	@docker system df
+	@echo ""
+	@echo "Removing robustmq dependency images..."
+	@docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq.*rust-deps|ghcr\.io.*rust-deps)" || echo "No robustmq dependency images found"
+	@docker rmi $$(docker images --format "{{.ID}}" | grep -v "$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format '{{.ID}}' 2>/dev/null || echo 'none')") 2>/dev/null || true
+	@docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null || true
+	@docker rmi $$(docker images --filter "dangling=true" --format "{{.ID}}") 2>/dev/null || true
+	@echo "Cleaning Docker build cache..."
+	@docker builder prune -f
+	@echo "Cleaning unused images..."
+	@docker image prune -f
+	@echo ""
+	@echo "✅ Cleanup completed!"
+	@echo "Disk usage after cleanup:"
+	@docker system df
+	@echo ""
+	@echo "💡 Tips:"
+	@echo "  • Use 'make docker-deps' to rebuild when needed"
+	@echo "  • Use 'make docker-deps-test-push IMAGE_ID=<id>' to test existing images"
+	@echo "  • Run 'docker system df' to check disk usage anytime"
 
 .PHONY: docker-app
 docker-app: ## Build and push application image to registry (requires ARGS parameter)
