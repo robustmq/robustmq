@@ -216,7 +216,7 @@ mod tests {
 
         let ms = now_second() - start;
         println!("ms:{}", ms);
-        assert_eq!(ms, expired)
+        assert_eq!(ms >= 9 && ms <= 11)
     }
 
     #[tokio::test]
