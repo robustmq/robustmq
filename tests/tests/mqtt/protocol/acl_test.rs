@@ -325,7 +325,7 @@ mod tests {
         };
 
         let res = admin_client.create_acl(&create_request).await;
-                println!("{:?}", res);
+        println!("{:?}", res);
         assert!(res.is_ok());
     }
 

@@ -142,7 +142,7 @@ impl TopicStorage {
     pub async fn get_retain_message(
         &self,
         topic_name: &str,
-    ) -> Result<(Option<String>, Option<u64>), MqttBrokerError> {
+    ) -> Result<(Option<MqttMessage>, Option<u64>), MqttBrokerError> {
         let config = broker_config();
         let request = GetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -157,22 +157,13 @@ impl TopicStorage {
         .await?;
 
         if reply.retain_message.is_empty() {
-            return Ok((
-                Some(reply.retain_message),
-                Some(reply.retain_message_expired_at),
-            ));
+            return Ok((None, None));
         }
 
-        let msg = serde_json::from_str::<MqttMessage>(&reply.retain_message)?;
-        if msg.payload.is_empty() {
-            return Ok((
-                Some(reply.retain_message),
-                Some(reply.retain_message_expired_at),
-            ));
-        }
-
-        let content = String::from_utf8(msg.payload.to_vec())?;
-        Ok((Some(content), Some(reply.retain_message_expired_at)))
+        Ok((
+            Some(serde_json::from_str::<MqttMessage>(&reply.retain_message)?),
+            Some(reply.retain_message_expired_at),
+        ))
     }
 
     pub async fn all_topic_rewrite_rule(
