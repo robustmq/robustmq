@@ -142,7 +142,6 @@ RUN echo "✅ Dependency cache image built successfully!" && \
     cargo nextest --version && \
     echo "🔗 Linker tools:" && \
     clang --version && \
-    echo "lld: $(which ld.lld)" && \
     echo "✅ All tools verified successfully!"
 
 # Default command

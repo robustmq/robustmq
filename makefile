@@ -110,6 +110,14 @@ docker-deps-test-push: ## Test and push existing dependency image (auto-detect i
 		fi; \
 		echo "Found image ID: $$IMAGE_ID_TO_USE"; \
 	fi
+	@echo "Verifying image exists and is accessible..."
+	@if ! docker image inspect $$IMAGE_ID_TO_USE >/dev/null 2>&1; then \
+		echo "❌ Error: Image $$IMAGE_ID_TO_USE not found or not accessible"; \
+		echo "Available images:"; \
+		docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"; \
+		exit 1; \
+	fi
+	@echo "✅ Image verified: $$IMAGE_ID_TO_USE"
 	@echo "Testing image: $$IMAGE_ID_TO_USE"
 	@echo "Testing Rust tools..."
 	@docker run --rm $$IMAGE_ID_TO_USE bash -c "cargo --version && rustc --version" || (echo "❌ Rust tools test failed" && exit 1)
@@ -118,7 +126,7 @@ docker-deps-test-push: ## Test and push existing dependency image (auto-detect i
 	@docker run --rm $$IMAGE_ID_TO_USE bash -c "cargo nextest --version" || (echo "❌ cargo nextest test failed" && exit 1)
 	@echo "✅ cargo nextest working"
 	@echo "Testing system dependencies..."
-	@docker run --rm $$IMAGE_ID_TO_USE bash -c "clang --version && echo 'lld: \$$(which ld.lld)' && cmake --version" || (echo "❌ System dependencies test failed" && exit 1)
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "clang --version && cmake --version" || (echo "❌ System dependencies test failed" && exit 1)
 	@echo "✅ System dependencies working"
 	@echo "Testing cached dependencies..."
 	@docker run --rm $$IMAGE_ID_TO_USE bash -c "du -sh /build/target 2>/dev/null || echo 'Target size: N/A'" || (echo "❌ Cached dependencies test failed" && exit 1)
@@ -129,6 +137,43 @@ docker-deps-test-push: ## Test and push existing dependency image (auto-detect i
 	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
 	@echo "✅ Image pushed successfully!"
 	@echo "🎉 Build completed successfully!"
+	@echo "📋 Next Steps:"
+	@echo "1️⃣  Update GitHub Actions workflows to use the image"
+	@echo "2️⃣  Verify in CI that workflows use the new image"
+	@echo "3️⃣  Monitor CI performance improvement"
+
+.PHONY: docker-deps-push
+docker-deps-push: ## Push existing dependency image without testing (fast push)
+	@echo "Pushing existing dependency image..."
+	@echo "This will:"
+	@echo "  • Auto-detect image ID from ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Tag and push to ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Skip testing (much faster)"
+	@echo ""
+	@if [ -n "$(IMAGE_ID)" ]; then \
+		echo "Using provided IMAGE_ID: $(IMAGE_ID)"; \
+		IMAGE_ID_TO_USE="$(IMAGE_ID)"; \
+	else \
+		echo "Auto-detecting image ID from ghcr.io/robustmq/robustmq/rust-deps:latest..."; \
+		IMAGE_ID_TO_USE=$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format "{{.ID}}" 2>/dev/null || echo ""); \
+		if [ -z "$$IMAGE_ID_TO_USE" ]; then \
+			echo "❌ Error: ghcr.io/robustmq/robustmq/rust-deps:latest not found locally"; \
+			echo "Available images:"; \
+			docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq|rust-deps)" || echo "No robustmq images found"; \
+			echo ""; \
+			echo "Please either:"; \
+			echo "  1. Build the image first: make docker-deps"; \
+			echo "  2. Specify IMAGE_ID manually: make docker-deps-push IMAGE_ID=<id>"; \
+			exit 1; \
+		fi; \
+		echo "Found image ID: $$IMAGE_ID_TO_USE"; \
+	fi
+	@echo "Tagging image..."
+	@docker tag $$IMAGE_ID_TO_USE ghcr.io/robustmq/robustmq/rust-deps:latest
+	@echo "Pushing image to GHCR..."
+	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
+	@echo "✅ Image pushed successfully!"
+	@echo "🎉 Push completed successfully!"
 	@echo "📋 Next Steps:"
 	@echo "1️⃣  Update GitHub Actions workflows to use the image"
 	@echo "2️⃣  Verify in CI that workflows use the new image"
