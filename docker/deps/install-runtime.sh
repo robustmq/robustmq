@@ -53,10 +53,12 @@ try_install() {
 # Define packages to install
 PACKAGES="ca-certificates curl clang lld libclang-dev"
 
-# Try with multiple mirrors in order of reliability (lowest load first)
-try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
+# Try with multiple mirrors in order of reliability (most stable first)
+# Skip Huawei if it's having 502 issues and try others first
 try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || \
-try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || \
+try_install "USTC" "mirrors.ustc.edu.cn" "$PACKAGES" || \
+try_install "Tsinghua" "mirrors.tuna.tsinghua.edu.cn" "$PACKAGES" || \
+try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
 try_install "Official" "deb.debian.org" "$PACKAGES" || {
     echo "All mirrors failed!"
     echo "Please check your network connection and try again."

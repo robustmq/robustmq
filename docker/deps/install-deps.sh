@@ -16,7 +16,7 @@ try_install() {
     
     # Update package list with retry
     local retry_count=0
-    local max_retries=5
+    local max_retries=3
     
     while [ $retry_count -lt $max_retries ]; do
         if apt-get update; then
@@ -54,10 +54,11 @@ try_install() {
 PACKAGES="protobuf-compiler llvm libclang-dev cmake pkg-config libssl-dev clang lld"
 
 # Try with multiple mirrors in order of reliability (most stable first)
-try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
+# Skip Huawei if it's having 502 issues and try others first
 try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || \
 try_install "USTC" "mirrors.ustc.edu.cn" "$PACKAGES" || \
 try_install "Tsinghua" "mirrors.tuna.tsinghua.edu.cn" "$PACKAGES" || \
+try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
 try_install "Official" "deb.debian.org" "$PACKAGES" || {
     echo "All mirrors failed!"
     echo "Please check your network connection and try again."
