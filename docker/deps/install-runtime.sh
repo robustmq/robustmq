@@ -60,10 +60,10 @@ if apt-get update && apt-get install -y $PACKAGES; then
     exit 0
 fi
 
-# Try with multiple mirrors in order of reliability (only stable commercial mirrors)
-try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || \
+# Try with multiple mirrors in order of reliability (lowest load first)
 try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
-try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || {
+try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || \
+try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || {
     echo "All stable mirrors failed!"
     echo "Please check your network connection and try again."
     exit 1
