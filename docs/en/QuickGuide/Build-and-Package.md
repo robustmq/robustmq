@@ -61,9 +61,15 @@ RobustMQ build process generates the following types of artifacts:
 ### Prerequisites
 
 ```bash
-# Set GitHub Token
+# Set GitHub Token (required)
 export GITHUB_TOKEN="your_github_token_here"
 ```
+
+> **Permission Note**:
+> - Dependency images are pushed to fixed organization: `ghcr.io/robustmq/robustmq/rust-deps`
+> - Application images are pushed to specified organization or user account
+> - Ensure your `GITHUB_TOKEN` has `write:packages` permission
+> - Ensure you have write access to the `robustmq` organization
 
 ## 📦 Output Results
 
@@ -74,7 +80,7 @@ export GITHUB_TOKEN="your_github_token_here"
 | **Installation Package** | `build/robustmq-{version}-{platform}.tar.gz` | Compressed binary installation package | User download and install RobustMQ |
 | **Package Info** | `build/robustmq-{version}-{platform}/package-info.txt` | Version, platform, build time metadata | Understand package details |
 | **Docker Image** | `robustmq/robustmq:{version}` | Containerized RobustMQ application | Docker deployment and running |
-| **Dependency Image** | `ghcr.io/socutes/robustmq/rust-deps:latest` | Rust dependency cache image | Accelerate CI/CD builds |
+| **Dependency Image** | `ghcr.io/robustmq/robustmq/rust-deps:latest` | Rust dependency cache image | Accelerate CI/CD builds, stored under robustmq organization |
 | **GitHub Release** | `https://github.com/robustmq/robustmq/releases/tag/{version}` | Online release page | User download and view release notes |
 
 ### Installation Package Structure
@@ -94,10 +100,38 @@ export GITHUB_TOKEN="your_github_token_here"
 |----------|---------|----------|-------------|
 | **Development Testing** | `make build` | Local `.tar.gz` installation package | Quick build test package for local development and testing |
 | **Release Preparation** | `make build-full` | Local complete `.tar.gz` installation package | Build complete release package with frontend for official release |
-| **CI/CD Optimization** | `make docker-deps` | Docker dependency cache image | Build Rust dependency cache image to accelerate CI/CD build process |
+| **CI/CD Optimization** | `make docker-deps` | Docker dependency cache image | Build Rust dependency cache image, push to robustmq organization, accelerate CI/CD build process |
 | **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry |
 | **Version Release** | `make release` | GitHub release page + installation package | Create GitHub release and upload installation package for user download |
 | **Multi-platform Release** | `make release-upload VERSION=v0.1.31` | Update GitHub release | Add current platform installation package to existing GitHub release |
+
+## 🔧 Docker Build Improvements
+
+### Permission Issue Fix
+
+**Issue**: Previously encountered `permission_denied: create_package` errors when building dependency images.
+
+**Solution**:
+- Use fixed organization name: `ghcr.io/robustmq/robustmq/rust-deps`
+- Unified image naming for easier CI/CD management
+- Ensure builders have write access to the robustmq organization
+
+### Network Issue Fix
+
+**Issue**: Network connection problems during build process (e.g., 502 Bad Gateway).
+
+**Solution**:
+- Implemented automatic mirror switching
+- Support for official Debian, Aliyun, Tsinghua, USTC, 163, Huawei Cloud, Tencent Cloud mirrors
+- Automatic retry mechanism to improve build success rate
+
+### Build Optimization
+
+**Improvements**:
+- Separated dependency and application image build logic
+- Optimized `.dockerignore` files to reduce build context
+- Added pre-build checks to ensure base images are available
+- Automatic GitHub Container Registry login
 
 ## ⚠️ Notes
 
