@@ -105,6 +105,50 @@ check_prerequisites() {
     log_success "All prerequisites met"
 }
 
+# Auto-login to GitHub Container Registry
+auto_login_ghcr() {
+    log_info "Checking GitHub Container Registry authentication..."
+    
+    # Check if already logged in
+    if docker info | grep -q "ghcr.io"; then
+        log_success "Already logged in to GHCR"
+        return 0
+    fi
+    
+    # Check for GITHUB_TOKEN environment variable
+    if [ -z "$GITHUB_TOKEN" ]; then
+        log_error "GITHUB_TOKEN environment variable is not set"
+        log_info "Please set your GitHub token:"
+        log_info "  export GITHUB_TOKEN=your_github_token"
+        log_info "  # or add it to your ~/.bashrc or ~/.zshrc"
+        exit 1
+    fi
+    
+    # Get GitHub username from token or use current user
+    local github_user
+    if [ -n "$GITHUB_USER" ]; then
+        github_user="$GITHUB_USER"
+    else
+        # Try to get username from GitHub API
+        github_user=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
+        if [ -z "$github_user" ]; then
+            log_warning "Could not determine GitHub username, using 'github'"
+            github_user="github"
+        fi
+    fi
+    
+    log_info "Logging in to GHCR as $github_user..."
+    
+    # Login to GHCR
+    if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$github_user" --password-stdin; then
+        log_success "Successfully logged in to GHCR"
+    else
+        log_error "Failed to login to GHCR"
+        log_info "Please check your GITHUB_TOKEN and try again"
+        exit 1
+    fi
+}
+
 # Display build information
 show_build_info() {
     echo ""
@@ -262,6 +306,7 @@ pre_build_check() {
 main() {
     show_build_info
     check_prerequisites
+    auto_login_ghcr
     pre_build_check
     build_image
     show_image_info
