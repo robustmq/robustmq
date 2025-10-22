@@ -60,14 +60,11 @@ if apt-get update && apt-get install -y $PACKAGES; then
     exit 0
 fi
 
-# Try with multiple mirrors in order of reliability
-try_install "Tsinghua" "mirrors.tuna.tsinghua.edu.cn" "$PACKAGES" || \
-try_install "USTC" "mirrors.ustc.edu.cn" "$PACKAGES" || \
-try_install "163" "mirrors.163.com" "$PACKAGES" || \
+# Try with multiple mirrors in order of reliability (only stable commercial mirrors)
 try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || \
 try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
 try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || {
-    echo "All mirrors failed!"
+    echo "All stable mirrors failed!"
     echo "Please check your network connection and try again."
     exit 1
 }
