@@ -175,6 +175,15 @@ export GITHUB_TOKEN="your_github_token_here"
 | Docker environment issue | `docker info` | Start Docker service |
 | Network connection issue | `ping github.com` | Check network connection |
 
+### Docker Build Failure Troubleshooting
+
+| Issue | Check Command | Solution |
+|-------|---------------|----------|
+| Docker environment issue | `docker info` | Start Docker service |
+| Permission issue | `echo $GITHUB_TOKEN` | Set correct GitHub Token |
+| Network connection issue | `docker pull rust:1.90.0-bookworm` | Check Docker Hub connection |
+| Image push failure | `docker login ghcr.io` | Manually login to GitHub Container Registry |
+
 ### Release Failure Troubleshooting
 
 | Issue | Check Command | Solution |
@@ -191,3 +200,12 @@ export GITHUB_TOKEN="your_github_token_here"
 | Extract and test | `tar -xzf build/robustmq-*.tar.gz` | Extract installation package |
 | Test binary | `./robustmq-*/libs/broker-server --help` | Test executable files |
 | View package info | `cat robustmq-*/package-info.txt` | View package detailed information |
+
+### View Docker Images
+
+| Operation | Command | Description |
+|-----------|---------|-------------|
+| View local images | `docker images | grep robustmq` | View locally built images |
+| View dependency images | `docker images | grep rust-deps` | View dependency cache images |
+| Test image | `docker run --rm ghcr.io/robustmq/robustmq/rust-deps:latest rustc --version` | Test dependency image |
+| View image history | `docker history ghcr.io/robustmq/robustmq/rust-deps:latest` | View image build history |

@@ -40,17 +40,6 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Get GitHub username for package naming
-get_github_user() {
-    if [ -n "$GITHUB_USER" ]; then
-        echo "$GITHUB_USER"
-    elif [ -n "$GITHUB_TOKEN" ]; then
-        curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "github"
-    else
-        echo "github"
-    fi
-}
-
 # Use fixed organization name for consistent CI/CD
 readonly IMAGE_BASE="ghcr.io/robustmq/robustmq/rust-deps"
 readonly TAG="${1:-latest}"
@@ -137,17 +126,12 @@ auto_login_ghcr() {
         exit 1
     fi
     
-    # Get GitHub username from token or use current user
+    # Get GitHub username from token for login
     local github_user
-    if [ -n "$GITHUB_USER" ]; then
-        github_user="$GITHUB_USER"
-    else
-        # Try to get username from GitHub API
-        github_user=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
-        if [ -z "$github_user" ]; then
-            log_warning "Could not determine GitHub username, using 'github'"
-            github_user="github"
-        fi
+    github_user=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
+    if [ -z "$github_user" ]; then
+        log_warning "Could not determine GitHub username, using 'github'"
+        github_user="github"
     fi
     
     log_info "Logging in to GHCR as $github_user..."
