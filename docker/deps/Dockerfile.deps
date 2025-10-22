@@ -81,6 +81,9 @@ ENV CARGO_INCREMENTAL=0
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/build/.sccache
 ENV CARGO_TARGET_DIR=/build/target
+# Suppress unnecessary warnings
+ENV CARGO_LOG=warn
+ENV RUST_LOG=warn
 
 # Cook dependencies - this is the slow part that we want to cache!
 # This compiles all dependencies in Cargo.lock
@@ -93,7 +96,7 @@ RUN --mount=type=cache,target=/build/.sccache \
     echo "  RUSTC_WRAPPER: $RUSTC_WRAPPER" && \
     echo "  SCCACHE_DIR: $SCCACHE_DIR" && \
     echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR" && \
-    cargo chef cook --release --workspace --recipe-path recipe.json && \
+    cargo chef cook --release --workspace --recipe-path recipe.json 2>/dev/null && \
     echo "✅ Dependency compilation completed successfully!"
 
 # ==============================================================================

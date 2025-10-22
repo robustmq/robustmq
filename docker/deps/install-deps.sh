@@ -16,7 +16,7 @@ try_install() {
     
     # Update package list with retry
     local retry_count=0
-    local max_retries=3
+    local max_retries=5
     
     while [ $retry_count -lt $max_retries ]; do
         if apt-get update; then
@@ -53,10 +53,11 @@ try_install() {
 # Define packages to install
 PACKAGES="protobuf-compiler llvm libclang-dev cmake pkg-config libssl-dev clang lld"
 
-# Try with multiple mirrors in order of reliability (lowest load first)
+# Try with multiple mirrors in order of reliability (most stable first)
 try_install "Huawei" "mirrors.huaweicloud.com" "$PACKAGES" || \
 try_install "Tencent" "mirrors.cloud.tencent.com" "$PACKAGES" || \
-try_install "Aliyun" "mirrors.aliyun.com" "$PACKAGES" || \
+try_install "USTC" "mirrors.ustc.edu.cn" "$PACKAGES" || \
+try_install "Tsinghua" "mirrors.tuna.tsinghua.edu.cn" "$PACKAGES" || \
 try_install "Official" "deb.debian.org" "$PACKAGES" || {
     echo "All mirrors failed!"
     echo "Please check your network connection and try again."
