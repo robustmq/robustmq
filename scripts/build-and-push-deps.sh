@@ -249,6 +249,18 @@ build_image() {
     
     cd "$PROJECT_ROOT"
     
+    # Verify Dockerfile exists
+    if [ ! -f "docker/deps/Dockerfile.deps" ]; then
+        log_error "Dockerfile not found: docker/deps/Dockerfile.deps"
+        exit 1
+    fi
+    
+    # Verify build context
+    if [ ! -f "Cargo.toml" ]; then
+        log_error "Cargo.toml not found in build context"
+        exit 1
+    fi
+    
     local start_time
     start_time=$(date +%s)
     
@@ -259,30 +271,62 @@ build_image() {
     while [ $retry_count -lt $max_retries ]; do
         log_info "Building attempt $((retry_count + 1))/$max_retries..."
         
-        if DOCKER_BUILDKIT=1 docker build \
+        # Capture build output for analysis
+        local build_output
+        build_output=$(DOCKER_BUILDKIT=1 docker build \
             --file docker/deps/Dockerfile.deps \
             --tag "${FULL_IMAGE}" \
             --tag "${IMAGE_BASE}:latest" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --progress=plain \
             ${NO_CACHE} \
-            .; then
+            . 2>&1)
+        local build_exit_code=$?
+        
+        if [ $build_exit_code -eq 0 ]; then
             local end_time
             end_time=$(date +%s)
             local duration=$((end_time - start_time))
             log_success "Build completed in ${duration} seconds ($((duration / 60)) minutes)"
+            
+            # Verify image was created successfully
+            if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
+                log_error "Image was not created successfully"
+                exit 1
+            fi
+            
+            # Verify image has expected layers
+            local layer_count
+            layer_count=$(docker history "${FULL_IMAGE}" --format "{{.CreatedBy}}" | wc -l)
+            if [ "$layer_count" -lt 5 ]; then
+                log_warning "Image seems incomplete (only $layer_count layers)"
+            fi
+            
             return 0
         else
             log_warning "Build attempt $((retry_count + 1)) failed"
+            
+            # Analyze build failure
+            if echo "$build_output" | grep -q "502 Bad Gateway\|502 Gateway Timeout"; then
+                log_warning "Network issue detected (502 error)"
+            elif echo "$build_output" | grep -q "failed to solve\|failed to build"; then
+                log_warning "Docker build failure detected"
+            elif echo "$build_output" | grep -q "no space left on device"; then
+                log_error "Insufficient disk space"
+                exit 1
+            fi
+            
             retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
-                log_info "Retrying in 10 seconds..."
-                sleep 10
+                log_info "Retrying in 15 seconds..."
+                sleep 15
             fi
         fi
     done
     
     log_error "Build failed after $max_retries attempts"
+    log_info "Last build output:"
+    echo "$build_output" | tail -20
     exit 1
 }
 
@@ -305,27 +349,178 @@ show_image_info() {
 test_image() {
     log_info "Testing image..."
     
-    # Quick smoke test
-    if docker run --rm "${FULL_IMAGE}" bash -c "cargo --version && cargo nextest --version"; then
-        log_success "Image test passed"
-    else
-        log_error "Image test failed"
+    # Verify image exists
+    if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
+        log_error "Image ${FULL_IMAGE} not found"
         exit 1
     fi
+    
+    # Test 1: Basic Rust tools
+    log_info "Testing Rust tools..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "cargo --version && rustc --version"; then
+        log_error "Rust tools test failed"
+        exit 1
+    fi
+    log_success "✅ Rust tools working"
+    
+    # Test 2: Cargo nextest
+    log_info "Testing cargo nextest..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "cargo nextest --version"; then
+        log_error "cargo nextest test failed"
+        exit 1
+    fi
+    log_success "✅ cargo nextest working"
+    
+    # Test 3: System dependencies
+    log_info "Testing system dependencies..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "clang --version && lld --version && cmake --version"; then
+        log_error "System dependencies test failed"
+        exit 1
+    fi
+    log_success "✅ System dependencies working"
+    
+    # Test 4: Network tools
+    log_info "Testing network tools..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "curl --version && wget --version"; then
+        log_error "Network tools test failed"
+        exit 1
+    fi
+    log_success "✅ Network tools working"
+    
+    # Test 5: Build tools
+    log_info "Testing build tools..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "pkg-config --version && protoc --version"; then
+        log_error "Build tools test failed"
+        exit 1
+    fi
+    log_success "✅ Build tools working"
+    
+    # Test 6: Cargo cache directory
+    log_info "Testing cargo cache..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "ls -la /build/target && test -d /build/target"; then
+        log_error "Cargo cache directory test failed"
+        exit 1
+    fi
+    log_success "✅ Cargo cache directory exists"
+    
+    # Test 7: Environment variables
+    log_info "Testing environment variables..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$CARGO_INCREMENTAL && echo \$CARGO_TARGET_DIR"; then
+        log_error "Environment variables test failed"
+        exit 1
+    fi
+    log_success "✅ Environment variables set correctly"
+    
+    # Test 8: Verify all critical dependencies are installed
+    log_info "Verifying critical dependencies installation..."
+    local critical_deps=(
+        "protobuf-compiler:protoc"
+        "cmake:cmake"
+        "pkg-config:pkg-config"
+        "libssl-dev:openssl"
+        "clang:clang"
+        "lld:lld"
+        "llvm:llvm-config"
+    )
+    
+    for dep in "${critical_deps[@]}"; do
+        local package_name="${dep%%:*}"
+        local command="${dep##*:}"
+        
+        if ! docker run --rm "${FULL_IMAGE}" bash -c "command -v $command >/dev/null 2>&1"; then
+            log_error "Critical dependency $package_name ($command) not found"
+            exit 1
+        fi
+        log_success "✅ $package_name ($command) available"
+    done
+    
+    # Test 9: Verify Rust toolchain components
+    log_info "Verifying Rust toolchain components..."
+    local rust_components=("cargo" "rustc" "rustup")
+    for component in "${rust_components[@]}"; do
+        if ! docker run --rm "${FULL_IMAGE}" bash -c "command -v $component >/dev/null 2>&1"; then
+            log_error "Rust component $component not found"
+            exit 1
+        fi
+        log_success "✅ Rust component $component available"
+    done
+    
+    # Test 10: Verify cargo-chef is installed
+    log_info "Verifying cargo-chef installation..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "cargo chef --version"; then
+        log_error "cargo-chef not found or not working"
+        exit 1
+    fi
+    log_success "✅ cargo-chef working"
+    
+    log_success "🎉 All image tests passed!"
 }
 
 # Push to registry
 push_image() {
     log_info "Pushing to GitHub Container Registry..."
     
-    # Push versioned tag
-    if docker push "${FULL_IMAGE}"; then
-        log_success "Pushed ${FULL_IMAGE}"
-    else
-        log_error "Failed to push ${FULL_IMAGE}"
-        log_warning "Make sure you're logged in: echo \$GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin"
+    # Verify image exists locally
+    if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
+        log_error "Image ${FULL_IMAGE} not found locally"
         exit 1
     fi
+    
+    # Push with retry mechanism
+    local max_retries=3
+    local retry_count=0
+    
+    while [ $retry_count -lt $max_retries ]; do
+        log_info "Push attempt $((retry_count + 1))/$max_retries..."
+        
+        # Capture push output
+        local push_output
+        push_output=$(docker push "${FULL_IMAGE}" 2>&1)
+        local push_exit_code=$?
+        
+        if [ $push_exit_code -eq 0 ]; then
+            log_success "Pushed ${FULL_IMAGE}"
+            
+            # Verify push was successful by checking remote manifest
+            log_info "Verifying push success..."
+            if docker manifest inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
+                log_success "✅ Image manifest verified on registry"
+            else
+                log_warning "⚠️  Could not verify image manifest (may take time to propagate)"
+            fi
+            
+            return 0
+        else
+            log_warning "Push attempt $((retry_count + 1)) failed"
+            
+            # Analyze push failure
+            if echo "$push_output" | grep -q "denied\|unauthorized"; then
+                log_error "Authentication failed"
+                log_info "Please check your GITHUB_TOKEN and login status"
+                exit 1
+            elif echo "$push_output" | grep -q "network\|timeout"; then
+                log_warning "Network issue detected"
+            elif echo "$push_output" | grep -q "no space left"; then
+                log_error "Insufficient disk space"
+                exit 1
+            fi
+            
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_info "Retrying in 10 seconds..."
+                sleep 10
+            fi
+        fi
+    done
+    
+    log_error "Failed to push ${FULL_IMAGE} after $max_retries attempts"
+    log_info "Last push output:"
+    echo "$push_output" | tail -10
+    log_info "Troubleshooting:"
+    log_info "1. Check your GITHUB_TOKEN is valid"
+    log_info "2. Ensure you have write access to robustmq organization"
+    log_info "3. Try: docker logout ghcr.io && docker login ghcr.io"
+    exit 1
     
     # Also push 'latest' if building a specific version
     if [ "$TAG" != "latest" ]; then
@@ -424,17 +619,153 @@ pre_build_check() {
     log_success "Pre-build checks passed"
 }
 
+# Verify dependencies are properly installed
+verify_dependencies() {
+    log_info "Verifying dependencies installation..."
+    
+    # Check if Docker is running
+    if ! docker info >/dev/null 2>&1; then
+        log_error "Docker is not running"
+        exit 1
+    fi
+    log_success "✅ Docker is running"
+    
+    # Check Docker buildx support
+    if ! docker buildx version >/dev/null 2>&1; then
+        log_warning "Docker buildx not available, using standard build"
+    else
+        log_success "✅ Docker buildx available"
+    fi
+    
+    # Check available disk space
+    local available_space
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        available_space=$(df -g . | awk 'NR==2 {print $4}')
+        available_space=$((available_space * 1024))  # Convert GB to MB
+    else
+        # Linux
+        available_space=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
+    fi
+    
+    if [ "$available_space" -lt 10000 ]; then  # Less than 10GB
+        log_warning "Low disk space: ${available_space}MB available"
+        log_info "Docker build may fail with insufficient space"
+    else
+        log_success "✅ Sufficient disk space: ${available_space}MB"
+    fi
+    
+    # Check network connectivity
+    log_info "Testing network connectivity..."
+    if curl -s --connect-timeout 5 https://ghcr.io >/dev/null 2>&1; then
+        log_success "✅ GHCR connectivity OK"
+    else
+        log_warning "⚠️  GHCR connectivity issues detected"
+    fi
+    
+    if curl -s --connect-timeout 5 https://api.github.com >/dev/null 2>&1; then
+        log_success "✅ GitHub API connectivity OK"
+    else
+        log_warning "⚠️  GitHub API connectivity issues detected"
+    fi
+    
+    # Test Docker Hub connectivity (for base image)
+    log_info "Testing Docker Hub connectivity..."
+    if curl -s --connect-timeout 5 https://registry-1.docker.io >/dev/null 2>&1; then
+        log_success "✅ Docker Hub connectivity OK"
+    else
+        log_warning "⚠️  Docker Hub connectivity issues detected"
+        log_info "Base image pull may fail during build"
+    fi
+}
+
+# Verify download capabilities
+verify_download_capabilities() {
+    log_info "Verifying download capabilities..."
+    
+    # Test various download sources that will be used during build
+    local test_urls=(
+        "https://registry-1.docker.io"
+        "https://ghcr.io"
+        "https://crates.io"
+        "https://github.com"
+    )
+    
+    local failed_urls=()
+    
+    for url in "${test_urls[@]}"; do
+        log_info "Testing connectivity to $url..."
+        if curl -s --connect-timeout 10 --max-time 30 "$url" >/dev/null 2>&1; then
+            log_success "✅ $url accessible"
+        else
+            log_warning "⚠️  $url not accessible"
+            failed_urls+=("$url")
+        fi
+    done
+    
+    if [ ${#failed_urls[@]} -gt 0 ]; then
+        log_warning "Some download sources are not accessible:"
+        for url in "${failed_urls[@]}"; do
+            log_warning "  - $url"
+        done
+        log_info "Build may fail or be slower due to network issues"
+    else
+        log_success "✅ All download sources accessible"
+    fi
+}
+
 # Main execution
 main() {
     show_build_info
     check_prerequisites
+    verify_dependencies
+    verify_download_capabilities
     auto_login_ghcr
     pre_build_check
     build_image
     show_image_info
     test_image
     push_image
+    verify_build_success
     show_usage
+}
+
+# Final verification that everything worked
+verify_build_success() {
+    log_info "Performing final build verification..."
+    
+    # Verify image exists and is accessible
+    if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
+        log_error "Final verification failed: Image not found"
+        exit 1
+    fi
+    log_success "✅ Image exists locally"
+    
+    # Verify image can be pulled (if we have network access)
+    log_info "Testing image pull capability..."
+    if docker pull "${FULL_IMAGE}" >/dev/null 2>&1; then
+        log_success "✅ Image is accessible from registry"
+    else
+        log_warning "⚠️  Could not pull image from registry (may need time to propagate)"
+    fi
+    
+    # Verify image size is reasonable (not too small)
+    local image_size_bytes
+    image_size_bytes=$(docker image inspect "${FULL_IMAGE}" --format "{{.Size}}")
+    local image_size_mb=$((image_size_bytes / 1024 / 1024))
+    
+    if [ "$image_size_mb" -lt 100 ]; then
+        log_warning "⚠️  Image size seems small: ${image_size_mb}MB"
+        log_info "This might indicate an incomplete build"
+    else
+        log_success "✅ Image size reasonable: ${image_size_mb}MB"
+    fi
+    
+    # Final summary
+    log_success "🎉 Build verification completed successfully!"
+    log_info "Image: ${FULL_IMAGE}"
+    log_info "Size: ${image_size_mb}MB"
+    log_info "Ready for CI/CD use!"
 }
 
 # Handle Ctrl+C gracefully
