@@ -25,12 +25,13 @@
 #   - Sufficient disk space (~20GB)
 #
 # Usage:
-#   ./build-and-push.sh [TAG]
+#   ./build-and-push.sh [TAG] [--no-cache]
 #
 # Examples:
 #   ./build-and-push.sh                    # Build and push as 'latest'
 #   ./build-and-push.sh rust-1.90          # Build and push as 'rust-1.90'
 #   ./build-and-push.sh 2025-10-20         # Build and push as '2025-10-20'
+#   ./build-and-push.sh latest --no-cache  # Force rebuild without cache
 #
 # ==============================================================================
 
@@ -40,9 +41,25 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Parse command line arguments
+TAG="latest"
+NO_CACHE=""
+
+for arg in "$@"; do
+    case $arg in
+        --no-cache)
+            NO_CACHE="--no-cache"
+            ;;
+        *)
+            if [[ -z "$TAG" || "$TAG" == "latest" ]]; then
+                TAG="$arg"
+            fi
+            ;;
+    esac
+done
+
 # Use fixed organization name for consistent CI/CD
 readonly IMAGE_BASE="ghcr.io/robustmq/robustmq/rust-deps"
-readonly TAG="${1:-latest}"
 readonly FULL_IMAGE="${IMAGE_BASE}:${TAG}"
 
 # Colors for output
@@ -171,6 +188,9 @@ show_build_info() {
 # Build the image with retry mechanism
 build_image() {
     log_info "Building Docker image..."
+    if [ -n "$NO_CACHE" ]; then
+        log_warning "Force rebuild: --no-cache enabled"
+    fi
     log_info "This may take 20-40 minutes on first build..."
     
     cd "$PROJECT_ROOT"
@@ -191,6 +211,7 @@ build_image() {
             --tag "${IMAGE_BASE}:latest" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --progress=plain \
+            ${NO_CACHE} \
             .; then
             local end_time
             end_time=$(date +%s)

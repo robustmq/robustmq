@@ -69,6 +69,20 @@ docker-deps-tag: ## Build and push dependency image with specific tag (usage: ma
 	@echo "Building dependency image with tag: $(TAG)"
 	./scripts/build-and-push-deps.sh $(TAG)
 
+.PHONY: docker-deps-force
+docker-deps-force: ## Force rebuild dependency image without cache (clean rebuild)
+	@echo "Force rebuilding dependency image..."
+	@echo "This will:"
+	@echo "  • Clean Docker build cache"
+	@echo "  • Remove old dependency image"
+	@echo "  • Rebuild from scratch (20-40 minutes)"
+	@echo "  • Push to ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Requires Docker and GHCR login"
+	@echo "  • Takes 20-40 minutes on first build"
+	docker builder prune -f
+	docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null || true
+	./scripts/build-and-push-deps.sh latest --no-cache
+
 .PHONY: docker-app
 docker-app: ## Build and push application image to registry (requires ARGS parameter)
 	@echo "Building application image..."
