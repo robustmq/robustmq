@@ -309,6 +309,14 @@ build_image() {
             # Analyze build failure
             if echo "$build_output" | grep -q "502 Bad Gateway\|502 Gateway Timeout"; then
                 log_warning "Network issue detected (502 error)"
+            elif echo "$build_output" | grep -q "incremental compilation is prohibited"; then
+                log_error "Sccache conflict detected: CARGO_INCREMENTAL=1 conflicts with sccache"
+                log_info "This should be fixed in the Dockerfile (CARGO_INCREMENTAL=0 during build)"
+                exit 1
+            elif echo "$build_output" | grep -q "cargo chef cook.*exit code: 101"; then
+                log_error "Cargo chef cook failed - likely sccache/incremental compilation conflict"
+                log_info "Check Dockerfile.deps: CARGO_INCREMENTAL should be 0 when using sccache"
+                exit 1
             elif echo "$build_output" | grep -q "failed to solve\|failed to build"; then
                 log_warning "Docker build failure detected"
             elif echo "$build_output" | grep -q "no space left on device"; then
@@ -714,12 +722,46 @@ verify_download_capabilities() {
     fi
 }
 
+# Verify sccache configuration
+verify_sccache_config() {
+    log_info "Verifying sccache configuration..."
+    
+    # Check if Dockerfile has correct sccache settings
+    local dockerfile_path="docker/deps/Dockerfile.deps"
+    if [ ! -f "$dockerfile_path" ]; then
+        log_error "Dockerfile not found: $dockerfile_path"
+        exit 1
+    fi
+    
+    # Check for sccache configuration
+    if grep -q "RUSTC_WRAPPER=sccache" "$dockerfile_path"; then
+        log_success "✅ sccache configured in Dockerfile"
+        
+        # Check for CARGO_INCREMENTAL setting during build
+        if grep -q "CARGO_INCREMENTAL=0" "$dockerfile_path"; then
+            log_success "✅ CARGO_INCREMENTAL=0 set for sccache compatibility"
+        else
+            log_warning "⚠️  CARGO_INCREMENTAL not set to 0 - may cause sccache conflicts"
+        fi
+    else
+        log_warning "⚠️  sccache not configured in Dockerfile"
+    fi
+    
+    # Check for final stage incremental compilation
+    if grep -q "CARGO_INCREMENTAL=1" "$dockerfile_path"; then
+        log_success "✅ Final stage has CARGO_INCREMENTAL=1 for runtime efficiency"
+    else
+        log_warning "⚠️  Final stage missing CARGO_INCREMENTAL=1"
+    fi
+}
+
 # Main execution
 main() {
     show_build_info
     check_prerequisites
     verify_dependencies
     verify_download_capabilities
+    verify_sccache_config
     auto_login_ghcr
     pre_build_check
     build_image

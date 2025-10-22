@@ -77,15 +77,24 @@ COPY --from=planner /build/recipe.json recipe.json
 
 # Configure build environment
 ENV CARGO_BUILD_JOBS=8
-ENV CARGO_INCREMENTAL=1
+ENV CARGO_INCREMENTAL=0
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/build/.sccache
 ENV CARGO_TARGET_DIR=/build/target
 
 # Cook dependencies - this is the slow part that we want to cache!
 # This compiles all dependencies in Cargo.lock
+# Note: CARGO_INCREMENTAL=0 is required when using sccache
 RUN --mount=type=cache,target=/build/.sccache \
-    cargo chef cook --release --workspace --recipe-path recipe.json
+    echo "🔨 Starting dependency compilation with sccache..." && \
+    echo "📊 Build configuration:" && \
+    echo "  CARGO_BUILD_JOBS: $CARGO_BUILD_JOBS" && \
+    echo "  CARGO_INCREMENTAL: $CARGO_INCREMENTAL" && \
+    echo "  RUSTC_WRAPPER: $RUSTC_WRAPPER" && \
+    echo "  SCCACHE_DIR: $SCCACHE_DIR" && \
+    echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR" && \
+    cargo chef cook --release --workspace --recipe-path recipe.json && \
+    echo "✅ Dependency compilation completed successfully!"
 
 # ==============================================================================
 # Stage 3: Final - Base image with all dependencies compiled
