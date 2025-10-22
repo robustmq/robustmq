@@ -61,9 +61,9 @@ FROM rust:1.90.0-bookworm AS builder
 
 WORKDIR /build
 
-# Install system dependencies with comprehensive mirror fallback
+# Install system dependencies with mirror fallback
 RUN apt-get update && \
-    (apt-get install -y \
+    apt-get install -y \
         protobuf-compiler \
         llvm \
         libclang-dev \
@@ -74,7 +74,6 @@ RUN apt-get update && \
         lld \
     || (echo "Retrying with Aliyun mirror..." && \
         sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
-        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
         apt-get update && \
         apt-get install -y \
             protobuf-compiler \
@@ -84,9 +83,8 @@ RUN apt-get update && \
             pkg-config \
             libssl-dev \
             clang \
-            lld \
+            lld) \
     || (echo "Retrying with Tsinghua mirror..." && \
-        sed -i 's/mirrors.aliyun.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         apt-get update && \
         apt-get install -y \
@@ -97,9 +95,8 @@ RUN apt-get update && \
             pkg-config \
             libssl-dev \
             clang \
-            lld \
+            lld) \
     || (echo "Retrying with USTC mirror..." && \
-        sed -i 's/mirrors.tuna.tsinghua.edu.cn/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         apt-get update && \
         apt-get install -y \
@@ -110,20 +107,7 @@ RUN apt-get update && \
             pkg-config \
             libssl-dev \
             clang \
-            lld \
-    || (echo "Retrying with 163 mirror..." && \
-        sed -i 's/mirrors.ustc.edu.cn/mirrors.163.com/g' /etc/apt/sources.list.d/debian.sources && \
-        sed -i 's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            protobuf-compiler \
-            llvm \
-            libclang-dev \
-            cmake \
-            pkg-config \
-            libssl-dev \
-            clang \
-            lld)))))) && \
+            lld) && \
     rm -rf /var/lib/apt/lists/*
 
 # Install cargo tools
@@ -150,39 +134,29 @@ FROM rust:1.90.0-bookworm
 
 WORKDIR /build
 
-# Install only runtime dependencies with comprehensive mirror fallback
+# Install only runtime dependencies with mirror fallback
 RUN apt-get update && \
-    (apt-get install -y \
+    apt-get install -y \
         ca-certificates \
         curl \
     || (echo "Retrying with Aliyun mirror..." && \
         sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
-        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
         apt-get update && \
         apt-get install -y \
             ca-certificates \
-            curl \
+            curl) \
     || (echo "Retrying with Tsinghua mirror..." && \
-        sed -i 's/mirrors.aliyun.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         apt-get update && \
         apt-get install -y \
             ca-certificates \
-            curl \
+            curl) \
     || (echo "Retrying with USTC mirror..." && \
-        sed -i 's/mirrors.tuna.tsinghua.edu.cn/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
         apt-get update && \
         apt-get install -y \
             ca-certificates \
-            curl \
-    || (echo "Retrying with 163 mirror..." && \
-        sed -i 's/mirrors.ustc.edu.cn/mirrors.163.com/g' /etc/apt/sources.list.d/debian.sources && \
-        sed -i 's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list.d/debian.sources && \
-        apt-get update && \
-        apt-get install -y \
-            ca-certificates \
-            curl)))))) && \
+            curl) && \
     rm -rf /var/lib/apt/lists/*
 
 # Install cargo tools
