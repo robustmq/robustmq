@@ -83,6 +83,43 @@ docker-deps-force: ## Force rebuild dependency image without cache (clean rebuil
 	docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null || true
 	./scripts/build-and-push-deps.sh latest --no-cache
 
+.PHONY: docker-deps-test-push
+docker-deps-test-push: ## Test and push existing dependency image (usage: make docker-deps-test-push IMAGE_ID=7b8530a246e5)
+	@echo "Testing and pushing existing dependency image..."
+	@echo "This will:"
+	@echo "  • Test existing image: $(IMAGE_ID)"
+	@echo "  • Verify Rust tools, cargo nextest, system dependencies"
+	@echo "  • Tag and push to ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Skip rebuilding (much faster)"
+	@if [ -z "$(IMAGE_ID)" ]; then \
+		echo "❌ Error: IMAGE_ID is required"; \
+		echo "Usage: make docker-deps-test-push IMAGE_ID=7b8530a246e5"; \
+		exit 1; \
+	fi
+	@echo "Testing image: $(IMAGE_ID)"
+	@echo "Testing Rust tools..."
+	@docker run --rm $(IMAGE_ID) bash -c "cargo --version && rustc --version" || (echo "❌ Rust tools test failed" && exit 1)
+	@echo "✅ Rust tools working"
+	@echo "Testing cargo nextest..."
+	@docker run --rm $(IMAGE_ID) bash -c "cargo nextest --version" || (echo "❌ cargo nextest test failed" && exit 1)
+	@echo "✅ cargo nextest working"
+	@echo "Testing system dependencies..."
+	@docker run --rm $(IMAGE_ID) bash -c "clang --version && echo 'lld: \$$(which ld.lld)' && cmake --version" || (echo "❌ System dependencies test failed" && exit 1)
+	@echo "✅ System dependencies working"
+	@echo "Testing cached dependencies..."
+	@docker run --rm $(IMAGE_ID) bash -c "du -sh /build/target 2>/dev/null || echo 'Target size: N/A'" || (echo "❌ Cached dependencies test failed" && exit 1)
+	@echo "✅ Cached dependencies found"
+	@echo "Tagging image..."
+	@docker tag $(IMAGE_ID) ghcr.io/robustmq/robustmq/rust-deps:latest
+	@echo "Pushing image to GHCR..."
+	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
+	@echo "✅ Image pushed successfully!"
+	@echo "🎉 Build completed successfully!"
+	@echo "📋 Next Steps:"
+	@echo "1️⃣  Update GitHub Actions workflows to use the image"
+	@echo "2️⃣  Verify in CI that workflows use the new image"
+	@echo "3️⃣  Monitor CI performance improvement"
+
 .PHONY: docker-app
 docker-app: ## Build and push application image to registry (requires ARGS parameter)
 	@echo "Building application image..."
