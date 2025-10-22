@@ -36,10 +36,10 @@ mod tests {
         let password = "caclpublic".to_string();
         let client_id = build_client_id("client_publish_authorization_test");
 
-        // 创建测试用户
+        // Create test user
         create_user(&admin_client, username.clone(), password.clone()).await;
 
-        // 测试无ACL时的发布
+        // Test publishing without ACL
         match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
@@ -49,7 +49,7 @@ mod tests {
             }
         }
 
-        // 创建ACL规则
+        // Create ACL rule
         let acl = match resource_type {
             MqttAclResourceType::User => create_test_acl(
                 resource_type,
@@ -69,7 +69,7 @@ mod tests {
 
         create_acl(&admin_client, acl.clone()).await;
 
-        // 测试有ACL时的发布
+        // Test publishing with ACL
         match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), true).await;
@@ -79,10 +79,10 @@ mod tests {
             }
         }
 
-        // 删除ACL规则
+        // Delete ACL rule
         delete_acl(&admin_client, acl.clone()).await;
 
-        // 测试删除ACL后的发布
+        // Test publishing after deleting ACL
         match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
@@ -92,7 +92,7 @@ mod tests {
             }
         }
 
-        // 清理测试用户
+        // Clean up test user
         delete_user(&admin_client, username.clone()).await;
     }
 
@@ -115,7 +115,6 @@ mod tests {
         check_acl_in_list(&admin_client, &acl, false).await;
     }
 
-    #[ignore]
     #[tokio::test]
     async fn user_publish_authorization_test() {
         let topic = format!(
@@ -305,6 +304,7 @@ mod tests {
             is_superuser: false,
         };
         let res = admin_client.create_user(&user).await;
+        println!("{:?}", res);
         assert!(res.is_ok());
     }
 
@@ -325,6 +325,7 @@ mod tests {
         };
 
         let res = admin_client.create_acl(&create_request).await;
+                println!("{:?}", res);
         assert!(res.is_ok());
     }
 

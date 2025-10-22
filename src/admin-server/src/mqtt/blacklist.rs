@@ -61,11 +61,11 @@ pub struct CreateBlackListReq {
 
 fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::ValidationError> {
     match blacklist_type {
-        "ClientId" | "IpAddress" | "Username" => Ok(()),
+        "ClientId" | "User" | "Ip" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_blacklist_type");
             err.message = Some(std::borrow::Cow::from(
-                "Blacklist type must be ClientId, IpAddress or Username",
+                "Blacklist type must be ClientId, User or Ip",
             ));
             Err(err)
         }

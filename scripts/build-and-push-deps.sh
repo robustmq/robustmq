@@ -85,7 +85,14 @@ check_prerequisites() {
     
     # Check disk space (need at least 20GB)
     local available_space
-    available_space=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | sed 's/G//')
+    # Use macOS-compatible df command
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: df -g gives output in 1K blocks, convert to GB
+        available_space=$(df -g "$PROJECT_ROOT" | awk 'NR==2 {print int($4/1024/1024)}')
+    else
+        # Linux: use -BG for GB units
+        available_space=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | sed 's/G//')
+    fi
     if [ "$available_space" -lt 20 ]; then
         log_warning "Available disk space: ${available_space}GB (recommended: 20GB+)"
         read -p "Continue anyway? (y/N) " -n 1 -r

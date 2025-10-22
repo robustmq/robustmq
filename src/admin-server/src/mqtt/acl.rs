@@ -69,11 +69,11 @@ pub struct CreateAclReq {
 
 fn validate_acl_resource_type(resource_type: &str) -> Result<(), validator::ValidationError> {
     match resource_type {
-        "ClientId" | "Username" | "IpAddress" => Ok(()),
+        "ClientId" | "User" | "Ip" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_acl_resource_type");
             err.message = Some(std::borrow::Cow::from(
-                "Resource type must be ClientId, Username or IpAddress",
+                "Resource type must be ClientId, User or Ip",
             ));
             Err(err)
         }
