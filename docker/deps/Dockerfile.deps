@@ -77,9 +77,10 @@ COPY --from=planner /build/recipe.json recipe.json
 
 # Configure build environment
 ENV CARGO_BUILD_JOBS=8
-ENV CARGO_INCREMENTAL=0
+ENV CARGO_INCREMENTAL=1
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/build/.sccache
+ENV CARGO_TARGET_DIR=/build/target
 
 # Cook dependencies - this is the slow part that we want to cache!
 # This compiles all dependencies in Cargo.lock
@@ -112,7 +113,8 @@ COPY --from=builder /build/Cargo.lock /build/Cargo.lock
 ENV CARGO_HOME=/usr/local/cargo
 ENV PATH="/usr/local/cargo/bin:${PATH}"
 ENV CARGO_BUILD_JOBS=10
-ENV CARGO_INCREMENTAL=0
+ENV CARGO_INCREMENTAL=1
+ENV CARGO_TARGET_DIR=/build/target
 ENV RUST_BACKTRACE=1
 
 # Set up linker configuration
@@ -125,7 +127,10 @@ RUN echo "✅ Dependency cache image built successfully!" && \
     echo "📦 Cached dependencies:" && \
     du -sh /build/target 2>/dev/null || echo "Target size: N/A" && \
     echo "🔧 Installed tools:" && \
-    cargo nextest --version
+    cargo nextest --version && \
+    echo "🔗 Linker tools:" && \
+    clang --version && \
+    lld --version
 
 # Default command
 CMD ["/bin/bash"]

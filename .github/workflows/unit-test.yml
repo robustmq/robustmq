@@ -71,7 +71,8 @@ jobs:
     
     env:
       CARGO_BUILD_JOBS: 10
-      CARGO_INCREMENTAL: 0
+      CARGO_INCREMENTAL: 1
+      CARGO_TARGET_DIR: /build/target
       RUST_BACKTRACE: 1
     
     steps:
@@ -90,6 +91,9 @@ jobs:
           if [ -d "/build/target" ]; then
             echo "✅ Found dependency cache!"
             du -sh /build/target 2>/dev/null || echo "Cache size: N/A"
+            echo "📊 Cache contents:"
+            ls -la /build/target/debug/deps/ | head -10 || echo "No debug deps found"
+            ls -la /build/target/release/deps/ | head -10 || echo "No release deps found"
           else
             echo "⚠️ No cache found (will compile from scratch)"
           fi
@@ -97,6 +101,10 @@ jobs:
           echo "🔧 Installed tools:"
           cargo --version
           cargo nextest --version || echo "nextest not found"
+          echo ""
+          echo "🔗 Linker tools:"
+          clang --version || echo "clang not found"
+          lld --version || echo "lld not found"
 
       - name: Build project code
         run: |

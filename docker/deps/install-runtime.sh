@@ -51,7 +51,7 @@ try_install() {
 }
 
 # Define packages to install
-PACKAGES="ca-certificates curl"
+PACKAGES="ca-certificates curl clang lld libclang-dev"
 
 # Try with official Debian repository first
 echo "Trying with official Debian repository..."
