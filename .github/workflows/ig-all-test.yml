@@ -73,7 +73,7 @@ jobs:
     
     env:
       CARGO_BUILD_JOBS: 8
-      CARGO_INCREMENTAL: 1
+      CARGO_INCREMENTAL: 0
       CARGO_TARGET_DIR: /build/target
       CARGO_PROFILE_RELEASE_DEBUG: false
       CARGO_PROFILE_RELEASE_STRIP: symbols

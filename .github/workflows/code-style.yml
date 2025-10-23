@@ -97,7 +97,7 @@ jobs:
     
     env:
       CARGO_BUILD_JOBS: 10
-      CARGO_INCREMENTAL: 1
+      CARGO_INCREMENTAL: 0
       CARGO_TARGET_DIR: /build/target
       RUST_BACKTRACE: 1
       PROTOC: /usr/bin/protoc

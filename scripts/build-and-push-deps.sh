@@ -672,7 +672,7 @@ ${BLUE}🔧 Environment Variables:${NC}
 - CARGO_LOG=warn (reduces build log verbosity)
 - RUST_LOG=warn (reduces Rust log verbosity)
 - CARGO_TARGET_DIR=/build/target (dependency cache location)
-- CARGO_INCREMENTAL=1 (enables incremental compilation)
+- CARGO_INCREMENTAL=0 (required for sccache compatibility)
 
 EOF
 }
@@ -814,11 +814,11 @@ verify_sccache_config() {
         log_warning "⚠️  sccache not configured in Dockerfile"
     fi
     
-    # Check for final stage incremental compilation
-    if grep -q "CARGO_INCREMENTAL=1" "$dockerfile_path"; then
-        log_success "✅ Final stage has CARGO_INCREMENTAL=1 for runtime efficiency"
+    # Check for final stage incremental compilation (should be 0 for sccache compatibility)
+    if grep -q "CARGO_INCREMENTAL=0" "$dockerfile_path"; then
+        log_success "✅ Final stage has CARGO_INCREMENTAL=0 for sccache compatibility"
     else
-        log_warning "⚠️  Final stage missing CARGO_INCREMENTAL=1"
+        log_warning "⚠️  Final stage should have CARGO_INCREMENTAL=0 for sccache compatibility"
     fi
     
     # Check for PROTOC environment variable
