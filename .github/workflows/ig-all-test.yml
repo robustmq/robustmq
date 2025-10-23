@@ -79,6 +79,12 @@ jobs:
       CARGO_PROFILE_RELEASE_STRIP: symbols
       PROTOC: /usr/bin/protoc
       RUST_BACKTRACE: 1
+      # Cache optimization
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: /build/.sccache
+      # Logging optimization
+      CARGO_LOG: warn
+      RUST_LOG: warn
     
     steps:
       - name: Checkout code

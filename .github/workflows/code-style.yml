@@ -101,6 +101,12 @@ jobs:
       CARGO_TARGET_DIR: /build/target
       RUST_BACKTRACE: 1
       PROTOC: /usr/bin/protoc
+      # Cache optimization
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: /build/.sccache
+      # Logging optimization
+      CARGO_LOG: warn
+      RUST_LOG: warn
     
     steps:
       - uses: actions/checkout@v5

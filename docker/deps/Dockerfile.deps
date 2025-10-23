@@ -135,6 +135,12 @@ ENV CARGO_INCREMENTAL=1
 ENV CARGO_TARGET_DIR=/build/target
 ENV RUST_BACKTRACE=1
 ENV PROTOC=/usr/bin/protoc
+# Cache optimization
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/build/.sccache
+# Logging optimization
+ENV CARGO_LOG=warn
+ENV RUST_LOG=warn
 
 # Set up linker configuration
 RUN mkdir -p /usr/local/cargo/.cargo

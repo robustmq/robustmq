@@ -427,6 +427,24 @@ test_image() {
     fi
     log_success "✅ Environment variables set correctly"
     
+    # Test 7.0: Cache environment variables
+    log_info "Testing cache environment variables..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$RUSTC_WRAPPER && echo \$SCCACHE_DIR"; then
+        log_error "Cache environment variables test failed"
+        log_error "Make sure Dockerfile sets ENV RUSTC_WRAPPER=sccache and ENV SCCACHE_DIR=/build/.sccache"
+        exit 1
+    fi
+    log_success "✅ Cache environment variables working"
+    
+    # Test 7.0.1: Logging environment variables
+    log_info "Testing logging environment variables..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$CARGO_LOG && echo \$RUST_LOG"; then
+        log_error "Logging environment variables test failed"
+        log_error "Make sure Dockerfile sets ENV CARGO_LOG=warn and ENV RUST_LOG=warn"
+        exit 1
+    fi
+    log_success "✅ Logging environment variables working"
+    
     # Test 7.1: PROTOC environment variable
     log_info "Testing PROTOC environment variable..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$PROTOC && test -x \$PROTOC"; then
@@ -648,6 +666,14 @@ ${BLUE}💡 Tips:${NC}
 - GHCR login includes automatic retry logic (3 attempts)
 - Use --no-cache flag for force rebuild: ./scripts/build-and-push-deps.sh latest --no-cache
 
+${BLUE}🔧 Environment Variables:${NC}
+- RUSTC_WRAPPER=sccache (enables compiler caching)
+- SCCACHE_DIR=/build/.sccache (sccache cache directory)
+- CARGO_LOG=warn (reduces build log verbosity)
+- RUST_LOG=warn (reduces Rust log verbosity)
+- CARGO_TARGET_DIR=/build/target (dependency cache location)
+- CARGO_INCREMENTAL=1 (enables incremental compilation)
+
 EOF
 }
 
@@ -771,6 +797,13 @@ verify_sccache_config() {
     if grep -q "RUSTC_WRAPPER=sccache" "$dockerfile_path"; then
         log_success "✅ sccache configured in Dockerfile"
         
+        # Check for SCCACHE_DIR setting
+        if grep -q "SCCACHE_DIR=" "$dockerfile_path"; then
+            log_success "✅ SCCACHE_DIR configured in Dockerfile"
+        else
+            log_warning "⚠️  SCCACHE_DIR not set - may cause sccache issues"
+        fi
+        
         # Check for CARGO_INCREMENTAL setting during build
         if grep -q "CARGO_INCREMENTAL=0" "$dockerfile_path"; then
             log_success "✅ CARGO_INCREMENTAL=0 set for sccache compatibility"
@@ -793,6 +826,19 @@ verify_sccache_config() {
         log_success "✅ PROTOC environment variable configured"
     else
         log_warning "⚠️  PROTOC environment variable not set - may cause protobuf compilation issues"
+    fi
+    
+    # Check for logging environment variables
+    if grep -q "ENV CARGO_LOG=" "$dockerfile_path"; then
+        log_success "✅ CARGO_LOG environment variable configured"
+    else
+        log_warning "⚠️  CARGO_LOG environment variable not set - may cause verbose build logs"
+    fi
+    
+    if grep -q "ENV RUST_LOG=" "$dockerfile_path"; then
+        log_success "✅ RUST_LOG environment variable configured"
+    else
+        log_warning "⚠️  RUST_LOG environment variable not set - may cause verbose build logs"
     fi
     
     # Check for protobuf-compiler in install scripts

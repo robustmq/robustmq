@@ -75,6 +75,15 @@ jobs:
       CARGO_TARGET_DIR: /build/target
       RUST_BACKTRACE: 1
       PROTOC: /usr/bin/protoc
+      # Cache optimization
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: /build/.sccache
+      # Logging optimization
+      CARGO_LOG: warn
+      RUST_LOG: warn
+      # Build optimization
+      CARGO_PROFILE_DEV_DEBUG: 1
+      CARGO_PROFILE_DEV_STRIP: false
     
     steps:
       - name: Checkout code
