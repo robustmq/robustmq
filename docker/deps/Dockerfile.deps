@@ -120,12 +120,14 @@ RUN chmod +x /tmp/install-runtime.sh && \
     rm /tmp/install-runtime.sh
 
 # Install cargo tools
-RUN cargo install cargo-nextest --locked
+RUN cargo install cargo-nextest sccache --locked
 
 # Copy compiled dependencies from builder
 COPY --from=builder /usr/local/cargo /usr/local/cargo
 COPY --from=builder /build/target /build/target
 COPY --from=builder /build/Cargo.lock /build/Cargo.lock
+# Copy sccache cache directory
+COPY --from=builder /build/.sccache /build/.sccache
 
 # Configure Rust environment
 ENV CARGO_HOME=/usr/local/cargo
@@ -153,6 +155,7 @@ RUN echo "✅ Dependency cache image built successfully!" && \
     du -sh /build/target 2>/dev/null || echo "Target size: N/A" && \
     echo "🔧 Installed tools:" && \
     cargo nextest --version && \
+    sccache --version && \
     echo "🔗 Linker tools:" && \
     clang --version && \
     echo "🔧 Protocol Buffers:" && \
