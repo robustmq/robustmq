@@ -110,7 +110,7 @@ check_prerequisites() {
         available_space=$(df -g "$PROJECT_ROOT" | awk 'NR==2 {print int($4/1024/1024)}')
     else
         # Linux: use -BG for GB units
-        available_space=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | sed 's/G//')
+    available_space=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | sed 's/G//')
     fi
     if [ "$available_space" -lt 20 ]; then
         log_warning "Available disk space: ${available_space}GB (recommended: 20GB+)"
@@ -275,10 +275,10 @@ build_image() {
         log_info "Starting Docker build with real-time output..."
         if DOCKER_BUILDKIT=1 docker build \
             --file docker/deps/Dockerfile.deps \
-            --tag "${FULL_IMAGE}" \
-            --tag "${IMAGE_BASE}:latest" \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --progress=plain \
+        --tag "${FULL_IMAGE}" \
+        --tag "${IMAGE_BASE}:latest" \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --progress=plain \
             ${NO_CACHE} \
             .; then
             local build_exit_code=0
@@ -287,9 +287,9 @@ build_image() {
         fi
         
         if [ $build_exit_code -eq 0 ]; then
-            local end_time
-            end_time=$(date +%s)
-            local duration=$((end_time - start_time))
+    local end_time
+    end_time=$(date +%s)
+    local duration=$((end_time - start_time))
             log_success "Build completed in ${duration} seconds ($((duration / 60)) minutes)"
             
             # Verify image was created successfully

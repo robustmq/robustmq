@@ -126,8 +126,6 @@ RUN cargo install cargo-nextest sccache --locked
 COPY --from=builder /usr/local/cargo /usr/local/cargo
 COPY --from=builder /build/target /build/target
 COPY --from=builder /build/Cargo.lock /build/Cargo.lock
-# Copy sccache cache directory
-COPY --from=builder /build/.sccache /build/.sccache
 
 # Configure Rust environment
 ENV CARGO_HOME=/usr/local/cargo

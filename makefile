@@ -179,36 +179,18 @@ docker-deps-push: ## Push existing dependency image without testing (fast push)
 	@echo "2️⃣  Verify in CI that workflows use the new image"
 	@echo "3️⃣  Monitor CI performance improvement"
 
-.PHONY: docker-deps-clean
-docker-deps-clean: ## Clean all local dependency images and build cache (saves disk space)
-	@echo "Cleaning local dependency images and build cache..."
-	@echo "This will:"
-	@echo "  • Remove all robustmq/rust-deps images (local and remote tags)"
-	@echo "  • Remove dangling images from failed builds"
-	@echo "  • Clean Docker build cache"
-	@echo "  • Free up significant disk space"
-	@echo ""
-	@echo "Current disk usage:"
-	@docker system df
-	@echo ""
-	@echo "Removing robustmq dependency images..."
-	@docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq.*rust-deps|ghcr\.io.*rust-deps)" || echo "No robustmq dependency images found"
-	@docker rmi $$(docker images --format "{{.ID}}" | grep -v "$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format '{{.ID}}' 2>/dev/null || echo 'none')") 2>/dev/null || true
-	@docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null || true
-	@docker rmi $$(docker images --filter "dangling=true" --format "{{.ID}}") 2>/dev/null || true
-	@echo "Cleaning Docker build cache..."
-	@docker builder prune -f
-	@echo "Cleaning unused images..."
-	@docker image prune -f
-	@echo ""
-	@echo "✅ Cleanup completed!"
-	@echo "Disk usage after cleanup:"
-	@docker system df
-	@echo ""
-	@echo "💡 Tips:"
-	@echo "  • Use 'make docker-deps' to rebuild when needed"
-	@echo "  • Use 'make docker-deps-test-push IMAGE_ID=<id>' to test existing images"
-	@echo "  • Run 'docker system df' to check disk usage anytime"
+.PHONY: docker-clean
+docker-clean: ## Clean all Docker data (images, containers, volumes, cache)
+	@echo "🧹 Cleaning Docker data..."
+	@if docker info >/dev/null 2>&1; then \
+		echo "📊 Before: $$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo 'N/A')"; \
+		if [ "$$(docker ps -q)" ]; then docker stop $$(docker ps -q) 2>/dev/null; fi; \
+		docker system prune -a --volumes -f; \
+		echo "✅ Cleaned! After: $$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo 'N/A')"; \
+	else \
+		echo "❌ Docker not running"; \
+		exit 1; \
+	fi
 
 .PHONY: docker-app
 docker-app: ## Build and push application image to registry (requires ARGS parameter)
