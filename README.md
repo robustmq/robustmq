@@ -160,7 +160,7 @@ We welcome contributions! Check out our [Contribution Guide](https://robustmq.co
 
 ## 📄 License
 
-RobustMQ is licensed under the [Apache License 2.0](LICENSE), which strikes a balance between open collaboration and allowing you to use the software in your projects, whether open source or proprietary.
+RobustMQ is licensed under the [Apache License 2.0](LICENSE), which  strikes a balance between open collaboration and allowing you to use the software in your projects, whether open source or proprietary.
 
 ---
 

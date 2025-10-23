@@ -136,9 +136,9 @@ impl MetricsCacheManager {
     }
 
     // message out
-    pub async fn record_message_out_num(&self, time: u64, total: u64, num: u64) {
+    pub async fn record_message_out_num(&self, time: u64, total_num: u64, num: u64) {
         self.record_num(METRICS_TYPE_KEY_MESSAGE_OUT_NUM, time, num);
-        self.record_pre_num(METRICS_TYPE_KEY_MESSAGE_OUT_NUM, total);
+        self.record_pre_num(METRICS_TYPE_KEY_MESSAGE_OUT_NUM, total_num);
     }
 
     pub fn get_message_out_num(&self) -> DashMap<u64, u64> {
