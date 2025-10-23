@@ -80,7 +80,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install protoc if missing
+      - name: Install protoc and cmake if missing
         run: |
           echo "🔧 Checking protoc availability..."
           if ! protoc --version >/dev/null 2>&1; then
@@ -93,6 +93,17 @@ jobs:
           fi
           protoc --version
           echo "PROTOC: $PROTOC"
+          
+          echo "🔧 Checking cmake availability..."
+          if ! cmake --version >/dev/null 2>&1; then
+            echo "⚠️ cmake not found, installing..."
+            apt-get update
+            apt-get install -y cmake
+            echo "✅ cmake installed successfully"
+          else
+            echo "✅ cmake already available"
+          fi
+          cmake --version
 
       - name: Cache image info
         run: |

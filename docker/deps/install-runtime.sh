@@ -25,8 +25,11 @@ try_install() {
     
     echo "Trying to install with $mirror_name mirror..."
     
+    # Create a backup of original sources
+    cp /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list.d/debian.sources.backup
+    
     # Update sources to use the mirror
-    sed -i "s/deb.debian.org/$mirror_url/g" /etc/apt/sources.list.d/debian.sources
+    sed -i "s|deb.debian.org|$mirror_url|g" /etc/apt/sources.list.d/debian.sources
     
     # Update package list with retry
     local retry_count=0
@@ -52,6 +55,8 @@ try_install() {
     while [ $retry_count -lt $max_retries ]; do
         if apt-get install -y $packages; then
             echo "Successfully installed with $mirror_name mirror"
+            # Restore original sources
+            cp /etc/apt/sources.list.d/debian.sources.backup /etc/apt/sources.list.d/debian.sources
             return 0
         else
             echo "Package installation failed, retrying... ($((retry_count + 1))/$max_retries)"
@@ -61,11 +66,13 @@ try_install() {
     done
     
     echo "Failed to install packages after $max_retries attempts"
+    # Restore original sources
+    cp /etc/apt/sources.list.d/debian.sources.backup /etc/apt/sources.list.d/debian.sources
     return 1
 }
 
 # Define packages to install
-PACKAGES="ca-certificates curl clang lld libclang-dev protobuf-compiler"
+PACKAGES="ca-certificates curl clang lld libclang-dev protobuf-compiler cmake pkg-config libssl-dev"
 
 # Try with multiple mirrors in order of reliability (most stable first)
 # Skip Huawei if it's having 502 issues and try others first

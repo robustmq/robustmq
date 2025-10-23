@@ -394,11 +394,22 @@ test_image() {
     
     # Test 5: Build tools
     log_info "Testing build tools..."
-    if ! docker run --rm "${FULL_IMAGE}" bash -c "pkg-config --version && protoc --version"; then
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "pkg-config --version && protoc --version && cmake --version"; then
         log_error "Build tools test failed"
+        log_error "This usually means protobuf-compiler or cmake is not installed in the image"
+        log_error "Please check docker/deps/install-runtime.sh includes protobuf-compiler and cmake"
         exit 1
     fi
     log_success "✅ Build tools working"
+    
+    # Test 5.1: Protoc specific test
+    log_info "Testing protoc specifically..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "protoc --version && echo 'PROTOC path:' && which protoc"; then
+        log_error "protoc test failed - this will cause prost-validate-types build failures"
+        log_error "Make sure protobuf-compiler is installed in docker/deps/install-runtime.sh"
+        exit 1
+    fi
+    log_success "✅ protoc working correctly"
     
     # Test 6: Cargo cache directory
     log_info "Testing cargo cache..."
@@ -415,6 +426,32 @@ test_image() {
         exit 1
     fi
     log_success "✅ Environment variables set correctly"
+    
+    # Test 7.1: PROTOC environment variable
+    log_info "Testing PROTOC environment variable..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$PROTOC && test -x \$PROTOC"; then
+        log_error "PROTOC environment variable test failed"
+        log_error "Make sure Dockerfile sets ENV PROTOC=/usr/bin/protoc"
+        exit 1
+    fi
+    log_success "✅ PROTOC environment variable working"
+    
+    # Test 7.2: Protoc build test (simulate prost-validate-types scenario)
+    log_info "Testing protoc build capabilities..."
+    if ! docker run --rm "${FULL_IMAGE}" bash -c "
+        echo 'Testing protoc build scenario...'
+        # Create a simple .proto file
+        mkdir -p /tmp/test_proto
+        echo 'syntax = \"proto3\"; package test; message TestMessage { string value = 1; }' > /tmp/test_proto/test.proto
+        # Test protoc compilation
+        protoc --proto_path=/tmp/test_proto --rust_out=/tmp/test_proto /tmp/test_proto/test.proto
+        echo 'protoc build test successful'
+    "; then
+        log_error "protoc build test failed - this indicates protoc is not working correctly"
+        log_error "This will cause prost-validate-types build failures in CI"
+        exit 1
+    fi
+    log_success "✅ protoc build test successful"
     
     # Test 8: Verify all critical dependencies are installed
     log_info "Verifying critical dependencies installation..."
@@ -757,6 +794,91 @@ verify_sccache_config() {
     else
         log_warning "⚠️  PROTOC environment variable not set - may cause protobuf compilation issues"
     fi
+    
+    # Check for protobuf-compiler in install scripts
+    local install_runtime_path="docker/deps/install-runtime.sh"
+    if [ -f "$install_runtime_path" ]; then
+        if grep -q "protobuf-compiler" "$install_runtime_path"; then
+            log_success "✅ protobuf-compiler included in install-runtime.sh"
+            
+            # Check if the script has proper error handling
+            if grep -q "set -e" "$install_runtime_path"; then
+                log_success "✅ install-runtime.sh has proper error handling (set -e)"
+            else
+                log_warning "⚠️  install-runtime.sh missing 'set -e' - may continue on errors"
+            fi
+            
+            # Check if the script has mirror fallback
+            if grep -q "try_install.*Official.*deb.debian.org" "$install_runtime_path"; then
+                log_success "✅ install-runtime.sh has mirror fallback mechanism"
+            else
+                log_warning "⚠️  install-runtime.sh may not have proper mirror fallback"
+            fi
+        else
+            log_error "❌ protobuf-compiler not found in install-runtime.sh"
+            log_error "This will cause 'Could not find protoc' errors in CI"
+            exit 1
+        fi
+    else
+        log_error "❌ install-runtime.sh not found: $install_runtime_path"
+        exit 1
+    fi
+}
+
+# Diagnose protoc-related issues
+diagnose_protoc_issues() {
+    log_info "Diagnosing potential protoc issues..."
+    
+    # Check if protoc is in the expected location
+    if docker run --rm "${FULL_IMAGE}" bash -c "test -x /usr/bin/protoc"; then
+        log_success "✅ protoc found at /usr/bin/protoc"
+    else
+        log_error "❌ protoc not found at /usr/bin/protoc"
+        log_error "This will cause 'Could not find protoc' errors"
+        
+        # Try to find where protoc is installed
+        log_info "Searching for protoc in the image..."
+        docker run --rm "${FULL_IMAGE}" bash -c "find /usr -name protoc 2>/dev/null || echo 'protoc not found anywhere'"
+        exit 1
+    fi
+    
+    # Check if PROTOC environment variable points to the right location
+    local protoc_path=$(docker run --rm "${FULL_IMAGE}" bash -c "echo \$PROTOC")
+    if [ "$protoc_path" = "/usr/bin/protoc" ]; then
+        log_success "✅ PROTOC environment variable correctly set to /usr/bin/protoc"
+    else
+        log_error "❌ PROTOC environment variable is '$protoc_path', expected '/usr/bin/protoc'"
+        exit 1
+    fi
+    
+    # Test protoc version
+    local protoc_version=$(docker run --rm "${FULL_IMAGE}" bash -c "protoc --version 2>/dev/null || echo 'failed'")
+    if [[ "$protoc_version" != "failed" ]]; then
+        log_success "✅ protoc version: $protoc_version"
+    else
+        log_error "❌ protoc --version failed"
+        exit 1
+    fi
+    
+    # Check if protobuf-compiler package is actually installed
+    log_info "Checking if protobuf-compiler package is installed..."
+    if docker run --rm "${FULL_IMAGE}" bash -c "dpkg -l | grep protobuf-compiler"; then
+        log_success "✅ protobuf-compiler package is installed"
+    else
+        log_error "❌ protobuf-compiler package not found in dpkg list"
+        log_error "This indicates the package installation failed during Docker build"
+        exit 1
+    fi
+    
+    # Check if cmake package is actually installed
+    log_info "Checking if cmake package is installed..."
+    if docker run --rm "${FULL_IMAGE}" bash -c "dpkg -l | grep cmake"; then
+        log_success "✅ cmake package is installed"
+    else
+        log_error "❌ cmake package not found in dpkg list"
+        log_error "This will cause paho-mqtt-sys build failures"
+        exit 1
+    fi
 }
 
 # Main execution
@@ -772,6 +894,7 @@ main() {
     show_image_info
     # Skip test_image to avoid validation failures
     # test_image
+    diagnose_protoc_issues
     push_image
     verify_build_success
     show_usage

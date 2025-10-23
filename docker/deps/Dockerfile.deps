@@ -53,7 +53,8 @@ RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
 COPY src/protocol/build.rs ./src/protocol/
 
 # Generate recipe.json - this contains the dependency graph
-RUN cargo chef prepare --recipe-path recipe.json
+# Include test dependencies in the recipe
+RUN cargo chef prepare --workspace --tests --recipe-path recipe.json
 
 # ==============================================================================
 # Stage 2: Builder - Compile all dependencies
@@ -96,7 +97,12 @@ RUN --mount=type=cache,target=/build/.sccache \
     echo "  RUSTC_WRAPPER: $RUSTC_WRAPPER" && \
     echo "  SCCACHE_DIR: $SCCACHE_DIR" && \
     echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR" && \
+    echo "🔨 Compiling release dependencies..." && \
     cargo chef cook --release --workspace --recipe-path recipe.json 2>/dev/null && \
+    echo "🔨 Compiling debug dependencies (for tests)..." && \
+    cargo chef cook --workspace --recipe-path recipe.json 2>/dev/null && \
+    echo "🔨 Compiling test dependencies..." && \
+    cargo chef cook --workspace --tests --recipe-path recipe.json 2>/dev/null && \
     echo "✅ Dependency compilation completed successfully!"
 
 # ==============================================================================
