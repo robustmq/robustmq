@@ -750,6 +750,13 @@ verify_sccache_config() {
     else
         log_warning "⚠️  Final stage missing CARGO_INCREMENTAL=1"
     fi
+    
+    # Check for PROTOC environment variable
+    if grep -q "ENV PROTOC=" "$dockerfile_path"; then
+        log_success "✅ PROTOC environment variable configured"
+    else
+        log_warning "⚠️  PROTOC environment variable not set - may cause protobuf compilation issues"
+    fi
 }
 
 # Main execution

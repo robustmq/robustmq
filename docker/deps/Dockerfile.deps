@@ -128,6 +128,7 @@ ENV CARGO_BUILD_JOBS=10
 ENV CARGO_INCREMENTAL=1
 ENV CARGO_TARGET_DIR=/build/target
 ENV RUST_BACKTRACE=1
+ENV PROTOC=/usr/bin/protoc
 
 # Set up linker configuration
 RUN mkdir -p /usr/local/cargo/.cargo
