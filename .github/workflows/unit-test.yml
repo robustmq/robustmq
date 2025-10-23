@@ -74,6 +74,7 @@ jobs:
       CARGO_INCREMENTAL: 1
       CARGO_TARGET_DIR: /build/target
       RUST_BACKTRACE: 1
+      PROTOC: /usr/bin/protoc
     
     steps:
       - name: Checkout code
@@ -108,6 +109,10 @@ jobs:
           echo "🔗 Linker tools:"
           clang --version || echo "clang not found"
           lld --version || echo "lld not found"
+          echo ""
+          echo "🔧 Protocol Buffers:"
+          protoc --version || echo "protoc not found"
+          echo "PROTOC: $PROTOC"
           echo ""
           echo "📋 Environment variables:"
           echo "CARGO_TARGET_DIR: $CARGO_TARGET_DIR"

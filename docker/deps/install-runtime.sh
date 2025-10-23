@@ -65,7 +65,7 @@ try_install() {
 }
 
 # Define packages to install
-PACKAGES="ca-certificates curl clang lld libclang-dev"
+PACKAGES="ca-certificates curl clang lld libclang-dev protobuf-compiler"
 
 # Try with multiple mirrors in order of reliability (most stable first)
 # Skip Huawei if it's having 502 issues and try others first

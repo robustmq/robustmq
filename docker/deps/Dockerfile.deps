@@ -142,6 +142,8 @@ RUN echo "✅ Dependency cache image built successfully!" && \
     cargo nextest --version && \
     echo "🔗 Linker tools:" && \
     clang --version && \
+    echo "🔧 Protocol Buffers:" && \
+    protoc --version && \
     echo "✅ All tools verified successfully!"
 
 # Default command
