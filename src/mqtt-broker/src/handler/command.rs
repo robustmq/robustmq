@@ -24,7 +24,6 @@ use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
-use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::now_mills;
 use common_metrics::mqtt::event::{
     record_mqtt_connection_failed, record_mqtt_connection_success, record_mqtt_subscribe_failed,
@@ -45,6 +44,7 @@ use protocol::mqtt::common::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use protocol::robust::RobustMQPacket;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;

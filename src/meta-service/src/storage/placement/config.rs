@@ -16,11 +16,11 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 
-use crate::storage::engine_meta::{
+use crate::storage::keys::key_resource_config;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_meta,
 };
-use crate::storage::keys::key_resource_config;
-use rocksdb_engine::RocksDBEngine;
 
 pub struct ResourceConfigStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -68,8 +68,8 @@ impl ResourceConfigStorage {
 #[cfg(test)]
 mod test {
     use super::ResourceConfigStorage;
-    use broker_core::rocksdb::column_family_list;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use tempfile::tempdir;
 

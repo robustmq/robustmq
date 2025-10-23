@@ -42,6 +42,6 @@ dashmap.workspace = true
 storage-adapter.workspace = true
 bytes.workspace = true
 validator.workspace = true
-
+rocksdb-engine.workspace = true
 [dev-dependencies]
 mockall.workspace = true

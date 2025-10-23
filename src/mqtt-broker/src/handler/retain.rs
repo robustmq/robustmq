@@ -174,12 +174,11 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
         for topic_name in topic_name_list.iter() {
             let (message, message_at) = topic_storage.get_retain_message(topic_name).await?;
-
             if message.is_none() || message_at.is_none() {
                 continue;
             }
 
-            let msg = serde_json::from_str::<MqttMessage>(&message.unwrap())?;
+            let msg = message.unwrap();
 
             if !is_send_msg_by_bo_local(filter.nolocal, &context.client_id, &msg.client_id) {
                 debug!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", context.client_id);
@@ -246,6 +245,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 &context.stop_sx,
             )
             .await?;
+            println!("{}", 5);
             debug!(
                 "retain the successful message sending: client_id: {}, topi_id: {}",
                 context.client_id, topic_name

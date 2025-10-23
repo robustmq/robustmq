@@ -237,7 +237,9 @@ impl MQTTCacheManager {
 
     pub fn delete_topic(&self, topic_name: &str) {
         self.topic_info.remove(topic_name);
-        // todo
+        self.topic_rewrite_new_name.remove(topic_name);
+        self.topic_is_validator.remove(topic_name);
+        self.delete_auto_subscribe_rule(topic_name);
     }
 
     pub fn topic_exists(&self, topic_name: &str) -> bool {
@@ -415,8 +417,8 @@ impl MQTTCacheManager {
         self.auto_subscribe_rule.insert(key, auto_subscribe_rule);
     }
 
-    pub fn delete_auto_subscribe_rule(&self, cluster: &str, topic: &str) {
-        let key = self.auto_subscribe_rule_key(cluster, topic);
+    pub fn delete_auto_subscribe_rule(&self, topic: &str) {
+        let key = self.auto_subscribe_rule_key(&self.broker_cache.cluster_name, topic);
         self.auto_subscribe_rule.remove(&key);
     }
 }
@@ -702,7 +704,7 @@ mod tests {
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
         // remove
-        cache_manager.delete_auto_subscribe_rule(&rule.cluster, &rule.topic);
+        cache_manager.delete_auto_subscribe_rule(&rule.topic);
 
         // get again
         let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&key);

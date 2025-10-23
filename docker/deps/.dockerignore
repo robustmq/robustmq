@@ -27,11 +27,11 @@ CHANGELOG*
 tests/target/
 **/*test*
 
-# Examples (unless needed)
+# Examples
 example/
 
 # Docker files themselves
-docker/
+docker/robustmq/
 Dockerfile*
 docker-compose*.yml
 .dockerignore
@@ -71,21 +71,17 @@ profile/
 *.backup
 *.old
 
-# Certificate and key files (keep template versions)
+# Certificate and key files
 *.pem
 *.key
 *.crt
 *.p12
 *.jks
-!**/*.template.*
 
-# Configuration overrides (keep template versions)
+# Configuration overrides
 config/*.toml
 !config/*.template.toml
 !config/*-example.toml
-
-# Monitoring configurations
-monitoring/
 
 # Scripts not needed in container
 scripts/
@@ -96,3 +92,7 @@ Makefile
 .env
 .env.*
 !.env.example
+
+# Monitoring configurations (not needed for deps build)
+monitoring/
+grafana/

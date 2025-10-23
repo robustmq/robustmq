@@ -21,7 +21,7 @@ use protocol::meta::meta_service_inner::{
     DeleteResourceConfigRequest, DeleteSchemaRequest, SaveOffsetDataRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
@@ -168,12 +168,12 @@ impl DataRouteCluster {
 mod tests {
     use std::sync::Arc;
 
-    use broker_core::rocksdb::column_family_list;
     use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
 
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;

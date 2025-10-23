@@ -25,7 +25,6 @@ mod tests {
         ClientTestProperties,
     };
 
-    #[ignore]
     #[tokio::test]
     async fn payload_format_indicator_connect_test() {
         let network = "tcp";

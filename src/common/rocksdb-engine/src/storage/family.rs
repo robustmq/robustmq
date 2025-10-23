@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use rocksdb_engine::RocksDBEngine;
-
 pub const DB_COLUMN_FAMILY_META: &str = "meta";
 pub const DB_COLUMN_FAMILY_META_RAFT_LOG: &str = "meta_raft_log";
 pub const DB_COLUMN_FAMILY_META_RAFT_STORE: &str = "meta_raft_store";
@@ -43,7 +41,7 @@ pub fn storage_raft_fold(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::rocksdb::{column_family_list, storage_data_fold, storage_raft_fold};
+    use crate::storage::family::{column_family_list, storage_data_fold, storage_raft_fold};
 
     #[tokio::test]
     async fn column_family_list_test() {

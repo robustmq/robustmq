@@ -30,12 +30,12 @@ use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
 use rocksdb_engine::warp::StorageDataWrap;
 
-use crate::storage::engine_meta::{
+use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
     engine_save_by_meta,
 };
-use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
-use rocksdb_engine::RocksDBEngine;
 
 pub struct MqttSessionStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -85,11 +85,11 @@ mod tests {
     use std::sync::Arc;
 
     use crate::storage::mqtt::session::MqttSessionStorage;
-    use broker_core::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::session::MqttSession;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
 
     #[tokio::test]
     async fn session_storage_test() {

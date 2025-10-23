@@ -20,7 +20,6 @@ use admin_server::{
 use broker_core::{
     cache::BrokerCacheManager,
     heartbeat::{check_meta_service_status, register_node, report_heartbeat},
-    rocksdb::{column_family_list, storage_data_fold, RocksDBEngine},
 };
 use common_base::runtime::create_runtime;
 use common_config::{broker::broker_config, config::BrokerConfig};
@@ -57,6 +56,10 @@ use network_server::common::connection_manager::ConnectionManager as NetworkConn
 use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
+use rocksdb_engine::{
+    rocksdb::RocksDBEngine,
+    storage::family::{column_family_list, storage_data_fold},
+};
 use schema_register::schema::SchemaRegisterManager;
 use std::{
     sync::{

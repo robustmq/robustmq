@@ -38,7 +38,7 @@ use protocol::meta::meta_service_journal::{
 };
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn list_segment_by_req(
@@ -535,12 +535,12 @@ pub async fn sync_delete_segment_metadata_info(
 mod tests {
     use super::calc_node_fold;
     use crate::core::cache::CacheManager;
-    use broker_core::rocksdb::{column_family_list, storage_data_fold};
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::{column_family_list, storage_data_fold};
     use std::sync::Arc;
 
     #[tokio::test]

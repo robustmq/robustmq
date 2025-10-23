@@ -17,7 +17,7 @@ use std::sync::Arc;
 use protocol::journal::journal_engine::{
     ReadReqBody, ReadReqFilter, ReadReqOptions, ReadRespMessage, ReadRespSegmentMessage, ReadType,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use super::file::{ReadData, SegmentFile};
 use super::SegmentIdentity;

@@ -25,8 +25,8 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_mills,
 };
-use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
 use mqtt_broker::storage::topic::TopicStorage;
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
 use serde::{Deserialize, Serialize};
@@ -132,7 +132,7 @@ pub struct TopicListRow {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
     pub topic_info: MQTTTopic,
-    pub retain_message: Option<String>,
+    pub retain_message: Option<MqttMessage>,
     pub retain_message_at: Option<u64>,
     pub sub_list: Vec<TopicSubscribeInfo>,
 }

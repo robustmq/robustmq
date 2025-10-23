@@ -15,7 +15,5 @@
 #![allow(clippy::result_large_err)]
 pub mod cache;
 pub mod cluster;
-pub mod engine;
 pub mod heartbeat;
-pub mod rocksdb;
 pub mod tool;

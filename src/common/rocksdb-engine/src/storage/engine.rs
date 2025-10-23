@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::{rocksdb::RocksDBEngine, warp::StorageDataWrap};
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use serde::Serialize;
-
-use crate::warp::StorageDataWrap;
-use crate::RocksDBEngine;
+use std::sync::Arc;
 
 pub fn rocksdb_engine_save<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -208,10 +205,10 @@ mod tests {
     use metadata_struct::mqtt::session::MqttSession;
 
     use crate::{
-        engine::{
+        rocksdb::RocksDBEngine,
+        storage::engine::{
             rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_save,
         },
-        RocksDBEngine,
     };
 
     use tempfile::tempdir;

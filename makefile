@@ -69,6 +69,129 @@ docker-deps-tag: ## Build and push dependency image with specific tag (usage: ma
 	@echo "Building dependency image with tag: $(TAG)"
 	./scripts/build-and-push-deps.sh $(TAG)
 
+.PHONY: docker-deps-force
+docker-deps-force: ## Force rebuild dependency image without cache (clean rebuild)
+	@echo "Force rebuilding dependency image..."
+	@echo "This will:"
+	@echo "  • Clean Docker build cache"
+	@echo "  • Remove old dependency image"
+	@echo "  • Rebuild from scratch (20-40 minutes)"
+	@echo "  • Push to ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Requires Docker and GHCR login"
+	@echo "  • Takes 20-40 minutes on first build"
+	docker builder prune -f
+	docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null || true
+	./scripts/build-and-push-deps.sh latest --no-cache
+
+.PHONY: docker-deps-test-push
+docker-deps-test-push: ## Test and push existing dependency image (auto-detect image ID or use IMAGE_ID parameter)
+	@echo "Testing and pushing existing dependency image..."
+	@echo "This will:"
+	@echo "  • Auto-detect image ID from ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Verify Rust tools, cargo nextest, system dependencies"
+	@echo "  • Tag and push to ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Skip rebuilding (much faster)"
+	@echo ""
+	@if [ -n "$(IMAGE_ID)" ]; then \
+		echo "Using provided IMAGE_ID: $(IMAGE_ID)"; \
+		IMAGE_ID_TO_USE="$(IMAGE_ID)"; \
+	else \
+		echo "Auto-detecting image ID from ghcr.io/robustmq/robustmq/rust-deps:latest..."; \
+		IMAGE_ID_TO_USE=$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format "{{.ID}}" 2>/dev/null || echo ""); \
+		if [ -z "$$IMAGE_ID_TO_USE" ]; then \
+			echo "❌ Error: ghcr.io/robustmq/robustmq/rust-deps:latest not found locally"; \
+			echo "Available images:"; \
+			docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq|rust-deps)" || echo "No robustmq images found"; \
+			echo ""; \
+			echo "Please either:"; \
+			echo "  1. Build the image first: make docker-deps"; \
+			echo "  2. Specify IMAGE_ID manually: make docker-deps-test-push IMAGE_ID=<id>"; \
+			exit 1; \
+		fi; \
+		echo "Found image ID: $$IMAGE_ID_TO_USE"; \
+	fi
+	@echo "Verifying image exists and is accessible..."
+	@if ! docker image inspect $$IMAGE_ID_TO_USE >/dev/null 2>&1; then \
+		echo "❌ Error: Image $$IMAGE_ID_TO_USE not found or not accessible"; \
+		echo "Available images:"; \
+		docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"; \
+		exit 1; \
+	fi
+	@echo "✅ Image verified: $$IMAGE_ID_TO_USE"
+	@echo "Testing image: $$IMAGE_ID_TO_USE"
+	@echo "Testing Rust tools..."
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "cargo --version && rustc --version" || (echo "❌ Rust tools test failed" && exit 1)
+	@echo "✅ Rust tools working"
+	@echo "Testing cargo nextest..."
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "cargo nextest --version" || (echo "❌ cargo nextest test failed" && exit 1)
+	@echo "✅ cargo nextest working"
+	@echo "Testing system dependencies..."
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "clang --version && cmake --version" || (echo "❌ System dependencies test failed" && exit 1)
+	@echo "✅ System dependencies working"
+	@echo "Testing cached dependencies..."
+	@docker run --rm $$IMAGE_ID_TO_USE bash -c "du -sh /build/target 2>/dev/null || echo 'Target size: N/A'" || (echo "❌ Cached dependencies test failed" && exit 1)
+	@echo "✅ Cached dependencies found"
+	@echo "Tagging image..."
+	@docker tag $$IMAGE_ID_TO_USE ghcr.io/robustmq/robustmq/rust-deps:latest
+	@echo "Pushing image to GHCR..."
+	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
+	@echo "✅ Image pushed successfully!"
+	@echo "🎉 Build completed successfully!"
+	@echo "📋 Next Steps:"
+	@echo "1️⃣  Update GitHub Actions workflows to use the image"
+	@echo "2️⃣  Verify in CI that workflows use the new image"
+	@echo "3️⃣  Monitor CI performance improvement"
+
+.PHONY: docker-deps-push
+docker-deps-push: ## Push existing dependency image without testing (fast push)
+	@echo "Pushing existing dependency image..."
+	@echo "This will:"
+	@echo "  • Auto-detect image ID from ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Tag and push to ghcr.io/robustmq/robustmq/rust-deps:latest"
+	@echo "  • Skip testing (much faster)"
+	@echo ""
+	@if [ -n "$(IMAGE_ID)" ]; then \
+		echo "Using provided IMAGE_ID: $(IMAGE_ID)"; \
+		IMAGE_ID_TO_USE="$(IMAGE_ID)"; \
+	else \
+		echo "Auto-detecting image ID from ghcr.io/robustmq/robustmq/rust-deps:latest..."; \
+		IMAGE_ID_TO_USE=$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format "{{.ID}}" 2>/dev/null || echo ""); \
+		if [ -z "$$IMAGE_ID_TO_USE" ]; then \
+			echo "❌ Error: ghcr.io/robustmq/robustmq/rust-deps:latest not found locally"; \
+			echo "Available images:"; \
+			docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq|rust-deps)" || echo "No robustmq images found"; \
+			echo ""; \
+			echo "Please either:"; \
+			echo "  1. Build the image first: make docker-deps"; \
+			echo "  2. Specify IMAGE_ID manually: make docker-deps-push IMAGE_ID=<id>"; \
+			exit 1; \
+		fi; \
+		echo "Found image ID: $$IMAGE_ID_TO_USE"; \
+	fi
+	@echo "Tagging image..."
+	@docker tag $$IMAGE_ID_TO_USE ghcr.io/robustmq/robustmq/rust-deps:latest
+	@echo "Pushing image to GHCR..."
+	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
+	@echo "✅ Image pushed successfully!"
+	@echo "🎉 Push completed successfully!"
+	@echo "📋 Next Steps:"
+	@echo "1️⃣  Update GitHub Actions workflows to use the image"
+	@echo "2️⃣  Verify in CI that workflows use the new image"
+	@echo "3️⃣  Monitor CI performance improvement"
+
+.PHONY: docker-clean
+docker-clean: ## Clean all Docker data (images, containers, volumes, cache)
+	@echo "🧹 Cleaning Docker data..."
+	@if docker info >/dev/null 2>&1; then \
+		echo "📊 Before: $$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo 'N/A')"; \
+		if [ "$$(docker ps -q)" ]; then docker stop $$(docker ps -q) 2>/dev/null; fi; \
+		docker system prune -a --volumes -f; \
+		echo "✅ Cleaned! After: $$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo 'N/A')"; \
+	else \
+		echo "❌ Docker not running"; \
+		exit 1; \
+	fi
+
 .PHONY: docker-app
 docker-app: ## Build and push application image to registry (requires ARGS parameter)
 	@echo "Building application image..."

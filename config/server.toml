@@ -52,6 +52,6 @@ enable = true
 port = 9091
 
 [mqtt_offline_message]
-enable = false
+enable = true
 expire_ms = 3600000
 max_messages_num = 100000

@@ -20,7 +20,6 @@ use crate::{
     subscribe::manager::SubscribeManager,
 };
 use broker_core::cache::BrokerCacheManager;
-use broker_core::rocksdb::RocksDBEngine;
 use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -30,6 +29,7 @@ use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;

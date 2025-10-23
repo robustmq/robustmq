@@ -91,7 +91,7 @@ mod tests {
         assert!(result_message.is_some());
         assert!(result_message_qt.is_some());
 
-        let msg = serde_json::from_str::<MqttMessage>(&result_message.unwrap()).unwrap();
+        let msg = result_message.unwrap();
         let payload = String::from_utf8(msg.payload.to_vec()).unwrap();
         assert_eq!(payload, content);
 

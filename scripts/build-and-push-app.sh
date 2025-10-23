@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # ============================================================================
 # RobustMQ Application Image - Build & Push Helper
 # ============================================================================
 #
 # Purpose:
-#   Build the RobustMQ application Docker image (docker/Dockerfile) and push
+#   Build the RobustMQ application Docker image (docker/robustmq/Dockerfile) and push
 #   it to a container registry (GHCR or Docker Hub).
 #
 # Prerequisites:
@@ -144,7 +158,7 @@ IMAGE_LOCAL="${NAME}:${VERSION}"
 IMAGE_REMOTE="${REG_PREFIX}/${NAME}:${VERSION}"
 
 log "Project root: $PROJECT_ROOT"
-log "Dockerfile:   docker/Dockerfile"
+log "Dockerfile:   docker/robustmq/Dockerfile"
 log "Registry:     $REGISTRY"
 log "Image name:   $IMAGE_REMOTE"
 if [[ -n "$TARGET_STAGE" ]]; then log "Target stage:  $TARGET_STAGE"; fi
@@ -152,12 +166,55 @@ if [[ -n "$PLATFORM" ]]; then log "Platform:      $PLATFORM"; fi
 
 cd "$PROJECT_ROOT"
 
+# Auto-login to GitHub Container Registry if needed
+if [[ "$REGISTRY" == "ghcr" ]]; then
+    log "Checking GitHub Container Registry authentication..."
+    
+    # Check if already logged in
+    if ! docker info | grep -q "ghcr.io"; then
+        # Check for GITHUB_TOKEN environment variable
+        if [ -z "$GITHUB_TOKEN" ]; then
+            log_error "GITHUB_TOKEN environment variable is not set"
+            log "Please set your GitHub token:"
+            log "  export GITHUB_TOKEN=your_github_token"
+            log "  # or add it to your ~/.bashrc or ~/.zshrc"
+            exit 1
+        fi
+        
+        # Get GitHub username from token or use current user
+        local github_user
+        if [ -n "$GITHUB_USER" ]; then
+            github_user="$GITHUB_USER"
+        else
+            # Try to get username from GitHub API
+            github_user=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
+            if [ -z "$github_user" ]; then
+                log_warning "Could not determine GitHub username, using 'github'"
+                github_user="github"
+            fi
+        fi
+        
+        log "Logging in to GHCR as $github_user..."
+        
+        # Login to GHCR
+        if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$github_user" --password-stdin; then
+            log "Successfully logged in to GHCR"
+        else
+            log_error "Failed to login to GHCR"
+            log "Please check your GITHUB_TOKEN and try again"
+            exit 1
+        fi
+    else
+        log "Already logged in to GHCR"
+    fi
+fi
+
 # Build step
 log "Building image... this could take a few minutes"
 
-BUILD_ARGS=( -f docker/Dockerfile -t "$IMAGE_LOCAL" . )
+BUILD_ARGS=( -f docker/robustmq/Dockerfile -t "$IMAGE_LOCAL" . )
 if [[ -n "$TARGET_STAGE" ]]; then
-    BUILD_ARGS=( -f docker/Dockerfile --target "$TARGET_STAGE" -t "$IMAGE_LOCAL" . )
+    BUILD_ARGS=( -f docker/robustmq/Dockerfile --target "$TARGET_STAGE" -t "$IMAGE_LOCAL" . )
 fi
 
 if [[ -n "$PLATFORM" ]]; then

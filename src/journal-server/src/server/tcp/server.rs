@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
 use tracing::info;

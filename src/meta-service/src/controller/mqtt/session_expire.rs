@@ -16,7 +16,6 @@ use crate::core::cache::CacheManager;
 use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
-use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will_message};
@@ -24,8 +23,9 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::broker::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META;
 use rocksdb_engine::warp::StorageDataWrap;
-use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -289,12 +289,12 @@ pub async fn send_last_will(
 
 #[cfg(test)]
 mod tests {
-    use broker_core::rocksdb::column_family_list;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;

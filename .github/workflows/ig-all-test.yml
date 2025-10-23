@@ -33,6 +33,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Grant necessary permissions for package access
+permissions:
+  contents: read
+  packages: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -57,10 +62,10 @@ jobs:
             test-filter: "mqtt"
             test-packages: "--package robustmq-test"
     container:
-      # 🚀 Use manually-maintained pre-built image with all dependencies!
+      # 🚀 Use pre-built image with all dependencies for faster CI
       # Built from: docker/Dockerfile.deps
       # See docker/README.md for maintenance guide
-      image: ghcr.io/socutes/robustmq/rust-deps:latest
+      image: ghcr.io/robustmq/robustmq/rust-deps:latest
       options: --user root
       credentials:
         username: ${{ github.actor }}
@@ -69,9 +74,17 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 8
       CARGO_INCREMENTAL: 0
+      CARGO_TARGET_DIR: /build/target
       CARGO_PROFILE_RELEASE_DEBUG: false
       CARGO_PROFILE_RELEASE_STRIP: symbols
+      PROTOC: /usr/bin/protoc
       RUST_BACKTRACE: 1
+      # Cache optimization
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: /build/.sccache
+      # Logging optimization
+      CARGO_LOG: warn
+      RUST_LOG: warn
     
     steps:
       - name: Checkout code
@@ -79,24 +92,82 @@ jobs:
         with:
           submodules: true
 
-      - name: Check disk space
+      - name: Install protoc and cmake if missing
+        run: |
+          echo "🔧 Checking protoc availability..."
+          if ! protoc --version >/dev/null 2>&1; then
+            echo "⚠️ protoc not found, installing..."
+            apt-get update
+            apt-get install -y protobuf-compiler
+            echo "✅ protoc installed successfully"
+          else
+            echo "✅ protoc already available"
+          fi
+          protoc --version
+          echo "PROTOC: $PROTOC"
+          
+          echo "🔧 Checking cmake availability..."
+          if ! cmake --version >/dev/null 2>&1; then
+            echo "⚠️ cmake not found, installing..."
+            apt-get update
+            apt-get install -y cmake
+            echo "✅ cmake installed successfully"
+          else
+            echo "✅ cmake already available"
+          fi
+          cmake --version
+
+      - name: Check disk space and cache
         run: |
           echo "📊 Initial disk space:"
           df -h
           echo ""
-          echo "🔍 Dependency cache status:"
+          echo "📦 Using pre-built cache image: ghcr.io/robustmq/robustmq/rust-deps:latest"
           if [ -d "/build/target" ]; then
             echo "✅ Found pre-compiled dependencies!"
             du -sh /build/target 2>/dev/null || echo "N/A"
+            echo "🔍 Checking for compiled crates:"
+            find /build/target -name "*.rlib" | wc -l | xargs echo "Compiled libraries:"
+            find /build/target -name "*.rmeta" | wc -l | xargs echo "Metadata files:"
           else
-            echo "⚠️ No dependency cache"
+            echo "⚠️ No dependency cache (will compile from scratch)"
+          fi
+          echo ""
+          echo "🔧 Protocol Buffers:"
+          protoc --version || echo "protoc not found"
+          echo "PROTOC: $PROTOC"
+          echo ""
+          echo "📋 Environment variables:"
+          echo "CARGO_TARGET_DIR: $CARGO_TARGET_DIR"
+          echo "CARGO_INCREMENTAL: $CARGO_INCREMENTAL"
+
+      - name: Verify cache usage
+        run: |
+          echo "🔍 Verifying cache usage..."
+          if [ -d "/build/target" ]; then
+            echo "📊 Cache statistics before build:"
+            du -sh /build/target 2>/dev/null || echo "Cache size: N/A"
+            echo "📦 Cached dependencies count:"
+            find /build/target -name "*.rlib" | wc -l | xargs echo "Libraries:"
+            find /build/target -name "*.rmeta" | wc -l | xargs echo "Metadata:"
           fi
 
       - name: Build broker-server
         run: |
           echo "🔨 Building broker-server in release mode..."
+          echo "📋 Build environment:"
+          echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR"
+          echo "  CARGO_INCREMENTAL: $CARGO_INCREMENTAL"
+          echo "  CARGO_BUILD_JOBS: $CARGO_BUILD_JOBS"
+          echo ""
           cargo build --release --package cmd --bin broker-server
           echo "✅ Build complete"
+          
+          # Show cache usage after build
+          if [ -d "/build/target" ]; then
+            echo "📊 Cache statistics after build:"
+            du -sh /build/target 2>/dev/null || echo "Cache size: N/A"
+          fi
           df -h
 
       - name: Start broker-server

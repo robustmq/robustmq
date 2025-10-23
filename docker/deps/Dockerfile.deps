@@ -18,6 +18,7 @@
 # ==============================================================================
 # Stage 1: Planner - Generate dependency recipe using cargo-chef
 # ==============================================================================
+# Use a more stable base image with fallback
 FROM rust:1.90.0-bookworm AS planner
 
 WORKDIR /build
@@ -52,6 +53,7 @@ RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
 COPY src/protocol/build.rs ./src/protocol/
 
 # Generate recipe.json - this contains the dependency graph
+# Note: cargo chef prepare doesn't support --tests, but cargo chef cook does
 RUN cargo chef prepare --recipe-path recipe.json
 
 # ==============================================================================
@@ -61,17 +63,12 @@ FROM rust:1.90.0-bookworm AS builder
 
 WORKDIR /build
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    protobuf-compiler \
-    llvm \
-    libclang-dev \
-    cmake \
-    pkg-config \
-    libssl-dev \
-    clang \
-    lld \
-    && rm -rf /var/lib/apt/lists/*
+# Copy and run install script
+COPY docker/deps/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh && \
+    /tmp/install-deps.sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /tmp/install-deps.sh
 
 # Install cargo tools
 RUN cargo install sccache cargo-nextest cargo-chef --locked
@@ -84,11 +81,29 @@ ENV CARGO_BUILD_JOBS=8
 ENV CARGO_INCREMENTAL=0
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/build/.sccache
+ENV CARGO_TARGET_DIR=/build/target
+# Suppress unnecessary warnings
+ENV CARGO_LOG=warn
+ENV RUST_LOG=warn
 
 # Cook dependencies - this is the slow part that we want to cache!
 # This compiles all dependencies in Cargo.lock
+# Note: CARGO_INCREMENTAL=0 is required when using sccache
 RUN --mount=type=cache,target=/build/.sccache \
-    cargo chef cook --release --workspace --recipe-path recipe.json
+    echo "🔨 Starting dependency compilation with sccache..." && \
+    echo "📊 Build configuration:" && \
+    echo "  CARGO_BUILD_JOBS: $CARGO_BUILD_JOBS" && \
+    echo "  CARGO_INCREMENTAL: $CARGO_INCREMENTAL" && \
+    echo "  RUSTC_WRAPPER: $RUSTC_WRAPPER" && \
+    echo "  SCCACHE_DIR: $SCCACHE_DIR" && \
+    echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR" && \
+    echo "🔨 Compiling release dependencies..." && \
+    cargo chef cook --release --recipe-path recipe.json && \
+    echo "🔨 Compiling debug dependencies (for tests)..." && \
+    cargo chef cook --recipe-path recipe.json && \
+    echo "🔨 Compiling all targets (tests, benches, examples)..." && \
+    cargo chef cook --all-targets --recipe-path recipe.json && \
+    echo "✅ Dependency compilation completed successfully!"
 
 # ==============================================================================
 # Stage 3: Final - Base image with all dependencies compiled
@@ -97,14 +112,15 @@ FROM rust:1.90.0-bookworm
 
 WORKDIR /build
 
-# Install only runtime dependencies (build tools already installed in builder stage)
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Copy and run runtime install script
+COPY docker/deps/install-runtime.sh /tmp/install-runtime.sh
+RUN chmod +x /tmp/install-runtime.sh && \
+    /tmp/install-runtime.sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /tmp/install-runtime.sh
 
 # Install cargo tools
-RUN cargo install cargo-nextest --locked
+RUN cargo install cargo-nextest sccache --locked
 
 # Copy compiled dependencies from builder
 COPY --from=builder /usr/local/cargo /usr/local/cargo
@@ -116,7 +132,15 @@ ENV CARGO_HOME=/usr/local/cargo
 ENV PATH="/usr/local/cargo/bin:${PATH}"
 ENV CARGO_BUILD_JOBS=10
 ENV CARGO_INCREMENTAL=0
+ENV CARGO_TARGET_DIR=/build/target
 ENV RUST_BACKTRACE=1
+ENV PROTOC=/usr/bin/protoc
+# Cache optimization
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/build/.sccache
+# Logging optimization
+ENV CARGO_LOG=warn
+ENV RUST_LOG=warn
 
 # Set up linker configuration
 RUN mkdir -p /usr/local/cargo/.cargo
@@ -128,7 +152,13 @@ RUN echo "✅ Dependency cache image built successfully!" && \
     echo "📦 Cached dependencies:" && \
     du -sh /build/target 2>/dev/null || echo "Target size: N/A" && \
     echo "🔧 Installed tools:" && \
-    cargo nextest --version
+    cargo nextest --version && \
+    sccache --version && \
+    echo "🔗 Linker tools:" && \
+    clang --version && \
+    echo "🔧 Protocol Buffers:" && \
+    protoc --version && \
+    echo "✅ All tools verified successfully!"
 
 # Default command
 CMD ["/bin/bash"]

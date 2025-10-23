@@ -19,7 +19,7 @@ use common_base::tools::{loop_select_ticket, now_second};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use message_expire::MessageExpire;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use session_expire::SessionExpire;
 use std::sync::Arc;
 use tokio::sync::broadcast;

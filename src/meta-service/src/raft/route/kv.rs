@@ -19,7 +19,7 @@ use protocol::meta::meta_service_kv::{DeleteRequest, SetRequest};
 
 use crate::core::error::MetaServiceError;
 use crate::storage::placement::kv::KvStorage;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteKv {

@@ -13,17 +13,17 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine_meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
-};
 use crate::storage::keys::{
     storage_key_mqtt_schema, storage_key_mqtt_schema_bind,
     storage_key_mqtt_schema_bind_prefix_by_cluster,
     storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
 };
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 use std::sync::Arc;
 
 pub struct SchemaStorage {
@@ -154,13 +154,13 @@ impl SchemaStorage {
 mod tests {
     use std::sync::Arc;
 
-    use broker_core::rocksdb::column_family_list;
     use metadata_struct::schema::SchemaType;
     use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+    use rocksdb_engine::storage::family::column_family_list;
     use tempfile::tempdir;
 
     use crate::storage::placement::schema::SchemaStorage;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
 
     #[tokio::test]
     async fn schema_storage_test() {

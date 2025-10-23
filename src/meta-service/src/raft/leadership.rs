@@ -20,7 +20,7 @@ use crate::{
 };
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     select,

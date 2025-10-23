@@ -28,7 +28,7 @@ use protocol::meta::meta_service_mqtt::{
     CreateConnectorRequest, DeleteConnectorReply, DeleteConnectorRequest, ListConnectorReply,
     ListConnectorRequest, UpdateConnectorReply, UpdateConnectorRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::warn;

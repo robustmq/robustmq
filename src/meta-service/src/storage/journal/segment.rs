@@ -17,15 +17,15 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 
-use crate::storage::engine_meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
-};
 use crate::storage::keys::{
     key_all_segment, key_segment, key_segment_cluster_prefix, key_segment_namespace_prefix,
     key_segment_shard_prefix,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 #[allow(dead_code)]
 pub fn is_seal_up_segment(status: &SegmentStatus) -> bool {
@@ -132,10 +132,10 @@ impl SegmentStorage {
 mod test {
     use std::sync::Arc;
 
-    use broker_core::rocksdb::column_family_list;
     use common_base::tools::unique_id;
     use metadata_struct::journal::segment::JournalSegment;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use tempfile::tempdir;
 
     use super::SegmentStorage;

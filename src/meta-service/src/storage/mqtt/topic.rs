@@ -15,10 +15,6 @@
 use std::sync::Arc;
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine_meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
-};
 use crate::storage::keys::{
     storage_key_mqtt_retain_message, storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
@@ -26,7 +22,11 @@ use crate::storage::keys::{
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 pub struct MqttTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -159,12 +159,12 @@ mod tests {
     use std::sync::Arc;
 
     use crate::storage::mqtt::topic::MqttTopicStorage;
-    use broker_core::rocksdb::column_family_list;
     use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
 
     #[tokio::test]
     async fn topic_storage_test() {

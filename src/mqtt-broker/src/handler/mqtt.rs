@@ -15,7 +15,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::{now_mills, now_second};
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
@@ -30,6 +29,7 @@ use protocol::mqtt::common::{
     Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
     UnsubscribeProperties,
 };
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{debug, warn};
