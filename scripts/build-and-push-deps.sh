@@ -419,6 +419,25 @@ test_image() {
     fi
     log_success "✅ Cargo cache directory exists"
     
+    # Test 6.1: Pre-compiled dependencies
+    log_info "Testing pre-compiled dependencies..."
+    local rlib_count=$(docker run --rm "${FULL_IMAGE}" bash -c "find /build/target -name '*.rlib' | wc -l" 2>/dev/null || echo "0")
+    local rmeta_count=$(docker run --rm "${FULL_IMAGE}" bash -c "find /build/target -name '*.rmeta' | wc -l" 2>/dev/null || echo "0")
+    
+    if [ "$rlib_count" -gt 100 ]; then
+        log_success "✅ Found $rlib_count pre-compiled libraries (.rlib)"
+    else
+        log_error "❌ Only found $rlib_count pre-compiled libraries - expected 100+"
+        log_error "This indicates cargo chef cook did not compile dependencies properly"
+        exit 1
+    fi
+    
+    if [ "$rmeta_count" -gt 50 ]; then
+        log_success "✅ Found $rmeta_count metadata files (.rmeta)"
+    else
+        log_warning "⚠️  Only found $rmeta_count metadata files - expected 50+"
+    fi
+    
     # Test 7: Environment variables
     log_info "Testing environment variables..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$CARGO_INCREMENTAL && echo \$CARGO_TARGET_DIR"; then
@@ -642,9 +661,13 @@ ${BLUE}📋 Next Steps:${NC}
        username: \${{ github.actor }}
        password: \${{ secrets.GITHUB_TOKEN }}
 
-3️⃣  Verify in CI that workflows use the new image
+2️⃣  Verify in CI that workflows use the new image
 
-4️⃣  Monitor CI performance improvement
+3️⃣  Monitor CI performance improvement
+
+${YELLOW}⚠️  IMPORTANT: If CI still compiles many dependencies, the dependency image may not contain pre-compiled dependencies.${NC}
+${YELLOW}   This usually means cargo chef cook failed during image build.${NC}
+${YELLOW}   Check the build logs above for cargo chef cook errors.${NC}
 
 ${BLUE}📊 When to Rebuild:${NC}
 
