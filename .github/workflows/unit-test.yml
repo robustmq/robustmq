@@ -80,6 +80,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Install protoc if missing
+        run: |
+          echo "🔧 Checking protoc availability..."
+          if ! protoc --version >/dev/null 2>&1; then
+            echo "⚠️ protoc not found, installing..."
+            apt-get update
+            apt-get install -y protobuf-compiler
+            echo "✅ protoc installed successfully"
+          else
+            echo "✅ protoc already available"
+          fi
+          protoc --version
+          echo "PROTOC: $PROTOC"
+
       - name: Cache image info
         run: |
           echo "📦 Using pre-built cache image: ghcr.io/robustmq/robustmq/rust-deps:latest"

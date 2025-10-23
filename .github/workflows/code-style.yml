@@ -105,6 +105,26 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
+      - name: Install protoc if missing
+        run: |
+          echo "🔧 Checking protoc availability..."
+          if ! protoc --version >/dev/null 2>&1; then
+            echo "⚠️ protoc not found, installing..."
+            apt-get update
+            apt-get install -y protobuf-compiler
+            echo "✅ protoc installed successfully"
+          else
+            echo "✅ protoc already available"
+          fi
+          protoc --version
+          echo "PROTOC: $PROTOC"
+      
+      - name: Verify protoc availability
+        run: |
+          echo "🔧 Protocol Buffers:"
+          protoc --version || echo "protoc not found"
+          echo "PROTOC: $PROTOC"
+      
       - name: Install clippy
         run: rustup component add clippy
       
