@@ -216,7 +216,7 @@ mod tests {
 
         let ms = now_second() - start;
         println!("ms:{}", ms);
-        assert!(ms >= 9 && ms <= 11)
+        assert!((9..=11).contains(&ms))
     }
 
     #[tokio::test]
