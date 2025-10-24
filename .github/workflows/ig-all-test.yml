@@ -78,15 +78,10 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
 
-      - name: Build test binaries
+      - name: Build and run integration tests
         run: |
-          echo "🔨 Building ${{ matrix.test-name }}..."
-          cargo build --release ${{ matrix.test-packages }}
-
-      - name: Run integration tests
-        run: |
-          echo "🧪 Running ${{ matrix.test-name }}..."
-          cargo test --release ${{ matrix.test-packages }} ${{ matrix.test-filter }}
+          echo "🧪 Building and running ${{ matrix.test-name }}..."
+          cargo test --release --no-fail-fast ${{ matrix.test-packages }} ${{ matrix.test-filter }}
 
       - name: Test Summary
         if: always()

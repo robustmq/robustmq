@@ -85,15 +85,9 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
 
-      - name: Build tests
+      - name: Build and run tests
         run: |
-          echo "🔨 Building ${{ matrix.group }} tests..."
-          cargo build --workspace ${{ matrix.packages }} --tests
-          echo "✅ Build complete!"
-
-      - name: Run tests
-        run: |
-          echo "🧪 Running ${{ matrix.group }} tests..."
+          echo "🧪 Building and running ${{ matrix.group }} tests..."
           cargo nextest run \
             --profile=ci \
             ${{ matrix.packages }} \
