@@ -13,47 +13,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-# Exit on error
 set -e
 
-# Build broker-server binary
-echo "Building broker-server binary..."
-cargo build --release --package cmd --bin broker-server
-
-# Build test binaries
-echo "Building test binaries..."
-cargo build --release \
-  --package grpc-clients \
-  --package robustmq-test \
-  --tests
-
-# Start broker
-echo "Starting broker-server..."
-strip target/release/broker-server 2>/dev/null || true
-nohup target/release/broker-server >> 1.log 2>&1 &
-BROKER_PID=$!
-sleep 30
-
-# Run tests (no compilation needed, binaries already built)
-echo "Running integration tests..."
-# Temporarily disable exit on error to ensure cleanup happens
-set +e
-cargo nextest run --release --fail-fast \
-  --package grpc-clients \
-  --package robustmq-test
-
-TEST_EXIT_CODE=$?
-set -e
-
-# Stop broker
-echo "Stopping broker-server..."
-kill $BROKER_PID 2>/dev/null || true
-
-# Exit with the test exit code
-if [ $TEST_EXIT_CODE -ne 0 ]; then
-    echo "Tests failed with exit code $TEST_EXIT_CODE"
-    exit $TEST_EXIT_CODE
+# Parse arguments
+START_BROKER=false
+if [ "$1" == "--start-broker" ]; then
+    START_BROKER=true
 fi
 
-echo "All tests passed successfully"
+# Cleanup function
+cleanup() {
+    if [ "$START_BROKER" == "true" ] && [ ! -z "$BROKER_PID" ]; then
+        echo "Stopping broker-server..."
+        kill $BROKER_PID 2>/dev/null || true
+    fi
+}
+
+# Register cleanup on exit
+trap cleanup EXIT
+
+# Start broker if needed
+if [ "$START_BROKER" == "true" ]; then
+    echo "Starting broker-server..."
+    cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
+    BROKER_PID=$!
+    echo "Waiting for broker to be ready..."
+    sleep 30
+else
+    echo "Skipping broker startup (assuming broker is already running)..."
+fi
+
+# Run tests
+echo "Running integration tests..."
+cargo nextest run --fail-fast \
+  --package grpc-clients \
+  --package robustmq-test

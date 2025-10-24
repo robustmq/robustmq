@@ -186,8 +186,14 @@ test: ## Run unit tests with cleanup
 		--filter-expr '!(test(meta) & package(storage-adapter))'
 
 .PHONY: ig-test
-ig-test: ## Run MQTT integration tests
+ig-test: ## Run integration tests (assumes broker is already running)
+	@echo "Running integration tests (broker must be running)..."
 	/bin/bash ./scripts/ig-test.sh
+
+.PHONY: ig-test-ci
+ig-test-ci: ## Run integration tests with broker startup (for CI)
+	@echo "Running integration tests with broker startup..."
+	/bin/bash ./scripts/ig-test.sh --start-broker
 
 ##@ Clean
 .PHONY: clean
