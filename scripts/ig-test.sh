@@ -41,12 +41,19 @@ trap cleanup EXIT
 
 # Start broker if needed
 if [ "$START_BROKER" == "true" ]; then
-    echo "Starting broker-server (compiling and launching)..."
+    echo "Building broker-server..."
+    echo "=========================================="
+    
+    # Build broker-server (this will use cache effectively)
+    cargo build --package cmd --bin broker-server
+    
+    echo ""
+    echo "Starting broker-server..."
     echo "Broker logs will be written to 1.log and tailed below..."
     echo "=========================================="
     
     # Start broker and redirect output to file
-    cargo run --package cmd --bin broker-server > 1.log 2>&1 &
+    ./target/debug/broker-server > 1.log 2>&1 &
     BROKER_PID=$!
     
     # Start tailing the log in background
