@@ -77,7 +77,6 @@ jobs:
       CARGO_TARGET_DIR: /build/target
       CARGO_PROFILE_RELEASE_DEBUG: false
       CARGO_PROFILE_RELEASE_STRIP: symbols
-      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 256
       PROTOC: /usr/bin/protoc
       RUST_BACKTRACE: 1
       # Cache optimization
