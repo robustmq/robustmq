@@ -22,10 +22,10 @@ BROKER_PID=$!
 sleep 30
 
 # Run tests
-cargo nextest run --package grpc-clients --test mod -- meta
-cargo nextest run --package robustmq-test --test mod -- meta
-cargo nextest run --package robustmq-test --test mod -- journal
-cargo nextest run --package robustmq-test --test mod -- mqtt
+cargo nextest run --release --package grpc-clients --test mod -- meta
+cargo nextest run --release --package robustmq-test --test mod -- meta
+cargo nextest run --release --package robustmq-test --test mod -- journal
+cargo nextest run --release --package robustmq-test --test mod -- mqtt
 
 # Stop broker
 kill $BROKER_PID 2>/dev/null || true
