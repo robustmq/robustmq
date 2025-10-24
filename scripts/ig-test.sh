@@ -14,6 +14,9 @@
 # limitations under the License.
 
 
+# Exit on error
+set -e
+
 # Build broker-server binary
 echo "Building broker-server binary..."
 cargo build --release --package cmd --bin broker-server
@@ -34,10 +37,23 @@ sleep 30
 
 # Run tests (no compilation needed, binaries already built)
 echo "Running integration tests..."
-cargo nextest run --release --no-fail-fast \
+# Temporarily disable exit on error to ensure cleanup happens
+set +e
+cargo nextest run --release --fail-fast \
   --package grpc-clients \
   --package robustmq-test
+
+TEST_EXIT_CODE=$?
+set -e
 
 # Stop broker
 echo "Stopping broker-server..."
 kill $BROKER_PID 2>/dev/null || true
+
+# Exit with the test exit code
+if [ $TEST_EXIT_CODE -ne 0 ]; then
+    echo "Tests failed with exit code $TEST_EXIT_CODE"
+    exit $TEST_EXIT_CODE
+fi
+
+echo "All tests passed successfully"
