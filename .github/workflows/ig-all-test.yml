@@ -43,22 +43,9 @@ env:
 
 jobs:
   integration-tests:
-    name: ${{ matrix.test-name }}
+    name: Integration Tests
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - test-name: "Meta Tests"
-            test-filter: "meta"
-            test-packages: "--package grpc-clients --package robustmq-test"
-          - test-name: "Journal Tests"
-            test-filter: "journal"
-            test-packages: "--package robustmq-test"
-          - test-name: "MQTT Tests"
-            test-filter: "mqtt"
-            test-packages: "--package robustmq-test"
     
     steps:
       - uses: actions/checkout@v5
@@ -72,21 +59,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler cmake
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "integration-tests"
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
 
-      - name: Build and run integration tests
+      - name: Run integration tests
         run: |
-          echo "🧪 Building and running ${{ matrix.test-name }}..."
-          cargo test --release --no-fail-fast ${{ matrix.test-packages }} ${{ matrix.test-filter }}
+          echo "🧪 Running all integration tests..."
+          chmod +x scripts/ig-test.sh
+          bash scripts/ig-test.sh
 
       - name: Test Summary
         if: always()
         run: |
-          echo "## 🧪 ${{ matrix.test-name }} Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
           if [ $? -eq 0 ]; then
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
           else

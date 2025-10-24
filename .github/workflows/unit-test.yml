@@ -43,21 +43,9 @@ env:
 
 jobs:
   unit-tests:
-    name: ${{ matrix.group }}
+    name: Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - group: "Core & Common"
-            packages: "-p broker-core -p common-base -p common-config -p common-metrics -p metadata-struct -p common-security -p rate-limit"
-          - group: "Brokers"
-            packages: "-p mqtt-broker -p admin-server -p broker-server"
-          - group: "Storage & Services"
-            packages: "-p storage-adapter -p meta-service -p journal-server -p journal-client -p schema-register"
-          - group: "Protocol & Network"
-            packages: "-p protocol -p network-server -p rocksdb-engine"
+    timeout-minutes: 45
     
     steps:
       - name: Checkout code
@@ -81,22 +69,22 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "unit-test" # Shared across all unit test jobs
+          shared-key: "unit-test"
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
 
-      - name: Build and run tests
+      - name: Build and run all tests
         run: |
-          echo "🧪 Building and running ${{ matrix.group }} tests..."
+          echo "🧪 Building and running all unit tests..."
           cargo nextest run \
             --profile=ci \
-            ${{ matrix.packages }} \
+            --workspace \
             --filter-expr '!(test(meta) & package(storage-adapter))'
 
       - name: Test Summary
         if: always()
         run: |
-          echo "## 🧪 ${{ matrix.group }} Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Unit Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ $? -eq 0 ]; then
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY

@@ -19,7 +19,7 @@ cargo build --release --package cmd --bin broker-server
 strip target/release/broker-server 2>/dev/null || true
 nohup target/release/broker-server >> 1.log 2>&1 &
 BROKER_PID=$!
-sleep 5
+sleep 30
 
 # Run tests
 cargo nextest run --package grpc-clients --test mod -- meta
