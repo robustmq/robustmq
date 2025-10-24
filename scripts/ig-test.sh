@@ -18,8 +18,9 @@
 echo "Building broker-server and test binaries..."
 cargo build --release \
   --package cmd --bin broker-server \
-  --package grpc-clients --tests \
-  --package robustmq-test --tests
+  --package grpc-clients \
+  --package robustmq-test \
+  --tests
 
 # Start broker
 echo "Starting broker-server..."
