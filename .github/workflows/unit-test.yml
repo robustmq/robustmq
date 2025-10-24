@@ -71,15 +71,10 @@ jobs:
         with:
           shared-key: "unit-test"
           cache-on-failure: true
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
-      - name: Build and run all tests
-        run: |
-          echo "🧪 Building and running all unit tests..."
-          cargo nextest run \
-            --profile=ci \
-            --workspace \
-            --filter-expr '!(test(meta) & package(storage-adapter))'
+      - name: Run unit tests
+        run: make test
 
       - name: Test Summary
         if: always()

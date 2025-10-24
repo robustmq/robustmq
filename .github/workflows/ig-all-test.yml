@@ -66,13 +66,10 @@ jobs:
         with:
           shared-key: "integration-tests"
           cache-on-failure: true
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
       - name: Run integration tests
-        run: |
-          echo "🧪 Running all integration tests..."
-          chmod +x scripts/ig-test.sh
-          bash scripts/ig-test.sh
+        run: make ig-test
 
       - name: Test Summary
         if: always()

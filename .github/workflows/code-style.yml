@@ -73,7 +73,7 @@ jobs:
         with:
           shared-key: "clippy"
           cache-on-failure: true
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev-116' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
       
       - name: Run clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
