@@ -75,11 +75,13 @@ jobs:
 
       - name: Test Summary
         if: always()
+        shell: bash
         run: |
           echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.run-tests.outcome }}" == "success" ]; then
-            echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
-          else
+          echo "Debug: outcome = ${{ steps.run-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.run-tests.outcome }}" != "success" ]; then
             echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
+          echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
