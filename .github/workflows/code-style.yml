@@ -96,7 +96,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     
     env:
-      CARGO_BUILD_JOBS: 10
+      CARGO_BUILD_JOBS: 16
       CARGO_INCREMENTAL: 0
       CARGO_TARGET_DIR: /build/target
       RUST_BACKTRACE: 1
@@ -107,6 +107,10 @@ jobs:
       # Logging optimization
       CARGO_LOG: warn
       RUST_LOG: warn
+      # Build optimization - speed up compilation for CI
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_DEV_STRIP: true
+      CARGO_PROFILE_DEV_CODEGEN_UNITS: 256
     
     steps:
       - uses: actions/checkout@v5
