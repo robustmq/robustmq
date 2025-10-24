@@ -39,7 +39,7 @@ pub fn get_project_root() -> io::Result<PathBuf> {
 }
 
 pub fn test_temp_dir() -> String {
-    format!("./data/tests/{}/", unique_id())
+    format!("./target/tests/{}/", unique_id())
 }
 
 #[cfg(test)]
