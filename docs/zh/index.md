@@ -80,7 +80,7 @@ features:
   </div>
   <div class="web-ui-container">
     <div class="web-ui-image-wrapper">
-      <img src="/images/web-ui.png" alt="RobustMQ Web Dashboard" />
+      <img src="/images/web-ui.jpg" alt="RobustMQ Web Dashboard" />
       <div class="web-ui-overlay">
         <div class="overlay-content">
           <h3>实时监控</h3>
