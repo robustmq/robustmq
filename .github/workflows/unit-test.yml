@@ -81,9 +81,6 @@ jobs:
       # Logging optimization
       CARGO_LOG: warn
       RUST_LOG: warn
-      # Build optimization - speed up compilation for CI
-      CARGO_PROFILE_DEV_DEBUG: 0
-      CARGO_PROFILE_DEV_STRIP: true
     
     steps:
       - name: Checkout code
