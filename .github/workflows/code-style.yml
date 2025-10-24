@@ -18,13 +18,11 @@ on:
   workflow_dispatch:
   push:
     paths-ignore:
-      - "docs/**"
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
   pull_request:
     paths-ignore:
-      - "docs/**"
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
@@ -77,3 +75,21 @@ jobs:
       
       - name: Run clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build documentation
+        run: npm run docs:build

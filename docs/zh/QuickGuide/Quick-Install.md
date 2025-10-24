@@ -208,7 +208,7 @@ A: 确认管理端口（默认 8080）是否正常启动。
 安装完成后，您可以：
 
 1. **体验 MQTT 功能**：查看 [MQTT 体验指南](Experience-MQTT.md)
-2. **了解配置选项**：查看 [配置文档](../Configuration/Overview.md)
+2. **了解配置选项**：查看 [配置文档](../Configuration/COMMON.md)
 3. **学习高级功能**：查看 [完整文档](../OverView/What-is-RobustMQ.md)
 
 ## 获取帮助

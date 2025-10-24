@@ -9,7 +9,7 @@ dev: ## Run broker-server in development mode
 	cargo run --package cmd --bin broker-server
 
 .PHONY: codecheck
-codecheck: ## Run all code quality checks (format, check, clippy, license)
+codecheck: ## Run all code quality checks (format, check, clippy, license, docs)
 	@echo "Running code quality checks..."
 	hawkeye format
 	cargo fmt --all
@@ -17,6 +17,8 @@ codecheck: ## Run all code quality checks (format, check, clippy, license)
 	cargo check --workspace
 	cargo clippy --workspace --all-targets --tests -- -D warnings
 	cargo-deny check licenses
+	@echo "Building documentation..."
+	npm run docs:build
 	@echo "✅ All checks passed!"
 
 .PHONY: doc
@@ -184,8 +186,14 @@ test: ## Run unit tests with cleanup
 		--filter-expr '!(test(meta) & package(storage-adapter))'
 
 .PHONY: ig-test
-ig-test: ## Run MQTT integration tests
+ig-test: ## Run integration tests (assumes broker is already running)
+	@echo "Running integration tests (broker must be running)..."
 	/bin/bash ./scripts/ig-test.sh
+
+.PHONY: ig-test-ci
+ig-test-ci: ## Run integration tests with broker startup (for CI)
+	@echo "Running integration tests with broker startup..."
+	/bin/bash ./scripts/ig-test.sh --start-broker
 
 ##@ Clean
 .PHONY: clean

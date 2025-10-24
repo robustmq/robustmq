@@ -68,18 +68,12 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
-      - name: Run integration tests
-        id: run-tests
-        run: make ig-test
-        continue-on-error: true
-
-      - name: Test Summary
-        if: always()
+      - name: Run integration tests with broker
         run: |
           echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.run-tests.outcome }}" == "success" ]; then
+          if make ig-test-ci; then
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
