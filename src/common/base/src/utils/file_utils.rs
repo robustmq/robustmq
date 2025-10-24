@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env::temp_dir;
 use std::fs::read_dir;
 use std::io::ErrorKind;
 use std::path::PathBuf;
