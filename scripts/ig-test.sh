@@ -34,11 +34,46 @@ trap cleanup EXIT
 
 # Start broker if needed
 if [ "$START_BROKER" == "true" ]; then
-    echo "Starting broker-server..."
+    echo "Starting broker-server (compiling and launching)..."
     cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
     BROKER_PID=$!
+    
     echo "Waiting for broker to be ready..."
-    sleep 30
+    MAX_WAIT=1800  # Maximum wait time in seconds (30 minutes for compilation + startup)
+    RETRY_INTERVAL=3
+    BROKER_READY=false
+    
+    for ((ELAPSED=0; ELAPSED<MAX_WAIT; ELAPSED+=RETRY_INTERVAL)); do
+        # Check if process is still running
+        if ! kill -0 $BROKER_PID 2>/dev/null; then
+            echo "❌ Broker process died unexpectedly"
+            echo "Last 50 lines of broker log:"
+            tail -n 50 1.log
+            exit 1
+        fi
+        
+        # Check MQTT port 1883 (primary service port)
+        if nc -z 127.0.0.1 1883 2>/dev/null || \
+           (command -v lsof >/dev/null 2>&1 && lsof -i:1883 -sTCP:LISTEN >/dev/null 2>&1); then
+            echo "✅ Broker is ready after ${ELAPSED}s (MQTT port 1883 is listening)"
+            BROKER_READY=true
+            break
+        fi
+        
+        echo "⏳ Waiting for broker... (${ELAPSED}s/${MAX_WAIT}s)"
+        sleep $RETRY_INTERVAL
+    done
+    
+    if [ "$BROKER_READY" != "true" ]; then
+        echo "❌ Broker failed to start within ${MAX_WAIT}s"
+        echo "Last 50 lines of broker log:"
+        tail -n 50 1.log
+        exit 1
+    fi
+    
+    # Give it a few more seconds to stabilize
+    echo "Waiting 5s for broker to stabilize..."
+    sleep 5
 else
     echo "Skipping broker startup (assuming broker is already running)..."
 fi
