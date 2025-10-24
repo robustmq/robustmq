@@ -23,9 +23,16 @@ fi
 
 # Cleanup function
 cleanup() {
-    if [ "$START_BROKER" == "true" ] && [ ! -z "$BROKER_PID" ]; then
-        echo "Stopping broker-server..."
-        kill $BROKER_PID 2>/dev/null || true
+    if [ "$START_BROKER" == "true" ]; then
+        # Stop tail process if running
+        if [ ! -z "$TAIL_PID" ]; then
+            kill $TAIL_PID 2>/dev/null || true
+        fi
+        # Stop broker if running
+        if [ ! -z "$BROKER_PID" ]; then
+            echo "Stopping broker-server..."
+            kill $BROKER_PID 2>/dev/null || true
+        fi
     fi
 }
 
@@ -35,8 +42,16 @@ trap cleanup EXIT
 # Start broker if needed
 if [ "$START_BROKER" == "true" ]; then
     echo "Starting broker-server (compiling and launching)..."
-    cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
+    echo "Broker logs will be written to 1.log and tailed below..."
+    echo "=========================================="
+    
+    # Start broker and redirect output to file
+    cargo run --package cmd --bin broker-server > 1.log 2>&1 &
     BROKER_PID=$!
+    
+    # Start tailing the log in background
+    tail -f 1.log &
+    TAIL_PID=$!
     
     echo "Waiting for broker to be ready..."
     MAX_WAIT=1800  # Maximum wait time in seconds (30 minutes for compilation + startup)
@@ -46,28 +61,36 @@ if [ "$START_BROKER" == "true" ]; then
     for ((ELAPSED=0; ELAPSED<MAX_WAIT; ELAPSED+=RETRY_INTERVAL)); do
         # Check if process is still running
         if ! kill -0 $BROKER_PID 2>/dev/null; then
+            echo ""
+            echo "=========================================="
             echo "❌ Broker process died unexpectedly"
-            echo "Last 50 lines of broker log:"
-            tail -n 50 1.log
+            echo "=========================================="
+            kill $TAIL_PID 2>/dev/null || true
             exit 1
         fi
         
         # Check MQTT port 1883 (primary service port)
         if nc -z 127.0.0.1 1883 2>/dev/null || \
            (command -v lsof >/dev/null 2>&1 && lsof -i:1883 -sTCP:LISTEN >/dev/null 2>&1); then
+            echo ""
+            echo "=========================================="
             echo "✅ Broker is ready after ${ELAPSED}s (MQTT port 1883 is listening)"
+            echo "=========================================="
+            # Stop tailing the log
+            kill $TAIL_PID 2>/dev/null || true
             BROKER_READY=true
             break
         fi
         
-        echo "⏳ Waiting for broker... (${ELAPSED}s/${MAX_WAIT}s)"
         sleep $RETRY_INTERVAL
     done
     
     if [ "$BROKER_READY" != "true" ]; then
+        echo ""
+        echo "=========================================="
         echo "❌ Broker failed to start within ${MAX_WAIT}s"
-        echo "Last 50 lines of broker log:"
-        tail -n 50 1.log
+        echo "=========================================="
+        kill $TAIL_PID 2>/dev/null || true
         exit 1
     fi
     
