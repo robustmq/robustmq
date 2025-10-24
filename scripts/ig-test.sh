@@ -14,17 +14,26 @@
 # limitations under the License.
 
 
-# Build and start broker
-cargo build --release --package cmd --bin broker-server
+# Build broker-server and test binaries together to avoid repeated compilation
+echo "Building broker-server and test binaries..."
+cargo build --release \
+  --package cmd --bin broker-server \
+  --package grpc-clients --tests \
+  --package robustmq-test --tests
+
+# Start broker
+echo "Starting broker-server..."
 strip target/release/broker-server 2>/dev/null || true
 nohup target/release/broker-server >> 1.log 2>&1 &
 BROKER_PID=$!
 sleep 30
 
-# Run all tests in one command to avoid repeated compilation
-cargo nextest run --release \
+# Run tests (no compilation needed, binaries already built)
+echo "Running integration tests..."
+cargo nextest run --release --no-fail-fast \
   --package grpc-clients \
   --package robustmq-test
 
 # Stop broker
+echo "Stopping broker-server..."
 kill $BROKER_PID 2>/dev/null || true
