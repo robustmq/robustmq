@@ -21,11 +21,10 @@ nohup target/release/broker-server >> 1.log 2>&1 &
 BROKER_PID=$!
 sleep 30
 
-# Run tests
-cargo nextest run --release --package grpc-clients --test mod -- meta
-cargo nextest run --release --package robustmq-test --test mod -- meta
-cargo nextest run --release --package robustmq-test --test mod -- journal
-cargo nextest run --release --package robustmq-test --test mod -- mqtt
+# Run all tests in one command to avoid repeated compilation
+cargo nextest run --release \
+  --package grpc-clients \
+  --package robustmq-test
 
 # Stop broker
 kill $BROKER_PID 2>/dev/null || true
