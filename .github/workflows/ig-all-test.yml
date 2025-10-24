@@ -39,6 +39,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  CARGO_BUILD_JOBS: 8
 
 jobs:
   integration-tests:
