@@ -14,10 +14,13 @@
 # limitations under the License.
 
 
-# Build broker-server and test binaries together to avoid repeated compilation
-echo "Building broker-server and test binaries..."
+# Build broker-server binary
+echo "Building broker-server binary..."
+cargo build --release --package cmd --bin broker-server
+
+# Build test binaries
+echo "Building test binaries..."
 cargo build --release \
-  --package cmd --bin broker-server \
   --package grpc-clients \
   --package robustmq-test \
   --tests
