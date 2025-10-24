@@ -74,15 +74,18 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
       - name: Run unit tests
+        id: run-tests
         run: make test
+        continue-on-error: true
 
       - name: Test Summary
         if: always()
         run: |
           echo "## 🧪 Unit Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ $? -eq 0 ]; then
+          if [ "${{ steps.run-tests.outcome }}" == "success" ]; then
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
