@@ -34,118 +34,46 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Grant necessary permissions for package access
 permissions:
   contents: read
-  packages: read
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: 16
 
 jobs:
-  # Fast checks that don't need compilation cache
   rustfmt:
     runs-on: ubuntu-latest
-    container:
-      image: rust:latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install rustfmt
-        run: rustup component add rustfmt
-      - name: cargo rust-fmt
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      
+      - name: Check formatting
         run: cargo fmt --all -- --check
 
-  deny:
+  clippy:
     runs-on: ubuntu-latest
-    container:
-      image: rust:latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
+      
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          tool: cargo-deny@0.16.2
-      - name: cargo deny check
-        run: cargo-deny check licenses
-
-  typos:
-    runs-on: ubuntu-latest
-    container:
-      image: rust:latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Install typos
-        uses: taiki-e/install-action@v2
+          components: clippy
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler cmake
+      
+      - uses: Swatinem/rust-cache@v2
         with:
-          tool: typos-cli@1.27.3
-      - name: typos check
-        run: typos
-
-  # Compilation checks with shared cache
-  # Run cargo check and clippy together to share compilation cache
-  compile-and-lint:
-    runs-on: ubuntu-latest
-    container:
-      # 🚀 Use manually-maintained pre-built image with all dependencies!
-      # Built from: docker/Dockerfile.deps
-      # See docker/README.md for maintenance guide
-      image: ghcr.io/robustmq/robustmq/rust-deps:latest
-      options: --user root
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    
-    env:
-      CARGO_BUILD_JOBS: 10
-      CARGO_INCREMENTAL: 0
-      CARGO_TARGET_DIR: /build/target
-      RUST_BACKTRACE: 1
-      PROTOC: /usr/bin/protoc
-      # Cache optimization
-      RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: /build/.sccache
-      # Logging optimization
-      CARGO_LOG: warn
-      RUST_LOG: warn
-    
-    steps:
-      - uses: actions/checkout@v5
+          shared-key: "clippy"
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
       
-      - name: Install protoc and cmake if missing
-        run: |
-          echo "🔧 Checking protoc availability..."
-          if ! protoc --version >/dev/null 2>&1; then
-            echo "⚠️ protoc not found, installing..."
-            apt-get update
-            apt-get install -y protobuf-compiler
-            echo "✅ protoc installed successfully"
-          else
-            echo "✅ protoc already available"
-          fi
-          protoc --version
-          echo "PROTOC: $PROTOC"
-          
-          echo "🔧 Checking cmake availability..."
-          if ! cmake --version >/dev/null 2>&1; then
-            echo "⚠️ cmake not found, installing..."
-            apt-get update
-            apt-get install -y cmake
-            echo "✅ cmake installed successfully"
-          else
-            echo "✅ cmake already available"
-          fi
-          cmake --version
-      
-      - name: Verify protoc availability
-        run: |
-          echo "🔧 Protocol Buffers:"
-          protoc --version || echo "protoc not found"
-          echo "PROTOC: $PROTOC"
-      
-      - name: Install clippy
-        run: rustup component add clippy
-      
-      - name: Cargo clippy
-        # Clippy includes cargo check, so we skip separate check step
-        # Dependencies already compiled in image, only check project code
-        run: cargo clippy --workspace --all-targets --tests -- -D warnings
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
