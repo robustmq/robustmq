@@ -66,9 +66,24 @@ jobs:
         with:
           shared-key: "integration-tests"
           cache-on-failure: true
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+          # Allow all branches to save cache for faster PR iterations
+          # save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
           # Cache key includes Cargo.lock to ensure cache invalidation when dependencies change
           key: ${{ hashFiles('**/Cargo.lock') }}
+
+      # Additional cache for compiled binaries (rust-cache doesn't always cache these)
+      - name: Cache compiled binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/debug/broker-server
+            target/debug/deps
+            target/debug/build
+            target/debug/.fingerprint
+          key: binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**/*.rs') }}
+          restore-keys: |
+            binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
+            binaries-${{ runner.os }}-
 
       - name: Check cache effectiveness
         run: |
@@ -76,6 +91,7 @@ jobs:
           if [ -f "target/debug/broker-server" ]; then
             echo "✅ broker-server binary exists (cache likely hit)"
             ls -lh target/debug/broker-server
+            echo "Binary timestamp: $(stat -c '%y' target/debug/broker-server 2>/dev/null || stat -f '%Sm' target/debug/broker-server)"
           else
             echo "❌ broker-server binary missing (fresh build required)"
           fi
