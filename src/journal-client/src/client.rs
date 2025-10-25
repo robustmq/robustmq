@@ -321,7 +321,6 @@ impl JournalClient {
     }
 
     pub async fn close(&self) -> Result<(), CommonError> {
-        // self.stop_send.send(true)?;
         Ok(())
     }
 }
