@@ -53,12 +53,12 @@ pub struct JournalClient {
 }
 
 impl JournalClient {
-    pub async fn new(addrs: Vec<String>) -> Result<JournalClient, JournalClientError> {
-        if addrs.is_empty() {
+    pub async fn new(addr: Vec<String>) -> Result<JournalClient, JournalClientError> {
+        if addr.is_empty() {
             return Err(JournalClientError::AddrsNotEmpty);
         }
 
-        let metadata_cache = Arc::new(MetadataCache::new(addrs));
+        let metadata_cache = Arc::new(MetadataCache::new(addr));
         let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
         let (stop_send, _) = broadcast::channel::<bool>(2);
         let writer = Arc::new(AsyncWriter::new(
