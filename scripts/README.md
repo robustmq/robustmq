@@ -8,7 +8,7 @@ This directory contains all build, release, and deployment scripts for the Robus
 |--------|----------|-------------|
 | `build.sh` | Build & Package | Build installation package for current platform |
 | `build-and-push-deps.sh` | Dependency Image | Build CI/CD dependency cache image |
-| `build-and-push-app.sh` | Application Image | Build and push application Docker image |
+| `build-and-push-app.sh` | Application Image | Build and push application  Docker image |
 | `release.sh` | Release | Create GitHub release and upload packages |
 | `install.sh` | Install | Auto-download and install RobustMQ |
 
