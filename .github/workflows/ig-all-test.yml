@@ -67,6 +67,18 @@ jobs:
           shared-key: "integration-tests"
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+          # Cache key includes Cargo.lock to ensure cache invalidation when dependencies change
+          key: ${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check cache effectiveness
+        run: |
+          echo "Checking if binaries exist from cache..."
+          if [ -f "target/debug/broker-server" ]; then
+            echo "✅ broker-server binary exists (cache likely hit)"
+            ls -lh target/debug/broker-server
+          else
+            echo "❌ broker-server binary missing (fresh build required)"
+          fi
 
       - name: Run integration tests with broker
         run: |
