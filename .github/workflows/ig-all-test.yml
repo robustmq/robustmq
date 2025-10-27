@@ -71,7 +71,9 @@ jobs:
           # Cache key includes Cargo.lock to ensure cache invalidation when dependencies change
           key: ${{ hashFiles('**/Cargo.lock') }}
 
-      # Additional cache for compiled binaries (rust-cache doesn't always cache these)
+      # Additional cache for compiled binaries
+      # Only invalidate when Cargo.lock changes (dependencies change)
+      # Source code changes will use incremental compilation
       - name: Cache compiled binaries
         uses: actions/cache@v4
         with:
@@ -80,21 +82,37 @@ jobs:
             target/debug/deps
             target/debug/build
             target/debug/.fingerprint
-          key: binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**/*.rs') }}
+            target/debug/incremental
+          # Key only on Cargo.lock - source changes use incremental compilation
+          key: binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-
             binaries-${{ runner.os }}-
 
-      - name: Check cache effectiveness
+      - name: Check cache status
         run: |
-          echo "Checking if binaries exist from cache..."
+          echo "=========================================="
+          echo "Cache Status Check"
+          echo "=========================================="
+          
           if [ -f "target/debug/broker-server" ]; then
-            echo "✅ broker-server binary exists (cache likely hit)"
-            ls -lh target/debug/broker-server
-            echo "Binary timestamp: $(stat -c '%y' target/debug/broker-server 2>/dev/null || stat -f '%Sm' target/debug/broker-server)"
+            echo "✅ Binary cache HIT - broker-server exists"
+            echo "   Size: $(du -h target/debug/broker-server | cut -f1)"
+            echo "   Modified: $(stat -c '%y' target/debug/broker-server 2>/dev/null || stat -f '%Sm' target/debug/broker-server)"
+            echo ""
+            echo "Expected: Incremental compilation (fast)"
           else
-            echo "❌ broker-server binary missing (fresh build required)"
+            echo "❌ Binary cache MISS - fresh build required"
+            echo ""
+            echo "Expected: Full compilation (slow)"
           fi
+          
+          # Check incremental cache
+          if [ -d "target/debug/incremental" ]; then
+            INCREMENTAL_SIZE=$(du -sh target/debug/incremental 2>/dev/null | cut -f1 || echo "0")
+            echo "   Incremental cache: $INCREMENTAL_SIZE"
+          fi
+          
+          echo "=========================================="
 
       - name: Run integration tests with broker
         run: |
