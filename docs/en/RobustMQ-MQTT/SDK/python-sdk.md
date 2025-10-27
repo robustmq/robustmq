@@ -191,7 +191,7 @@ if __name__ == '__main__':
 | MQTT | 1883 | `client.connect('localhost', 1883)` |
 | MQTT over SSL | 1885 | `client.connect('localhost', 1885)` + SSL config |
 | MQTT over WebSocket | 8083 | `transport="websockets"` |
-| MQTT over WSS | 8084 | WebSocket + SSL config |
+| MQTT over WSS | 8085 | WebSocket + SSL config |
 
 ## Best Practices
 

@@ -127,7 +127,7 @@ spec:
       tcpPort: 1883
       tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: ClusterIP
   
   # Monitoring configuration
@@ -283,7 +283,7 @@ network:
     tcpPort: 1883                # MQTT TCP port
     tlsPort: 1885                # MQTT TLS port
     webSocketPort: 8083          # WebSocket port
-    webSocketTLSPort: 8084       # WebSocket TLS port
+    webSocketTLSPort: 8085       # WebSocket TLS port
     serviceType: LoadBalancer    # Service type
   kafka:
     port: 9092                   # Kafka port

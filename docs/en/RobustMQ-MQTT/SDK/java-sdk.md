@@ -505,7 +505,7 @@ public class MQTTService {
 | MQTT                | 1883 | Standard MQTT port             |
 | MQTT over SSL       | 1885 | Encrypted MQTT connection      |
 | MQTT over WebSocket | 8083 | WebSocket connection           |
-| MQTT over WSS       | 8084 | Encrypted WebSocket connection |
+| MQTT over WSS       | 8085 | Encrypted WebSocket connection |
 
 ## Best Practices
 

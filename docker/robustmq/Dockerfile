@@ -144,11 +144,11 @@ RUN if [ ! -f ./config/server.toml ]; then \
 USER robustmq
 
 # Expose ports
-# MQTT: 1883 (TCP), 1885 (SSL), 8083 (WebSocket), 8084 (WSS)
+# MQTT: 1883 (TCP), 1885 (SSL), 8083 (WebSocket), 8085 (WSS)
 # Kafka: 9092
 # gRPC: 1228
 # AMQP: 5672
-EXPOSE 1883 1885 8083 8084 9092 1228 5672 8080
+EXPOSE 1883 1885 8083 8085 9092 1228 5672 8080
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
@@ -176,7 +176,7 @@ CMD ["--conf=/robustmq/config/server.toml"]
 # MQTT Broker Service
 FROM runtime AS mqtt-broker
 ENV ROBUSTMQ_ROLES="broker"
-EXPOSE 1883 1885 8083 8084 8080
+EXPOSE 1883 1885 8083 8085 8080
 CMD ["--conf=/robustmq/config/server.toml"]
 
 # Journal Service
@@ -210,7 +210,7 @@ COPY config/ ./config/
 COPY bin/ ./bin/
 RUN chmod +x ./bin/*
 
-EXPOSE 1883 1885 8083 8084 9092 1228 5672 8080
+EXPOSE 1883 1885 8083 8085 9092 1228 5672 8080
 
 # Development entry point
 ENTRYPOINT ["cargo", "run", "--package", "cmd", "--bin", "broker-server", "--"]

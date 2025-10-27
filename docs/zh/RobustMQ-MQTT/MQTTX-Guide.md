@@ -207,7 +207,7 @@ mqttx pub -h localhost -p 8083 -t 'robustmq/ws/test' -m 'WebSocket message' --pr
 mqttx sub -h localhost -p 8083 -t 'robustmq/ws/+' --protocol ws
 
 # WebSocket SSL 连接
-mqttx pub -h localhost -p 8084 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
+mqttx pub -h localhost -p 8085 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
 ```
 
 ## MQTT 5.0 特性测试
@@ -484,7 +484,7 @@ echo "测试 WebSocket 端口..."
 mqttx pub -h localhost -p 8083 -t 'robustmq/ws/test' -m 'WebSocket message' --protocol ws
 
 echo "测试 WebSocket SSL 端口..."
-mqttx pub -h localhost -p 8084 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
+mqttx pub -h localhost -p 8085 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
 ```
 
 ### 集群测试

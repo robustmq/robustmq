@@ -74,7 +74,7 @@ docker-compose -f docker/docker-compose.yml logs robustmq
 - MQTT TCP: 1883
 - MQTT SSL: 1885
 - MQTT WebSocket: 8083
-- MQTT WebSocket SSL: 8084
+- MQTT WebSocket SSL: 8085
 - Kafka: 9092
 - gRPC: 1228
 - AMQP: 5672

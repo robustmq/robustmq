@@ -326,7 +326,7 @@ gcc -o mqtt_async_client mqtt_async_client.c -lpaho-mqtt3a
 | MQTT | 1883 | 标准 MQTT 端口 |
 | MQTT over SSL | 1885 | 加密 MQTT 连接 |
 | MQTT over WebSocket | 8083 | WebSocket 连接 |
-| MQTT over WSS | 8084 | 加密 WebSocket 连接 |
+| MQTT over WSS | 8085 | 加密 WebSocket 连接 |
 
 ## 最佳实践
 

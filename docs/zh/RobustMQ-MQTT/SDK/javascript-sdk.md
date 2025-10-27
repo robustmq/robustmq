@@ -886,7 +886,7 @@ setTimeout(publishMQTT5Message, 5000)
 | MQTT (TCP) | 1883 | `mqtt://localhost:1883` |
 | MQTTS (SSL) | 1885 | `mqtts://localhost:1885` |
 | WebSocket | 8083 | `ws://localhost:8083/mqtt` |
-| WebSocket SSL | 8084 | `wss://localhost:8084/mqtt` |
+| WebSocket SSL | 8085 | `wss://localhost:8085/mqtt` |
 
 ## 最佳实践
 
@@ -986,7 +986,7 @@ A: 浏览器只能使用 WebSocket 连接：
 // 浏览器中只能使用 WebSocket
 const client = mqtt.connect('ws://localhost:8083/mqtt', options)
 // 或者加密连接
-const client = mqtt.connect('wss://localhost:8084/mqtt', options)
+const client = mqtt.connect('wss://localhost:8085/mqtt', options)
 ```
 
 ### Q: 如何处理大量消息？

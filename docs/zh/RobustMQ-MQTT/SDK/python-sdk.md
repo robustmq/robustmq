@@ -729,7 +729,7 @@ if __name__ == '__main__':
 | MQTT | 1883 | `client.connect('localhost', 1883)` |
 | MQTT over SSL | 1885 | `client.connect('localhost', 1885)` + SSL配置 |
 | MQTT over WebSocket | 8083 | `transport="websockets"` |
-| MQTT over WSS | 8084 | WebSocket + SSL配置 |
+| MQTT over WSS | 8085 | WebSocket + SSL配置 |
 
 ## 最佳实践
 

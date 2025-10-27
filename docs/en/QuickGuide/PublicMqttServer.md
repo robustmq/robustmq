@@ -11,7 +11,7 @@ This guide introduces how to use the public MQTT server provided by RobustMQ for
 | MQTT TCP | 117.72.92.117 | 1883 | Standard MQTT connection |
 | MQTT SSL/TLS | 117.72.92.117 | 1885 | Encrypted MQTT connection |
 | MQTT WebSocket | 117.72.92.117 | 8083 | WebSocket connection |
-| MQTT WebSocket SSL | 117.72.92.117 | 8084 | Encrypted WebSocket connection |
+| MQTT WebSocket SSL | 117.72.92.117 | 8085 | Encrypted WebSocket connection |
 | MQTT QUIC | 117.72.92.117 | 9083 | QUIC protocol connection |
 
 ### Authentication

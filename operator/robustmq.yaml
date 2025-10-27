@@ -250,7 +250,7 @@ spec:
                         format: int32
                         type: integer
                       webSocketTLSPort:
-                        default: 8084
+                        default: 8085
                         description: WebSocket TLS port for MQTT
                         format: int32
                         type: integer

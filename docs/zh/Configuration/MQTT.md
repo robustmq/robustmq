@@ -10,7 +10,7 @@
 tcp_port = 1883              # MQTT TCP 端口
 tls_port = 1885              # MQTT TLS 端口
 websocket_port = 8083        # WebSocket 端口
-websockets_port = 8084       # WebSocket over TLS 端口
+websockets_port = 8085       # WebSocket over TLS 端口
 quic_port = 9083            # QUIC 协议端口
 ```
 
@@ -21,7 +21,7 @@ quic_port = 9083            # QUIC 协议端口
 | `tcp_port` | `u32` | `1883` | MQTT over TCP 协议端口 |
 | `tls_port` | `u32` | `1885` | MQTT over TLS 协议端口 |
 | `websocket_port` | `u32` | `8083` | MQTT over WebSocket 端口 |
-| `websockets_port` | `u32` | `8084` | MQTT over WebSocket Secure 端口 |
+| `websockets_port` | `u32` | `8085` | MQTT over WebSocket Secure 端口 |
 | `quic_port` | `u32` | `9083` | MQTT over QUIC 协议端口 |
 
 ---
@@ -299,7 +299,7 @@ log_level = "info"                   # 日志级别
 tcp_port = 1883
 tls_port = 1885
 websocket_port = 8083
-websockets_port = 8084
+websockets_port = 8085
 quic_port = 9083
 
 # 认证存储配置

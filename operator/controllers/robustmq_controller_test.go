@@ -72,7 +72,7 @@ var _ = Describe("RobustMQ Controller", func() {
 								TCPPort:           1883,
 								TLSPort:           1885,
 								WebSocketPort:     8083,
-								WebSocketTLSPort:  8084,
+								WebSocketTLSPort:  8085,
 								ServiceType:       corev1.ServiceTypeClusterIP,
 							},
 							Kafka: robustmqv1alpha1.KafkaNetworkSpec{

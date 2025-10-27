@@ -90,7 +90,7 @@ pub fn default_mqtt_server() -> MqttServer {
         tcp_port: 1883,
         tls_port: 1885,
         websocket_port: 8083,
-        websockets_port: 8084,
+        websockets_port: 8085,
         quic_port: 9083,
     }
 }

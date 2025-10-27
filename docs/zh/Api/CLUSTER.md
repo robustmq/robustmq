@@ -35,7 +35,7 @@
     "tcp_port": 1883,
     "tls_port": 1885,
     "ws_port": 8083,
-    "wss_port": 8084,
+    "wss_port": 8085,
     "quic_port": 9083
   },
   "mqtt_offline_message": {
