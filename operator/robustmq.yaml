@@ -240,7 +240,7 @@ spec:
                         format: int32
                         type: integer
                       tlsPort:
-                        default: 1884
+                        default: 1885
                         description: TLS port for MQTT
                         format: int32
                         type: integer

@@ -103,7 +103,7 @@ RobustMQ 采用分布式分层架构，职责分离清晰：
 
 #### MQTT Broker (`src/mqtt-broker/`)
 - **协议支持**：MQTT 3.1.1、3.1 和 5.0
-- **传输**：TCP (1883)、SSL/TLS (1884)、WebSocket (8083)、WebSocket SSL (8084)
+- **传输**：TCP (1883)、SSL/TLS (1885)、WebSocket (8083)、WebSocket SSL (8084)
 - **特性**：QoS 级别、保留消息、遗嘱消息、共享订阅
 - **性能**：百万级并发连接
 

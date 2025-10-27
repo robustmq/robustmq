@@ -72,7 +72,7 @@ RobustMQ provides a **unified messaging platform** with flexible architecture th
 - **Journal Server**: High-performance persistent storage engine with WAL guarantees and pluggable storage backends
 - **Storage Adapter**: Unified storage abstraction layer supporting memory, SSD, and object storage with intelligent tiering
 - **One Binary Deployment**: Single executable with zero external dependencies for simplified operations
-- **Protocol Isolation**: Dedicated ports per protocol (MQTT: 1883/1884/8083/8084, Kafka: 9092, AMQP: 5672, gRPC: 1228)
+- **Protocol Isolation**: Dedicated ports per protocol (MQTT: 1883/1885/8083/8084, Kafka: 9092, AMQP: 5672, gRPC: 1228)
 - **Compute-Storage Separation**: Stateless brokers enable independent scaling and Serverless deployment without data migration
 - **Topic-Level Storage**: Flexible storage engine selection supporting memory, local, and cloud storage backends
 

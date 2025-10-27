@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
 ```c
 #include "MQTTClient.h"
 
-#define ADDRESS     "ssl://localhost:1884"
+#define ADDRESS     "ssl://localhost:1885"
 #define CLIENTID    "robustmq_c_ssl_client"
 
 int main()
@@ -324,7 +324,7 @@ gcc -o mqtt_async_client mqtt_async_client.c -lpaho-mqtt3a
 | Protocol | Port | Description |
 |----------|------|-------------|
 | MQTT | 1883 | Standard MQTT port |
-| MQTT over SSL | 1884 | Encrypted MQTT connection |
+| MQTT over SSL | 1885 | Encrypted MQTT connection |
 | MQTT over WebSocket | 8083 | WebSocket connection |
 | MQTT over WSS | 8084 | Encrypted WebSocket connection |
 

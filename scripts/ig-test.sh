@@ -86,7 +86,7 @@ if [ "$START_BROKER" == "true" ]; then
     echo "=========================================="
     
     # List of ports that broker-server needs
-    REQUIRED_PORTS=(1228 8080 9091 6777 1883 1884 8083 8084 9083)
+    REQUIRED_PORTS=(1228 8080 9091 6777 1883 1885 8083 8084 9083)
     
     # Function to check all ports and return the list of occupied ones
     check_all_ports() {

@@ -201,7 +201,7 @@ pub fn broker_addr() -> String {
 }
 
 pub fn broker_ssl_addr() -> String {
-    "mqtts://localhost:1884".to_string()
+    "mqtts://localhost:1885".to_string()
 }
 
 pub fn broker_ws_addr() -> String {

@@ -172,7 +172,7 @@ import java.io.FileInputStream;
 
 public class SSLConnection {
     public static void main(String[] args) {
-        String broker = "ssl://localhost:1884";
+        String broker = "ssl://localhost:1885";
         String clientId = "robustmq_ssl_client";
 
         try {
@@ -580,7 +580,7 @@ public class BatchMessageProcessor {
 | 协议                | 端口 | 说明                |
 | ------------------- | ---- | ------------------- |
 | MQTT                | 1883 | 标准 MQTT 端口      |
-| MQTT over SSL       | 1884 | 加密 MQTT 连接      |
+| MQTT over SSL       | 1885 | 加密 MQTT 连接      |
 | MQTT over WebSocket | 8083 | WebSocket 连接      |
 | MQTT over WSS       | 8084 | 加密 WebSocket 连接 |
 

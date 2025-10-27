@@ -154,7 +154,7 @@ def main():
     
     # Connect to RobustMQ SSL port
     try:
-        client.connect('localhost', 1884, 60)  # SSL port
+        client.connect('localhost', 1885, 60)  # SSL port
         client.loop_start()
         
         # Publish SSL test message
@@ -189,7 +189,7 @@ if __name__ == '__main__':
 | Protocol | Port | Connection Method |
 |----------|------|-------------------|
 | MQTT | 1883 | `client.connect('localhost', 1883)` |
-| MQTT over SSL | 1884 | `client.connect('localhost', 1884)` + SSL config |
+| MQTT over SSL | 1885 | `client.connect('localhost', 1885)` + SSL config |
 | MQTT over WebSocket | 8083 | `transport="websockets"` |
 | MQTT over WSS | 8084 | WebSocket + SSL config |
 

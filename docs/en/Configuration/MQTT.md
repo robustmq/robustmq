@@ -8,7 +8,7 @@
 ```toml
 [mqtt_server]
 tcp_port = 1883              # MQTT TCP port
-tls_port = 1884              # MQTT TLS port
+tls_port = 1885              # MQTT TLS port
 websocket_port = 8083        # WebSocket port
 websockets_port = 8084       # WebSocket over TLS port
 quic_port = 9083            # QUIC protocol port
@@ -19,7 +19,7 @@ quic_port = 9083            # QUIC protocol port
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
 | `tcp_port` | `u32` | `1883` | MQTT over TCP protocol port |
-| `tls_port` | `u32` | `1884` | MQTT over TLS protocol port |
+| `tls_port` | `u32` | `1885` | MQTT over TLS protocol port |
 | `websocket_port` | `u32` | `8083` | MQTT over WebSocket port |
 | `websockets_port` | `u32` | `8084` | MQTT over WebSocket Secure port |
 | `quic_port` | `u32` | `9083` | MQTT over QUIC protocol port |
@@ -293,7 +293,7 @@ log_level = "info"                   # Log level
 # MQTT server port configuration
 [mqtt_server]
 tcp_port = 1883
-tls_port = 1884
+tls_port = 1885
 websocket_port = 8083
 websockets_port = 8084
 quic_port = 9083
@@ -370,7 +370,7 @@ log_level = "warn"
 ```bash
 # MQTT server ports
 export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1883
-export ROBUSTMQ_MQTT_SERVER_TLS_PORT=1884
+export ROBUSTMQ_MQTT_SERVER_TLS_PORT=1885
 
 # Authentication configuration
 export ROBUSTMQ_MQTT_AUTH_STORAGE_STORAGE_TYPE="mysql"

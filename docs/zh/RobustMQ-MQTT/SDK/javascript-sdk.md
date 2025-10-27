@@ -884,7 +884,7 @@ setTimeout(publishMQTT5Message, 5000)
 | 协议 | 端口 | 连接字符串示例 |
 |------|------|----------------|
 | MQTT (TCP) | 1883 | `mqtt://localhost:1883` |
-| MQTTS (SSL) | 1884 | `mqtts://localhost:1884` |
+| MQTTS (SSL) | 1885 | `mqtts://localhost:1885` |
 | WebSocket | 8083 | `ws://localhost:8083/mqtt` |
 | WebSocket SSL | 8084 | `wss://localhost:8084/mqtt` |
 

@@ -194,7 +194,7 @@ type MQTTNetworkSpec struct {
 	TCPPort int32 `json:"tcpPort,omitempty"`
 
 	// TLS port for MQTT
-	// +kubebuilder:default=1884
+	// +kubebuilder:default=1885
 	TLSPort int32 `json:"tlsPort,omitempty"`
 
 	// WebSocket port for MQTT

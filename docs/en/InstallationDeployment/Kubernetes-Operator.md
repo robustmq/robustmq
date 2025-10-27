@@ -125,7 +125,7 @@ spec:
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
       webSocketTLSPort: 8084
       serviceType: ClusterIP
@@ -281,7 +281,7 @@ storage:
 network:
   mqtt:
     tcpPort: 1883                # MQTT TCP port
-    tlsPort: 1884                # MQTT TLS port
+    tlsPort: 1885                # MQTT TLS port
     webSocketPort: 8083          # WebSocket port
     webSocketTLSPort: 8084       # WebSocket TLS port
     serviceType: LoadBalancer    # Service type

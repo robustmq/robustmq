@@ -88,7 +88,7 @@ pub fn default_place_runtime() -> MetaRuntime {
 pub fn default_mqtt_server() -> MqttServer {
     MqttServer {
         tcp_port: 1883,
-        tls_port: 1884,
+        tls_port: 1885,
         websocket_port: 8083,
         websockets_port: 8084,
         quic_port: 9083,

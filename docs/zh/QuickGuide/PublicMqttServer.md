@@ -9,7 +9,7 @@
 | 协议 | 地址 | 端口 | 描述 |
 |------|------|------|------|
 | MQTT TCP | 117.72.92.117 | 1883 | 标准 MQTT 连接 |
-| MQTT SSL/TLS | 117.72.92.117 | 1884 | 加密 MQTT 连接 |
+| MQTT SSL/TLS | 117.72.92.117 | 1885 | 加密 MQTT 连接 |
 | MQTT WebSocket | 117.72.92.117 | 8083 | WebSocket 连接 |
 | MQTT WebSocket SSL | 117.72.92.117 | 8084 | 加密 WebSocket 连接 |
 | MQTT QUIC | 117.72.92.117 | 9083 | QUIC 协议连接 |

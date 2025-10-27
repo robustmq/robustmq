@@ -154,7 +154,7 @@ spec:
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `tcpPort` | int32 | TCP port for MQTT | 1883 |
-| `tlsPort` | int32 | TLS port for MQTT | 1884 |
+| `tlsPort` | int32 | TLS port for MQTT | 1885 |
 | `webSocketPort` | int32 | WebSocket port | 8083 |
 | `webSocketTLSPort` | int32 | WebSocket TLS port | 8084 |
 | `serviceType` | ServiceType | Kubernetes service type | ClusterIP |
