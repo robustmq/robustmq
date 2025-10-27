@@ -56,67 +56,6 @@ build-clean: ## Clean build directory and rebuild package (removes all build art
 	./scripts/build.sh --clean
 
 ##@ Docker
-.PHONY: docker-deps
-docker-deps: ## Build and push dependency base image to GHCR (for CI/CD optimization)
-	@echo "Building dependency base image..."
-	@echo "This will:"
-	@echo "  • Build Rust dependency cache image (~8-10GB)"
-	@echo "  • Push to ghcr.io/socutes/robustmq/rust-deps:latest"
-	@echo "  • Requires Docker and GHCR login"
-	@echo "  • Takes 20-40 minutes on first build"
-	./scripts/build-and-push-deps.sh
-
-.PHONY: docker-deps-force
-docker-deps-force: ## Force rebuild dependency image without cache (clean rebuild)
-	@echo "Force rebuilding dependency image..."
-	@echo "This will:"
-	@echo "  • Clean Docker build cache"
-	@echo "  • Remove old dependency image"
-	@echo "  • Rebuild from scratch (20-40 minutes)"
-	@echo "  • Push to ghcr.io/robustmq/robustmq/rust-deps:latest"
-	@echo "  • Requires Docker and GHCR login"
-	@echo "  • Takes 20-40 minutes on first build"
-	docker builder prune -f
-	docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest 2>/dev/null || true
-	./scripts/build-and-push-deps.sh latest --no-cache
-
-.PHONY: docker-deps-push
-docker-deps-push: ## Push existing dependency image without testing (fast push)
-	@echo "Pushing existing dependency image..."
-	@echo "This will:"
-	@echo "  • Auto-detect image ID from ghcr.io/robustmq/robustmq/rust-deps:latest"
-	@echo "  • Tag and push to ghcr.io/robustmq/robustmq/rust-deps:latest"
-	@echo "  • Skip testing (much faster)"
-	@echo ""
-	@if [ -n "$(IMAGE_ID)" ]; then \
-		echo "Using provided IMAGE_ID: $(IMAGE_ID)"; \
-		IMAGE_ID_TO_USE="$(IMAGE_ID)"; \
-	else \
-		echo "Auto-detecting image ID from ghcr.io/robustmq/robustmq/rust-deps:latest..."; \
-		IMAGE_ID_TO_USE=$$(docker images ghcr.io/robustmq/robustmq/rust-deps:latest --format "{{.ID}}" 2>/dev/null || echo ""); \
-		if [ -z "$$IMAGE_ID_TO_USE" ]; then \
-			echo "❌ Error: ghcr.io/robustmq/robustmq/rust-deps:latest not found locally"; \
-			echo "Available images:"; \
-			docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}" | grep -E "(robustmq|rust-deps)" || echo "No robustmq images found"; \
-			echo ""; \
-			echo "Please either:"; \
-			echo "  1. Build the image first: make docker-deps"; \
-			echo "  2. Specify IMAGE_ID manually: make docker-deps-push IMAGE_ID=<id>"; \
-			exit 1; \
-		fi; \
-		echo "Found image ID: $$IMAGE_ID_TO_USE"; \
-	fi
-	@echo "Tagging image..."
-	@docker tag $$IMAGE_ID_TO_USE ghcr.io/robustmq/robustmq/rust-deps:latest
-	@echo "Pushing image to GHCR..."
-	@docker push ghcr.io/robustmq/robustmq/rust-deps:latest || (echo "❌ Failed to push image" && exit 1)
-	@echo "✅ Image pushed successfully!"
-	@echo "🎉 Push completed successfully!"
-	@echo "📋 Next Steps:"
-	@echo "1️⃣  Update GitHub Actions workflows to use the image"
-	@echo "2️⃣  Verify in CI that workflows use the new image"
-	@echo "3️⃣  Monitor CI performance improvement"
-
 .PHONY: docker-clean
 docker-clean: ## Clean all Docker data (images, containers, volumes, cache)
 	@echo "🧹 Cleaning Docker data..."
@@ -132,9 +71,9 @@ docker-clean: ## Clean all Docker data (images, containers, volumes, cache)
 
 .PHONY: docker-app
 docker-app: ## Build and push application image to registry (requires ARGS parameter)
-	@echo "Building application image..."
+	@echo "Building application image with cargo-chef optimization..."
 	@echo "This will:"
-	@echo "  • Build RobustMQ application Docker image"
+	@echo "  • Build RobustMQ application Docker image (using cargo-chef for dependency caching)"
 	@echo "  • Push to specified registry (GHCR or Docker Hub)"
 	@echo "  • Usage: make docker-app ARGS='--org yourorg --version 0.2.0'"
 	@echo "  • Example: make docker-app ARGS='--org socutes --version 0.2.0 --registry ghcr'"
@@ -142,12 +81,12 @@ docker-app: ## Build and push application image to registry (requires ARGS param
 
 .PHONY: docker-app-ghcr
 docker-app-ghcr: ## Build and push application image to GHCR (usage: make docker-app-ghcr ORG=yourorg VERSION=0.2.0)
-	@echo "Building application image for GHCR..."
+	@echo "Building application image for GHCR with cargo-chef optimization..."
 	./scripts/build-and-push-app.sh --org $(ORG) --version $(VERSION) --registry ghcr --push-latest
 
 .PHONY: docker-app-dockerhub
 docker-app-dockerhub: ## Build and push application image to Docker Hub (usage: make docker-app-dockerhub ORG=yourorg VERSION=0.2.0)
-	@echo "Building application image for Docker Hub..."
+	@echo "Building application image for Docker Hub with cargo-chef optimization..."
 	./scripts/build-and-push-app.sh --org $(ORG) --version $(VERSION) --registry dockerhub
 
 ##@ Release
