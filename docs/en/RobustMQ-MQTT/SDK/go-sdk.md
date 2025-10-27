@@ -150,7 +150,7 @@ func main() {
 	}
 
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("ssl://localhost:1884") // SSL port
+	opts.AddBroker("ssl://localhost:1885") // SSL port
 	opts.SetClientID("robustmq_go_ssl_client")
 	opts.SetTLSConfig(tlsConfig)
 	
@@ -310,9 +310,9 @@ func (p *MQTTConnectionPool) Close() {
 | Protocol | Port | Connection String Example |
 |----------|------|---------------------------|
 | MQTT | 1883 | `tcp://localhost:1883` |
-| MQTT over SSL | 1884 | `ssl://localhost:1884` |
+| MQTT over SSL | 1885 | `ssl://localhost:1885` |
 | MQTT over WebSocket | 8083 | `ws://localhost:8083/mqtt` |
-| MQTT over WSS | 8084 | `wss://localhost:8084/mqtt` |
+| MQTT over WSS | 8085 | `wss://localhost:8085/mqtt` |
 
 ## Best Practices
 

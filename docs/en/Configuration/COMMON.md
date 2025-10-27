@@ -179,7 +179,7 @@ RobustMQ supports using environment variables to override configuration file set
 export ROBUSTMQ_CLUSTER_NAME="my-cluster"
 
 # Override MQTT TCP port
-export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1884
+export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1885
 
 # Override log path
 export ROBUSTMQ_LOG_LOG_PATH="/var/log/robustmq"

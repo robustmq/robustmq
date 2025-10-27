@@ -26,9 +26,9 @@ services:
     container_name: robustmq
     ports:
       - "1883:1883"    # MQTT TCP
-      - "1884:1884"    # MQTT SSL
+      - "1885:1885"    # MQTT SSL
       - "8083:8083"    # MQTT WebSocket
-      - "8084:8084"    # MQTT WebSocket SSL
+      - "8085:8085"    # MQTT WebSocket SSL
       - "9092:9092"    # Kafka
       - "1228:1228"    # gRPC
       - "5672:5672"    # AMQP
@@ -83,9 +83,9 @@ services:
     container_name: robustmq-mqtt
     ports:
       - "1883:1883"
-      - "1884:1884"
+      - "1885:1885"
       - "8083:8083"
-      - "8084:8084"
+      - "8085:8085"
       - "8080:8080"
     volumes:
       - mqtt_data:/robustmq/data

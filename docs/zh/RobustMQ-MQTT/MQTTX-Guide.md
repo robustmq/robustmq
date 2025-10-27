@@ -56,7 +56,7 @@ mqttx conn -h localhost -p 1883 --client-id robustmq_test_client
 mqttx conn -h localhost -p 1883 -u username -P password --client-id robustmq_auth_client
 
 # SSL 连接测试
-mqttx conn -h localhost -p 1884 --client-id robustmq_ssl_client --protocol mqtts
+mqttx conn -h localhost -p 1885 --client-id robustmq_ssl_client --protocol mqtts
 ```
 
 ## 消息发布测试
@@ -187,13 +187,13 @@ mqttx bench pub -h localhost -p 1883 -t 'robustmq/perf/test' -c 10 -C 1000 -i 10
 
 ```bash
 # SSL 发布测试
-mqttx pub -h localhost -p 1884 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
+mqttx pub -h localhost -p 1885 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
 
 # SSL 订阅测试
-mqttx sub -h localhost -p 1884 -t 'robustmq/ssl/+' --protocol mqtts
+mqttx sub -h localhost -p 1885 -t 'robustmq/ssl/+' --protocol mqtts
 
 # 指定证书文件
-mqttx pub -h localhost -p 1884 -t 'robustmq/ssl/cert' -m 'Cert message' \
+mqttx pub -h localhost -p 1885 -t 'robustmq/ssl/cert' -m 'Cert message' \
   --ca ca.crt --cert client.crt --key client.key
 ```
 
@@ -207,7 +207,7 @@ mqttx pub -h localhost -p 8083 -t 'robustmq/ws/test' -m 'WebSocket message' --pr
 mqttx sub -h localhost -p 8083 -t 'robustmq/ws/+' --protocol ws
 
 # WebSocket SSL 连接
-mqttx pub -h localhost -p 8084 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
+mqttx pub -h localhost -p 8085 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
 ```
 
 ## MQTT 5.0 特性测试
@@ -478,13 +478,13 @@ echo "测试 MQTT TCP 端口..."
 mqttx pub -h localhost -p 1883 -t 'robustmq/tcp/test' -m 'TCP message'
 
 echo "测试 MQTT SSL 端口..."
-mqttx pub -h localhost -p 1884 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
+mqttx pub -h localhost -p 1885 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
 
 echo "测试 WebSocket 端口..."
 mqttx pub -h localhost -p 8083 -t 'robustmq/ws/test' -m 'WebSocket message' --protocol ws
 
 echo "测试 WebSocket SSL 端口..."
-mqttx pub -h localhost -p 8084 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
+mqttx pub -h localhost -p 8085 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
 ```
 
 ### 集群测试

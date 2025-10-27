@@ -49,9 +49,9 @@ spec:
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: ClusterIP
     kafka:
       port: 9092
@@ -151,9 +151,9 @@ spec:
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: LoadBalancer
     kafka:
       port: 9092

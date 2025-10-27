@@ -8,9 +8,9 @@
 ```toml
 [mqtt_server]
 tcp_port = 1883              # MQTT TCP 端口
-tls_port = 1884              # MQTT TLS 端口
+tls_port = 1885              # MQTT TLS 端口
 websocket_port = 8083        # WebSocket 端口
-websockets_port = 8084       # WebSocket over TLS 端口
+websockets_port = 8085       # WebSocket over TLS 端口
 quic_port = 9083            # QUIC 协议端口
 ```
 
@@ -19,9 +19,9 @@ quic_port = 9083            # QUIC 协议端口
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `tcp_port` | `u32` | `1883` | MQTT over TCP 协议端口 |
-| `tls_port` | `u32` | `1884` | MQTT over TLS 协议端口 |
+| `tls_port` | `u32` | `1885` | MQTT over TLS 协议端口 |
 | `websocket_port` | `u32` | `8083` | MQTT over WebSocket 端口 |
-| `websockets_port` | `u32` | `8084` | MQTT over WebSocket Secure 端口 |
+| `websockets_port` | `u32` | `8085` | MQTT over WebSocket Secure 端口 |
 | `quic_port` | `u32` | `9083` | MQTT over QUIC 协议端口 |
 
 ---
@@ -297,9 +297,9 @@ log_level = "info"                   # 日志级别
 # MQTT 服务器端口配置
 [mqtt.server]
 tcp_port = 1883
-tls_port = 1884
+tls_port = 1885
 websocket_port = 8083
-websockets_port = 8084
+websockets_port = 8085
 quic_port = 9083
 
 # 认证存储配置
@@ -380,7 +380,7 @@ log_level = "warn"
 ```bash
 # MQTT 服务器端口
 export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1883
-export ROBUSTMQ_MQTT_SERVER_TLS_PORT=1884
+export ROBUSTMQ_MQTT_SERVER_TLS_PORT=1885
 
 # 认证配置
 export ROBUSTMQ_MQTT_AUTH_STORAGE_STORAGE_TYPE="mysql"

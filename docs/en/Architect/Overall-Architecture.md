@@ -103,7 +103,7 @@ The persistent storage layer responsible for message durability and retrieval.
 
 #### MQTT Broker (`src/mqtt-broker/`)
 - **Protocol Support**: MQTT 3.1.1, 3.1, and 5.0
-- **Transport**: TCP (1883), SSL/TLS (1884), WebSocket (8083), WebSocket SSL (8084)
+- **Transport**: TCP (1883), SSL/TLS (1885), WebSocket (8083), WebSocket SSL (8085)
 - **Features**: QoS levels, retained messages, will messages, shared subscriptions
 - **Performance**: Million-level concurrent connections
 

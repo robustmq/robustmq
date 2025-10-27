@@ -107,7 +107,7 @@ Most list query interfaces support the following common parameters:
       {
         "cluster_name": "broker-server",
         "roles": ["meta", "broker"],
-        "extend": "{\"mqtt\":{\"grpc_addr\":\"192.168.100.100:1228\",\"mqtt_addr\":\"192.168.100.100:1883\",\"mqtts_addr\":\"192.168.100.100:1884\",\"websocket_addr\":\"192.168.100.100:8083\",\"websockets_addr\":\"192.168.100.100:8084\",\"quic_addr\":\"192.168.100.100:9083\"}}",
+        "extend": "{\"mqtt\":{\"grpc_addr\":\"192.168.100.100:1228\",\"mqtt_addr\":\"192.168.100.100:1883\",\"mqtts_addr\":\"192.168.100.100:1885\",\"websocket_addr\":\"192.168.100.100:8083\",\"websockets_addr\":\"192.168.100.100:8085\",\"quic_addr\":\"192.168.100.100:9083\"}}",
         "node_id": 1,
         "node_ip": "192.168.100.100",
         "node_inner_addr": "192.168.100.100:1228",
@@ -209,9 +209,9 @@ The `extend` field is a JSON string containing MQTT protocol-related address inf
   "mqtt": {
     "grpc_addr": "192.168.100.100:1228",
     "mqtt_addr": "192.168.100.100:1883",
-    "mqtts_addr": "192.168.100.100:1884",
+    "mqtts_addr": "192.168.100.100:1885",
     "websocket_addr": "192.168.100.100:8083",
-    "websockets_addr": "192.168.100.100:8084",
+    "websockets_addr": "192.168.100.100:8085",
     "quic_addr": "192.168.100.100:9083"
   }
 }
