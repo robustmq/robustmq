@@ -137,7 +137,7 @@ opendal = { version = "0.51", features = ["services-s3"] }
 # Message Queue & Streaming
 # ====================
 rdkafka = "0.37.0"
-kafka-protocol = "0.15.1"
+kafka-protocol = "0.16.0"
 pulsar = "6.3.1"
 lapin = "2.5.0"
 paho-mqtt = { version = "0.13.3", default-features = false, features = ["bundled", "ssl"] }
