@@ -93,7 +93,7 @@ jobs:
           echo "=========================================="
           echo "Cache Status Check"
           echo "=========================================="
-          
+
           if [ -f "target/debug/broker-server" ]; then
             echo "✅ Binary cache HIT - broker-server exists"
             echo "   Size: $(du -h target/debug/broker-server | cut -f1)"
@@ -105,13 +105,13 @@ jobs:
             echo ""
             echo "Expected: Full compilation (slow)"
           fi
-          
+
           # Check incremental cache
           if [ -d "target/debug/incremental" ]; then
             INCREMENTAL_SIZE=$(du -sh target/debug/incremental 2>/dev/null | cut -f1 || echo "0")
             echo "   Incremental cache: $INCREMENTAL_SIZE"
           fi
-          
+
           echo "=========================================="
 
       - name: Run integration tests with broker

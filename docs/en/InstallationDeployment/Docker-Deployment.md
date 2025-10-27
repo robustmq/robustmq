@@ -328,7 +328,7 @@ services:
    ```bash
    # Check port usage
    netstat -tlnp | grep 1883
-   
+
    # Modify port mapping
    ports:
      - "1885:1883"  # Use different port

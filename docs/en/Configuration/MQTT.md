@@ -467,6 +467,6 @@ enable = true
 
 ---
 
-*Documentation Version: v1.0*  
-*Last Updated: 2024-01-01*  
+*Documentation Version: v1.0*
+*Last Updated: 2024-01-01*
 *Based on Code Version: RobustMQ v0.1.31*

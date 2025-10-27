@@ -51,25 +51,25 @@ check_port() {
 get_port_info() {
     PORT=$1
     echo "  Checking port $PORT with multiple tools..."
-    
+
     # Method 1: lsof
     if command -v lsof >/dev/null 2>&1; then
         echo "  [lsof]"
         lsof -i:$PORT 2>/dev/null || echo "    No results from lsof"
     fi
-    
+
     # Method 2: netstat
     if command -v netstat >/dev/null 2>&1; then
         echo "  [netstat]"
         netstat -tlnp 2>/dev/null | grep ":$PORT " || echo "    No results from netstat"
     fi
-    
+
     # Method 3: ss (modern alternative)
     if command -v ss >/dev/null 2>&1; then
         echo "  [ss]"
         ss -tlnp 2>/dev/null | grep ":$PORT " || echo "    No results from ss"
     fi
-    
+
     # Method 4: fuser
     if command -v fuser >/dev/null 2>&1; then
         echo "  [fuser]"
@@ -84,10 +84,10 @@ trap cleanup EXIT
 if [ "$START_BROKER" == "true" ]; then
     echo "Checking if required ports are available..."
     echo "=========================================="
-    
+
     # List of ports that broker-server needs
     REQUIRED_PORTS=(1228 8080 9091 6777 1883 1885 8083 8085 9083)
-    
+
     # Function to check all ports and return the list of occupied ones
     check_all_ports() {
         CHECK_OCCUPIED=()
@@ -98,10 +98,10 @@ if [ "$START_BROKER" == "true" ]; then
         done
         echo "${CHECK_OCCUPIED[@]}"
     }
-    
+
     # Initial port check
     PORTS_IN_USE=($(check_all_ports))
-    
+
     # Display initial port status
     for port in "${REQUIRED_PORTS[@]}"; do
         if check_port $port; then
@@ -110,14 +110,14 @@ if [ "$START_BROKER" == "true" ]; then
             echo "✅ Port $port is available"
         fi
     done
-    
+
     # If any port is in use, try aggressive cleanup
     if [ ${#PORTS_IN_USE[@]} -gt 0 ]; then
         echo ""
         echo "=========================================="
         echo "🔧 Auto cleanup (${#PORTS_IN_USE[@]} port(s): ${PORTS_IN_USE[@]})"
         echo "=========================================="
-        
+
         # Kill broker-server processes
         if pgrep broker-server >/dev/null 2>&1; then
             echo "Step 1: Terminating broker-server processes..."
@@ -126,7 +126,7 @@ if [ "$START_BROKER" == "true" ]; then
         else
             echo "Step 1: No broker-server processes"
         fi
-        
+
         # Kill processes on occupied ports
         for port in "${PORTS_IN_USE[@]}"; do
             if command -v fuser >/dev/null 2>&1; then
@@ -136,23 +136,23 @@ if [ "$START_BROKER" == "true" ]; then
                 lsof -ti:$port 2>/dev/null | xargs -r kill -9 2>/dev/null || true
             fi
         done
-        
+
         sleep 2
-        
+
         # Step 2: Wait for ports to be released with retry mechanism
         echo ""
         echo "Step 2: Waiting for ports to be released..."
         MAX_WAIT_CLEANUP=60  # Maximum 60 seconds to wait for cleanup
         RETRY_INTERVAL=2
         CLEANUP_ELAPSED=0
-        
+
         while [ $CLEANUP_ELAPSED -lt $MAX_WAIT_CLEANUP ]; do
             sleep $RETRY_INTERVAL
             CLEANUP_ELAPSED=$((CLEANUP_ELAPSED + RETRY_INTERVAL))
-            
+
             # Re-check all ports
             STILL_IN_USE=($(check_all_ports))
-            
+
             if [ ${#STILL_IN_USE[@]} -eq 0 ]; then
                 echo "✅ All ports released after ${CLEANUP_ELAPSED}s"
                 break
@@ -163,12 +163,12 @@ if [ "$START_BROKER" == "true" ]; then
                 fi
             fi
         done
-        
+
         # Step 3: Final verification - STRICT mode
         echo ""
         echo "Step 3: Final port verification (STRICT)..."
         FINAL_CHECK=($(check_all_ports))
-        
+
         if [ ${#FINAL_CHECK[@]} -eq 0 ]; then
             echo "✅ SUCCESS: All ports are now available"
             echo "Continuing with broker startup..."
@@ -200,10 +200,10 @@ if [ "$START_BROKER" == "true" ]; then
             exit 1
         fi
     fi
-    
+
     echo "✅ All required ports are available"
     echo ""
-    
+
     echo "Building broker-server..."
     echo "=========================================="
 

@@ -300,11 +300,11 @@ curl -X POST http://localhost:8080/api/mqtt/user/list \
 
 ## Notes
 
-1. **Request Method**: 
+1. **Request Method**:
    - Root path `/` uses GET method
    - All other interfaces (including `/api/status`) use POST method
 2. **Request Body**: Even for query operations, a JSON format request body needs to be sent (can be an empty object `{}`)
-3. **Time Format**: 
+3. **Time Format**:
    - Input time uses Unix timestamp (seconds)
    - Output time uses local time format string "YYYY-MM-DD HH:MM:SS"
 4. **Pagination**: Page number `page` starts counting from 1
@@ -340,6 +340,6 @@ The service outputs detailed log information during runtime, including:
 
 ---
 
-*Documentation Version: v4.0*  
-*Last Updated: 2025-09-20*  
+*Documentation Version: v4.0*
+*Last Updated: 2025-09-20*
 *Based on Code Version: RobustMQ Admin Server v0.1.34*
