@@ -25,7 +25,7 @@ try_download() {
     local output="$2"
     local max_retries=3
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         if wget -q --timeout=30 --tries=3 "$url" -O "$output"; then
             return 0
@@ -35,7 +35,7 @@ try_download() {
             sleep 5
         fi
     done
-    
+
     return 1
 }
 

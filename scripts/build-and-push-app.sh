@@ -169,7 +169,7 @@ cd "$PROJECT_ROOT"
 # Auto-login to GitHub Container Registry if needed
 if [[ "$REGISTRY" == "ghcr" ]]; then
     log "Checking GitHub Container Registry authentication..."
-    
+
     # Check if already logged in
     if ! docker info | grep -q "ghcr.io"; then
         # Check for GITHUB_TOKEN environment variable
@@ -180,7 +180,7 @@ if [[ "$REGISTRY" == "ghcr" ]]; then
             log "  # or add it to your ~/.bashrc or ~/.zshrc"
             exit 1
         fi
-        
+
         # Get GitHub username from token or use current user
         local github_user
         if [ -n "$GITHUB_USER" ]; then
@@ -193,9 +193,9 @@ if [[ "$REGISTRY" == "ghcr" ]]; then
                 github_user="github"
             fi
         fi
-        
+
         log "Logging in to GHCR as $github_user..."
-        
+
         # Login to GHCR
         if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$github_user" --password-stdin; then
             log "Successfully logged in to GHCR"

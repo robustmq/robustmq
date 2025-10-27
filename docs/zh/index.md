@@ -167,14 +167,14 @@ h1.name .clip,
     --vp-home-hero-image-filter: blur(56px) !important;
     --vp-home-hero-name-font-size: 20px !important;
   }
-  
+
   .VPHero .name .clip,
   .VPHomeHero .name .clip,
   h1.name .clip,
   .clip {
     font-size: 40px !important;
   }
-  
+
   .text[data-v-72cc4481] {
     font-size: 30px !important;
   }
@@ -184,18 +184,18 @@ h1.name .clip,
   :root {
     --vp-home-hero-image-filter: blur(68px) !important;
   }
-  
+
   .VPHero .name .clip,
   .VPHomeHero .name .clip,
   h1.name .clip,
   .clip {
     font-size: 44px !important;
   }
-  
+
   .name{
     font-size:20px !important;
   }
-  
+
   .text[data-v-72cc4481] {
     font-size: 35px !important;
   }
@@ -209,7 +209,7 @@ h1.name .clip,
     font-size: 28px !important;
     line-height: 1.1 !important;
   }
-  
+
   .text[data-v-72cc4481] {
     font-size: 22px !important;
   }
@@ -333,17 +333,17 @@ h1.name .clip,
     font-size: 2rem;
     margin-bottom: 20px;
   }
-  
+
   .architecture-header p {
     font-size: 1rem;
     padding: 0 16px;
   }
-  
+
   .architecture-section {
     margin: 60px 0;
     padding: 0 16px;
   }
-  
+
   .architecture-overlay {
     padding: 30px 20px 20px;
   }
@@ -451,21 +451,21 @@ h1.name .clip,
     font-size: 2rem;
     margin-bottom: 20px;
   }
-  
+
   .console-header p {
     font-size: 1rem;
     padding: 0 16px;
   }
-  
+
   .console-section {
     margin: 60px 0;
     padding: 0 16px;
   }
-  
+
   .console-image-wrapper {
     padding: 20px;
   }
-  
+
   .console-overlay {
     padding: 30px 20px 20px;
   }
@@ -573,21 +573,21 @@ h1.name .clip,
     font-size: 2rem;
     margin-bottom: 20px;
   }
-  
+
   .web-ui-header p {
     font-size: 1rem;
     padding: 0 16px;
   }
-  
+
   .web-ui-section {
     margin: 60px 0;
     padding: 0 16px;
   }
-  
+
   .web-ui-image-wrapper {
     padding: 15px;
   }
-  
+
   .web-ui-overlay {
     padding: 30px 20px 20px;
   }

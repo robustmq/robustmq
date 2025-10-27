@@ -206,28 +206,28 @@ if [ "$START_BROKER" == "true" ]; then
     
     echo "Building broker-server..."
     echo "=========================================="
-    
+
     # Build broker-server (this will use cache effectively)
     cargo build --package cmd --bin broker-server
-    
+
     echo ""
     echo "Starting broker-server..."
     echo "Broker logs will be written to 1.log and tailed below..."
     echo "=========================================="
-    
+
     # Start broker and redirect output to file
     ./target/debug/broker-server > 1.log 2>&1 &
     BROKER_PID=$!
-    
+
     # Start tailing the log in background
     tail -f 1.log &
     TAIL_PID=$!
-    
+
     echo "Waiting for broker to be ready..."
     MAX_WAIT=1800  # Maximum wait time in seconds (30 minutes for compilation + startup)
     RETRY_INTERVAL=3
     BROKER_READY=false
-    
+
     for ((ELAPSED=0; ELAPSED<MAX_WAIT; ELAPSED+=RETRY_INTERVAL)); do
         # Check if process is still running
         if ! kill -0 $BROKER_PID 2>/dev/null; then
@@ -238,7 +238,7 @@ if [ "$START_BROKER" == "true" ]; then
             kill $TAIL_PID 2>/dev/null || true
             exit 1
         fi
-        
+
         # Check MQTT port 1883 (primary service port)
         if nc -z 127.0.0.1 1883 2>/dev/null || \
            (command -v lsof >/dev/null 2>&1 && lsof -i:1883 -sTCP:LISTEN >/dev/null 2>&1); then
@@ -251,10 +251,10 @@ if [ "$START_BROKER" == "true" ]; then
             BROKER_READY=true
             break
         fi
-        
+
         sleep $RETRY_INTERVAL
     done
-    
+
     if [ "$BROKER_READY" != "true" ]; then
         echo ""
         echo "=========================================="
@@ -263,7 +263,7 @@ if [ "$START_BROKER" == "true" ]; then
         kill $TAIL_PID 2>/dev/null || true
         exit 1
     fi
-    
+
     # Give it a few more seconds to stabilize
     echo "Waiting 5s for broker to stabilize..."
     sleep 5

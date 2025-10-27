@@ -1,9 +1,9 @@
 # ==============================================================================
 # RobustMQ Dependency Base Image
 # ==============================================================================
-# 
+#
 # Purpose: Pre-compile all Rust dependencies to speed up CI/CD pipelines
-# 
+#
 # Usage:
 #   1. Build locally: ./build-and-push.sh
 #   2. Use in CI: container.image = ghcr.io/socutes/robustmq/rust-deps:latest
@@ -160,4 +160,3 @@ RUN echo "✅ Dependency cache image built successfully!" && \
 
 # Default command
 CMD ["/bin/bash"]
-

@@ -22,16 +22,16 @@ try_install() {
     local mirror_name="$1"
     local mirror_url="$2"
     local packages="$3"
-    
+
     echo "Trying to install with $mirror_name mirror..."
-    
+
     # Update sources to use the mirror
     sed -i "s/deb.debian.org/$mirror_url/g" /etc/apt/sources.list.d/debian.sources
-    
+
     # Update package list with retry
     local retry_count=0
     local max_retries=5
-    
+
     while [ $retry_count -lt $max_retries ]; do
         if apt-get update; then
             break
@@ -41,12 +41,12 @@ try_install() {
             sleep 5
         fi
     done
-    
+
     if [ $retry_count -eq $max_retries ]; then
         echo "Failed to update package list after $max_retries attempts"
         return 1
     fi
-    
+
     # Install packages with retry
     retry_count=0
     while [ $retry_count -lt $max_retries ]; do
@@ -59,7 +59,7 @@ try_install() {
             sleep 10
         fi
     done
-    
+
     echo "Failed to install packages after $max_retries attempts"
     return 1
 }

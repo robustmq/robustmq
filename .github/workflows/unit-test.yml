@@ -46,7 +46,7 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -84,7 +84,7 @@ jobs:
         run: |
           echo "## 🧪 Unit Test Results" >> $GITHUB_STEP_SUMMARY
           echo "Debug: outcome = ${{ steps.run-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ steps.run-tests.outcome }}" != "success" ]; then
             echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
             exit 1
