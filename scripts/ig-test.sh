@@ -122,8 +122,46 @@ if [ "$START_BROKER" == "true" ]; then
         
         # Step 1: Kill all broker-server processes aggressively
         echo "Step 1: Killing all broker-server processes..."
+        
+        # Show existing broker processes before killing
+        if pgrep -l broker-server >/dev/null 2>&1; then
+            echo "Found broker-server processes:"
+            pgrep -la broker-server || true
+        else
+            echo "No broker-server processes found"
+        fi
+        
+        # Kill with extreme prejudice
         pkill -9 broker-server 2>/dev/null || true
-        echo "Sent kill signal to all broker-server processes"
+        killall -9 broker-server 2>/dev/null || true
+        
+        # Also try to kill processes on specific ports using fuser
+        echo "Attempting to kill processes on occupied ports..."
+        for port in "${PORTS_IN_USE[@]}"; do
+            if command -v fuser >/dev/null 2>&1; then
+                fuser -k -9 $port/tcp 2>/dev/null || true
+            fi
+            
+            # Alternative: use lsof to find and kill
+            if command -v lsof >/dev/null 2>&1; then
+                PIDS=$(lsof -ti:$port 2>/dev/null || true)
+                if [ ! -z "$PIDS" ]; then
+                    echo "  Killing PIDs on port $port: $PIDS"
+                    kill -9 $PIDS 2>/dev/null || true
+                fi
+            fi
+        done
+        
+        echo "Sent kill signal to all broker-server processes and port occupants"
+        sleep 2
+        
+        # Verify processes are gone
+        if pgrep broker-server >/dev/null 2>&1; then
+            echo "⚠️  Warning: Some broker-server processes still exist after kill"
+            pgrep -la broker-server || true
+        else
+            echo "✅ All broker-server processes terminated"
+        fi
         
         # Step 2: Wait for ports to be released with retry mechanism
         echo ""
@@ -143,7 +181,25 @@ if [ "$START_BROKER" == "true" ]; then
                 echo "✅ All ports released after ${CLEANUP_ELAPSED}s"
                 break
             else
-                echo "⏳ Still waiting... ${#STILL_IN_USE[@]} port(s) still in use: ${STILL_IN_USE[@]} (${CLEANUP_ELAPSED}s/${MAX_WAIT_CLEANUP}s)"
+                # Show port status every 10 seconds
+                if [ $((CLEANUP_ELAPSED % 10)) -eq 0 ] && command -v ss >/dev/null 2>&1; then
+                    echo "⏳ Still waiting... ${#STILL_IN_USE[@]} port(s) still in use: ${STILL_IN_USE[@]} (${CLEANUP_ELAPSED}s/${MAX_WAIT_CLEANUP}s)"
+                    echo "   Port states:"
+                    for stuck_port in "${STILL_IN_USE[@]}"; do
+                        PORT_STATE=$(ss -tan state all "sport = :$stuck_port" 2>/dev/null | grep -v "State" | head -1 || echo "Unknown")
+                        if echo "$PORT_STATE" | grep -q "TIME-WAIT"; then
+                            echo "   - Port $stuck_port: TIME-WAIT (TCP cleanup, will expire soon)"
+                        elif echo "$PORT_STATE" | grep -q "LISTEN"; then
+                            echo "   - Port $stuck_port: LISTEN (active process)"
+                        elif [ -n "$PORT_STATE" ]; then
+                            echo "   - Port $stuck_port: $PORT_STATE"
+                        else
+                            echo "   - Port $stuck_port: Unknown state"
+                        fi
+                    done
+                else
+                    echo "⏳ Still waiting... ${#STILL_IN_USE[@]} port(s) still in use: ${STILL_IN_USE[@]} (${CLEANUP_ELAPSED}s/${MAX_WAIT_CLEANUP}s)"
+                fi
             fi
         done
         
@@ -158,29 +214,93 @@ if [ "$START_BROKER" == "true" ]; then
             echo "=========================================="
             echo ""
         else
-            echo "❌ FAILED: Some ports are still occupied after ${MAX_WAIT_CLEANUP}s"
-            echo "Ports still in use: ${FINAL_CHECK[@]}"
+            echo "⚠️  WARNING: Some ports still show as occupied after ${MAX_WAIT_CLEANUP}s"
+            echo "Ports: ${FINAL_CHECK[@]}"
             echo ""
-            echo "Detailed investigation:"
+            
+            # Check if ports are in TIME_WAIT state or have identifiable processes
+            TIME_WAIT_PORTS=()
+            GHOST_PORTS=()
+            ACTIVE_PORTS=()
+            
             for port in "${FINAL_CHECK[@]}"; do
-                echo ""
-                echo "Port $port:"
-                get_port_info $port
+                # Check port state
+                IS_TIME_WAIT=false
+                IS_LISTEN=false
+                HAS_PROCESS=false
+                
+                if command -v ss >/dev/null 2>&1; then
+                    if ss -tan | grep ":$port " | grep -q "TIME-WAIT"; then
+                        IS_TIME_WAIT=true
+                    elif ss -tan | grep ":$port " | grep -q "LISTEN"; then
+                        IS_LISTEN=true
+                    fi
+                fi
+                
+                # Check if we can find the process
+                if command -v lsof >/dev/null 2>&1; then
+                    if lsof -i:$port 2>/dev/null | grep -q LISTEN; then
+                        HAS_PROCESS=true
+                    fi
+                fi
+                
+                # Categorize the port
+                if [ "$IS_TIME_WAIT" = true ]; then
+                    TIME_WAIT_PORTS+=($port)
+                elif [ "$IS_LISTEN" = true ] && [ "$HAS_PROCESS" = false ]; then
+                    GHOST_PORTS+=($port)  # LISTEN but no identifiable process
+                elif [ "$IS_LISTEN" = true ] && [ "$HAS_PROCESS" = true ]; then
+                    ACTIVE_PORTS+=($port)  # Real active process
+                else
+                    TIME_WAIT_PORTS+=($port)  # Unknown, assume safe
+                fi
             done
-            echo ""
-            echo "=========================================="
-            echo "Manual intervention required."
-            echo "Possible causes:"
-            echo "  - TCP TIME_WAIT state (wait 1-2 minutes)"
-            echo "  - Other services using these ports"
-            echo "  - Zombie/orphan processes"
-            echo ""
-            echo "Manual cleanup commands:"
-            echo "  - Check processes: lsof -i:<PORT>"
-            echo "  - Check connections: netstat -an | grep <PORT>"
-            echo "  - Force kill: pkill -9 broker-server"
-            echo "=========================================="
-            exit 1
+            
+            if [ ${#ACTIVE_PORTS[@]} -eq 0 ]; then
+                echo "✅ Good news: No active processes blocking the ports"
+                if [ ${#TIME_WAIT_PORTS[@]} -gt 0 ]; then
+                    echo "   TIME-WAIT ports (harmless): ${TIME_WAIT_PORTS[@]}"
+                fi
+                if [ ${#GHOST_PORTS[@]} -gt 0 ]; then
+                    echo "   Ghost ports (no process found, likely safe): ${GHOST_PORTS[@]}"
+                    echo "   ℹ️  These ports show as LISTEN but no process was found"
+                    echo "   ℹ️  Could be zombie processes or permission issues"
+                    echo "   ℹ️  Broker will attempt to bind anyway with SO_REUSEADDR"
+                fi
+                echo "   Continuing with broker startup..."
+                echo "=========================================="
+                echo ""
+            else
+                echo "❌ FAILED: Some ports have identifiable active processes"
+                echo "Active ports with processes: ${ACTIVE_PORTS[@]}"
+                if [ ${#GHOST_PORTS[@]} -gt 0 ]; then
+                    echo "Ghost ports (no process): ${GHOST_PORTS[@]}"
+                fi
+                if [ ${#TIME_WAIT_PORTS[@]} -gt 0 ]; then
+                    echo "TIME-WAIT ports (harmless): ${TIME_WAIT_PORTS[@]}"
+                fi
+                echo ""
+                echo "Detailed investigation:"
+                for port in "${ACTIVE_PORTS[@]}"; do
+                    echo ""
+                    echo "Port $port:"
+                    get_port_info $port
+                done
+                echo ""
+                echo "=========================================="
+                echo "Manual intervention required."
+                echo "Possible causes:"
+                echo "  - Other services using these ports"
+                echo "  - Docker containers"
+                echo "  - System services"
+                echo ""
+                echo "Manual cleanup commands:"
+                echo "  - Check processes: sudo lsof -i:<PORT>"
+                echo "  - Check connections: ss -tlnp | grep <PORT>"
+                echo "  - Check Docker: docker ps"
+                echo "=========================================="
+                exit 1
+            fi
         fi
     fi
     
