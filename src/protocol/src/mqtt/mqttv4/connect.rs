@@ -85,6 +85,10 @@ pub fn read(
     }
 
     let connect_flags = read_u8(&mut bytes)?;
+    // todo check reserved bit (bit 0) is 0
+    if (connect_flags & 0b1) != 0 {
+        return Err(MQTTProtocolError::ReservedMustBeSetToZero);
+    }
     let clean_session = (connect_flags & 0b10) != 0;
     let keep_alive = read_u16(&mut bytes)?;
 
@@ -318,6 +322,44 @@ mod tests {
         assert!(lass_will.is_none());
     }
 
+    #[tokio::test]
+    async fn variable_header_should_fail_with_invalid_protocol() {
+        let mut buffer = BytesMut::new();
+        // Manually write an invalid protocol name
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8(10); // Remaining length
+        write_mqtt_string(&mut buffer, "INVALID");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        buffer.put_u8(0); // Connect flags
+        buffer.put_u16(0); // Keep alive
+        write_mqtt_string(&mut buffer, "test_id");
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
+
+        assert!(matches!(result, Err(MQTTProtocolError::InvalidProtocol)));
+    }
+
+    #[tokio::test]
+    async fn variable_header_should_fail_with_reserved_flags_set_is_one() {
+        let mut buffer = BytesMut::new();
+        // Manually write an invalid protocol name
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8(10); // Remaining length
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        buffer.put_u8(0b0000_0001); // Connect flags
+        buffer.put_u16(0); // Keep alive
+        write_mqtt_string(&mut buffer, "test_id");
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
+
+        assert!(matches!(
+            result,
+            Err(MQTTProtocolError::ReservedMustBeSetToZero)
+        ));
+    }
     #[test]
     fn test_connect() {
         use super::*;
