@@ -74,15 +74,50 @@ if [ "$START_BROKER" == "true" ]; then
         echo "❌ ERROR: Cannot start broker-server"
         echo "=========================================="
         echo "The following ports are already in use:"
-        for port in "${PORTS_IN_USE[@]}"; do
-            echo "  - Port $port"
-            # Show which process is using the port
-            if command -v lsof >/dev/null 2>&1; then
-                echo "    Process: $(lsof -i:$port -sTCP:LISTEN -t 2>/dev/null | head -1 | xargs ps -p 2>/dev/null | tail -1 || echo 'Unknown')"
-            fi
-        done
         echo ""
+        
+        for port in "${PORTS_IN_USE[@]}"; do
+            echo "Port $port:"
+            
+            # Try to get process info using lsof
+            if command -v lsof >/dev/null 2>&1; then
+                # Get PID using the port
+                local pid=$(lsof -i:$port -sTCP:LISTEN -t 2>/dev/null | head -1)
+                
+                if [ ! -z "$pid" ]; then
+                    echo "  PID:     $pid"
+                    
+                    # Get process name and command
+                    if [ -f "/proc/$pid/comm" ]; then
+                        # Linux: read from /proc
+                        echo "  Process: $(cat /proc/$pid/comm 2>/dev/null || echo 'Unknown')"
+                        echo "  Command: $(cat /proc/$pid/cmdline 2>/dev/null | tr '\0' ' ' || echo 'Unknown')"
+                    else
+                        # macOS/BSD: use ps
+                        echo "  Process: $(ps -p $pid -o comm= 2>/dev/null || echo 'Unknown')"
+                        echo "  Command: $(ps -p $pid -o args= 2>/dev/null || echo 'Unknown')"
+                    fi
+                    
+                    # Show user who owns the process
+                    local user=$(ps -p $pid -o user= 2>/dev/null || echo 'Unknown')
+                    echo "  User:    $user"
+                    
+                    # Show how to kill it
+                    echo "  Kill:    kill $pid  (or kill -9 $pid)"
+                else
+                    echo "  Unable to determine process information"
+                fi
+            else
+                echo "  (Install 'lsof' to see process information)"
+            fi
+            echo ""
+        done
+        
         echo "Please stop the conflicting processes and try again."
+        echo "Example commands:"
+        echo "  - Kill specific process: kill <PID>"
+        echo "  - Kill all broker instances: pkill broker-server"
+        echo "  - Find processes by port: lsof -i:<PORT>"
         echo "=========================================="
         exit 1
     fi
