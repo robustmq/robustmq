@@ -36,11 +36,60 @@ cleanup() {
     fi
 }
 
+# Function to check if port is in use
+check_port() {
+    local port=$1
+    if nc -z 127.0.0.1 $port 2>/dev/null || \
+       (command -v lsof >/dev/null 2>&1 && lsof -i:$port -sTCP:LISTEN >/dev/null 2>&1); then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+
 # Register cleanup on exit
 trap cleanup EXIT
 
 # Start broker if needed
 if [ "$START_BROKER" == "true" ]; then
+    echo "Checking if required ports are available..."
+    echo "=========================================="
+    
+    # List of ports that broker-server needs
+    REQUIRED_PORTS=(1228 8080 9091 6777 1883 1884 8083 8084 9083)
+    PORTS_IN_USE=()
+    
+    # Check each port
+    for port in "${REQUIRED_PORTS[@]}"; do
+        if check_port $port; then
+            PORTS_IN_USE+=($port)
+            echo "❌ Port $port is already in use"
+        fi
+    done
+    
+    # If any port is in use, report and exit
+    if [ ${#PORTS_IN_USE[@]} -gt 0 ]; then
+        echo ""
+        echo "=========================================="
+        echo "❌ ERROR: Cannot start broker-server"
+        echo "=========================================="
+        echo "The following ports are already in use:"
+        for port in "${PORTS_IN_USE[@]}"; do
+            echo "  - Port $port"
+            # Show which process is using the port
+            if command -v lsof >/dev/null 2>&1; then
+                echo "    Process: $(lsof -i:$port -sTCP:LISTEN -t 2>/dev/null | head -1 | xargs ps -p 2>/dev/null | tail -1 || echo 'Unknown')"
+            fi
+        done
+        echo ""
+        echo "Please stop the conflicting processes and try again."
+        echo "=========================================="
+        exit 1
+    fi
+    
+    echo "✅ All required ports are available"
+    echo ""
+    
     echo "Building broker-server..."
     echo "=========================================="
     
