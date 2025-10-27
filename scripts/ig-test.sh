@@ -67,7 +67,7 @@ if [ "$START_BROKER" == "true" ]; then
         fi
     done
     
-    # If any port is in use, report and exit
+    # If any port is in use, report and optionally cleanup
     if [ ${#PORTS_IN_USE[@]} -gt 0 ]; then
         echo ""
         echo "=========================================="
@@ -76,34 +76,47 @@ if [ "$START_BROKER" == "true" ]; then
         echo "The following ports are already in use:"
         echo ""
         
+        BROKER_PIDS=()
+        
         for port in "${PORTS_IN_USE[@]}"; do
             echo "Port $port:"
             
             # Try to get process info using lsof
             if command -v lsof >/dev/null 2>&1; then
                 # Get PID using the port
-                local pid=$(lsof -i:$port -sTCP:LISTEN -t 2>/dev/null | head -1)
+                PORT_PID=$(lsof -i:$port -sTCP:LISTEN -t 2>/dev/null | head -1)
                 
-                if [ ! -z "$pid" ]; then
-                    echo "  PID:     $pid"
+                if [ ! -z "$PORT_PID" ]; then
+                    echo "  PID:     $PORT_PID"
                     
                     # Get process name and command
-                    if [ -f "/proc/$pid/comm" ]; then
+                    PROCESS_NAME="Unknown"
+                    PROCESS_CMD="Unknown"
+                    
+                    if [ -f "/proc/$PORT_PID/comm" ]; then
                         # Linux: read from /proc
-                        echo "  Process: $(cat /proc/$pid/comm 2>/dev/null || echo 'Unknown')"
-                        echo "  Command: $(cat /proc/$pid/cmdline 2>/dev/null | tr '\0' ' ' || echo 'Unknown')"
+                        PROCESS_NAME=$(cat /proc/$PORT_PID/comm 2>/dev/null || echo 'Unknown')
+                        PROCESS_CMD=$(cat /proc/$PORT_PID/cmdline 2>/dev/null | tr '\0' ' ' || echo 'Unknown')
                     else
                         # macOS/BSD: use ps
-                        echo "  Process: $(ps -p $pid -o comm= 2>/dev/null || echo 'Unknown')"
-                        echo "  Command: $(ps -p $pid -o args= 2>/dev/null || echo 'Unknown')"
+                        PROCESS_NAME=$(ps -p $PORT_PID -o comm= 2>/dev/null || echo 'Unknown')
+                        PROCESS_CMD=$(ps -p $PORT_PID -o args= 2>/dev/null || echo 'Unknown')
                     fi
                     
+                    echo "  Process: $PROCESS_NAME"
+                    echo "  Command: $PROCESS_CMD"
+                    
                     # Show user who owns the process
-                    local user=$(ps -p $pid -o user= 2>/dev/null || echo 'Unknown')
-                    echo "  User:    $user"
+                    PORT_USER=$(ps -p $PORT_PID -o user= 2>/dev/null || echo 'Unknown')
+                    echo "  User:    $PORT_USER"
                     
                     # Show how to kill it
-                    echo "  Kill:    kill $pid  (or kill -9 $pid)"
+                    echo "  Kill:    kill $PORT_PID  (or kill -9 $PORT_PID)"
+                    
+                    # Collect broker-server PIDs for auto-cleanup
+                    if [[ "$PROCESS_NAME" == *"broker-server"* ]] || [[ "$PROCESS_CMD" == *"broker-server"* ]]; then
+                        BROKER_PIDS+=($PORT_PID)
+                    fi
                 else
                     echo "  Unable to determine process information"
                 fi
@@ -113,13 +126,54 @@ if [ "$START_BROKER" == "true" ]; then
             echo ""
         done
         
-        echo "Please stop the conflicting processes and try again."
-        echo "Example commands:"
-        echo "  - Kill specific process: kill <PID>"
-        echo "  - Kill all broker instances: pkill broker-server"
-        echo "  - Find processes by port: lsof -i:<PORT>"
-        echo "=========================================="
-        exit 1
+        # Auto-cleanup broker-server processes if detected
+        if [ ${#BROKER_PIDS[@]} -gt 0 ]; then
+            # Remove duplicates
+            UNIQUE_BROKER_PIDS=($(echo "${BROKER_PIDS[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+            
+            echo "=========================================="
+            echo "🔧 Detected ${#UNIQUE_BROKER_PIDS[@]} broker-server process(es)"
+            echo "=========================================="
+            echo "Attempting to automatically cleanup old broker-server processes..."
+            echo ""
+            
+            for pid in "${UNIQUE_BROKER_PIDS[@]}"; do
+                echo "Killing broker-server (PID: $pid)..."
+                kill $pid 2>/dev/null || kill -9 $pid 2>/dev/null || true
+            done
+            
+            echo "Waiting 3 seconds for ports to be released..."
+            sleep 3
+            
+            # Re-check ports
+            echo "Re-checking ports..."
+            STILL_IN_USE=()
+            for port in "${REQUIRED_PORTS[@]}"; do
+                if check_port $port; then
+                    STILL_IN_USE+=($port)
+                fi
+            done
+            
+            if [ ${#STILL_IN_USE[@]} -eq 0 ]; then
+                echo "✅ All ports are now available after cleanup"
+                echo "Continuing with broker startup..."
+                echo ""
+            else
+                echo "❌ Some ports are still in use: ${STILL_IN_USE[@]}"
+                echo "Manual intervention required."
+                echo "=========================================="
+                exit 1
+            fi
+        else
+            echo "=========================================="
+            echo "Please stop the conflicting processes and try again."
+            echo "Example commands:"
+            echo "  - Kill specific process: kill <PID>"
+            echo "  - Kill all broker instances: pkill broker-server"
+            echo "  - Find processes by port: lsof -i:<PORT>"
+            echo "=========================================="
+            exit 1
+        fi
     fi
     
     echo "✅ All required ports are available"
