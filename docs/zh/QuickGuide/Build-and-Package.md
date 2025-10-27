@@ -218,4 +218,4 @@ docker build --no-cache -f docker/robustmq/Dockerfile -t robustmq:latest .
 | 查看本地镜像 | `docker images | grep robustmq` | 查看本地构建的镜像 |
 | 测试镜像 | `docker run --rm robustmq/robustmq:latest --help` | 测试应用镜像 |
 | 查看镜像历史 | `docker history robustmq/robustmq:latest` | 查看镜像构建历史 |
-| 查看镜像大小 | `docker images robustmq/robustmq --format "{{.Size}}"` | 查看镜像大小 |
+| 查看镜像大小 | `docker images robustmq/robustmq --format "\{\{.Size\}\}"` | 查看镜像大小 |

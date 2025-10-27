@@ -61,3 +61,7 @@ pub fn default_broker_config() -> BrokerConfig {
     .unwrap();
     config
 }
+
+pub fn default_rocksdb_family() -> String {
+    "cluster".to_string()
+}

@@ -199,4 +199,4 @@ docker build --no-cache -f docker/robustmq/Dockerfile -t robustmq:latest .
 | View local images | `docker images | grep robustmq` | View locally built images |
 | Test image | `docker run --rm robustmq/robustmq:latest --help` | Test application image |
 | View image history | `docker history robustmq/robustmq:latest` | View image build history |
-| View image size | `docker images robustmq/robustmq --format "{{.Size}}"` | View image size |
+| View image size | `docker images robustmq/robustmq --format "\{\{.Size\}\}"` | View image size |
