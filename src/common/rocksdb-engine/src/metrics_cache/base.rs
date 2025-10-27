@@ -78,9 +78,8 @@ pub(crate) async fn get_pre_num(
     Ok(serde_json::from_str::<u64>(&res.data)?)
 }
 
-pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>) -> Result<(), CommonError> {
+pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), CommonError> {
     let now_time = now_second();
-    let save_time = 3600;
 
     let cf = if let Some(cf) = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_BROKER) {
         cf
@@ -120,4 +119,39 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>) -> Result<(), CommonError> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::time::Duration;
+
+    use common_base::tools::{now_second, unique_id};
+    use tokio::time::sleep;
+
+    use crate::{
+        metrics_cache::base::{gc, get_metric_data, get_pre_num, record_num, record_pre_num},
+        test::test_rocksdb_instance,
+    };
+
+    #[tokio::test]
+    async fn multi_rocksdb_instance() {
+        let rs_handler = test_rocksdb_instance();
+        let key = unique_id();
+        let time = now_second();
+        let num = 100;
+        let res = record_num(&rs_handler, &key, time, num);
+        println!("{:?}", res);
+        assert!(res.is_ok());
+
+        let data = get_metric_data(&rs_handler, &key).unwrap();
+        assert_eq!(data.len(), 1);
+
+        sleep(Duration::from_secs(20)).await;
+
+        gc(&rs_handler, 10).unwrap();
+
+        let data = get_metric_data(&rs_handler, &key).unwrap();
+        assert_eq!(data.len(), 0);
+
+        record_pre_num(&rs_handler, &key, 100).unwrap();
+        let res = get_pre_num(&rs_handler, &key).await.unwrap();
+        assert_eq!(res, 100);
+    }
+}

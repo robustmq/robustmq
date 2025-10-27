@@ -45,7 +45,7 @@ impl MQTTMetricsCache {
         Self { rocksdb_engine }
     }
 
-    // Connection metrics
+    // Connection num
     pub fn record_connection_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
         record_num(
             &self.rocksdb_engine,
@@ -59,7 +59,7 @@ impl MQTTMetricsCache {
         get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_CONNECTION_NUM)
     }
 
-    // Topic metrics
+    // Topic num
     pub fn record_topic_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
         record_num(&self.rocksdb_engine, METRICS_TYPE_KEY_TOPIC_NUM, time, num)
     }
@@ -68,6 +68,7 @@ impl MQTTMetricsCache {
         get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_TOPIC_NUM)
     }
 
+    // topic in
     pub fn record_topic_in_num(
         &self,
         topic: &str,
@@ -92,6 +93,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
+    // topic out
     pub fn record_topic_out_num(
         &self,
         topic: &str,
@@ -116,7 +118,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
-    // Subscribe metrics
+    // Subscribe num
     pub fn record_subscribe_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
         record_num(
             &self.rocksdb_engine,
@@ -130,6 +132,7 @@ impl MQTTMetricsCache {
         get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_SUBSCRIBE_NUM)
     }
 
+    // Subscribe send num
     pub fn record_subscribe_send_num(
         &self,
         client_id: &str,
@@ -176,6 +179,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
+    // subscribe topic
     #[allow(clippy::too_many_arguments)]
     pub fn record_subscribe_topic_send_num(
         &self,
@@ -226,7 +230,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
-    // Message metrics
+    // message in
     pub async fn record_message_in_num(
         &self,
         time: u64,
@@ -255,6 +259,7 @@ impl MQTTMetricsCache {
         Ok(get_max_key_value(&data))
     }
 
+    // message out
     pub async fn record_message_out_num(
         &self,
         time: u64,
@@ -287,6 +292,7 @@ impl MQTTMetricsCache {
         Ok(get_max_key_value(&data))
     }
 
+    // message drop
     pub async fn record_message_drop_num(
         &self,
         time: u64,
