@@ -149,7 +149,7 @@ impl Server {
             }
         });
 
-        if let Err(e) = self.quic_server.start(conf.mqtt_server.quic_port).await? {
+        if let Err(e) = self.quic_server.start(conf.mqtt_server.quic_port).await {
             error!("QUIC server start fail, error:{}", e);
         }
         Ok(())
