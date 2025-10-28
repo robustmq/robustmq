@@ -14,10 +14,12 @@
 
 use super::get_max_key_value;
 use crate::{
-    metrics_cache::base::{get_metric_data, get_pre_num, record_num, record_pre_num},
+    metrics_cache::base::{
+        delete_by_prefix, get_metric_data, get_pre_num, record_num, record_pre_num,
+    },
     rocksdb::RocksDBEngine,
 };
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, ResultCommonError};
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -45,7 +47,7 @@ impl MQTTMetricsCache {
         Self { rocksdb_engine }
     }
 
-    // Connection metrics
+    // Connection num
     pub fn record_connection_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
         record_num(
             &self.rocksdb_engine,
@@ -59,7 +61,7 @@ impl MQTTMetricsCache {
         get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_CONNECTION_NUM)
     }
 
-    // Topic metrics
+    // Topic num
     pub fn record_topic_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
         record_num(&self.rocksdb_engine, METRICS_TYPE_KEY_TOPIC_NUM, time, num)
     }
@@ -68,6 +70,7 @@ impl MQTTMetricsCache {
         get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_TOPIC_NUM)
     }
 
+    // topic in
     pub fn record_topic_in_num(
         &self,
         topic: &str,
@@ -92,6 +95,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
+    // topic out
     pub fn record_topic_out_num(
         &self,
         topic: &str,
@@ -116,7 +120,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
-    // Subscribe metrics
+    // Subscribe num
     pub fn record_subscribe_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
         record_num(
             &self.rocksdb_engine,
@@ -130,6 +134,7 @@ impl MQTTMetricsCache {
         get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_SUBSCRIBE_NUM)
     }
 
+    // Subscribe send num
     pub fn record_subscribe_send_num(
         &self,
         client_id: &str,
@@ -176,6 +181,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
+    // subscribe topic
     #[allow(clippy::too_many_arguments)]
     pub fn record_subscribe_topic_send_num(
         &self,
@@ -226,7 +232,7 @@ impl MQTTMetricsCache {
             .map_or(num, |v| v))
     }
 
-    // Message metrics
+    // message in
     pub async fn record_message_in_num(
         &self,
         time: u64,
@@ -255,6 +261,7 @@ impl MQTTMetricsCache {
         Ok(get_max_key_value(&data))
     }
 
+    // message out
     pub async fn record_message_out_num(
         &self,
         time: u64,
@@ -287,6 +294,7 @@ impl MQTTMetricsCache {
         Ok(get_max_key_value(&data))
     }
 
+    // message drop
     pub async fn record_message_drop_num(
         &self,
         time: u64,
@@ -388,18 +396,252 @@ impl MQTTMetricsCache {
         results
     }
 
-    pub fn remove_topic(&self, _topic_name: &str) -> Result<(), CommonError> {
+    pub fn remove_topic(&self, topic: &str) -> ResultCommonError {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_IN_NUM, topic);
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
+
+        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_OUT_NUM, topic);
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
         Ok(())
     }
 
-    pub fn remove_subscribe(&self) -> Result<(), CommonError> {
+    pub fn remove_subscribe(&self, client_id: &str, path: &str) -> ResultCommonError {
+        let key = format!("{}_{}_{}", METRICS_TYPE_KEY_SUBSCRIBE_SEND, client_id, path);
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
+
+        let key = format!(
+            "{}_{}_{}",
+            METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND, client_id, path
+        );
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
         Ok(())
     }
 
-    pub fn remove_session(&self) -> Result<(), CommonError> {
+    pub fn remove_session(&self, client_id: &str) -> ResultCommonError {
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
+
+        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use common_base::tools::now_second;
+
+    use crate::{metrics_cache::mqtt::MQTTMetricsCache, test::test_rocksdb_instance};
+
+    #[tokio::test]
+    async fn connection_num_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        cache.record_connection_num(time, 100).unwrap();
+        assert_eq!(cache.get_connection_num().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn topic_num_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        cache.record_topic_num(time, 50).unwrap();
+        assert_eq!(cache.get_topic_num().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn subscribe_num_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        cache.record_subscribe_num(time, 200).unwrap();
+        assert_eq!(cache.get_subscribe_num().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn topic_in_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        let topic = "t1".to_string();
+        cache.record_topic_in_num(&topic, time, 77, 100).unwrap();
+        assert_eq!(cache.get_topic_in_num(&topic).unwrap().len(), 1);
+        assert_eq!(cache.get_topic_in_pre_total(&topic, 5).await.unwrap(), 77);
+        assert_eq!(cache.get_topic_in_pre_total("t3", 5).await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn topic_out_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        let topic = "t1".to_string();
+        cache.record_topic_out_num(&topic, time, 88, 150).unwrap();
+        assert_eq!(cache.get_topic_out_num(&topic).unwrap().len(), 1);
+        assert_eq!(cache.get_topic_out_pre_total(&topic, 5).await.unwrap(), 88);
+        assert_eq!(cache.get_topic_out_pre_total("t3", 5).await.unwrap(), 0);
+
+        cache.remove_topic(&topic).unwrap();
+        assert_eq!(cache.get_topic_out_num(&topic).unwrap().len(), 0);
+        assert_eq!(cache.get_topic_out_pre_total(&topic, 5).await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn message_in_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        cache.record_message_in_num(time, 1000, 200).await.unwrap();
+        assert_eq!(cache.get_message_in_num().unwrap().len(), 1);
+        assert_eq!(cache.get_pre_message_in().await.unwrap(), 1000);
+        assert_eq!(cache.get_message_in_rate().unwrap(), 200);
+    }
+
+    #[tokio::test]
+    async fn message_out_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        cache.record_message_out_num(time, 800, 150).await.unwrap();
+        assert_eq!(cache.get_message_out_num().unwrap().len(), 1);
+        assert_eq!(cache.get_pre_message_out().await.unwrap(), 800);
+        assert_eq!(cache.get_message_out_rate().unwrap(), 150);
+    }
+
+    #[tokio::test]
+    async fn message_drop_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        cache.record_message_drop_num(time, 50, 10).await.unwrap();
+        assert_eq!(cache.get_message_drop_num().unwrap().len(), 1);
+        assert_eq!(cache.get_pre_message_drop().await.unwrap(), 50);
+        assert_eq!(cache.get_message_drop_rate().unwrap(), 10);
+    }
+
+    #[tokio::test]
+    async fn session_in_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        let client_id = "client1".to_string();
+        cache
+            .record_session_in_num(&client_id, time, 500, 100)
+            .unwrap();
+        assert_eq!(cache.get_session_in_num(&client_id).unwrap().len(), 1);
+        assert_eq!(
+            cache.get_session_in_pre_total(&client_id, 5).await.unwrap(),
+            500
+        );
+        assert_eq!(
+            cache.get_session_in_pre_total("client3", 5).await.unwrap(),
+            0
+        );
+
+        cache.remove_session(&client_id).unwrap();
+        assert_eq!(cache.get_session_in_num(&client_id).unwrap().len(), 0);
+        assert_eq!(
+            cache.get_session_in_pre_total(&client_id, 5).await.unwrap(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn session_out_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        let client_id = "client1".to_string();
+        cache
+            .record_session_out_num(&client_id, time, 600, 120)
+            .unwrap();
+        assert_eq!(cache.get_session_out_num(&client_id).unwrap().len(), 1);
+        assert_eq!(
+            cache
+                .get_session_out_pre_total(&client_id, 5)
+                .await
+                .unwrap(),
+            600
+        );
+        assert_eq!(
+            cache.get_session_out_pre_total("client3", 5).await.unwrap(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn subscribe_send_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        let client_id = "client1".to_string();
+        let path = "/sensor/#".to_string();
+        cache
+            .record_subscribe_send_num(&client_id, &path, true, time, 300, 50)
+            .unwrap();
+        assert_eq!(
+            cache
+                .get_subscribe_send_num(&client_id, &path, true)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            cache
+                .get_subscribe_send_pre_total(&client_id, &path, true, 5)
+                .await
+                .unwrap(),
+            300
+        );
+        assert_eq!(
+            cache
+                .get_subscribe_send_pre_total("client3", &path, true, 5)
+                .await
+                .unwrap(),
+            0
+        );
+
+        cache.remove_subscribe(&client_id, &path).unwrap();
+        assert_eq!(cache.get_session_in_num(&client_id).unwrap().len(), 0);
+        assert_eq!(
+            cache.get_session_in_pre_total(&client_id, 5).await.unwrap(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn subscribe_topic_send_test() {
+        let rs_handler = test_rocksdb_instance();
+        let cache = MQTTMetricsCache::new(rs_handler);
+        let time = now_second();
+        let client_id = "client1".to_string();
+        let path = "/sensor/#".to_string();
+        let topic = "/sensor/temperature".to_string();
+        cache
+            .record_subscribe_topic_send_num(&client_id, &path, &topic, true, time, 250, 40)
+            .unwrap();
+        assert_eq!(
+            cache
+                .get_subscribe_topic_send_num(&client_id, &path, &topic, true)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            cache
+                .get_subscribe_topic_send_pre_total(&client_id, &path, &topic, true, 5)
+                .await
+                .unwrap(),
+            250
+        );
+        assert_eq!(
+            cache
+                .get_subscribe_topic_send_pre_total("client3", &path, &topic, true, 5)
+                .await
+                .unwrap(),
+            0
+        );
+    }
+}

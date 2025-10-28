@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
+use crate::handler::cache::MQTTCacheManager;
+use crate::storage::message::cluster_name;
+use crate::storage::topic::TopicStorage;
+use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
 use tokio::time::sleep;
-
-use super::error::MqttBrokerError;
-use crate::common::metrics_cache::MetricsCacheManager;
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::MQTTCacheManager;
-use crate::storage::message::cluster_name;
-use crate::storage::topic::TopicStorage;
-use crate::subscribe::manager::SubscribeManager;
 
 pub fn payload_format_validator(
     payload: &Bytes,
@@ -184,7 +183,7 @@ pub async fn delete_topic(
     topic_name: &str,
     message_storage_adapter: &ArcStorageAdapter,
     subscribe_manager: &Arc<SubscribeManager>,
-    metrics_manager: &Arc<MetricsCacheManager>,
+    metrics_manager: &Arc<MQTTMetricsCache>,
 ) -> Result<(), MqttBrokerError> {
     // delete shard
     let namespace = cluster_name();
@@ -198,7 +197,7 @@ pub async fn delete_topic(
     }
 
     cache_manager.delete_topic(topic_name);
-    metrics_manager.remove_topic(topic_name);
+    metrics_manager.remove_topic(topic_name)?;
     subscribe_manager.remove_topic(topic_name);
     Ok(())
 }

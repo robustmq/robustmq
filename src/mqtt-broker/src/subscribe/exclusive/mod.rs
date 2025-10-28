@@ -18,7 +18,6 @@ use super::manager::SubscribeManager;
 use super::push::{
     build_publish_message, send_publish_packet_to_client, BuildPublishMessageContext,
 };
-use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
@@ -37,6 +36,7 @@ use common_metrics::mqtt::subscribe::record_subscribe_topic_messages_sent;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::QoS;
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use std::time::Duration;
@@ -53,7 +53,7 @@ pub struct ExclusivePush {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage: ArcStorageAdapter,
-    metrics_cache_manager: Arc<MetricsCacheManager>,
+    metrics_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_sx: broadcast::Sender<bool>,
 }
@@ -64,7 +64,7 @@ impl ExclusivePush {
         cache_manager: Arc<MQTTCacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
-        metrics_cache_manager: Arc<MetricsCacheManager>,
+        metrics_manager: Arc<MQTTMetricsCache>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
@@ -73,7 +73,7 @@ impl ExclusivePush {
             cache_manager,
             subscribe_manager,
             connection_manager,
-            metrics_cache_manager,
+            metrics_manager,
             rocksdb_engine_handler,
             stop_sx,
         }
@@ -125,7 +125,7 @@ impl ExclusivePush {
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
-            let metrics_cache_manager = self.metrics_cache_manager.clone();
+            let metrics_cache_manager = self.metrics_manager.clone();
             let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
 
             // Subscribe to the data push thread
@@ -228,7 +228,7 @@ pub struct ExclusivePushContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub message_storage: MessageStorage,
     pub cache_manager: Arc<MQTTCacheManager>,
-    pub metrics_cache_manager: Arc<MetricsCacheManager>,
+    pub metrics_cache_manager: Arc<MQTTMetricsCache>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub subscriber: Subscriber,
     pub group_id: String,

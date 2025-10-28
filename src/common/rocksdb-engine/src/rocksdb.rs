@@ -207,18 +207,25 @@ impl RocksDBEngine {
     pub fn delete_prefix(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
-        search_key: &str,
+        prefix: &str,
     ) -> Result<(), CommonError> {
-        let mut iter = self.db.raw_iterator_cf(&cf);
-        iter.seek(search_key);
+        let start = prefix.as_bytes().to_vec();
+        let end = self.prefix_range_end(prefix);
+        self.delete_range_cf(cf, start, end)
+    }
 
-        while iter.valid() {
-            if let Some(key) = iter.key() {
-                self.db.delete_cf(&cf, key)?
+    fn prefix_range_end(&self, prefix: &str) -> Vec<u8> {
+        let mut end = prefix.as_bytes().to_vec();
+
+        for i in (0..end.len()).rev() {
+            if end[i] < 255 {
+                end[i] += 1;
+                return end;
             }
-            iter.next();
         }
-        Ok(())
+
+        end.push(0);
+        end
     }
 
     pub fn exist(&self, cf: Arc<BoundColumnFamily<'_>>, key: &str) -> bool {
@@ -476,12 +483,10 @@ impl RocksDBEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::RocksDBEngine;
-    use common_base::utils::file_utils::test_temp_dir;
-    use common_config::broker::default_broker_config;
+    use crate::test::test_rocksdb_instance;
+    use common_config::broker::default_rocksdb_family;
     use futures::future;
     use serde::{Deserialize, Serialize};
-    use std::sync::Arc;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
@@ -489,19 +494,9 @@ mod tests {
         pub age: u32,
     }
 
-    fn cf_name() -> String {
-        "cluster".to_string()
-    }
-
     #[tokio::test]
     async fn multi_rocksdb_instance() {
-        let config = default_broker_config();
-
-        let rs_handler = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            vec![cf_name()],
-        ));
+        let rs_handler = test_rocksdb_instance();
         let mut tasks = Vec::new();
         for i in 1..100 {
             let rs = rs_handler.clone();
@@ -512,8 +507,7 @@ mod tests {
                     name: name.clone(),
                     age: 18,
                 };
-                let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> =
-                    rs.cf_handle("cluster").unwrap();
+                let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
                 let res4 = rs.write(cf.clone(), &key, &user);
                 assert!(res4.is_ok());
                 let res1 = rs.read::<User>(cf.clone(), &key);
@@ -521,25 +515,17 @@ mod tests {
                 assert!(r.is_some());
                 assert_eq!(r.unwrap().name, name);
                 println!("spawn {i}, key:{key}");
-                // sleep(Duration::from_secs(5)).await;
             });
             tasks.push(task);
         }
 
-        // 等待所有任务完成
         let _ = future::join_all(tasks).await;
     }
 
     #[tokio::test]
     async fn base_rw() {
-        let config = default_broker_config();
-
-        let rs = RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            vec!["cluster".to_string()],
-        );
-        let cf = rs.cf_handle(&cf_name()).unwrap();
+        let rs = test_rocksdb_instance();
+        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
 
         let key = "name2";
         let res1 = rs.read::<User>(cf.clone(), key);
@@ -563,16 +549,10 @@ mod tests {
 
     #[tokio::test]
     async fn read_all() {
-        let config = default_broker_config();
-
-        let rs = RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            vec!["cluster".to_string()],
-        );
+        let rs = test_rocksdb_instance();
 
         let index = 66u64;
-        let cf = rs.cf_handle(&cf_name()).unwrap();
+        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
 
         let key = "/raft/last_index".to_string();
         let _ = rs.write(cf.clone(), &key, &index);
@@ -597,15 +577,9 @@ mod tests {
 
     #[tokio::test]
     async fn read_prefix() {
-        let config = default_broker_config();
+        let rs = test_rocksdb_instance();
 
-        let rs = RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            vec!["cluster".to_string()],
-        );
-
-        let cf = rs.cf_handle(&cf_name()).unwrap();
+        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
 
         rs.write_str(cf.clone(), "/v1/v1", "v11".to_string())
             .unwrap();

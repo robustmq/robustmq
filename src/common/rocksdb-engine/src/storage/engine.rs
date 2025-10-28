@@ -94,6 +94,22 @@ pub fn rocksdb_engine_delete_range(
     rocksdb_engine_handler.delete_range_cf(cf, from, to)
 }
 
+pub fn rocksdb_engine_delete_prefix(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    column_family: &str,
+    prefix_key: &str,
+) -> Result<(), CommonError> {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
+        cf
+    } else {
+        return Err(CommonError::RocksDBFamilyNotAvailable(
+            column_family.to_string(),
+        ));
+    };
+
+    rocksdb_engine_handler.delete_prefix(cf, prefix_key)
+}
+
 pub fn rocksdb_engine_exists(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,

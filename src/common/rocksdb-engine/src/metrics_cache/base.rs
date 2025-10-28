@@ -13,13 +13,15 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use common_base::error::ResultCommonError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use std::sync::Arc;
 
 use crate::metrics_cache::MetricsValue;
 use crate::storage::broker::{
-    engine_delete_by_broker, engine_prefix_list_by_broker, engine_save_by_broker,
+    engine_delete_by_broker, engine_delete_prefix_by_broker, engine_prefix_list_by_broker,
+    engine_save_by_broker,
 };
 use crate::storage::family::DB_COLUMN_FAMILY_BROKER;
 use crate::warp::StorageDataWrap;
@@ -77,10 +79,20 @@ pub(crate) async fn get_pre_num(
     };
     Ok(serde_json::from_str::<u64>(&res.data)?)
 }
+pub fn delete_by_prefix(
+    rocksdb_engine: &Arc<RocksDBEngine>,
+    prefix_key: &str,
+) -> ResultCommonError {
+    let key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS, prefix_key);
+    engine_delete_prefix_by_broker(rocksdb_engine.clone(), &key)?;
 
-pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>) -> Result<(), CommonError> {
+    let key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, prefix_key);
+    engine_delete_prefix_by_broker(rocksdb_engine.clone(), &key)?;
+    Ok(())
+}
+
+pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), CommonError> {
     let now_time = now_second();
-    let save_time = 3600;
 
     let cf = if let Some(cf) = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_BROKER) {
         cf
@@ -120,4 +132,39 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>) -> Result<(), CommonError> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::time::Duration;
+
+    use common_base::tools::{now_second, unique_id};
+    use tokio::time::sleep;
+
+    use crate::{
+        metrics_cache::base::{gc, get_metric_data, get_pre_num, record_num, record_pre_num},
+        test::test_rocksdb_instance,
+    };
+
+    #[tokio::test]
+    async fn base_test() {
+        let rs_handler = test_rocksdb_instance();
+        let key = unique_id();
+        let time = now_second();
+        let num = 100;
+        let res = record_num(&rs_handler, &key, time, num);
+        println!("{:?}", res);
+        assert!(res.is_ok());
+
+        let data = get_metric_data(&rs_handler, &key).unwrap();
+        assert_eq!(data.len(), 1);
+
+        sleep(Duration::from_secs(20)).await;
+
+        gc(&rs_handler, 10).unwrap();
+
+        let data = get_metric_data(&rs_handler, &key).unwrap();
+        assert_eq!(data.len(), 0);
+
+        record_pre_num(&rs_handler, &key, 100).unwrap();
+        let res = get_pre_num(&rs_handler, &key).await.unwrap();
+        assert_eq!(res, 100);
+    }
+}

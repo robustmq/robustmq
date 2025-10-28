@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::bridge::manager::ConnectorManager;
-use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::inner::{
     delete_session_by_req, send_last_will_message_by_req, update_cache_by_req,
@@ -25,6 +24,7 @@ use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -37,7 +37,7 @@ pub struct GrpcInnerServices {
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: ArcStorageAdapter,
-    metrics_manager: Arc<MetricsCacheManager>,
+    metrics_manager: Arc<MQTTMetricsCache>,
 }
 
 impl GrpcInnerServices {
@@ -48,7 +48,7 @@ impl GrpcInnerServices {
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: ArcStorageAdapter,
-        metrics_manager: Arc<MetricsCacheManager>,
+        metrics_manager: Arc<MQTTMetricsCache>,
     ) -> Self {
         GrpcInnerServices {
             cache_manager,

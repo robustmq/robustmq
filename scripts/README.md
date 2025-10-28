@@ -7,8 +7,7 @@ This directory contains all build, release, and deployment scripts for the Robus
 | Script | Function | Description |
 |--------|----------|-------------|
 | `build.sh` | Build & Package | Build installation package for current platform |
-| `build-and-push-deps.sh` | Dependency Image | Build CI/CD dependency cache image |
-| `build-and-push-app.sh` | Application Image | Build and push application  Docker image |
+| `build-and-push-app.sh` | Application Image | Build and push application Docker image (with cargo-chef optimization) |
 | `release.sh` | Release | Create GitHub release and upload packages |
 | `install.sh` | Install | Auto-download and install RobustMQ |
 
@@ -38,12 +37,6 @@ make build-version VERSION=v0.1.30
 
 # Clean rebuild
 make build-clean
-
-# Build dependency image
-make docker-deps
-
-# Build dependency image with tag
-make docker-deps-tag TAG=2025-10-20
 
 # Build application image (flexible)
 make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'
@@ -108,20 +101,9 @@ Creates `build/robustmq-{version}-{platform}.tar.gz` package.
 
 ## 🐳 Docker Images
 
-### Dependency Image (build-and-push-deps.sh)
-```bash
-# Login to GHCR
-echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
-
-# Build and push
-./scripts/build-and-push-deps.sh
-./scripts/build-and-push-deps.sh 2025-10-20  # with specific tag
-
-# Using Make
-make docker-deps
-```
-
 ### Application Image (build-and-push-app.sh)
+
+> **Note**: RobustMQ uses cargo-chef for efficient dependency caching in Docker builds. This eliminates the need for separate dependency images.
 ```bash
 # Using Make (Recommended)
 make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'
@@ -183,10 +165,7 @@ make build-full
 
 ### CI/CD Optimization
 ```bash
-# Build dependency cache image
-make docker-deps
-
-# Build application image for GHCR
+# Build application image for GHCR (with cargo-chef optimization)
 make docker-app-ghcr ORG=yourorg VERSION=0.2.0
 
 # Build application image for Docker Hub

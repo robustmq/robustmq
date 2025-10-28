@@ -31,9 +31,9 @@ pub fn build_pub_ack_fail(
     connection: &MQTTConnection,
     pkid: u16,
     reason_string: Option<String>,
-    is_puback: bool,
+    is_pub_ack: bool,
 ) -> MqttPacket {
-    if is_puback {
+    if is_pub_ack {
         return build_puback(
             protocol,
             connection,

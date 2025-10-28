@@ -16,7 +16,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use axum::{extract::State, Json};
-use common_base::http_response::{error_response, success_response};
+use common_base::{
+    error::common::CommonError,
+    http_response::{error_response, success_response},
+};
 use dashmap::DashMap;
 use serde::Deserialize;
 
@@ -82,7 +85,27 @@ pub async fn monitor_data(
         }
     };
 
-    let data = match data_type {
+    let data: DashMap<u64, u64> = match get_monitor_data(&state, params, data_type) {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+
+    let resp = state
+        .mqtt_context
+        .metrics_manager
+        .convert_monitor_data(data);
+
+    success_response(resp)
+}
+
+pub fn get_monitor_data(
+    state: &Arc<HttpState>,
+    params: MonitorDataReq,
+    data_type: MonitorDataType,
+) -> Result<DashMap<u64, u64>, CommonError> {
+    match data_type {
         MonitorDataType::ConnectionNum => state.mqtt_context.metrics_manager.get_connection_num(),
         MonitorDataType::TopicNum => state.mqtt_context.metrics_manager.get_topic_num(),
         MonitorDataType::SubscribeNum => state.mqtt_context.metrics_manager.get_subscribe_num(),
@@ -100,7 +123,7 @@ pub async fn monitor_data(
                     .metrics_manager
                     .get_topic_in_num(&topic_name)
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
 
@@ -111,7 +134,7 @@ pub async fn monitor_data(
                     .metrics_manager
                     .get_topic_out_num(&topic_name)
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
 
@@ -123,7 +146,7 @@ pub async fn monitor_data(
                     true,
                 )
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
         MonitorDataType::SubscribeSendFailureNum => {
@@ -134,7 +157,7 @@ pub async fn monitor_data(
                     false,
                 )
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
 
@@ -150,7 +173,7 @@ pub async fn monitor_data(
                         true,
                     )
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
 
@@ -166,7 +189,7 @@ pub async fn monitor_data(
                         false,
                     )
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
 
@@ -177,7 +200,7 @@ pub async fn monitor_data(
                     .metrics_manager
                     .get_session_in_num(&params.client_id.unwrap())
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
 
@@ -188,15 +211,8 @@ pub async fn monitor_data(
                     .metrics_manager
                     .get_session_out_num(&params.client_id.unwrap())
             } else {
-                DashMap::new()
+                Ok(DashMap::new())
             }
         }
-    };
-
-    let resp = state
-        .mqtt_context
-        .metrics_manager
-        .convert_monitor_data(data);
-
-    success_response(resp)
+    }
 }

@@ -12,9 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod metrics_cache;
-pub mod rocksdb;
-pub mod storage;
-pub mod test;
-pub mod warp;
+use std::sync::Arc;
+
+use common_base::utils::file_utils::test_temp_dir;
+use common_config::broker::{default_broker_config, default_rocksdb_family};
+
+use crate::rocksdb::RocksDBEngine;
+
+pub fn test_rocksdb_instance() -> Arc<RocksDBEngine> {
+    let config = default_broker_config();
+    Arc::new(RocksDBEngine::new(
+        &test_temp_dir(),
+        config.rocksdb.max_open_files,
+        vec![default_rocksdb_family()],
+    ))
+}

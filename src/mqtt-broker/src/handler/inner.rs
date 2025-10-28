@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
-use crate::{bridge::manager::ConnectorManager, common::metrics_cache::MetricsCacheManager};
 use broker_core::tool::wait_cluster_running;
 use common_config::broker::broker_config;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
@@ -27,6 +27,7 @@ use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -38,7 +39,7 @@ pub async fn update_cache_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
-    metrics_manager: &Arc<MetricsCacheManager>,
+    metrics_manager: &Arc<MQTTMetricsCache>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
     let conf = broker_config();

@@ -10,14 +10,12 @@ RobustMQ build process generates the following types of artifacts:
 |---------------|-------------|---------------|---------|
 | **Installation Package** | `.tar.gz` archive | `make build` / `make build-full` | Binary package for user download and installation |
 | **Docker Image** | Docker image | `make docker-app-*` | Containerized deployment |
-| **Dependency Image** | Docker image | `make docker-deps` | CI/CD build acceleration |
 | **GitHub Release** | Online release page | `make release` | User download and view releases |
 
 ### Artifact Details
 
 - **`.tar.gz` Installation Package**: Contains Rust-compiled binaries, configuration files, startup scripts, etc. Users can extract and run directly
-- **Docker Image**: Containerized RobustMQ application, supports Docker and Kubernetes deployment
-- **Dependency Image**: Pre-compiled Rust dependency cache, used to accelerate CI/CD build process
+- **Docker Image**: Containerized RobustMQ application, supports Docker and Kubernetes deployment (optimized with cargo-chef dependency caching)
 - **GitHub Release**: Online release page, users can download installation packages through browser
 
 ## 🚀 Quick Start
@@ -34,14 +32,6 @@ RobustMQ build process generates the following types of artifacts:
 > **Version Note**: When version is not specified, all build commands automatically read the current version number from the `Cargo.toml` file in the project root directory.
 
 ## 🐳 Docker Image Build
-
-### Dependency Image (CI/CD Optimization)
-
-| Command | Function | Version Source | Description |
-|---------|----------|----------------|-------------|
-| `make docker-deps` | Build dependency image | Auto-read from Cargo.toml | Build CI/CD dependency cache image, push to robustmq organization |
-| `make docker-deps-tag TAG=2025-10-20` | Build tagged dependency image | Manual tag specification | Build dependency image with specific tag |
-| `make docker-deps-force` | Force rebuild dependency image | Auto-read from Cargo.toml | Clean cache and force rebuild, ensure complete reconstruction |
 
 ### Application Image
 
@@ -67,10 +57,8 @@ export GITHUB_TOKEN="your_github_token_here"
 ```
 
 > **Permission Note**:
-> - Dependency images are pushed to fixed organization: `ghcr.io/robustmq/robustmq/rust-deps`
 > - Application images are pushed to specified organization or user account
 > - Ensure your `GITHUB_TOKEN` has `write:packages` permission
-> - Ensure you have write access to the `robustmq` organization
 
 ## 📦 Output Results
 
@@ -80,8 +68,7 @@ export GITHUB_TOKEN="your_github_token_here"
 |---------------|---------------|---------------------|---------|
 | **Installation Package** | `build/robustmq-{version}-{platform}.tar.gz` | Compressed binary installation package | User download and install RobustMQ |
 | **Package Info** | `build/robustmq-{version}-{platform}/package-info.txt` | Version, platform, build time metadata | Understand package details |
-| **Docker Image** | `robustmq/robustmq:{version}` | Containerized RobustMQ application | Docker deployment and running |
-| **Dependency Image** | `ghcr.io/robustmq/robustmq/rust-deps:latest` | Rust dependency cache image | Accelerate CI/CD builds, stored under robustmq organization |
+| **Docker Image** | `robustmq/robustmq:{version}` | Containerized RobustMQ application (with cargo-chef optimization) | Docker deployment and running |
 | **GitHub Release** | `https://github.com/robustmq/robustmq/releases/tag/{version}` | Online release page | User download and view release notes |
 
 ### Installation Package Structure
@@ -101,61 +88,41 @@ export GITHUB_TOKEN="your_github_token_here"
 |----------|---------|----------|-------------|
 | **Development Testing** | `make build` | Local `.tar.gz` installation package | Quick build test package for local development and testing |
 | **Release Preparation** | `make build-full` | Local complete `.tar.gz` installation package | Build complete release package with frontend for official release |
-| **CI/CD Optimization** | `make docker-deps` | Docker dependency cache image | Build Rust dependency cache image, push to robustmq organization, accelerate CI/CD build process |
-| **Force Rebuild** | `make docker-deps-force` | Docker dependency cache image | Clean cache and force rebuild, resolve cache issues, ensure complete reconstruction |
-| **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry |
+| **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry (with cargo-chef automatic dependency caching) |
 | **Version Release** | `make release` | GitHub release page + installation package | Create GitHub release and upload installation package for user download |
 | **Multi-platform Release** | `make release-upload VERSION=v0.1.31` | Update GitHub release | Add current platform installation package to existing GitHub release |
 
-## 🔧 Docker Build Improvements
+## 🔧 Docker Build Optimization
 
-### Permission Issue Fix
+### cargo-chef Dependency Caching
 
-**Issue**: Previously encountered `permission_denied: create_package` errors when building dependency images.
+**Approach**: RobustMQ uses **cargo-chef** for efficient dependency layer caching, eliminating the need for separate deps images.
 
-**Solution**:
-- Use fixed organization name: `ghcr.io/robustmq/robustmq/rust-deps`
-- Unified image naming for easier CI/CD management
-- Ensure builders have write access to the robustmq organization
+**How it works**:
+1. **Planner Stage**: Analyzes Cargo.toml and Cargo.lock to generate dependency recipe (recipe.json)
+2. **Builder Stage**: Compiles dependencies from recipe first, then application code
+3. **Layer Caching**: Re-compiles dependencies only when Cargo.lock changes, otherwise uses cached layers
 
-### Network Issue Fix
+**Advantages**:
+- ✅ Automated dependency cache management, no manual maintenance
+- ✅ Docker native layer caching, fast builds
+- ✅ Caches only pure dependencies, excludes application code
+- ✅ Automatically updates when dependencies change, reuses cache when only app code changes
 
-**Issue**: Network connection problems during build process (e.g., 502 Bad Gateway).
+### Build Acceleration Tips
 
-**Solution**:
-- Implemented automatic mirror switching
-- Support for official Debian, Aliyun, Tsinghua, USTC, 163, Huawei Cloud, Tencent Cloud mirrors
-- Automatic retry mechanism to improve build success rate
-
-### Build Optimization
-
-**Improvements**:
-- Separated dependency and application image build logic
-- Optimized `.dockerignore` files to reduce build context
-- Added pre-build checks to ensure base images are available
-- Automatic GitHub Container Registry login
-- Support for force rebuild to resolve cache issues
-
-### Force Rebuild
-
-**When to use**:
-- Dependency package cache is not working
-- Image build issues occur
-- Need to completely clean cache and rebuild
-
-**Usage methods**:
+**Clean cache rebuild**:
 ```bash
-# Method 1: Use make target (recommended)
-make docker-deps-force
-
-# Method 2: Use script directly
-./scripts/build-and-push-deps.sh latest --no-cache
-
-# Method 3: Manual cleanup then build
+# Clean Docker build cache
 docker builder prune -f
-docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest
-make docker-deps
+
+# Rebuild image without cache
+docker build --no-cache -f docker/robustmq/Dockerfile -t robustmq:latest .
 ```
+
+**Multi-stage builds**:
+- Development stage: Includes debugging tools for development and debugging
+- Runtime stage: Streamlined production image with only runtime essentials
 
 ## ⚠️ Notes
 
@@ -230,6 +197,6 @@ make docker-deps
 | Operation | Command | Description |
 |-----------|---------|-------------|
 | View local images | `docker images | grep robustmq` | View locally built images |
-| View dependency images | `docker images | grep rust-deps` | View dependency cache images |
-| Test image | `docker run --rm ghcr.io/robustmq/robustmq/rust-deps:latest rustc --version` | Test dependency image |
-| View image history | `docker history ghcr.io/robustmq/robustmq/rust-deps:latest` | View image build history |
+| Test image | `docker run --rm robustmq/robustmq:latest --help` | Test application image |
+| View image history | `docker history robustmq/robustmq:latest` | View image build history |
+| View image size | `docker images robustmq/robustmq --format "\{\{.Size\}\}"` | View image size |
