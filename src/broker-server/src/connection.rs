@@ -16,6 +16,7 @@ use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tracing::info;
 
 pub async fn network_connection_gc(
     connection_manager: Arc<ConnectionManager>,
@@ -26,5 +27,6 @@ pub async fn network_connection_gc(
         Ok(())
     };
 
+    info!("Network connection recovery thread has been successfully started.");
     loop_select_ticket(ac_fn, 3, &stop_send).await;
 }

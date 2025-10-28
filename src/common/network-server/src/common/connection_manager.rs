@@ -161,7 +161,7 @@ impl ConnectionManager {
 
     pub async fn connection_gc(&self) {
         for conn in self.connections.iter() {
-            if now_second() - conn.create_time > 1800 {
+            if now_second() - conn.last_heartbeat_time > 1800 {
                 self.close_connect(conn.connection_id).await;
             }
         }
