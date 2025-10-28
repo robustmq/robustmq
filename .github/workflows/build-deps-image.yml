@@ -26,7 +26,7 @@ on:
       - '**/Cargo.toml'
       - 'docker/deps/**'
       - 'scripts/build-and-push-deps.sh'
-  
+
   # Allow manual trigger
   workflow_dispatch:
     inputs:
@@ -39,7 +39,7 @@ on:
         required: false
         type: boolean
         default: false
-  
+
   # Optional: weekly rebuild to keep image fresh
   schedule:
     - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
@@ -49,29 +49,29 @@ jobs:
     name: Build and Push Dependency Image
     runs-on: ubuntu-latest
     timeout-minutes: 120  # 2 hours timeout (plenty of time for 30-min build)
-    
+
     permissions:
       contents: read
       packages: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
             image=moby/buildkit:latest
             network=host
-      
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Determine build parameters
         id: params
         run: |
@@ -82,7 +82,7 @@ jobs:
             TAG="latest"
           fi
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          
+
           # Determine cache flag
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.no_cache }}" = "true" ]; then
             echo "Building with --no-cache flag"
@@ -91,21 +91,21 @@ jobs:
             echo "Building with cache"
             echo "cache_flag=" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Free up disk space
         run: |
           echo "📊 Disk space before cleanup:"
           df -h
-          
+
           # Remove unnecessary packages to free up space
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          
+
           echo "📊 Disk space after cleanup:"
           df -h
-      
+
       - name: Build and push dependency image
         run: |
           echo "🚀 Building dependency image..."
@@ -114,7 +114,7 @@ jobs:
           echo "  • Cache: ${{ steps.params.outputs.cache_flag || 'enabled' }}"
           echo "  • Trigger: ${{ github.event_name }}"
           echo ""
-          
+
           if [ -n "${{ steps.params.outputs.cache_flag }}" ]; then
             make docker-deps-force TAG=${{ steps.params.outputs.tag }}
           else
@@ -122,13 +122,13 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Verify image
         run: |
           echo "✅ Verifying pushed image..."
           docker pull ghcr.io/robustmq/robustmq/rust-deps:${{ steps.params.outputs.tag }}
           docker images ghcr.io/robustmq/robustmq/rust-deps:${{ steps.params.outputs.tag }}
-      
+
       - name: Image information
         run: |
           echo "📦 Image built and pushed successfully!"
@@ -140,18 +140,17 @@ jobs:
           echo "  • CI workflows will automatically use this image"
           echo "  • No manual intervention needed"
           echo "  • Build time should be reduced by 70-80%"
-      
+
       - name: Cleanup
         if: always()
         run: |
           echo "🧹 Cleaning up..."
           docker system prune -f
           echo "✅ Cleanup completed"
-      
+
       - name: Report build time
         if: always()
         run: |
           echo "⏱️ Build completed in: ${{ job.status }}"
           echo "📊 Final disk space:"
           df -h
-

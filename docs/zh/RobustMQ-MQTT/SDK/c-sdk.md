@@ -18,7 +18,7 @@ Eclipse Paho C 是一个功能齐全的 MQTT C 语言客户端库，使用 ANSI 
 - **同步 API** (MQTTClient)：
   - 更简单易用，某些调用会阻塞直到操作完成
   - 适合主线程环境，编程更容易
-  
+
 - **异步 API** (MQTTAsync)：
   - 只有一个阻塞调用 `waitForCompletion`
   - 通过回调函数进行结果通知
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     // 创建 MQTT 客户端
     MQTTClient_create(&client, ADDRESS, CLIENTID,
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
-  
+
     // 设置连接参数
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
@@ -91,26 +91,26 @@ int main(int argc, char* argv[])
         printf("Failed to connect to RobustMQ, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ successfully\n");
-  
+
     // 发布消息
     pubmsg.payload = PAYLOAD;
     pubmsg.payloadlen = strlen(PAYLOAD);
     pubmsg.qos = QOS;
     pubmsg.retained = 0;
-    
+
     MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token);
     printf("Publishing message: %s\n", PAYLOAD);
     printf("On topic: %s\n", TOPIC);
-    
+
     rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
     printf("Message with delivery token %d delivered\n", token);
-  
+
     // 断开连接
     MQTTClient_disconnect(client, 10000);
     MQTTClient_destroy(&client);
-    
+
     printf("Disconnected from RobustMQ\n");
     return rc;
 }
@@ -137,7 +137,7 @@ int messageArrived(void *context, char *topicName, int topicLen, MQTTClient_mess
     printf("Topic: %s\n", topicName);
     printf("Message: %.*s\n", message->payloadlen, (char*)message->payload);
     printf("QoS: %d\n", message->qos);
-    
+
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
     return 1;
@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
     // 创建 MQTT 客户端
     MQTTClient_create(&client, ADDRESS, CLIENTID,
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
-    
+
     // 设置回调函数
     MQTTClient_setCallbacks(client, NULL, connectionLost, messageArrived, NULL);
 
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
         printf("Failed to connect to RobustMQ, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ successfully\n");
 
     // 订阅主题
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
     // 等待消息
     printf("Waiting for messages...\n");
     printf("Press Q<Enter> to quit\n\n");
-    
+
     int ch;
     do {
         ch = getchar();
@@ -192,7 +192,7 @@ int main(int argc, char* argv[])
     MQTTClient_unsubscribe(client, TOPIC);
     MQTTClient_disconnect(client, 10000);
     MQTTClient_destroy(&client);
-    
+
     printf("Disconnected from RobustMQ\n");
     return rc;
 }
@@ -235,7 +235,7 @@ int main()
         printf("Failed to connect to RobustMQ with SSL, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ with SSL successfully\n");
 
     // ... 其他操作 ...
@@ -272,7 +272,7 @@ int main()
         printf("Authentication failed, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Authenticated and connected to RobustMQ successfully\n");
 
     // ... 其他操作 ...
@@ -379,19 +379,19 @@ int connect_with_retry(MQTTClient client, MQTTClient_connectOptions *conn_opts) 
     int rc;
     int retry_count = 0;
     int max_retries = 5;
-    
+
     while (retry_count < max_retries) {
         rc = MQTTClient_connect(client, conn_opts);
         if (rc == MQTTCLIENT_SUCCESS) {
             printf("Connected to RobustMQ successfully\n");
             return rc;
         }
-        
+
         printf("Connection attempt %d failed, retrying...\n", retry_count + 1);
         retry_count++;
         sleep(2); // 等待2秒后重试
     }
-    
+
     printf("Failed to connect after %d attempts\n", max_retries);
     return rc;
 }
@@ -435,7 +435,7 @@ int main()
         printf("Failed to connect to RobustMQ with MQTT 5.0, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ with MQTT 5.0 successfully\n");
 
     // 清理属性
@@ -471,7 +471,7 @@ MQTTClient_setCallbacks(client, NULL, connectionLost, messageArrived, NULL);
 A: RobustMQ 支持 MQTT 标准的三种 QoS 等级：
 
 - **QoS 0**: 最多一次传递
-- **QoS 1**: 至少一次传递  
+- **QoS 1**: 至少一次传递
 - **QoS 2**: 恰好一次传递
 
 ```c
@@ -517,7 +517,7 @@ void publish_batch(MQTTClient client, char* topics[], char* payloads[], int coun
         pubmsg.payloadlen = strlen(payloads[i]);
         pubmsg.qos = 1;
         pubmsg.retained = 0;
-        
+
         MQTTClient_deliveryToken token;
         MQTTClient_publishMessage(client, topics[i], &pubmsg, &token);
     }
@@ -545,7 +545,7 @@ int main()
 {
     MQTTAsync client;
     MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
-    
+
     MQTTAsync_create(&client, "tcp://localhost:1883", "robustmq_async_client",
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
 
@@ -562,7 +562,7 @@ int main()
     }
 
     // ... 异步处理逻辑 ...
-    
+
     return 0;
 }
 ```
@@ -572,5 +572,3 @@ int main()
 使用 Eclipse Paho C 客户端连接 RobustMQ MQTT Broker 非常简单直接。该客户端库功能完整，支持 MQTT 3.1.1 和 MQTT 5.0 协议，提供了同步和异步两种 API，能够满足从嵌入式设备到服务器应用的各种使用场景。
 
 通过合理使用连接池、批量操作和异步处理等优化技术，可以在保证可靠性的同时获得优秀的性能表现。
-
-

@@ -496,7 +496,7 @@ NODES=("localhost:1883" "node2:1883" "node3:1883")
 for node in "${NODES[@]}"; do
     IFS=':' read -r host port <<< "$node"
     echo "测试节点: $host:$port"
-    
+
     mqttx pub -h $host -p $port -t 'robustmq/cluster/test' -m "Message from $host" \
       --client-id "test_client_$host"
 done

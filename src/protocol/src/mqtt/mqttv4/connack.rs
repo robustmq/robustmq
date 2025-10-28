@@ -16,11 +16,13 @@ use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 use super::*;
 
-const MQTT_CONTROL_PACKET_TYPE: u8 = 0x20;
+const MQTT_CONTROL_PACKET_TYPE_CONNACK: u8 = 0b0010_0000;
+const MQTT_CONNECT_ACKNOWLEDGE_FLAGS_LENGTH: usize = 1;
+const MQTT_CONNECT_RETURN_CODE_LENGTH: usize = 1;
 
 fn remaining_length() -> usize {
     // variable header length of connack is 2 bytes(connect acknowledge flags + connect return code)
-    1 + 1
+    MQTT_CONNECT_ACKNOWLEDGE_FLAGS_LENGTH + MQTT_CONNECT_RETURN_CODE_LENGTH
 }
 
 pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, MQTTProtocolError> {
@@ -42,7 +44,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, MQTT
 pub fn write(connack: &ConnAck, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     // write the first byte 0010 0000 to demonstrate this packet type
     //as a connack(connection acknowledgement)
-    buffer.put_u8(MQTT_CONTROL_PACKET_TYPE);
+    buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNACK);
     let len = remaining_length();
     let count = write_remaining_length(buffer, len)?;
 
@@ -117,7 +119,7 @@ mod tests {
 
     // test fixed header, variable header and payload
     #[tokio::test]
-    async fn test_connack_fixheader() {
+    async fn test_connack_fixed_header_length() {
         let connack = ConnAck {
             session_present: false,
             code: super::ConnectReturnCode::Success,

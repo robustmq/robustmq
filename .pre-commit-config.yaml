@@ -65,13 +65,16 @@ repos:
         pass_filenames: true
         files: \.*$
         args: []
-      - id: typos
-        name: typos
-        description: check typo
-        entry: bash -c 'typos'
-        language: system
-        files: \.*$
-        pass_filenames: false
+# todo it will check precommit_venv which is not necessary
+#      - id: typos
+#        name: typos
+#        description: check typo
+#        entry: bash -c 'typos'
+#        language: system
+#        files: \.(rs|toml|yaml)$
+#        exclude: ^precommit_venv/
+#        pass_filenames: true
+#        args: [ '--exclude', 'precommit_venv' ]
       - id: cargo-check
         stages:
           - pre-commit

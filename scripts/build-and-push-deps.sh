@@ -89,19 +89,19 @@ log_error() {
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     # Check Docker
     if ! command -v docker &> /dev/null; then
         log_error "Docker is not installed"
         exit 1
     fi
-    
+
     # Check Docker daemon
     if ! docker info &> /dev/null; then
         log_error "Docker daemon is not running"
         exit 1
     fi
-    
+
     # Check disk space (need at least 20GB)
     local available_space
     # Use macOS-compatible df command
@@ -120,20 +120,20 @@ check_prerequisites() {
             exit 1
         fi
     fi
-    
+
     log_success "All prerequisites met"
 }
 
 # Auto-login to GitHub Container Registry
 auto_login_ghcr() {
     log_info "Checking GitHub Container Registry authentication..."
-    
+
     # Check if already logged in
     if docker info | grep -q "ghcr.io"; then
         log_success "Already logged in to GHCR"
         return 0
     fi
-    
+
     # Check for GITHUB_TOKEN environment variable
     if [ -z "$GITHUB_TOKEN" ]; then
         log_error "GITHUB_TOKEN environment variable is not set"
@@ -142,22 +142,22 @@ auto_login_ghcr() {
         log_info "  # or add it to your ~/.bashrc or ~/.zshrc"
         exit 1
     fi
-    
+
     # Get GitHub username from token for login with retry
     local github_user
     local max_retries=3
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         log_info "Getting GitHub username (attempt $((retry_count + 1))/$max_retries)..."
-        
+
         # Try to get GitHub username with timeout and retry
         local api_response
         api_response=$(curl -s --connect-timeout 10 --max-time 30 \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/user 2>/dev/null || echo "")
-        
+
         if [ -n "$api_response" ]; then
             github_user=$(echo "$api_response" | grep '"login"' | cut -d'"' -f4 2>/dev/null || echo "")
             if [ -n "$github_user" ]; then
@@ -165,31 +165,31 @@ auto_login_ghcr() {
                 break
             fi
         fi
-        
+
         log_warning "Failed to get GitHub username, retrying..."
         retry_count=$((retry_count + 1))
         if [ $retry_count -lt $max_retries ]; then
             sleep 5
         fi
     done
-    
+
     if [ -z "$github_user" ]; then
         log_warning "Could not determine GitHub username after $max_retries attempts, using 'github'"
         github_user="github"
     fi
-    
+
     log_info "Logging in to GHCR as $github_user..."
-    
+
     # Login to GHCR with retry mechanism
     retry_count=0
     while [ $retry_count -lt $max_retries ]; do
         log_info "Login attempt $((retry_count + 1))/$max_retries..."
-        
+
         # Capture login output for better error reporting
         local login_output
         login_output=$(echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$github_user" --password-stdin 2>&1)
         local login_exit_code=$?
-        
+
         if [ $login_exit_code -eq 0 ]; then
             log_success "Successfully logged in to GHCR"
             return 0
@@ -206,7 +206,7 @@ auto_login_ghcr() {
             fi
         fi
     done
-    
+
     log_error "Failed to login to GHCR after $max_retries attempts"
     log_info "Troubleshooting steps:"
     log_info "1. Verify your GITHUB_TOKEN is valid and not expired"
@@ -215,11 +215,11 @@ auto_login_ghcr() {
     log_info "4. Try running: docker logout ghcr.io && docker login ghcr.io"
     log_info "5. Check if you have access to the robustmq organization"
     exit 1
-    
+
     # Check if user has permission to push to the repository
     log_info "Checking repository permissions..."
     log_info "Using package: ${IMAGE_BASE}"
-    
+
     # Check if user has write access to the robustmq organization
     log_info "Package will be created under: ghcr.io/robustmq/robustmq/rust-deps"
     log_info "Package URL: https://github.com/robustmq/robustmq/pkgs/container/rust-deps"
@@ -246,31 +246,31 @@ build_image() {
         log_warning "Force rebuild: --no-cache enabled"
     fi
     log_info "This may take 20-40 minutes on first build..."
-    
+
     cd "$PROJECT_ROOT"
-    
+
     # Verify Dockerfile exists
     if [ ! -f "docker/deps/Dockerfile.deps" ]; then
         log_error "Dockerfile not found: docker/deps/Dockerfile.deps"
         exit 1
     fi
-    
+
     # Verify build context
     if [ ! -f "Cargo.toml" ]; then
         log_error "Cargo.toml not found in build context"
         exit 1
     fi
-    
+
     local start_time
     start_time=$(date +%s)
-    
+
     # Build with retry mechanism
     local max_retries=3
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         log_info "Building attempt $((retry_count + 1))/$max_retries..."
-        
+
         # Build with real-time output
         log_info "Starting Docker build with real-time output..."
         if DOCKER_BUILDKIT=1 docker build \
@@ -285,30 +285,30 @@ build_image() {
         else
             local build_exit_code=$?
         fi
-        
+
         if [ $build_exit_code -eq 0 ]; then
     local end_time
     end_time=$(date +%s)
     local duration=$((end_time - start_time))
             log_success "Build completed in ${duration} seconds ($((duration / 60)) minutes)"
-            
+
             # Verify image was created successfully
             if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
                 log_error "Image was not created successfully"
                 exit 1
             fi
-            
+
             # Verify image has expected layers
             local layer_count
             layer_count=$(docker history "${FULL_IMAGE}" --format "{{.CreatedBy}}" | wc -l)
             if [ "$layer_count" -lt 5 ]; then
                 log_warning "Image seems incomplete (only $layer_count layers)"
             fi
-            
+
             return 0
         else
             log_warning "Build attempt $((retry_count + 1)) failed"
-            
+
             # Analyze build failure
             log_info "Check the build output above for error details"
             log_info "Common issues:"
@@ -316,7 +316,7 @@ build_image() {
             log_info "  • Sccache conflicts (incremental compilation prohibited)"
             log_info "  • Insufficient disk space"
             log_info "  • Missing system dependencies"
-            
+
             retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
                 log_info "Retrying in 15 seconds..."
@@ -324,7 +324,7 @@ build_image() {
             fi
         fi
     done
-    
+
     log_error "Build failed after $max_retries attempts"
     log_info "Please check the build output above for detailed error information"
     log_info "Troubleshooting tips:"
@@ -338,28 +338,28 @@ build_image() {
 # Show image information
 show_image_info() {
     log_info "Image information:"
-    
+
     local image_size
     image_size=$(docker images "${FULL_IMAGE}" --format "{{.Size}}")
     echo "  Size: ${image_size}"
-    
+
     local image_id
     image_id=$(docker images "${FULL_IMAGE}" --format "{{.ID}}")
     echo "  ID:   ${image_id}"
-    
+
     echo ""
 }
 
 # Test the image
 test_image() {
     log_info "Testing image..."
-    
+
     # Verify image exists
     if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
         log_error "Image ${FULL_IMAGE} not found"
         exit 1
     fi
-    
+
     # Test 1: Basic Rust tools
     log_info "Testing Rust tools..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "cargo --version && rustc --version"; then
@@ -367,7 +367,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ Rust tools working"
-    
+
     # Test 2: Cargo nextest
     log_info "Testing cargo nextest..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "cargo nextest --version"; then
@@ -375,7 +375,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ cargo nextest working"
-    
+
     # Test 3: System dependencies
     log_info "Testing system dependencies..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "clang --version && cmake --version"; then
@@ -383,7 +383,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ System dependencies working"
-    
+
     # Test 4: Network tools
     log_info "Testing network tools..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "curl --version && wget --version"; then
@@ -391,7 +391,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ Network tools working"
-    
+
     # Test 5: Build tools
     log_info "Testing build tools..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "pkg-config --version && protoc --version && cmake --version"; then
@@ -401,7 +401,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ Build tools working"
-    
+
     # Test 5.1: Protoc specific test
     log_info "Testing protoc specifically..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "protoc --version && echo 'PROTOC path:' && which protoc"; then
@@ -410,7 +410,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ protoc working correctly"
-    
+
     # Test 6: Cargo cache directory
     log_info "Testing cargo cache..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "ls -la /build/target && test -d /build/target"; then
@@ -418,12 +418,12 @@ test_image() {
         exit 1
     fi
     log_success "✅ Cargo cache directory exists"
-    
+
     # Test 6.1: Pre-compiled dependencies
     log_info "Testing pre-compiled dependencies..."
     local rlib_count=$(docker run --rm "${FULL_IMAGE}" bash -c "find /build/target -name '*.rlib' | wc -l" 2>/dev/null || echo "0")
     local rmeta_count=$(docker run --rm "${FULL_IMAGE}" bash -c "find /build/target -name '*.rmeta' | wc -l" 2>/dev/null || echo "0")
-    
+
     if [ "$rlib_count" -gt 100 ]; then
         log_success "✅ Found $rlib_count pre-compiled libraries (.rlib)"
     else
@@ -431,13 +431,13 @@ test_image() {
         log_error "This indicates cargo chef cook did not compile dependencies properly"
         exit 1
     fi
-    
+
     if [ "$rmeta_count" -gt 50 ]; then
         log_success "✅ Found $rmeta_count metadata files (.rmeta)"
     else
         log_warning "⚠️  Only found $rmeta_count metadata files - expected 50+"
     fi
-    
+
     # Test 7: Environment variables
     log_info "Testing environment variables..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$CARGO_INCREMENTAL && echo \$CARGO_TARGET_DIR"; then
@@ -445,7 +445,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ Environment variables set correctly"
-    
+
     # Test 7.0: Cache environment variables
     log_info "Testing cache environment variables..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$RUSTC_WRAPPER && echo \$SCCACHE_DIR"; then
@@ -454,7 +454,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ Cache environment variables working"
-    
+
     # Test 7.0.1: Logging environment variables
     log_info "Testing logging environment variables..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$CARGO_LOG && echo \$RUST_LOG"; then
@@ -463,7 +463,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ Logging environment variables working"
-    
+
     # Test 7.1: PROTOC environment variable
     log_info "Testing PROTOC environment variable..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "echo \$PROTOC && test -x \$PROTOC"; then
@@ -472,7 +472,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ PROTOC environment variable working"
-    
+
     # Test 7.2: Protoc build test (simulate prost-validate-types scenario)
     log_info "Testing protoc build capabilities..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "
@@ -489,7 +489,7 @@ test_image() {
         exit 1
     fi
     log_success "✅ protoc build test successful"
-    
+
     # Test 8: Verify all critical dependencies are installed
     log_info "Verifying critical dependencies installation..."
     local critical_deps=(
@@ -501,18 +501,18 @@ test_image() {
         "lld:lld"
         "llvm:llvm-config"
     )
-    
+
     for dep in "${critical_deps[@]}"; do
         local package_name="${dep%%:*}"
         local command="${dep##*:}"
-        
+
         if ! docker run --rm "${FULL_IMAGE}" bash -c "command -v $command >/dev/null 2>&1"; then
             log_error "Critical dependency $package_name ($command) not found"
             exit 1
         fi
         log_success "✅ $package_name ($command) available"
     done
-    
+
     # Test 9: Verify Rust toolchain components
     log_info "Verifying Rust toolchain components..."
     local rust_components=("cargo" "rustc" "rustup")
@@ -523,7 +523,7 @@ test_image() {
         fi
         log_success "✅ Rust component $component available"
     done
-    
+
     # Test 10: Verify cargo-chef is installed
     log_info "Verifying cargo-chef installation..."
     if ! docker run --rm "${FULL_IMAGE}" bash -c "cargo chef --version"; then
@@ -531,35 +531,35 @@ test_image() {
         exit 1
     fi
     log_success "✅ cargo-chef working"
-    
+
     log_success "🎉 All image tests passed!"
 }
 
 # Push to registry
 push_image() {
     log_info "Pushing to GitHub Container Registry..."
-    
+
     # Verify image exists locally
     if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
         log_error "Image ${FULL_IMAGE} not found locally"
         exit 1
     fi
-    
+
     # Push with retry mechanism
     local max_retries=3
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         log_info "Push attempt $((retry_count + 1))/$max_retries..."
-        
+
         # Capture push output
         local push_output
         push_output=$(docker push "${FULL_IMAGE}" 2>&1)
         local push_exit_code=$?
-        
+
         if [ $push_exit_code -eq 0 ]; then
             log_success "Pushed ${FULL_IMAGE}"
-            
+
             # Verify push was successful by checking remote manifest
             log_info "Verifying push success..."
             if docker manifest inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
@@ -567,11 +567,11 @@ push_image() {
             else
                 log_warning "⚠️  Could not verify image manifest (may take time to propagate)"
             fi
-            
+
             return 0
         else
             log_warning "Push attempt $((retry_count + 1)) failed"
-            
+
             # Analyze push failure
             if echo "$push_output" | grep -q "denied\|unauthorized"; then
                 log_error "Authentication failed"
@@ -583,7 +583,7 @@ push_image() {
                 log_error "Insufficient disk space"
                 exit 1
             fi
-            
+
             retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
                 log_info "Retrying in 10 seconds..."
@@ -591,7 +591,7 @@ push_image() {
             fi
         fi
     done
-    
+
     log_error "Failed to push ${FULL_IMAGE} after $max_retries attempts"
     log_info "Last push output:"
     echo "$push_output" | tail -10
@@ -600,7 +600,7 @@ push_image() {
     log_info "2. Ensure you have write access to robustmq organization"
     log_info "3. Try: docker logout ghcr.io && docker login ghcr.io"
     exit 1
-    
+
     # Also push 'latest' if building a specific version
     if [ "$TAG" != "latest" ]; then
         if docker push "${IMAGE_BASE}:latest"; then
@@ -609,7 +609,7 @@ push_image() {
             log_warning "Failed to push latest tag (non-fatal)"
         fi
     fi
-    
+
     # Set package visibility to public
     set_package_visibility
 }
@@ -617,11 +617,11 @@ push_image() {
 # Set package visibility to public
 set_package_visibility() {
     log_info "Setting package visibility to public..."
-    
+
     # Extract package name from image
     local package_name="rust-deps"
     local org_name="robustmq"
-    
+
     log_info "Making package public: ${package_name}"
     log_warning "API call may fail due to GitHub API limitations"
     log_info "Manual setup required:"
@@ -629,10 +629,10 @@ set_package_visibility() {
     log_info "2. Click 'Package settings'"
     log_info "3. Change visibility to 'Public'"
     log_info "4. Confirm the change"
-    
+
     # Try API call but don't fail if it doesn't work
     local api_url="https://api.github.com/user/packages/container/${org_name}%2F${package_name}"
-    
+
     if curl -s -X PATCH \
         -H "Accept: application/vnd.github+json" \
         -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -713,21 +713,21 @@ pre_build_check() {
 # Verify dependencies are properly installed
 verify_dependencies() {
     log_info "Verifying dependencies installation..."
-    
+
     # Check if Docker is running
     if ! docker info >/dev/null 2>&1; then
         log_error "Docker is not running"
         exit 1
     fi
     log_success "✅ Docker is running"
-    
+
     # Check Docker buildx support
     if ! docker buildx version >/dev/null 2>&1; then
         log_warning "Docker buildx not available, using standard build"
     else
         log_success "✅ Docker buildx available"
     fi
-    
+
     # Check available disk space
     local available_space
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -738,14 +738,14 @@ verify_dependencies() {
         # Linux
         available_space=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
     fi
-    
+
     if [ "$available_space" -lt 10000 ]; then  # Less than 10GB
         log_warning "Low disk space: ${available_space}MB available"
         log_info "Docker build may fail with insufficient space"
     else
         log_success "✅ Sufficient disk space: ${available_space}MB"
     fi
-    
+
     # Check network connectivity
     log_info "Testing network connectivity..."
     if curl -s --connect-timeout 5 https://ghcr.io >/dev/null 2>&1; then
@@ -753,13 +753,13 @@ verify_dependencies() {
     else
         log_warning "⚠️  GHCR connectivity issues detected"
     fi
-    
+
     if curl -s --connect-timeout 5 https://api.github.com >/dev/null 2>&1; then
         log_success "✅ GitHub API connectivity OK"
     else
         log_warning "⚠️  GitHub API connectivity issues detected"
     fi
-    
+
     # Test Docker Hub connectivity (for base image)
     log_info "Testing Docker Hub connectivity..."
     if curl -s --connect-timeout 5 https://registry-1.docker.io >/dev/null 2>&1; then
@@ -773,7 +773,7 @@ verify_dependencies() {
 # Verify download capabilities
 verify_download_capabilities() {
     log_info "Verifying download capabilities..."
-    
+
     # Test various download sources that will be used during build
     local test_urls=(
         "https://registry-1.docker.io"
@@ -781,9 +781,9 @@ verify_download_capabilities() {
         "https://crates.io"
         "https://github.com"
     )
-    
+
     local failed_urls=()
-    
+
     for url in "${test_urls[@]}"; do
         log_info "Testing connectivity to $url..."
         if curl -s --connect-timeout 10 --max-time 30 "$url" >/dev/null 2>&1; then
@@ -793,7 +793,7 @@ verify_download_capabilities() {
             failed_urls+=("$url")
         fi
     done
-    
+
     if [ ${#failed_urls[@]} -gt 0 ]; then
         log_warning "Some download sources are not accessible:"
         for url in "${failed_urls[@]}"; do
@@ -808,25 +808,25 @@ verify_download_capabilities() {
 # Verify sccache configuration
 verify_sccache_config() {
     log_info "Verifying sccache configuration..."
-    
+
     # Check if Dockerfile has correct sccache settings
     local dockerfile_path="docker/deps/Dockerfile.deps"
     if [ ! -f "$dockerfile_path" ]; then
         log_error "Dockerfile not found: $dockerfile_path"
         exit 1
     fi
-    
+
     # Check for sccache configuration
     if grep -q "RUSTC_WRAPPER=sccache" "$dockerfile_path"; then
         log_success "✅ sccache configured in Dockerfile"
-        
+
         # Check for SCCACHE_DIR setting
         if grep -q "SCCACHE_DIR=" "$dockerfile_path"; then
             log_success "✅ SCCACHE_DIR configured in Dockerfile"
         else
             log_warning "⚠️  SCCACHE_DIR not set - may cause sccache issues"
         fi
-        
+
         # Check for CARGO_INCREMENTAL setting during build
         if grep -q "CARGO_INCREMENTAL=0" "$dockerfile_path"; then
             log_success "✅ CARGO_INCREMENTAL=0 set for sccache compatibility"
@@ -836,47 +836,47 @@ verify_sccache_config() {
     else
         log_warning "⚠️  sccache not configured in Dockerfile"
     fi
-    
+
     # Check for final stage incremental compilation (should be 0 for sccache compatibility)
     if grep -q "CARGO_INCREMENTAL=0" "$dockerfile_path"; then
         log_success "✅ Final stage has CARGO_INCREMENTAL=0 for sccache compatibility"
     else
         log_warning "⚠️  Final stage should have CARGO_INCREMENTAL=0 for sccache compatibility"
     fi
-    
+
     # Check for PROTOC environment variable
     if grep -q "ENV PROTOC=" "$dockerfile_path"; then
         log_success "✅ PROTOC environment variable configured"
     else
         log_warning "⚠️  PROTOC environment variable not set - may cause protobuf compilation issues"
     fi
-    
+
     # Check for logging environment variables
     if grep -q "ENV CARGO_LOG=" "$dockerfile_path"; then
         log_success "✅ CARGO_LOG environment variable configured"
     else
         log_warning "⚠️  CARGO_LOG environment variable not set - may cause verbose build logs"
     fi
-    
+
     if grep -q "ENV RUST_LOG=" "$dockerfile_path"; then
         log_success "✅ RUST_LOG environment variable configured"
     else
         log_warning "⚠️  RUST_LOG environment variable not set - may cause verbose build logs"
     fi
-    
+
     # Check for protobuf-compiler in install scripts
     local install_runtime_path="docker/deps/install-runtime.sh"
     if [ -f "$install_runtime_path" ]; then
         if grep -q "protobuf-compiler" "$install_runtime_path"; then
             log_success "✅ protobuf-compiler included in install-runtime.sh"
-            
+
             # Check if the script has proper error handling
             if grep -q "set -e" "$install_runtime_path"; then
                 log_success "✅ install-runtime.sh has proper error handling (set -e)"
             else
                 log_warning "⚠️  install-runtime.sh missing 'set -e' - may continue on errors"
             fi
-            
+
             # Check if the script has mirror fallback
             if grep -q "try_install.*Official.*deb.debian.org" "$install_runtime_path"; then
                 log_success "✅ install-runtime.sh has mirror fallback mechanism"
@@ -897,20 +897,20 @@ verify_sccache_config() {
 # Diagnose protoc-related issues
 diagnose_protoc_issues() {
     log_info "Diagnosing potential protoc issues..."
-    
+
     # Check if protoc is in the expected location
     if docker run --rm "${FULL_IMAGE}" bash -c "test -x /usr/bin/protoc"; then
         log_success "✅ protoc found at /usr/bin/protoc"
     else
         log_error "❌ protoc not found at /usr/bin/protoc"
         log_error "This will cause 'Could not find protoc' errors"
-        
+
         # Try to find where protoc is installed
         log_info "Searching for protoc in the image..."
         docker run --rm "${FULL_IMAGE}" bash -c "find /usr -name protoc 2>/dev/null || echo 'protoc not found anywhere'"
         exit 1
     fi
-    
+
     # Check if PROTOC environment variable points to the right location
     local protoc_path=$(docker run --rm "${FULL_IMAGE}" bash -c "echo \$PROTOC")
     if [ "$protoc_path" = "/usr/bin/protoc" ]; then
@@ -919,7 +919,7 @@ diagnose_protoc_issues() {
         log_error "❌ PROTOC environment variable is '$protoc_path', expected '/usr/bin/protoc'"
         exit 1
     fi
-    
+
     # Test protoc version
     local protoc_version=$(docker run --rm "${FULL_IMAGE}" bash -c "protoc --version 2>/dev/null || echo 'failed'")
     if [[ "$protoc_version" != "failed" ]]; then
@@ -928,7 +928,7 @@ diagnose_protoc_issues() {
         log_error "❌ protoc --version failed"
         exit 1
     fi
-    
+
     # Check if protobuf-compiler package is actually installed
     log_info "Checking if protobuf-compiler package is installed..."
     if docker run --rm "${FULL_IMAGE}" bash -c "dpkg -l | grep protobuf-compiler"; then
@@ -938,7 +938,7 @@ diagnose_protoc_issues() {
         log_error "This indicates the package installation failed during Docker build"
         exit 1
     fi
-    
+
     # Check if cmake package is actually installed
     log_info "Checking if cmake package is installed..."
     if docker run --rm "${FULL_IMAGE}" bash -c "dpkg -l | grep cmake"; then
@@ -972,29 +972,29 @@ main() {
 # Final verification that everything worked
 verify_build_success() {
     log_info "Performing final build verification..."
-    
+
     # Verify image exists and is accessible
     if ! docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1; then
         log_error "Final verification failed: Image not found"
         exit 1
     fi
     log_success "✅ Image exists locally"
-    
+
     # Skip pull test to avoid network issues
     log_info "Skipping pull test to avoid network issues"
-    
+
     # Verify image size is reasonable (not too small)
     local image_size_bytes
     image_size_bytes=$(docker image inspect "${FULL_IMAGE}" --format "{{.Size}}")
     local image_size_mb=$((image_size_bytes / 1024 / 1024))
-    
+
     if [ "$image_size_mb" -lt 100 ]; then
         log_warning "⚠️  Image size seems small: ${image_size_mb}MB"
         log_info "This might indicate an incomplete build"
     else
         log_success "✅ Image size reasonable: ${image_size_mb}MB"
     fi
-    
+
     # Final summary
     log_success "🎉 Build verification completed successfully!"
     log_info "Image: ${FULL_IMAGE}"
@@ -1007,4 +1007,3 @@ trap 'log_error "Build interrupted by user"; exit 130' INT
 
 # Run main function
 main "$@"
-

@@ -48,7 +48,7 @@ const options = {
 
 // 连接字符串，通过协议指定使用的连接方式
 // ws: 未加密 WebSocket 连接
-// wss: 加密 WebSocket 连接  
+// wss: 加密 WebSocket 连接
 // mqtt: 未加密 TCP 连接
 // mqtts: 加密 TCP 连接
 const connectUrl = 'ws://localhost:8083/mqtt'
@@ -57,17 +57,17 @@ const client = mqtt.connect(connectUrl, options)
 // 连接成功事件
 client.on('connect', () => {
     console.log('成功连接到 RobustMQ')
-    
+
     // 订阅主题
     const topic = 'robustmq/js/test/#'
     client.subscribe(topic, { qos: 1 }, (err) => {
         if (!err) {
             console.log(`成功订阅主题: ${topic}`)
-            
+
             // 发布测试消息
             const pubTopic = 'robustmq/js/test/hello'
             const message = 'Hello RobustMQ from JavaScript!'
-            
+
             client.publish(pubTopic, message, { qos: 1, retain: false }, (err) => {
                 if (!err) {
                     console.log(`消息已发布到: ${pubTopic}`)
@@ -129,28 +129,28 @@ process.on('SIGINT', () => {
 </head>
 <body>
     <h1>RobustMQ JavaScript 客户端示例</h1>
-    
+
     <div>
         <h3>连接状态</h3>
         <p id="status">未连接</p>
         <button id="connectBtn">连接</button>
         <button id="disconnectBtn">断开连接</button>
     </div>
-    
+
     <div>
         <h3>发布消息</h3>
         <input type="text" id="pubTopic" placeholder="主题" value="robustmq/browser/test">
         <input type="text" id="pubMessage" placeholder="消息内容" value="Hello from browser!">
         <button id="publishBtn">发布</button>
     </div>
-    
+
     <div>
         <h3>订阅主题</h3>
         <input type="text" id="subTopic" placeholder="订阅主题" value="robustmq/browser/test">
         <button id="subscribeBtn">订阅</button>
         <button id="unsubscribeBtn">取消订阅</button>
     </div>
-    
+
     <div>
         <h3>接收的消息</h3>
         <div id="messages" style="border: 1px solid #ccc; height: 200px; overflow-y: auto; padding: 10px;"></div>
@@ -160,7 +160,7 @@ process.on('SIGINT', () => {
         let client = null
         const statusEl = document.getElementById('status')
         const messagesEl = document.getElementById('messages')
-        
+
         // 连接配置
         const options = {
             clean: true,
@@ -169,29 +169,29 @@ process.on('SIGINT', () => {
             username: 'test_user',
             password: 'test_pass',
         }
-        
+
         // 连接函数
         function connect() {
             const connectUrl = 'ws://localhost:8083/mqtt'
             client = mqtt.connect(connectUrl, options)
-            
+
             client.on('connect', () => {
                 statusEl.textContent = '已连接到 RobustMQ'
                 statusEl.style.color = 'green'
                 console.log('浏览器客户端连接成功')
             })
-            
+
             client.on('error', (err) => {
                 statusEl.textContent = '连接错误: ' + err.message
                 statusEl.style.color = 'red'
                 console.error('连接错误:', err)
             })
-            
+
             client.on('reconnect', () => {
                 statusEl.textContent = '正在重连...'
                 statusEl.style.color = 'orange'
             })
-            
+
             client.on('message', (topic, message, packet) => {
                 const msgDiv = document.createElement('div')
                 msgDiv.innerHTML = `
@@ -201,19 +201,19 @@ process.on('SIGINT', () => {
                     <hr>
                 `
                 messagesEl.insertBefore(msgDiv, messagesEl.firstChild)
-                
+
                 // 限制显示的消息数量
                 if (messagesEl.children.length > 20) {
                     messagesEl.removeChild(messagesEl.lastChild)
                 }
             })
-            
+
             client.on('disconnect', () => {
                 statusEl.textContent = '已断开连接'
                 statusEl.style.color = 'gray'
             })
         }
-        
+
         // 断开连接函数
         function disconnect() {
             if (client) {
@@ -221,17 +221,17 @@ process.on('SIGINT', () => {
                 client = null
             }
         }
-        
+
         // 发布消息函数
         function publishMessage() {
             if (!client || !client.connected) {
                 alert('请先连接到 RobustMQ')
                 return
             }
-            
+
             const topic = document.getElementById('pubTopic').value
             const message = document.getElementById('pubMessage').value
-            
+
             client.publish(topic, message, { qos: 1 }, (err) => {
                 if (!err) {
                     console.log('消息发布成功:', topic)
@@ -240,16 +240,16 @@ process.on('SIGINT', () => {
                 }
             })
         }
-        
+
         // 订阅主题函数
         function subscribeTopic() {
             if (!client || !client.connected) {
                 alert('请先连接到 RobustMQ')
                 return
             }
-            
+
             const topic = document.getElementById('subTopic').value
-            
+
             client.subscribe(topic, { qos: 1 }, (err) => {
                 if (!err) {
                     console.log('订阅成功:', topic)
@@ -258,16 +258,16 @@ process.on('SIGINT', () => {
                 }
             })
         }
-        
+
         // 取消订阅函数
         function unsubscribeTopic() {
             if (!client || !client.connected) {
                 alert('请先连接到 RobustMQ')
                 return
             }
-            
+
             const topic = document.getElementById('subTopic').value
-            
+
             client.unsubscribe(topic, (err) => {
                 if (!err) {
                     console.log('取消订阅成功:', topic)
@@ -276,7 +276,7 @@ process.on('SIGINT', () => {
                 }
             })
         }
-        
+
         // 绑定事件
         document.getElementById('connectBtn').addEventListener('click', connect)
         document.getElementById('disconnectBtn').addEventListener('click', disconnect)
@@ -301,7 +301,7 @@ const MQTTComponent = () => {
     const [isConnected, setIsConnected] = useState(false)
     const [messages, setMessages] = useState([])
     const [connectionStatus, setConnectionStatus] = useState('未连接')
-    
+
     // 连接到 RobustMQ
     const connectToRobustMQ = useCallback(() => {
         const options = {
@@ -311,24 +311,24 @@ const MQTTComponent = () => {
             username: 'react_user',
             password: 'react_pass',
         }
-        
+
         const connectUrl = 'ws://localhost:8083/mqtt'
         const mqttClient = mqtt.connect(connectUrl, options)
-        
+
         mqttClient.on('connect', () => {
             setIsConnected(true)
             setConnectionStatus('已连接')
             console.log('React 应用连接到 RobustMQ 成功')
-            
+
             // 自动订阅主题
             mqttClient.subscribe('robustmq/react/+', { qos: 1 })
         })
-        
+
         mqttClient.on('error', (err) => {
             setConnectionStatus('连接错误: ' + err.message)
             console.error('MQTT 连接错误:', err)
         })
-        
+
         mqttClient.on('message', (topic, message) => {
             const newMessage = {
                 id: Date.now(),
@@ -336,18 +336,18 @@ const MQTTComponent = () => {
                 message: message.toString(),
                 timestamp: new Date().toLocaleTimeString()
             }
-            
+
             setMessages(prevMessages => [newMessage, ...prevMessages.slice(0, 49)])
         })
-        
+
         mqttClient.on('disconnect', () => {
             setIsConnected(false)
             setConnectionStatus('已断开连接')
         })
-        
+
         setClient(mqttClient)
     }, [])
-    
+
     // 断开连接
     const disconnect = useCallback(() => {
         if (client) {
@@ -357,7 +357,7 @@ const MQTTComponent = () => {
             setConnectionStatus('未连接')
         }
     }, [client])
-    
+
     // 发布消息
     const publishMessage = useCallback((topic, message) => {
         if (client && isConnected) {
@@ -370,7 +370,7 @@ const MQTTComponent = () => {
             })
         }
     }, [client, isConnected])
-    
+
     // 组件卸载时断开连接
     useEffect(() => {
         return () => {
@@ -379,11 +379,11 @@ const MQTTComponent = () => {
             }
         }
     }, [client])
-    
+
     return (
         <div>
             <h2>RobustMQ React 客户端</h2>
-            
+
             <div>
                 <p>连接状态: {connectionStatus}</p>
                 <button onClick={connectToRobustMQ} disabled={isConnected}>
@@ -393,17 +393,17 @@ const MQTTComponent = () => {
                     断开连接
                 </button>
             </div>
-            
+
             <div>
                 <h3>发布消息</h3>
-                <button 
+                <button
                     onClick={() => publishMessage('robustmq/react/hello', 'Hello from React!')}
                     disabled={!isConnected}
                 >
                     发送测试消息
                 </button>
             </div>
-            
+
             <div>
                 <h3>接收的消息</h3>
                 <div style={{ height: '300px', overflowY: 'auto', border: '1px solid #ccc', padding: '10px' }}>
@@ -429,27 +429,27 @@ export default MQTTComponent
 <template>
   <div class="mqtt-client">
     <h2>RobustMQ Vue 客户端</h2>
-    
+
     <div class="connection-panel">
       <p>连接状态: {{ connectionStatus }}</p>
       <button @click="connect" :disabled="isConnected">连接</button>
       <button @click="disconnect" :disabled="!isConnected">断开连接</button>
     </div>
-    
+
     <div class="publish-panel">
       <h3>发布消息</h3>
       <input v-model="publishTopic" placeholder="主题" />
       <input v-model="publishMessage" placeholder="消息内容" />
       <button @click="publish" :disabled="!isConnected">发布</button>
     </div>
-    
+
     <div class="subscribe-panel">
       <h3>订阅管理</h3>
       <input v-model="subscribeTopic" placeholder="订阅主题" />
       <button @click="subscribe" :disabled="!isConnected">订阅</button>
       <button @click="unsubscribe" :disabled="!isConnected">取消订阅</button>
     </div>
-    
+
     <div class="messages-panel">
       <h3>接收的消息</h3>
       <div class="messages-list">
@@ -488,21 +488,21 @@ export default {
         username: 'vue_user',
         password: 'vue_pass',
       }
-      
+
       const connectUrl = 'ws://localhost:8083/mqtt'
       this.client = mqtt.connect(connectUrl, options)
-      
+
       this.client.on('connect', () => {
         this.isConnected = true
         this.connectionStatus = '已连接'
         console.log('Vue 应用连接到 RobustMQ 成功')
       })
-      
+
       this.client.on('error', (err) => {
         this.connectionStatus = '连接错误: ' + err.message
         console.error('MQTT 连接错误:', err)
       })
-      
+
       this.client.on('message', (topic, message) => {
         const newMessage = {
           id: Date.now(),
@@ -510,20 +510,20 @@ export default {
           message: message.toString(),
           timestamp: new Date().toLocaleTimeString()
         }
-        
+
         this.messages.unshift(newMessage)
         // 限制消息数量
         if (this.messages.length > 50) {
           this.messages = this.messages.slice(0, 50)
         }
       })
-      
+
       this.client.on('disconnect', () => {
         this.isConnected = false
         this.connectionStatus = '已断开连接'
       })
     },
-    
+
     disconnect() {
       if (this.client) {
         this.client.end()
@@ -532,7 +532,7 @@ export default {
         this.connectionStatus = '未连接'
       }
     },
-    
+
     publish() {
       if (this.client && this.isConnected) {
         this.client.publish(this.publishTopic, this.publishMessage, { qos: 1 }, (err) => {
@@ -544,7 +544,7 @@ export default {
         })
       }
     },
-    
+
     subscribe() {
       if (this.client && this.isConnected) {
         this.client.subscribe(this.subscribeTopic, { qos: 1 }, (err) => {
@@ -556,7 +556,7 @@ export default {
         })
       }
     },
-    
+
     unsubscribe() {
       if (this.client && this.isConnected) {
         this.client.unsubscribe(this.subscribeTopic, (err) => {
@@ -569,7 +569,7 @@ export default {
       }
     }
   },
-  
+
   beforeUnmount() {
     if (this.client) {
       this.client.end()
@@ -645,19 +645,19 @@ class MQTTBridge {
         this.webSocketServer = null
         this.expressApp = express()
         this.clients = new Set()
-        
+
         this.setupExpress()
         this.connectToRobustMQ()
     }
-    
+
     setupExpress() {
         this.expressApp.use(cors())
         this.expressApp.use(express.json())
-        
+
         // REST API 发布消息
         this.expressApp.post('/api/publish', (req, res) => {
             const { topic, message, qos = 1 } = req.body
-            
+
             if (this.mqttClient && this.mqttClient.connected) {
                 this.mqttClient.publish(topic, message, { qos }, (err) => {
                     if (!err) {
@@ -670,7 +670,7 @@ class MQTTBridge {
                 res.status(503).json({ success: false, error: 'MQTT client not connected' })
             }
         })
-        
+
         // 获取连接状态
         this.expressApp.get('/api/status', (req, res) => {
             res.json({
@@ -679,7 +679,7 @@ class MQTTBridge {
             })
         })
     }
-    
+
     connectToRobustMQ() {
         const options = {
             clean: true,
@@ -690,44 +690,44 @@ class MQTTBridge {
             keepalive: 60,
             reconnectPeriod: 1000,
         }
-        
+
         const connectUrl = 'mqtt://localhost:1883'
         this.mqttClient = mqtt.connect(connectUrl, options)
-        
+
         this.mqttClient.on('connect', () => {
             console.log('Bridge 服务器连接到 RobustMQ 成功')
-            
+
             // 订阅所有消息用于转发
             this.mqttClient.subscribe('robustmq/bridge/+', { qos: 1 })
         })
-        
+
         this.mqttClient.on('message', (topic, message) => {
             const messageData = {
                 topic,
                 message: message.toString(),
                 timestamp: new Date().toISOString()
             }
-            
+
             // 转发消息到所有 WebSocket 客户端
             this.broadcastToClients(messageData)
         })
-        
+
         this.mqttClient.on('error', (err) => {
             console.error('MQTT Bridge 连接错误:', err)
         })
     }
-    
+
     setupWebSocket(server) {
         this.webSocketServer = new WebSocketServer({ server })
-        
+
         this.webSocketServer.on('connection', (ws) => {
             this.clients.add(ws)
             console.log('新的 WebSocket 客户端连接')
-            
+
             ws.on('message', (data) => {
                 try {
                     const { action, topic, message } = JSON.parse(data)
-                    
+
                     if (action === 'publish' && this.mqttClient && this.mqttClient.connected) {
                         this.mqttClient.publish(topic, message, { qos: 1 })
                     }
@@ -735,29 +735,29 @@ class MQTTBridge {
                     console.error('WebSocket 消息处理错误:', err)
                 }
             })
-            
+
             ws.on('close', () => {
                 this.clients.delete(ws)
                 console.log('WebSocket 客户端断开连接')
             })
         })
     }
-    
+
     broadcastToClients(message) {
         const data = JSON.stringify(message)
-        
+
         this.clients.forEach(client => {
             if (client.readyState === client.OPEN) {
                 client.send(data)
             }
         })
     }
-    
+
     start(port = 3000) {
         const server = this.expressApp.listen(port, () => {
             console.log(`MQTT Bridge 服务器启动在端口 ${port}`)
         })
-        
+
         this.setupWebSocket(server)
         return server
     }
@@ -794,7 +794,7 @@ const options = {
     clientId: 'robustmq_mqtt5_js_client',
     username: 'mqtt5_user',
     password: 'mqtt5_pass',
-    
+
     // MQTT 5.0 特有属性
     properties: {
         sessionExpiryInterval: 3600, // 会话过期时间：1小时
@@ -810,7 +810,7 @@ const client = mqtt.connect('ws://localhost:8083/mqtt', options)
 client.on('connect', (connack) => {
     console.log('MQTT 5.0 连接成功')
     console.log('服务器响应:', connack)
-    
+
     // MQTT 5.0 订阅，带属性
     const subscribeOptions = {
         qos: 1,
@@ -818,7 +818,7 @@ client.on('connect', (connack) => {
             subscriptionIdentifier: 1
         }
     }
-    
+
     client.subscribe('robustmq/mqtt5/test', subscribeOptions, (err, granted) => {
         if (!err) {
             console.log('MQTT 5.0 订阅成功:', granted)
@@ -837,7 +837,7 @@ client.on('message', (topic, message, packet) => {
 function publishMQTT5Message() {
     const topic = 'robustmq/mqtt5/test'
     const message = 'MQTT 5.0 message from JavaScript'
-    
+
     const publishOptions = {
         qos: 1,
         retain: false,
@@ -852,7 +852,7 @@ function publishMQTT5Message() {
             }
         }
     }
-    
+
     client.publish(topic, message, publishOptions, (err) => {
         if (!err) {
             console.log('MQTT 5.0 消息发布成功')
@@ -901,7 +901,7 @@ const client = mqtt.connect('ws://localhost:8083/mqtt', {
 
 client.on('error', (err) => {
     console.error('MQTT 错误:', err)
-    
+
     // 根据错误类型进行不同处理
     if (err.code === 'ECONNREFUSED') {
         console.log('服务器拒绝连接，检查服务器状态')
@@ -927,12 +927,12 @@ class OfflineMessageCache {
         this.cache = []
         this.maxCacheSize = 1000
     }
-    
+
     addMessage(topic, message, options) {
         if (this.cache.length >= this.maxCacheSize) {
             this.cache.shift() // 移除最旧的消息
         }
-        
+
         this.cache.push({
             topic,
             message,
@@ -940,14 +940,14 @@ class OfflineMessageCache {
             timestamp: Date.now()
         })
     }
-    
+
     publishCachedMessages(client) {
         console.log(`发布 ${this.cache.length} 条缓存消息`)
-        
+
         this.cache.forEach(msg => {
             client.publish(msg.topic, msg.message, msg.options)
         })
-        
+
         this.cache = []
     }
 }
@@ -999,7 +999,7 @@ const BATCH_SIZE = 100
 
 client.on('message', (topic, message) => {
     messageBuffer.push({ topic, message: message.toString() })
-    
+
     if (messageBuffer.length >= BATCH_SIZE) {
         processBatch(messageBuffer.splice(0, BATCH_SIZE))
     }
@@ -1066,4 +1066,3 @@ robustmq-js-client/
 MQTT.js 是 JavaScript 生态中最成熟和功能完整的 MQTT 客户端库，完整支持 MQTT 5.0 协议。该库既可以在 Node.js 服务器环境中使用，也可以在浏览器中通过 WebSocket 连接使用。
 
 通过本文档的示例，您可以快速上手在各种 JavaScript 环境中连接 RobustMQ MQTT Broker，从简单的消息收发到复杂的实时 Web 应用都能轻松实现。结合现代前端框架（React、Vue等），可以构建出功能丰富的实时消息应用。
-

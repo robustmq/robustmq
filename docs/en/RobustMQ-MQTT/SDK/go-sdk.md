@@ -73,7 +73,7 @@ func main() {
 	opts.SetClientID("robustmq_go_client")
 	opts.SetUsername("your_username")
 	opts.SetPassword("your_password")
-	
+
 	// Set connection parameters
 	opts.SetKeepAlive(60 * time.Second)
 	opts.SetDefaultPublishHandler(messageHandler)
@@ -81,14 +81,14 @@ func main() {
 	opts.SetConnectTimeout(5 * time.Second)
 	opts.SetAutoReconnect(true)
 	opts.SetMaxReconnectInterval(1 * time.Minute)
-	
+
 	// Set callback functions
 	opts.SetConnectionLostHandler(connectLostHandler)
 	opts.SetOnConnectHandler(connectHandler)
 
 	// Create client
 	client := mqtt.NewClient(opts)
-	
+
 	// Connect to RobustMQ Broker
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
@@ -101,7 +101,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Successfully subscribed to topic: %s\n", topic)
-	
+
 	// Publish message
 	pubTopic := "robustmq/go/test/hello"
 	payload := "Hello RobustMQ from Go client!"
@@ -118,7 +118,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Unsubscribed from topic: %s\n", topic)
-  
+
 	// Disconnect
 	client.Disconnect(250)
 	fmt.Println("Disconnected from RobustMQ")
@@ -153,7 +153,7 @@ func main() {
 	opts.AddBroker("ssl://localhost:1885") // SSL port
 	opts.SetClientID("robustmq_go_ssl_client")
 	opts.SetTLSConfig(tlsConfig)
-	
+
 	// Set connection parameters
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(5 * time.Second)
@@ -161,11 +161,11 @@ func main() {
 	opts.SetAutoReconnect(true)
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("Successfully established SSL connection to RobustMQ")
 
 	// Publish test message
@@ -194,17 +194,17 @@ func main() {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker("ws://localhost:8083/mqtt") // WebSocket port
 	opts.SetClientID("robustmq_go_ws_client")
-	
+
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(5 * time.Second)
 	opts.SetConnectTimeout(5 * time.Second)
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("Successfully established WebSocket connection to RobustMQ")
 
 	// Publish test message
@@ -246,14 +246,14 @@ func NewMQTTConnectionPool(broker string, poolSize int) *MQTTConnectionPool {
 		poolSize: poolSize,
 		clients:  make(chan mqtt.Client, poolSize),
 	}
-	
+
 	// Basic client options
 	pool.clientOpts = mqtt.NewClientOptions()
 	pool.clientOpts.AddBroker(broker)
 	pool.clientOpts.SetKeepAlive(30 * time.Second)
 	pool.clientOpts.SetAutoReconnect(true)
 	pool.clientOpts.SetMaxReconnectInterval(1 * time.Minute)
-	
+
 	pool.initializePool()
 	return pool
 }
@@ -263,13 +263,13 @@ func (p *MQTTConnectionPool) initializePool() {
 		clientID := fmt.Sprintf("robustmq_pool_client_%d", i)
 		opts := p.clientOpts
 		opts.SetClientID(clientID)
-		
+
 		client := mqtt.NewClient(opts)
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
 			fmt.Printf("Pool client %d connection failed: %v\n", i, token.Error())
 			continue
 		}
-		
+
 		p.clients <- client
 	}
 	fmt.Printf("Connection pool initialized with %d connections\n", len(p.clients))
@@ -323,16 +323,16 @@ func gracefulShutdown(client mqtt.Client) {
 	// Listen for system signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	
+
 	go func() {
 		<-c
 		fmt.Println("Received shutdown signal, gracefully shutting down...")
-		
+
 		// Unsubscribe all topics
 		if token := client.Unsubscribe("robustmq/+"); token.Wait() && token.Error() != nil {
 			fmt.Printf("Unsubscribe failed: %v\n", token.Error())
 		}
-		
+
 		// Disconnect
 		client.Disconnect(250)
 		fmt.Println("Safely closed MQTT connection")
@@ -398,13 +398,13 @@ func (m *MQTTMetrics) PrintStats() {
 	published := atomic.LoadInt64(&m.MessagesPublished)
 	received := atomic.LoadInt64(&m.MessagesReceived)
 	errors := atomic.LoadInt64(&m.PublishErrors)
-	
+
 	fmt.Println("=== MQTT Performance Statistics ===")
 	fmt.Printf("Runtime: %v\n", elapsed)
 	fmt.Printf("Messages published: %d\n", published)
 	fmt.Printf("Messages received: %d\n", received)
 	fmt.Printf("Publish errors: %d\n", errors)
-	
+
 	if elapsed.Seconds() > 0 {
 		fmt.Printf("Publish rate: %.2f msg/s\n", float64(published)/elapsed.Seconds())
 		fmt.Printf("Receive rate: %.2f msg/s\n", float64(received)/elapsed.Seconds())
@@ -494,4 +494,3 @@ Currently, MQTT 5.0 support in Paho Go client is still under development. It's r
 Eclipse Paho MQTT Go Client is a mature and stable MQTT client library in the Go ecosystem. This library fully utilizes Go's concurrency features and provides a clean, easy-to-use API, making it ideal for building high-performance MQTT applications.
 
 Through the examples in this document, you can quickly get started with using Go to connect to RobustMQ MQTT Broker and implement various complex message processing scenarios. Combined with Go's concurrency advantages and RobustMQ's high-performance characteristics, you can build efficient and reliable message delivery systems.
-

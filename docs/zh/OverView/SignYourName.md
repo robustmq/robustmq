@@ -9,13 +9,13 @@
 RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的官网上。因为我们想知道你曾经认真看过我们一眼。也许在很久的某一天，你会突然想起来，曾经看过我们，曾经给我们留下过签名，而我们已经走了很远了。也许有一天，我们会突然发现有好多好多人给我们签名，我们会因此很快乐。我们会知道一路上我们也不孤独。
 
 ## 很高兴遇见过你们
-@socutes 
-@huichungka 
-@Ayanokoji-li 
-@patwrall 
-@flyswimmer 
-@satori1995 
-@WaterWhisperer 
+@socutes
+@huichungka
+@Ayanokoji-li
+@patwrall
+@flyswimmer
+@satori1995
+@WaterWhisperer
 @NuclEnergy
 @hzbnb
 @qiu121

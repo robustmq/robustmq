@@ -46,10 +46,10 @@ try_pull_image() {
     local image="$1"
     local max_retries=3
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         log_info "Attempting to pull $image (attempt $((retry_count + 1))/$max_retries)..."
-        
+
         if docker pull "$image" >/dev/null 2>&1; then
             log_success "Successfully pulled $image"
             return 0
@@ -59,7 +59,7 @@ try_pull_image() {
             sleep 5
         fi
     done
-    
+
     log_error "Failed to pull $image after $max_retries attempts"
     return 1
 }
