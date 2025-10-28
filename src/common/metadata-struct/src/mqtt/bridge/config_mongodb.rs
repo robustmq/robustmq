@@ -14,64 +14,36 @@
 
 use serde::{Deserialize, Serialize};
 
-/// MongoDB deployment mode
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum MongoDBDeploymentMode {
-    /// Single standalone MongoDB instance
     #[default]
     Single,
-    /// MongoDB replica set
     ReplicaSet,
-    /// MongoDB sharded cluster
     Sharded,
 }
 
-/// MongoDB connector configuration
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct MongoDBConnectorConfig {
-    /// MongoDB server host
     pub host: String,
-
-    /// MongoDB server port (default: 27017)
     #[serde(default = "default_port")]
     pub port: u16,
-
-    /// Database name
     pub database: String,
-
-    /// Collection name
     pub collection: String,
-
-    /// Username for authentication (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
-
-    /// Password for authentication (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
-
-    /// Authentication source database (default: admin)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_source: Option<String>,
-
-    /// Deployment mode
     #[serde(default)]
     pub deployment_mode: MongoDBDeploymentMode,
-
-    /// Replica set name (required when deployment_mode is ReplicaSet)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub replica_set_name: Option<String>,
-
-    /// Enable TLS/SSL connection
     #[serde(default)]
     pub enable_tls: bool,
-
-    /// Maximum pool size
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_pool_size: Option<u32>,
-
-    /// Minimum pool size
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_pool_size: Option<u32>,
 }
@@ -81,22 +53,16 @@ fn default_port() -> u16 {
 }
 
 impl MongoDBConnectorConfig {
-    /// Build MongoDB connection URI
     pub fn build_connection_uri(&self) -> String {
         let mut uri = String::from("mongodb://");
 
-        // Add credentials if provided
         if let (Some(username), Some(password)) = (&self.username, &self.password) {
             uri.push_str(&format!("{}:{}@", username, password));
         }
 
-        // Add host and port
         uri.push_str(&format!("{}:{}", self.host, self.port));
-
-        // Add database name
         uri.push_str(&format!("/{}", self.database));
 
-        // Add query parameters
         let mut params = Vec::new();
 
         if let Some(auth_source) = &self.auth_source {
@@ -119,5 +85,108 @@ impl MongoDBConnectorConfig {
         }
 
         uri
+    }
+
+    pub fn validate(&self) -> Result<(), common_base::error::common::CommonError> {
+        use common_base::error::common::CommonError;
+
+        if self.host.is_empty() {
+            return Err(CommonError::CommonError("host cannot be empty".to_string()));
+        }
+
+        if self.host.len() > 512 {
+            return Err(CommonError::CommonError(
+                "host length cannot exceed 512 characters".to_string(),
+            ));
+        }
+
+        if self.port == 0 {
+            return Err(CommonError::CommonError(
+                "port must be greater than 0".to_string(),
+            ));
+        }
+
+        if self.database.is_empty() {
+            return Err(CommonError::CommonError(
+                "database cannot be empty".to_string(),
+            ));
+        }
+
+        if self.database.len() > 256 {
+            return Err(CommonError::CommonError(
+                "database length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if self.collection.is_empty() {
+            return Err(CommonError::CommonError(
+                "collection cannot be empty".to_string(),
+            ));
+        }
+
+        if self.collection.len() > 256 {
+            return Err(CommonError::CommonError(
+                "collection length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if let Some(username) = &self.username {
+            if username.len() > 256 {
+                return Err(CommonError::CommonError(
+                    "username length cannot exceed 256 characters".to_string(),
+                ));
+            }
+        }
+
+        if let Some(password) = &self.password {
+            if password.len() > 256 {
+                return Err(CommonError::CommonError(
+                    "password length cannot exceed 256 characters".to_string(),
+                ));
+            }
+        }
+
+        if let Some(auth_source) = &self.auth_source {
+            if auth_source.len() > 256 {
+                return Err(CommonError::CommonError(
+                    "auth_source length cannot exceed 256 characters".to_string(),
+                ));
+            }
+        }
+
+        if self.deployment_mode == MongoDBDeploymentMode::ReplicaSet {
+            if let Some(replica_set) = &self.replica_set_name {
+                if replica_set.is_empty() {
+                    return Err(CommonError::CommonError(
+                        "replica_set_name cannot be empty for ReplicaSet deployment mode"
+                            .to_string(),
+                    ));
+                }
+            } else {
+                return Err(CommonError::CommonError(
+                    "replica_set_name must be provided for ReplicaSet deployment mode".to_string(),
+                ));
+            }
+        }
+
+        if let Some(max_pool) = self.max_pool_size {
+            if max_pool == 0 || max_pool > 1000 {
+                return Err(CommonError::CommonError(
+                    "max_pool_size must be between 1 and 1000".to_string(),
+                ));
+            }
+        }
+
+        if let Some(min_pool) = self.min_pool_size {
+            if let Some(max_pool) = self.max_pool_size {
+                if min_pool > max_pool {
+                    return Err(CommonError::CommonError(
+                        "min_pool_size cannot be greater than max_pool_size".to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
