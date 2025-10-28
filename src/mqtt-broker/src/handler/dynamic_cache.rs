@@ -15,7 +15,6 @@
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
-use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::topic::delete_topic;
@@ -36,6 +35,7 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -133,7 +133,7 @@ pub async fn update_cache_metadata(
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
-    metrics_manager: &Arc<MetricsCacheManager>,
+    metrics_manager: &Arc<MQTTMetricsCache>,
     request: UpdateMqttCacheRequest,
 ) -> ResultMqttBrokerError {
     match request.resource_type() {

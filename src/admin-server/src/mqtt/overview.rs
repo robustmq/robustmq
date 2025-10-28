@@ -22,11 +22,9 @@ use common_base::{
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
-use mqtt_broker::{
-    common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
-    subscribe::manager::SubscribeManager,
-};
+use mqtt_broker::{handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use network_server::common::connection_manager::ConnectionManager;
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -75,7 +73,7 @@ async fn cluster_overview_by_req(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     broker_cache: &Arc<BrokerCacheManager>,
-    metrics_manager: &Arc<MetricsCacheManager>,
+    metrics_manager: &Arc<MQTTMetricsCache>,
 ) -> Result<OverViewResp, CommonError> {
     let config = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
@@ -84,8 +82,8 @@ async fn cluster_overview_by_req(
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: metrics_manager.get_message_out_rate(),
-        message_out_rate: metrics_manager.get_message_out_rate(),
+        message_in_rate: metrics_manager.get_message_out_rate()?,
+        message_out_rate: metrics_manager.get_message_out_rate()?,
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
         subscribe_num: subscribe_manager.subscribe_list_len() as u32,

@@ -14,7 +14,7 @@
 
 use crate::rocksdb::RocksDBEngine;
 use crate::storage::engine::{
-    rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get,
+    rocksdb_engine_delete, rocksdb_engine_delete_prefix, rocksdb_engine_exists, rocksdb_engine_get,
     rocksdb_engine_list_by_prefix, rocksdb_engine_save,
 };
 use crate::storage::family::DB_COLUMN_FAMILY_BROKER;
@@ -93,5 +93,17 @@ pub fn engine_prefix_list_by_broker(
     );
     let duration = (now_mills() - start_time) as f64;
     metrics_rocksdb_list_ms("broker", duration);
+    result
+}
+
+pub fn engine_delete_prefix_by_broker(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    prefix_key: &str,
+) -> Result<(), CommonError> {
+    let start_time = now_mills();
+    let result =
+        rocksdb_engine_delete_prefix(rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER, prefix_key);
+    let duration = (now_mills() - start_time) as f64;
+    metrics_rocksdb_delete_ms("broker", duration);
     result
 }

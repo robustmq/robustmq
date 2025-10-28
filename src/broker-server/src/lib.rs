@@ -46,7 +46,6 @@ use meta_service::{
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
-    common::metrics_cache::MetricsCacheManager,
     handler::cache::MQTTCacheManager as MqttCacheManager,
     security::AuthDriver,
     storage::message::build_message_storage_driver,
@@ -57,6 +56,7 @@ use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{
+    metrics_cache::mqtt::MQTTMetricsCache,
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
 };
@@ -329,7 +329,7 @@ impl BrokerServer {
             1,
             arc_storage_driver.clone(),
         ));
-        let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
+        let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
 
         MqttBrokerServerParams {

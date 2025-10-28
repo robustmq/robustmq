@@ -15,7 +15,7 @@
 #![allow(clippy::result_large_err)]
 use crate::bridge::core::start_connector_thread;
 use crate::bridge::manager::ConnectorManager;
-use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
+use crate::common::metrics_cache::metrics_record_thread;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::load_metadata_cache;
@@ -38,6 +38,7 @@ use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
+use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
@@ -56,7 +57,7 @@ pub struct MqttBrokerServerParams {
     pub auth_driver: Arc<AuthDriver>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
-    pub metrics_cache_manager: Arc<MetricsCacheManager>,
+    pub metrics_cache_manager: Arc<MQTTMetricsCache>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<BrokerCacheManager>,
 }
@@ -71,7 +72,7 @@ pub struct MqttBrokerServer {
     auth_driver: Arc<AuthDriver>,
     delay_message_manager: Arc<DelayMessageManager>,
     schema_manager: Arc<SchemaRegisterManager>,
-    metrics_cache_manager: Arc<MetricsCacheManager>,
+    metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
@@ -183,8 +184,6 @@ impl MqttBrokerServer {
                 30,
                 raw_stop_send.clone(),
             );
-
-            metrics_gc_thread(metrics_cache_manager.clone(), raw_stop_send.clone());
         });
 
         // system alarm

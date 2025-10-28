@@ -207,18 +207,25 @@ impl RocksDBEngine {
     pub fn delete_prefix(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
-        search_key: &str,
+        prefix: &str,
     ) -> Result<(), CommonError> {
-        let mut iter = self.db.raw_iterator_cf(&cf);
-        iter.seek(search_key);
+        let start = prefix.as_bytes().to_vec();
+        let end = self.prefix_range_end(prefix);
+        self.delete_range_cf(cf, start, end)
+    }
 
-        while iter.valid() {
-            if let Some(key) = iter.key() {
-                self.db.delete_cf(&cf, key)?
+    fn prefix_range_end(&self, prefix: &str) -> Vec<u8> {
+        let mut end = prefix.as_bytes().to_vec();
+
+        for i in (0..end.len()).rev() {
+            if end[i] < 255 {
+                end[i] += 1;
+                return end;
             }
-            iter.next();
         }
-        Ok(())
+
+        end.push(0);
+        end
     }
 
     pub fn exist(&self, cf: Arc<BoundColumnFamily<'_>>, key: &str) -> bool {

@@ -17,12 +17,12 @@ use std::sync::Arc;
 use broker_core::cache::BrokerCacheManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
-    bridge::manager::ConnectorManager, common::metrics_cache::MetricsCacheManager,
-    handler::cache::MQTTCacheManager, subscribe::manager::SubscribeManager,
+    bridge::manager::ConnectorManager, handler::cache::MQTTCacheManager,
+    subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::RateLimiterManager;
-use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::{metrics_cache::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::ArcStorageAdapter;
 
@@ -41,7 +41,7 @@ pub struct HttpState {
 pub struct MQTTContext {
     pub cache_manager: Arc<MQTTCacheManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
-    pub metrics_manager: Arc<MetricsCacheManager>,
+    pub metrics_manager: Arc<MQTTMetricsCache>,
     pub connector_manager: Arc<ConnectorManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
 }
