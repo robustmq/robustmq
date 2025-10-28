@@ -73,7 +73,7 @@ func main() {
 	opts.SetClientID("robustmq_go_client")
 	opts.SetUsername("your_username")
 	opts.SetPassword("your_password")
-	
+
 	// 设置连接参数
 	opts.SetKeepAlive(60 * time.Second)
 	opts.SetDefaultPublishHandler(messageHandler)
@@ -81,14 +81,14 @@ func main() {
 	opts.SetConnectTimeout(5 * time.Second)
 	opts.SetAutoReconnect(true)
 	opts.SetMaxReconnectInterval(1 * time.Minute)
-	
+
 	// 设置回调函数
 	opts.SetConnectionLostHandler(connectLostHandler)
 	opts.SetOnConnectHandler(connectHandler)
 
 	// 创建客户端
 	client := mqtt.NewClient(opts)
-	
+
 	// 连接到 RobustMQ Broker
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
@@ -101,7 +101,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("成功订阅主题: %s\n", topic)
-	
+
 	// 发布消息
 	pubTopic := "robustmq/go/test/hello"
 	payload := "Hello RobustMQ from Go client!"
@@ -118,7 +118,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("已取消订阅主题: %s\n", topic)
-  
+
 	// 断开连接
 	client.Disconnect(250)
 	fmt.Println("已断开与 RobustMQ 的连接")
@@ -153,7 +153,7 @@ func main() {
 	opts.AddBroker("ssl://localhost:1885") // SSL 端口
 	opts.SetClientID("robustmq_go_ssl_client")
 	opts.SetTLSConfig(tlsConfig)
-	
+
 	// 设置连接参数
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(5 * time.Second)
@@ -161,11 +161,11 @@ func main() {
 	opts.SetAutoReconnect(true)
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("成功建立 SSL 连接到 RobustMQ")
 
 	// 发布测试消息
@@ -194,17 +194,17 @@ func main() {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker("ws://localhost:8083/mqtt") // WebSocket 端口
 	opts.SetClientID("robustmq_go_ws_client")
-	
+
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(5 * time.Second)
 	opts.SetConnectTimeout(5 * time.Second)
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("成功建立 WebSocket 连接到 RobustMQ")
 
 	// 发布测试消息
@@ -238,25 +238,25 @@ func main() {
 	opts.SetAutoReconnect(true)
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("连接成功，开始并发发布消息...")
 
 	var wg sync.WaitGroup
 	messageCount := 100
-	
+
 	// 并发发布消息
 	for i := 0; i < messageCount; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			
+
 			topic := fmt.Sprintf("robustmq/concurrent/test/%d", id)
 			payload := fmt.Sprintf("并发消息 #%d", id)
-			
+
 			token := client.Publish(topic, 1, false, payload)
 			if token.Wait() && token.Error() != nil {
 				fmt.Printf("发布消息 %d 失败: %v\n", id, token.Error())
@@ -265,7 +265,7 @@ func main() {
 			}
 		}(i)
 	}
-	
+
 	// 等待所有消息发布完成
 	wg.Wait()
 	fmt.Printf("所有 %d 条消息发布完成\n", messageCount)
@@ -308,18 +308,18 @@ func main() {
 	opts.SetClientID("robustmq_go_advanced_subscriber")
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetAutoReconnect(true)
-	
+
 	// 连接成功回调
 	opts.SetOnConnectHandler(func(client mqtt.Client) {
 		fmt.Println("连接成功，开始订阅多个主题...")
-		
+
 		// 订阅不同类型的主题，使用不同的处理器
 		subscriptions := map[string]mqtt.MessageHandler{
 			"robustmq/device/+/data":   deviceDataHandler,
 			"robustmq/system/events":   systemEventHandler,
 			"robustmq/alerts/+":        alertHandler,
 		}
-		
+
 		for topic, handler := range subscriptions {
 			if token := client.Subscribe(topic, 1, handler); token.Wait() && token.Error() != nil {
 				fmt.Printf("订阅 %s 失败: %v\n", topic, token.Error())
@@ -330,7 +330,7 @@ func main() {
 	})
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
@@ -338,13 +338,13 @@ func main() {
 	// 模拟发布一些测试消息
 	go func() {
 		time.Sleep(2 * time.Second)
-		
+
 		testMessages := map[string]string{
 			"robustmq/device/sensor1/data": `{"temperature": 25.5, "humidity": 60}`,
 			"robustmq/system/events":       `{"event": "system_startup", "timestamp": "2024-01-01T10:00:00Z"}`,
 			"robustmq/alerts/cpu":          `{"level": "warning", "cpu_usage": 85}`,
 		}
-		
+
 		for topic, payload := range testMessages {
 			token := client.Publish(topic, 1, false, payload)
 			token.Wait()
@@ -356,10 +356,10 @@ func main() {
 	// 等待中断信号
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	
+
 	fmt.Println("客户端运行中，按 Ctrl+C 退出...")
 	<-c
-	
+
 	fmt.Println("正在断开连接...")
 	client.Disconnect(250)
 	fmt.Println("已断开与 RobustMQ 的连接")
@@ -395,14 +395,14 @@ func NewMQTTConnectionPool(broker string, poolSize int) *MQTTConnectionPool {
 		poolSize: poolSize,
 		clients:  make(chan mqtt.Client, poolSize),
 	}
-	
+
 	// 基础客户端选项
 	pool.clientOpts = mqtt.NewClientOptions()
 	pool.clientOpts.AddBroker(broker)
 	pool.clientOpts.SetKeepAlive(30 * time.Second)
 	pool.clientOpts.SetAutoReconnect(true)
 	pool.clientOpts.SetMaxReconnectInterval(1 * time.Minute)
-	
+
 	pool.initializePool()
 	return pool
 }
@@ -412,13 +412,13 @@ func (p *MQTTConnectionPool) initializePool() {
 		clientID := fmt.Sprintf("robustmq_pool_client_%d", i)
 		opts := p.clientOpts
 		opts.SetClientID(clientID)
-		
+
 		client := mqtt.NewClient(opts)
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
 			fmt.Printf("连接池客户端 %d 连接失败: %v\n", i, token.Error())
 			continue
 		}
-		
+
 		p.clients <- client
 	}
 	fmt.Printf("连接池初始化完成，共 %d 个连接\n", len(p.clients))
@@ -445,23 +445,23 @@ func (p *MQTTConnectionPool) Close() {
 func main() {
 	pool := NewMQTTConnectionPool("tcp://localhost:1883", 5)
 	defer pool.Close()
-	
+
 	// 使用连接池发布消息
 	for i := 0; i < 20; i++ {
 		client := pool.GetClient()
-		
+
 		topic := fmt.Sprintf("robustmq/pool/test/%d", i)
 		payload := fmt.Sprintf("连接池消息 #%d", i)
-		
+
 		token := client.Publish(topic, 1, false, payload)
 		token.Wait()
-		
+
 		fmt.Printf("消息 %d 发布成功\n", i)
 		pool.ReturnClient(client)
-		
+
 		time.Sleep(100 * time.Millisecond)
 	}
-	
+
 	fmt.Println("所有消息发布完成")
 }
 ```
@@ -501,10 +501,10 @@ func handleDeviceData(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("解析设备数据失败: %v\n", err)
 		return
 	}
-	
-	fmt.Printf("设备 %s 数据: 温度=%.1f°C, 湿度=%.1f%%\n", 
+
+	fmt.Printf("设备 %s 数据: 温度=%.1f°C, 湿度=%.1f%%\n",
 		data.DeviceID, data.Temperature, data.Humidity)
-	
+
 	// 处理设备数据逻辑
 	if data.Temperature > 30 {
 		// 发送高温告警
@@ -516,7 +516,7 @@ func handleDeviceData(client mqtt.Client, msg mqtt.Message) {
 			},
 			Timestamp: time.Now(),
 		}
-		
+
 		alertJSON, _ := json.Marshal(alert)
 		client.Publish("robustmq/alerts/temperature", 1, false, alertJSON)
 	}
@@ -529,7 +529,7 @@ func handleSystemEvent(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("解析系统事件失败: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("系统事件: %s, 数据: %+v\n", event.EventType, event.Data)
 }
 
@@ -541,17 +541,17 @@ func main() {
 	opts.SetAutoReconnect(true)
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("连接成功，开始订阅结构化消息...")
 
 	// 订阅不同类型的消息
 	client.Subscribe("robustmq/devices/+/data", 1, handleDeviceData)
 	client.Subscribe("robustmq/system/events", 1, handleSystemEvent)
-	
+
 	// 模拟发送设备数据
 	go func() {
 		for i := 0; i < 5; i++ {
@@ -561,10 +561,10 @@ func main() {
 				Humidity:    50.0 + float64(i*2),
 				Timestamp:   time.Now(),
 			}
-			
+
 			dataJSON, _ := json.Marshal(deviceData)
 			topic := fmt.Sprintf("robustmq/devices/%s/data", deviceData.DeviceID)
-			
+
 			client.Publish(topic, 1, false, dataJSON)
 			time.Sleep(1 * time.Second)
 		}
@@ -613,13 +613,13 @@ func (m *MQTTMetrics) PrintStats() {
 	published := atomic.LoadInt64(&m.MessagesPublished)
 	received := atomic.LoadInt64(&m.MessagesReceived)
 	errors := atomic.LoadInt64(&m.PublishErrors)
-	
+
 	fmt.Println("=== MQTT 性能统计 ===")
 	fmt.Printf("运行时间: %v\n", elapsed)
 	fmt.Printf("已发布消息: %d\n", published)
 	fmt.Printf("已接收消息: %d\n", received)
 	fmt.Printf("发布错误: %d\n", errors)
-	
+
 	if elapsed.Seconds() > 0 {
 		fmt.Printf("发布速率: %.2f 消息/秒\n", float64(published)/elapsed.Seconds())
 		fmt.Printf("接收速率: %.2f 消息/秒\n", float64(received)/elapsed.Seconds())
@@ -629,12 +629,12 @@ func (m *MQTTMetrics) PrintStats() {
 
 func main() {
 	metrics := &MQTTMetrics{StartTime: time.Now()}
-	
+
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("robustmq_go_metrics_client")
 	opts.SetKeepAlive(30 * time.Second)
-	
+
 	// 消息接收处理器
 	opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {
 		metrics.IncrementReceived()
@@ -642,14 +642,14 @@ func main() {
 	})
 
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
 
 	// 订阅测试主题
 	client.Subscribe("robustmq/metrics/test", 1, nil)
-	
+
 	// 定期打印统计信息
 	ticker := time.NewTicker(5 * time.Second)
 	go func() {
@@ -657,19 +657,19 @@ func main() {
 			metrics.PrintStats()
 		}
 	}()
-	
+
 	// 发布测试消息
 	go func() {
 		for i := 0; i < 100; i++ {
 			payload := fmt.Sprintf("性能测试消息 #%d", i)
 			token := client.Publish("robustmq/metrics/test", 1, false, payload)
-			
+
 			if token.Wait() && token.Error() != nil {
 				metrics.IncrementErrors()
 			} else {
 				metrics.IncrementPublished()
 			}
-			
+
 			time.Sleep(100 * time.Millisecond)
 		}
 	}()
@@ -677,7 +677,7 @@ func main() {
 	// 运行 15 秒
 	time.Sleep(15 * time.Second)
 	ticker.Stop()
-	
+
 	metrics.PrintStats()
 	client.Disconnect(250)
 }
@@ -713,16 +713,16 @@ func gracefulShutdown(client mqtt.Client) {
 	// 监听系统信号
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	
+
 	go func() {
 		<-c
 		fmt.Println("收到关闭信号，正在优雅关闭...")
-		
+
 		// 取消所有订阅
 		if token := client.Unsubscribe("robustmq/+"); token.Wait() && token.Error() != nil {
 			fmt.Printf("取消订阅失败: %v\n", token.Error())
 		}
-		
+
 		// 断开连接
 		client.Disconnect(250)
 		fmt.Println("已安全关闭 MQTT 连接")
@@ -807,7 +807,7 @@ func (config *MQTTConfig) ToClientOptions() *mqtt.ClientOptions {
 	opts.SetAutoReconnect(config.AutoReconnect)
 	opts.SetMaxReconnectInterval(config.MaxReconnectDelay)
 	opts.SetCleanSession(config.CleanSession)
-	
+
 	return opts
 }
 
@@ -827,15 +827,15 @@ func main() {
 
 	opts := config.ToClientOptions()
 	client := mqtt.NewClient(opts)
-	
+
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
-	
+
 	fmt.Println("使用配置成功连接到 RobustMQ")
-	
+
 	// ... 其他操作 ...
-	
+
 	client.Disconnect(250)
 }
 ```
@@ -921,4 +921,3 @@ go build -o robustmq-client main.go
 Eclipse Paho MQTT Go Client 是 Go 语言生态中成熟稳定的 MQTT 客户端库。该库充分利用了 Go 语言的并发特性，提供了简洁易用的 API，非常适合构建高性能的 MQTT 应用程序。
 
 通过本文档的示例，您可以快速上手使用 Go 语言连接 RobustMQ MQTT Broker，并实现各种复杂的消息处理场景。结合 Go 语言的并发优势和 RobustMQ 的高性能特性，可以构建出既高效又可靠的消息传递系统。
-

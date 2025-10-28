@@ -48,7 +48,7 @@ const options = {
 
 // Connection string, specify connection method through protocol
 // ws: Unencrypted WebSocket connection
-// wss: Encrypted WebSocket connection  
+// wss: Encrypted WebSocket connection
 // mqtt: Unencrypted TCP connection
 // mqtts: Encrypted TCP connection
 const connectUrl = 'ws://localhost:8083/mqtt'
@@ -57,17 +57,17 @@ const client = mqtt.connect(connectUrl, options)
 // Connection success event
 client.on('connect', () => {
     console.log('Successfully connected to RobustMQ')
-    
+
     // Subscribe to topic
     const topic = 'robustmq/js/test/#'
     client.subscribe(topic, { qos: 1 }, (err) => {
         if (!err) {
             console.log(`Successfully subscribed to topic: ${topic}`)
-            
+
             // Publish test message
             const pubTopic = 'robustmq/js/test/hello'
             const message = 'Hello RobustMQ from JavaScript!'
-            
+
             client.publish(pubTopic, message, { qos: 1, retain: false }, (err) => {
                 if (!err) {
                     console.log(`Message published to: ${pubTopic}`)
@@ -129,28 +129,28 @@ process.on('SIGINT', () => {
 </head>
 <body>
     <h1>RobustMQ JavaScript Client Example</h1>
-    
+
     <div>
         <h3>Connection Status</h3>
         <p id="status">Not Connected</p>
         <button id="connectBtn">Connect</button>
         <button id="disconnectBtn">Disconnect</button>
     </div>
-    
+
     <div>
         <h3>Publish Message</h3>
         <input type="text" id="pubTopic" placeholder="Topic" value="robustmq/browser/test">
         <input type="text" id="pubMessage" placeholder="Message content" value="Hello from browser!">
         <button id="publishBtn">Publish</button>
     </div>
-    
+
     <div>
         <h3>Subscribe Topic</h3>
         <input type="text" id="subTopic" placeholder="Subscribe topic" value="robustmq/browser/test">
         <button id="subscribeBtn">Subscribe</button>
         <button id="unsubscribeBtn">Unsubscribe</button>
     </div>
-    
+
     <div>
         <h3>Received Messages</h3>
         <div id="messages" style="border: 1px solid #ccc; height: 200px; overflow-y: auto; padding: 10px;"></div>
@@ -160,7 +160,7 @@ process.on('SIGINT', () => {
         let client = null
         const statusEl = document.getElementById('status')
         const messagesEl = document.getElementById('messages')
-        
+
         // Connection configuration
         const options = {
             clean: true,
@@ -169,29 +169,29 @@ process.on('SIGINT', () => {
             username: 'test_user',
             password: 'test_pass',
         }
-        
+
         // Connect function
         function connect() {
             const connectUrl = 'ws://localhost:8083/mqtt'
             client = mqtt.connect(connectUrl, options)
-            
+
             client.on('connect', () => {
                 statusEl.textContent = 'Connected to RobustMQ'
                 statusEl.style.color = 'green'
                 console.log('Browser client connected successfully')
             })
-            
+
             client.on('error', (err) => {
                 statusEl.textContent = 'Connection error: ' + err.message
                 statusEl.style.color = 'red'
                 console.error('Connection error:', err)
             })
-            
+
             client.on('reconnect', () => {
                 statusEl.textContent = 'Reconnecting...'
                 statusEl.style.color = 'orange'
             })
-            
+
             client.on('message', (topic, message, packet) => {
                 const msgDiv = document.createElement('div')
                 msgDiv.innerHTML = `
@@ -201,19 +201,19 @@ process.on('SIGINT', () => {
                     <hr>
                 `
                 messagesEl.insertBefore(msgDiv, messagesEl.firstChild)
-                
+
                 // Limit displayed message count
                 if (messagesEl.children.length > 20) {
                     messagesEl.removeChild(messagesEl.lastChild)
                 }
             })
-            
+
             client.on('disconnect', () => {
                 statusEl.textContent = 'Disconnected'
                 statusEl.style.color = 'gray'
             })
         }
-        
+
         // Disconnect function
         function disconnect() {
             if (client) {
@@ -221,17 +221,17 @@ process.on('SIGINT', () => {
                 client = null
             }
         }
-        
+
         // Publish message function
         function publishMessage() {
             if (!client || !client.connected) {
                 alert('Please connect to RobustMQ first')
                 return
             }
-            
+
             const topic = document.getElementById('pubTopic').value
             const message = document.getElementById('pubMessage').value
-            
+
             client.publish(topic, message, { qos: 1 }, (err) => {
                 if (!err) {
                     console.log('Message published successfully:', topic)
@@ -240,16 +240,16 @@ process.on('SIGINT', () => {
                 }
             })
         }
-        
+
         // Subscribe topic function
         function subscribeTopic() {
             if (!client || !client.connected) {
                 alert('Please connect to RobustMQ first')
                 return
             }
-            
+
             const topic = document.getElementById('subTopic').value
-            
+
             client.subscribe(topic, { qos: 1 }, (err) => {
                 if (!err) {
                     console.log('Subscription successful:', topic)
@@ -258,16 +258,16 @@ process.on('SIGINT', () => {
                 }
             })
         }
-        
+
         // Unsubscribe function
         function unsubscribeTopic() {
             if (!client || !client.connected) {
                 alert('Please connect to RobustMQ first')
                 return
             }
-            
+
             const topic = document.getElementById('subTopic').value
-            
+
             client.unsubscribe(topic, (err) => {
                 if (!err) {
                     console.log('Unsubscribe successful:', topic)
@@ -276,7 +276,7 @@ process.on('SIGINT', () => {
                 }
             })
         }
-        
+
         // Bind events
         document.getElementById('connectBtn').addEventListener('click', connect)
         document.getElementById('disconnectBtn').addEventListener('click', disconnect)
@@ -305,7 +305,7 @@ const options = {
     clientId: 'robustmq_mqtt5_js_client',
     username: 'mqtt5_user',
     password: 'mqtt5_pass',
-    
+
     // MQTT 5.0 specific properties
     properties: {
         sessionExpiryInterval: 3600, // Session expiry: 1 hour
@@ -321,7 +321,7 @@ const client = mqtt.connect('ws://localhost:8083/mqtt', options)
 client.on('connect', (connack) => {
     console.log('MQTT 5.0 connection successful')
     console.log('Server response:', connack)
-    
+
     // MQTT 5.0 subscription with properties
     const subscribeOptions = {
         qos: 1,
@@ -329,7 +329,7 @@ client.on('connect', (connack) => {
             subscriptionIdentifier: 1
         }
     }
-    
+
     client.subscribe('robustmq/mqtt5/test', subscribeOptions, (err, granted) => {
         if (!err) {
             console.log('MQTT 5.0 subscription successful:', granted)
@@ -348,7 +348,7 @@ client.on('message', (topic, message, packet) => {
 function publishMQTT5Message() {
     const topic = 'robustmq/mqtt5/test'
     const message = 'MQTT 5.0 message from JavaScript'
-    
+
     const publishOptions = {
         qos: 1,
         retain: false,
@@ -363,7 +363,7 @@ function publishMQTT5Message() {
             }
         }
     }
-    
+
     client.publish(topic, message, publishOptions, (err) => {
         if (!err) {
             console.log('MQTT 5.0 message published successfully')
@@ -412,7 +412,7 @@ const client = mqtt.connect('ws://localhost:8083/mqtt', {
 
 client.on('error', (err) => {
     console.error('MQTT error:', err)
-    
+
     // Handle different error types
     if (err.code === 'ECONNREFUSED') {
         console.log('Server refused connection, check server status')
@@ -438,12 +438,12 @@ class OfflineMessageCache {
         this.cache = []
         this.maxCacheSize = 1000
     }
-    
+
     addMessage(topic, message, options) {
         if (this.cache.length >= this.maxCacheSize) {
             this.cache.shift() // Remove oldest message
         }
-        
+
         this.cache.push({
             topic,
             message,
@@ -451,14 +451,14 @@ class OfflineMessageCache {
             timestamp: Date.now()
         })
     }
-    
+
     publishCachedMessages(client) {
         console.log(`Publishing ${this.cache.length} cached messages`)
-        
+
         this.cache.forEach(msg => {
             client.publish(msg.topic, msg.message, msg.options)
         })
-        
+
         this.cache = []
     }
 }
@@ -510,7 +510,7 @@ const BATCH_SIZE = 100
 
 client.on('message', (topic, message) => {
     messageBuffer.push({ topic, message: message.toString() })
-    
+
     if (messageBuffer.length >= BATCH_SIZE) {
         processBatch(messageBuffer.splice(0, BATCH_SIZE))
     }
@@ -577,4 +577,3 @@ robustmq-js-client/
 MQTT.js is the most mature and feature-complete MQTT client library in the JavaScript ecosystem, with full support for MQTT 5.0 protocol. This library can be used in both Node.js server environments and browsers via WebSocket connections.
 
 Through the examples in this document, you can quickly get started with connecting to RobustMQ MQTT Broker in various JavaScript environments, from simple message sending and receiving to complex real-time web applications. Combined with modern frontend frameworks (React, Vue, etc.), you can build feature-rich real-time messaging applications.
-

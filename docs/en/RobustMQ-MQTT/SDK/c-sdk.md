@@ -18,7 +18,7 @@ The client provides two types of APIs:
 - **Synchronous API** (MQTTClient):
   - Simpler and easier to use, some calls will block until operation completes
   - Suitable for main thread environments, easier to program
-  
+
 - **Asynchronous API** (MQTTAsync):
   - Only one blocking call `waitForCompletion`
   - Result notification through callback functions
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     // Create MQTT client
     MQTTClient_create(&client, ADDRESS, CLIENTID,
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
-  
+
     // Set connection parameters
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
@@ -91,26 +91,26 @@ int main(int argc, char* argv[])
         printf("Failed to connect to RobustMQ, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ successfully\n");
-  
+
     // Publish message
     pubmsg.payload = PAYLOAD;
     pubmsg.payloadlen = strlen(PAYLOAD);
     pubmsg.qos = QOS;
     pubmsg.retained = 0;
-    
+
     MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token);
     printf("Publishing message: %s\n", PAYLOAD);
     printf("On topic: %s\n", TOPIC);
-    
+
     rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
     printf("Message with delivery token %d delivered\n", token);
-  
+
     // Disconnect
     MQTTClient_disconnect(client, 10000);
     MQTTClient_destroy(&client);
-    
+
     printf("Disconnected from RobustMQ\n");
     return rc;
 }
@@ -137,7 +137,7 @@ int messageArrived(void *context, char *topicName, int topicLen, MQTTClient_mess
     printf("Topic: %s\n", topicName);
     printf("Message: %.*s\n", message->payloadlen, (char*)message->payload);
     printf("QoS: %d\n", message->qos);
-    
+
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
     return 1;
@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
     // Create MQTT client
     MQTTClient_create(&client, ADDRESS, CLIENTID,
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
-    
+
     // Set callback functions
     MQTTClient_setCallbacks(client, NULL, connectionLost, messageArrived, NULL);
 
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
         printf("Failed to connect to RobustMQ, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ successfully\n");
 
     // Subscribe to topic
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
     // Wait for messages
     printf("Waiting for messages...\n");
     printf("Press Q<Enter> to quit\n\n");
-    
+
     int ch;
     do {
         ch = getchar();
@@ -192,7 +192,7 @@ int main(int argc, char* argv[])
     MQTTClient_unsubscribe(client, TOPIC);
     MQTTClient_disconnect(client, 10000);
     MQTTClient_destroy(&client);
-    
+
     printf("Disconnected from RobustMQ\n");
     return rc;
 }
@@ -235,7 +235,7 @@ int main()
         printf("Failed to connect to RobustMQ with SSL, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ with SSL successfully\n");
 
     // ... other operations ...
@@ -272,7 +272,7 @@ int main()
         printf("Authentication failed, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Authenticated and connected to RobustMQ successfully\n");
 
     // ... other operations ...
@@ -379,19 +379,19 @@ int connect_with_retry(MQTTClient client, MQTTClient_connectOptions *conn_opts) 
     int rc;
     int retry_count = 0;
     int max_retries = 5;
-    
+
     while (retry_count < max_retries) {
         rc = MQTTClient_connect(client, conn_opts);
         if (rc == MQTTCLIENT_SUCCESS) {
             printf("Connected to RobustMQ successfully\n");
             return rc;
         }
-        
+
         printf("Connection attempt %d failed, retrying...\n", retry_count + 1);
         retry_count++;
         sleep(2); // Wait 2 seconds before retry
     }
-    
+
     printf("Failed to connect after %d attempts\n", max_retries);
     return rc;
 }
@@ -435,7 +435,7 @@ int main()
         printf("Failed to connect to RobustMQ with MQTT 5.0, return code %d\n", rc);
         exit(-1);
     }
-    
+
     printf("Connected to RobustMQ with MQTT 5.0 successfully\n");
 
     // Clean up properties
@@ -471,7 +471,7 @@ MQTTClient_setCallbacks(client, NULL, connectionLost, messageArrived, NULL);
 A: RobustMQ supports the three standard MQTT QoS levels:
 
 - **QoS 0**: At most once delivery
-- **QoS 1**: At least once delivery  
+- **QoS 1**: At least once delivery
 - **QoS 2**: Exactly once delivery
 
 ```c
@@ -517,7 +517,7 @@ void publish_batch(MQTTClient client, char* topics[], char* payloads[], int coun
         pubmsg.payloadlen = strlen(payloads[i]);
         pubmsg.qos = 1;
         pubmsg.retained = 0;
-        
+
         MQTTClient_deliveryToken token;
         MQTTClient_publishMessage(client, topics[i], &pubmsg, &token);
     }
@@ -545,7 +545,7 @@ int main()
 {
     MQTTAsync client;
     MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
-    
+
     MQTTAsync_create(&client, "tcp://localhost:1883", "robustmq_async_client",
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
 
@@ -562,7 +562,7 @@ int main()
     }
 
     // ... asynchronous processing logic ...
-    
+
     return 0;
 }
 ```
@@ -572,4 +572,3 @@ int main()
 Using the Eclipse Paho C client to connect to RobustMQ MQTT Broker is simple and straightforward. This client library is feature-complete, supports both MQTT 3.1.1 and MQTT 5.0 protocols, provides synchronous and asynchronous APIs, and can meet various use cases from embedded devices to server applications.
 
 By properly using optimization techniques such as connection pooling, batch operations, and asynchronous processing, you can achieve excellent performance while ensuring reliability.
-

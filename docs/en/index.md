@@ -185,13 +185,13 @@ features:
     --vp-home-hero-image-filter: blur(56px) !important;
     --vp-home-hero-name-font-size: 20px !important;
   }
-  
+
 /* 响应式样式已移至主题 custom.css 文件中 */
-  
+
   .text[data-v-72cc4481] {
     font-size: 32px !important;
   }
-  
+
   .tagline {
     font-size: 17px !important;
     line-height: 1.4 !important;
@@ -202,17 +202,17 @@ features:
   :root {
     --vp-home-hero-image-filter: blur(68px) !important;
   }
-  
+
 /* 桌面端响应式样式已移至主题 custom.css 文件中 */
-  
+
   .name {
     font-size: 20px !important;
   }
-  
+
   .text[data-v-72cc4481] {
     font-size: 36px !important;
   }
-  
+
   .tagline {
     font-size: 18px !important;
     line-height: 1.45 !important;
@@ -222,12 +222,12 @@ features:
 
 @media (max-width: 640px) {
 /* 移动端响应式样式已移至主题 custom.css 文件中 */
-  
+
   .text[data-v-72cc4481] {
     font-size: 24px !important;
     line-height: 1.3 !important;
   }
-  
+
   .tagline {
     font-size: 14px !important;
     line-height: 1.35 !important;
@@ -353,17 +353,17 @@ features:
     font-size: 2rem;
     margin-bottom: 20px;
   }
-  
+
   .architecture-header p {
     font-size: 1rem;
     padding: 0 16px;
   }
-  
+
   .architecture-section {
     margin: 60px 0;
     padding: 0 16px;
   }
-  
+
   .architecture-overlay {
     padding: 30px 20px 20px;
   }
@@ -471,21 +471,21 @@ features:
     font-size: 2rem;
     margin-bottom: 20px;
   }
-  
+
   .console-header p {
     font-size: 1rem;
     padding: 0 16px;
   }
-  
+
   .console-section {
     margin: 60px 0;
     padding: 0 16px;
   }
-  
+
   .console-image-wrapper {
     padding: 20px;
   }
-  
+
   .console-overlay {
     padding: 30px 20px 20px;
   }
@@ -593,21 +593,21 @@ features:
     font-size: 2rem;
     margin-bottom: 20px;
   }
-  
+
   .web-ui-header p {
     font-size: 1rem;
     padding: 0 16px;
   }
-  
+
   .web-ui-section {
     margin: 60px 0;
     padding: 0 16px;
   }
-  
+
   .web-ui-image-wrapper {
     padding: 15px;
   }
-  
+
   .web-ui-overlay {
     padding: 30px 20px 20px;
   }

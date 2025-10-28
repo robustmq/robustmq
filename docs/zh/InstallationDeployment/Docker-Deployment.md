@@ -328,7 +328,7 @@ services:
    ```bash
    # 检查端口占用
    netstat -tlnp | grep 1883
-   
+
    # 修改端口映射
    ports:
      - "1885:1883"  # 使用不同端口
