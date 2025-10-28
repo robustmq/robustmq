@@ -12,13 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::write::WriteStream;
+use crate::common::tool::is_ignore_print;
 use crate::common::types::ResultMqttBrokerError;
+use crate::handler::cache::{
+    MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+};
+use crate::handler::error::MqttBrokerError;
+use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
+use crate::subscribe::common::get_share_sub_leader;
+use crate::subscribe::common::SubPublishParam;
+use crate::subscribe::common::Subscriber;
+use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::manager::{ShareSubShareSub, SubPushThreadData};
+use crate::subscribe::push::{
+    exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
+    wait_pub_rec,
+};
 use common_base::network::{broker_not_available, is_port_open};
 use common_base::tools::{get_local_ip, now_mills, now_second, unique_id};
 use common_config::broker::broker_config;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, Disconnect, Login,
     MqttPacket, MqttProtocol, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp,
@@ -36,25 +53,6 @@ use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info, warn};
 
-use crate::common::tool::is_ignore_print;
-use crate::handler::cache::{
-    MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
-};
-use crate::handler::error::MqttBrokerError;
-use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
-use crate::subscribe::common::get_share_sub_leader;
-use crate::subscribe::common::SubPublishParam;
-use crate::subscribe::common::Subscriber;
-use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::manager::{ShareSubShareSub, SubPushThreadData};
-use crate::subscribe::push::{
-    exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
-    wait_pub_rec,
-};
-use network_server::common::connection_manager::ConnectionManager;
-
-use super::write::WriteStream;
-
 #[derive(Clone)]
 pub struct ProcessPacketContext {
     pub cache_manager: Arc<MQTTCacheManager>,
@@ -66,7 +64,7 @@ pub struct ProcessPacketContext {
     pub follower_sub_leader_client_id: String,
     pub mqtt_client_id: String,
     pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub sub_key: String,
 }
@@ -78,7 +76,7 @@ pub struct ConnAckContext {
     pub follower_sub_leader_pkid: u16,
     pub mqtt_client_id: String,
     pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub sub_key: String,
     pub stop_sx: Sender<bool>,
@@ -144,7 +142,13 @@ impl ShareFollowerResub {
     async fn start_resub_thread(&self) -> ResultMqttBrokerError {
         let conf = broker_config();
 
-        for (follower_resub_key, share_sub) in self.subscribe_manager.share_follower_resub.clone() {
+        for (follower_resub_key, share_sub) in self.subscribe_manager.share_follower_resub_list() {
+            if share_sub.protocol == MqttProtocol::Mqtt3
+                || share_sub.protocol == MqttProtocol::Mqtt4
+            {
+                continue;
+            }
+
             let metadata_cache = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
 
@@ -154,19 +158,17 @@ impl ShareFollowerResub {
             if conf.broker_id == reply.broker_id {
                 // remove follower sub
                 self.subscribe_manager
-                    .share_follower_resub
-                    .remove(&follower_resub_key);
+                    .remove_share_follower_resub(&follower_resub_key);
 
                 // add share leader push
                 let req = ParseShareQueueSubscribeRequest {
                     topic_name: share_sub.topic_name.to_owned(),
-                    topic_id: share_sub.topic_id.to_owned(),
                     client_id: share_sub.client_id.to_owned(),
                     protocol: share_sub.protocol.clone(),
                     sub_identifier: share_sub.subscription_identifier,
                     filter: share_sub.filter.clone(),
                     pkid: share_sub.packet_identifier,
-                    sub_name: share_sub.sub_name,
+                    sub_path: share_sub.sub_path,
                     group_name: share_sub.group_name,
                 };
                 add_share_push_leader(&self.subscribe_manager, &req).await;
@@ -177,24 +179,17 @@ impl ShareFollowerResub {
             let extend_info: MqttNodeExtend =
                 serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
 
-            if share_sub.protocol == MqttProtocol::Mqtt3
-                || share_sub.protocol == MqttProtocol::Mqtt4
-            {
-                continue;
-            }
-
             if self
                 .subscribe_manager
-                .share_follower_resub_thread
-                .contains_key(&follower_resub_key)
+                .contain_share_follower_resub_thread(&follower_resub_key)
             {
                 continue;
             }
 
             if !is_port_open(&extend_info.mqtt_addr) {
                 warn!(
-                    "Leader node {} has an unconnected network, and the Follower's subscription thread cannot start normally. client_id:[{}], group_name:[{}], sub_name:[{}]",
-                    extend_info.mqtt_addr, share_sub.client_id, share_sub.group_name, share_sub.sub_name
+                    "Leader node {} has an unconnected network, and the Follower's subscription thread cannot start normally. client_id:[{}], group_name:[{}], sub_path:[{}]",
+                    extend_info.mqtt_addr, share_sub.client_id, share_sub.group_name, share_sub.sub_path
                 );
                 continue;
             }
@@ -202,7 +197,7 @@ impl ShareFollowerResub {
             let (stop_sx, _) = broadcast::channel(1);
             let subscribe_manager = self.subscribe_manager.clone();
 
-            self.subscribe_manager.share_follower_resub_thread.insert(
+            self.subscribe_manager.add_share_follower_resub_thread(
                 follower_resub_key.clone(),
                 SubPushThreadData {
                     push_success_record_num: 0,
@@ -229,25 +224,21 @@ impl ShareFollowerResub {
                 {
                     error!("resub_sub_mqtt5: {}", e);
                 }
-                subscribe_manager
-                    .share_follower_resub_thread
-                    .remove(&follower_resub_key);
+                subscribe_manager.remove_share_follower_resub_thread(&follower_resub_key);
             });
         }
         Ok(())
     }
 
     fn try_thread_gc(&self) {
-        for (share_follower_key, sx) in self.subscribe_manager.share_follower_resub_thread.clone() {
+        for (share_follower_key, sx) in self.subscribe_manager.share_follower_resub_thread_list() {
             if !self
                 .subscribe_manager
-                .share_follower_resub
-                .contains_key(&share_follower_key)
+                .contain_share_follower_resub(&share_follower_key)
                 && sx.sender.send(true).is_ok()
             {
                 self.subscribe_manager
-                    .share_follower_resub_thread
-                    .remove(&share_follower_key);
+                    .remove_share_follower_resub_thread(&share_follower_key);
             }
         }
     }
@@ -264,15 +255,15 @@ async fn resub_sub_mqtt5(
 ) -> ResultMqttBrokerError {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
-    let sub_name = share_sub.sub_name.clone();
+    let sub_path = share_sub.sub_path.clone();
     let follower_sub_leader_client_id = format!("resub_{}_{}", get_local_ip(), unique_id());
     let follower_sub_leader_pkid: u16 = 1;
 
     info!(
-        "ReSub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was start successfully",
+        "ReSub mqtt5 thread for client_id:[{}], group_name:[{}], sub_path:[{}] was start successfully",
         mqtt_client_id,
         group_name,
-        sub_name,
+        sub_path,
     );
 
     // Connect to the share subscribe leader
@@ -287,10 +278,10 @@ async fn resub_sub_mqtt5(
                 if let Ok(flag) = val {
                     if flag {
                         info!(
-                            "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
+                            "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_path:[{}] was stopped successfully",
                             mqtt_client_id,
                             group_name,
-                            sub_name,
+                            sub_path,
                         );
                         try_close_connection(&write_stream, &share_sub.filter.path, follower_sub_leader_pkid).await;
                         break;
@@ -310,7 +301,7 @@ async fn resub_sub_mqtt5(
                         follower_sub_leader_client_id: follower_sub_leader_client_id.clone(),
                         mqtt_client_id: mqtt_client_id.clone(),
                         group_name: group_name.clone(),
-                        sub_name: sub_name.clone(),
+                        sub_path: sub_path.clone(),
                         subscribe_manager: subscribe_manager.clone(),
                         sub_key: follower_resub_key.to_string(),
                     };
@@ -340,7 +331,7 @@ async fn process_packet(
                 follower_sub_leader_pkid: context.follower_sub_leader_pkid,
                 mqtt_client_id: context.mqtt_client_id.clone(),
                 group_name: context.group_name.clone(),
-                sub_name: context.sub_name.clone(),
+                sub_path: context.sub_path.clone(),
                 subscribe_manager: context.subscribe_manager.clone(),
                 sub_key: context.sub_key.clone(),
                 stop_sx: context.stop_sx.clone(),
@@ -444,8 +435,8 @@ async fn process_conn_ack_packet(
         .await?;
         return Ok(());
     }
-    Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
-                            error message: {connack:?},{connack_properties:?}", context.mqtt_client_id, context.group_name, context.sub_name)))
+    Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_path:[{}] Follower forwarding subscription connection request error,
+                            error message: {connack:?},{connack_properties:?}", context.mqtt_client_id, context.group_name, context.sub_path)))
 }
 
 async fn process_sub_ack(suback: SubAck) -> ResultMqttBrokerError {
@@ -586,7 +577,7 @@ async fn start_ping_thread(
                     {
                         info!("Heartbeat detection: Leader node {} has no network connection. Exiting subscription thread.sub_key:{}", write_stream.address, sub_key);
                         if let Some(sx) =
-                            subscribe_manager.share_follower_resub_thread.get(&sub_key)
+                            subscribe_manager.get_share_follower_resub_thread(&sub_key)
                         {
                             if let Err(se) = sx.sender.send(true) {
                                 error!(

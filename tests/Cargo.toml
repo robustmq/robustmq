@@ -20,15 +20,20 @@ license.workspace = true
 
 
 [dependencies]
+uuid.workspace = true
+protocol.workspace = true
 bytes.workspace = true
+
+[dev-dependencies]
+common-config.workspace = true
+admin-server.workspace = true
+broker-core.workspace = true
 axum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
-protocol.workspace = true
 futures.workspace = true
 common-base.workspace = true
-common-config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 dashmap.workspace = true
@@ -44,11 +49,8 @@ opentelemetry_sdk.workspace = true
 opentelemetry-otlp.workspace = true
 bincode.workspace = true
 apache-avro.workspace = true
-broker-core.workspace = true
 rustls.workspace = true
 quinn.workspace = true
 rustls-pemfile.workspace = true
-admin-server.workspace = true
-uuid.workspace = true
 network-server.workspace = true
 futures-util = { workspace = true }

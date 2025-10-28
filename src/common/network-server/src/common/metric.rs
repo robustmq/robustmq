@@ -14,9 +14,9 @@
 
 use crate::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
-use common_metrics::mqtt::server::{
-    metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
-    metrics_request_response_queue_ms, metrics_request_total_ms,
+use common_metrics::network::{
+    metrics_request_handler_ms, metrics_request_not_response_total_ms, metrics_request_queue_ms,
+    metrics_request_response_ms, metrics_request_response_queue_ms, metrics_request_total_ms,
 };
 use metadata_struct::connection::NetworkConnectionType;
 use tracing::info;
@@ -41,7 +41,7 @@ pub fn record_packet_handler_info_no_response(
     // total ms
     metrics_request_total_ms(&NetworkConnectionType::Tcp, total_ms as f64);
 
-    if is_record_ms_log(total_ms) {
+    if request_packet.receive_ms > 0 && is_record_ms_log(total_ms) {
         info!(
             "packet:{}, total_ms:{}, receive_ms:{}, handler_queue_ms:{}, handler_ms:{}, end_ms:{}",
             packet_name, total_ms, request_packet.receive_ms, handler_queue_ms, handler_ms, end_ms
@@ -50,38 +50,42 @@ pub fn record_packet_handler_info_no_response(
 }
 
 pub fn record_packet_handler_info_by_response(
+    network_type: &NetworkConnectionType,
     response_package: &ResponsePackage,
     out_response_queue_ms: u128,
-    response_ms: u128,
 ) {
     let end_ms = now_mills();
-    let handler_queue_ms = response_package.out_queue_ms - response_package.receive_ms;
+    let request_queue_ms = response_package.out_queue_ms - response_package.receive_ms;
     let handler_ms = response_package.end_handler_ms - response_package.out_queue_ms;
     let response_queue_ms = out_response_queue_ms - response_package.end_handler_ms;
-    let response_ms = response_ms - out_response_queue_ms;
+    let response_ms = end_ms - out_response_queue_ms;
+    let no_response_total_ms = out_response_queue_ms - response_package.receive_ms;
     let total_ms = end_ms - response_package.receive_ms;
 
     // request queue ms
-    metrics_request_queue_ms(&NetworkConnectionType::Tcp, handler_queue_ms as f64);
+    metrics_request_queue_ms(network_type, request_queue_ms as f64);
 
     // handler ms
-    metrics_request_handler_ms(&NetworkConnectionType::Tcp, handler_ms as f64);
+    metrics_request_handler_ms(network_type, handler_ms as f64);
 
     // response queue ms
-    metrics_request_response_queue_ms(&NetworkConnectionType::Tcp, response_queue_ms as f64);
+    metrics_request_response_queue_ms(network_type, response_queue_ms as f64);
 
     // response ms
-    metrics_request_response_ms(&NetworkConnectionType::Tcp, response_ms as f64);
+    metrics_request_response_ms(network_type, response_ms as f64);
+
+    // not response total ms
+    metrics_request_not_response_total_ms(network_type, no_response_total_ms as f64);
 
     // total ms
-    metrics_request_total_ms(&NetworkConnectionType::Tcp, total_ms as f64);
+    metrics_request_total_ms(network_type, total_ms as f64);
 
-    if is_record_ms_log(total_ms) {
-        info!("packet:{}, total_ms:{}, receive_ms:{}, handler_queue_ms:{}, handler_ms:{}, response_queue_ms:{}, response_ms:{}, end_ms:{}",
-                    response_package.request_packet, total_ms, response_package.receive_ms, handler_queue_ms, handler_ms, response_queue_ms, response_ms, end_ms);
+    if response_package.receive_ms > 0 && is_record_ms_log(total_ms) {
+        info!("packet:{},receive_ms:{}, total_ms:{},  handler_queue_ms:{}, handler_ms:{}, response_queue_ms:{}, response_ms:{}, end_ms:{}",
+                    response_package.request_packet,  response_package.receive_ms, total_ms, request_queue_ms, handler_ms, response_queue_ms, response_ms, end_ms);
     }
 }
 
 fn is_record_ms_log(total: u128) -> bool {
-    total >= 10
+    total >= 500000
 }

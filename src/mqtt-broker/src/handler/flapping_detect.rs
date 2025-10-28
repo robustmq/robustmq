@@ -15,14 +15,14 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::storage::local::LocalStorage;
-use broker_core::rocksdb::RocksDBEngine;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::error::ResultCommonError;
-use common_base::tools::{convert_seconds, loop_select, now_second};
+use common_base::tools::{convert_seconds, loop_select_ticket, now_second};
 use common_config::config::MqttFlappingDetect;
-use common_metrics::mqtt::event_metrics;
+use common_metrics::mqtt::event;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -49,7 +49,7 @@ pub async fn clean_flapping_detect(
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        let config = cache_manager.get_flapping_detect_config().clone();
+        let config = cache_manager.get_flapping_detect_config().await;
         cache_manager
             .acl_metadata
             .remove_flapping_detect_conditions(config)
@@ -57,7 +57,7 @@ pub async fn clean_flapping_detect(
         Ok(())
     };
 
-    loop_select(ac_fn, 10, &stop_send).await;
+    loop_select_ticket(ac_fn, 10, &stop_send).await;
 }
 
 pub async fn check_flapping_detect(
@@ -66,7 +66,7 @@ pub async fn check_flapping_detect(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> ResultMqttBrokerError {
     // get metric
-    let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
+    let current_counter = event::get_client_connection_counter(client_id.clone());
     let current_request_time = now_second();
 
     // get flapping detect info
@@ -89,10 +89,10 @@ pub async fn check_flapping_detect(
     );
 
     // incr metric
-    event_metrics::incr_client_connection_counter(client_id.clone());
+    event::incr_client_connection_counter(client_id.clone());
 
-    let config = cache_manager.get_flapping_detect_config();
-    let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
+    let config = cache_manager.get_flapping_detect_config().await;
+    let current_counter = event::get_client_connection_counter(client_id.clone());
     debug!("get current_counter : {current_counter} by client_id: {client_id}");
 
     if is_within_window_time(

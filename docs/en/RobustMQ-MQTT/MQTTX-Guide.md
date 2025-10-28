@@ -56,7 +56,7 @@ mqttx conn -h localhost -p 1883 --client-id robustmq_test_client
 mqttx conn -h localhost -p 1883 -u username -P password --client-id robustmq_auth_client
 
 # SSL connection test
-mqttx conn -h localhost -p 1884 --client-id robustmq_ssl_client --protocol mqtts
+mqttx conn -h localhost -p 1885 --client-id robustmq_ssl_client --protocol mqtts
 ```
 
 ## Message Publishing Tests
@@ -187,13 +187,13 @@ mqttx bench pub -h localhost -p 1883 -t 'robustmq/perf/test' -c 10 -C 1000 -i 10
 
 ```bash
 # SSL publish test
-mqttx pub -h localhost -p 1884 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
+mqttx pub -h localhost -p 1885 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
 
 # SSL subscription test
-mqttx sub -h localhost -p 1884 -t 'robustmq/ssl/+' --protocol mqtts
+mqttx sub -h localhost -p 1885 -t 'robustmq/ssl/+' --protocol mqtts
 
 # Specify certificate files
-mqttx pub -h localhost -p 1884 -t 'robustmq/ssl/cert' -m 'Cert message' \
+mqttx pub -h localhost -p 1885 -t 'robustmq/ssl/cert' -m 'Cert message' \
   --ca ca.crt --cert client.crt --key client.key
 ```
 
@@ -207,7 +207,7 @@ mqttx pub -h localhost -p 8083 -t 'robustmq/ws/test' -m 'WebSocket message' --pr
 mqttx sub -h localhost -p 8083 -t 'robustmq/ws/+' --protocol ws
 
 # WebSocket SSL connection
-mqttx pub -h localhost -p 8084 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
+mqttx pub -h localhost -p 8085 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
 ```
 
 ## MQTT 5.0 Feature Tests
@@ -415,13 +415,13 @@ echo "Testing MQTT TCP port..."
 mqttx pub -h localhost -p 1883 -t 'robustmq/tcp/test' -m 'TCP message'
 
 echo "Testing MQTT SSL port..."
-mqttx pub -h localhost -p 1884 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
+mqttx pub -h localhost -p 1885 -t 'robustmq/ssl/test' -m 'SSL message' --protocol mqtts
 
 echo "Testing WebSocket port..."
 mqttx pub -h localhost -p 8083 -t 'robustmq/ws/test' -m 'WebSocket message' --protocol ws
 
 echo "Testing WebSocket SSL port..."
-mqttx pub -h localhost -p 8084 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
+mqttx pub -h localhost -p 8085 -t 'robustmq/wss/test' -m 'WSS message' --protocol wss
 ```
 
 ### Cluster Testing
@@ -433,7 +433,7 @@ NODES=("localhost:1883" "node2:1883" "node3:1883")
 for node in "${NODES[@]}"; do
     IFS=':' read -r host port <<< "$node"
     echo "Testing node: $host:$port"
-    
+
     mqttx pub -h $host -p $port -t 'robustmq/cluster/test' -m "Message from $host" \
       --client-id "test_client_$host"
 done

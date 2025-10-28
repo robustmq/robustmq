@@ -23,6 +23,7 @@ use crate::handler::flapping_detect::clean_flapping_detect;
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::handler::system_alarm::SystemAlarm;
+use crate::handler::topic_rewrite::start_convert_thread;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
@@ -32,11 +33,12 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
 use crate::system_topic::SystemTopic;
-use broker_core::rocksdb::RocksDBEngine;
+use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -56,6 +58,7 @@ pub struct MqttBrokerServerParams {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MetricsCacheManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub broker_cache: Arc<BrokerCacheManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -89,6 +92,7 @@ impl MqttBrokerServer {
             stop_sx: inner_stop.clone(),
             auth_driver: params.auth_driver.clone(),
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
+            broker_cache: params.broker_cache.clone(),
         }));
 
         MqttBrokerServer {
@@ -176,7 +180,7 @@ impl MqttBrokerServer {
                 cache_manager.clone(),
                 subscribe_manager.clone(),
                 connection_manager.clone(),
-                60,
+                30,
                 raw_stop_send.clone(),
             );
 
@@ -232,6 +236,7 @@ impl MqttBrokerServer {
             .await;
         });
 
+        let stop_send = self.inner_stop.clone();
         let exclusive_sub = ExclusivePush::new(
             self.message_storage_adapter.clone(),
             self.cache_manager.clone(),
@@ -239,18 +244,21 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.metrics_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            stop_send,
         );
 
         tokio::spawn(async move {
             exclusive_sub.start().await;
         });
 
+        let stop_send = self.inner_stop.clone();
         let leader_sub = ShareLeaderPush::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            stop_send,
         );
 
         tokio::spawn(async move {
@@ -266,6 +274,12 @@ impl MqttBrokerServer {
 
         tokio::spawn(async move {
             follower_sub.start().await;
+        });
+
+        let metadata_cache = self.cache_manager.clone();
+        let stop_send = self.inner_stop.clone();
+        tokio::spawn(async move {
+            start_convert_thread(metadata_cache, stop_send).await;
         });
     }
 

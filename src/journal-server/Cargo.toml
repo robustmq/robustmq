@@ -34,7 +34,6 @@ tokio-util.workspace = true
 futures.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
-rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
 futures-util.workspace = true
 metadata-struct.workspace = true

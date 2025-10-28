@@ -15,16 +15,14 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
-        protocol_versions, qos_list, ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+        network_types, protocol_versions, qos_list, ssl_by_type, ws_by_type,
     };
 
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::{
-        AclListReq, CreateAclReq, CreateUserReq, DeleteAclReq, DeleteUserReq,
-    };
-    use admin_server::response::mqtt::AclListRow;
+    use admin_server::mqtt::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
+    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
@@ -38,10 +36,10 @@ mod tests {
         let password = "caclpublic".to_string();
         let client_id = build_client_id("client_publish_authorization_test");
 
-        // 创建测试用户
+        // Create test user
         create_user(&admin_client, username.clone(), password.clone()).await;
 
-        // 测试无ACL时的发布
+        // Test publishing without ACL
         match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
@@ -51,7 +49,7 @@ mod tests {
             }
         }
 
-        // 创建ACL规则
+        // Create ACL rule
         let acl = match resource_type {
             MqttAclResourceType::User => create_test_acl(
                 resource_type,
@@ -71,7 +69,7 @@ mod tests {
 
         create_acl(&admin_client, acl.clone()).await;
 
-        // 测试有ACL时的发布
+        // Test publishing with ACL
         match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), true).await;
@@ -81,10 +79,10 @@ mod tests {
             }
         }
 
-        // 删除ACL规则
+        // Delete ACL rule
         delete_acl(&admin_client, acl.clone()).await;
 
-        // 测试删除ACL后的发布
+        // Test publishing after deleting ACL
         match resource_type {
             MqttAclResourceType::User => {
                 publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
@@ -94,7 +92,7 @@ mod tests {
             }
         }
 
-        // 清理测试用户
+        // Clean up test user
         delete_user(&admin_client, username.clone()).await;
     }
 
@@ -139,9 +137,6 @@ mod tests {
         run_authorization_test(MqttAclResourceType::ClientId, topic).await;
     }
 
-    async fn create_test_env() -> AdminHttpClient {
-        AdminHttpClient::new("http://127.0.0.1:8080")
-    }
     fn create_test_acl(
         resource_type: MqttAclResourceType,
         resource_name: String,
@@ -309,6 +304,7 @@ mod tests {
             is_superuser: false,
         };
         let res = admin_client.create_user(&user).await;
+        println!("{:?}", res);
         assert!(res.is_ok());
     }
 
@@ -329,6 +325,7 @@ mod tests {
         };
 
         let res = admin_client.create_acl(&create_request).await;
+        println!("{:?}", res);
         assert!(res.is_ok());
     }
 

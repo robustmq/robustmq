@@ -17,11 +17,11 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
-};
 use crate::storage::keys::{storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_meta,
+};
 
 pub struct MqttBlackListStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -40,7 +40,7 @@ impl MqttBlackListStorage {
             &blacklist.blacklist_type.to_string(),
             &blacklist.resource_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, blacklist)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, blacklist)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {
@@ -67,12 +67,12 @@ impl MqttBlackListStorage {
 
 #[cfg(test)]
 mod tests {
-    use broker_core::rocksdb::column_family_list;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
 
     use crate::storage::mqtt::blacklist::MqttBlackListStorage;

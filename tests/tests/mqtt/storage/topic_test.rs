@@ -14,16 +14,15 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use bytes::Bytes;
     use common_base::tools::unique_id;
-    use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use mqtt_broker::storage::topic::TopicStorage;
     use protocol::mqtt::common::{Publish, PublishProperties};
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn topic_test() {
@@ -33,24 +32,20 @@ mod tests {
         let topic_storage = TopicStorage::new(client_pool);
 
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(unique_id(), config.cluster_name.clone(), topic_name.clone());
+        let topic = MQTTTopic::new(config.cluster_name.clone(), topic_name.clone());
         match topic_storage.save_topic(topic).await {
             Ok(_) => {}
             Err(e) => panic!("{}", e),
         }
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
-        assert!(result.retain_message.is_none());
         assert_eq!(result.topic_name, topic_name);
-        assert!(!result.topic_id.is_empty());
+        assert!(!result.topic_name.is_empty());
 
         let result = topic_storage.all().await.unwrap();
         assert!(!result.is_empty());
 
-        topic_storage
-            .delete_topic(topic_name.clone())
-            .await
-            .unwrap();
+        topic_storage.delete_topic(&topic_name).await.unwrap();
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap();
         assert!(result.is_none());
@@ -69,41 +64,35 @@ mod tests {
         let topic_name: String = unique_id();
         let client_id = unique_id();
         let content = "Robust Data".to_string();
-
         let publish = Publish {
             payload: Bytes::from(content.clone()),
             ..Default::default()
         };
 
-        let mqtt_conf = broker_config();
-
-        let topic = MQTTTopic::new(
-            unique_id(),
-            mqtt_conf.cluster_name.clone(),
-            topic_name.clone(),
-        );
-        topic_storage.save_topic(topic).await.unwrap();
-
-        let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
-        println!("{result:?}");
-
-        let result_message = topic_storage.get_retain_message(&topic_name).await.unwrap();
-        assert!(result_message.is_none());
+        let topic = MQTTTopic::new(config.cluster_name.clone(), topic_name.clone());
+        println!("{:?}", topic);
+        topic_storage.save_topic(topic.clone()).await.unwrap();
 
         let publish_properties = PublishProperties::default();
         let retain_message =
             MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
+
         topic_storage
-            .set_retain_message(topic_name.clone(), &retain_message, 3600)
+            .set_retain_message(topic.topic_name.clone(), &retain_message, 1000)
             .await
             .unwrap();
 
-        let result_message = topic_storage
-            .get_retain_message(&topic_name)
+        let (result_message, result_message_qt) = topic_storage
+            .get_retain_message(&topic.topic_name)
             .await
-            .unwrap()
             .unwrap();
-        let payload = String::from_utf8(result_message.payload.to_vec()).unwrap();
+        println!("{:?}", result_message);
+        println!("{:?}", result_message_qt);
+        assert!(result_message.is_some());
+        assert!(result_message_qt.is_some());
+
+        let msg = result_message.unwrap();
+        let payload = String::from_utf8(msg.payload.to_vec()).unwrap();
         assert_eq!(payload, content);
 
         topic_storage
@@ -111,7 +100,9 @@ mod tests {
             .await
             .unwrap();
 
-        let result_message = topic_storage.get_retain_message(&topic_name).await.unwrap();
+        let (result_message, result_message_at) =
+            topic_storage.get_retain_message(&topic_name).await.unwrap();
         assert!(result_message.is_none());
+        assert!(result_message_at.is_none());
     }
 }

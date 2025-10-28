@@ -23,19 +23,15 @@ tokio.workspace = true
 lazy_static.workspace = true
 prometheus.workspace = true
 thiserror.workspace = true
-snowflake.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 uuid.workspace = true
-env_logger = { workspace = true }
 local-ip-address = { workspace = true }
 tonic.workspace = true
-humantime-serde.workspace = true
 prost.workspace = true
 rocksdb.workspace = true
-serde_yaml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
@@ -45,24 +41,20 @@ mysql.workspace = true
 clap.workspace = true
 regex.workspace = true
 opendal.workspace = true
-prometheus-client.workspace = true
-opentelemetry.workspace = true
-opentelemetry_sdk.workspace = true
-opentelemetry-otlp.workspace = true
 valico.workspace = true
 apache-avro.workspace = true
 crc32fast.workspace = true
 tempfile.workspace = true
-temp-env.workspace = true
 chrono.workspace = true
-chrono-tz.workspace = true
 anyhow.workspace = true
 quinn.workspace = true
 rustls.workspace = true
 r2d2.workspace = true
 r2d2_mysql.workspace = true
 r2d2_postgres.workspace = true
-r2d2_redis.workspace = true
+redis.workspace = true
+governor.workspace = true
+chrono-tz.workspace = true
 
 # A custom cfg for enabling tokio-console in tracing-subscriber
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`

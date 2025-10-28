@@ -1,458 +1,260 @@
-# RobustMQ 编译打包指南
+# RobustMQ 构建打包指南
 
-本指南将详细介绍如何编译和打包 RobustMQ，包括本地构建、跨平台编译和发布流程。
+本指南介绍如何构建和打包 RobustMQ。
 
-## 目录
+## 📦 构建产物概览
 
-- [环境准备](#环境准备)
-- [快速开始](#快速开始)
-- [构建脚本详解](#构建脚本详解)
-- [支持的平台](#支持的平台)
-- [构建组件](#构建组件)
-- [发布流程](#发布流程)
-- [常见问题](#常见问题)
+RobustMQ 构建过程会生成以下类型的产物：
 
-## 环境准备
+| 产物类型 | 文件格式 | 生成命令 | 用途 |
+|----------|----------|----------|------|
+| **安装包** | `.tar.gz` 压缩包 | `make build` / `make build-full` | 用户下载安装的二进制包 |
+| **Docker 镜像** | Docker 镜像 | `make docker-app-*` | 容器化部署 |
+| **依赖镜像** | Docker 镜像 | `make docker-deps` | CI/CD 构建加速 |
+| **GitHub 发布** | 在线发布页面 | `make release` | 用户下载和查看发布 |
 
-### 必需依赖
+### 产物详细说明
 
-#### Rust 环境（用于构建服务器组件）
+- **`.tar.gz` 安装包**：包含 Rust 编译的二进制文件、配置文件、启动脚本等，用户解压后即可运行
+- **Docker 镜像**：容器化的 RobustMQ 应用，支持 Docker 和 Kubernetes 部署
+- **依赖镜像**：预编译的 Rust 依赖缓存，用于加速 CI/CD 构建过程
+- **GitHub 发布**：在线发布页面，用户可以通过浏览器下载安装包
+
+## 🚀 快速开始
+
+### 使用 Make 命令（推荐）
+
+| 命令 | 功能 | 版本来源 | 说明 |
+|------|------|----------|------|
+| `make build` | 基本构建 | 自动读取 Cargo.toml | 构建当前平台包（不含前端） |
+| `make build-full` | 完整构建 | 自动读取 Cargo.toml | 构建包含前端的完整包 |
+| `make build-version VERSION=v0.1.30` | 指定版本构建 | 手动指定 | 构建指定版本的包 |
+| `make build-clean` | 清理重建 | 自动读取 Cargo.toml | 清理后重新构建 |
+
+> **版本说明**：不指定版本时，所有构建命令都会自动从项目根目录的 `Cargo.toml` 文件中读取当前版本号。
+
+## 🐳 Docker 镜像构建
+
+### 依赖镜像（CI/CD 优化）
+
+| 命令 | 功能 | 版本来源 | 说明 |
+|------|------|----------|------|
+| `make docker-deps` | 构建依赖镜像 | 自动读取 Cargo.toml | 构建 CI/CD 依赖缓存镜像，推送到 robustmq 组织 |
+| `make docker-deps-tag TAG=2025-10-20` | 构建带标签依赖镜像 | 手动指定标签 | 构建指定标签的依赖镜像 |
+| `make docker-deps-force` | 强制重新构建依赖镜像 | 自动读取 Cargo.toml | 清理缓存后强制重新构建，确保完全重建 |
+
+> **权限说明**：依赖镜像推送到固定的组织：`ghcr.io/robustmq/robustmq/rust-deps`，确保您有 robustmq 组织的写权限。
+
+### 应用镜像
+
+| 命令 | 功能 | 版本来源 | 说明 |
+|------|------|----------|------|
+| `make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'` | 灵活应用镜像构建 | 手动指定 | 支持自定义参数的应用镜像构建 |
+| `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | GHCR 应用镜像 | 手动指定 | 构建并推送到 GitHub Container Registry |
+| `make docker-app-dockerhub ORG=yourorg VERSION=0.2.0` | Docker Hub 应用镜像 | 手动指定 | 构建并推送到 Docker Hub |
+
+### Docker 目录结构
+
+```
+docker/
+├── deps/                    # 依赖镜像相关文件
+│   ├── Dockerfile.deps     # 依赖镜像 Dockerfile
+│   ├── install-deps.sh     # 系统依赖安装脚本
+│   ├── install-runtime.sh  # 运行时依赖安装脚本
+│   ├── .dockerignore       # 依赖镜像构建忽略文件
+│   └── README.md           # 依赖镜像说明文档
+└── robustmq/               # 应用镜像相关文件
+    ├── Dockerfile          # 应用镜像 Dockerfile
+    ├── docker-compose.yml  # 本地开发 Docker Compose
+    ├── monitoring/         # 监控配置
+    │   ├── prometheus.yml  # Prometheus 配置
+    │   ├── grafana/        # Grafana 配置
+    │   └── jaeger/         # Jaeger 配置
+    ├── .dockerignore       # 应用镜像构建忽略文件
+    └── README.md           # 应用镜像说明文档
+```
+
+## 🚀 版本发布
+
+| 命令 | 功能 | 版本来源 | 说明 |
+|------|------|----------|------|
+| `make release` | 创建新发布 | 自动读取 Cargo.toml | 创建 GitHub 发布并上传包 |
+| `make release-version VERSION=v0.1.30` | 指定版本发布 | 手动指定 | 创建指定版本的 GitHub 发布 |
+| `make release-upload VERSION=v0.1.30` | 上传到现有发布 | 手动指定 | 上传包到已存在的 GitHub 发布 |
+
+### 前置条件
 
 ```bash
-# 安装 Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
-
-# 验证安装
-rustc --version
-cargo --version
+# 设置 GitHub Token（必需）
+export GITHUB_TOKEN="your_github_token_here"
 ```
 
-#### Go 环境（用于构建 Kubernetes Operator）
+> **权限说明**：
+> - 依赖镜像推送到固定的组织：`ghcr.io/robustmq/robustmq/rust-deps`
+> - 应用镜像推送到指定的组织或用户账户
+> - 确保您的 `GITHUB_TOKEN` 有 `write:packages` 权限
+> - 确保您有 `robustmq` 组织的写权限
 
+## 📦 输出结果
+
+### 构建产物说明
+
+| 产物类型 | 文件位置 | 内容说明 | 用途 |
+|----------|----------|----------|------|
+| **安装包** | `build/robustmq-{version}-{platform}.tar.gz` | 压缩的二进制安装包 | 用户下载安装 RobustMQ |
+| **包信息** | `build/robustmq-{version}-{platform}/package-info.txt` | 版本、平台、构建时间等元数据 | 了解包的详细信息 |
+| **Docker 镜像** | `robustmq/robustmq:{version}` | 容器化的 RobustMQ 应用 | Docker 部署和运行 |
+| **依赖镜像** | `ghcr.io/robustmq/robustmq/rust-deps:latest` | Rust 依赖缓存镜像 | 加速 CI/CD 构建，存储在 robustmq 组织下 |
+| **GitHub 发布** | `https://github.com/robustmq/robustmq/releases/tag/{version}` | 在线发布页面 | 用户下载和查看发布说明 |
+
+### 安装包结构详解
+
+| 目录/文件 | 内容类型 | 具体内容 | 作用 |
+|-----------|----------|----------|------|
+| `bin/` | 启动脚本 | `robust-server`, `robust-ctl`, `robust-bench` | 系统启动和管理脚本 |
+| `libs/` | 二进制可执行文件 | `broker-server`, `cli-command`, `cli-bench` | 核心 Rust 编译的二进制程序 |
+| `config/` | 配置文件 | `server.toml`, `server-tracing.toml` | 服务配置和日志配置 |
+| `dist/` | 前端静态文件 | HTML, CSS, JavaScript 文件 | Web 管理界面（如果包含前端） |
+| `LICENSE` | 许可证文件 | Apache 2.0 许可证文本 | 法律许可信息 |
+| `package-info.txt` | 元数据文件 | 版本、平台、构建时间、二进制列表 | 包的详细信息 |
+
+
+## 📋 使用场景
+
+| 场景 | 命令 | 产物 | 说明 |
+|------|------|------|------|
+| **开发测试** | `make build` | 本地 `.tar.gz` 安装包 | 快速构建测试包，用于本地开发和测试 |
+| **发布准备** | `make build-full` | 本地完整 `.tar.gz` 安装包 | 构建包含前端的完整发布包，用于正式发布 |
+| **CI/CD 优化** | `make docker-deps` | Docker 依赖缓存镜像 | 构建 Rust 依赖缓存镜像，推送到 robustmq 组织，加速 CI/CD 构建过程 |
+| **强制重建** | `make docker-deps-force` | Docker 依赖缓存镜像 | 清理缓存后强制重新构建，解决缓存问题，确保完全重建 |
+| **应用部署** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker 应用镜像 | 构建并推送应用镜像到 GitHub Container Registry |
+| **版本发布** | `make release` | GitHub 发布页面 + 安装包 | 创建 GitHub 发布并上传安装包，用户可下载 |
+| **多平台发布** | `make release-upload VERSION=v0.1.31` | 更新 GitHub 发布 | 为现有 GitHub 发布添加当前平台的安装包 |
+
+
+## 🔧 Docker 构建改进
+
+### 权限问题修复
+
+**问题**：之前构建依赖镜像时可能遇到 `permission_denied: create_package` 错误。
+
+**解决方案**：
+- 使用固定的组织名称：`ghcr.io/robustmq/robustmq/rust-deps`
+- 统一镜像命名，便于 CI/CD 管理
+- 确保构建者有 robustmq 组织的写权限
+
+### 网络问题修复
+
+**问题**：构建过程中可能遇到网络连接问题（如 502 Bad Gateway）。
+
+**解决方案**：
+- 实现了多镜像源自动切换
+- 支持官方 Debian、阿里云、清华大学、中科大、163、华为云、腾讯云等镜像源
+- 自动重试机制，提高构建成功率
+
+### 构建优化
+
+**改进**：
+- 分离依赖镜像和应用镜像的构建逻辑
+- 优化 `.dockerignore` 文件，减少构建上下文
+- 添加预构建检查，确保基础镜像可用
+- 自动登录 GitHub Container Registry
+- 支持强制重新构建，解决缓存问题
+
+### 强制重新构建
+
+**何时使用**：
+- 依赖包缓存没有生效
+- 镜像构建出现问题
+- 需要完全清理缓存重新构建
+
+**使用方法**：
 ```bash
-# 安装 Go (版本 >= 1.19)
-# 从 https://golang.org/dl/ 下载并安装
+# 方法 1：使用 make 目标（推荐）
+make docker-deps-force
 
-# 验证安装
-go version
+# 方法 2：直接使用脚本
+./scripts/build-and-push-deps.sh latest --no-cache
+
+# 方法 3：手动清理后构建
+docker builder prune -f
+docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest
+make docker-deps
 ```
 
-#### 其他工具
-
-```bash
-# 必需工具
-sudo apt-get install curl jq git tar  # Ubuntu/Debian
-# 或
-brew install curl jq git  # macOS
-```
-
-安装 `protoc`
-
-```bash
-# Ubuntu(已验证)
-PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-curl -LO $PB_REL/download/v26.1/protoc-26.1-linux-x86_64.zip
-# 替换本机版本
-unzip protoc-26.1-linux-x86_64.zip -d $HOME/.local
-```
-
-解决: `failed to run custom build command for zstd-sysv2.0.15+zstd.1.5.7`
-
-```bash
-# 解决: failed to run custom build command for zstd-sysv2.0.15+zstd.1.5.7
-# Ubuntu(已验证)
-sudo apt install build-essential clang pkg-config libssl-dev
-# Fedora/RHEL
-sudo dnf install clang pkg-config zstd-devel # Fedora/RHEL
-# macOS
-brew install zstd pkg-config 
-```
-
-### 可选依赖
-
-#### 跨平台编译工具链
-
-```bash
-# 安装交叉编译目标
-rustup target add x86_64-unknown-linux-gnu
-rustup target add aarch64-unknown-linux-gnu
-rustup target add x86_64-apple-darwin
-rustup target add aarch64-apple-darwin
-rustup target add x86_64-pc-windows-gnu
-```
-
-## 快速开始
-
-### 1. 克隆项目
-
-```bash
-git clone https://github.com/robustmq/robustmq.git
-cd robustmq
-```
-
-### 2. 本地构建（当前平台）
-
-```bash
-# 构建服务器组件（默认）
-./scripts/build.sh
-
-# 构建所有组件
-./scripts/build.sh --component all
-
-# 构建特定组件
-./scripts/build.sh --component server
-./scripts/build.sh --component operator
-```
-
-### 3. 查看构建结果
-
-```bash
-ls -la build/
-# 输出示例：
-# robustmq-v1.0.0-darwin-arm64.tar.gz
-# robustmq-v1.0.0-darwin-arm64.tar.gz.sha256
-```
-
-## 构建脚本详解
-
-### build.sh 脚本
-
-`scripts/build.sh` 是主要的构建脚本，支持多种构建选项：
-
-#### 基本用法
-
-```bash
-./scripts/build.sh [OPTIONS]
-```
-
-#### 主要选项
-
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `-h, --help` | 显示帮助信息 | - |
-| `-v, --version VERSION` | 指定构建版本 | 自动从 git 检测 |
-| `-c, --component COMP` | 构建组件：server/operator/all | server |
-| `-p, --platform PLATFORM` | 目标平台 | 自动检测当前平台 |
-| `-a, --all-platforms` | 构建所有支持的平台 | - |
-| `-t, --type TYPE` | 构建类型：release/debug | release |
-| `-o, --output DIR` | 输出目录 | ./build |
-| `--clean` | 构建前清理输出目录 | false |
-| `--verbose` | 启用详细输出 | false |
-| `--dry-run` | 显示将要构建的内容但不实际构建 | false |
-| `--no-parallel` | 禁用并行构建 | false |
-
-#### 使用示例
-
-```bash
-# 构建当前平台的发布版本
-./scripts/build.sh
-
-# 构建特定平台的调试版本
-./scripts/build.sh --platform linux-amd64 --type debug
-
-# 构建所有平台
-./scripts/build.sh --all-platforms
-
-# 构建特定版本
-./scripts/build.sh --version v1.0.0
-
-# 清理构建
-./scripts/build.sh --clean
-
-# 查看将要构建的内容（不实际构建）
-./scripts/build.sh --dry-run --all-platforms
-```
-
-## 支持的平台
-
-### 服务器组件（Rust）
-
-| 平台标识 | 操作系统 | 架构 | Rust Target |
-|----------|----------|------|-------------|
-| `linux-amd64` | Linux | x86_64 | x86_64-unknown-linux-gnu |
-| `linux-amd64-musl` | Linux | x86_64 (musl) | x86_64-unknown-linux-musl |
-| `linux-arm64` | Linux | ARM64 | aarch64-unknown-linux-gnu |
-| `linux-arm64-musl` | Linux | ARM64 (musl) | aarch64-unknown-linux-musl |
-| `linux-armv7` | Linux | ARMv7 | armv7-unknown-linux-gnueabihf |
-| `darwin-amd64` | macOS | x86_64 | x86_64-apple-darwin |
-| `darwin-arm64` | macOS | ARM64 (Apple Silicon) | aarch64-apple-darwin |
-| `windows-amd64` | Windows | x86_64 | x86_64-pc-windows-gnu |
-| `windows-386` | Windows | x86 | i686-pc-windows-gnu |
-| `windows-arm64` | Windows | ARM64 | aarch64-pc-windows-gnullvm |
-| `freebsd-amd64` | FreeBSD | x86_64 | x86_64-unknown-freebsd |
-
-### Operator 组件（Go）
-
-| 平台标识 | 操作系统 | 架构 | Go Target |
-|----------|----------|------|-----------|
-| `linux-amd64` | Linux | x86_64 | linux/amd64 |
-| `linux-arm64` | Linux | ARM64 | linux/arm64 |
-| `linux-armv7` | Linux | ARMv7 | linux/arm |
-| `darwin-amd64` | macOS | x86_64 | darwin/amd64 |
-| `darwin-arm64` | macOS | ARM64 | darwin/arm64 |
-| `windows-amd64` | Windows | x86_64 | windows/amd64 |
-| `windows-386` | Windows | x86 | windows/386 |
-| `freebsd-amd64` | FreeBSD | x86_64 | freebsd/amd64 |
-
-## 构建组件
-
-### 服务器组件
-
-服务器组件包含以下二进制文件：
-
-- `broker-server` - RobustMQ 主服务器
-- `cli-command` - 命令行管理工具
-- `cli-bench` - 性能测试工具
-
-#### 构建过程
-
-1. 检查 Rust 环境和目标平台
-2. 安装必要的 Rust 目标（如果未安装）
-3. 使用 `cargo build` 编译二进制文件
-4. 创建包结构并复制文件
-5. 生成 tarball 和校验和
-
-#### 包结构
-
-```text
-robustmq-v1.0.0-linux-amd64/
-├── bin/           # 启动脚本
-├── libs/          # 二进制文件
-├── config/        # 配置文件
-├── docs/          # 文档
-├── package-info.txt  # 包信息
-└── version.txt    # 版本信息
-```
-
-### Operator 组件
-
-Operator 组件是 Kubernetes 操作器，用于在 K8s 环境中管理 RobustMQ。
-
-#### Operator 构建过程
-
-1. 检查 Go 环境
-2. 设置交叉编译环境变量
-3. 使用 `go build` 编译二进制文件
-4. 创建包结构并复制相关文件
-5. 生成 tarball 和校验和
-
-#### Operator 包结构
-
-```text
-robustmq-operator-v1.0.0-linux-amd64/
-├── bin/           # 二进制文件
-├── config/        # 配置文件
-├── manifests/     # K8s 清单文件
-├── docs/          # 文档
-├── package-info.txt  # 包信息
-└── version.txt    # 版本信息
-```
-
-## 发布流程
-
-### release.sh 脚本
-
-`scripts/release.sh` 用于自动化 GitHub 发布流程：
-
-#### 主要功能
-
-1. 从 `Cargo.toml` 提取版本号
-2. 检查或创建 GitHub Release
-3. 调用 `build.sh` 构建分发包
-4. 上传 tarball 文件到 GitHub Release
-
-#### 使用方法
-
-```bash
-# 基本用法
-./scripts/release.sh
-
-# 指定版本
-./scripts/release.sh --version v1.0.0
-
-# 指定平台
-./scripts/release.sh --platform linux-amd64
-
-# 构建所有平台
-./scripts/release.sh --platform all
-
-# 干运行（查看将要执行的操作）
-./scripts/release.sh --dry-run
-
-# 强制重新创建已存在的 Release
-./scripts/release.sh --force
-```
-
-#### 环境变量
-
-```bash
-# 必需：GitHub 个人访问令牌
-export GITHUB_TOKEN="your_github_token"
-
-# 可选：GitHub 仓库（默认：robustmq/robustmq）
-export GITHUB_REPO="owner/repo"
-
-# 其他选项
-export VERSION="v1.0.0"
-export PLATFORM="linux-amd64"
-export DRY_RUN="true"
-export FORCE="true"
-export VERBOSE="true"
-export SKIP_BUILD="true"
-```
-
-#### GitHub Token 权限
-
-创建 GitHub 个人访问令牌时需要以下权限：
-
-- `repo` - 完整控制私有仓库
-- `public_repo` - 访问公共仓库
-
-### 发布步骤
-
-1. **准备环境**
-
-   ```bash
-   # 设置 GitHub Token
-   export GITHUB_TOKEN="your_token_here"
-   
-   # 确保在项目根目录
-   cd robustmq
-   ```
-
-2. **执行发布**
-
-   ```bash
-   # 发布当前版本到所有平台
-   ./scripts/release.sh --platform all
-   
-   # 或发布特定平台
-   ./scripts/release.sh --platform linux-amd64
-   ```
-
-3. **验证发布**
-
-   - 访问 GitHub Releases 页面
-   - 检查上传的文件
-   - 验证下载链接
-
-## 常见问题
-
-### Q: 构建失败，提示缺少 Rust 目标
-
-**A:** 安装对应的 Rust 目标：
-
-```bash
-rustup target add x86_64-unknown-linux-gnu
-rustup target add aarch64-unknown-linux-gnu
-# 等等...
-```
-
-### Q: 交叉编译失败
-
-**A:** 确保安装了对应的工具链：
-
-```bash
-# Linux 上编译 Windows
-sudo apt-get install gcc-mingw-w64-x86-64
-
-# macOS 上编译 Linux
-brew install FiloSottile/musl-cross/musl-cross
-```
-
-### Q: GitHub 发布失败
-
-**A:** 检查以下项目：
-
-1. GitHub Token 是否正确设置
-2. Token 是否有足够的权限
-3. 网络连接是否正常
-4. 仓库是否存在且可访问
-
-### Q: 如何跳过构建直接上传现有包
-
-**A:** 使用 `--skip-build` 选项：
-
-```bash
-./scripts/release.sh --skip-build
-```
-
-### Q: 如何查看详细的构建日志
-
-**A:** 使用 `--verbose` 选项：
-
-```bash
-./scripts/build.sh --verbose
-./scripts/release.sh --verbose
-```
-
-### Q: 构建产物在哪里
-
-**A:** 默认在 `./build/` 目录下：
-
-```bash
-ls -la build/
-# 查看所有构建产物
-find build/ -name "*.tar.gz"
-```
-
-### Q: 如何验证构建产物
-
-**A:** 使用校验和文件：
-
-```bash
-# 验证 SHA256
-sha256sum -c robustmq-v1.0.0-linux-amd64.tar.gz.sha256
-
-# 解压并测试
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
-cd robustmq-v1.0.0-linux-amd64
-./libs/broker-server --help
-```
-
-## 高级用法
-
-### 自定义构建配置
-
-```bash
-# 使用环境变量配置
-export VERSION="v1.0.0"
-export BUILD_TYPE="release"
-export OUTPUT_DIR="/custom/build/path"
-export VERBOSE="true"
-
-./scripts/build.sh
-```
-
-### 并行构建多个平台
-
-```bash
-# 构建多个特定平台（并行）
-./scripts/build.sh --platform linux-amd64 &
-./scripts/build.sh --platform darwin-arm64 &
-./scripts/build.sh --platform windows-amd64 &
-wait
-```
-
-### 集成到 CI/CD
-
-```yaml
-# GitHub Actions 示例
-- name: Build RobustMQ
-  run: |
-    export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-    ./scripts/release.sh --platform all
-```
-
-## 总结
-
-RobustMQ 提供了完整的构建和发布工具链：
-
-- **build.sh**: 灵活的构建脚本，支持多平台、多组件构建
-- **release.sh**: 自动化发布脚本，集成 GitHub Releases
-- **跨平台支持**: 支持主流操作系统和架构
-- **组件化构建**: 可单独构建服务器或 Operator 组件
-- **完整的包管理**: 自动生成包信息、校验和等
-
-通过本指南，您可以轻松地构建和发布 RobustMQ 到各种平台，满足不同部署环境的需求。
+## ⚠️ 注意事项
+
+### 构建脚本限制
+
+| 特性 | 状态 | 说明 |
+|------|------|------|
+| 当前系统平台 | ✅ | 只构建当前系统平台 |
+| 自动版本检测 | ✅ | 自动从 Cargo.toml 读取版本 |
+| 发布模式构建 | ✅ | 使用 `cargo build --release` |
+| 自动前端克隆 | ✅ | 自动克隆前端代码 |
+| 交叉编译 | ❌ | 不支持交叉编译 |
+
+### 发布脚本限制
+
+| 特性 | 状态 | 说明 |
+|------|------|------|
+| 前端构建 | ✅ | 总是包含前端构建 |
+| 当前平台 | ✅ | 总是构建当前系统平台 |
+| 现有发布上传 | ❌ | `--upload-only` 需要现有发布 |
+
+## 🔧 环境要求
+
+| 类型 | 工具 | 用途 | 必需性 |
+|------|------|------|--------|
+| **基本** | Rust (`cargo`, `rustup`) | Rust 编译 | ✅ 必需 |
+| **前端** | `pnpm` | 前端包管理 | 🔶 可选 |
+| **前端** | `git` | 克隆前端代码 | 🔶 可选 |
+| **Docker** | `docker` | Docker 环境 | 🔶 可选 |
+| **发布** | `curl` | API 请求 | 🔶 可选 |
+| **发布** | `jq` | JSON 解析 | 🔶 可选 |
+| **发布** | `GITHUB_TOKEN` | GitHub 访问令牌 | 🔶 可选 |
+
+## 🆘 常见问题
+
+### 构建失败排查
+
+| 问题 | 检查命令 | 解决方案 |
+|------|----------|----------|
+| Rust 环境问题 | `cargo --version` | 安装 Rust 环境 |
+| Docker 环境问题 | `docker info` | 启动 Docker 服务 |
+| 网络连接问题 | `ping github.com` | 检查网络连接 |
+
+### Docker 构建失败排查
+
+| 问题 | 检查命令 | 解决方案 |
+|------|----------|----------|
+| Docker 环境问题 | `docker info` | 启动 Docker 服务 |
+| 权限问题 | `echo $GITHUB_TOKEN` | 设置正确的 GitHub Token |
+| 网络连接问题 | `docker pull rust:1.90.0-bookworm` | 检查 Docker Hub 连接 |
+| 镜像推送失败 | `docker login ghcr.io` | 手动登录 GitHub Container Registry |
+
+### 发布失败排查
+
+| 问题 | 检查命令 | 解决方案 |
+|------|----------|----------|
+| GitHub Token 问题 | `echo $GITHUB_TOKEN` | 设置正确的 Token |
+| Token 权限问题 | `curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user` | 检查 Token 权限 |
+| 网络连接问题 | `curl -I https://api.github.com` | 检查网络连接 |
+
+### 查看构建产物
+
+| 操作 | 命令 | 说明 |
+|------|------|------|
+| 查看构建目录 | `ls -la build/` | 查看所有构建产物 |
+| 解压测试 | `tar -xzf build/robustmq-*.tar.gz` | 解压安装包 |
+| 测试二进制 | `./robustmq-*/libs/broker-server --help` | 测试可执行文件 |
+| 查看包信息 | `cat robustmq-*/package-info.txt` | 查看包详细信息 |
+
+### 查看 Docker 镜像
+
+| 操作 | 命令 | 说明 |
+|------|------|------|
+| 查看本地镜像 | `docker images | grep robustmq` | 查看本地构建的镜像 |
+| 查看依赖镜像 | `docker images | grep rust-deps` | 查看依赖缓存镜像 |
+| 测试镜像 | `docker run --rm ghcr.io/robustmq/robustmq/rust-deps:latest rustc --version` | 测试依赖镜像 |
+| 查看镜像历史 | `docker history ghcr.io/robustmq/robustmq/rust-deps:latest` | 查看镜像构建历史 |

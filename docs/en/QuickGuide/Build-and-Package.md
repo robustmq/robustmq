@@ -1,458 +1,235 @@
 # RobustMQ Build and Package Guide
 
-This guide provides detailed instructions on how to compile and package RobustMQ, including local builds, cross-platform compilation, and release processes.
+This guide covers how to build and package RobustMQ.
 
-## Table of Contents
+## 📦 Build Artifacts Overview
 
-- [Environment Setup](#environment-setup)
-- [Quick Start](#quick-start)
-- [Build Script Details](#build-script-details)
-- [Supported Platforms](#supported-platforms)
-- [Build Components](#build-components)
-- [Release Process](#release-process)
-- [Common Issues](#common-issues)
+RobustMQ build process generates the following types of artifacts:
 
-## Environment Setup
+| Artifact Type | File Format | Build Command | Purpose |
+|---------------|-------------|---------------|---------|
+| **Installation Package** | `.tar.gz` archive | `make build` / `make build-full` | Binary package for user download and installation |
+| **Docker Image** | Docker image | `make docker-app-*` | Containerized deployment |
+| **Dependency Image** | Docker image | `make docker-deps` | CI/CD build acceleration |
+| **GitHub Release** | Online release page | `make release` | User download and view releases |
 
-### Required Dependencies
+### Artifact Details
 
-#### Rust Environment (for building server components)
+- **`.tar.gz` Installation Package**: Contains Rust-compiled binaries, configuration files, startup scripts, etc. Users can extract and run directly
+- **Docker Image**: Containerized RobustMQ application, supports Docker and Kubernetes deployment
+- **Dependency Image**: Pre-compiled Rust dependency cache, used to accelerate CI/CD build process
+- **GitHub Release**: Online release page, users can download installation packages through browser
 
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
+## 🚀 Quick Start
 
-# Verify installation
-rustc --version
-cargo --version
-```
+### Using Make Commands (Recommended)
 
-#### Go Environment (for building Kubernetes Operator)
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make build` | Basic build | Auto-read from Cargo.toml | Build current platform package (without frontend) |
+| `make build-full` | Full build | Auto-read from Cargo.toml | Build complete package with frontend |
+| `make build-version VERSION=v0.1.30` | Specific version build | Manual specification | Build package with specific version |
+| `make build-clean` | Clean rebuild | Auto-read from Cargo.toml | Clean and rebuild |
 
-```bash
-# Install Go (version >= 1.19)
-# Download and install from https://golang.org/dl/
+> **Version Note**: When version is not specified, all build commands automatically read the current version number from the `Cargo.toml` file in the project root directory.
 
-# Verify installation
-go version
-```
+## 🐳 Docker Image Build
 
-#### Other Tools
+### Dependency Image (CI/CD Optimization)
 
-```bash
-# Required tools
-sudo apt-get install curl jq git tar  # Ubuntu/Debian
-# or
-brew install curl jq git  # macOS
-```
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make docker-deps` | Build dependency image | Auto-read from Cargo.toml | Build CI/CD dependency cache image, push to robustmq organization |
+| `make docker-deps-tag TAG=2025-10-20` | Build tagged dependency image | Manual tag specification | Build dependency image with specific tag |
+| `make docker-deps-force` | Force rebuild dependency image | Auto-read from Cargo.toml | Clean cache and force rebuild, ensure complete reconstruction |
 
-install `protoc`
+### Application Image
 
-```bash
-# Ubuntu(has been verified)
-PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-curl -LO $PB_REL/download/v26.1/protoc-26.1-linux-x86_64.zip
-# Replace the local version
-unzip protoc-26.1-linux-x86_64.zip -d $HOME/.local
-```
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'` | Flexible app image build | Manual specification | Application image build with custom parameters |
+| `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | GHCR app image | Manual specification | Build and push to GitHub Container Registry |
+| `make docker-app-dockerhub ORG=yourorg VERSION=0.2.0` | Docker Hub app image | Manual specification | Build and push to Docker Hub |
 
-resolve: `failed to run custom build command for zstd-sysv2.0.15+zstd.1.5.7`
+## 🚀 Version Release
 
-```bash
-# resolve: failed to run custom build command for zstd-sysv2.0.15+zstd.1.5.7
-# Ubuntu(has been verified)
-sudo apt install build-essential clang pkg-config libssl-dev
-# Fedora/RHEL
-sudo dnf install clang pkg-config zstd-devel # Fedora/RHEL
-# macOS
-brew install zstd pkg-config 
-```
+| Command | Function | Version Source | Description |
+|---------|----------|----------------|-------------|
+| `make release` | Create new release | Auto-read from Cargo.toml | Create GitHub release and upload package |
+| `make release-version VERSION=v0.1.30` | Specific version release | Manual specification | Create GitHub release with specific version |
+| `make release-upload VERSION=v0.1.30` | Upload to existing release | Manual specification | Upload package to existing GitHub release |
 
-### Optional Dependencies
-
-#### Cross-platform Compilation Toolchain
+### Prerequisites
 
 ```bash
-# Install cross-compilation targets
-rustup target add x86_64-unknown-linux-gnu
-rustup target add aarch64-unknown-linux-gnu
-rustup target add x86_64-apple-darwin
-rustup target add aarch64-apple-darwin
-rustup target add x86_64-pc-windows-gnu
+# Set GitHub Token (required)
+export GITHUB_TOKEN="your_github_token_here"
 ```
 
-## Quick Start
+> **Permission Note**:
+> - Dependency images are pushed to fixed organization: `ghcr.io/robustmq/robustmq/rust-deps`
+> - Application images are pushed to specified organization or user account
+> - Ensure your `GITHUB_TOKEN` has `write:packages` permission
+> - Ensure you have write access to the `robustmq` organization
 
-### 1. Clone the Project
+## 📦 Output Results
 
+### Build Artifacts
+
+| Artifact Type | File Location | Content Description | Purpose |
+|---------------|---------------|---------------------|---------|
+| **Installation Package** | `build/robustmq-{version}-{platform}.tar.gz` | Compressed binary installation package | User download and install RobustMQ |
+| **Package Info** | `build/robustmq-{version}-{platform}/package-info.txt` | Version, platform, build time metadata | Understand package details |
+| **Docker Image** | `robustmq/robustmq:{version}` | Containerized RobustMQ application | Docker deployment and running |
+| **Dependency Image** | `ghcr.io/robustmq/robustmq/rust-deps:latest` | Rust dependency cache image | Accelerate CI/CD builds, stored under robustmq organization |
+| **GitHub Release** | `https://github.com/robustmq/robustmq/releases/tag/{version}` | Online release page | User download and view release notes |
+
+### Installation Package Structure
+
+| Directory/File | Content Type | Specific Content | Purpose |
+|----------------|--------------|-----------------|---------|
+| `bin/` | Startup scripts | `robust-server`, `robust-ctl`, `robust-bench` | System startup and management scripts |
+| `libs/` | Binary executables | `broker-server`, `cli-command`, `cli-bench` | Core Rust-compiled binary programs |
+| `config/` | Configuration files | `server.toml`, `server-tracing.toml` | Service configuration and logging configuration |
+| `dist/` | Frontend static files | HTML, CSS, JavaScript files | Web management interface (if frontend included) |
+| `LICENSE` | License file | Apache 2.0 license text | Legal license information |
+| `package-info.txt` | Metadata file | Version, platform, build time, binary list | Package detailed information |
+
+## 📋 Use Cases
+
+| Scenario | Command | Artifact | Description |
+|----------|---------|----------|-------------|
+| **Development Testing** | `make build` | Local `.tar.gz` installation package | Quick build test package for local development and testing |
+| **Release Preparation** | `make build-full` | Local complete `.tar.gz` installation package | Build complete release package with frontend for official release |
+| **CI/CD Optimization** | `make docker-deps` | Docker dependency cache image | Build Rust dependency cache image, push to robustmq organization, accelerate CI/CD build process |
+| **Force Rebuild** | `make docker-deps-force` | Docker dependency cache image | Clean cache and force rebuild, resolve cache issues, ensure complete reconstruction |
+| **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry |
+| **Version Release** | `make release` | GitHub release page + installation package | Create GitHub release and upload installation package for user download |
+| **Multi-platform Release** | `make release-upload VERSION=v0.1.31` | Update GitHub release | Add current platform installation package to existing GitHub release |
+
+## 🔧 Docker Build Improvements
+
+### Permission Issue Fix
+
+**Issue**: Previously encountered `permission_denied: create_package` errors when building dependency images.
+
+**Solution**:
+- Use fixed organization name: `ghcr.io/robustmq/robustmq/rust-deps`
+- Unified image naming for easier CI/CD management
+- Ensure builders have write access to the robustmq organization
+
+### Network Issue Fix
+
+**Issue**: Network connection problems during build process (e.g., 502 Bad Gateway).
+
+**Solution**:
+- Implemented automatic mirror switching
+- Support for official Debian, Aliyun, Tsinghua, USTC, 163, Huawei Cloud, Tencent Cloud mirrors
+- Automatic retry mechanism to improve build success rate
+
+### Build Optimization
+
+**Improvements**:
+- Separated dependency and application image build logic
+- Optimized `.dockerignore` files to reduce build context
+- Added pre-build checks to ensure base images are available
+- Automatic GitHub Container Registry login
+- Support for force rebuild to resolve cache issues
+
+### Force Rebuild
+
+**When to use**:
+- Dependency package cache is not working
+- Image build issues occur
+- Need to completely clean cache and rebuild
+
+**Usage methods**:
 ```bash
-git clone https://github.com/robustmq/robustmq.git
-cd robustmq
+# Method 1: Use make target (recommended)
+make docker-deps-force
+
+# Method 2: Use script directly
+./scripts/build-and-push-deps.sh latest --no-cache
+
+# Method 3: Manual cleanup then build
+docker builder prune -f
+docker rmi ghcr.io/robustmq/robustmq/rust-deps:latest
+make docker-deps
 ```
 
-### 2. Local Build (Current Platform)
-
-```bash
-# Build server component (default)
-./scripts/build.sh
-
-# Build all components
-./scripts/build.sh --component all
-
-# Build specific components
-./scripts/build.sh --component server
-./scripts/build.sh --component operator
-```
-
-### 3. View Build Results
-
-```bash
-ls -la build/
-# Example output:
-# robustmq-v1.0.0-darwin-arm64.tar.gz
-# robustmq-v1.0.0-darwin-arm64.tar.gz.sha256
-```
-
-## Build Script Details
-
-### build.sh Script
-
-`scripts/build.sh` is the main build script that supports various build options:
-
-#### Basic Usage
-
-```bash
-./scripts/build.sh [OPTIONS]
-```
-
-#### Main Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-h, --help` | Show help information | - |
-| `-v, --version VERSION` | Specify build version | Auto-detect from git |
-| `-c, --component COMP` | Build component: server/operator/all | server |
-| `-p, --platform PLATFORM` | Target platform | Auto-detect current platform |
-| `-a, --all-platforms` | Build for all supported platforms | - |
-| `-t, --type TYPE` | Build type: release/debug | release |
-| `-o, --output DIR` | Output directory | ./build |
-| `--clean` | Clean output directory before building | false |
-| `--verbose` | Enable verbose output | false |
-| `--dry-run` | Show what would be built without actually building | false |
-| `--no-parallel` | Disable parallel builds | false |
-
-#### Usage Examples
-
-```bash
-# Build release version for current platform
-./scripts/build.sh
-
-# Build debug version for specific platform
-./scripts/build.sh --platform linux-amd64 --type debug
-
-# Build for all platforms
-./scripts/build.sh --all-platforms
-
-# Build with specific version
-./scripts/build.sh --version v1.0.0
-
-# Clean build
-./scripts/build.sh --clean
-
-# View what would be built (without actually building)
-./scripts/build.sh --dry-run --all-platforms
-```
-
-## Supported Platforms
-
-### Server Component (Rust)
-
-| Platform ID | Operating System | Architecture | Rust Target |
-|-------------|------------------|--------------|-------------|
-| `linux-amd64` | Linux | x86_64 | x86_64-unknown-linux-gnu |
-| `linux-amd64-musl` | Linux | x86_64 (musl) | x86_64-unknown-linux-musl |
-| `linux-arm64` | Linux | ARM64 | aarch64-unknown-linux-gnu |
-| `linux-arm64-musl` | Linux | ARM64 (musl) | aarch64-unknown-linux-musl |
-| `linux-armv7` | Linux | ARMv7 | armv7-unknown-linux-gnueabihf |
-| `darwin-amd64` | macOS | x86_64 | x86_64-apple-darwin |
-| `darwin-arm64` | macOS | ARM64 (Apple Silicon) | aarch64-apple-darwin |
-| `windows-amd64` | Windows | x86_64 | x86_64-pc-windows-gnu |
-| `windows-386` | Windows | x86 | i686-pc-windows-gnu |
-| `windows-arm64` | Windows | ARM64 | aarch64-pc-windows-gnullvm |
-| `freebsd-amd64` | FreeBSD | x86_64 | x86_64-unknown-freebsd |
-
-### Operator Component (Go)
-
-| Platform ID | Operating System | Architecture | Go Target |
-|-------------|------------------|--------------|-----------|
-| `linux-amd64` | Linux | x86_64 | linux/amd64 |
-| `linux-arm64` | Linux | ARM64 | linux/arm64 |
-| `linux-armv7` | Linux | ARMv7 | linux/arm |
-| `darwin-amd64` | macOS | x86_64 | darwin/amd64 |
-| `darwin-arm64` | macOS | ARM64 | darwin/arm64 |
-| `windows-amd64` | Windows | x86_64 | windows/amd64 |
-| `windows-386` | Windows | x86 | windows/386 |
-| `freebsd-amd64` | FreeBSD | x86_64 | freebsd/amd64 |
-
-## Build Components
-
-### Server Component
-
-The server component includes the following binaries:
-
-- `broker-server` - RobustMQ main server
-- `cli-command` - Command-line management tool
-- `cli-bench` - Performance testing tool
-
-#### Build Process
-
-1. Check Rust environment and target platform
-2. Install necessary Rust targets (if not installed)
-3. Compile binaries using `cargo build`
-4. Create package structure and copy files
-5. Generate tarball and checksums
-
-#### Package Structure
-
-```text
-robustmq-v1.0.0-linux-amd64/
-├── bin/           # Startup scripts
-├── libs/          # Binary files
-├── config/        # Configuration files
-├── docs/          # Documentation
-├── package-info.txt  # Package information
-└── version.txt    # Version information
-```
-
-### Operator Component
-
-The Operator component is a Kubernetes operator for managing RobustMQ in K8s environments.
-
-#### Operator Build Process
-
-1. Check Go environment
-2. Set cross-compilation environment variables
-3. Compile binary using `go build`
-4. Create package structure and copy related files
-5. Generate tarball and checksums
-
-#### Operator Package Structure
-
-```text
-robustmq-operator-v1.0.0-linux-amd64/
-├── bin/           # Binary files
-├── config/        # Configuration files
-├── manifests/     # K8s manifest files
-├── docs/          # Documentation
-├── package-info.txt  # Package information
-└── version.txt    # Version information
-```
-
-## Release Process
-
-### release.sh Script
-
-`scripts/release.sh` is used to automate the GitHub release process:
-
-#### Main Features
-
-1. Extract version number from `Cargo.toml`
-2. Check or create GitHub Release
-3. Call `build.sh` to build distribution packages
-4. Upload tarball files to GitHub Release
-
-#### Usage
-
-```bash
-# Basic usage
-./scripts/release.sh
-
-# Specify version
-./scripts/release.sh --version v1.0.0
-
-# Specify platform
-./scripts/release.sh --platform linux-amd64
-
-# Build for all platforms
-./scripts/release.sh --platform all
-
-# Dry run (view what would be executed)
-./scripts/release.sh --dry-run
-
-# Force recreate existing Release
-./scripts/release.sh --force
-```
-
-#### Environment Variables
-
-```bash
-# Required: GitHub personal access token
-export GITHUB_TOKEN="your_github_token"
-
-# Optional: GitHub repository (default: robustmq/robustmq)
-export GITHUB_REPO="owner/repo"
-
-# Other options
-export VERSION="v1.0.0"
-export PLATFORM="linux-amd64"
-export DRY_RUN="true"
-export FORCE="true"
-export VERBOSE="true"
-export SKIP_BUILD="true"
-```
-
-#### GitHub Token Permissions
-
-When creating a GitHub personal access token, the following permissions are required:
-
-- `repo` - Full control of private repositories
-- `public_repo` - Access to public repositories
-
-### Release Steps
-
-1. **Prepare Environment**
-
-   ```bash
-   # Set GitHub Token
-   export GITHUB_TOKEN="your_token_here"
-   
-   # Ensure you're in the project root directory
-   cd robustmq
-   ```
-
-2. **Execute Release**
-
-   ```bash
-   # Release current version to all platforms
-   ./scripts/release.sh --platform all
-   
-   # Or release specific platform
-   ./scripts/release.sh --platform linux-amd64
-   ```
-
-3. **Verify Release**
-
-   - Visit GitHub Releases page
-   - Check uploaded files
-   - Verify download links
-
-## Common Issues
-
-### Q: Build fails with missing Rust target
-
-**A:** Install the corresponding Rust target:
-
-```bash
-rustup target add x86_64-unknown-linux-gnu
-rustup target add aarch64-unknown-linux-gnu
-# etc...
-```
-
-### Q: Cross-compilation fails
-
-**A:** Ensure the corresponding toolchain is installed:
-
-```bash
-# Compile Windows on Linux
-sudo apt-get install gcc-mingw-w64-x86-64
-
-# Compile Linux on macOS
-brew install FiloSottile/musl-cross/musl-cross
-```
-
-### Q: GitHub release fails
-
-**A:** Check the following items:
-
-1. Is GitHub Token correctly set?
-2. Does the token have sufficient permissions?
-3. Is the network connection normal?
-4. Does the repository exist and is accessible?
-
-### Q: How to skip build and upload existing packages
-
-**A:** Use the `--skip-build` option:
-
-```bash
-./scripts/release.sh --skip-build
-```
-
-### Q: How to view detailed build logs
-
-**A:** Use the `--verbose` option:
-
-```bash
-./scripts/build.sh --verbose
-./scripts/release.sh --verbose
-```
-
-### Q: Where are the build artifacts
-
-**A:** By default in the `./build/` directory:
-
-```bash
-ls -la build/
-# View all build artifacts
-find build/ -name "*.tar.gz"
-```
-
-### Q: How to verify build artifacts
-
-**A:** Use checksum files:
-
-```bash
-# Verify SHA256
-sha256sum -c robustmq-v1.0.0-linux-amd64.tar.gz.sha256
-
-# Extract and test
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
-cd robustmq-v1.0.0-linux-amd64
-./libs/broker-server --help
-```
-
-## Advanced Usage
-
-### Custom Build Configuration
-
-```bash
-# Configure using environment variables
-export VERSION="v1.0.0"
-export BUILD_TYPE="release"
-export OUTPUT_DIR="/custom/build/path"
-export VERBOSE="true"
-
-./scripts/build.sh
-```
-
-### Parallel Build for Multiple Platforms
-
-```bash
-# Build multiple specific platforms (parallel)
-./scripts/build.sh --platform linux-amd64 &
-./scripts/build.sh --platform darwin-arm64 &
-./scripts/build.sh --platform windows-amd64 &
-wait
-```
-
-### CI/CD Integration
-
-```yaml
-# GitHub Actions example
-- name: Build RobustMQ
-  run: |
-    export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-    ./scripts/release.sh --platform all
-```
-
-## Summary
-
-RobustMQ provides a complete build and release toolchain:
-
-- **build.sh**: Flexible build script supporting multi-platform, multi-component builds
-- **release.sh**: Automated release script integrated with GitHub Releases
-- **Cross-platform Support**: Supports mainstream operating systems and architectures
-- **Component-based Build**: Can build server or Operator components separately
-- **Complete Package Management**: Automatically generates package information, checksums, etc.
-
-Through this guide, you can easily build and release RobustMQ to various platforms, meeting the needs of different deployment environments.
+## ⚠️ Notes
+
+### Build Script Limitations
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Current system platform | ✅ | Only builds for current system platform |
+| Auto version detection | ✅ | Automatically reads version from Cargo.toml |
+| Release mode build | ✅ | Uses `cargo build --release` |
+| Auto frontend clone | ✅ | Automatically clones frontend code |
+| Cross-compilation | ❌ | Does not support cross-compilation |
+
+### Release Script Limitations
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Frontend build | ✅ | Always includes frontend build |
+| Current platform | ✅ | Always builds current system platform |
+| Existing release upload | ❌ | `--upload-only` requires existing release |
+
+## 🔧 Environment Requirements
+
+| Type | Tool | Purpose | Required |
+|------|------|---------|----------|
+| **Basic** | Rust (`cargo`, `rustup`) | Rust compilation | ✅ Required |
+| **Frontend** | `pnpm` | Frontend package management | 🔶 Optional |
+| **Frontend** | `git` | Clone frontend code | 🔶 Optional |
+| **Docker** | `docker` | Docker environment | 🔶 Optional |
+| **Release** | `curl` | API requests | 🔶 Optional |
+| **Release** | `jq` | JSON parsing | 🔶 Optional |
+| **Release** | `GITHUB_TOKEN` | GitHub access token | 🔶 Optional |
+
+## 🆘 Common Issues
+
+### Build Failure Troubleshooting
+
+| Issue | Check Command | Solution |
+|-------|---------------|----------|
+| Rust environment issue | `cargo --version` | Install Rust environment |
+| Docker environment issue | `docker info` | Start Docker service |
+| Network connection issue | `ping github.com` | Check network connection |
+
+### Docker Build Failure Troubleshooting
+
+| Issue | Check Command | Solution |
+|-------|---------------|----------|
+| Docker environment issue | `docker info` | Start Docker service |
+| Permission issue | `echo $GITHUB_TOKEN` | Set correct GitHub Token |
+| Network connection issue | `docker pull rust:1.90.0-bookworm` | Check Docker Hub connection |
+| Image push failure | `docker login ghcr.io` | Manually login to GitHub Container Registry |
+
+### Release Failure Troubleshooting
+
+| Issue | Check Command | Solution |
+|-------|---------------|----------|
+| GitHub Token issue | `echo $GITHUB_TOKEN` | Set correct Token |
+| Token permission issue | `curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user` | Check Token permissions |
+| Network connection issue | `curl -I https://api.github.com` | Check network connection |
+
+### View Build Artifacts
+
+| Operation | Command | Description |
+|-----------|---------|-------------|
+| View build directory | `ls -la build/` | View all build artifacts |
+| Extract and test | `tar -xzf build/robustmq-*.tar.gz` | Extract installation package |
+| Test binary | `./robustmq-*/libs/broker-server --help` | Test executable files |
+| View package info | `cat robustmq-*/package-info.txt` | View package detailed information |
+
+### View Docker Images
+
+| Operation | Command | Description |
+|-----------|---------|-------------|
+| View local images | `docker images | grep robustmq` | View locally built images |
+| View dependency images | `docker images | grep rust-deps` | View dependency cache images |
+| Test image | `docker run --rm ghcr.io/robustmq/robustmq/rust-deps:latest rustc --version` | Test dependency image |
+| View image history | `docker history ghcr.io/robustmq/robustmq/rust-deps:latest` | View image build history |

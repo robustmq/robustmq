@@ -16,15 +16,17 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
-
 use common_base::error::common::CommonError;
+use common_base::error::not_record_error;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
 use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
-use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
+use protocol::mqtt::common::{
+    Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
+};
 use protocol::mqtt::common::{MqttPacket, QoS};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -44,7 +46,6 @@ pub struct Subscriber {
     pub rewrite_sub_path: Option<String>,
     pub topic_name: String,
     pub group_name: Option<String>,
-    pub topic_id: String,
     pub qos: QoS,
     pub nolocal: bool,
     pub preserve_retain: bool,
@@ -88,6 +89,10 @@ impl SubPublishParam {
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    if not_record_error(&e.to_string()) {
+        return true;
+    }
+
     match e {
         MqttBrokerError::SessionNullSkipPushMessage(_) => {}
         MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
@@ -190,23 +195,23 @@ pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
     sub_qos
 }
 
-pub async fn get_sub_topic_id_list(
+pub async fn get_sub_topic_name_list(
     metadata_cache: &Arc<MQTTCacheManager>,
     sub_path: &str,
 ) -> Vec<String> {
     let mut result = Vec::new();
     if is_wildcards(sub_path) {
         if let Ok(regex) = build_sub_path_regex(sub_path) {
-            for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
-                if regex.is_match(&topic_name) {
-                    result.push(topic_id);
+            for (_, topic) in metadata_cache.topic_info.clone() {
+                if regex.is_match(&topic.topic_name) {
+                    result.push(topic.topic_name);
                 }
             }
         };
     } else {
-        for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
-            if topic_name == *sub_path {
-                result.push(topic_id);
+        for (_, topic) in metadata_cache.topic_info.clone() {
+            if topic.topic_name == *sub_path {
+                result.push(topic.topic_name);
             }
         }
     }
@@ -225,18 +230,32 @@ pub fn decode_share_group_and_path(path: &str) -> (String, String) {
     }
 }
 
-fn decode_share_info(sub_name: &str) -> (String, String) {
-    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
+fn decode_share_info(sub_path: &str) -> (String, String) {
+    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
-    let sub_name = format!("/{}", str_slice.join("/"));
-    (group_name, sub_name)
+    let sub_path = format!("/{}", str_slice.join("/"));
+    (group_name, sub_path)
 }
 
-fn decode_queue_info(sub_name: &str) -> String {
-    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
+fn decode_queue_info(sub_path: &str) -> String {
+    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
     str_slice.remove(0);
     format!("/{}", str_slice.join("/"))
+}
+
+pub async fn is_share_sub_leader(
+    client_pool: &Arc<ClientPool>,
+    group_name: &String,
+) -> Result<bool, CommonError> {
+    let conf = broker_config();
+    let req = GetShareSubLeaderRequest {
+        cluster_name: conf.cluster_name.to_owned(),
+        group_name: group_name.to_owned(),
+    };
+    let reply =
+        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
+    Ok(reply.broker_id == conf.broker_id)
 }
 
 pub async fn get_share_sub_leader(
@@ -253,14 +272,29 @@ pub async fn get_share_sub_leader(
 
 pub async fn loop_commit_offset(
     message_storage: &MessageStorage,
-    topic_id: &str,
+    topic_name: &str,
     group_id: &str,
     offset: u64,
 ) -> ResultMqttBrokerError {
     message_storage
-        .commit_group_offset(group_id, topic_id, offset)
+        .commit_group_offset(group_id, topic_name, offset)
         .await?;
     Ok(())
+}
+
+pub fn is_error_by_suback(suback: &SubAck) -> bool {
+    for reason in suback.return_codes.clone() {
+        if !(reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtLeastOnce)
+            || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtMostOnce)
+            || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::ExactlyOnce)
+            || reason == SubscribeReasonCode::QoS0
+            || reason == SubscribeReasonCode::QoS1
+            || reason == SubscribeReasonCode::QoS2)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -268,9 +302,8 @@ mod tests {
     use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::{
         build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
-        get_sub_topic_id_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,
+        get_sub_topic_name_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,
     };
-    use common_base::tools::unique_id;
     use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
@@ -447,15 +480,15 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let metadata_cache = test_build_mqtt_cache_manager();
+        let metadata_cache = test_build_mqtt_cache_manager().await;
         let topic_name = "/test/topic".to_string();
-        let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
+        let topic = MQTTTopic::new("c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();
-        let result = get_sub_topic_id_list(&metadata_cache, &sub_path).await;
+        let result = get_sub_topic_name_list(&metadata_cache, &sub_path).await;
         assert!(result.len() == 1);
-        assert_eq!(result.first().unwrap().clone(), topic.topic_id);
+        assert_eq!(result.first().unwrap().clone(), topic.topic_name);
     }
 
     #[tokio::test]

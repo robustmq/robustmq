@@ -15,7 +15,6 @@
 use super::{
     cache::MQTTCacheManager,
     subscribe::{parse_subscribe, ParseSubscribeContext},
-    topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
@@ -64,21 +63,11 @@ async fn parse_subscribe_by_new_topic(
 ) {
     let conf = broker_config();
 
-    for (_, subscribe) in subscribe_manager.subscribe_list.clone() {
+    for (_, subscribe) in subscribe_manager.list_subscribe() {
         if subscribe.broker_id != conf.broker_id {
             continue;
         }
-        let rewrite_sub_path =
-            match convert_sub_path_by_rewrite_rule(cache_manager, &subscribe.path) {
-                Ok(rewrite_sub_path) => rewrite_sub_path,
-                Err(e) => {
-                    error!(
-                        "Failed to convert sub path by rewrite rule, error message: {}",
-                        e
-                    );
-                    continue;
-                }
-            };
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
         for (_, topic) in cache_manager.topic_info.clone() {
             if topic.create_time < last_update_time {
                 continue;

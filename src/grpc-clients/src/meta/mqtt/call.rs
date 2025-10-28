@@ -22,14 +22,15 @@ use protocol::meta::meta_service_mqtt::{
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
+    GetLastWillMessageRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    GetTopicRetainMessageReply, GetTopicRetainMessageRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
+    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
     UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
@@ -134,6 +135,12 @@ generate_mqtt_service_call!(
     SaveLastWillMessageRequest,
     SaveLastWillMessageReply,
     SaveLastWillMessage
+);
+generate_mqtt_service_call!(
+    placement_get_last_will_message,
+    GetLastWillMessageRequest,
+    GetLastWillMessageReply,
+    GetLastWillMessage
 );
 generate_mqtt_service_call!(create_acl, CreateAclRequest, CreateAclReply, CreateAcl);
 generate_mqtt_service_call!(delete_acl, DeleteAclRequest, DeleteAclReply, DeleteAcl);

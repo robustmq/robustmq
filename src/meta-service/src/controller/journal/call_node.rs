@@ -14,13 +14,15 @@
 
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use dashmap::DashMap;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::node::BrokerNode;
 use protocol::journal::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
@@ -102,8 +104,9 @@ impl JournalInnerCallManager {
 pub async fn journal_call_thread_manager(
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
+    stop: broadcast::Sender<bool>,
 ) {
-    loop {
+    let ac_fn = async || -> ResultCommonError {
         // start thread
         for (key, node_sender) in call_manager.node_sender.clone() {
             if !call_manager.node_stop_sender.contains_key(&key) {
@@ -131,8 +134,9 @@ pub async fn journal_call_thread_manager(
                 }
             }
         }
-        sleep(Duration::from_secs(1)).await;
-    }
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, 1, &stop).await;
 }
 
 pub async fn update_cache_by_set_shard(

@@ -22,7 +22,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal::journal_inner::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use tokio::time::sleep;
 use tracing::{error, info};
 

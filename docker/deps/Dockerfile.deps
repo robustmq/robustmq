@@ -1,0 +1,162 @@
+# ==============================================================================
+# RobustMQ Dependency Base Image
+# ==============================================================================
+#
+# Purpose: Pre-compile all Rust dependencies to speed up CI/CD pipelines
+#
+# Usage:
+#   1. Build locally: ./build-and-push.sh
+#   2. Use in CI: container.image = ghcr.io/socutes/robustmq/rust-deps:latest
+#
+# Update Frequency:
+#   - When Cargo.lock has major changes (20+ dependencies)
+#   - When Rust version upgrades
+#   - When CI becomes noticeably slower (>8 minutes)
+#
+# ==============================================================================
+
+# ==============================================================================
+# Stage 1: Planner - Generate dependency recipe using cargo-chef
+# ==============================================================================
+# Use a more stable base image with fallback
+FROM rust:1.90.0-bookworm AS planner
+
+WORKDIR /build
+
+# Install cargo-chef
+RUN cargo install cargo-chef
+
+# Copy all Cargo.toml and Cargo.lock files
+COPY Cargo.toml Cargo.lock ./
+COPY src/ ./src/
+COPY tests/Cargo.toml ./tests/
+
+# Create dummy main.rs for packages with binaries
+RUN mkdir -p src/cmd/src && echo 'fn main() {}' > src/cmd/src/main.rs
+RUN mkdir -p src/cli-command/src && echo 'fn main() {}' > src/cli-command/src/main.rs
+RUN mkdir -p src/cli-bench/src && echo 'fn main() {}' > src/cli-bench/src/main.rs
+
+# Create dummy lib.rs for all library packages
+RUN for dir in src/admin-server src/amqp-broker src/broker-core src/broker-server \
+               src/delay-message src/grpc-clients src/journal-client src/journal-server \
+               src/kafka-broker src/message-expire src/meta-service src/mqtt-broker \
+               src/robustmq-macro src/schema-register src/storage-adapter \
+               src/common/base src/common/config src/common/metadata-struct \
+               src/common/metrics src/common/network-server src/common/pprof-monitor \
+               src/common/rate-limit src/common/rocksdb-engine src/common/security \
+               src/common/third-driver tests; do \
+      mkdir -p "$dir/src" && echo '' > "$dir/src/lib.rs"; \
+    done
+
+# Create protocol package with build.rs
+RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
+COPY src/protocol/build.rs ./src/protocol/
+
+# Generate recipe.json - this contains the dependency graph
+# Note: cargo chef prepare doesn't support --tests, but cargo chef cook does
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ==============================================================================
+# Stage 2: Builder - Compile all dependencies
+# ==============================================================================
+FROM rust:1.90.0-bookworm AS builder
+
+WORKDIR /build
+
+# Copy and run install script
+COPY docker/deps/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh && \
+    /tmp/install-deps.sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /tmp/install-deps.sh
+
+# Install cargo tools
+RUN cargo install sccache cargo-nextest cargo-chef --locked
+
+# Copy recipe from planner
+COPY --from=planner /build/recipe.json recipe.json
+
+# Configure build environment
+ENV CARGO_BUILD_JOBS=8
+ENV CARGO_INCREMENTAL=0
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/build/.sccache
+ENV CARGO_TARGET_DIR=/build/target
+# Suppress unnecessary warnings
+ENV CARGO_LOG=warn
+ENV RUST_LOG=warn
+
+# Cook dependencies - this is the slow part that we want to cache!
+# This compiles all dependencies in Cargo.lock
+# Note: CARGO_INCREMENTAL=0 is required when using sccache
+RUN --mount=type=cache,target=/build/.sccache \
+    echo "🔨 Starting dependency compilation with sccache..." && \
+    echo "📊 Build configuration:" && \
+    echo "  CARGO_BUILD_JOBS: $CARGO_BUILD_JOBS" && \
+    echo "  CARGO_INCREMENTAL: $CARGO_INCREMENTAL" && \
+    echo "  RUSTC_WRAPPER: $RUSTC_WRAPPER" && \
+    echo "  SCCACHE_DIR: $SCCACHE_DIR" && \
+    echo "  CARGO_TARGET_DIR: $CARGO_TARGET_DIR" && \
+    echo "🔨 Compiling release dependencies (all targets)..." && \
+    cargo chef cook --release --all-targets --recipe-path recipe.json && \
+    echo "🔨 Compiling debug dependencies (all targets)..." && \
+    cargo chef cook --all-targets --recipe-path recipe.json && \
+    echo "✅ Dependency compilation completed successfully!"
+
+# ==============================================================================
+# Stage 3: Final - Base image with all dependencies compiled
+# ==============================================================================
+FROM rust:1.90.0-bookworm
+
+WORKDIR /build
+
+# Copy and run runtime install script
+COPY docker/deps/install-runtime.sh /tmp/install-runtime.sh
+RUN chmod +x /tmp/install-runtime.sh && \
+    /tmp/install-runtime.sh && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /tmp/install-runtime.sh
+
+# Install cargo tools
+RUN cargo install cargo-nextest sccache --locked
+
+# Copy compiled dependencies from builder
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+COPY --from=builder /build/target /build/target
+COPY --from=builder /build/Cargo.lock /build/Cargo.lock
+
+# Configure Rust environment
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+ENV CARGO_BUILD_JOBS=10
+ENV CARGO_INCREMENTAL=0
+ENV CARGO_TARGET_DIR=/build/target
+ENV RUST_BACKTRACE=1
+ENV PROTOC=/usr/bin/protoc
+# Cache optimization
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/build/.sccache
+# Logging optimization
+ENV CARGO_LOG=warn
+ENV RUST_LOG=warn
+
+# Set up linker configuration
+RUN mkdir -p /usr/local/cargo/.cargo
+RUN echo '[target.x86_64-unknown-linux-gnu]\nlinker = "clang"\nrustflags = ["-C", "link-arg=-fuse-ld=lld"]' \
+    > /usr/local/cargo/.cargo/config.toml
+
+# Health check: verify dependencies are cached
+RUN echo "✅ Dependency cache image built successfully!" && \
+    echo "📦 Cached dependencies:" && \
+    du -sh /build/target 2>/dev/null || echo "Target size: N/A" && \
+    echo "🔧 Installed tools:" && \
+    cargo nextest --version && \
+    sccache --version && \
+    echo "🔗 Linker tools:" && \
+    clang --version && \
+    echo "🔧 Protocol Buffers:" && \
+    protoc --version && \
+    echo "✅ All tools verified successfully!"
+
+# Default command
+CMD ["/bin/bash"]

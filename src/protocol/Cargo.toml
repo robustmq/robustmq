@@ -32,7 +32,6 @@ tokio.workspace = true
 futures.workspace = true
 common-base.workspace = true
 serde.workspace = true
-validator.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 kafka-protocol.workspace = true
 
@@ -43,4 +42,3 @@ robustmq-test.workspace = true
 prost-build.workspace = true
 prost-validate-build.workspace = true
 tonic-build.workspace = true
-robustmq-proto-build.workspace = true

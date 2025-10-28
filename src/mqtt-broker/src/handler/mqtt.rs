@@ -15,8 +15,9 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use broker_core::rocksdb::RocksDBEngine;
 use common_base::tools::{now_mills, now_second};
+use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
+use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -28,9 +29,10 @@ use protocol::mqtt::common::{
     Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
     UnsubscribeProperties,
 };
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{error, warn};
+use tracing::{debug, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
@@ -47,6 +49,7 @@ use crate::handler::cache::{
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
 use crate::handler::last_will::save_last_will_message;
+use crate::handler::metrics::record_publish_receive_metrics;
 use crate::handler::response::{
     build_puback, build_pubrec, response_packet_mqtt_connect_fail,
     response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,
@@ -124,7 +127,7 @@ impl MqttService {
     }
 
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
 
         // connect params validator
         if let Some(res) = connect_validator(
@@ -144,11 +147,12 @@ impl MqttService {
         let connection = build_connection(
             context.connect_id,
             client_id.clone(),
-            &cluster,
+            &self.cache_manager,
             &context.connect,
             &context.connect_properties,
             &context.addr,
-        );
+        )
+        .await;
 
         if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
@@ -162,11 +166,17 @@ impl MqttService {
         // login check
         match self
             .auth_driver
-            .auth_login_check(&context.login, &context.connect_properties, &context.addr)
+            .auth_login_check(
+                &context.login,
+                &context.connect_properties,
+                &context.addr,
+                Some(&context.connect.client_id),
+            )
             .await
         {
             Ok(flag) => {
                 if !flag {
+                    record_mqtt_auth_failed();
                     return response_packet_mqtt_connect_fail(
                         &self.protocol,
                         ConnectReturnCode::NotAuthorized,
@@ -174,6 +184,7 @@ impl MqttService {
                         None,
                     );
                 }
+                record_mqtt_auth_success();
             }
             Err(e) => {
                 return response_packet_mqtt_connect_fail(
@@ -298,7 +309,6 @@ impl MqttService {
             connection_manager: self.connection_manager.clone(),
         })
         .await;
-
         response_packet_mqtt_connect_success(ResponsePacketMqttConnectSuccessContext {
             protocol: self.protocol.clone(),
             cluster: cluster.clone(),
@@ -368,6 +378,7 @@ impl MqttService {
         let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
                 Ok(data) => {
+                    record_mqtt_messages_delayed_inc();
                     topic_name = data.target_topic_name.clone();
                     Some(data)
                 }
@@ -433,7 +444,7 @@ impl MqttService {
 
         if delay_info.is_some() {
             let mut new_delay_info = delay_info.unwrap();
-            new_delay_info.tagget_shard_name = Some(topic.topic_id.clone());
+            new_delay_info.tagget_shard_name = Some(topic.topic_name.clone());
             delay_info = Some(new_delay_info);
         }
 
@@ -484,6 +495,13 @@ impl MqttService {
 
         self.cache_manager
             .add_topic_alias(connect_id, &topic_name, publish_properties);
+
+        record_publish_receive_metrics(
+            &client_id,
+            connect_id,
+            &topic_name,
+            publish.payload.len() as u64,
+        );
 
         match publish.qos {
             QoS::AtMostOnce => None,
@@ -543,9 +561,9 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
-                    error!(
-                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}",
-                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id
+                    debug!(
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id, now_mills() -  data.create_time
                         );
                 }
             }
@@ -572,8 +590,8 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}",
-                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id);
+                    debug!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id, now_mills() -  data.create_time);
                 }
             }
         }
@@ -599,9 +617,9 @@ impl MqttService {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
-                    error!(
-                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}",
-                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id
+                    debug!(
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
+                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id, now_mills() -  data.create_time
                         );
                 }
             }
@@ -760,6 +778,7 @@ impl MqttService {
             .cache_manager
             .broker_cache
             .get_cluster_config()
+            .await
             .mqtt_protocol_config
             .max_qos;
         for filter in subscribe.filters.clone() {
@@ -801,6 +820,8 @@ impl MqttService {
         };
         self.cache_manager
             .report_heartbeat(connection.client_id, live_time);
+        self.connection_manager
+            .report_heartbeat(connect_id, now_second());
         response_packet_mqtt_ping_resp()
     }
 

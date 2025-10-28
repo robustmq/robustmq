@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use anyhow;
+use governor::InsufficientCapacity;
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use std::io;
 use std::net::AddrParseError;
@@ -78,6 +79,9 @@ pub enum CommonError {
     AnyHowError(#[from] anyhow::Error),
 
     #[error("{0}")]
+    InsufficientCapacity(#[from] InsufficientCapacity),
+
+    #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("{0}")]
@@ -85,9 +89,6 @@ pub enum CommonError {
 
     #[error("{0}")]
     ApacheAvroError(#[from] apache_avro::Error),
-
-    #[error("{0}")]
-    FromMysqlError(#[from] mysql::Error),
 
     #[error("R2D2 Pool Error: {0}")]
     R2d2PoolError(#[from] r2d2::Error),
@@ -99,7 +100,7 @@ pub enum CommonError {
     FromR2d2PostgresError(#[from] r2d2_postgres::postgres::Error),
 
     #[error("{0}")]
-    RedisError(#[from] r2d2_redis::redis::RedisError),
+    RedisError(#[from] redis::RedisError),
 
     #[error("{0}")]
     FromParseIntError(#[from] ParseIntError),

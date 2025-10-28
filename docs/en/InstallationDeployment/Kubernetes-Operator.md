@@ -96,13 +96,13 @@ metadata:
 spec:
   # Deployment mode
   deploymentMode: AllInOne
-  
+
   # Image configuration
   image:
     repository: robustmq/robustmq
     tag: latest
     pullPolicy: IfNotPresent
-  
+
   # AllInOne configuration
   allInOne:
     replicas: 1
@@ -113,23 +113,23 @@ spec:
       limits:
         memory: "2Gi"
         cpu: "1000m"
-  
+
   # Storage configuration
   storage:
     storageClass: standard
     size: "10Gi"
     accessModes:
       - ReadWriteOnce
-  
+
   # Network configuration
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: ClusterIP
-  
+
   # Monitoring configuration
   monitoring:
     enabled: true
@@ -154,13 +154,13 @@ metadata:
 spec:
   # Microservices deployment mode
   deploymentMode: Microservices
-  
+
   # Image configuration
   image:
     repository: robustmq/robustmq
     tag: latest
     pullPolicy: IfNotPresent
-  
+
   # Microservices configuration
   microservices:
     metaService:
@@ -192,14 +192,14 @@ spec:
           cpu: "1000m"
       storage:
         size: "50Gi"
-  
+
   # Storage configuration
   storage:
     storageClass: fast-ssd
     size: "20Gi"
     accessModes:
       - ReadWriteOnce
-  
+
   # Network configuration
   network:
     mqtt:
@@ -208,7 +208,7 @@ spec:
       serviceType: LoadBalancer
     grpc:
       serviceType: ClusterIP
-  
+
   # Monitoring configuration
   monitoring:
     enabled: true
@@ -216,7 +216,7 @@ spec:
       enabled: true
       labels:
         prometheus: "kube-prometheus"
-  
+
   # Security configuration
   security:
     tls:
@@ -281,9 +281,9 @@ storage:
 network:
   mqtt:
     tcpPort: 1883                # MQTT TCP port
-    tlsPort: 1884                # MQTT TLS port
+    tlsPort: 1885                # MQTT TLS port
     webSocketPort: 8083          # WebSocket port
-    webSocketTLSPort: 8084       # WebSocket TLS port
+    webSocketTLSPort: 8085       # WebSocket TLS port
     serviceType: LoadBalancer    # Service type
   kafka:
     port: 9092                   # Kafka port
@@ -426,7 +426,7 @@ kubectl get events --sort-by=.metadata.creationTimestamp
    ```bash
    # Check RBAC permissions
    kubectl auth can-i create statefulsets --as=system:serviceaccount:robustmq-system:robustmq-operator-controller-manager
-   
+
    # Check Operator logs
    kubectl logs -n robustmq-system deployment/robustmq-operator-controller-manager
    ```
@@ -436,10 +436,10 @@ kubectl get events --sort-by=.metadata.creationTimestamp
    ```bash
    # Check resource limits
    kubectl describe pod robustmq-sample-0
-   
+
    # Check storage configuration
    kubectl get pvc
-   
+
    # Check image pull
    kubectl describe pod robustmq-sample-0 | grep -A 5 "Events:"
    ```
@@ -449,10 +449,10 @@ kubectl get events --sort-by=.metadata.creationTimestamp
    ```bash
    # Check service configuration
    kubectl get svc -l app=robustmq
-   
+
    # Check network policies
    kubectl get networkpolicy
-   
+
    # Test service connection
    kubectl run test-pod --image=busybox --rm -it -- nslookup robustmq-sample-mqtt
    ```

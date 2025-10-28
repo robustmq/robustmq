@@ -27,7 +27,7 @@ use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
-use common_metrics::mqtt::server::record_ws_request_duration;
+use common_metrics::network::record_ws_request_duration;
 use futures_util::stream::StreamExt;
 use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
@@ -43,7 +43,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast::{self};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
 
@@ -291,7 +291,7 @@ async fn process_socket_packet_by_binary(
             }
             record_ws_request_duration(receive_ms, response_ms);
         } else {
-            info!("{}", "No backpacking is required for this request");
+            debug!("{}", "No backpacking is required for this request");
         }
     }
 

@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::engine::{engine_prefix_list_by_cluster, engine_save_by_cluster};
 use crate::storage::keys::{key_cluster, key_cluster_prefix};
 use common_base::error::common::CommonError;
-use metadata_struct::placement::cluster::ClusterInfo;
-use rocksdb_engine::RocksDBEngine;
+use metadata_struct::meta::cluster::ClusterInfo;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{engine_prefix_list_by_cluster, engine_save_by_meta};
 use std::sync::Arc;
 
 pub struct ClusterStorage {
@@ -32,7 +32,7 @@ impl ClusterStorage {
 
     pub fn save(&self, cluster_info: &ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_name);
-        engine_save_by_cluster(
+        engine_save_by_meta(
             self.rocksdb_engine_handler.clone(),
             key,
             cluster_info.clone(),
@@ -52,9 +52,9 @@ impl ClusterStorage {
 
 #[cfg(test)]
 mod test {
-    use broker_core::rocksdb::column_family_list;
-    use metadata_struct::placement::cluster::ClusterInfo;
-    use rocksdb_engine::RocksDBEngine;
+    use metadata_struct::meta::cluster::ClusterInfo;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use tempfile::tempdir;
 

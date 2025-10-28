@@ -82,23 +82,171 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 ## 基础接口
 
-### 服务状态查询
-- **接口**: `GET /api/status`
-- **描述**: 获取服务状态和版本信息
+### 服务版本查询
+- **接口**: `GET /`
+- **描述**: 获取服务版本信息
 - **请求参数**: 无
 - **响应示例**:
 ```json
 "RobustMQ API v0.1.34"
 ```
 
-### 服务版本查询
-- **接口**: `GET /`
-- **描述**: 获取服务版本信息（向后兼容接口）
-- **请求参数**: 无
+### 集群状态查询
+- **接口**: `POST /api/status`
+- **描述**: 获取集群状态、版本和节点信息
+- **请求参数**: `{}`（空对象）
 - **响应示例**:
 ```json
-"RobustMQ API v0.1.34"
+{
+  "code": 0,
+  "data": {
+    "version": "0.2.1",
+    "cluster_name": "broker-server",
+    "start_time": 1760828141,
+    "broker_node_list": [
+      {
+        "cluster_name": "broker-server",
+        "roles": ["meta", "broker"],
+        "extend": "{\"mqtt\":{\"grpc_addr\":\"192.168.100.100:1228\",\"mqtt_addr\":\"192.168.100.100:1883\",\"mqtts_addr\":\"192.168.100.100:1885\",\"websocket_addr\":\"192.168.100.100:8083\",\"websockets_addr\":\"192.168.100.100:8085\",\"quic_addr\":\"192.168.100.100:9083\"}}",
+        "node_id": 1,
+        "node_ip": "192.168.100.100",
+        "node_inner_addr": "192.168.100.100:1228",
+        "start_time": 1760828141,
+        "register_time": 1760828142
+      }
+    ],
+    "meta": {
+      "running_state": {
+        "Ok": null
+      },
+      "id": 1,
+      "current_term": 1,
+      "vote": {
+        "leader_id": {
+          "term": 1,
+          "node_id": 1
+        },
+        "committed": true
+      },
+      "last_log_index": 422,
+      "last_applied": {
+        "leader_id": {
+          "term": 1,
+          "node_id": 1
+        },
+        "index": 422
+      },
+      "snapshot": null,
+      "purged": null,
+      "state": "Leader",
+      "current_leader": 1,
+      "millis_since_quorum_ack": 0,
+      "last_quorum_acked": 1760828146763525625,
+      "membership_config": {
+        "log_id": {
+          "leader_id": {
+            "term": 0,
+            "node_id": 0
+          },
+          "index": 0
+        },
+        "membership": {
+          "configs": [[1]],
+          "nodes": {
+            "1": {
+              "node_id": 1,
+              "rpc_addr": "127.0.0.1:1228"
+            }
+          }
+        }
+      },
+      "heartbeat": {
+        "1": 1760828146387602084
+      },
+      "replication": {
+        "1": {
+          "leader_id": {
+            "term": 1,
+            "node_id": 1
+          },
+          "index": 422
+        }
+      }
+    }
+  }
+}
 ```
+
+**响应字段说明**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `version` | `string` | RobustMQ 版本号 |
+| `cluster_name` | `string` | 集群名称 |
+| `start_time` | `u64` | 服务启动时间（Unix时间戳，秒） |
+| `broker_node_list` | `array` | Broker 节点列表 |
+| `meta` | `object` | Meta 集群 Raft 状态信息（结构化对象） |
+
+**Broker 节点字段说明**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `node_id` | `u64` | 节点 ID |
+| `node_ip` | `string` | 节点 IP 地址 |
+| `node_inner_addr` | `string` | 节点内部通信地址（gRPC地址） |
+| `cluster_name` | `string` | 所属集群名称 |
+| `roles` | `array` | 节点角色列表（如 `["meta", "broker"]`） |
+| `extend` | `string` | 扩展信息（JSON字符串），包含各协议的监听地址 |
+| `start_time` | `u64` | 节点启动时间（Unix时间戳，秒） |
+| `register_time` | `u64` | 节点注册时间（Unix时间戳，秒） |
+
+**扩展信息（extend）字段说明**:
+
+`extend` 字段是一个 JSON 字符串，包含以下 MQTT 协议相关的地址信息：
+
+```json
+{
+  "mqtt": {
+    "grpc_addr": "192.168.100.100:1228",
+    "mqtt_addr": "192.168.100.100:1883",
+    "mqtts_addr": "192.168.100.100:1885",
+    "websocket_addr": "192.168.100.100:8083",
+    "websockets_addr": "192.168.100.100:8085",
+    "quic_addr": "192.168.100.100:9083"
+  }
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `grpc_addr` | gRPC 服务地址 |
+| `mqtt_addr` | MQTT 协议监听地址 |
+| `mqtts_addr` | MQTT over TLS 监听地址 |
+| `websocket_addr` | WebSocket 协议监听地址 |
+| `websockets_addr` | WebSocket over TLS 监听地址 |
+| `quic_addr` | QUIC 协议监听地址 |
+
+**Meta 集群状态（meta）字段说明**:
+
+`meta` 字段是一个结构化对象，包含 Meta 集群的 Raft 状态信息：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `u64` | 节点 ID |
+| `state` | `string` | 当前节点状态（Leader/Follower/Candidate） |
+| `current_leader` | `u64` | 当前 Leader 节点 ID |
+| `current_term` | `u64` | 当前任期号 |
+| `last_log_index` | `u64` | 最后一条日志索引 |
+| `running_state` | `object` | 运行状态（通常为 `{"Ok": null}` 表示正常） |
+| `vote` | `object` | 投票信息，包含 `leader_id` 和 `committed` |
+| `last_applied` | `object` | 最后应用的日志信息 |
+| `snapshot` | `object/null` | 快照信息 |
+| `purged` | `object/null` | 清理信息 |
+| `millis_since_quorum_ack` | `u64` | 距离法定人数确认的毫秒数 |
+| `last_quorum_acked` | `u128` | 最后法定人数确认的时间戳（纳秒） |
+| `membership_config` | `object` | 集群成员配置信息 |
+| `heartbeat` | `object` | 心跳信息（节点ID到时间戳的映射） |
+| `replication` | `object` | 复制状态信息 |
 
 ---
 
@@ -121,6 +269,11 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 ```bash
 # 获取服务版本
 curl -X GET http://localhost:8080/
+
+# 获取集群状态
+curl -X POST http://localhost:8080/api/status \
+  -H "Content-Type: application/json" \
+  -d '{}'
 
 # 带分页的列表查询
 curl -X POST http://localhost:8080/api/mqtt/user/list \
@@ -147,9 +300,11 @@ curl -X POST http://localhost:8080/api/mqtt/user/list \
 
 ## 注意事项
 
-1. **请求方法**: 除了根路径 `/` 使用 GET 方法外，所有其他接口都使用 POST 方法
-2. **请求体**: 即使是查询操作，也需要发送 JSON 格式的请求体
-3. **时间格式**: 
+1. **请求方法**:
+   - 根路径 `/` 使用 GET 方法
+   - 其他所有接口（包括 `/api/status`）使用 POST 方法
+2. **请求体**: 即使是查询操作，也需要发送 JSON 格式的请求体（可以是空对象 `{}`）
+3. **时间格式**:
    - 输入时间使用 Unix 时间戳（秒）
    - 输出时间使用本地时间格式字符串 "YYYY-MM-DD HH:MM:SS"
 4. **分页**: 页码 `page` 从 1 开始计数
@@ -185,6 +340,6 @@ curl -X GET http://localhost:8080/
 
 ---
 
-*文档版本: v4.0*  
-*最后更新: 2025-09-20*  
+*文档版本: v4.0*
+*最后更新: 2025-09-20*
 *基于代码版本: RobustMQ Admin Server v0.1.34*

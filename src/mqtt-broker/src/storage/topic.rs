@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
+use crate::handler::error::MqttBrokerError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::{
     placement_create_topic, placement_create_topic_rewrite_rule, placement_delete_topic,
-    placement_delete_topic_rewrite_rule, placement_list_topic, placement_list_topic_rewrite_rule,
-    placement_set_topic_retain_message,
+    placement_delete_topic_rewrite_rule, placement_get_topic_retain_message, placement_list_topic,
+    placement_list_topic_rewrite_rule, placement_set_topic_retain_message,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -25,13 +27,10 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
-    DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
-    SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleRequest, GetTopicRetainMessageRequest, ListTopicRequest,
+    ListTopicRewriteRuleRequest, SetTopicRetainMessageRequest,
 };
 use std::sync::Arc;
-
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::error::MqttBrokerError;
 
 pub struct TopicStorage {
     client_pool: Arc<ClientPool>,
@@ -53,11 +52,11 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn delete_topic(&self, topic_name: String) -> ResultMqttBrokerError {
+    pub async fn delete_topic(&self, topic_name: &str) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteTopicRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name,
+            topic_name: topic_name.to_string(),
         };
         placement_delete_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
@@ -100,6 +99,7 @@ impl TopicStorage {
         Ok(None)
     }
 
+    // retain message
     pub async fn set_retain_message(
         &self,
         topic_name: String,
@@ -110,7 +110,7 @@ impl TopicStorage {
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
-            retain_message: retain_message.encode(),
+            retain_message: retain_message.encode_str(),
             retain_message_expired_at,
         };
         placement_set_topic_retain_message(
@@ -127,7 +127,7 @@ impl TopicStorage {
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
-            retain_message: Vec::new(),
+            retain_message: "".to_string(),
             retain_message_expired_at: 0,
         };
         placement_set_topic_retain_message(
@@ -139,23 +139,31 @@ impl TopicStorage {
         Ok(())
     }
 
-    // Get the latest reserved message for the Topic dimension
     pub async fn get_retain_message(
         &self,
         topic_name: &str,
-    ) -> Result<Option<MqttMessage>, MqttBrokerError> {
-        if let Some(topic) = self.get_topic(topic_name).await? {
-            if let Some(retain_message) = topic.retain_message {
-                if retain_message.is_empty() {
-                    return Ok(None);
-                }
-                return Ok(Some(serde_json::from_slice::<MqttMessage>(
-                    retain_message.as_slice(),
-                )?));
-            }
-            return Ok(None);
+    ) -> Result<(Option<MqttMessage>, Option<u64>), MqttBrokerError> {
+        let config = broker_config();
+        let request = GetTopicRetainMessageRequest {
+            cluster_name: config.cluster_name.clone(),
+            topic_name: topic_name.to_owned(),
+        };
+
+        let reply = placement_get_topic_retain_message(
+            &self.client_pool,
+            &config.get_meta_service_addr(),
+            request,
+        )
+        .await?;
+
+        if reply.retain_message.is_empty() {
+            return Ok((None, None));
         }
-        Err(MqttBrokerError::TopicDoesNotExist(topic_name.to_owned()))
+
+        Ok((
+            Some(serde_json::from_str::<MqttMessage>(&reply.retain_message)?),
+            Some(reply.retain_message_expired_at),
+        ))
     }
 
     pub async fn all_topic_rewrite_rule(

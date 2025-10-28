@@ -157,10 +157,10 @@ fn start_read_thread_by_group(
 pub async fn async_read_data_by_offset(
     connection_manager: &Arc<ConnectionManager>,
     metadata_cache: &Arc<MetadataCache>,
-    shards: &Vec<ReadShardByOffset>,
+    shard: &Vec<ReadShardByOffset>,
     read_config: &ReadConfig,
 ) -> Result<Vec<ReadMessageData>, JournalClientError> {
-    let leader_shards = group_by_reader_leader(connection_manager, metadata_cache, shards).await;
+    let leader_shards = group_by_reader_leader(connection_manager, metadata_cache, shard).await;
     let mut results = Vec::new();
     for (leader_id, shards) in leader_shards {
         let mut messages = Vec::new();

@@ -6,11 +6,11 @@
 
 ### Network Port Configuration
 ```toml
-[mqtt.server]
+[mqtt_server]
 tcp_port = 1883              # MQTT TCP port
-tls_port = 1884              # MQTT TLS port
+tls_port = 1885              # MQTT TLS port
 websocket_port = 8083        # WebSocket port
-websockets_port = 8084       # WebSocket over TLS port
+websockets_port = 8085       # WebSocket over TLS port
 quic_port = 9083            # QUIC protocol port
 ```
 
@@ -19,10 +19,32 @@ quic_port = 9083            # QUIC protocol port
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
 | `tcp_port` | `u32` | `1883` | MQTT over TCP protocol port |
-| `tls_port` | `u32` | `1884` | MQTT over TLS protocol port |
+| `tls_port` | `u32` | `1885` | MQTT over TLS protocol port |
 | `websocket_port` | `u32` | `8083` | MQTT over WebSocket port |
-| `websockets_port` | `u32` | `8084` | MQTT over WebSocket Secure port |
+| `websockets_port` | `u32` | `8085` | MQTT over WebSocket Secure port |
 | `quic_port` | `u32` | `9083` | MQTT over QUIC protocol port |
+
+---
+
+## MQTT Keep Alive Configuration
+
+### Keep Alive Configuration
+```toml
+[mqtt_keep_alive]
+enable = true                # Enable Keep Alive detection
+default_time = 180          # Default Keep Alive interval (seconds)
+max_time = 3600            # Maximum Keep Alive interval (seconds)
+default_timeout = 2        # Default timeout count
+```
+
+### Configuration Description
+
+| Configuration | Type | Default | Description |
+|--------------|------|---------|-------------|
+| `enable` | `bool` | `true` | Enable Keep Alive heartbeat detection |
+| `default_time` | `u16` | `180` | Default Keep Alive interval (seconds) |
+| `max_time` | `u16` | `3600` | Maximum Keep Alive interval (seconds) |
+| `default_timeout` | `u16` | `2` | Disconnect after consecutive timeout count |
 
 ---
 
@@ -30,7 +52,7 @@ quic_port = 9083            # QUIC protocol port
 
 ### Authentication Storage Configuration
 ```toml
-[mqtt.auth.storage]
+[mqtt_auth_config]
 storage_type = "placement"    # Storage type
 journal_addr = ""            # Journal address
 mysql_addr = ""              # MySQL address
@@ -55,7 +77,7 @@ mysql_addr = ""              # MySQL address
 
 ### Message Storage Configuration
 ```toml
-[mqtt.message.storage]
+[mqtt_message_storage]
 storage_type = "memory"       # Storage type
 journal_addr = ""            # Journal address
 mysql_addr = ""              # MySQL address
@@ -85,7 +107,7 @@ rocksdb_max_open_files = 10000  # RocksDB max open files
 
 ### Runtime Configuration
 ```toml
-[mqtt.runtime]
+[mqtt_runtime]
 default_user = "admin"        # Default username
 default_password = "robustmq" # Default password
 max_connection_num = 1000000  # Maximum connection count
@@ -105,14 +127,12 @@ max_connection_num = 1000000  # Maximum connection count
 
 ### Protocol Parameters Configuration
 ```toml
-[mqtt.protocol]
+[mqtt_protocol_config]
 max_session_expiry_interval = 1800      # Maximum session expiry interval (seconds)
 default_session_expiry_interval = 30    # Default session expiry interval (seconds)
 topic_alias_max = 65535                 # Topic alias maximum
 max_qos = 2                            # Maximum QoS level
 max_packet_size = 10485760             # Maximum packet size (bytes)
-max_server_keep_alive = 3600           # Maximum server keep alive (seconds)
-default_server_keep_alive = 60         # Default server keep alive (seconds)
 receive_max = 65535                    # Receive maximum
 client_pkid_persistent = false        # Client packet ID persistence
 max_message_expiry_interval = 3600     # Maximum message expiry interval (seconds)
@@ -127,9 +147,8 @@ max_message_expiry_interval = 3600     # Maximum message expiry interval (second
 | `topic_alias_max` | `u16` | `65535` | Maximum number of topic aliases |
 | `max_qos` | `u8` | `2` | Maximum supported QoS level |
 | `max_packet_size` | `u32` | `10485760` | Maximum MQTT packet size (bytes) |
-| `max_server_keep_alive` | `u16` | `3600` | Server-side maximum keep alive time (seconds) |
-| `default_server_keep_alive` | `u16` | `60` | Server-side default keep alive time (seconds) |
 | `receive_max` | `u16` | `65535` | Maximum number of unacknowledged PUBLISH packets |
+| `max_message_expiry_interval` | `u64` | `3600` | Maximum message expiry time (seconds) |
 | `client_pkid_persistent` | `bool` | `false` | Whether to persist client packet identifiers |
 
 ---
@@ -138,7 +157,7 @@ max_message_expiry_interval = 3600     # Maximum message expiry interval (second
 
 ### Security Configuration
 ```toml
-[mqtt.security]
+[mqtt_security]
 secret_free_login = false            # Allow password-free login
 is_self_protection_status = false   # Enable self-protection mode
 ```
@@ -156,7 +175,7 @@ is_self_protection_status = false   # Enable self-protection mode
 
 ### Offline Message Configuration
 ```toml
-[mqtt.offline_message]
+[mqtt_offline_message]
 enable = true                # Enable offline messages
 expire_ms = 3600000         # Message expiry time (milliseconds)
 max_messages_num = 1000     # Maximum offline message count
@@ -176,12 +195,9 @@ max_messages_num = 1000     # Maximum offline message count
 
 ### System Monitor Configuration
 ```toml
-[mqtt.system_monitor]
+[mqtt_system_monitor]
 enable = false                        # Enable system monitoring
-os_cpu_check_interval_ms = 60000     # CPU check interval (ms)
 os_cpu_high_watermark = 70.0         # CPU high watermark (%)
-os_cpu_low_watermark = 50.0          # CPU low watermark (%)
-os_memory_check_interval_ms = 60000  # Memory check interval (ms)
 os_memory_high_watermark = 80.0      # Memory high watermark (%)
 ```
 
@@ -190,10 +206,7 @@ os_memory_high_watermark = 80.0      # Memory high watermark (%)
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
 | `enable` | `bool` | `false` | Whether to enable system resource monitoring |
-| `os_cpu_check_interval_ms` | `u64` | `60000` | CPU usage check interval (milliseconds) |
 | `os_cpu_high_watermark` | `f32` | `70.0` | CPU usage high watermark (percentage) |
-| `os_cpu_low_watermark` | `f32` | `50.0` | CPU usage low watermark (percentage) |
-| `os_memory_check_interval_ms` | `u64` | `60000` | Memory usage check interval (milliseconds) |
 | `os_memory_high_watermark` | `f32` | `80.0` | Memory usage high watermark (percentage) |
 
 ---
@@ -202,9 +215,9 @@ os_memory_high_watermark = 80.0      # Memory high watermark (%)
 
 ### Slow Subscribe Configuration
 ```toml
-[mqtt.slow_subscribe]
+[mqtt_slow_subscribe_config]
 enable = false               # Enable slow subscribe detection
-max_store_num = 1000        # Maximum storage count
+record_time = 1000          # Record time threshold (milliseconds)
 delay_type = "Whole"        # Delay type
 ```
 
@@ -213,7 +226,7 @@ delay_type = "Whole"        # Delay type
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
 | `enable` | `bool` | `false` | Whether to enable slow subscribe detection |
-| `max_store_num` | `u32` | `1000` | Maximum slow subscribe record storage count |
+| `record_time` | `u64` | `1000` | Slow subscribe record time threshold (milliseconds) |
 | `delay_type` | `DelayType` | `Whole` | Delay calculation type: Whole, Partial |
 
 ---
@@ -222,7 +235,7 @@ delay_type = "Whole"        # Delay type
 
 ### Flapping Detection Configuration
 ```toml
-[mqtt.flapping_detect]
+[mqtt_flapping_detect]
 enable = false                    # Enable flapping detection
 window_time = 60                 # Time window (seconds)
 max_client_connections = 15      # Maximum connection count
@@ -244,7 +257,7 @@ ban_time = 300                   # Ban duration (seconds)
 
 ### Schema Validation Configuration
 ```toml
-[mqtt.schema]
+[mqtt_schema]
 enable = true                        # Enable Schema validation
 strategy = "ALL"                     # Validation strategy
 failed_operation = "Discard"         # Failed validation operation
@@ -278,76 +291,70 @@ log_level = "info"                   # Log level
 ### Production Environment Configuration
 ```toml
 # MQTT server port configuration
-[mqtt.server]
+[mqtt_server]
 tcp_port = 1883
-tls_port = 1884
+tls_port = 1885
 websocket_port = 8083
-websockets_port = 8084
+websockets_port = 8085
 quic_port = 9083
 
 # Authentication storage configuration
-[mqtt.auth.storage]
+[mqtt_auth_config]
 storage_type = "placement"
 
 # Message storage configuration
-[mqtt.message.storage]
+[mqtt_message_storage]
 storage_type = "journal"
 journal_addr = "127.0.0.1:1778"
 
 # Runtime configuration
-[mqtt.runtime]
+[mqtt_runtime]
 default_user = "admin"
 default_password = "your_secure_password"
 max_connection_num = 5000000
 
 # System monitor configuration
-[mqtt.system_monitor]
+[mqtt_system_monitor]
 enable = true
-os_cpu_check_interval_ms = 30000
 os_cpu_high_watermark = 80.0
-os_cpu_low_watermark = 40.0
-os_memory_check_interval_ms = 30000
 os_memory_high_watermark = 85.0
 
 # Offline message configuration
-[mqtt.offline_message]
+[mqtt_offline_message]
 enable = true
 expire_ms = 86400000  # 24 hours
 max_messages_num = 10000
 
 # Slow subscribe detection configuration
-[mqtt.slow_subscribe]
+[mqtt_slow_subscribe_config]
 enable = true
-max_store_num = 5000
 delay_type = "Whole"
 
 # Flapping detection configuration
-[mqtt.flapping_detect]
+[mqtt_flapping_detect]
 enable = true
 window_time = 120
 max_client_connections = 10
 ban_time = 600
 
 # Protocol configuration
-[mqtt.protocol]
+[mqtt_protocol_config]
 max_session_expiry_interval = 7200
 default_session_expiry_interval = 300
 topic_alias_max = 1000
 max_qos = 2
 max_packet_size = 10485760
-max_server_keep_alive = 7200
-default_server_keep_alive = 300
 receive_max = 1000
 client_pkid_persistent = true
 max_message_expiry_interval = 86400
 
 # Security configuration
-[mqtt.security]
+[mqtt_security]
 secret_free_login = false
 is_self_protection_status = true
 
 # Schema validation configuration
-[mqtt.schema]
+[mqtt_schema]
 enable = true
 strategy = "ALL"
 failed_operation = "Discard"
@@ -363,7 +370,7 @@ log_level = "warn"
 ```bash
 # MQTT server ports
 export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1883
-export ROBUSTMQ_MQTT_SERVER_TLS_PORT=1884
+export ROBUSTMQ_MQTT_SERVER_TLS_PORT=1885
 
 # Authentication configuration
 export ROBUSTMQ_MQTT_AUTH_STORAGE_STORAGE_TYPE="mysql"
@@ -389,13 +396,12 @@ export ROBUSTMQ_MQTT_OFFLINE_MESSAGE_MAX_MESSAGES_NUM=20000
 
 ### High Concurrency Scenarios
 ```toml
-[mqtt.runtime]
+[mqtt_runtime]
 max_connection_num = 10000000
 
-[mqtt.protocol]
+[mqtt_protocol_config]
 max_packet_size = 1048576      # 1MB
 receive_max = 100
-max_server_keep_alive = 300
 
 [network]
 accept_thread_num = 8
@@ -406,12 +412,10 @@ queue_size = 5000
 
 ### Low Latency Scenarios
 ```toml
-[mqtt.system_monitor]
+[mqtt_system_monitor]
 enable = true
-os_cpu_check_interval_ms = 10000
-os_memory_check_interval_ms = 10000
 
-[mqtt.slow_subscribe]
+[mqtt_slow_subscribe_config]
 enable = true
 delay_type = "Partial"
 
@@ -422,15 +426,15 @@ lock_try_mut_sleep_time_ms = 10
 
 ### High Reliability Scenarios
 ```toml
-[mqtt.message.storage]
+[mqtt_message_storage]
 storage_type = "journal"
 
-[mqtt.offline_message]
+[mqtt_offline_message]
 enable = true
 expire_ms = 604800000  # 7 days
 max_messages_num = 100000
 
-[mqtt.protocol]
+[mqtt_protocol_config]
 client_pkid_persistent = true
 max_session_expiry_interval = 86400  # 24 hours
 ```
@@ -448,22 +452,21 @@ max_session_expiry_interval = 86400  # 24 hours
 ### Debug Configuration
 ```toml
 # Enable verbose logging
-[mqtt.schema]
+[mqtt_schema]
 echo_log = true
 log_level = "debug"
 
 # Enable system monitoring
-[mqtt.system_monitor]
+[mqtt_system_monitor]
 enable = true
-os_cpu_check_interval_ms = 10000
 
 # Enable slow subscribe detection
-[mqtt.slow_subscribe]
+[mqtt_slow_subscribe_config]
 enable = true
 ```
 
 ---
 
-*Documentation Version: v1.0*  
-*Last Updated: 2024-01-01*  
+*Documentation Version: v1.0*
+*Last Updated: 2024-01-01*
 *Based on Code Version: RobustMQ v0.1.31*

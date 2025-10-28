@@ -73,7 +73,7 @@ use crate::system_topic::stats::subscription::{
 };
 use crate::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
 use common_base::error::ResultCommonError;
-use common_base::tools::{get_local_ip, loop_select};
+use common_base::tools::{get_local_ip, loop_select_ticket};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -170,7 +170,7 @@ impl SystemTopic {
             Ok(())
         };
 
-        loop_select(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1, &stop_send).await;
     }
 
     pub async fn try_init_system_topic(&self) {
@@ -185,6 +185,9 @@ impl SystemTopic {
             )
             .await
             {
+                if e.to_string().contains("already exist") {
+                    return;
+                }
                 panic!("Initializing system topic {new_topic_name} Failed, error message :{e}");
             }
         }
@@ -381,7 +384,7 @@ pub(crate) async fn write_topic_data(
         Ok(topic) => {
             let message_storage = MessageStorage::new(message_storage_adapter.clone());
             match message_storage
-                .append_topic_message(&topic.topic_id, vec![record])
+                .append_topic_message(&topic.topic_name, vec![record])
                 .await
             {
                 Ok(_) => {}
@@ -395,6 +398,10 @@ pub(crate) async fn write_topic_data(
             }
         }
         Err(e) => {
+            if e.to_string().contains("already exist") {
+                return;
+            }
+
             error!(
                 "Initializing system topic {} Failed, error message :{}",
                 topic_name,
@@ -422,9 +429,9 @@ mod test {
     async fn test_write_topic_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = test_build_mqtt_cache_manager();
+        let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
         let message_storage_adapter = build_memory_storage_driver();
@@ -451,7 +458,7 @@ mod test {
         let results = message_storage_adapter
             .read_by_offset(
                 cluster_name().to_owned(),
-                topic.topic_id.to_owned(),
+                topic.topic_name.to_owned(),
                 0,
                 read_config,
             )
@@ -476,10 +483,10 @@ mod test {
     async fn test_report_system_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = test_build_mqtt_cache_manager();
+        let cache_manger = test_build_mqtt_cache_manager().await;
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
         let expect_data = "test_data".to_string();
         super::report_system_data(
@@ -500,7 +507,7 @@ mod test {
         let results = message_storage_adapter
             .read_by_offset(
                 cluster_name().to_owned(),
-                mqtt_topic.topic_id.clone(),
+                mqtt_topic.topic_name.clone(),
                 0,
                 read_config,
             )

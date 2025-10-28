@@ -15,6 +15,7 @@
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
 pub enum ConnectorType {
@@ -22,11 +23,21 @@ pub enum ConnectorType {
     Kafka,
     LocalFile,
     GreptimeDB,
+    Pulsar,
+    Postgres,
+    MongoDB,
+    RabbitMQ,
+    MySQL,
 }
 
 pub const CONNECTOR_TYPE_FILE: &str = "file";
 pub const CONNECTOR_TYPE_KAFKA: &str = "kafka";
 pub const CONNECTOR_TYPE_GREPTIMEDB: &str = "greptime";
+pub const CONNECTOR_TYPE_PULSAR: &str = "pulsar";
+pub const CONNECTOR_TYPE_POSTGRES: &str = "postgres";
+pub const CONNECTOR_TYPE_MONGODB: &str = "mongodb";
+pub const CONNECTOR_TYPE_RABBITMQ: &str = "rabbitmq";
+pub const CONNECTOR_TYPE_MYSQL: &str = "mysql";
 
 impl Display for ConnectorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -34,17 +45,20 @@ impl Display for ConnectorType {
     }
 }
 
-pub fn connector_type_for_string(connector_type: String) -> Result<ConnectorType, CommonError> {
-    if CONNECTOR_TYPE_FILE == connector_type {
-        return Ok(ConnectorType::LocalFile);
-    }
+impl FromStr for ConnectorType {
+    type Err = CommonError;
 
-    if CONNECTOR_TYPE_KAFKA == connector_type {
-        return Ok(ConnectorType::Kafka);
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            CONNECTOR_TYPE_FILE => Ok(ConnectorType::LocalFile),
+            CONNECTOR_TYPE_KAFKA => Ok(ConnectorType::Kafka),
+            CONNECTOR_TYPE_GREPTIMEDB => Ok(ConnectorType::GreptimeDB),
+            CONNECTOR_TYPE_PULSAR => Ok(ConnectorType::Pulsar),
+            CONNECTOR_TYPE_POSTGRES => Ok(ConnectorType::Postgres),
+            CONNECTOR_TYPE_MONGODB => Ok(ConnectorType::MongoDB),
+            CONNECTOR_TYPE_RABBITMQ => Ok(ConnectorType::RabbitMQ),
+            CONNECTOR_TYPE_MYSQL => Ok(ConnectorType::MySQL),
+            _ => Err(CommonError::IneligibleConnectorType(s.to_string())),
+        }
     }
-
-    if CONNECTOR_TYPE_GREPTIMEDB == connector_type {
-        return Ok(ConnectorType::GreptimeDB);
-    }
-    Err(CommonError::IneligibleConnectorType(connector_type))
 }

@@ -13,23 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# RobustMQ Release Script
+# RobustMQ Release Script (Simplified)
 #
-# This script automates the GitHub release process for RobustMQ:
-# 1. Extracts version from Cargo.toml
-# 2. Creates GitHub release if it doesn't exist
-# 3. Builds distribution packages using build.sh
-# 4. Uploads tar.gz files to the GitHub release (SHA256 files are kept locally)
+# This script provides essential GitHub release functionality:
+# 1. Create GitHub release and upload current platform package
+# 2. Upload current platform package to existing release
 #
 # Usage:
-#   ./release.sh [OPTIONS]
+#   ./release-simple.sh [OPTIONS]
 #
 # Examples:
-#   ./release.sh                        # Create release for current platform
-#   ./release.sh --version v0.1.30     # Create release for specific version
-#   ./release.sh --platform linux-amd64 # Build and upload specific platform only
-#   ./release.sh --platform all        # Build for all supported platforms
-#   ./release.sh --dry-run              # Show what would be done without executing
+#   ./release-simple.sh                     # Create release for current platform
+#   ./release-simple.sh --version v0.1.30  # Create release for specific version
+#   ./release-simple.sh --upload-only      # Upload to existing release
 
 set -euo pipefail
 
@@ -39,7 +35,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
@@ -47,52 +42,38 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Configuration variables
+# Configuration variables (simplified)
 VERSION="${VERSION:-}"
-PLATFORM="${PLATFORM:-auto}"  # auto, specific platform, or all
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_REPO="${GITHUB_REPO:-robustmq/robustmq}"
-DRY_RUN="${DRY_RUN:-false}"
-FORCE="${FORCE:-false}"
-VERBOSE="${VERBOSE:-false}"
-SKIP_BUILD="${SKIP_BUILD:-false}"
+UPLOAD_ONLY="${UPLOAD_ONLY:-false}"
 
 # GitHub API base URL
 GITHUB_API_URL="https://api.github.com"
 
 # Helper functions
-timestamp() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
 log_info() {
-    echo -e "${BLUE}[$(timestamp)] ℹ️  $1${NC}"
+    echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
 log_success() {
-    echo -e "${GREEN}[$(timestamp)] ✅ $1${NC}"
+    echo -e "${GREEN}✅ $1${NC}"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[$(timestamp)] ⚠️  $1${NC}"
+    echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
 log_error() {
-    echo -e "${RED}[$(timestamp)] ❌ Error: $1${NC}" >&2
+    echo -e "${RED}❌ $1${NC}" >&2
 }
 
 log_step() {
-    echo -e "${BOLD}${PURPLE}[$(timestamp)] 🚀 $1${NC}"
-}
-
-log_debug() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo -e "${CYAN}[$(timestamp)] 🔍 $1${NC}"
-    fi
+    echo -e "${BOLD}${PURPLE}🚀 $1${NC}"
 }
 
 show_help() {
-    echo -e "${BOLD}${BLUE}RobustMQ Release Script${NC}"
+    echo -e "${BOLD}${BLUE}RobustMQ Release Script (Simplified)${NC}"
     echo
     echo -e "${BOLD}USAGE:${NC}"
     echo "    $0 [OPTIONS]"
@@ -100,62 +81,28 @@ show_help() {
     echo -e "${BOLD}OPTIONS:${NC}"
     echo "    -h, --help                  Show this help message"
     echo "    -v, --version VERSION       Release version (default: auto-detect from Cargo.toml)"
-    echo "    -p, --platform PLATFORM    Target platform to build (default: auto-detect current)"
     echo "    -t, --token TOKEN          GitHub personal access token"
-    echo "    -r, --repo REPO            GitHub repository (default: robustmq/robustmq)"
-    echo "    --dry-run                  Show what would be done without executing"
-    echo "    --force                    Force recreate release if it exists"
-    echo "    --skip-build               Skip building packages (use existing ones)"
-    echo "    --verbose                  Enable verbose output"
-    echo
-    echo -e "${BOLD}PLATFORMS:${NC}"
-    echo "    auto                      Auto-detect current platform (default)"
-    echo "    all                       Build for all supported platforms"
-    echo "    linux-amd64               Linux x86_64"
-    echo "    linux-arm64               Linux ARM64"
-    echo "    darwin-amd64              macOS x86_64"
-    echo "    darwin-arm64              macOS ARM64 (Apple Silicon)"
-    echo "    windows-amd64             Windows x86_64"
+    echo "    --upload-only              Only upload current platform to existing release"
     echo
     echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
     echo "    GITHUB_TOKEN              GitHub personal access token"
-    echo "    GITHUB_REPO               GitHub repository (owner/repo format)"
     echo "    VERSION                   Release version"
-    echo "    PLATFORM                  Target platform"
-    echo "    DRY_RUN                   Dry run mode (true/false)"
-    echo "    FORCE                     Force recreate release (true/false)"
-    echo "    VERBOSE                   Verbose output (true/false)"
-    echo "    SKIP_BUILD                Skip building packages (true/false)"
+    echo "    UPLOAD_ONLY               Upload to existing release only (true/false)"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
-    echo "    # Create release for current platform (default)"
+    echo "    # Create release for current platform"
     echo "    $0"
     echo
     echo "    # Create release with specific version"
     echo "    $0 --version v0.1.30"
     echo
-    echo "    # Build and upload specific platform only"
-    echo "    $0 --platform linux-amd64"
+    echo "    # Upload current platform to existing release"
+    echo "    $0 --upload-only --version v0.1.30"
     echo
-    echo "    # Build for all platforms"
-    echo "    $0 --platform all"
-    echo
-    echo "    # Dry run to see what would be done"
-    echo "    $0 --dry-run"
-    echo
-    echo "    # Force recreate existing release"
-    echo "    $0 --force"
-    echo
-    echo "    # Skip build and upload existing packages"
-    echo "    $0 --skip-build"
-    echo
-    echo -e "${BOLD}PREREQUISITES:${NC}"
-    echo "    1. GitHub personal access token with repo permissions"
-    echo "    2. curl command available"
-    echo "    3. jq command available for JSON parsing"
-    echo "    4. Build dependencies (if not using --skip-build)"
-    echo
-    echo "For more information, visit: https://github.com/${GITHUB_REPO}"
+    echo -e "${BOLD}NOTES:${NC}"
+    echo "    - Always builds and uploads current platform only"
+    echo "    - Requires GitHub token with repo permissions"
+    echo "    - Frontend is always built (no option to disable)"
 }
 
 extract_version_from_cargo() {
@@ -166,11 +113,32 @@ extract_version_from_cargo() {
         return 1
     fi
 
-    local version=$(grep '^version = ' "$cargo_file" | head -1 | sed 's/version = "\(.*\)"/\1/')
+    # Try multiple methods to extract version
+    local version=""
+    
+    # Method 1: Look for workspace.package version
+    version=$(grep -A 10 "^\[workspace\.package\]" "$cargo_file" | grep "^version" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    
+    # Method 2: Look for regular package version if workspace version not found
+    if [ -z "$version" ]; then
+        version=$(grep -A 10 "^\[package\]" "$cargo_file" | grep "^version" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    fi
+    
+    # Method 3: Simple fallback
+    if [ -z "$version" ]; then
+        version=$(grep "^version\s*=" "$cargo_file" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    fi
 
+    # Validate version format
     if [ -z "$version" ]; then
         log_error "Could not extract version from Cargo.toml"
+        log_error "Please ensure version is defined in [package] or [workspace.package] section"
         return 1
+    fi
+
+    # Validate semantic version format (basic check)
+    if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'; then
+        log_warning "Version '$version' may not follow semantic versioning format"
     fi
 
     # Add 'v' prefix if not present
@@ -192,13 +160,8 @@ check_dependencies() {
         missing_deps+=("jq")
     fi
 
-    if ! command -v git >/dev/null 2>&1; then
-        missing_deps+=("git")
-    fi
-
     if [ ${#missing_deps[@]} -ne 0 ]; then
         log_error "Missing required dependencies: ${missing_deps[*]}"
-        log_info "Please install the missing dependencies and try again."
         return 1
     fi
 }
@@ -213,12 +176,6 @@ detect_current_platform() {
         Linux)
             os_type="linux"
             ;;
-        MINGW*|MSYS*|CYGWIN*)
-            os_type="windows"
-            ;;
-        FreeBSD)
-            os_type="freebsd"
-            ;;
         *)
             log_error "Unsupported OS: $(uname -s)"
             return 1
@@ -232,12 +189,6 @@ detect_current_platform() {
         arm64|aarch64)
             arch_type="arm64"
             ;;
-        armv7l)
-            arch_type="armv7"
-            ;;
-        i386|i686)
-            arch_type="386"
-            ;;
         *)
             log_error "Unsupported architecture: $(uname -m)"
             return 1
@@ -250,8 +201,6 @@ detect_current_platform() {
 check_github_token() {
     if [ -z "$GITHUB_TOKEN" ]; then
         log_error "GitHub token is required. Set GITHUB_TOKEN environment variable or use --token option."
-        log_info "You can create a personal access token at: https://github.com/settings/tokens"
-        log_info "Required permissions: repo (Full control of private repositories)"
         return 1
     fi
 }
@@ -261,19 +210,10 @@ github_api_request() {
     local endpoint="$2"
     local data="${3:-}"
 
-    log_debug "GitHub API request: $method $endpoint"
-
-    if [ "$DRY_RUN" = "true" ]; then
-        log_debug "[DRY RUN] Would make GitHub API request: $method $endpoint"
-        echo '{"dry_run": true}'
-        return 0
-    fi
-
     local response
     local http_code
 
     if [ -n "$data" ]; then
-        log_debug "Request data: $data"
         response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
             -X "$method" \
             -H "Authorization: token $GITHUB_TOKEN" \
@@ -292,13 +232,10 @@ github_api_request() {
     http_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
     response_body=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
 
-    log_debug "HTTP status code: $http_code"
-
     if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
         echo "$response_body"
     else
         log_error "GitHub API request failed with HTTP $http_code"
-        log_error "Response: $response_body"
         echo "$response_body"
         return 1
     fi
@@ -307,8 +244,6 @@ github_api_request() {
 check_release_exists() {
     local version="$1"
     local response
-
-    log_debug "Checking if release $version exists"
 
     response=$(github_api_request "GET" "/releases/tags/$version" 2>/dev/null || echo '{"message": "Not Found"}')
 
@@ -319,24 +254,142 @@ check_release_exists() {
     fi
 }
 
+generate_custom_release_notes() {
+    local version="$1"
+    local build_date=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
+    
+    cat << EOF
+## 🚀 RobustMQ $version
+
+Welcome to RobustMQ $version release!
+
+### 📦 Assets
+
+This release includes pre-built binaries for multiple platforms:
+
+- **Linux AMD64** (\`robustmq-${version}-linux-amd64.tar.gz\`)
+- **Linux ARM64** (\`robustmq-${version}-linux-arm64.tar.gz\`)
+- **macOS AMD64** (\`robustmq-${version}-darwin-amd64.tar.gz\`)
+- **macOS ARM64** (\`robustmq-${version}-darwin-arm64.tar.gz\`)
+
+> **Note**: Platform-specific packages are uploaded incrementally. If your platform is not yet available, please check back shortly.
+
+### 📥 Installation
+
+1. **Download the package** for your platform from the assets below
+2. **Extract the archive**:
+   \`\`\`bash
+   tar -xzf robustmq-${version}-<platform>.tar.gz
+   cd robustmq-${version}-<platform>
+   \`\`\`
+
+3. **Review the directory structure**:
+   - \`bin/\` - Management scripts (robust-server, robust-ctl, robust-bench)
+   - \`libs/\` - Compiled binaries (broker-server, cli-command, cli-bench)
+   - \`config/\` - Configuration files
+   - \`dist/\` - Web UI (if included)
+   - \`LICENSE\` - License file
+   - \`package-info.txt\` - Package information
+
+### ⚙️ Configuration
+
+1. **Edit configuration files** in the \`config/\` directory according to your needs
+2. **Main configuration file**:
+   - \`config/server.toml\` - Server configuration (supports multiple roles: meta, broker, journal)
+   - \`config/server-tracing.toml\` - Logging and tracing configuration
+
+### 🎯 Quick Start
+
+**Start RobustMQ Server** (all-in-one mode):
+\`\`\`bash
+./bin/robust-server start
+\`\`\`
+
+**Start with custom configuration**:
+\`\`\`bash
+./bin/robust-server start config/server.toml
+\`\`\`
+
+**Stop the server**:
+\`\`\`bash
+./bin/robust-server stop
+\`\`\`
+
+**Access Web UI** (if frontend is included):
+\`\`\`
+http://localhost:8080
+\`\`\`
+
+**Management Tools**:
+\`\`\`bash
+# View cluster information
+./bin/robust-ctl cluster info
+
+# Run benchmarks
+./bin/robust-bench --help
+\`\`\`
+
+**Test MQTT Connection**:
+\`\`\`bash
+# Install mqttx client (if not already installed)
+npm install -g mqttx-cli
+
+# Publish message
+mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+
+# Subscribe to messages
+mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
+\`\`\`
+
+### 📚 Documentation
+
+- **Documentation**: [https://www.robustmq.com](https://www.robustmq.com)
+- **GitHub Repository**: [https://github.com/robustmq/robustmq](https://github.com/robustmq/robustmq)
+- **Issues**: [https://github.com/robustmq/robustmq/issues](https://github.com/robustmq/robustmq/issues)
+- **Discussions**: [https://github.com/robustmq/robustmq/discussions](https://github.com/robustmq/robustmq/discussions)
+
+### 🛠️ Build Information
+
+- **Release Version**: $version
+- **Build Date**: $build_date
+- **Frontend Web UI**: Included (in packages with \`dist/\` directory)
+
+### 📝 Notes
+
+- For production deployments, please review and adjust the configuration files
+- Make sure required ports are available and not blocked by firewall
+- Check system requirements and dependencies before deployment
+- For upgrade instructions, please refer to the documentation
+
+### 💬 Community
+
+Join our community to get help, share ideas, and contribute:
+
+- **GitHub Discussions**: Ask questions and share knowledge
+- **GitHub Issues**: Report bugs and request features
+- **Contributing**: We welcome contributions! See CONTRIBUTING.md
+EOF
+}
+
 create_github_release() {
     local version="$1"
     local response
 
     log_step "Creating GitHub release for version $version"
 
-    if [ "$DRY_RUN" = "true" ]; then
-        log_info "[DRY RUN] Would create GitHub release for $version"
-        return 0
-    fi
+    # Generate custom release notes (installation guide, etc.)
+    local custom_notes=$(generate_custom_release_notes "$version")
+    
+    # Escape the body for JSON
+    local escaped_body=$(echo "$custom_notes" | jq -Rs .)
 
-    # Validate JSON first
+    # Use GitHub's auto-generate feature combined with our custom notes
     local release_data=$(cat << EOF
 {
   "tag_name": "$version",
   "target_commitish": "main",
-  "name": "$version",
-  "body": "## What's Changed\\n\\n*This section will be automatically populated by GitHub's release notes generator.*\\n\\n## Installation\\n\\n### Linux/macOS\\n\`\`\`bash\\nwget https://github.com/$GITHUB_REPO/releases/download/$version/robustmq-$version-linux-amd64.tar.gz\\ntar -xzf robustmq-$version-linux-amd64.tar.gz\\ncd robustmq-$version-linux-amd64\\n./bin/robust-server start\\n\`\`\`\\n\\n### Windows\\nDownload the Windows package and extract it to run the server.\\n\\n### Docker (Coming Soon)\\n\`\`\`bash\\ndocker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:$version\\n\`\`\`\\n\\n## Documentation\\n\\n- [📖 Documentation](https://robustmq.com/)\\n- [🚀 Quick Start Guide](https://github.com/$GITHUB_REPO/docs)\\n- [🔧 MQTT Guide](https://github.com/$GITHUB_REPO/docs)\\n\\nFor more information, visit: https://github.com/$GITHUB_REPO",
+  "name": "RobustMQ $version",
+  "body": $escaped_body,
   "draft": false,
   "prerelease": false,
   "generate_release_notes": true
@@ -344,46 +397,15 @@ create_github_release() {
 EOF
 )
 
-    # Validate JSON syntax
-    if ! echo "$release_data" | jq . >/dev/null 2>&1; then
-        log_error "Invalid JSON in release data"
-        log_error "JSON: $release_data"
-        return 1
-    fi
-
-    log_debug "Making GitHub API request to create release..."
     response=$(github_api_request "POST" "/releases" "$release_data")
-    local api_exit_code=$?
-
-    if [ $api_exit_code -ne 0 ]; then
-        log_error "GitHub API request failed with exit code $api_exit_code"
-        return 1
-    fi
 
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
         local release_id=$(echo "$response" | jq -r '.id')
-        local release_url=$(echo "$response" | jq -r '.html_url // empty')
-        log_success "GitHub release created successfully"
-        log_info "Release ID: $release_id"
-        if [ -n "$release_url" ]; then
-            log_info "Release URL: $release_url"
-        fi
+        log_success "GitHub release created successfully (ID: $release_id)"
+        log_info "GitHub has automatically generated PR and contributor information"
         echo "$release_id"
     else
         log_error "Failed to create GitHub release"
-        log_error "Response: $response"
-
-        # Try to extract error message
-        if echo "$response" | jq -e '.message' >/dev/null 2>&1; then
-            local error_msg=$(echo "$response" | jq -r '.message')
-            log_error "GitHub API error: $error_msg"
-        fi
-
-        if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
-            local errors=$(echo "$response" | jq -r '.errors[]?.message // empty' | tr '\n' '; ')
-            log_error "Validation errors: $errors"
-        fi
-
         return 1
     fi
 }
@@ -402,126 +424,54 @@ get_release_id() {
     fi
 }
 
-upload_release_asset() {
-    local release_id="$1"
-    local file_path="$2"
-    local filename="$(basename "$file_path")"
+build_package() {
+    local version="$1"
+    local platform="$2"
 
-    if [ ! -f "$file_path" ]; then
-        log_error "File not found: $file_path"
+    log_step "Building package for $platform"
+
+    local build_cmd="$SCRIPT_DIR/build.sh --version $version --with-frontend"
+
+    if ! $build_cmd; then
+        log_error "Failed to build package"
         return 1
     fi
 
-    log_info "Uploading $filename to release..."
+    log_success "Package built successfully"
+}
 
-    if [ "$DRY_RUN" = "true" ]; then
-        log_info "[DRY RUN] Would upload $filename"
-        return 0
+upload_package() {
+    local version="$1"
+    local release_id="$2"
+    local platform="$3"
+    local build_dir="$PROJECT_ROOT/build"
+
+    log_step "Uploading package to GitHub release"
+
+    local tarball="$build_dir/robustmq-$version-$platform.tar.gz"
+
+    if [ ! -f "$tarball" ]; then
+        log_error "Package not found: $tarball"
+        return 1
     fi
 
+    local filename="$(basename "$tarball")"
     local upload_url="https://uploads.github.com/repos/$GITHUB_REPO/releases/$release_id/assets?name=$filename"
+
+    log_info "Uploading $filename..."
 
     local response=$(curl -s \
         -H "Authorization: token $GITHUB_TOKEN" \
         -H "Content-Type: application/gzip" \
-        --data-binary "@$file_path" \
+        --data-binary "@$tarball" \
         "$upload_url")
 
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
         log_success "Successfully uploaded $filename"
     else
         log_error "Failed to upload $filename"
-        log_error "Response: $response"
         return 1
     fi
-}
-
-build_packages() {
-    local version="$1"
-
-    log_step "Building packages for version $version"
-
-    local build_cmd="$SCRIPT_DIR/build.sh --version $version"
-
-    if [ "$PLATFORM" != "all" ]; then
-        build_cmd="$build_cmd --platform $PLATFORM"
-    else
-        build_cmd="$build_cmd --all-platforms"
-    fi
-
-    if [ "$DRY_RUN" = "true" ]; then
-        build_cmd="$build_cmd --dry-run"
-    fi
-
-    if [ "$VERBOSE" = "true" ]; then
-        build_cmd="$build_cmd --verbose"
-    fi
-
-    log_info "Running: $build_cmd"
-
-    if ! $build_cmd; then
-        log_error "Failed to build packages"
-        return 1
-    fi
-
-    log_success "Packages built successfully"
-}
-
-upload_packages() {
-    local version="$1"
-    local release_id="$2"
-    local build_dir="$PROJECT_ROOT/build"
-
-    log_step "Uploading packages to GitHub release"
-
-    if [ ! -d "$build_dir" ]; then
-        log_error "Build directory not found: $build_dir"
-        return 1
-    fi
-
-    local uploaded_count=0
-    local failed_count=0
-
-    for tarball in "$build_dir"/robustmq-$version-*.tar.gz; do
-        if [ -f "$tarball" ]; then
-            if upload_release_asset "$release_id" "$tarball"; then
-                ((uploaded_count++))
-            else
-                ((failed_count++))
-            fi
-        fi
-    done
-
-    # Note: SHA256 checksum files are generated by build.sh but not uploaded to GitHub Release
-    # They are available locally for manual verification if needed
-
-    if [ $uploaded_count -gt 0 ]; then
-        log_success "Uploaded $uploaded_count files successfully"
-    fi
-
-    if [ $failed_count -gt 0 ]; then
-        log_error "Failed to upload $failed_count files"
-        return 1
-    fi
-
-    if [ $uploaded_count -eq 0 ]; then
-        log_warning "No packages found to upload in $build_dir"
-        log_info "Expected pattern: robustmq-$version-*.tar.gz"
-        return 1
-    fi
-}
-
-show_release_info() {
-    echo
-    log_step "Release Configuration"
-    log_info "Version: $VERSION"
-    log_info "Platform: $PLATFORM"
-    log_info "GitHub Repository: $GITHUB_REPO"
-    log_info "Skip Build: $SKIP_BUILD"
-    if [ "$DRY_RUN" = "true" ]; then
-        log_warning "DRY RUN MODE - No actual changes will be made"
-    fi
-    echo
 }
 
 main() {
@@ -536,32 +486,12 @@ main() {
                 VERSION="$2"
                 shift 2
                 ;;
-            -p|--platform)
-                PLATFORM="$2"
-                shift 2
-                ;;
             -t|--token)
                 GITHUB_TOKEN="$2"
                 shift 2
                 ;;
-            -r|--repo)
-                GITHUB_REPO="$2"
-                shift 2
-                ;;
-            --dry-run)
-                DRY_RUN="true"
-                shift
-                ;;
-            --force)
-                FORCE="true"
-                shift
-                ;;
-            --skip-build)
-                SKIP_BUILD="true"
-                shift
-                ;;
-            --verbose)
-                VERBOSE="true"
+            --upload-only)
+                UPLOAD_ONLY="true"
                 shift
                 ;;
             *)
@@ -578,7 +508,6 @@ main() {
         if [ $? -ne 0 ]; then
             exit 1
         fi
-        log_debug "Extracted version from Cargo.toml: $VERSION"
     fi
 
     # Ensure version has 'v' prefix
@@ -586,77 +515,73 @@ main() {
         VERSION="v$VERSION"
     fi
 
-    # Detect current platform if auto
-    if [ "$PLATFORM" = "auto" ]; then
-        PLATFORM=$(detect_current_platform)
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        log_debug "Detected current platform: $PLATFORM"
+    # Detect current platform
+    local platform=$(detect_current_platform)
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
 
-    # Show header
-    if [ "$DRY_RUN" != "true" ]; then
-        echo -e "${BOLD}${BLUE}🚀 RobustMQ Release Script${NC}"
-    else
-        echo -e "${BOLD}${YELLOW}🔍 RobustMQ Release Script (DRY RUN)${NC}"
-    fi
-
-    show_release_info
+    # Show configuration
+    echo -e "${BOLD}${BLUE}🚀 RobustMQ Release Script (Simplified)${NC}"
+    echo
+    log_info "Version: $VERSION"
+    log_info "Platform: $platform"
+    log_info "Repository: $GITHUB_REPO"
+    log_info "Upload Only: $UPLOAD_ONLY"
+    echo
 
     # Check dependencies and authentication
     log_step "Checking dependencies..."
     check_dependencies
     check_github_token
 
-    # Check if release already exists
-    log_step "Checking if release exists..."
-    local release_exists=$(check_release_exists "$VERSION")
     local release_id=""
 
-    if [ "$release_exists" = "true" ]; then
-        if [ "$FORCE" = "true" ]; then
-            log_warning "Release $VERSION exists but --force specified, continuing..."
-        else
-            log_info "Release $VERSION already exists, skipping creation"
+    if [ "$UPLOAD_ONLY" = "true" ]; then
+        # Upload-only mode: check if release exists
+        log_step "Checking if release exists..."
+        local release_exists=$(check_release_exists "$VERSION")
+        
+        if [ "$release_exists" != "true" ]; then
+            log_error "Release $VERSION does not exist"
+            log_error "Upload-only mode requires an existing release"
+            exit 1
         fi
+        
         release_id=$(get_release_id "$VERSION")
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
+        log_success "Release $VERSION exists (ID: $release_id)"
     else
-        # Create new release
-        release_id=$(create_github_release "$VERSION")
-        if [ $? -ne 0 ]; then
-            exit 1
+        # Normal mode: create release if it doesn't exist
+        log_step "Checking if release exists..."
+        local release_exists=$(check_release_exists "$VERSION")
+        
+        if [ "$release_exists" = "true" ]; then
+            log_info "Release $VERSION already exists"
+            release_id=$(get_release_id "$VERSION")
+        else
+            release_id=$(create_github_release "$VERSION")
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
         fi
     fi
 
-    # Build packages if not skipping
-    if [ "$SKIP_BUILD" != "true" ]; then
-        build_packages "$VERSION"
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-    else
-        log_info "Skipping package build as requested"
+    # Build package
+    build_package "$VERSION" "$platform"
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
 
-    # Upload packages to release
-    upload_packages "$VERSION" "$release_id"
+    # Upload package
+    upload_package "$VERSION" "$release_id" "$platform"
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
     # Show completion message
-    if [ "$DRY_RUN" != "true" ]; then
-        echo
-        log_success "Release $VERSION completed successfully!"
-        log_info "GitHub Release: https://github.com/$GITHUB_REPO/releases/tag/$VERSION"
-    else
-        echo
-        log_info "Dry run completed. No actual changes were made."
-    fi
+    echo
+    log_success "Operation completed successfully!"
+    log_info "GitHub Release: https://github.com/$GITHUB_REPO/releases/tag/$VERSION"
 }
 
 # Run main function

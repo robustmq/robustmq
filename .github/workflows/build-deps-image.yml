@@ -1,0 +1,156 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build Dependency Image
+
+on:
+  # Trigger when Cargo.lock or related files change
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - '**/Cargo.toml'
+      - 'docker/deps/**'
+      - 'scripts/build-and-push-deps.sh'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (default: latest)'
+        required: false
+        default: 'latest'
+      no_cache:
+        description: 'Force rebuild without cache'
+        required: false
+        type: boolean
+        default: false
+
+  # Optional: weekly rebuild to keep image fresh
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+
+jobs:
+  build-and-push:
+    name: Build and Push Dependency Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours timeout (plenty of time for 30-min build)
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine build parameters
+        id: params
+        run: |
+          # Determine tag
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+          # Determine cache flag
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.no_cache }}" = "true" ]; then
+            echo "Building with --no-cache flag"
+            echo "cache_flag=--no-cache" >> $GITHUB_OUTPUT
+          else
+            echo "Building with cache"
+            echo "cache_flag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Free up disk space
+        run: |
+          echo "📊 Disk space before cleanup:"
+          df -h
+
+          # Remove unnecessary packages to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+          echo "📊 Disk space after cleanup:"
+          df -h
+
+      - name: Build and push dependency image
+        run: |
+          echo "🚀 Building dependency image..."
+          echo "📋 Parameters:"
+          echo "  • Tag: ${{ steps.params.outputs.tag }}"
+          echo "  • Cache: ${{ steps.params.outputs.cache_flag || 'enabled' }}"
+          echo "  • Trigger: ${{ github.event_name }}"
+          echo ""
+
+          if [ -n "${{ steps.params.outputs.cache_flag }}" ]; then
+            make docker-deps-force TAG=${{ steps.params.outputs.tag }}
+          else
+            make docker-deps-tag TAG=${{ steps.params.outputs.tag }}
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image
+        run: |
+          echo "✅ Verifying pushed image..."
+          docker pull ghcr.io/robustmq/robustmq/rust-deps:${{ steps.params.outputs.tag }}
+          docker images ghcr.io/robustmq/robustmq/rust-deps:${{ steps.params.outputs.tag }}
+
+      - name: Image information
+        run: |
+          echo "📦 Image built and pushed successfully!"
+          echo ""
+          echo "Image: ghcr.io/robustmq/robustmq/rust-deps:${{ steps.params.outputs.tag }}"
+          echo "Size: $(docker images ghcr.io/robustmq/robustmq/rust-deps:${{ steps.params.outputs.tag }} --format '{{.Size}}')"
+          echo ""
+          echo "🎯 Next steps:"
+          echo "  • CI workflows will automatically use this image"
+          echo "  • No manual intervention needed"
+          echo "  • Build time should be reduced by 70-80%"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Cleaning up..."
+          docker system prune -f
+          echo "✅ Cleanup completed"
+
+      - name: Report build time
+        if: always()
+        run: |
+          echo "⏱️ Build completed in: ${{ job.status }}"
+          echo "📊 Final disk space:"
+          df -h

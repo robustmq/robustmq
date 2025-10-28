@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{path::*, response::PageReplyData};
+use crate::{path::*, tool::PageReplyData};
 use common_base::http_response::AdminServerResponse;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -196,16 +196,6 @@ impl AdminHttpClient {
             .await
     }
 
-    /// Get cluster metrics
-    pub async fn get_cluster_metrics<T, R>(&self, request: &T) -> Result<R, HttpClientError>
-    where
-        T: Serialize,
-        R: for<'de> Deserialize<'de>,
-    {
-        self.post(&api_path(MQTT_OVERVIEW_METRICS_PATH), request)
-            .await
-    }
-
     /// Get client list
     pub async fn get_client_list<T, R>(
         &self,
@@ -240,6 +230,15 @@ impl AdminHttpClient {
         R: for<'de> Deserialize<'de>,
     {
         self.post(&api_path(MQTT_TOPIC_LIST_PATH), request).await
+    }
+
+    /// Get topic detail
+    pub async fn get_topic_detail<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(MQTT_TOPIC_DETAIL_PATH), request).await
     }
 
     /// Get subscription list

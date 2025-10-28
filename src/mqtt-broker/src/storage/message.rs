@@ -43,10 +43,10 @@ impl MessageStorage {
 
     pub async fn append_topic_message(
         &self,
-        topic_id: &str,
+        topic_name: &str,
         record: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        let shard_name = topic_id;
+        let shard_name = topic_name;
         let namespace = cluster_name();
         let results = self
             .storage_adapter
@@ -57,11 +57,11 @@ impl MessageStorage {
 
     pub async fn read_topic_message(
         &self,
-        topic_id: &str,
+        topic_name: &str,
         offset: u64,
         record_num: u64,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_name = topic_id;
+        let shard_name = topic_name;
         let namespace = cluster_name();
         let mut read_config = ReadConfig::new();
         read_config.max_record_num = record_num;
@@ -93,10 +93,10 @@ impl MessageStorage {
     pub async fn commit_group_offset(
         &self,
         group_id: &str,
-        topic_id: &str,
+        topic_name: &str,
         offset: u64,
     ) -> Result<(), CommonError> {
-        let shard_name = topic_id;
+        let shard_name = topic_name;
         let namespace = cluster_name();
 
         let mut offset_data = HashMap::new();

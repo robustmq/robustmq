@@ -20,3 +20,5 @@ license.workspace = true
 
 [dependencies]
 governor.workspace = true
+dashmap.workspace = true
+common-base.workspace = true

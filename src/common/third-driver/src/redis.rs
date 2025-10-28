@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use r2d2_redis::{r2d2::Pool, RedisConnectionManager};
+use r2d2::Pool;
 
-pub type RedisPool = Pool<RedisConnectionManager>;
+pub type RedisPool = Pool<redis::Client>;
 
 pub fn build_redis_conn_pool(addr: &str) -> Result<RedisPool, CommonError> {
-    let manager = RedisConnectionManager::new(addr)
+    let client = redis::Client::open(addr)
         .map_err(|e| CommonError::CommonError(format!("Invalid Redis connection string: {}", e)))?;
 
-    match Pool::new(manager) {
+    match Pool::builder().build(client) {
         Ok(pool) => Ok(pool),
         Err(e) => Err(CommonError::CommonError(e.to_string())),
     }

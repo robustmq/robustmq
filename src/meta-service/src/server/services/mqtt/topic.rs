@@ -18,6 +18,7 @@ use crate::controller::mqtt::call_broker::{
 use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -25,12 +26,13 @@ use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,
-    GetTopicRetainMessageRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetLastWillMessageReply,
+    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
 use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;
@@ -123,29 +125,23 @@ pub async fn set_topic_retain_message_by_req(
 ) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    let mut topic = topic_storage
+    topic_storage
         .get(&req.cluster_name, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     // Update retain message fields
     if req.retain_message.is_empty() {
-        topic.retain_message = None;
-        topic.retain_message_expired_at = None;
-    } else {
-        topic.retain_message = Some(req.retain_message.clone());
-        topic.retain_message_expired_at = Some(req.retain_message_expired_at);
+        let data = StorageData::new(
+            StorageDataType::MqttDeleteRetainMessage,
+            SetTopicRetainMessageRequest::encode_to_vec(req),
+        );
+        raft_machine_apply.client_write(data).await?;
+        return Ok(SetTopicRetainMessageReply {});
     }
 
-    let topic_vec = serde_json::to_vec(&topic)?;
-    let request = CreateTopicRequest {
-        cluster_name: req.cluster_name.clone(),
-        topic_name: req.topic_name.clone(),
-        content: topic_vec,
-    };
-
     let data = StorageData::new(
-        StorageDataType::MqttSetTopic,
-        CreateTopicRequest::encode_to_vec(&request),
+        StorageDataType::MqttSetRetainMessage,
+        SetTopicRetainMessageRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -157,13 +153,17 @@ pub async fn get_topic_retain_message_by_req(
     req: &GetTopicRetainMessageRequest,
 ) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    let topic = topic_storage
-        .get(&req.cluster_name, &req.topic_name)?
-        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
+
+    if let Some(message) = topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
+        return Ok(GetTopicRetainMessageReply {
+            retain_message: message.retain_message,
+            retain_message_expired_at: message.retain_message_expired_at,
+        });
+    }
 
     Ok(GetTopicRetainMessageReply {
-        retain_message: topic.retain_message.clone(),
-        retain_message_expired_at: topic.retain_message_expired_at,
+        retain_message: String::new(),
+        retain_message_expired_at: 0,
     })
 }
 
@@ -178,6 +178,22 @@ pub async fn save_last_will_message_by_req(
 
     raft_machine_apply.client_write(data).await?;
     Ok(SaveLastWillMessageReply {})
+}
+
+pub async fn get_last_will_message_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &GetLastWillMessageRequest,
+) -> Result<GetLastWillMessageReply, MetaServiceError> {
+    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
+    if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
+        return Ok(GetLastWillMessageReply {
+            message: will.encode(),
+        });
+    }
+
+    Ok(GetLastWillMessageReply {
+        message: Vec::new(),
+    })
 }
 
 pub async fn create_topic_rewrite_rule_by_req(

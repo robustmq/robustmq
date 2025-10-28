@@ -32,7 +32,7 @@ use protocol::meta::meta_service_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
     ListSchemaRequest, UnBindSchemaRequest, UpdateSchemaRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub fn list_schema_req(

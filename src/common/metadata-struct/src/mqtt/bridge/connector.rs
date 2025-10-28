@@ -22,7 +22,7 @@ pub struct MQTTConnector {
     pub connector_name: String,
     pub connector_type: ConnectorType,
     pub config: String,
-    pub topic_id: String,
+    pub topic_name: String,
     pub status: MQTTStatus,
     pub broker_id: Option<u64>,
     pub create_time: u64,

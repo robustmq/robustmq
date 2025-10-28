@@ -31,16 +31,16 @@ use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 
 use crate::core::error::MetaServiceError;
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
-};
 use crate::storage::keys::{
     storage_key_mqtt_auto_subscribe_rule, storage_key_mqtt_auto_subscribe_rule_prefix,
     storage_key_mqtt_subscribe, storage_key_mqtt_subscribe_client_id_prefix,
     storage_key_mqtt_subscribe_cluster_prefix,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 pub struct MqttSubscribeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -60,7 +60,7 @@ impl MqttSubscribeStorage {
         subscribe: MqttSubscribe,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, subscribe)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, subscribe)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
@@ -135,7 +135,7 @@ impl MqttSubscribeStorage {
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
-        engine_save_by_cluster(
+        engine_save_by_meta(
             self.rocksdb_engine_handler.clone(),
             key,
             auto_subscribe_rule,
@@ -171,13 +171,13 @@ impl MqttSubscribeStorage {
 #[cfg(test)]
 mod tests {
     use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
-    use broker_core::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
     use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
     use protocol::mqtt::common::{Filter, QoS, RetainHandling};
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
 
     #[tokio::test]

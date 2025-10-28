@@ -99,6 +99,7 @@ impl Authentication for Plaintext {
 
 #[cfg(test)]
 mod test {
+    use common_base::tools::now_second;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;
     use std::sync::Arc;
@@ -110,7 +111,7 @@ mod test {
 
     #[tokio::test]
     pub async fn plaintext_test() {
-        let cache_manager: Arc<MQTTCacheManager> = test_build_mqtt_cache_manager();
+        let cache_manager: Arc<MQTTCacheManager> = test_build_mqtt_cache_manager().await;
         let username = "lobo".to_string();
         let password = "pwd123".to_string();
         let user = MqttUser {
@@ -118,6 +119,7 @@ mod test {
             password: password.clone(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 

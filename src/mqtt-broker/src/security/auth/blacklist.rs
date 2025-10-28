@@ -130,14 +130,15 @@ mod test {
         user: MqttUser,
     }
 
-    fn setup() -> TestFixture {
-        let cache_manager = test_build_mqtt_cache_manager();
+    async fn setup() -> TestFixture {
+        let cache_manager = test_build_mqtt_cache_manager().await;
 
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
 
         cache_manager.add_user(user.clone());
@@ -183,13 +184,13 @@ mod test {
 
     #[tokio::test]
     async fn test_not_blacklist_default() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert!(!is_blacklist(&fixture.cache_manager, &fixture.connection).unwrap_or(true))
     }
 
     #[tokio::test]
     async fn test_blacklist_client_id() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert_is_blacklisted(
             &fixture,
             MqttAclBlackListType::ClientId,
@@ -199,7 +200,7 @@ mod test {
 
     #[tokio::test]
     async fn test_blacklist_user() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert_is_blacklisted(
             &fixture,
             MqttAclBlackListType::User,
@@ -209,7 +210,7 @@ mod test {
 
     #[tokio::test]
     async fn test_blacklist_ip() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert_is_blacklisted(
             &fixture,
             MqttAclBlackListType::Ip,
@@ -219,7 +220,7 @@ mod test {
 
     #[tokio::test]
     async fn test_blacklist_client_id_match() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert_is_blacklisted(
             &fixture,
             MqttAclBlackListType::ClientIdMatch,
@@ -229,7 +230,7 @@ mod test {
 
     #[tokio::test]
     async fn test_blacklist_user_match() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert_is_blacklisted(
             &fixture,
             MqttAclBlackListType::UserMatch,
@@ -239,7 +240,7 @@ mod test {
 
     #[tokio::test]
     async fn test_blacklist_ip_cidr() {
-        let fixture = setup();
+        let fixture = setup().await;
         assert_is_blacklisted(
             &fixture,
             MqttAclBlackListType::IPCIDR,

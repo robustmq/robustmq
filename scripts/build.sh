@@ -13,20 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# RobustMQ Build Script
+# RobustMQ Build Script (Simplified)
 #
-# This script builds and packages RobustMQ for different operating systems and architectures.
-# It supports both server and operator components with cross-compilation capabilities.
+# This script builds and packages RobustMQ for the current system only.
 #
 # Usage:
 #   ./build.sh [OPTIONS]
 #
 # Examples:
-#   ./build.sh                           # Build for current platform
-#   ./build.sh --platform linux-amd64   # Build for specific platform
-#   ./build.sh --component server        # Build only server component
-#   ./build.sh --all-platforms           # Build for all supported platforms
-#   ./build.sh --version v0.1.0         # Build with specific version
+#   ./build.sh                    # Build for current platform
+#   ./build.sh --version v0.1.0  # Build with specific version
+#   ./build.sh --with-frontend   # Build with frontend
 
 set -euo pipefail
 
@@ -36,7 +33,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
@@ -44,163 +40,90 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Configuration variables
-VERSION="${VERSION:-$(git describe --tags --always 2>/dev/null || echo 'dev')}"
-COMPONENT="${COMPONENT:-server}"  # server, operator, or all
-PLATFORM="${PLATFORM:-auto}"  # auto, specific platform, or all
-BUILD_TYPE="${BUILD_TYPE:-release}"  # release or debug
+# Configuration variables (simplified)
+VERSION="${VERSION:-}"
+BUILD_FRONTEND="${BUILD_FRONTEND:-false}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/build}"
-CLEAN="${CLEAN:-false}"
-VERBOSE="${VERBOSE:-false}"
-DRY_RUN="${DRY_RUN:-false}"
-PARALLEL="${PARALLEL:-true}"
-
-# Global state variables
-FRONTEND_BUILT="${FRONTEND_BUILT:-false}"
-
-# Platform mappings (compatible with bash 3.2+)
-get_rust_target() {
-    case "$1" in
-        "linux-amd64") echo "x86_64-unknown-linux-gnu" ;;
-        "linux-amd64-musl") echo "x86_64-unknown-linux-musl" ;;
-        "linux-arm64") echo "aarch64-unknown-linux-gnu" ;;
-        "linux-arm64-musl") echo "aarch64-unknown-linux-musl" ;;
-        "linux-armv7") echo "armv7-unknown-linux-gnueabihf" ;;
-        "darwin-amd64") echo "x86_64-apple-darwin" ;;
-        "darwin-arm64") echo "aarch64-apple-darwin" ;;
-        "windows-amd64") echo "x86_64-pc-windows-gnu" ;;
-        "windows-386") echo "i686-pc-windows-gnu" ;;
-        "windows-arm64") echo "aarch64-pc-windows-gnullvm" ;;
-        "freebsd-amd64") echo "x86_64-unknown-freebsd" ;;
-        *) echo "" ;;
-    esac
-}
-
-get_go_target() {
-    case "$1" in
-        "linux-amd64") echo "linux/amd64" ;;
-        "linux-arm64") echo "linux/arm64" ;;
-        "linux-armv7") echo "linux/arm" ;;
-        "darwin-amd64") echo "darwin/amd64" ;;
-        "darwin-arm64") echo "darwin/arm64" ;;
-        "windows-amd64") echo "windows/amd64" ;;
-        "windows-386") echo "windows/386" ;;
-        "freebsd-amd64") echo "freebsd/amd64" ;;
-        *) echo "" ;;
-    esac
-}
-
-# Default platforms to build when --all-platforms is specified
-ALL_PLATFORMS=(
-    "linux-amd64"
-    "linux-arm64"
-    "darwin-amd64"
-    "darwin-arm64"
-    "windows-amd64"
-)
 
 # Helper functions
-timestamp() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
 log_info() {
-    echo -e "${BLUE}[$(timestamp)] ℹ️  $1${NC}"
+    echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
 log_success() {
-    echo -e "${GREEN}[$(timestamp)] ✅ $1${NC}"
+    echo -e "${GREEN}✅ $1${NC}"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[$(timestamp)] ⚠️  $1${NC}"
+    echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
 log_error() {
-    echo -e "${RED}[$(timestamp)] ❌ Error: $1${NC}" >&2
+    echo -e "${RED}❌ $1${NC}" >&2
 }
 
 log_step() {
-    echo -e "${BOLD}${PURPLE}[$(timestamp)] 🚀 $1${NC}"
-}
-
-log_debug() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo -e "${CYAN}[$(timestamp)] 🔍 $1${NC}"
-    fi
+    echo -e "${BOLD}${PURPLE}🚀 $1${NC}"
 }
 
 show_help() {
-    echo -e "${BOLD}${BLUE}RobustMQ Build Script${NC}"
+    echo -e "${BOLD}${BLUE}RobustMQ Build Script (Simplified)${NC}"
     echo
     echo -e "${BOLD}USAGE:${NC}"
     echo "    $0 [OPTIONS]"
     echo
     echo -e "${BOLD}OPTIONS:${NC}"
-    echo "    -h, --help                  Show this help message"
-    echo "    -v, --version VERSION       Build version (default: auto-detect from git)"
-    echo "    -c, --component COMP        Component to build: server, operator, or all (default: server)"
-    echo "    -p, --platform PLATFORM    Target platform (default: auto-detect)"
-    echo "    -a, --all-platforms         Build for all supported platforms"
-    echo "    -t, --type TYPE            Build type: release or debug (default: release)"
-    echo "    -o, --output DIR           Output directory (default: ./build)"
-    echo "    --clean                    Clean output directory before building"
-    echo "    --verbose                  Enable verbose output"
-    echo "    --dry-run                  Show what would be built without actually building"
-    echo "    --no-parallel              Disable parallel builds"
-    echo
-    echo -e "${BOLD}PLATFORMS:${NC}"
-    echo "    linux-amd64               Linux x86_64"
-    echo "    linux-amd64-musl          Linux x86_64 (musl)"
-    echo "    linux-arm64               Linux ARM64"
-    echo "    linux-arm64-musl          Linux ARM64 (musl)"
-    echo "    linux-armv7               Linux ARMv7"
-    echo "    darwin-amd64              macOS x86_64"
-    echo "    darwin-arm64              macOS ARM64 (Apple Silicon)"
-    echo "    windows-amd64             Windows x86_64"
-    echo "    windows-386               Windows x86"
-    echo "    windows-arm64             Windows ARM64"
-    echo "    freebsd-amd64             FreeBSD x86_64"
-    echo
-    echo -e "${BOLD}COMPONENTS:${NC}"
-    echo "    server                    RobustMQ server binaries (Rust) with embedded web UI"
-    echo "    operator                  RobustMQ Kubernetes operator (Go)"
-    echo "    all                       Both server and operator components"
-    echo
-    echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
-    echo "    VERSION                   Build version"
-    echo "    COMPONENT                 Component to build"
-    echo "    PLATFORM                  Target platform"
-    echo "    BUILD_TYPE                Build type (release/debug)"
-    echo "    OUTPUT_DIR                Output directory"
-    echo "    CLEAN                     Clean before build (true/false)"
-    echo "    VERBOSE                   Verbose output (true/false)"
-    echo "    DRY_RUN                   Dry run mode (true/false)"
-    echo "    PARALLEL                  Parallel builds (true/false)"
+    echo "    -h, --help              Show this help message"
+    echo "    -v, --version VERSION   Build version (default: auto-detect from Cargo.toml)"
+    echo "    --with-frontend         Build with frontend"
+    echo "    --clean                 Clean build directory before building"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
-    echo "    # Build for current platform (server only)"
+    echo "    # Build for current platform"
     echo "    $0"
     echo
-    echo "    # Build specific component for specific platform"
-    echo "    $0 --component server --platform linux-amd64"
+    echo "    # Build with specific version"
+    echo "    $0 --version v0.1.30"
     echo
-    echo "    # Build all platforms"
-    echo "    $0 --all-platforms"
+    echo "    # Build with frontend"
+    echo "    $0 --with-frontend"
     echo
-    echo "    # Build with custom version"
-    echo "    $0 --version v1.0.0"
     echo
-    echo "    # Build for development (debug mode)"
-    echo "    $0 --type debug"
-    echo
-    echo "    # Clean build"
-    echo "    $0 --clean"
-    echo
-    echo "    # Dry run to see what would be built"
-    echo "    $0 --dry-run --all-platforms"
-    echo
-    echo "For more information, visit: https://github.com/robustmq/robustmq"
+    echo -e "${BOLD}NOTES:${NC}"
+    echo "    - Always builds for current platform only"
+    echo "    - Output directory: $OUTPUT_DIR"
+}
+
+extract_version_from_cargo() {
+    local cargo_file="$PROJECT_ROOT/Cargo.toml"
+
+    if [ ! -f "$cargo_file" ]; then
+        log_error "Cargo.toml not found at $cargo_file"
+        return 1
+    fi
+
+    local version=""
+    
+    # Method 1: Look for workspace.package version
+    version=$(grep -A 10 "^\[workspace\.package\]" "$cargo_file" | grep "^version" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    
+    # Method 2: Look for regular package version if workspace version not found
+    if [ -z "$version" ]; then
+        version=$(grep -A 10 "^\[package\]" "$cargo_file" | grep "^version" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    fi
+    
+    # Method 3: Simple fallback
+    if [ -z "$version" ]; then
+        version=$(grep "^version\s*=" "$cargo_file" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    fi
+
+    if [ -z "$version" ]; then
+        log_error "Could not extract version from Cargo.toml"
+        log_error "Please ensure version is defined in [package] or [workspace.package] section"
+        return 1
+    fi
+
+    echo "$version"
 }
 
 detect_current_platform() {
@@ -212,12 +135,6 @@ detect_current_platform() {
             ;;
         Linux)
             os_type="linux"
-            ;;
-        MINGW*|MSYS*|CYGWIN*)
-            os_type="windows"
-            ;;
-        FreeBSD)
-            os_type="freebsd"
             ;;
         *)
             log_error "Unsupported OS: $(uname -s)"
@@ -232,12 +149,6 @@ detect_current_platform() {
         arm64|aarch64)
             arch_type="arm64"
             ;;
-        armv7l)
-            arch_type="armv7"
-            ;;
-        i386|i686)
-            arch_type="386"
-            ;;
         *)
             log_error "Unsupported architecture: $(uname -m)"
             return 1
@@ -247,239 +158,215 @@ detect_current_platform() {
     echo "${os_type}-${arch_type}"
 }
 
+get_rust_target() {
+    local platform="$1"
+    case "$platform" in
+        "linux-amd64") echo "x86_64-unknown-linux-gnu" ;;
+        "linux-arm64") echo "aarch64-unknown-linux-gnu" ;;
+        "darwin-amd64") echo "x86_64-apple-darwin" ;;
+        "darwin-arm64") echo "aarch64-apple-darwin" ;;
+        *) 
+            log_error "Unsupported platform: $platform"
+            return 1
+            ;;
+    esac
+}
+
 check_dependencies() {
-    local missing_deps=()
-
-    # Check for required tools
-    if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
-        if ! command -v cargo >/dev/null 2>&1; then
-            missing_deps+=("cargo (Rust)")
-        fi
-        if ! command -v rustup >/dev/null 2>&1; then
-            missing_deps+=("rustup")
-        fi
-    fi
-
-    if [ "$COMPONENT" = "operator" ] || [ "$COMPONENT" = "all" ]; then
-        if ! command -v go >/dev/null 2>&1; then
-            missing_deps+=("go")
-        fi
-    fi
-
-    # Frontend dependencies are checked in build_frontend function when needed
-
-    if ! command -v tar >/dev/null 2>&1; then
-        missing_deps+=("tar")
-    fi
-
-    if ! command -v git >/dev/null 2>&1; then
-        missing_deps+=("git")
-    fi
-
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        log_error "Missing required dependencies: ${missing_deps[*]}"
-        log_info "Please install the missing dependencies and try again."
+    if ! command -v cargo >/dev/null 2>&1; then
+        log_error "cargo not found. Please install Rust."
+        echo
+        log_info "Installation instructions:"
+        log_info "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        log_info "  source ~/.cargo/env"
+        log_info "  Or visit: https://rustup.rs/"
+        echo
         return 1
     fi
+
+    if ! command -v rustup >/dev/null 2>&1; then
+        log_error "rustup not found. Please install Rust."
+        echo
+        log_info "Installation instructions:"
+        log_info "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        log_info "  source ~/.cargo/env"
+        log_info "  Or visit: https://rustup.rs/"
+        echo
+        return 1
+    fi
+
+    if [ "$BUILD_FRONTEND" = "true" ]; then
+        if ! command -v pnpm >/dev/null 2>&1; then
+            log_error "pnpm not found. Please install pnpm for frontend build."
+            echo
+            log_info "Installation instructions:"
+            log_info "  macOS:   brew install pnpm"
+            log_info "  Linux:   curl -fsSL https://get.pnpm.io/install.sh | sh -"
+            log_info "  Windows: npm install -g pnpm"
+            log_info "  Or visit: https://pnpm.io/installation"
+            echo
+            return 1
+        fi
+        
+        if ! command -v git >/dev/null 2>&1; then
+            log_error "git not found. Please install git for frontend repository cloning."
+            echo
+            log_info "Installation instructions:"
+            log_info "  macOS:   brew install git"
+            log_info "  Ubuntu:  sudo apt-get install git"
+            log_info "  CentOS:  sudo yum install git"
+            log_info "  Windows: Download from https://git-scm.com/"
+            echo
+            return 1
+        fi
+    fi
+
 }
 
 build_frontend() {
-    # Check if frontend is already built
-    if [ "$FRONTEND_BUILT" = "true" ]; then
-        log_info "Frontend already built, skipping..."
+    if [ "$BUILD_FRONTEND" != "true" ]; then
         return 0
     fi
+
+    log_step "Building frontend"
+
+    local frontend_dir="$PROJECT_ROOT/build/robustmq-copilot"
+    local frontend_repo="https://github.com/robustmq/robustmq-copilot.git"
     
-    log_step "Building frontend web UI"
-    
-    local copilot_dir="${PROJECT_ROOT}/build/robustmq-copilot"
-    local dist_dir="${copilot_dir}/packages/web-ui/dist"
-    
-    # Check if robustmq-copilot directory exists
-    if [ ! -d "$copilot_dir" ]; then
-        log_warning "Frontend directory does not exist, will clone from GitHub"
-        log_info "Cloning RobustMQ Copilot from GitHub..."
+    # Check if frontend directory exists, if not clone it
+    if [ ! -d "$frontend_dir" ]; then
+        log_info "Frontend directory not found, cloning from $frontend_repo"
         
-        if [ "$DRY_RUN" = "true" ]; then
-            log_debug "[DRY RUN] Would clone: git clone https://github.com/robustmq/robustmq-copilot.git $copilot_dir"
-            FRONTEND_BUILT="true"
-            return 0
-        fi
+        # Ensure build directory exists
+        mkdir -p "$PROJECT_ROOT/build"
         
-        if ! git clone https://github.com/robustmq/robustmq-copilot.git "$copilot_dir"; then
-            log_error "Failed to clone robustmq-copilot repository"
+        # Clone the frontend repository
+        if ! git clone "$frontend_repo" "$frontend_dir"; then
+            log_error "Failed to clone frontend repository from $frontend_repo"
             return 1
         fi
         
-        log_success "Successfully cloned robustmq-copilot"
-    else
-        log_info "Found existing robustmq-copilot directory"
+        log_success "Frontend repository cloned successfully"
     fi
+
+    # Always pull latest code before building
+    log_info "Updating frontend code to latest version"
+    cd "$frontend_dir"
+    if ! git pull origin main; then
+        log_warning "Failed to update frontend repository, continuing with existing code"
+    else
+        log_success "Frontend code updated successfully"
+    fi
+    cd "$PROJECT_ROOT"
+
+    cd "$frontend_dir"
     
-    # Check if pnpm is available
-    if ! command -v pnpm >/dev/null 2>&1; then
-        log_error "pnpm is required to build the frontend. Please install pnpm first."
-        log_info "Install pnpm: npm install -g pnpm"
+    if [ ! -f "package.json" ]; then
+        log_error "package.json not found in frontend directory"
         return 1
     fi
+
+    # Configure pnpm to use a local store directory to avoid permission issues
+    log_info "Configuring pnpm store directory..."
+    local pnpm_store_dir="$PROJECT_ROOT/build/.pnpm-store"
+    mkdir -p "$pnpm_store_dir"
     
-    if [ "$DRY_RUN" = "true" ]; then
-        log_debug "[DRY RUN] Would build frontend in: $copilot_dir"
-        FRONTEND_BUILT="true"
-        return 0
-    fi
+    # Set pnpm store path
+    export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
     
-    # Change to copilot directory and build
-    log_info "Building frontend with pnpm..."
-    (
-        cd "$copilot_dir" || exit 1
-        
-        # Update to latest code first
-        log_info "Updating robustmq-copilot to latest version..."
-        if ! git pull; then
-            log_warning "Failed to update robustmq-copilot, continuing with current version"
-        fi
-        
-        # Update submodules if they exist
-        if [ -f ".gitmodules" ]; then
-            log_info "Updating git submodules..."
-            if ! git submodule update --init --recursive; then
-                log_warning "Failed to update submodules, continuing anyway"
-            fi
-        fi
-        
-        # Clean all caches first to ensure fresh build
-        log_info "Cleaning all build caches and artifacts..."
-        rm -rf packages/web-ui/dist
-        rm -rf packages/web-ui/node_modules/.cache
-        rm -rf packages/web-ui/.rsbuild
-        rm -rf node_modules/.cache
-        
-        # Always install/update dependencies to ensure they match the latest code
-        log_info "Installing/updating frontend dependencies..."
-        if ! pnpm install --frozen-lockfile=false; then
-            log_error "Failed to install frontend dependencies"
-            exit 1
-        fi
-        
-        # Force clean install for web-ui package specifically
-        log_info "Force reinstalling web-ui dependencies..."
-        (cd packages/web-ui && pnpm install --force)
-        
-        # Build the frontend with clean slate
-        log_info "Running: pnpm ui:build (clean build)"
-        if ! pnpm ui:build; then
-            log_error "Failed to build frontend"
-            log_error "Build failed. Common issues:"
-            log_error "  - Node.js version incompatibility (requires >= 20.0)"
-            log_error "  - TypeScript compilation errors"
-            log_error "  - Missing environment variables"
-            log_error "  - Build configuration issues"
-            log_error "Debug: Check packages/web-ui/rsbuild.config.ts"
-            exit 1
-        fi
-    )
+    # Configure pnpm to use local store
+    pnpm config set store-dir "$pnpm_store_dir" 2>/dev/null || true
     
-    # Check if build was successful
-    if [ -d "$dist_dir" ]; then
-        log_success "Frontend build completed successfully"
-        log_info "Frontend build output: $dist_dir"
-        FRONTEND_BUILT="true"
-        return 0
-    else
-        log_error "Frontend build failed - dist directory not found: $dist_dir"
+    log_info "Installing frontend dependencies..."
+    if ! pnpm install --store-dir="$pnpm_store_dir" --no-frozen-lockfile; then
+        log_error "Failed to install frontend dependencies"
+        log_error "Store directory: $pnpm_store_dir"
         return 1
     fi
+
+    log_info "Building frontend..."
+    if ! pnpm ui:build; then
+        log_error "Failed to build frontend"
+        return 1
+    fi
+
+    cd "$PROJECT_ROOT"
+    log_success "Frontend built successfully"
 }
 
-prepare_rust_target() {
-    local target="$1"
+build_server() {
+    local version="$1"
+    local platform="$2"
+    local rust_target="$3"
 
-    if [ "$DRY_RUN" = "true" ]; then
-        log_debug "[DRY RUN] Would prepare Rust target: $target"
-        return 0
+    log_step "Building server for $platform"
+
+    # Install target if not available
+    if ! rustup target list --installed | grep -q "$rust_target"; then
+        log_info "Installing Rust target: $rust_target"
+        rustup target add "$rust_target"
     fi
 
-    log_debug "Checking Rust target: $target"
-    if ! rustup target list | grep -q "${target} (installed)"; then
-        log_info "Installing Rust target: $target"
-        if ! rustup target add "$target"; then
-            log_error "Failed to install Rust target: $target"
-            return 1
-        fi
+    # Build server binaries
+    log_info "Building server binaries..."
+    
+    local cargo_cmd="cargo build --release --target $rust_target"
+    
+    # Build main server
+    if ! $cargo_cmd --bin broker-server; then
+        log_error "Failed to build broker-server"
+        return 1
     fi
+
+    # Build CLI tools
+    if ! $cargo_cmd --bin cli-command; then
+        log_error "Failed to build cli-command"
+        return 1
+    fi
+
+    if ! $cargo_cmd --bin cli-bench; then
+        log_error "Failed to build cli-bench"
+        return 1
+    fi
+
+    log_success "Server binaries built successfully"
 }
 
-build_server_component() {
-    local platform="$1"
-    local rust_target="$(get_rust_target "$platform")"
-    local output_name="robustmq-${VERSION}-${platform}"
-    local package_path="${OUTPUT_DIR}/${output_name}"
+create_package() {
+    local version="$1"
+    local platform="$2"
+    local rust_target="$3"
 
-    if [ -z "$rust_target" ]; then
-        log_error "Unsupported platform for server component: $platform"
-        return 1
+    log_step "Creating package for $platform"
+
+    local package_name="robustmq-$version-$platform"
+    local package_dir="$OUTPUT_DIR/$package_name"
+    local target_dir="$PROJECT_ROOT/target/$rust_target/release"
+
+    # Create package directory structure
+    mkdir -p "$package_dir"/{bin,libs,config,dist}
+
+    # Copy bin directory from source code (scripts, startup files, etc.)
+    if [ -d "$PROJECT_ROOT/bin" ]; then
+        cp -r "$PROJECT_ROOT/bin"/* "$package_dir/bin/" 2>/dev/null || true
+        log_info "Copied source bin directory"
     fi
 
-    log_step "Building server component for $platform"
-
-    if [ "$DRY_RUN" = "true" ]; then
-        log_info "[DRY RUN] Would build server for $platform using target $rust_target"
-        log_info "[DRY RUN] Would build frontend web UI"
-        # Mark frontend as built in dry-run mode to avoid duplicate builds
-        FRONTEND_BUILT="true"
-        return 0
-    fi
-
-    # Build frontend first
-    if ! build_frontend; then
-        log_error "Failed to build frontend for server component"
-        return 1
-    fi
-
-    # Prepare Rust target
-    prepare_rust_target "$rust_target"
-
-    # Build
-    log_info "Compiling Rust binaries for $rust_target..."
-    local cargo_cmd="cargo build --target $rust_target"
-    if [ "$BUILD_TYPE" = "release" ]; then
-        cargo_cmd="$cargo_cmd --release"
-    fi
-
-    log_info "Running: $cargo_cmd"
-    if ! $cargo_cmd; then
-        log_error "Failed to build server component for $platform"
-        return 1
-    fi
-
-    # Create package structure
-    mkdir -p "$package_path"/{bin,libs,config,docs,dist}
-
-    # Copy binaries
-    local target_dir="target/$rust_target"
-    if [ "$BUILD_TYPE" = "release" ]; then
-        target_dir="$target_dir/release"
-    else
-        target_dir="$target_dir/debug"
-    fi
-
-    local binaries="broker-server cli-command cli-bench"
+    # Copy Rust compiled binaries to libs directory
+    local binaries=("broker-server" "cli-command" "cli-bench")
     local found_binaries=()
-
-    for binary in $binaries; do
-        local bin_file="$binary"
+    for binary in "${binaries[@]}"; do
+        local binary_path="$target_dir/$binary"
         if [[ "$platform" == windows-* ]]; then
-            bin_file="$binary.exe"
+            binary_path="${binary_path}.exe"
         fi
-
-        local bin_path="$target_dir/$bin_file"
-        if [ -f "$bin_path" ]; then
-            cp "$bin_path" "$package_path/libs/"
+        
+        if [ -f "$binary_path" ]; then
+            cp "$binary_path" "$package_dir/libs/"
             found_binaries+=("$binary")
-            log_debug "Copied binary: $binary"
+            log_info "Copied binary $binary to libs/"
         else
-            log_warning "Binary not found: $bin_path"
+            log_warning "Binary not found: $binary_path"
         fi
     done
 
@@ -488,250 +375,67 @@ build_server_component() {
         return 1
     fi
 
-    # Copy additional files
-    if [ -d "$PROJECT_ROOT/bin" ]; then
-        cp -r "$PROJECT_ROOT/bin/"* "$package_path/bin/" 2>/dev/null || true
-    fi
-
+    # Copy configuration files from source config directory
     if [ -d "$PROJECT_ROOT/config" ]; then
-        cp -r "$PROJECT_ROOT/config/"* "$package_path/config/" 2>/dev/null || true
+        cp -r "$PROJECT_ROOT/config"/* "$package_dir/config/" 2>/dev/null || true
+        log_info "Copied source config directory"
     fi
 
-    # Copy frontend build results
-    local copilot_dist_dir="${PROJECT_ROOT}/build/robustmq-copilot/packages/web-ui/dist"
-    if [ -d "$copilot_dist_dir" ]; then
-        log_info "Copying frontend build results to package..."
-        cp -r "$copilot_dist_dir/"* "$package_path/dist/" 2>/dev/null || true
-        log_success "Frontend assets copied to dist directory"
-    else
-        log_warning "Frontend build directory not found: $copilot_dist_dir"
+    # Copy LICENSE to root directory
+    if [ -f "$PROJECT_ROOT/LICENSE" ]; then
+        cp "$PROJECT_ROOT/LICENSE" "$package_dir/"
+        log_info "Copied LICENSE to root directory"
     fi
 
-    # Create version file
-    echo "$VERSION" > "$package_path/config/version.txt"
+    # Copy frontend build results to dist directory
+    if [ "$BUILD_FRONTEND" = "true" ]; then
+        local frontend_dist="$PROJECT_ROOT/build/robustmq-copilot/packages/web-ui/dist"
+        if [ -d "$frontend_dist" ]; then
+            cp -r "$frontend_dist"/* "$package_dir/dist/" 2>/dev/null || true
+            log_info "Copied frontend files to dist/"
+        else
+            log_warning "Frontend dist directory not found at $frontend_dist"
+        fi
+    fi
+
 
     # Create package info
     local frontend_status="Not included"
-    if [ -d "$package_path/dist" ] && [ "$(ls -A "$package_path/dist" 2>/dev/null)" ]; then
+    if [ -d "$package_dir/dist" ] && [ "$(ls -A "$package_dir/dist" 2>/dev/null)" ]; then
         frontend_status="Included"
     fi
     
-    cat > "$package_path/package-info.txt" << EOF
+    cat > "$package_dir/package-info.txt" << EOF
 Package: robustmq-server
-Version: $VERSION
+Version: $version
 Platform: $platform
 Target: $rust_target
-Build Type: $BUILD_TYPE
-Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+Build Date: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
 Binaries: ${found_binaries[*]}
 Frontend Web UI: $frontend_status
 EOF
 
-    # Set permissions
-    chmod -R 755 "$package_path/bin/"* 2>/dev/null || true
-    chmod -R 755 "$package_path/libs/"* 2>/dev/null || true
+    # Set permissions for executable files
+    chmod -R 755 "$package_dir/bin/"* 2>/dev/null || true
+    chmod -R 755 "$package_dir/libs/"* 2>/dev/null || true
 
     # Create tarball
-    log_info "Creating tarball for $platform..."
-    (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Clean up directory
-    rm -rf "$package_path"
-
-    log_success "Server component built successfully: ${output_name}.tar.gz"
-}
-
-build_operator_component() {
-    local platform="$1"
-    local go_target="$(get_go_target "$platform")"
-    local output_name="robustmq-operator-${VERSION}-${platform}"
-    local package_path="${OUTPUT_DIR}/${output_name}"
-
-    if [ -z "$go_target" ]; then
-        log_error "Unsupported platform for operator component: $platform"
+    cd "$OUTPUT_DIR"
+    local tarball="$package_name.tar.gz"
+    
+    if tar -czf "$tarball" "$package_name"; then
+        log_success "Created package: $tarball"
+        
+        # Clean up directory
+        rm -rf "$package_name"
+    else
+        log_error "Failed to create tarball"
         return 1
     fi
 
-    log_step "Building operator component for $platform"
-
-    if [ "$DRY_RUN" = "true" ]; then
-        log_info "[DRY RUN] Would build operator for $platform using target $go_target"
-        return 0
-    fi
-
-    # Build operator
-    log_info "Compiling Go binary for $go_target..."
-
-    local goos="${go_target%/*}"
-    local goarch="${go_target#*/}"
-
-    # Handle special case for ARMv7
-    local goarm=""
-    if [ "$goarch" = "arm" ] && [[ "$platform" == *"armv7"* ]]; then
-        goarm="7"
-    fi
-
-    local binary_name="robustmq-operator"
-    if [ "$goos" = "windows" ]; then
-        binary_name="robustmq-operator.exe"
-    fi
-
-    local build_cmd="env GOOS=$goos GOARCH=$goarch"
-    if [ -n "$goarm" ]; then
-        build_cmd="$build_cmd GOARM=$goarm"
-    fi
-
-    # Set Go build flags
-    local ldflags="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u '+%Y-%m-%d_%H:%M:%S')"
-    build_cmd="$build_cmd go build -ldflags \"$ldflags\""
-
-    if [ "$BUILD_TYPE" = "debug" ]; then
-        build_cmd="$build_cmd -gcflags=\"-N -l\""
-    fi
-
-    build_cmd="$build_cmd -o $binary_name ."
-
-    log_debug "Running: $build_cmd"
-
-    # Change to operator directory and build
-    (
-        cd "$PROJECT_ROOT/operator"
-        if ! eval "$build_cmd"; then
-            log_error "Failed to build operator component for $platform"
-            exit 1
-        fi
-    )
-
-    # Create package structure
-    mkdir -p "$package_path"/{bin,config,manifests,docs}
-
-    # Move binary
-    mv "$PROJECT_ROOT/operator/$binary_name" "$package_path/bin/"
-
-    # Copy operator-specific files
-    if [ -f "$PROJECT_ROOT/operator/robustmq.yaml" ]; then
-        cp "$PROJECT_ROOT/operator/robustmq.yaml" "$package_path/manifests/"
-    fi
-
-    if [ -f "$PROJECT_ROOT/operator/sample-robustmq.yaml" ]; then
-        cp "$PROJECT_ROOT/operator/sample-robustmq.yaml" "$package_path/manifests/"
-    fi
-
-    if [ -f "$PROJECT_ROOT/operator/README.md" ]; then
-        cp "$PROJECT_ROOT/operator/README.md" "$package_path/docs/"
-    fi
-
-    # Create version file
-    echo "$VERSION" > "$package_path/config/version.txt"
-
-    # Create package info
-    cat > "$package_path/package-info.txt" << EOF
-Package: robustmq-operator
-Version: $VERSION
-Platform: $platform
-Target: $go_target
-Build Type: $BUILD_TYPE
-Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-Binary: $binary_name
-EOF
-
-    # Set permissions
-    chmod 755 "$package_path/bin/$binary_name"
-
-    # Create tarball
-    log_info "Creating tarball for $platform..."
-    (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-
-    # Clean up directory
-    rm -rf "$package_path"
-
-    log_success "Operator component built successfully: ${output_name}.tar.gz"
+    cd "$PROJECT_ROOT"
 }
 
-build_platform() {
-    local platform="$1"
-
-    log_step "Building for platform: $platform"
-
-    # Validate platform
-    if [[ "$COMPONENT" == "server" || "$COMPONENT" == "all" ]] && [[ -z "$(get_rust_target "$platform")" ]]; then
-        log_error "Platform $platform is not supported for server component"
-        return 1
-    fi
-
-    if [[ "$COMPONENT" == "operator" || "$COMPONENT" == "all" ]] && [[ -z "$(get_go_target "$platform")" ]]; then
-        log_error "Platform $platform is not supported for operator component"
-        return 1
-    fi
-
-    # Build components
-    if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
-        if ! build_server_component "$platform"; then
-            return 1
-        fi
-    fi
-
-    if [ "$COMPONENT" = "operator" ] || [ "$COMPONENT" = "all" ]; then
-        if ! build_operator_component "$platform"; then
-            return 1
-        fi
-    fi
-}
-
-build_all_platforms() {
-    local failed_platforms=()
-    local successful_platforms=()
-
-    log_step "Building for all platforms: ${ALL_PLATFORMS[*]}"
-
-    for platform in "${ALL_PLATFORMS[@]}"; do
-        log_info "Building platform: $platform"
-        if build_platform "$platform"; then
-            successful_platforms+=("$platform")
-        else
-            failed_platforms+=("$platform")
-            log_error "Failed to build for platform: $platform"
-        fi
-    done
-
-    # Summary
-    echo
-    log_step "Build Summary"
-    if [ ${#successful_platforms[@]} -gt 0 ]; then
-        log_success "Successfully built for: ${successful_platforms[*]}"
-    fi
-
-    if [ ${#failed_platforms[@]} -gt 0 ]; then
-        log_error "Failed to build for: ${failed_platforms[*]}"
-        return 1
-    fi
-}
-
-cleanup_output_dir() {
-    if [ "$CLEAN" = "true" ] && [ -d "$OUTPUT_DIR" ]; then
-        log_info "Cleaning output directory: $OUTPUT_DIR"
-        if [ "$DRY_RUN" = "true" ]; then
-            log_debug "[DRY RUN] Would clean: $OUTPUT_DIR"
-        else
-            rm -rf "$OUTPUT_DIR"
-        fi
-    fi
-}
-
-show_build_info() {
-    echo
-    log_step "Build Configuration"
-    log_info "Version: $VERSION"
-    log_info "Component: $COMPONENT"
-    log_info "Platform: $PLATFORM"
-    log_info "Build Type: $BUILD_TYPE"
-    log_info "Output Directory: $OUTPUT_DIR"
-    log_info "Parallel Builds: $PARALLEL"
-    if [ "$DRY_RUN" = "true" ]; then
-        log_warning "DRY RUN MODE - No actual building will occur"
-    fi
-    echo
-}
 
 main() {
     # Parse command line arguments
@@ -745,40 +449,13 @@ main() {
                 VERSION="$2"
                 shift 2
                 ;;
-            -c|--component)
-                COMPONENT="$2"
-                shift 2
-                ;;
-            -p|--platform)
-                PLATFORM="$2"
-                shift 2
-                ;;
-            -a|--all-platforms)
-                PLATFORM="all"
+            --with-frontend)
+                BUILD_FRONTEND="true"
                 shift
-                ;;
-            -t|--type)
-                BUILD_TYPE="$2"
-                shift 2
-                ;;
-            -o|--output)
-                OUTPUT_DIR="$2"
-                shift 2
                 ;;
             --clean)
-                CLEAN="true"
-                shift
-                ;;
-            --verbose)
-                VERBOSE="true"
-                shift
-                ;;
-            --dry-run)
-                DRY_RUN="true"
-                shift
-                ;;
-            --no-parallel)
-                PARALLEL="false"
+                log_info "Cleaning build directory..."
+                rm -rf "$OUTPUT_DIR"
                 shift
                 ;;
             *)
@@ -789,75 +466,66 @@ main() {
         esac
     done
 
-    # Validate component
-    case "$COMPONENT" in
-        server|operator|all)
-            ;;
-        *)
-            log_error "Invalid component: $COMPONENT"
-            log_info "Valid components: server, operator, all"
+    # Extract version if not provided
+    if [ -z "$VERSION" ]; then
+        VERSION=$(extract_version_from_cargo)
+        if [ $? -ne 0 ]; then
             exit 1
-            ;;
-    esac
-
-    # Validate build type
-    case "$BUILD_TYPE" in
-        release|debug)
-            ;;
-        *)
-            log_error "Invalid build type: $BUILD_TYPE"
-            log_info "Valid build types: release, debug"
-            exit 1
-            ;;
-    esac
-
-    # Detect current platform if auto
-    if [ "$PLATFORM" = "auto" ]; then
-        PLATFORM=$(detect_current_platform)
-        log_debug "Detected current platform: $PLATFORM"
+        fi
     fi
 
-    # Show header
-    if [ "$DRY_RUN" != "true" ]; then
-        echo -e "${BOLD}${BLUE}🔨 RobustMQ Build Script${NC}"
-    else
-        echo -e "${BOLD}${YELLOW}🔍 RobustMQ Build Script (DRY RUN)${NC}"
+    # Detect current platform
+    local platform=$(detect_current_platform)
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
 
-    show_build_info
+    local rust_target=$(get_rust_target "$platform")
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    # Show configuration
+    echo -e "${BOLD}${BLUE}🚀 RobustMQ Build Script (Simplified)${NC}"
+    echo
+    log_info "Version: $VERSION"
+    log_info "Platform: $platform"
+    log_info "Rust Target: $rust_target"
+    log_info "Build Frontend: $BUILD_FRONTEND"
+    log_info "Output Directory: $OUTPUT_DIR"
+    echo
 
     # Check dependencies
     log_step "Checking dependencies..."
     check_dependencies
 
-    # Cleanup if requested
-    cleanup_output_dir
-
     # Create output directory
-    if [ "$DRY_RUN" != "true" ]; then
-        mkdir -p "$OUTPUT_DIR"
+    mkdir -p "$OUTPUT_DIR"
+
+    # Build frontend if requested
+    if [ "$BUILD_FRONTEND" = "true" ]; then
+        build_frontend
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
     fi
 
-    # Build
-    if [ "$PLATFORM" = "all" ]; then
-        build_all_platforms
-    else
-        build_platform "$PLATFORM"
+    # Build server
+    build_server "$VERSION" "$platform" "$rust_target"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    # Create package
+    create_package "$VERSION" "$platform" "$rust_target"
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
 
     # Show completion message
-    if [ "$DRY_RUN" != "true" ]; then
-        echo
-        log_success "Build completed successfully!"
-        log_info "Output directory: $OUTPUT_DIR"
-        if [ -d "$OUTPUT_DIR" ]; then
-            log_info "Generated packages:"
-            find "$OUTPUT_DIR" -name "*.tar.gz" -exec basename {} \; | sed 's/^/  • /'
-        fi
-    else
-        echo
-        log_info "Dry run completed. No files were actually built."
-    fi
+    echo
+    log_success "Build completed successfully!"
+    log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$platform.tar.gz"
 }
 
 # Run main function

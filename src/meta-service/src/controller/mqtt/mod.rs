@@ -14,18 +14,15 @@
 
 use crate::controller::mqtt::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
-use common_base::tools::now_second;
+use common_base::error::ResultCommonError;
+use common_base::tools::{loop_select_ticket, now_second};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use message_expire::MessageExpire;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use session_expire::SessionExpire;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::info;
 
 pub mod call_broker;
 pub mod connector;
@@ -64,28 +61,16 @@ impl MqttController {
     }
 
     pub async fn start(&self) {
-        let mut stop_recv = self.stop_send.subscribe();
-        loop {
-            select! {
-                val = stop_recv.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("Mqtt controller thread stopped successfully");
-                            break;
-                        }
-                    }
-                }
-                _ = self.check_start_thread() => {
-
-                }
-            }
-        }
+        let ac_fn = async || -> ResultCommonError {
+            self.check_start_thread().await;
+            Ok(())
+        };
+        loop_select_ticket(ac_fn, 1, &self.stop_send).await;
     }
 
     pub async fn check_start_thread(&self) {
         for cluster_name in self.cache_manager.get_all_cluster_name() {
             if self.thread_running_info.contains_key(&cluster_name) {
-                sleep(Duration::from_secs(1)).await;
                 continue;
             }
             // Periodically check if the session has expired
@@ -95,22 +80,13 @@ impl MqttController {
                 self.client_pool.clone(),
                 cluster_name.clone(),
             );
-            let mut stop_recv = self.stop_send.subscribe();
+            let stop_send = self.stop_send.clone();
             tokio::spawn(async move {
-                loop {
-                    select! {
-                        val = stop_recv.recv() =>{
-                            if let Ok(flag) = val {
-                                if flag {
-                                    break;
-                                }
-                            }
-                        }
-
-                        _ = session.session_expire() =>{
-                        }
-                    }
-                }
+                let ac_fn = async || -> ResultCommonError {
+                    session.session_expire().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
             });
 
             // Periodically check if the session has expired
@@ -120,70 +96,41 @@ impl MqttController {
                 self.client_pool.clone(),
                 cluster_name.clone(),
             );
-            let mut stop_recv = self.stop_send.subscribe();
-            tokio::spawn(async move {
-                loop {
-                    select! {
-                        val = stop_recv.recv() =>{
-                            if let Ok(flag) = val {
-                                if flag {
 
-                                    break;
-                                }
-                            }
-                        }
-                        _= session.lastwill_expire_send() => {
-                        }
-                    }
-                }
+            let stop_send = self.stop_send.clone();
+            tokio::spawn(async move {
+                let ac_fn = async || -> ResultCommonError {
+                    session.last_will_expire_send().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
             });
 
             // Whether the timed message expires
-            let mut message =
+            let message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
-            // let  rs =  self.rocksdb_engine_handler.clone();
-            let mut stop_recv = self.stop_send.subscribe();
+            let stop_send = self.stop_send.clone();
             tokio::spawn(async move {
-                loop {
-                    select! {
-                        val = stop_recv.recv() =>{
-                            if let Ok(flag) = val {
-                                if flag {
-
-                                    break;
-                                }
-                            }
-                        }
-                         _ =  message.retain_message_expire() =>{
-                            sleep(Duration::from_secs(1)).await;
-                        }
-                    }
-                }
+                let ac_fn = async || -> ResultCommonError {
+                    message.retain_message_expire().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
             });
 
             // Periodically detects whether a will message is sent
-            let mut message =
+            let message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
-            let mut stop_recv = self.stop_send.subscribe();
-            tokio::spawn(async move {
-                loop {
-                    select! {
-                        val = stop_recv.recv() =>{
-                            if let Ok(flag) = val {
-                                if flag {
 
-                                    break;
-                                }
-                            }
-                        }
-                        _ = message.last_will_message_expire() => {
-                            sleep(Duration::from_secs(1)).await;
-                        }
-                    }
-                }
+            let stop_send = self.stop_send.clone();
+            tokio::spawn(async move {
+                let ac_fn = async || -> ResultCommonError {
+                    message.last_will_message_expire().await;
+                    Ok(())
+                };
+                loop_select_ticket(ac_fn, 1, &stop_send).await;
             });
             self.thread_running_info.insert(cluster_name.clone(), true);
         }
-        sleep(Duration::from_secs(1)).await;
     }
 }

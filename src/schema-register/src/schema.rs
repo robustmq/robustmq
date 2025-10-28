@@ -97,7 +97,7 @@ impl SchemaRegisterManager {
 
         // resource_schema_list
         if let Some(mut list) = self.resource_schema_list.get_mut(&resource_name) {
-            if !list.contains(&schema_name.to_owned()) {
+            if !list.contains(&schema_name) {
                 list.push(schema_name.to_owned());
             }
         } else {
@@ -107,11 +107,11 @@ impl SchemaRegisterManager {
 
         // schema_resource_list
         if let Some(mut list) = self.schema_resource_list.get_mut(&schema_name) {
-            if !list.contains(&schema_name.to_owned()) {
-                list.push(schema_name.to_owned());
+            if !list.contains(&resource_name) {
+                list.push(resource_name);
             }
         } else {
-            self.resource_schema_list
+            self.schema_resource_list
                 .insert(schema_name, vec![resource_name.to_owned()]);
         }
     }

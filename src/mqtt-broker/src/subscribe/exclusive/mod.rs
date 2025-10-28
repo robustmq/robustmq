@@ -27,19 +27,26 @@ use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
-use broker_core::rocksdb::RocksDBEngine;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use common_base::tools::now_second;
+use common_metrics::mqtt::subscribe::record_subscribe_bytes_sent;
+use common_metrics::mqtt::subscribe::record_subscribe_messages_sent;
+use common_metrics::mqtt::subscribe::record_subscribe_topic_bytes_sent;
+use common_metrics::mqtt::subscribe::record_subscribe_topic_messages_sent;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::QoS;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
+use tracing::debug;
+use tracing::error;
 use tracing::warn;
-use tracing::{error, info};
 
 pub struct ExclusivePush {
     cache_manager: Arc<MQTTCacheManager>,
@@ -48,6 +55,7 @@ pub struct ExclusivePush {
     message_storage: ArcStorageAdapter,
     metrics_cache_manager: Arc<MetricsCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl ExclusivePush {
@@ -58,6 +66,7 @@ impl ExclusivePush {
         connection_manager: Arc<ConnectionManager>,
         metrics_cache_manager: Arc<MetricsCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         ExclusivePush {
             message_storage,
@@ -66,25 +75,26 @@ impl ExclusivePush {
             connection_manager,
             metrics_cache_manager,
             rocksdb_engine_handler,
+            stop_sx,
         }
     }
 
     pub async fn start(&self) {
-        loop {
+        let ac_fn = async || -> ResultCommonError {
             self.start_push_thread().await;
             self.try_thread_gc().await;
-            sleep(Duration::from_secs(1)).await;
-        }
+            Ok(())
+        };
+        loop_select_ticket(ac_fn, 1, &self.stop_sx).await;
     }
 
     async fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
-        for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread.clone() {
+        for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread_list() {
             if !self
                 .subscribe_manager
-                .exclusive_push
-                .contains_key(&exclusive_key)
+                .contain_exclusive_push(&exclusive_key)
             {
                 if let Err(e) = sx.sender.send(true) {
                     error!(
@@ -93,8 +103,7 @@ impl ExclusivePush {
                     );
                 }
                 self.subscribe_manager
-                    .exclusive_push_thread
-                    .remove(&exclusive_key);
+                    .remove_exclusive_push_thread(&exclusive_key);
             }
         }
     }
@@ -102,11 +111,10 @@ impl ExclusivePush {
     // Handles exclusive subscription push tasks
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
-        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_push.clone() {
+        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_push_list() {
             if self
                 .subscribe_manager
-                .exclusive_push_thread
-                .contains_key(&exclusive_key)
+                .contain_exclusive_push_thread(&exclusive_key)
             {
                 continue;
             }
@@ -121,7 +129,7 @@ impl ExclusivePush {
             let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
 
             // Subscribe to the data push thread
-            self.subscribe_manager.exclusive_push_thread.insert(
+            self.subscribe_manager.add_exclusive_push_thread(
                 exclusive_key.clone(),
                 SubPushThreadData {
                     push_success_record_num: 0,
@@ -134,20 +142,18 @@ impl ExclusivePush {
             );
 
             tokio::spawn(async move {
-                info!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
-                        subscriber.client_id, subscriber.sub_path, subscriber.topic_id);
+                debug!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_name [{}] was started successfully",
+                        subscriber.client_id, subscriber.sub_path, subscriber.topic_name);
 
                 let group_id = build_group_name(&subscriber);
-                let qos = build_pub_qos(&cache_manager, &subscriber);
+                let qos = build_pub_qos(&cache_manager, &subscriber).await;
                 let sub_ids = build_sub_ids(&subscriber);
 
                 let mut offset = match message_storage.get_group_offset(&group_id).await {
                     Ok(offset) => offset,
                     Err(e) => {
                         error!("{}", e);
-                        subscribe_manager
-                            .exclusive_push_thread
-                            .remove(&exclusive_key);
+                        subscribe_manager.remove_exclusive_push_thread(&exclusive_key);
                         return;
                     }
                 };
@@ -157,14 +163,14 @@ impl ExclusivePush {
                         val = sub_thread_stop_rx.recv() =>{
                             if let Ok(flag) = val {
                                 if flag {
-                                    info!(
-                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
+                                    debug!(
+                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_name [{}] was stopped successfully",
                                         subscriber.client_id,
                                         subscriber.sub_path,
-                                        subscriber.topic_id
+                                        subscriber.topic_name
                                     );
 
-                                    subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
+                                    subscribe_manager.remove_exclusive_push_thread(&exclusive_key);
                                     break;
                                 }
                             }
@@ -190,6 +196,8 @@ impl ExclusivePush {
                                     Ok(offset_op) => {
                                         if let Some(off) = offset_op{
                                             offset = off + 1;
+                                            record_subscribe_messages_sent(&subscriber.client_id, &subscriber.sub_path, true);
+                                            record_subscribe_topic_messages_sent(&subscriber.client_id, &subscriber.sub_path, &subscriber.topic_name, true);
                                         } else {
                                             sleep(Duration::from_millis(100)).await;
                                         }
@@ -198,9 +206,11 @@ impl ExclusivePush {
                                         error!(
                                             "Push message to client failed, failure message: {}, topic:{}, group:{}",
                                             e.to_string(),
-                                            subscriber.topic_id.clone(),
+                                            subscriber.topic_name.clone(),
                                             group_id.clone()
                                         );
+                                        record_subscribe_messages_sent(&subscriber.client_id, &subscriber.sub_path, false);
+                                        record_subscribe_topic_messages_sent(&subscriber.client_id, &subscriber.sub_path, &subscriber.topic_name, false);
                                         sleep(Duration::from_millis(100)).await;
                                     }
                                 }
@@ -233,7 +243,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
     let record_num = 5;
     let results = context
         .message_storage
-        .read_topic_message(&context.subscriber.topic_id, context.offset, record_num)
+        .read_topic_message(&context.subscriber.topic_name, context.offset, record_num)
         .await?;
 
     let push_fn = async |record: &Record| -> ResultMqttBrokerError {
@@ -286,12 +296,25 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         // commit offset
         loop_commit_offset(
             &context.message_storage,
-            &context.subscriber.topic_id,
+            &context.subscriber.topic_name,
             &context.group_id,
             record_offset,
         )
         .await?;
 
+        record_subscribe_bytes_sent(
+            &context.subscriber.client_id,
+            &context.subscriber.sub_path,
+            record.data.len() as u64,
+            true,
+        );
+        record_subscribe_topic_bytes_sent(
+            &context.subscriber.client_id,
+            &context.subscriber.sub_path,
+            &context.subscriber.topic_name,
+            record.data.len() as u64,
+            true,
+        );
         Ok(())
     };
 
@@ -319,7 +342,6 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         success_num as u64,
         error_num as u64,
     );
-
     if results.is_empty() {
         return Ok(None);
     }
@@ -330,7 +352,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
 fn build_group_name(subscriber: &Subscriber) -> String {
     format!(
         "system_sub_{}_{}_{}",
-        subscriber.client_id, subscriber.sub_path, subscriber.topic_id
+        subscriber.client_id, subscriber.sub_path, subscriber.topic_name
     )
 }
 

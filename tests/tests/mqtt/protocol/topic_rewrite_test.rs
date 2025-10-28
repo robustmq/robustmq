@@ -14,21 +14,23 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, subscribe_data_by_qos, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+            publish_data, ssl_by_type, subscribe_data_by_qos, ws_by_type,
         },
         ClientTestProperties,
     };
-    use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::CreateTopicRewriteReq;
+    use admin_server::mqtt::topic::CreateTopicRewriteReq;
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, MessageBuilder};
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn pub_sub_rewrite_test() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let action: String = "All".to_string();
 
@@ -41,9 +43,11 @@ mod tests {
             dest_topic: format!("{prefix}y/z/$2"),
             regex: format!("^{prefix}y/(.+)/z/(.+)$"),
         };
+        println!("{:?}", req);
         let res = admin_client.create_topic_rewrite(&req).await;
         assert!(res.is_ok());
 
+        sleep(Duration::from_secs(30)).await;
         let source_topic = format!("{prefix}y/a/z/b");
         let rewrite_topic = format!("{prefix}y/z/b");
 
@@ -51,7 +55,27 @@ mod tests {
         let protocol = 5;
         let qos = 1;
 
-        // publish
+        // publish 1
+        let client_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
+        let message = "pub_sub_rewrite_test mqtt message".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message.clone())
+            .topic(source_topic.clone())
+            .qos(qos)
+            .finalize();
+        publish_data(&cli, msg, false);
+
+        sleep(Duration::from_secs(30)).await;
+
+        // publish 2
         let client_properties = ClientTestProperties {
             mqtt_version: protocol,
             client_id: client_id.to_string(),
@@ -106,7 +130,7 @@ mod tests {
 
     #[tokio::test]
     async fn un_sub_rewrite_test() {
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let action: String = "All".to_string();
 
@@ -121,6 +145,7 @@ mod tests {
         let res = admin_client.create_topic_rewrite(&req).await;
         assert!(res.is_ok());
 
+        sleep(Duration::from_secs(10)).await;
         let source_topic = format!("{prefix}y/a/z/b");
 
         let network = "tcp";

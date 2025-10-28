@@ -15,11 +15,11 @@
 use crate::handler::cache::MQTTCacheManager;
 use crate::storage::local::LocalStorage;
 use crate::subscribe::common::Subscriber;
-use broker_core::rocksdb::RocksDBEngine;
 use common_base::enum_type::delay_type::DelayType;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -60,14 +60,14 @@ pub async fn record_slow_subscribe_data(
     send_time: u64,
     record_time: u64,
 ) -> ResultCommonError {
-    if !cache_manager.get_slow_sub_config().enable {
+    if !cache_manager.get_slow_sub_config().await.enable {
         return Ok(());
     }
 
     let finish_time = now_second();
     let calculate_time = calc_time(send_time, finish_time, record_time);
 
-    if calculate_time <= cache_manager.get_slow_sub_config().record_time {
+    if calculate_time <= cache_manager.get_slow_sub_config().await.record_time {
         return Ok(());
     }
 

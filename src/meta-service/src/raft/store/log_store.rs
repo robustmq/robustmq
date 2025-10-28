@@ -15,11 +15,6 @@
 use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
 use crate::raft::store::bin_to_id;
 use crate::raft::type_config::TypeConfig;
-use common_base::tools::now_mills;
-use common_metrics::meta::raft::{
-    metrics_rocksdb_storage_err_inc, metrics_rocksdb_storage_total_inc,
-    metrics_rocksdb_stroge_total_ms, RocksDBLabels,
-};
 use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{
     AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
@@ -49,47 +44,28 @@ impl LogStore {
         subject: ErrorSubject<TypeConfig>,
         verb: ErrorVerb,
     ) -> Result<(), StorageError<TypeConfig>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("flush"));
-        let start_ms = now_mills();
-
-        self.db.flush_wal(true).map_err(|e| {
-            metrics_rocksdb_storage_err_inc(RocksDBLabels::log("flush"));
-            StorageError::new(subject, verb, AnyError::new(&e))
-        })?;
-
-        metrics_rocksdb_stroge_total_ms(
-            RocksDBLabels::log("flush"),
-            (now_mills() - start_ms) as f64,
-        );
+        self.db
+            .flush_wal(true)
+            .map_err(|e| StorageError::new(subject, verb, AnyError::new(&e)))?;
         Ok(())
     }
 
     fn get_last_purged_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("get"));
         Ok(self
             .db
             .get_cf(&self.store(), b"last_purged_log_id")
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("get"));
-
-                StorageError::read(&e)
-            })?
+            .map_err(|e| StorageError::read(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
     fn set_last_purged_(&self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("set"));
         self.db
             .put_cf(
                 &self.store(),
                 b"last_purged_log_id",
                 serde_json::to_vec(&log_id).unwrap().as_slice(),
             )
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("set"));
-
-                StorageError::write(&e)
-            })?;
+            .map_err(|e| StorageError::write(&e))?;
 
         self.flush(ErrorSubject::Store, ErrorVerb::Write)?;
         Ok(())
@@ -99,58 +75,38 @@ impl LogStore {
         &self,
         committed: &Option<LogId<TypeConfig>>,
     ) -> Result<(), StorageError<TypeConfig>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("set"));
         let json = serde_json::to_vec(committed).unwrap();
 
         self.db
             .put_cf(&self.store(), b"committed", json)
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("set"));
-
-                StorageError::write(&e)
-            })?;
+            .map_err(|e| StorageError::write(&e))?;
 
         self.flush(ErrorSubject::Store, ErrorVerb::Write)?;
         Ok(())
     }
 
     fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("get"));
         Ok(self
             .db
             .get_cf(&self.store(), b"committed")
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("get"));
-
-                StorageError::read(&e)
-            })?
+            .map_err(|e| StorageError::read(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
     fn set_vote_(&self, vote: &Vote<TypeConfig>) -> StorageResult<()> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("set"));
         self.db
             .put_cf(&self.store(), b"vote", serde_json::to_vec(vote).unwrap())
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("set"));
-
-                StorageError::write_vote(&e)
-            })?;
+            .map_err(|e| StorageError::write_vote(&e))?;
 
         self.flush(ErrorSubject::Vote, ErrorVerb::Write)?;
         Ok(())
     }
 
     fn get_vote_(&self) -> StorageResult<Option<Vote<TypeConfig>>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("get"));
         Ok(self
             .db
             .get_cf(&self.store(), b"vote")
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("get"));
-
-                StorageError::write_vote(&e)
-            })?
+            .map_err(|e| StorageError::write_vote(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 }
@@ -165,8 +121,6 @@ impl RaftLogReader<TypeConfig> for LogStore {
             std::ops::Bound::Excluded(x) => id_to_bin(*x + 1),
             std::ops::Bound::Unbounded => id_to_bin(0),
         };
-
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("get"));
         self.db
             .iterator_cf(
                 &self.logs(),
@@ -174,11 +128,8 @@ impl RaftLogReader<TypeConfig> for LogStore {
             )
             .map(|res| {
                 let (id, val) = res.unwrap();
-                let entry: StorageResult<Entry<_>> = serde_json::from_slice(&val).map_err(|e| {
-                    metrics_rocksdb_storage_err_inc(RocksDBLabels::log("get"));
-
-                    StorageError::read_logs(&e)
-                });
+                let entry: StorageResult<Entry<_>> =
+                    serde_json::from_slice(&val).map_err(|e| StorageError::read_logs(&e));
                 let id = bin_to_id(&id);
 
                 assert_eq!(Ok(id), entry.as_ref().map(|e| e.log_id.index));
@@ -198,7 +149,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     type LogReader = Self;
 
     async fn get_log_state(&mut self) -> StorageResult<LogState<TypeConfig>> {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("get"));
         let last = self
             .db
             .iterator_cf(&self.logs(), rocksdb::IteratorMode::End)
@@ -250,7 +200,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         I: IntoIterator<Item = Entry<TypeConfig>> + Send,
         I::IntoIter: Send,
     {
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("set"));
         for entry in entries {
             let id = id_to_bin(entry.log_id.index);
             assert_eq!(bin_to_id(&id), entry.log_id.index);
@@ -260,11 +209,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
                     id,
                     serde_json::to_vec(&entry).map_err(|e| StorageError::write_logs(&e))?,
                 )
-                .map_err(|e| {
-                    metrics_rocksdb_storage_err_inc(RocksDBLabels::log("set"));
-
-                    StorageError::write_logs(&e)
-                })?;
+                .map_err(|e| StorageError::write_logs(&e))?;
         }
 
         callback.io_completed(Ok(()));
@@ -275,34 +220,23 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     #[tracing::instrument(level = "debug", skip(self))]
     async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
         tracing::debug!("delete_log: [{:?}, +oo)", log_id);
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("delete"));
 
         let from = id_to_bin(log_id.index);
         let to = id_to_bin(0xff_ff_ff_ff_ff_ff_ff_ff);
         self.db
             .delete_range_cf(&self.logs(), &from, &to)
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("delete"));
-
-                StorageError::write_logs(&e)
-            })
+            .map_err(|e| StorageError::write_logs(&e))
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
     async fn purge(&mut self, log_id: LogId<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
         tracing::debug!("delete_log: [0, {:?}]", log_id);
-        metrics_rocksdb_storage_total_inc(RocksDBLabels::log("delete"));
-
         self.set_last_purged_(log_id)?;
         let from = id_to_bin(0);
         let to = id_to_bin(log_id.index + 1);
         self.db
             .delete_range_cf(&self.logs(), &from, &to)
-            .map_err(|e| {
-                metrics_rocksdb_storage_err_inc(RocksDBLabels::log("delete"));
-
-                StorageError::write_logs(&e)
-            })
+            .map_err(|e| StorageError::write_logs(&e))
     }
 
     async fn get_log_reader(&mut self) -> Self::LogReader {

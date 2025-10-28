@@ -15,10 +15,13 @@
 use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
+use lapin::Error as LapinError;
+use pulsar::Error as PulsarError;
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use r2d2;
 use rdkafka::error::KafkaError;
 use reqwest::Error as RequestError;
+use sqlx::Error as SqlxError;
 use thiserror::Error;
 use tonic::Status;
 
@@ -49,7 +52,7 @@ pub enum MqttBrokerError {
     FromR2d2PostgresError(#[from] r2d2_postgres::postgres::Error),
 
     #[error("{0}")]
-    FromR2d2RedisError(#[from] r2d2_redis::redis::RedisError),
+    FromRedisError(#[from] redis::RedisError),
 
     #[error("{0}")]
     FromRustlsError(#[from] rustls::Error),
@@ -152,6 +155,39 @@ pub enum MqttBrokerError {
     #[error("Password configuration not found")]
     PasswordConfigNotFound,
 
+    #[error("HTTP configuration not found")]
+    HttpConfigNotFound,
+
+    #[error("JWT configuration not found")]
+    JwtConfigNotFound,
+
+    #[error("HTTP request error: {0}")]
+    HttpRequestError(String),
+
+    #[error("HTTP response parse error: {0}")]
+    HttpResponseParseError(String),
+
+    #[error("Unsupported HTTP method: {0}")]
+    UnsupportedHttpMethod(String),
+
+    #[error("JWT secret not found")]
+    JwtSecretNotFound,
+
+    #[error("JWT public key not found")]
+    JwtPublicKeyNotFound,
+
+    #[error("JWT secret decode error: {0}")]
+    JwtSecretDecodeError(String),
+
+    #[error("JWT public key decode error: {0}")]
+    JwtPublicKeyDecodeError(String),
+
+    #[error("JWT verification error: {0}")]
+    JwtVerificationError(String),
+
+    #[error("Unsupported JWT encryption: {0}")]
+    UnsupportedJwtEncryption(String),
+
     #[error("{0}")]
     CommonError(String),
 
@@ -220,6 +256,21 @@ pub enum MqttBrokerError {
 
     #[error("Unsupported MAC function: {0}")]
     UnsupportedMacFunction(String),
+
+    #[error("Pulsar error: {0}")]
+    PulsarError(#[from] PulsarError),
+
+    #[error("MongoDB error: {0}")]
+    MongoDBError(String),
+
+    #[error("BSON serialization error: {0}")]
+    BsonSerializationError(String),
+
+    #[error("RabbitMQ error: {0}")]
+    RabbitMQError(#[from] LapinError),
+
+    #[error("Sqlx error: {0}")]
+    SqlxError(#[from] SqlxError),
 }
 
 impl From<MqttBrokerError> for Status {

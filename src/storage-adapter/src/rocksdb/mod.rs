@@ -18,7 +18,7 @@ use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use tokio::{
     select,
     sync::{

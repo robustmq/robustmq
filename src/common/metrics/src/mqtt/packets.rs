@@ -19,7 +19,7 @@ use protocol::mqtt::{
     common::{ConnectReturnCode, MqttPacket, QoS},
 };
 
-use crate::{gauge_metric_inc, gauge_metric_inc_by, register_gauge_metric};
+use crate::{counter_metric_inc, counter_metric_inc_by, register_counter_metric};
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct NetworkLabel {
@@ -37,219 +37,205 @@ pub struct QosLabel {
     pub qos: String,
 }
 
-register_gauge_metric!(
-    PACKETS_RECEIVED,
-    "packets_received",
-    "Number of packets received",
+register_counter_metric!(
+    MQTT_PACKETS_RECEIVED,
+    "mqtt_packets_received",
+    "Number of MQTT packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_CONNECT_RECEIVED,
-    "packets_connect_received",
-    "Number of packets connect received",
+register_counter_metric!(
+    MQTT_PACKETS_CONNECT_RECEIVED,
+    "mqtt_packets_connect_received",
+    "Number of MQTT CONNECT packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_PUBLISH_RECEIVED,
-    "packets_publish_received",
-    "Number of packets publish received",
+register_counter_metric!(
+    MQTT_PACKETS_PUBLISH_RECEIVED,
+    "mqtt_packets_publish_received",
+    "Number of MQTT PUBLISH packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_CONNACK_RECEIVED,
-    "packets_connack_received",
-    "Number of packets connack received",
+register_counter_metric!(
+    MQTT_PACKETS_CONNACK_RECEIVED,
+    "mqtt_packets_connack_received",
+    "Number of MQTT CONNACK packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_PUBACK_RECEIVED,
-    "packets_puback_received",
-    "Number of packets puback received",
+register_counter_metric!(
+    MQTT_PACKETS_PUBACK_RECEIVED,
+    "mqtt_packets_puback_received",
+    "Number of MQTT PUBACK packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_PUBREC_RECEIVED,
-    "packets_pubrec_received",
-    "Number of packets pubrec received",
+register_counter_metric!(
+    MQTT_PACKETS_PUBREC_RECEIVED,
+    "mqtt_packets_pubrec_received",
+    "Number of MQTT PUBREC packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_PUBREL_RECEIVED,
-    "packets_pubrel_received",
-    "Number of packets pubrel received",
+register_counter_metric!(
+    MQTT_PACKETS_PUBREL_RECEIVED,
+    "mqtt_packets_pubrel_received",
+    "Number of MQTT PUBREL packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_PUBCOMP_RECEIVED,
-    "packets_pubcomp_received",
-    "Number of packets pubcomp received",
+register_counter_metric!(
+    MQTT_PACKETS_PUBCOMP_RECEIVED,
+    "mqtt_packets_pubcomp_received",
+    "Number of MQTT PUBCOMP packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_SUBSCRIBE_RECEIVED,
-    "packets_subscribe_received",
-    "Number of packets subscribe received",
+register_counter_metric!(
+    MQTT_PACKETS_SUBSCRIBE_RECEIVED,
+    "mqtt_packets_subscribe_received",
+    "Number of MQTT SUBSCRIBE packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_UNSUBSCRIBE_RECEIVED,
-    "packets_unsubscribe_received",
-    "Number of packets unsubscribe received",
+register_counter_metric!(
+    MQTT_PACKETS_UNSUBSCRIBE_RECEIVED,
+    "mqtt_packets_unsubscribe_received",
+    "Number of MQTT UNSUBSCRIBE packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_PINGREQ_RECEIVED,
-    "packets_pingreq_received",
-    "Number of packets pingreq received",
+register_counter_metric!(
+    MQTT_PACKETS_PINGREQ_RECEIVED,
+    "mqtt_packets_pingreq_received",
+    "Number of MQTT PINGREQ packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_DISCONNECT_RECEIVED,
-    "packets_disconnect_received",
-    "Number of packets disconnect received",
+register_counter_metric!(
+    MQTT_PACKETS_DISCONNECT_RECEIVED,
+    "mqtt_packets_disconnect_received",
+    "Number of MQTT DISCONNECT packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_AUTH_RECEIVED,
-    "packets_auth_received",
-    "Number of packets auth received",
+register_counter_metric!(
+    MQTT_PACKETS_AUTH_RECEIVED,
+    "mqtt_packets_auth_received",
+    "Number of MQTT AUTH packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_RECEIVED_ERROR,
-    "packets_received_error",
-    "Number of error packets received",
+register_counter_metric!(
+    MQTT_PACKETS_RECEIVED_ERROR,
+    "mqtt_packets_received_error",
+    "Number of MQTT error packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_CONNACK_AUTH_ERROR,
-    "packets_connack_auth_error",
-    "Number of connack auth error packets received",
+register_counter_metric!(
+    MQTT_PACKETS_CONNACK_AUTH_ERROR,
+    "mqtt_packets_connack_auth_error",
+    "Number of MQTT CONNACK auth error packets received",
     NetworkLabel
 );
-register_gauge_metric!(
-    PACKETS_CONNACK_ERROR,
-    "packets_connack_error",
-    "Number of connack error packets received",
+register_counter_metric!(
+    MQTT_PACKETS_CONNACK_ERROR,
+    "mqtt_packets_connack_error",
+    "Number of MQTT CONNACK error packets received",
     NetworkLabel
 );
 
-register_gauge_metric!(
-    PACKETS_SENT,
-    "packets_sent",
-    "Number of packets sent",
+register_counter_metric!(
+    MQTT_PACKETS_SENT,
+    "mqtt_packets_sent",
+    "Number of MQTT packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_CONNACK_SENT,
-    "packets_connack_sent",
-    "Number of packets connack sent",
+register_counter_metric!(
+    MQTT_PACKETS_CONNACK_SENT,
+    "mqtt_packets_connack_sent",
+    "Number of MQTT CONNACK packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_PUBLISH_SENT,
-    "packets_publish_sent",
-    "Number of packets publish sent",
+register_counter_metric!(
+    MQTT_PACKETS_PUBLISH_SENT,
+    "mqtt_packets_publish_sent",
+    "Number of MQTT PUBLISH packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_PUBACK_SENT,
-    "packets_puback_sent",
-    "Number of packets puback sent",
+register_counter_metric!(
+    MQTT_PACKETS_PUBACK_SENT,
+    "mqtt_packets_puback_sent",
+    "Number of MQTT PUBACK packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_PUBREC_SENT,
-    "packets_pubrec_sent",
-    "Number of packets pubrec sent",
+register_counter_metric!(
+    MQTT_PACKETS_PUBREC_SENT,
+    "mqtt_packets_pubrec_sent",
+    "Number of MQTT PUBREC packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_PUBREL_SENT,
-    "packets_pubrel_sent",
-    "Number of packets pubrel sent",
+register_counter_metric!(
+    MQTT_PACKETS_PUBREL_SENT,
+    "mqtt_packets_pubrel_sent",
+    "Number of MQTT PUBREL packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_PUBCOMP_SENT,
-    "packets_pubcomp_sent",
-    "Number of packets pubcomp sent",
+register_counter_metric!(
+    MQTT_PACKETS_PUBCOMP_SENT,
+    "mqtt_packets_pubcomp_sent",
+    "Number of MQTT PUBCOMP packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_SUBACK_SENT,
-    "packets_suback_sent",
-    "Number of packets suback sent",
+register_counter_metric!(
+    MQTT_PACKETS_SUBACK_SENT,
+    "mqtt_packets_suback_sent",
+    "Number of MQTT SUBACK packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_UNSUBACK_SENT,
-    "packets_unsuback_sent",
-    "Number of packets unsuback sent",
+register_counter_metric!(
+    MQTT_PACKETS_UNSUBACK_SENT,
+    "mqtt_packets_unsuback_sent",
+    "Number of MQTT UNSUBACK packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_PINGRESP_SENT,
-    "packets_pingresp_sent",
-    "Number of packets pingresp sent",
+register_counter_metric!(
+    MQTT_PACKETS_PINGRESP_SENT,
+    "mqtt_packets_pingresp_sent",
+    "Number of MQTT PINGRESP packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    PACKETS_DISCONNECT_SENT,
-    "packets_disconnect_sent",
-    "Number of packets disconnect sent",
+register_counter_metric!(
+    MQTT_PACKETS_DISCONNECT_SENT,
+    "mqtt_packets_disconnect_sent",
+    "Number of MQTT DISCONNECT packets sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    BYTES_RECEIVED,
-    "bytes_received",
-    "Number of bytes received",
+register_counter_metric!(
+    MQTT_BYTES_RECEIVED,
+    "mqtt_bytes_received",
+    "Number of MQTT bytes received",
     NetworkLabel
 );
 
-register_gauge_metric!(
-    BYTES_SENT,
-    "bytes_sent",
-    "Number of bytes sent",
+register_counter_metric!(
+    MQTT_BYTES_SENT,
+    "mqtt_bytes_sent",
+    "Number of MQTT bytes sent",
     NetworkQosLabel
 );
 
-register_gauge_metric!(
-    RETAIN_PACKETS_RECEIVED,
-    "retain_packets_received",
-    "Number of reserved messages received",
+register_counter_metric!(
+    MQTT_RETAIN_PACKETS_RECEIVED,
+    "mqtt_retain_packets_received",
+    "Number of MQTT retain messages received",
     QosLabel
 );
 
-register_gauge_metric!(
-    RETAIN_PACKETS_SEND,
-    "retain_packets_sent",
-    "Number of reserved messages sent",
-    QosLabel
-);
-
-register_gauge_metric!(
-    MESSAGES_DROPPED_NO_SUBSCRIBERS,
-    "messages_dropped_no_subscribers",
-    "Number of messages dropped due to no subscribers",
-    QosLabel
-);
-
-register_gauge_metric!(
-    MESSAGES_DROPPED_DISCARD,
-    "messages_dropped_discard",
-    "Number of messages dropped due to discard",
+register_counter_metric!(
+    MQTT_RETAIN_PACKETS_SENT,
+    "mqtt_retain_packets_sent",
+    "Number of MQTT retain messages sent",
     QosLabel
 );
 
@@ -258,11 +244,11 @@ pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
     let labe = NetworkLabel {
         network: network_type.to_string(),
     };
-    gauge_metric_inc!(PACKETS_RECEIVED_ERROR, labe);
+    counter_metric_inc!(MQTT_PACKETS_RECEIVED_ERROR, labe);
 }
 
 // Record metrics related to packets received by the server
-pub fn record_received_metrics(
+pub fn record_packet_received_metrics(
     connection: &NetworkConnection,
     pkg: &MqttPacket,
     network_type: &NetworkConnectionType,
@@ -279,41 +265,43 @@ pub fn record_received_metrics(
     } else {
         0
     };
-    gauge_metric_inc_by!(BYTES_RECEIVED, label, payload_size as i64);
-    gauge_metric_inc!(PACKETS_RECEIVED, label);
+
+    counter_metric_inc_by!(MQTT_BYTES_RECEIVED, label, payload_size as u64);
+    counter_metric_inc!(MQTT_PACKETS_RECEIVED, label);
+
     match pkg {
         MqttPacket::Connect(_, _, _, _, _, _) => {
-            gauge_metric_inc!(PACKETS_CONNECT_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_CONNECT_RECEIVED, label)
         }
         MqttPacket::ConnAck(_, _) => {
-            gauge_metric_inc!(PACKETS_CONNACK_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_CONNACK_RECEIVED, label)
         }
         MqttPacket::Publish(_, _) => {
-            gauge_metric_inc!(PACKETS_PUBLISH_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_PUBLISH_RECEIVED, label)
         }
-        MqttPacket::PubAck(_, _) => gauge_metric_inc!(PACKETS_PUBACK_RECEIVED, label),
-        MqttPacket::PubRec(_, _) => gauge_metric_inc!(PACKETS_PUBREC_RECEIVED, label),
-        MqttPacket::PubRel(_, _) => gauge_metric_inc!(PACKETS_PUBREL_RECEIVED, label),
+        MqttPacket::PubAck(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBACK_RECEIVED, label),
+        MqttPacket::PubRec(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREC_RECEIVED, label),
+        MqttPacket::PubRel(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREL_RECEIVED, label),
         MqttPacket::PubComp(_, _) => {
-            gauge_metric_inc!(PACKETS_PUBCOMP_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_PUBCOMP_RECEIVED, label)
         }
-        MqttPacket::PingReq(_) => gauge_metric_inc!(PACKETS_PINGREQ_RECEIVED, label),
+        MqttPacket::PingReq(_) => counter_metric_inc!(MQTT_PACKETS_PINGREQ_RECEIVED, label),
         MqttPacket::Disconnect(_, _) => {
-            gauge_metric_inc!(PACKETS_DISCONNECT_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_DISCONNECT_RECEIVED, label)
         }
-        MqttPacket::Auth(_, _) => gauge_metric_inc!(PACKETS_AUTH_RECEIVED, label),
+        MqttPacket::Auth(_, _) => counter_metric_inc!(MQTT_PACKETS_AUTH_RECEIVED, label),
         MqttPacket::Subscribe(_, _) => {
-            gauge_metric_inc!(PACKETS_SUBSCRIBE_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_SUBSCRIBE_RECEIVED, label)
         }
         MqttPacket::Unsubscribe(_, _) => {
-            gauge_metric_inc!(PACKETS_UNSUBSCRIBE_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_UNSUBSCRIBE_RECEIVED, label)
         }
         _ => unreachable!("This branch only matches for packets could not be received"),
     }
 }
 
 // Record metrics related to messages pushed to the client
-pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: String) {
+pub fn record_packet_send_metrics(packet_wrapper: &MqttPacketWrapper, network_type: String) {
     let qos_str = if let MqttPacket::Publish(publish, _) = packet_wrapper.packet.clone() {
         format!("{}", publish.qos as u8)
     } else {
@@ -327,39 +315,39 @@ pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: Str
         network: network_type.clone(),
     };
     let payload_size = calc_mqtt_packet_size(packet_wrapper.to_owned());
-    gauge_metric_inc!(PACKETS_SENT, label_qos);
-    gauge_metric_inc_by!(BYTES_SENT, label_qos, payload_size as i64);
+    counter_metric_inc!(MQTT_PACKETS_SENT, label_qos);
+    counter_metric_inc_by!(MQTT_BYTES_SENT, label_qos, payload_size as u64);
 
     match &packet_wrapper.packet {
         MqttPacket::ConnAck(conn_ack, _) => {
-            gauge_metric_inc!(PACKETS_CONNACK_SENT, label_qos);
+            counter_metric_inc!(MQTT_PACKETS_CONNACK_SENT, label_qos);
             //  NotAuthorized
             if conn_ack.code == ConnectReturnCode::NotAuthorized {
-                gauge_metric_inc!(PACKETS_CONNACK_AUTH_ERROR, label);
+                counter_metric_inc!(MQTT_PACKETS_CONNACK_AUTH_ERROR, label);
             }
             //  connack error
             if conn_ack.code != ConnectReturnCode::Success {
-                gauge_metric_inc!(PACKETS_CONNACK_ERROR, label);
+                counter_metric_inc!(MQTT_PACKETS_CONNACK_ERROR, label);
             }
         }
         MqttPacket::Publish(_, _) => {
-            gauge_metric_inc!(PACKETS_PUBLISH_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_PUBLISH_SENT, label_qos)
         }
-        MqttPacket::PubAck(_, _) => gauge_metric_inc!(PACKETS_PUBACK_SENT, label_qos),
-        MqttPacket::PubRec(_, _) => gauge_metric_inc!(PACKETS_PUBREC_SENT, label_qos),
-        MqttPacket::PubRel(_, _) => gauge_metric_inc!(PACKETS_PUBREL_SENT, label_qos),
+        MqttPacket::PubAck(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBACK_SENT, label_qos),
+        MqttPacket::PubRec(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREC_SENT, label_qos),
+        MqttPacket::PubRel(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREL_SENT, label_qos),
         MqttPacket::PubComp(_, _) => {
-            gauge_metric_inc!(PACKETS_PUBCOMP_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_PUBCOMP_SENT, label_qos)
         }
-        MqttPacket::SubAck(_, _) => gauge_metric_inc!(PACKETS_SUBACK_SENT, label_qos),
+        MqttPacket::SubAck(_, _) => counter_metric_inc!(MQTT_PACKETS_SUBACK_SENT, label_qos),
         MqttPacket::UnsubAck(_, _) => {
-            gauge_metric_inc!(PACKETS_UNSUBACK_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_UNSUBACK_SENT, label_qos)
         }
-        MqttPacket::PingResp(_) => gauge_metric_inc!(PACKETS_PINGRESP_SENT, label_qos),
+        MqttPacket::PingResp(_) => counter_metric_inc!(MQTT_PACKETS_PINGRESP_SENT, label_qos),
         MqttPacket::Disconnect(_, _) => {
-            gauge_metric_inc!(PACKETS_DISCONNECT_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_DISCONNECT_SENT, label_qos)
         }
-        MqttPacket::Auth(_, _) => gauge_metric_inc!(PACKETS_CONNACK_SENT, label_qos),
+        MqttPacket::Auth(_, _) => counter_metric_inc!(MQTT_PACKETS_CONNACK_SENT, label_qos),
         _ => unreachable!("This branch only matches for packets could not be sent"),
     }
 }
@@ -367,25 +355,13 @@ pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: Str
 pub fn record_retain_recv_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
     let label = QosLabel { qos: qos_str };
-    gauge_metric_inc!(RETAIN_PACKETS_RECEIVED, label)
+    counter_metric_inc!(MQTT_RETAIN_PACKETS_RECEIVED, label)
 }
 
 pub fn record_retain_sent_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
     let label = QosLabel { qos: qos_str };
-    gauge_metric_inc!(RETAIN_PACKETS_SEND, label);
-}
-
-pub fn record_messages_dropped_no_subscribers_metrics(qos: QoS) {
-    let qos_str = (qos as u8).to_string();
-    let label = QosLabel { qos: qos_str };
-    gauge_metric_inc!(MESSAGES_DROPPED_NO_SUBSCRIBERS, label);
-}
-
-pub fn record_messages_dropped_discard_metrics(qos: QoS) {
-    let qos_str = (qos as u8).to_string();
-    let label = QosLabel { qos: qos_str };
-    gauge_metric_inc!(MESSAGES_DROPPED_DISCARD, label);
+    counter_metric_inc!(MQTT_RETAIN_PACKETS_SENT, label);
 }
 
 #[cfg(test)]
@@ -393,12 +369,12 @@ mod test {
     use crate::core::server::metrics_register_default;
 
     use super::*;
-    use common_base::tools::{get_addr_by_local_hostname, now_second};
+    use common_base::tools::get_addr_by_local_hostname;
     use prometheus_client::encoding::text::encode;
 
     #[tokio::test]
     async fn test_gauge() {
-        let family = PACKETS_RECEIVED.clone();
+        let family = MQTT_PACKETS_RECEIVED.clone();
         let mut tasks = vec![];
         for tid in 0..100 {
             let family = family.clone();
@@ -441,11 +417,11 @@ mod test {
             network: "tcp".to_string(),
         };
         {
-            gauge_metric_inc_by!(PACKETS_RECEIVED_ERROR, label, 2);
+            counter_metric_inc_by!(MQTT_PACKETS_RECEIVED_ERROR, label, 2);
         }
 
         {
-            let c = PACKETS_RECEIVED_ERROR
+            let c = MQTT_PACKETS_RECEIVED_ERROR
                 .clone()
                 .write()
                 .unwrap()
@@ -474,7 +450,7 @@ mod test {
     }
 
     use bytes::Bytes;
-    use protocol::robust::RobustMQProtocol;
+
     #[test]
     fn calc_mqtt_packet_test() {
         let mp: MqttPacket = MqttPacket::Publish(
@@ -489,25 +465,22 @@ mod test {
             None,
         );
 
-        let nc = NetworkConnection {
-            connection_type: NetworkConnectionType::Tcp,
-            addr: get_addr_by_local_hostname(1883).parse().unwrap(),
-            connection_stop_sx: None,
-            connection_id: 100,
-            protocol: Some(RobustMQProtocol::MQTT3),
-            create_time: now_second(),
-        };
+        let nc = NetworkConnection::new(
+            NetworkConnectionType::Tcp,
+            get_addr_by_local_hostname(1883).parse().unwrap(),
+            None,
+        );
         let ty = NetworkConnectionType::Tcp;
-        record_received_metrics(&nc, &mp, &ty);
+        record_packet_received_metrics(&nc, &mp, &ty);
         let label = NetworkLabel {
             network: ty.to_string(),
         };
-        let pr = PACKETS_RECEIVED.clone();
+        let pr = MQTT_PACKETS_RECEIVED.clone();
         {
             let rs1 = pr.read().unwrap().get_or_create(&label).get();
             assert_eq!(rs1, 1);
         }
-        let ps = PACKETS_PUBLISH_RECEIVED.clone();
+        let ps = MQTT_PACKETS_PUBLISH_RECEIVED.clone();
         {
             let rs2 = ps.read().unwrap().get_or_create(&label).get();
             assert_eq!(rs2, 1);

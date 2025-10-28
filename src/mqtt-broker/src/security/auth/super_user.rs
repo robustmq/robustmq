@@ -15,6 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::storage::user::UserStorage;
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
@@ -30,6 +31,7 @@ pub async fn init_system_user(
         password: conf.mqtt_runtime.default_password.clone(),
         salt: None,
         is_superuser: true,
+        create_time: now_second(),
     };
     let user_storage = UserStorage::new(client_pool.clone());
     let res = user_storage
@@ -57,16 +59,18 @@ pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> b
 mod test {
     use super::is_super_user;
     use crate::common::tool::test_build_mqtt_cache_manager;
+    use common_base::tools::now_second;
     use metadata_struct::mqtt::user::MqttUser;
 
     #[tokio::test]
     pub async fn check_super_user_test() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
         cache_manager.add_user(user.clone());
 
@@ -83,6 +87,7 @@ mod test {
             password: "lobo_123".to_string(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user.clone());
         assert!(!is_super_user(&cache_manager, &user.username));

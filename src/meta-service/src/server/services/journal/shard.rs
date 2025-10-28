@@ -33,7 +33,7 @@ use protocol::meta::meta_service_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest, ListShardReply,
     ListShardRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn list_shard_by_req(

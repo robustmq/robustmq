@@ -17,6 +17,7 @@ use crate::quic::stream::QuicFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
@@ -141,8 +142,29 @@ impl ConnectionManager {
         false
     }
 
+    pub fn get_network_type(&self, connect_id: u64) -> Option<NetworkConnectionType> {
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return Some(connect.connection_type.clone());
+        }
+        None
+    }
+
     pub fn get_tcp_connect_num_check(&self) -> u64 {
         0
+    }
+
+    pub fn report_heartbeat(&self, connect_id: u64, time: u64) {
+        if let Some(mut connect) = self.connections.get_mut(&connect_id) {
+            connect.set_heartbeat_time(time);
+        }
+    }
+
+    pub async fn connection_gc(&self) {
+        for conn in self.connections.iter() {
+            if now_second() - conn.create_time > 1800 {
+                self.close_connect(conn.connection_id).await;
+            }
+        }
     }
 }
 
@@ -187,7 +209,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         let _network_type = if let Some(connection) = self.get_connect(connection_id) {
@@ -202,14 +224,8 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                match self.write_mqtt_tcp_frame(connection_id, mqtt_packet).await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
+                self.write_mqtt_tcp_frame(connection_id, mqtt_packet)
+                    .await?;
             }
         }
 
@@ -240,14 +256,8 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                match self.write_mqtt_quic_frame(connection_id, mqtt_packet).await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
+                self.write_mqtt_quic_frame(connection_id, mqtt_packet)
+                    .await?;
             }
         }
 

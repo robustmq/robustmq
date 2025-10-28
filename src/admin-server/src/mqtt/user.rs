@@ -13,13 +13,57 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::{CreateUserReq, DeleteUserReq, UserListReq},
-    response::{mqtt::UserListRow, PageReplyData},
+    extractor::ValidatedJson,
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
-use common_base::http_response::{error_response, success_response};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserListReq {
+    pub user_name: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateUserReq {
+    #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
+    pub username: String,
+
+    #[validate(length(min = 1, max = 128, message = "Password length must be between 1-128"))]
+    pub password: String,
+
+    pub is_superuser: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct DeleteUserReq {
+    #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
+    pub username: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UserListRow {
+    pub username: String,
+    pub is_superuser: bool,
+    pub create_time: u64,
+}
+
+use common_base::{
+    http_response::{error_response, success_response},
+    tools::now_second,
+};
 use metadata_struct::mqtt::user::MqttUser;
 use mqtt_broker::security::AuthDriver;
 use std::sync::Arc;
@@ -56,6 +100,7 @@ pub async fn user_list(
         let user_raw = UserListRow {
             username: ele.1.username,
             is_superuser: ele.1.is_superuser,
+            create_time: ele.1.create_time,
         };
         users.push(user_raw);
     }
@@ -81,13 +126,14 @@ impl Queryable for UserListRow {
 
 pub async fn user_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateUserReq>,
+    ValidatedJson(params): ValidatedJson<CreateUserReq>,
 ) -> String {
     let mqtt_user = MqttUser {
         username: params.username.clone(),
         password: params.password.clone(),
         salt: None,
         is_superuser: params.is_superuser,
+        create_time: now_second(),
     };
 
     let auth_driver = AuthDriver::new(
@@ -102,7 +148,7 @@ pub async fn user_create(
 
 pub async fn user_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteUserReq>,
+    ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
     let auth_driver = AuthDriver::new(
         state.mqtt_context.cache_manager.clone(),

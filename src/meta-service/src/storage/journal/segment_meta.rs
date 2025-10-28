@@ -14,13 +14,13 @@
 
 use std::sync::Arc;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
-};
 use common_base::error::common::CommonError;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 use crate::storage::keys::{
     key_all_segment_metadata, key_segment_metadata, key_segment_metadata_cluster_prefix,
@@ -45,7 +45,7 @@ impl SegmentMetadataStorage {
             &segment.shard_name,
             segment.segment_seq,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, segment)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), shard_key, segment)
     }
 
     pub fn get(
@@ -135,7 +135,7 @@ impl SegmentMetadataStorage {
 mod test {
     use super::*;
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
 

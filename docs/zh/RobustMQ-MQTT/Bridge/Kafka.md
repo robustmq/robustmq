@@ -44,7 +44,7 @@ pub struct KafkaConnectorConfig {
   "connector_name": "kafka_connector_01",
   "connector_type": "Kafka",
   "config": "{\"bootstrap_servers\": \"localhost:9092\", \"topic\": \"mqtt_messages\", \"key\": \"sensor_data\"}",
-  "topic_id": "sensor/data",
+  "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": null,
   "create_time": 1640995200,

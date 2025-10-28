@@ -16,9 +16,13 @@ use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 use super::*;
 
-fn len() -> usize {
-    // variable header length of connack is 2 bytes(session present + return code)
-    1 + 1
+const MQTT_CONTROL_PACKET_TYPE_CONNACK: u8 = 0b0010_0000;
+const MQTT_CONNECT_ACKNOWLEDGE_FLAGS_LENGTH: usize = 1;
+const MQTT_CONNECT_RETURN_CODE_LENGTH: usize = 1;
+
+fn remaining_length() -> usize {
+    // variable header length of connack is 2 bytes(connect acknowledge flags + connect return code)
+    MQTT_CONNECT_ACKNOWLEDGE_FLAGS_LENGTH + MQTT_CONNECT_RETURN_CODE_LENGTH
 }
 
 pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, MQTTProtocolError> {
@@ -27,21 +31,24 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, MQTT
 
     let flags = read_u8(&mut bytes)?;
     let return_code = read_u8(&mut bytes)?;
+
     let session_present = (flags & 0x01) == 1;
     let code = connect_return(return_code)?;
-    let connack = ConnAck {
+
+    Ok(ConnAck {
         session_present,
         code,
-    };
-    Ok(connack)
+    })
 }
 
 pub fn write(connack: &ConnAck, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
-    let len = len();
-    buffer.put_u8(0x20); // write the first byte 0010 0000 to demonstrate this packet type
-                         //as a connack(connection acknowledgement)
-
+    // write the first byte 0010 0000 to demonstrate this packet type
+    //as a connack(connection acknowledgement)
+    buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNACK);
+    let len = remaining_length();
     let count = write_remaining_length(buffer, len)?;
+
+    // variable header
     buffer.put_u8(connack.session_present as u8);
     buffer.put_u8(connect_code(connack.code));
 
@@ -73,32 +80,207 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    use crate::mqtt::common::ConnAck;
+    use crate::mqtt::mqttv4::connack::MQTTProtocolError;
+    use crate::mqtt::mqttv4::connack::{read, write};
+    use crate::mqtt::mqttv4::parse_fixed_header;
+    use crate::mqtt::mqttv4::FixedHeader;
+    use bytes::{Buf, BytesMut};
+    // use byte test do not use connack struct
+    #[tokio::test]
+    async fn test_connack_invalid_return_code() {
+        let mut bytes = BytesMut::from(&[0x20, 0x02, 0x00, 0x06][..]);
+        let fixedheader: FixedHeader = parse_fixed_header(bytes.iter()).unwrap();
+        let connack_return = read(fixedheader, bytes.copy_to_bytes(bytes.len()));
+        assert!(connack_return.is_err());
+        let connack_error = connack_return.unwrap_err();
+        assert_eq!(
+            connack_error.to_string(),
+            MQTTProtocolError::InvalidConnectReturnCode(6).to_string()
+        )
+    }
 
-    #[test]
-    fn test_connack() {
-        use super::*;
-
-        let connack: ConnAck = ConnAck {
+    // use byte to test read and write function
+    #[tokio::test]
+    async fn test_connack_read_write() {
+        let connack = ConnAck {
             session_present: false,
-            code: ConnectReturnCode::Success,
+            code: super::ConnectReturnCode::Success,
         };
+
         let mut buffer = BytesMut::new();
-        // test the write function
         write(&connack, &mut buffer).unwrap();
 
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(connack_return.session_present, connack.session_present);
+        assert_eq!(connack_return.code, connack.code);
+    }
+
+    // test fixed header, variable header and payload
+    #[tokio::test]
+    async fn test_connack_fixed_header_length() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::Success,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+
         // read the 1st byte and check its packet type which should be connack(0x20)
         assert_eq!(fixedheader.byte1, 0b0010_0000);
         // fixed header length should be 2
         assert_eq!(fixedheader.fixed_header_len, 2);
         // read the 2nd byte and check its value which should be 2
         assert_eq!(fixedheader.remaining_len, 2);
+    }
 
-        // test the read function
+    #[tokio::test]
+    async fn test_connack_variable_header() {
+        let connack = ConnAck {
+            session_present: true,
+            code: super::ConnectReturnCode::Success,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert!(connack_return.session_present);
+        assert_eq!(connack_return.code, super::ConnectReturnCode::Success);
+    }
+
+    // todo  this test can be improved to cover all return codes, but we need use actual mqtt client to test it
+    #[tokio::test]
+    async fn test_connack_connect_session_present_is_false() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::Success,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert!(!connack_return.session_present);
-        assert_eq!(connack_return.code, ConnectReturnCode::Success);
-        // test the display function
-        assert_eq!(connack.to_string(), connack_return.to_string());
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_session_present_is_true() {
+        let connack = ConnAck {
+            session_present: true,
+            code: super::ConnectReturnCode::Success,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert!(connack_return.session_present);
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_return_code_is_default() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::Success,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(connack_return.code, super::ConnectReturnCode::Success);
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_return_code_is_refused_protocol_version() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::RefusedProtocolVersion,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(
+            connack_return.code,
+            super::ConnectReturnCode::RefusedProtocolVersion
+        );
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_return_code_is_bad_client_id() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::BadClientId,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(connack_return.code, super::ConnectReturnCode::BadClientId);
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_return_code_is_service_unavailable() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::ServiceUnavailable,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(
+            connack_return.code,
+            super::ConnectReturnCode::ServiceUnavailable
+        );
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_return_code_is_bad_username_password() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::BadUserNamePassword,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(
+            connack_return.code,
+            super::ConnectReturnCode::BadUserNamePassword
+        );
+    }
+
+    #[tokio::test]
+    async fn test_connack_connect_return_code_is_bad_no_authorized() {
+        let connack = ConnAck {
+            session_present: false,
+            code: super::ConnectReturnCode::NotAuthorized,
+        };
+
+        let mut buffer = BytesMut::new();
+        write(&connack, &mut buffer).unwrap();
+
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(connack_return.code, super::ConnectReturnCode::NotAuthorized);
     }
 }

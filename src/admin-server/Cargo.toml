@@ -37,8 +37,11 @@ schema-register.workspace = true
 reqwest.workspace = true
 thiserror.workspace = true
 tower-http.workspace = true
-tower.workspace = true
-lazy_static.workspace = true
-chrono.workspace = true
+rate-limit.workspace = true
+dashmap.workspace = true
+storage-adapter.workspace = true
+bytes.workspace = true
+validator.workspace = true
+rocksdb-engine.workspace = true
 [dev-dependencies]
 mockall.workspace = true

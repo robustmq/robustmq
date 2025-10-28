@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::core::error::JournalServerError;
 use crate::handler::command::Command;
@@ -144,7 +144,7 @@ fn handler_child_process(
                                         ),
                                     }
                                 } else {
-                                    info!("{}","No backpacking is required for this request");
+                                    debug!("{}","No backpacking is required for this request");
                                 }
                             } else {
                                 error!("{}", JournalServerError::NotFoundConnectionInCache(packet.connection_id));

@@ -16,9 +16,10 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
+use common_config::security::MysqlConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -29,17 +30,25 @@ use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 mod schema;
 pub struct MySQLAuthStorageAdapter {
     pool: MysqlPool,
+    #[allow(dead_code)]
+    config: MysqlConfig,
 }
 
 impl MySQLAuthStorageAdapter {
-    pub fn new(addr: String) -> Self {
+    pub fn new(config: MysqlConfig) -> Self {
+        // build connection string
+        let addr = format!(
+            "mysql://{}:{}@{}/{}",
+            config.username, config.password, config.mysql_addr, config.database
+        );
+
         let pool = match build_mysql_conn_pool(&addr) {
             Ok(data) => data,
             Err(e) => {
                 panic!("{}", e.to_string());
             }
         };
-        MySQLAuthStorageAdapter { pool }
+        MySQLAuthStorageAdapter { pool, config }
     }
 
     fn table_user(&self) -> String {
@@ -67,6 +76,8 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 password: raw.1.clone(),
                 salt: raw.2.clone(),
                 is_superuser: raw.3 == 1,
+                // todo bugfix
+                create_time: now_second(),
             };
             results.insert(raw.0.clone(), user);
         }
@@ -131,6 +142,8 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 password: value.1.clone(),
                 salt: value.2.clone(),
                 is_superuser: value.3 == 1,
+                // todo bugfix
+                create_time: now_second(),
             }));
         }
         return Ok(None);
@@ -241,6 +254,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
 #[cfg(test)]
 mod tests {
+    use common_config::security::MysqlConfig;
     use r2d2_mysql::mysql::params;
     use r2d2_mysql::mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;
@@ -252,9 +266,17 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn read_all_user_test() {
+        let config = MysqlConfig {
+            mysql_addr: "127.0.0.1:3306".to_string(),
+            database: "mqtt".to_string(),
+            username: "root".to_string(),
+            password: "123456".to_string(),
+            query: "".to_string(),
+        };
+
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
         init_user(&addr);
-        let auth_mysql = MySQLAuthStorageAdapter::new(addr);
+        let auth_mysql = MySQLAuthStorageAdapter::new(config);
         let result = auth_mysql.read_all_user().await;
         assert!(result.is_ok());
         let res = result.unwrap();
@@ -266,9 +288,17 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_user_test() {
+        let config = MysqlConfig {
+            mysql_addr: "127.0.0.1:3306".to_string(),
+            database: "mqtt".to_string(),
+            username: "root".to_string(),
+            password: "123456".to_string(),
+            query: "".to_string(),
+        };
+
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
         init_user(&addr);
-        let auth_mysql = MySQLAuthStorageAdapter::new(addr);
+        let auth_mysql = MySQLAuthStorageAdapter::new(config);
         let username = "robustmq".to_string();
         let result = auth_mysql.get_user(username).await;
         assert!(result.is_ok());

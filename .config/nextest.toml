@@ -12,11 +12,73 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Nextest Configuration
+# This file optimizes test execution and reduces disk space usage
+
+[store]
+# Directory where nextest stores its data
+# By default it's in target/nextest - we'll clean this regularly
+dir = "target/nextest"
+
+# Test execution profile
 [profile.default]
-slow-timeout="1m"
+# Number of tests to run in parallel
+# Adjust based on your CPU cores and memory
+test-threads = 14
 
+# Retry failed tests to reduce flakiness
+retries = 2
+
+# Test output settings
+slow-timeout = { period = "60s", terminate-after = 3 }
+leak-timeout = "100ms"
+
+# Control what gets printed
+status-level = "pass"
+final-status-level = "fail"
+
+# Failure output
+failure-output = "immediate-final"
+success-output = "never"
+
+# CI profile - more strict, less storage
 [profile.ci]
-slow-timeout = { period = "60s", terminate-after = 3, grace-period = "10s" }
+test-threads = 10  # Match CARGO_BUILD_JOBS in CI workflows
+retries = 0
+slow-timeout = { period = "120s", terminate-after = 2 }
 
-[profile.ci.junit]
-path = 'junit.xml'
+# Don't keep archives in CI
+status-level = "skip"
+failure-output = "immediate"
+success-output = "never"
+
+# Archive settings - minimize storage
+[profile.ci.archive]
+include = []  # Don't archive anything by default
+
+# Test groups - for better parallelization
+[test-groups]
+# Run database tests serially (they may conflict)
+serial-integration = { max-threads = 1 }
+
+# Quick unit tests can run in parallel
+parallel = { max-threads = 14 }
+
+# Override settings per test
+[[profile.default.overrides]]
+# Integration tests - run serially and with longer timeout
+filter = 'test(integration)'
+test-group = 'serial-integration'
+slow-timeout = { period = "120s" }
+
+[[profile.default.overrides]]
+# Unit tests - run in parallel
+filter = 'test(test_)'
+test-group = 'parallel'
+
+# Script settings - removed as not needed for this project
+# [script]
+# default = []
+
+# Terminal output settings are controlled via CLI flags
+# See: cargo nextest run --help

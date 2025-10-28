@@ -25,7 +25,7 @@ use super::{
 };
 use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
 use common_base::tools::now_second;
-use common_metrics::mqtt::packets::record_messages_dropped_discard_metrics;
+use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
@@ -51,20 +51,35 @@ pub struct SaveMessageContext {
 }
 
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
+    // Whether or not offline messages are enabled
+    // persistent storage must be used to retain the messages.
+    save_retain_message(
+        &context.cache_manager,
+        &context.client_pool,
+        context.topic.topic_name.clone(),
+        &context.client_id,
+        &context.publish,
+        &context.publish_properties,
+    )
+    .await?;
+
     let offline_message_disabled = !context
         .cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_offline_message
         .enable;
+
     let not_exist_subscribe =
         !is_exist_subscribe(&context.subscribe_manager, &context.topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
-        record_messages_dropped_discard_metrics(context.publish.qos);
+        record_messages_dropped_no_subscribers_incr();
         return Ok(None);
     }
 
-    let message_expire = build_message_expire(&context.cache_manager, &context.publish_properties);
+    let message_expire =
+        build_message_expire(&context.cache_manager, &context.publish_properties).await;
 
     if context.delay_info.is_some() {
         return save_delay_message(
@@ -77,17 +92,6 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         )
         .await;
     }
-
-    // Persisting retain message data
-    save_retain_message(
-        &context.cache_manager,
-        &context.client_pool,
-        context.topic.topic_name.clone(),
-        &context.client_id,
-        &context.publish,
-        &context.publish_properties,
-    )
-    .await?;
 
     return save_simple_message(
         &context.message_storage_adapter,
@@ -161,7 +165,7 @@ async fn save_simple_message(
     {
         let message_storage = MessageStorage::new(message_storage_adapter.clone());
         let offsets = message_storage
-            .append_topic_message(&topic.topic_id, vec![record])
+            .append_topic_message(&topic.topic_name, vec![record])
             .await?;
         return Ok(Some(format!("{offsets:?}")));
     }

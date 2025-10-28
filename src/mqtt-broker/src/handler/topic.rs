@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use bytes::Bytes;
-
-use common_base::tools::unique_id;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
+use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
 use tokio::time::sleep;
 
 use super::error::MqttBrokerError;
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
-use crate::handler::topic_rewrite::convert_publish_topic_by_rewrite_rule;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::manager::SubscribeManager;
 
 pub fn payload_format_validator(
     payload: &Bytes,
@@ -95,20 +93,19 @@ pub async fn get_topic_name(
         return Err(MqttBrokerError::TopicNameIsEmpty);
     }
 
-    let topic_name = if topic.is_empty() {
+    let mut topic_name = if topic.is_empty() {
         get_topic_alias(cache_manager, connect_id, topic_alias).await?
     } else {
         topic
     };
 
-    topic_name_validator(&topic_name)?;
+    if !cache_manager.topic_is_validator.contains_key(&topic_name) {
+        topic_name_validator(&topic_name)?;
+        cache_manager.add_topic_is_validator(&topic_name);
+    }
 
-    // topic rewrite
-    if let Some(rewrite_topic_name) =
-        convert_publish_topic_by_rewrite_rule(cache_manager, topic_name.clone())?
-    {
-        topic_name_validator(rewrite_topic_name.as_str())?;
-        return Ok(rewrite_topic_name);
+    if let Some(new_topic_name) = cache_manager.get_new_rewrite_name(&topic_name) {
+        topic_name = new_topic_name;
     }
 
     Ok(topic_name)
@@ -153,12 +150,11 @@ pub async fn try_init_topic(
 
         // create Topic
         let topic_storage = TopicStorage::new(client_pool.clone());
-        let topic_id = unique_id();
         let conf = broker_config();
         let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
             topic
         } else {
-            let topic = MQTTTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
+            let topic = MQTTTopic::new(conf.cluster_name.clone(), topic_name.to_owned());
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };
@@ -177,9 +173,34 @@ pub async fn try_init_topic(
             };
             message_storage_adapter.create_shard(shard).await?;
         }
+        metadata_cache.set_re_calc_topic_rewrite(true).await;
         return Ok(topic);
     };
     Ok(topic)
+}
+
+pub async fn delete_topic(
+    cache_manager: &Arc<MQTTCacheManager>,
+    topic_name: &str,
+    message_storage_adapter: &ArcStorageAdapter,
+    subscribe_manager: &Arc<SubscribeManager>,
+    metrics_manager: &Arc<MetricsCacheManager>,
+) -> Result<(), MqttBrokerError> {
+    // delete shard
+    let namespace = cluster_name();
+    let list = message_storage_adapter
+        .list_shard(namespace.clone(), topic_name.to_owned())
+        .await?;
+    if !list.is_empty() {
+        message_storage_adapter
+            .delete_shard(namespace, topic_name.to_string())
+            .await?;
+    }
+
+    cache_manager.delete_topic(topic_name);
+    metrics_manager.remove_topic(topic_name);
+    subscribe_manager.remove_topic(topic_name);
+    Ok(())
 }
 
 #[cfg(test)]

@@ -19,7 +19,7 @@ use crate::{
     security::AuthDriver,
     subscribe::manager::SubscribeManager,
 };
-use broker_core::rocksdb::RocksDBEngine;
+use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -29,6 +29,7 @@ use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -56,6 +57,7 @@ pub struct TcpServerContext {
     pub stop_sx: broadcast::Sender<bool>,
     pub auth_driver: Arc<AuthDriver>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub broker_cache: Arc<BrokerCacheManager>,
 }
 
 impl Server {
@@ -71,6 +73,7 @@ impl Server {
             schema_manager: context.schema_manager.clone(),
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
+            broker_cache: context.broker_cache.clone(),
         };
         let command = create_command(command_context);
 
@@ -88,6 +91,7 @@ impl Server {
             network_type: NetworkConnectionType::Tcp,
             proc_config,
             stop_sx: context.stop_sx.clone(),
+            broker_cache: context.broker_cache.clone(),
         };
 
         // TCP Server
@@ -119,28 +123,35 @@ impl Server {
 
     pub async fn start(&self) -> ResultMqttBrokerError {
         let conf = broker_config();
-        self.tcp_server
+        if let Err(e) = self
+            .tcp_server
             .start(false, conf.mqtt_server.tcp_port)
-            .await?;
-        self.tls_server
-            .start(true, conf.mqtt_server.tls_port)
-            .await?;
+            .await
+        {
+            error!("TCP server start fail, error:{}", e);
+        }
+
+        if let Err(e) = self.tls_server.start(true, conf.mqtt_server.tls_port).await {
+            error!("TLS server start fail, error:{}", e);
+        }
 
         let ws_server = self.ws_server.clone();
         tokio::spawn(async move {
             if let Err(e) = ws_server.start_ws().await {
-                error!("{}", e);
+                error!("WebSocket server start fail, error:{}", e);
             }
         });
 
         let ws_server = self.ws_server.clone();
         tokio::spawn(async move {
             if let Err(e) = ws_server.start_wss().await {
-                error!("{}", e);
+                error!("WebSockets server start fail, error:{}", e);
             }
         });
 
-        self.quic_server.start(conf.mqtt_server.quic_port).await?;
+        if let Err(e) = self.quic_server.start(conf.mqtt_server.quic_port).await {
+            error!("QUIC server start fail, error:{}", e);
+        }
         Ok(())
     }
 

@@ -15,6 +15,11 @@
 pub mod config_greptimedb;
 pub mod config_kafka;
 pub mod config_local_file;
+pub mod config_mongodb;
+pub mod config_mysql;
+pub mod config_postgres;
+pub mod config_pulsar;
+pub mod config_rabbitmq;
 pub mod connector;
 pub mod connector_type;
 pub mod status;

@@ -24,14 +24,15 @@ use protocol::meta::meta_service_mqtt::{
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
+    GetLastWillMessageRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    GetTopicRetainMessageReply, GetTopicRetainMessageRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
+    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
     UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
@@ -201,6 +202,15 @@ impl_retriable_request!(
     SaveLastWillMessageReply,
     meta_service_mqtt_services_client,
     save_last_will_message,
+    true
+);
+
+impl_retriable_request!(
+    GetLastWillMessageRequest,
+    MqttServiceClient<Channel>,
+    GetLastWillMessageReply,
+    meta_service_mqtt_services_client,
+    get_last_will_message,
     true
 );
 

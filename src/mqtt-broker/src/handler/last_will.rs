@@ -22,7 +22,7 @@ use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
@@ -67,12 +67,12 @@ pub async fn send_last_will_message(
     // Persisting stores message data
     let message_storage = MessageStorage::new(message_storage_adapter.clone());
 
-    let message_expire = build_message_expire(cache_manager, &publish_properties);
+    let message_expire = build_message_expire(cache_manager, &publish_properties).await;
     if let Some(record) =
         MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
     {
         message_storage
-            .append_topic_message(&topic.topic_id, vec![record])
+            .append_topic_message(&topic.topic_name, vec![record])
             .await?;
     }
     Ok(())
@@ -127,7 +127,7 @@ pub async fn save_last_will_message(
     }
 
     let session_storage = SessionStorage::new(client_pool.clone());
-    let lastwill = LastWillData {
+    let lastwill = MqttLastWillData {
         client_id: client_id.clone(),
         last_will: last_will.clone(),
         last_will_properties: last_will_properties.clone(),

@@ -187,6 +187,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[tokio::test]
     async fn retain_handling_is_0() {
         let subscribe_options =

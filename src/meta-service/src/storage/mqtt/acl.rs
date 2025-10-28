@@ -17,11 +17,11 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 
-use crate::storage::engine::{
-    engine_get_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
-};
 use crate::storage::keys::{storage_key_mqtt_acl, storage_key_mqtt_acl_prefix};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_get_by_cluster, engine_prefix_list_by_cluster, engine_save_by_meta,
+};
 
 pub struct AclStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -52,7 +52,7 @@ impl AclStorage {
             &acl.resource_type.to_string(),
             &acl.resource_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl_list)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, acl_list)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAcl>, CommonError> {
@@ -92,7 +92,7 @@ impl AclStorage {
             &delete_acl.resource_type.to_string(),
             &delete_acl.resource_name,
         );
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, new_acl_list)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, new_acl_list)
     }
 
     pub fn get(
@@ -124,14 +124,14 @@ impl AclStorage {
 
 #[cfg(test)]
 mod tests {
-    use broker_core::rocksdb::column_family_list;
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::acl::mqtt_acl::MqttAcl;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
 
     use crate::storage::mqtt::acl::AclStorage;

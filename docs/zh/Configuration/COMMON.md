@@ -43,6 +43,9 @@ roles = ["meta", "broker", "journal"]
 # gRPC 端口
 grpc_port = 1228
 
+# HTTP 端口
+http_port = 8080
+
 # 元数据中心地址
 [meta_addrs]
 1 = "127.0.0.1:1228"
@@ -56,6 +59,7 @@ grpc_port = 1228
 | `broker_id` | `u64` | `1` | 节点唯一标识符 |
 | `roles` | `array` | `["meta", "broker"]` | 节点角色：meta(元数据)、broker(MQTT)、journal(日志) |
 | `grpc_port` | `u32` | `1228` | gRPC 服务端口 |
+| `http_port` | `u32` | `8080` | HTTP API 服务端口 |
 | `meta_addrs` | `table` | `{1 = "127.0.0.1:1228"}` | 元数据中心节点地址映射 |
 
 ---
@@ -175,7 +179,7 @@ RobustMQ 支持使用环境变量覆盖配置文件中的设置。环境变量�
 export ROBUSTMQ_CLUSTER_NAME="my-cluster"
 
 # 覆盖 MQTT TCP 端口
-export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1884
+export ROBUSTMQ_MQTT_SERVER_TCP_PORT=1885
 
 # 覆盖日志路径
 export ROBUSTMQ_LOG_LOG_PATH="/var/log/robustmq"

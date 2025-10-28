@@ -26,11 +26,13 @@ use crate::subscribe::push::{
     build_pub_qos, build_publish_message, build_sub_ids, send_publish_packet_to_client,
     BuildPublishMessageContext,
 };
-use broker_core::rocksdb::RocksDBEngine;
+use common_base::error::ResultCommonError;
 use common_base::network::broker_not_available;
+use common_base::tools::loop_select_ticket;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -48,6 +50,7 @@ pub struct ShareLeaderPush {
     connection_manager: Arc<ConnectionManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MQTTCacheManager>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl ShareLeaderPush {
@@ -57,6 +60,7 @@ impl ShareLeaderPush {
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<MQTTCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         ShareLeaderPush {
             subscribe_manager,
@@ -64,31 +68,31 @@ impl ShareLeaderPush {
             connection_manager,
             cache_manager,
             rocksdb_engine_handler,
+            stop_sx,
         }
     }
 
     pub async fn start(&self) {
-        loop {
+        let ac_fn = async || -> ResultCommonError {
             self.start_push_thread().await;
             self.try_thread_gc();
-            sleep(Duration::from_secs(1)).await;
-        }
+            Ok(())
+        };
+        loop_select_ticket(ac_fn, 3, &self.stop_sx).await;
     }
 
     pub fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
-        for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread.clone() {
+        for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread_list() {
             if !self
                 .subscribe_manager
-                .share_leader_push
-                .contains_key(&share_leader_key)
+                .contain_share_leader_push(&share_leader_key)
             {
                 match sx.sender.send(true) {
                     Ok(_) => {
                         self.subscribe_manager
-                            .share_leader_push_thread
-                            .remove(&share_leader_key);
+                            .remove_share_leader_push_thread(&share_leader_key);
                     }
                     Err(err) => {
                         error!("stop sub share thread error, error message:{}", err);
@@ -98,26 +102,24 @@ impl ShareLeaderPush {
         }
 
         // gc
-        for (key, raw) in self.subscribe_manager.share_leader_push.clone() {
+        for (key, raw) in self.subscribe_manager.share_leader_push_list() {
             if raw.sub_list.is_empty() {
-                self.subscribe_manager.share_leader_push.remove(&key);
+                self.subscribe_manager.remove_share_leader_push(&key);
             }
         }
     }
 
     pub async fn start_push_thread(&self) {
         // Periodically verify if any push tasks are not started. If so, the thread is started
-        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_push.clone() {
+        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_push_list() {
             if sub_data.sub_list.is_empty() {
                 if let Some(sx) = self
                     .subscribe_manager
-                    .share_leader_push_thread
-                    .get(&share_leader_key)
+                    .get_share_leader_push_thread(&share_leader_key)
                 {
                     if sx.sender.send(true).is_ok() {
                         self.subscribe_manager
-                            .share_leader_push
-                            .remove(&share_leader_key);
+                            .remove_share_leader_push(&share_leader_key);
                     }
                 }
             }
@@ -125,8 +127,7 @@ impl ShareLeaderPush {
             // start push data thread
             if !self
                 .subscribe_manager
-                .share_leader_push_thread
-                .contains_key(&share_leader_key)
+                .contain_share_leader_push_thread(&share_leader_key)
             {
                 if let Err(e) = self.push_by_round_robin(share_leader_key, sub_data).await {
                     error!("{:?}", e);
@@ -143,7 +144,7 @@ impl ShareLeaderPush {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
         let group_id = format!(
             "system_sub_{}_{}_{}",
-            sub_data.group_name, sub_data.sub_name, sub_data.topic_id
+            sub_data.group_name, sub_data.sub_path, sub_data.topic_name
         );
 
         // get current offset by group
@@ -151,7 +152,7 @@ impl ShareLeaderPush {
         let mut offset = message_storage.get_group_offset(&group_id).await?;
 
         // save push thread
-        self.subscribe_manager.share_leader_push_thread.insert(
+        self.subscribe_manager.add_share_leader_push_thread(
             share_leader_key.clone(),
             SubPushThreadData {
                 push_success_record_num: 0,
@@ -171,7 +172,7 @@ impl ShareLeaderPush {
         tokio::spawn(async move {
             info!(
                 "Share leader push data thread for GroupName {}/{},Topic [{}] was started successfully",
-                sub_data.group_name, sub_data.sub_name, sub_data.topic_name
+                sub_data.group_name, sub_data.sub_path, sub_data.topic_name
             );
 
             let mut seq = 1;
@@ -218,7 +219,7 @@ impl ShareLeaderPush {
                                     error!(
                                         "Failed to read message from storage, failure message: {},topic:{},group{}",
                                         e.to_string(),
-                                        &sub_data.topic_id,
+                                        &sub_data.topic_name,
                                         group_id
                                     );
                                     sleep(Duration::from_millis(100)).await;
@@ -230,9 +231,7 @@ impl ShareLeaderPush {
                 }
             }
 
-            subscribe_manager
-                .share_leader_push_thread
-                .remove(&share_leader_key);
+            subscribe_manager.remove_share_leader_push_thread(&share_leader_key);
         });
         Ok(())
     }
@@ -258,7 +257,7 @@ async fn read_message_process(
 ) -> Result<(Option<u64>, u64), MqttBrokerError> {
     let results = context
         .message_storage
-        .read_topic_message(&context.sub_data.topic_id, context.offset, 100)
+        .read_topic_message(&context.sub_data.topic_name, context.offset, 100)
         .await?;
 
     let mut push_fn = async |record: &Record| -> ResultMqttBrokerError {
@@ -277,19 +276,21 @@ async fn read_message_process(
                 break;
             }
 
-            let subscriber = if let Some(subscrbie) = get_subscribe_by_random(
+            let subscriber = if let Some(subscribe) = get_subscribe_by_random(
                 &context.subscribe_manager,
                 &context.share_leader_key,
                 context.seq,
-            ) {
-                subscrbie
+            )
+            .await
+            {
+                subscribe
             } else {
                 warn!("No available subscribers were obtained. Continue looking for the next one, , offset: {:?}", record.offset);
                 sleep(Duration::from_secs(1)).await;
                 continue;
             };
 
-            let qos = build_pub_qos(&context.cache_manager, &subscriber);
+            let qos = build_pub_qos(&context.cache_manager, &subscriber).await;
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params
@@ -308,8 +309,8 @@ async fn read_message_process(
                 Ok(Some(param)) => param,
                 Ok(None) => {
                     warn!(
-                        "Build message is empty. group:{}, topic_id:{}, offset: {:?}",
-                        context.group_id, context.sub_data.topic_id, record.offset
+                        "Build message is empty. group:{}, topic_name:{}, offset: {:?}",
+                        context.group_id, context.sub_data.topic_name, record.offset
                     );
                     break;
                 }
@@ -363,7 +364,7 @@ async fn read_message_process(
         // commit offset
         loop_commit_offset(
             &context.message_storage,
-            &context.sub_data.topic_id,
+            &context.sub_data.topic_name,
             &context.group_id,
             record_offset,
         )
@@ -406,13 +407,13 @@ async fn read_message_process(
     Ok((results.last().unwrap().offset, context.seq))
 }
 
-fn get_subscribe_by_random(
+async fn get_subscribe_by_random(
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
     mut seq: u64,
 ) -> Option<Subscriber> {
     loop {
-        if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
+        if let Some(sub_list) = subscribe_manager.get_share_leader_push(share_leader_key) {
             let index = seq % (sub_list.sub_list.len() as u64);
             let keys: Vec<String> = sub_list
                 .sub_list
@@ -422,16 +423,14 @@ fn get_subscribe_by_random(
 
             if let Some(key) = keys.get(index as usize) {
                 if let Some(subscribe) = sub_list.sub_list.get(key) {
-                    if !subscribe_manager
-                        .not_push_client
-                        .contains_key(&subscribe.client_id)
-                    {
+                    if !subscribe_manager.contain_not_push_client(&subscribe.client_id) {
                         return Some(subscribe.clone());
                     }
                 }
             }
         }
         seq += 1;
+        sleep(Duration::from_millis(100)).await;
     }
 }
 

@@ -18,6 +18,7 @@ pub mod connection;
 pub mod lastwill;
 pub mod message;
 pub mod node_extend;
+pub mod retain_message;
 pub mod session;
 pub mod subscribe_data;
 pub mod topic;

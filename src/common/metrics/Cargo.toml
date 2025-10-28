@@ -20,8 +20,6 @@ license.workspace = true
 
 [dependencies]
 tokio.workspace = true
-pprof.workspace = true
-hyper.workspace = true
 axum.workspace = true
 bytes.workspace = true
 tracing.workspace = true
@@ -30,3 +28,6 @@ common-base.workspace = true
 prometheus-client.workspace = true
 protocol.workspace = true
 metadata-struct.workspace = true
+dashmap.workspace = true
+serde.workspace = true
+serde_json.workspace = true

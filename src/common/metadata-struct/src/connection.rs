@@ -20,10 +20,10 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::debug;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     Tcp,
     Tls,
@@ -54,6 +54,7 @@ pub struct NetworkConnection {
     pub connection_id: u64,
     pub protocol: Option<RobustMQProtocol>,
     pub addr: SocketAddr,
+    pub last_heartbeat_time: u64,
     pub create_time: u64,
     #[serde(skip_serializing, skip_deserializing)]
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
@@ -71,6 +72,7 @@ impl NetworkConnection {
             connection_id,
             protocol: None,
             addr,
+            last_heartbeat_time: now_second(),
             create_time: now_second(),
             connection_stop_sx,
         }
@@ -126,22 +128,15 @@ impl NetworkConnection {
         self.connection_type == NetworkConnectionType::QUIC
     }
 
+    pub fn set_heartbeat_time(&mut self, time: u64) {
+        self.last_heartbeat_time = time;
+    }
+
     pub async fn stop_connection(&self) {
         if let Some(sx) = self.connection_stop_sx.clone() {
-            match sx.send(true).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("{}", e);
-                }
+            if let Err(e) = sx.send(true).await {
+                debug!("{}", e);
             }
         }
     }
-}
-
-pub fn calc_child_channel_index(index: usize, len: usize) -> usize {
-    let seq = index % len;
-    if seq == 0 {
-        return 1;
-    }
-    seq
 }

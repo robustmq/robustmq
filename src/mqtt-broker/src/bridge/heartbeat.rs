@@ -12,42 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
-
+use super::manager::ConnectorManager;
+use crate::storage::connector::ConnectorStorage;
+use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_mqtt::ConnectorHeartbeatRaw;
-use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{error, info};
-
-use crate::storage::connector::ConnectorStorage;
-
-use super::manager::ConnectorManager;
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tracing::error;
 
 pub async fn start_connector_report_heartbeat_thread(
     client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let mut recv = stop_send.subscribe();
-    loop {
-        select! {
-            val = recv.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        info!("{}","Connector heartbeat report thread exited successfully");
-                        break;
-                    }
-                }
-            }
-            _ = report_heartbeat(
-                &client_pool,
-                &connector_manager
-            ) => {
-                sleep(Duration::from_secs(1)).await;
-            }
-        }
-    }
+    let ac_fn = async || -> ResultCommonError {
+        report_heartbeat(&client_pool, &connector_manager).await;
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, 1, &stop_send).await;
 }
 
 async fn report_heartbeat(
@@ -73,10 +57,13 @@ async fn report_heartbeat(
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
     use crate::bridge::manager::ConnectorManager;
     use common_base::tools::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
+    use tokio::time::sleep;
 
     async fn setup() -> (Arc<ClientPool>, Arc<ConnectorManager>) {
         let namespace = unique_id();

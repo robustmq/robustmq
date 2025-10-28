@@ -15,9 +15,9 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use rocksdb_engine::engine::{rocksdb_engine_get, rocksdb_engine_save};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::engine::{rocksdb_engine_get, rocksdb_engine_save};
 use rocksdb_engine::warp::StorageDataWrap;
-use rocksdb_engine::RocksDBEngine;
 
 use super::keys::{
     offset_segment_end, offset_segment_position, offset_segment_position_prefix,

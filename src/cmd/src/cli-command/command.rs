@@ -20,9 +20,11 @@ use cli_command::{
     },
     mqtt::command::MqttBrokerCommand,
 };
+use common_base::version::logo::banner_print;
 
 #[tokio::main]
 async fn main() {
+    print!("{:?}", banner_print());
     let args = RobustMQCli::parse();
     match args.command {
         RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,

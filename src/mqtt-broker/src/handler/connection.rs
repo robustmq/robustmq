@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
-use common_base::tools::{now_second, unique_id};
-use common_config::config::BrokerConfig;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
-use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
-
 use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
 use crate::common::types::ResultMqttBrokerError;
@@ -29,8 +19,15 @@ use crate::handler::flow_control::is_connection_rate_exceeded;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
+use common_base::tools::{now_second, unique_id};
 use futures_util::SinkExt;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
@@ -39,15 +36,16 @@ use tracing::{error, warn};
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
 
-pub fn build_connection(
+pub async fn build_connection(
     connect_id: u64,
     client_id: String,
-    config: &BrokerConfig,
+    cache_manager: &Arc<MQTTCacheManager>,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
 ) -> MQTTConnection {
-    let keep_alive = client_keep_live_time(config, connect.keep_alive);
+    let config = cache_manager.broker_cache.get_cluster_config().await;
+    let keep_alive = client_keep_live_time(cache_manager, connect.keep_alive).await;
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
@@ -242,6 +240,9 @@ where
 
 #[cfg(test)]
 mod test {
+
+    use crate::common::tool::test_build_mqtt_cache_manager;
+
     use super::{
         build_connection, get_client_id, response_information, MQTTConnection,
         REQUEST_RESPONSE_PREFIX_NAME,
@@ -255,6 +256,7 @@ mod test {
         let client_id = "client_id-***".to_string();
         let cluster = default_broker_config();
         println!("{cluster:?}");
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),
@@ -275,11 +277,12 @@ mod test {
         let mut conn = build_connection(
             connect_id,
             client_id.clone(),
-            &cluster,
+            &cache_manager,
             &connect,
             &Some(connect_properties),
             &addr,
-        );
+        )
+        .await;
         assert_eq!(conn.connect_id, connect_id);
         assert_eq!(conn.client_id, client_id);
         assert!(!conn.is_login);

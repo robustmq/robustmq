@@ -14,8 +14,8 @@
 
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttAuthStorage,
-    MqttFlappingDetect, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
+    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttFlappingDetect,
+    MqttKeepAlive, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
     MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
     Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
@@ -39,6 +39,10 @@ pub fn default_grpc_port() -> u32 {
     1228
 }
 
+pub fn default_http_port() -> u32 {
+    8080
+}
+
 pub fn default_meta_addrs() -> Table {
     let mut nodes = Table::new();
     nodes.insert(
@@ -58,9 +62,9 @@ pub fn default_runtime() -> Runtime {
 
 pub fn default_network() -> Network {
     Network {
-        accept_thread_num: 1,
-        handler_thread_num: 1,
-        response_thread_num: 1,
+        accept_thread_num: 8,
+        handler_thread_num: 32,
+        response_thread_num: 8,
         queue_size: 1000,
         lock_max_try_mut_times: 30,
         lock_try_mut_sleep_time_ms: 50,
@@ -84,26 +88,24 @@ pub fn default_place_runtime() -> MetaRuntime {
 pub fn default_mqtt_server() -> MqttServer {
     MqttServer {
         tcp_port: 1883,
-        tls_port: 1884,
+        tls_port: 1885,
         websocket_port: 8083,
-        websockets_port: 8084,
+        websockets_port: 8085,
         quic_port: 9083,
     }
 }
 
-pub fn default_mqtt_auth_storage() -> MqttAuthStorage {
-    MqttAuthStorage {
-        storage_type: "placement".to_string(),
-        journal_addr: "".to_string(),
-        mysql_addr: "".to_string(),
-        postgres_addr: "".to_string(),
-        redis_addr: "".to_string(),
+pub fn default_mqtt_keep_alive() -> MqttKeepAlive {
+    MqttKeepAlive {
+        enable: true,
+        max_time: 3600,
+        default_time: 180,
+        default_timeout: 2,
     }
 }
 
 pub fn default_mqtt_auth_config() -> MqttAuthConfig {
     MqttAuthConfig {
-        auth_type: "password".to_string(), // password or jwt or psk ...
         authn_config: AuthnConfig::default(),
         authz_config: AuthzConfig::default(),
     }
@@ -159,8 +161,6 @@ pub fn default_mqtt_protocol_config() -> MqttProtocolConfig {
         topic_alias_max: 65535,
         max_qos: 2,
         max_packet_size: 1024 * 1024 * 10,
-        max_server_keep_alive: 3600,
-        default_server_keep_alive: 60,
         receive_max: 65535,
         client_pkid_persistent: false,
         max_message_expiry_interval: 3600,

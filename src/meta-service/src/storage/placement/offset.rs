@@ -18,11 +18,11 @@ use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
-};
 use crate::storage::keys::{key_offset, key_offset_by_group};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_meta,
+};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct OffsetData {
@@ -61,7 +61,7 @@ impl OffsetStorage {
             offset,
             timestamp: now_second(),
         };
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, offset_data)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, offset_data)
     }
 
     #[allow(dead_code)]
@@ -96,8 +96,8 @@ impl OffsetStorage {
 mod test {
 
     use crate::storage::placement::offset::OffsetStorage;
-    use broker_core::rocksdb::column_family_list;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use tempfile::tempdir;
 

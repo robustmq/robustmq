@@ -5,7 +5,7 @@ export default function getNavs() {
     return [
 
         {text: "文档", link: "/zh/OverView/What-is-RobustMQ"},
-        {text: "演示", link: "http://117.72.92.117:8080/"},
+        {text: "演示", link: "http://demo.robustmq.com"},
 
     ]
 

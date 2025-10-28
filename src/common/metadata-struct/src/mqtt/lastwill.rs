@@ -16,13 +16,13 @@ use protocol::mqtt::common::{LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct LastWillData {
+pub struct MqttLastWillData {
     pub client_id: String,
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
 }
 
-impl LastWillData {
+impl MqttLastWillData {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }

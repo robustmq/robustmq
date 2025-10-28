@@ -19,11 +19,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow.workspace = true
 tokio.workspace = true
 axum.workspace = true
-tonic-web.workspace = true
-tower-http = { workspace = true, features = ["cors"] }
 thiserror.workspace = true
 bytes.workspace = true
 protocol.workspace = true
@@ -42,7 +39,6 @@ metadata-struct.workspace = true
 third-driver.workspace = true
 regex.workspace = true
 futures-util.workspace = true
-axum-extra.workspace = true
 axum-server.workspace = true
 rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
@@ -56,13 +52,10 @@ schema-register.workspace = true
 # observability
 prometheus-client.workspace = true
 quinn.workspace = true
-rcgen.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
 rdkafka.workspace = true
-humantime.workspace = true
 sysinfo.workspace = true
-tracing-appender.workspace = true
 chrono.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
@@ -71,11 +64,17 @@ network-server.workspace = true
 common-metrics.workspace = true
 reqwest.workspace = true
 broker-core.workspace = true
-#security
+pulsar.workspace = true
+mongodb.workspace = true
+bson.workspace = true
+lapin.workspace = true
+sqlx = { workspace = true, features = ["mysql", "postgres", "runtime-tokio"] }
+rocksdb-engine.workspace = true
+# security
 r2d2.workspace = true
 r2d2_mysql.workspace = true
 r2d2_postgres.workspace = true
-r2d2_redis.workspace = true
+redis.workspace = true
 md5.workspace = true
 sha1.workspace = true
 sha2.workspace = true
@@ -83,10 +82,11 @@ bcrypt.workspace = true
 pbkdf2.workspace = true
 hmac.workspace = true
 hex.workspace = true
+base64.workspace = true
+jsonwebtoken.workspace = true
 
 
 [dev-dependencies]
 # test
-googletest.workspace = true
 robustmq-test.workspace = true
 tempfile.workspace = true

@@ -14,7 +14,7 @@
 
 use common_base::{
     error::{common::CommonError, ResultCommonError},
-    tools::loop_select,
+    tools::loop_select_ticket,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -58,7 +58,7 @@ pub async fn report_heartbeat(
         Ok(())
     };
 
-    loop_select(ac_fn, 3, &stop_send).await;
+    loop_select_ticket(ac_fn, 3, &stop_send).await;
 }
 
 #[derive(Deserialize, Serialize)]
@@ -69,7 +69,7 @@ struct MetaServiceStatus {
 pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
     let fun = async move || -> Result<Option<bool>, CommonError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        let data = cluster_storage.place_cluster_status().await?;
+        let data = cluster_storage.meta_cluster_status().await?;
         let status = serde_json::from_str::<MetaServiceStatus>(&data)?;
         if status.current_leader > 0 {
             info!(

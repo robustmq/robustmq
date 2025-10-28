@@ -28,27 +28,98 @@ on:
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
 
+# Cancel previous runs if a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_BUILD_JOBS: 8
 
 jobs:
-  linux-tests:
-    name: cargo test
+  integration-tests:
+    name: Integration Tests
     runs-on: ubuntu-22.04
-    timeout-minutes: 300
-    container:
-      image: amd64/rust
+    timeout-minutes: 60
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
-      - name: set up build configure
-        uses: ./.github/actions/setup-builder
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler cmake
+
       - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1
+        uses: taiki-e/install-action@nextest
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          crate: cargo-nextest
-          args: --locked
-      - uses: actions/checkout@v3
-      - name: Run tests
-        run: sh ./scripts/bin-ig-test.sh
+          shared-key: "integration-tests"
+          cache-on-failure: true
+          # Allow all branches to save cache for faster PR iterations
+          # save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+          # Cache key includes Cargo.lock to ensure cache invalidation when dependencies change
+          key: ${{ hashFiles('**/Cargo.lock') }}
+
+      # Additional cache for compiled binaries
+      # Only invalidate when Cargo.lock changes (dependencies change)
+      # Source code changes will use incremental compilation
+      - name: Cache compiled binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/debug/broker-server
+            target/debug/deps
+            target/debug/build
+            target/debug/.fingerprint
+            target/debug/incremental
+          # Key only on Cargo.lock - source changes use incremental compilation
+          key: binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            binaries-${{ runner.os }}-
+
+      - name: Check cache status
+        run: |
+          echo "=========================================="
+          echo "Cache Status Check"
+          echo "=========================================="
+
+          if [ -f "target/debug/broker-server" ]; then
+            echo "✅ Binary cache HIT - broker-server exists"
+            echo "   Size: $(du -h target/debug/broker-server | cut -f1)"
+            echo "   Modified: $(stat -c '%y' target/debug/broker-server 2>/dev/null || stat -f '%Sm' target/debug/broker-server)"
+            echo ""
+            echo "Expected: Incremental compilation (fast)"
+          else
+            echo "❌ Binary cache MISS - fresh build required"
+            echo ""
+            echo "Expected: Full compilation (slow)"
+          fi
+
+          # Check incremental cache
+          if [ -d "target/debug/incremental" ]; then
+            INCREMENTAL_SIZE=$(du -sh target/debug/incremental 2>/dev/null | cut -f1 || echo "0")
+            echo "   Incremental cache: $INCREMENTAL_SIZE"
+          fi
+
+          echo "=========================================="
+
+      - name: Run integration tests with broker
+        run: |
+          echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          if make ig-test-ci; then
+            echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

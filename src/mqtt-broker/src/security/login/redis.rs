@@ -280,12 +280,13 @@ impl Authentication for Redis {
 mod tests {
     use super::*;
     use crate::common::tool::test_build_mqtt_cache_manager;
+    use common_base::tools::now_second;
     use common_config::security::PasswordConfig;
     use metadata_struct::mqtt::user::MqttUser;
 
     #[tokio::test]
     async fn test_redis_plain_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let password = "test_password".to_string();
 
@@ -295,6 +296,7 @@ mod tests {
             password: password.clone(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 
@@ -322,7 +324,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_md5_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
 
@@ -335,6 +337,7 @@ mod tests {
             password: stored_hash,
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 
@@ -362,7 +365,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_bcrypt_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
 
@@ -375,6 +378,7 @@ mod tests {
             password: stored_hash,
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 
@@ -402,7 +406,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redis_sha256_with_salt() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
         let salt = "random_salt";
@@ -419,6 +423,7 @@ mod tests {
             password: stored_hash,
             salt: Some(salt.to_string()),
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 
@@ -447,7 +452,7 @@ mod tests {
     #[tokio::test]
     #[allow(unused_must_use)]
     async fn test_redis_pbkdf2_authentication() {
-        let cache_manager = test_build_mqtt_cache_manager();
+        let cache_manager = test_build_mqtt_cache_manager().await;
         let username = "test_user".to_string();
         let plain_password = "test_password";
         let salt = "test_salt";
@@ -470,6 +475,7 @@ mod tests {
             password: stored_hash,
             salt: Some(salt.to_string()),
             is_superuser: false,
+            create_time: now_second(),
         };
         cache_manager.add_user(user);
 

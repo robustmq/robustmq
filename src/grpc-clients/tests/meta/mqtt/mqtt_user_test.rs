@@ -16,6 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
+    use common_base::tools::now_second;
     use grpc_clients::meta::mqtt::call::{
         placement_create_user, placement_delete_user, placement_list_user,
     };
@@ -41,6 +42,7 @@ mod tests {
             password: password.clone(),
             salt: None,
             is_superuser: false,
+            create_time: now_second(),
         };
 
         let request: CreateUserRequest = CreateUserRequest {

@@ -100,7 +100,7 @@ macro_rules! gauge_metric_get {
 }
 
 #[macro_export]
-macro_rules! gauge_metrics_set {
+macro_rules! gauge_metric_set {
     ($family:ident,$label:ident,$value:expr) => {
         let family = $family.clone();
         let mut found = false;

@@ -15,7 +15,7 @@
 use crate::security::AuthDriver;
 use common_base::{
     error::{common::CommonError, ResultCommonError},
-    tools::loop_select,
+    tools::loop_select_ticket,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -34,7 +34,7 @@ fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bo
             }
             Ok(())
         };
-        loop_select(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1, &stop_send).await;
     });
 }
 
@@ -46,7 +46,7 @@ fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<boo
             }
             Ok(())
         };
-        loop_select(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1, &stop_send).await;
     });
 }
 
@@ -58,6 +58,6 @@ fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Send
             }
             Ok(())
         };
-        loop_select(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1, &stop_send).await;
     });
 }

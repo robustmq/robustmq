@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShard};
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::node::BrokerNode;
 use protocol::meta::meta_service_inner::NodeListRequest;
 use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,

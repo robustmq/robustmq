@@ -20,6 +20,8 @@ use crate::handler::cache::{
 };
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
+use crate::handler::metrics::record_publish_send_metrics;
+use crate::handler::metrics::record_send_metrics;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
@@ -32,6 +34,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::codec::MqttCodec;
+use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::qos;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::robust::RobustMQPacket;
@@ -72,8 +75,8 @@ pub async fn build_publish_message(
         &msg.client_id,
     ) {
         debug!(
-            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
-            context.subscriber.client_id, context.subscriber.topic_id
+            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_name: {}",
+            context.subscriber.client_id, context.subscriber.topic_name
         );
         return Ok(None);
     }
@@ -221,10 +224,11 @@ pub async fn send_publish_packet_to_client(
     Ok(())
 }
 
-pub fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
+pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
     let cluster_qos = cache_manager
         .broker_cache
         .get_cluster_config()
+        .await
         .mqtt_protocol_config
         .max_qos;
     min_qos(qos(cluster_qos).unwrap(), subscriber.qos)
@@ -260,9 +264,9 @@ pub async fn push_packet_to_client(
         };
 
         let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
-        let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subsceibe".to_string());
+        let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subscribe".to_string());
 
-        send_message_to_client(resp, connection_manager).await
+        send_message_to_client(resp, connection_manager, cache_manager).await
     };
 
     retry_tool_fn_timeout(action_fn, stop_sx, "push_packet_to_client").await
@@ -355,7 +359,9 @@ pub async fn wait_packet_ack(
 pub async fn send_message_to_client(
     resp: ResponsePackage,
     connection_manager: &Arc<ConnectionManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
 ) -> ResultMqttBrokerError {
+    let start = now_mills();
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
             protocol
@@ -363,8 +369,8 @@ pub async fn send_message_to_client(
             RobustMQProtocol::MQTT3
         };
 
-    let response =
-        build_mqtt_packet_wrapper(protocol.clone(), resp.packet.get_mqtt_packet().unwrap());
+    let packet = resp.packet.get_mqtt_packet().unwrap();
+    let response = build_mqtt_packet_wrapper(protocol.clone(), packet.clone());
 
     if connection_manager.is_websocket(resp.connection_id) {
         let mut codec = MqttCodec::new(Some(protocol.to_u8()));
@@ -385,6 +391,24 @@ pub async fn send_message_to_client(
             .await?
     }
 
+    let network_type = connection_manager.get_network_type(resp.connection_id);
+    let wrapper = MqttPacketWrapper {
+        protocol_version: protocol.to_u8(),
+        packet: packet.clone(),
+    };
+
+    if let MqttPacket::Publish(publish, _) = packet.clone() {
+        let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
+        let connection = cache_manager.get_connection(resp.connection_id).unwrap();
+        record_publish_send_metrics(
+            &connection.client_id,
+            resp.connection_id,
+            &topic_name,
+            publish.payload.len() as u64,
+        );
+    }
+
+    record_send_metrics(&wrapper, &packet, network_type, start);
     Ok(())
 }
 

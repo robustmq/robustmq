@@ -1,0 +1,40 @@
+/* VitePress 水合不匹配修复 */
+
+/* 1. 防止水合过程中的样式不匹配 */
+.VPContent {
+  /* 确保服务端和客户端渲染一致 */
+  transition: none;
+  transform: none;
+}
+
+/* 2. 修复首页布局稳定性 */
+.VPHome {
+  /* 避免动态计算导致的不匹配 */
+  --vp-offset: 0px;
+}
+
+/* 3. 确保导航栏渲染一致 */
+.VPNav {
+  /* 保持固定定位但避免强制覆盖 */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+/* 4. 防止主题切换时的渲染不匹配 */
+html.dark,
+html:not(.dark) {
+  /* 确保主题状态在服务端和客户端一致 */
+  transition: color 0.3s, background-color 0.3s;
+}
+
+/* 5. 修复响应式布局的水合问题 */
+@media (max-width: 768px) {
+  .VPHome .VPContent {
+    /* 避免媒体查询导致的不匹配 */
+    padding: 0;
+    margin: 0;
+  }
+}

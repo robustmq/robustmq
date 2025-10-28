@@ -73,35 +73,35 @@ def on_disconnect(client, userdata, rc):
 def main():
     # Create client instance
     client = mqtt.Client(client_id='robustmq_python_client')
-    
+
     # Set username and password
     client.username_pw_set('your_username', 'your_password')
-    
+
     # Set callback functions
     client.on_connect = on_connect
     client.on_message = on_message
     client.on_publish = on_publish
     client.on_subscribe = on_subscribe
     client.on_disconnect = on_disconnect
-    
+
     # Connect to RobustMQ Broker
     try:
         print('Connecting to RobustMQ...')
         client.connect('localhost', 1883, 60)
-        
+
         # Start network loop
         client.loop_start()
-        
+
         # Wait for connection establishment
         time.sleep(2)
-        
+
         # Publish test messages
         test_messages = [
             {'topic': 'robustmq/python/test/hello', 'payload': 'Hello RobustMQ!'},
             {'topic': 'robustmq/python/test/data', 'payload': json.dumps({'sensor': 'temp', 'value': 25.5})},
             {'topic': 'robustmq/python/test/status', 'payload': 'online'}
         ]
-        
+
         for msg in test_messages:
             result = client.publish(msg['topic'], msg['payload'], qos=1)
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
@@ -109,11 +109,11 @@ def main():
             else:
                 print(f"Message publish failed: {result.rc}")
             time.sleep(1)
-        
+
         # Keep connection for a while to receive messages
         print('Waiting to receive messages...')
         time.sleep(5)
-        
+
     except Exception as e:
         print(f'Connection error: {e}')
     finally:
@@ -141,27 +141,27 @@ def on_connect(client, userdata, flags, rc):
 
 def main():
     client = mqtt.Client(client_id='robustmq_python_ssl_client')
-    
+
     # Configure SSL/TLS
     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE  # For testing; use CERT_REQUIRED in production
-    
+
     client.tls_set_context(context)
-    
+
     # Set callback
     client.on_connect = on_connect
-    
+
     # Connect to RobustMQ SSL port
     try:
-        client.connect('localhost', 1884, 60)  # SSL port
+        client.connect('localhost', 1885, 60)  # SSL port
         client.loop_start()
-        
+
         # Publish SSL test message
         client.publish('robustmq/ssl/test', 'SSL connection test', qos=1)
-        
+
         time.sleep(3)
-        
+
     except Exception as e:
         print(f'SSL connection error: {e}')
     finally:
@@ -189,9 +189,9 @@ if __name__ == '__main__':
 | Protocol | Port | Connection Method |
 |----------|------|-------------------|
 | MQTT | 1883 | `client.connect('localhost', 1883)` |
-| MQTT over SSL | 1884 | `client.connect('localhost', 1884)` + SSL config |
+| MQTT over SSL | 1885 | `client.connect('localhost', 1885)` + SSL config |
 | MQTT over WebSocket | 8083 | `transport="websockets"` |
-| MQTT over WSS | 8084 | WebSocket + SSL config |
+| MQTT over WSS | 8085 | WebSocket + SSL config |
 
 ## Best Practices
 
@@ -208,37 +208,37 @@ class RobustMQTTClient:
         self.client_id = client_id
         self.client = None
         self.max_retries = 5
-        
+
     def connect_with_retry(self):
         """Connect with retry mechanism"""
         retry_count = 0
-        
+
         while retry_count < self.max_retries:
             try:
                 self.client = mqtt.Client(client_id=self.client_id)
                 self.client.on_connect = self.on_connect
                 self.client.on_disconnect = self.on_disconnect
-                
+
                 self.client.connect(self.broker, self.port, 60)
                 self.client.loop_start()
                 return True
-                
+
             except Exception as e:
                 retry_count += 1
                 print(f'Connection attempt {retry_count} failed: {e}')
-                
+
                 if retry_count < self.max_retries:
                     time.sleep(2 ** retry_count)  # Exponential backoff
-                    
+
         print(f'Connection failed after {self.max_retries} attempts')
         return False
-    
+
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             print('Connection successful')
         else:
             print(f'Connection failed: {rc}')
-    
+
     def on_disconnect(self, client, userdata, rc):
         if rc != 0:
             print(f'Unexpected disconnect, attempting reconnect: {rc}')
@@ -318,4 +318,3 @@ python data_pipeline.py
 Eclipse Paho Python is the most mature and stable MQTT client library in the Python ecosystem. This library has a simple and easy-to-use API with complete functionality, making it ideal for rapid development of MQTT applications.
 
 Through the examples in this document, you can quickly get started with using Python to connect to RobustMQ MQTT Broker and implement various application scenarios from simple message sending and receiving to complex data processing pipelines. Combined with Python's rich ecosystem, you can easily build powerful IoT and message processing systems.
-

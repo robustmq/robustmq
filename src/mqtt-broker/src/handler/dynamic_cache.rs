@@ -15,20 +15,22 @@
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
+use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_mqtt_inner::{
@@ -36,6 +38,7 @@ use protocol::broker::broker_mqtt_inner::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::info;
 
 pub async fn load_metadata_cache(
@@ -47,7 +50,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     // load cluster config
     let cluster = build_cluster_config(client_pool).await?;
-    cache_manager.broker_cache.set_cluster_config(cluster);
+    cache_manager.broker_cache.set_cluster_config(cluster).await;
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
@@ -95,6 +98,13 @@ pub async fn load_metadata_cache(
         schema_manager.add_schema(schema.clone());
     }
 
+    // load all schema binds
+    let schema_storage = SchemaStorage::new(client_pool.clone());
+    let schemas = schema_storage.list_bind().await?;
+    for schema in schemas.iter() {
+        schema_manager.add_bind(schema);
+    }
+
     // load all auto subscribe rule
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
     let auto_subscribe_rules = auto_subscribe_storage.list_auto_subscribe_rule().await?;
@@ -122,6 +132,8 @@ pub async fn update_cache_metadata(
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
+    message_storage_adapter: &ArcStorageAdapter,
+    metrics_manager: &Arc<MetricsCacheManager>,
     request: UpdateMqttCacheRequest,
 ) -> ResultMqttBrokerError {
     match request.resource_type() {
@@ -181,7 +193,14 @@ pub async fn update_cache_metadata(
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let topic = serde_json::from_str::<MQTTTopic>(&request.data)?;
-                cache_manager.delete_topic(&topic.topic_name, &topic);
+                delete_topic(
+                    cache_manager,
+                    &topic.topic_name,
+                    message_storage_adapter,
+                    subscribe_manager,
+                    metrics_manager,
+                )
+                .await?;
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {

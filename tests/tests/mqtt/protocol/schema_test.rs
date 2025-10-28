@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use admin_server::client::AdminHttpClient;
-    use admin_server::request::mqtt::{
+    use admin_server::mqtt::schema::{
         CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
     };
     use apache_avro::{Schema, Writer};
@@ -25,8 +25,8 @@ mod tests {
     use serde_json::json;
 
     use crate::mqtt::protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-        ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+        publish_data, ssl_by_type, ws_by_type,
     };
     use crate::mqtt::protocol::ClientTestProperties;
 
@@ -34,7 +34,7 @@ mod tests {
     async fn schema_json_test() {
         let network = "tcp";
         let _qos = 1;
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let schema_name = unique_id();
         let schema_type = "json".to_string();
@@ -91,7 +91,7 @@ mod tests {
     async fn schema_avro_test() {
         let network: &str = "tcp";
         let _qos = 1;
-        let admin_client = AdminHttpClient::new("http://127.0.0.1:8080");
+        let admin_client = create_test_env().await;
 
         let schema_name = unique_id();
         let schema_type = "avro".to_string();

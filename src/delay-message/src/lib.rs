@@ -13,6 +13,10 @@
 // limitations under the License.
 
 use common_base::{error::common::CommonError, tools::now_second};
+use common_metrics::mqtt::statistics::{
+    record_mqtt_delay_queue_remaining_capacity_set, record_mqtt_delay_queue_total_capacity_set,
+    record_mqtt_delay_queue_used_capacity_set,
+};
 use dashmap::DashMap;
 use delay::{
     get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
@@ -136,6 +140,12 @@ impl DelayMessageManager {
             delay_queue.insert_at(
                 delay_info.clone(),
                 Instant::now() + Duration::from_secs(delay_info.delay_timestamp - now_second()),
+            );
+            record_mqtt_delay_queue_total_capacity_set(shard_no, delay_queue.capacity() as i64);
+            record_mqtt_delay_queue_used_capacity_set(shard_no, delay_queue.len() as i64);
+            record_mqtt_delay_queue_remaining_capacity_set(
+                shard_no,
+                (delay_queue.capacity() - delay_queue.len()) as i64,
             );
         }
     }

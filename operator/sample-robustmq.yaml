@@ -20,13 +20,13 @@ metadata:
 spec:
   # Deployment mode: AllInOne or Microservices
   deploymentMode: AllInOne
-  
+
   # Image configuration
   image:
     repository: robustmq/robustmq
     tag: latest
     pullPolicy: IfNotPresent
-  
+
   # AllInOne configuration
   allInOne:
     replicas: 1
@@ -37,21 +37,21 @@ spec:
       limits:
         memory: "2Gi"
         cpu: "1000m"
-  
+
   # Storage configuration
   storage:
     storageClass: standard
     size: "10Gi"
     accessModes:
       - ReadWriteOnce
-  
+
   # Network configuration
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: ClusterIP
     kafka:
       port: 9092
@@ -62,7 +62,7 @@ spec:
     amqp:
       port: 5672
       serviceType: ClusterIP
-  
+
   # Monitoring configuration
   monitoring:
     enabled: true
@@ -75,7 +75,7 @@ spec:
       interval: "30s"
       labels:
         prometheus: "kube-prometheus"
-  
+
   # Security configuration
   security:
     tls:
@@ -83,7 +83,7 @@ spec:
     auth:
       defaultUser: "admin"
       storageType: "placement"
-  
+
   # Additional configuration
   config:
     additional:
@@ -98,13 +98,13 @@ metadata:
 spec:
   # Microservices deployment mode
   deploymentMode: Microservices
-  
+
   # Image configuration
   image:
     repository: robustmq/robustmq
     tag: latest
     pullPolicy: IfNotPresent
-  
+
   # Microservices configuration
   microservices:
     metaService:
@@ -139,21 +139,21 @@ spec:
         additionalPaths:
           - "/robustmq/journal-data-1"
           - "/robustmq/journal-data-2"
-  
+
   # Storage configuration
   storage:
     storageClass: fast-ssd
     size: "20Gi"
     accessModes:
       - ReadWriteOnce
-  
+
   # Network configuration
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: LoadBalancer
     kafka:
       port: 9092
@@ -164,7 +164,7 @@ spec:
     amqp:
       port: 5672
       serviceType: ClusterIP
-  
+
   # Monitoring configuration
   monitoring:
     enabled: true
@@ -177,7 +177,7 @@ spec:
       interval: "30s"
       labels:
         prometheus: "kube-prometheus"
-  
+
   # Security configuration
   security:
     tls:

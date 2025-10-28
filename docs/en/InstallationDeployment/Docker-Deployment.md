@@ -72,9 +72,9 @@ docker-compose -f docker/docker-compose.yml logs robustmq
 **Port Mapping**:
 
 - MQTT TCP: 1883
-- MQTT SSL: 1884
+- MQTT SSL: 1885
 - MQTT WebSocket: 8083
-- MQTT WebSocket SSL: 8084
+- MQTT WebSocket SSL: 8085
 - Kafka: 9092
 - gRPC: 1228
 - AMQP: 5672
@@ -328,10 +328,10 @@ services:
    ```bash
    # Check port usage
    netstat -tlnp | grep 1883
-   
+
    # Modify port mapping
    ports:
-     - "1884:1883"  # Use different port
+     - "1885:1883"  # Use different port
    ```
 
 2. **Permission Issues**

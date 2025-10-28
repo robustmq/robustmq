@@ -21,7 +21,6 @@ license.workspace = true
 
 [dependencies]
 bytes.workspace = true
-axum.workspace = true
 thiserror.workspace = true
 protocol.workspace = true
 common-base.workspace =true
@@ -32,7 +31,8 @@ mobc.workspace = true
 prost.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
-metadata-struct.workspace = true
 serde_json.workspace = true
 regex.workspace = true
-validator.workspace = true
+
+[dev-dependencies]
+metadata-struct.workspace = true

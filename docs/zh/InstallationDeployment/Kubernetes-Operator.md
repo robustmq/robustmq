@@ -96,13 +96,13 @@ metadata:
 spec:
   # 部署模式
   deploymentMode: AllInOne
-  
+
   # 镜像配置
   image:
     repository: robustmq/robustmq
     tag: latest
     pullPolicy: IfNotPresent
-  
+
   # AllInOne 配置
   allInOne:
     replicas: 1
@@ -113,23 +113,23 @@ spec:
       limits:
         memory: "2Gi"
         cpu: "1000m"
-  
+
   # 存储配置
   storage:
     storageClass: standard
     size: "10Gi"
     accessModes:
       - ReadWriteOnce
-  
+
   # 网络配置
   network:
     mqtt:
       tcpPort: 1883
-      tlsPort: 1884
+      tlsPort: 1885
       webSocketPort: 8083
-      webSocketTLSPort: 8084
+      webSocketTLSPort: 8085
       serviceType: ClusterIP
-  
+
   # 监控配置
   monitoring:
     enabled: true
@@ -154,13 +154,13 @@ metadata:
 spec:
   # 微服务部署模式
   deploymentMode: Microservices
-  
+
   # 镜像配置
   image:
     repository: robustmq/robustmq
     tag: latest
     pullPolicy: IfNotPresent
-  
+
   # 微服务配置
   microservices:
     metaService:
@@ -192,14 +192,14 @@ spec:
           cpu: "1000m"
       storage:
         size: "50Gi"
-  
+
   # 存储配置
   storage:
     storageClass: fast-ssd
     size: "20Gi"
     accessModes:
       - ReadWriteOnce
-  
+
   # 网络配置
   network:
     mqtt:
@@ -208,7 +208,7 @@ spec:
       serviceType: LoadBalancer
     grpc:
       serviceType: ClusterIP
-  
+
   # 监控配置
   monitoring:
     enabled: true
@@ -216,7 +216,7 @@ spec:
       enabled: true
       labels:
         prometheus: "kube-prometheus"
-  
+
   # 安全配置
   security:
     tls:
@@ -281,9 +281,9 @@ storage:
 network:
   mqtt:
     tcpPort: 1883                # MQTT TCP 端口
-    tlsPort: 1884                # MQTT TLS 端口
+    tlsPort: 1885                # MQTT TLS 端口
     webSocketPort: 8083          # WebSocket 端口
-    webSocketTLSPort: 8084       # WebSocket TLS 端口
+    webSocketTLSPort: 8085       # WebSocket TLS 端口
     serviceType: LoadBalancer    # 服务类型
   kafka:
     port: 9092                   # Kafka 端口
@@ -426,7 +426,7 @@ kubectl get events --sort-by=.metadata.creationTimestamp
    ```bash
    # 检查 RBAC 权限
    kubectl auth can-i create statefulsets --as=system:serviceaccount:robustmq-system:robustmq-operator-controller-manager
-   
+
    # 检查 Operator 日志
    kubectl logs -n robustmq-system deployment/robustmq-operator-controller-manager
    ```
@@ -436,10 +436,10 @@ kubectl get events --sort-by=.metadata.creationTimestamp
    ```bash
    # 检查资源限制
    kubectl describe pod robustmq-sample-0
-   
+
    # 检查存储配置
    kubectl get pvc
-   
+
    # 检查镜像拉取
    kubectl describe pod robustmq-sample-0 | grep -A 5 "Events:"
    ```
@@ -449,10 +449,10 @@ kubectl get events --sort-by=.metadata.creationTimestamp
    ```bash
    # 检查服务配置
    kubectl get svc -l app=robustmq
-   
+
    # 检查网络策略
    kubectl get networkpolicy
-   
+
    # 测试服务连接
    kubectl run test-pod --image=busybox --rm -it -- nslookup robustmq-sample-mqtt
    ```

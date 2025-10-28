@@ -17,12 +17,12 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MqttUser;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
-};
 use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 pub struct MqttUserStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -42,7 +42,7 @@ impl MqttUserStorage {
         user: MqttUser,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, user)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
@@ -72,11 +72,11 @@ impl MqttUserStorage {
 #[cfg(test)]
 mod tests {
     use crate::storage::mqtt::user::MqttUserStorage;
-    use broker_core::rocksdb::column_family_list;
-    use common_base::utils::file_utils::test_temp_dir;
+    use common_base::{tools::now_second, utils::file_utils::test_temp_dir};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::user::MqttUser;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -97,6 +97,7 @@ mod tests {
             password: "pwd123".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
         user_storage.save(&cluster_name, &username, user).unwrap();
 
@@ -106,6 +107,7 @@ mod tests {
             password: "pwd1231".to_string(),
             salt: None,
             is_superuser: true,
+            create_time: now_second(),
         };
         user_storage.save(&cluster_name, &username, user).unwrap();
 

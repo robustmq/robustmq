@@ -70,7 +70,7 @@ mod tests {
 
         let resp = resp_packet.clone();
         tokio::spawn(async move {
-            let ip = "127.0.0.1:1884";
+            let ip = "127.0.0.1:1885";
             let listener = TcpListener::bind(ip).await.unwrap();
             loop {
                 let (stream, _) = listener.accept().await.unwrap();
@@ -89,7 +89,7 @@ mod tests {
         sleep(Duration::from_secs(5)).await;
 
         // mqtt4
-        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:1885").await.unwrap();
         let mut stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
 
         // send connect package
@@ -107,7 +107,7 @@ mod tests {
             }
         }
 
-        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:1885").await.unwrap();
         let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
 
         // send connect package

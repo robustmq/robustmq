@@ -33,8 +33,9 @@ use crate::server::services::mqtt::subscribe::{
 };
 use crate::server::services::mqtt::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
-    delete_topic_rewrite_rule_by_req, get_topic_retain_message_by_req, list_topic_by_req,
-    list_topic_rewrite_rule_by_req, save_last_will_message_by_req, set_topic_retain_message_by_req,
+    delete_topic_rewrite_rule_by_req, get_last_will_message_by_req,
+    get_topic_retain_message_by_req, list_topic_by_req, list_topic_rewrite_rule_by_req,
+    save_last_will_message_by_req, set_topic_retain_message_by_req,
 };
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,
@@ -51,18 +52,19 @@ use protocol::meta::meta_service_mqtt::{
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
+    GetLastWillMessageRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    GetTopicRetainMessageReply, GetTopicRetainMessageRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
+    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
     UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
 use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;
@@ -311,6 +313,18 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         save_last_will_message_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn get_last_will_message(
+        &self,
+        request: Request<GetLastWillMessageRequest>,
+    ) -> Result<Response<GetLastWillMessageReply>, Status> {
+        let req = request.into_inner();
+
+        get_last_will_message_by_req(&self.rocksdb_engine_handler, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

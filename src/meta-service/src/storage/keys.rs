@@ -141,8 +141,8 @@ pub fn storage_key_mqtt_user_cluster_prefix(cluster_name: &str) -> String {
     prefix_key(format!("/mqtt/user/{cluster_name}/"))
 }
 
-pub fn storage_key_mqtt_topic(cluster_name: &str, user_name: &str) -> String {
-    prefix_key(format!("/mqtt/topic/{cluster_name}/{user_name}"))
+pub fn storage_key_mqtt_topic(cluster_name: &str, topic_name: &str) -> String {
+    prefix_key(format!("/mqtt/topic/{cluster_name}/{topic_name}"))
 }
 
 pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: &str) -> String {
@@ -267,6 +267,14 @@ pub fn storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name: &str) -> String
     prefix_key(format!("/mqtt/auto_subscribe_rule/{cluster_name}/"))
 }
 
+pub fn storage_key_mqtt_retain_message(cluster_name: &str, topic_name: &str) -> String {
+    prefix_key(format!("/mqtt/retain_message/{cluster_name}/{topic_name}"))
+}
+
+pub fn storage_key_mqtt_retain_message_cluster_prefix(cluster_name: &str) -> String {
+    prefix_key(format!("/mqtt/retain_message/{cluster_name}/"))
+}
+
 fn prefix_key(key: String) -> String {
-    format!("/meta/{key}")
+    format!("/meta{key}")
 }

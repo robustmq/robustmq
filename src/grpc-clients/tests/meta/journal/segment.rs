@@ -21,7 +21,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::shard::JournalShardConfig;
-    use metadata_struct::placement::node::BrokerNode;
+    use metadata_struct::meta::node::BrokerNode;
     use protocol::meta::meta_service_inner::RegisterNodeRequest;
     use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, CreateShardRequest};
 

@@ -20,7 +20,7 @@ use protocol::meta::meta_service_mqtt::{
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, ListAclReply, ListAclRequest,
     ListBlacklistReply, ListBlacklistRequest,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;

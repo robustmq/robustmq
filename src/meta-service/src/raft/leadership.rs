@@ -20,7 +20,7 @@ use crate::{
 };
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
@@ -110,6 +110,7 @@ pub fn start_controller(
         raft_machine_apply.clone(),
         cache_manager.clone(),
         client_pool.clone(),
+        stop_send.clone(),
     );
     tokio::spawn(async move {
         journal_controller.start().await;

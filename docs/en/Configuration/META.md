@@ -16,7 +16,7 @@ Meta service (also known as Meta Service) is RobustMQ's metadata management serv
 
 ### Runtime Configuration
 ```toml
-[place.runtime]
+[meta_runtime]
 heartbeat_timeout_ms = 30000      # Heartbeat timeout (milliseconds)
 heartbeat_check_time_ms = 1000    # Heartbeat check interval (milliseconds)
 ```
@@ -115,7 +115,7 @@ grpc_port = 1228
 1 = "127.0.0.1:1228"
 
 # Meta runtime configuration
-[place.runtime]
+[meta_runtime]
 heartbeat_timeout_ms = 10000
 heartbeat_check_time_ms = 2000
 
@@ -140,7 +140,7 @@ grpc_port = 1228
 3 = "192.168.1.12:1228"
 
 # Meta runtime configuration
-[place.runtime]
+[meta_runtime]
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 5000
 
@@ -176,7 +176,7 @@ export ROBUSTMQ_ROCKSDB_MAX_OPEN_FILES=20000
 
 ### High Concurrency Scenarios
 ```toml
-[place.runtime]
+[meta_runtime]
 heartbeat_timeout_ms = 15000      # Reduce heartbeat timeout
 heartbeat_check_time_ms = 3000    # Increase heartbeat check frequency
 
@@ -190,7 +190,7 @@ queue_size = 10000              # Increase queue size
 
 ### Low Latency Scenarios
 ```toml
-[place.runtime]
+[meta_runtime]
 heartbeat_check_time_ms = 500    # More frequent heartbeat checks
 
 [network]
@@ -200,7 +200,7 @@ lock_try_mut_sleep_time_ms = 5   # Reduce lock sleep time
 
 ### High Reliability Scenarios
 ```toml
-[place.runtime]
+[meta_runtime]
 heartbeat_timeout_ms = 60000     # Increase heartbeat tolerance
 heartbeat_check_time_ms = 10000  # Moderate check frequency
 
@@ -261,7 +261,7 @@ Meta service uses `meta_service` configuration for node discovery:
 log_config = "./config/debug-tracing.toml"
 
 # Shorten heartbeat interval for debugging
-[place.runtime]
+[meta_runtime]
 heartbeat_check_time_ms = 1000
 ```
 

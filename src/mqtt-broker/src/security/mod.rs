@@ -17,17 +17,22 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
 use crate::security::auth::is_allow_acl;
+use crate::security::login::http::http_check_login;
+use crate::security::login::jwt::jwt_check_login;
 use crate::security::login::mysql::mysql_check_login;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::login::postgresql::postgresql_check_login;
 use crate::security::login::redis::redis_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::security::storage::AuthType;
-use crate::subscribe::common::get_sub_topic_id_list;
+use crate::subscribe::common::get_sub_topic_name_list;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_config::broker::broker_config;
-use common_config::config::MqttAuthStorage;
+use common_config::security::{AuthnConfig, StorageConfig};
+use common_metrics::mqtt::auth::{
+    record_mqtt_acl_failed, record_mqtt_acl_success, record_mqtt_blacklist_blocked,
+};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -39,6 +44,7 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
+use storage::http::HttpAuthStorageAdapter;
 use storage::mysql::MySQLAuthStorageAdapter;
 use storage::placement::PlacementAuthStorageAdapter;
 use storage::postgresql::PostgresqlAuthStorageAdapter;
@@ -58,10 +64,10 @@ impl AuthDriver {
     pub fn new(cache_manager: Arc<MQTTCacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_config();
 
-        let driver = match build_driver(client_pool.clone(), conf.mqtt_auth_storage.clone()) {
+        let driver = match build_driver(client_pool.clone(), &conf.mqtt_auth_config.authn_config) {
             Ok(driver) => driver,
             Err(e) => {
-                panic!("{}, auth storage:{:?}", e, conf.mqtt_auth_storage);
+                panic!("{}, auth config:{:?}", e, conf.mqtt_auth_config);
             }
         };
 
@@ -77,8 +83,9 @@ impl AuthDriver {
         login: &Option<Login>,
         _connect_properties: &Option<ConnectProperties>,
         _socket_addr: &SocketAddr,
+        client_id: Option<&str>,
     ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config();
+        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
 
         if cluster.mqtt_security.secret_free_login {
             return Ok(true);
@@ -88,14 +95,17 @@ impl AuthDriver {
             let conf = broker_config();
 
             // according to auth_type to select authentication method
-            match conf.mqtt_auth_config.auth_type.as_str() {
-                "password" => {
-                    // get password configuration
-                    if let Some(password_config) =
-                        &conf.mqtt_auth_config.authn_config.password_config
+            match conf.mqtt_auth_config.authn_config.authn_type.as_str() {
+                "password_based" => {
+                    // get password authentication configuration
+                    if let Some(password_based_config) =
+                        &conf.mqtt_auth_config.authn_config.password_based_config
                     {
+                        let password_config = &password_based_config.password_config;
+                        let storage_config = &password_based_config.storage_config;
+
                         // according to storage type to select corresponding verification function
-                        match conf.mqtt_auth_storage.storage_type.as_str() {
+                        match storage_config.storage_type.as_str() {
                             "mysql" => {
                                 mysql_check_login(
                                     &self.driver,
@@ -135,21 +145,46 @@ impl AuthDriver {
                                 )
                                 .await
                             }
+                            "http" => {
+                                // HTTP authentication as a storage type under password-based
+                                if let Some(http_config) = &storage_config.http_config {
+                                    let client_id_str = client_id.unwrap_or("unknown");
+                                    http_check_login(
+                                        &self.driver,
+                                        &self.cache_manager,
+                                        http_config,
+                                        &info.username,
+                                        &info.password,
+                                        client_id_str,
+                                        &_socket_addr.ip().to_string(), // source_ip
+                                    )
+                                    .await
+                                } else {
+                                    Err(MqttBrokerError::HttpConfigNotFound)
+                                }
+                            }
                             _ => Err(MqttBrokerError::UnavailableStorageType),
                         }
                     } else {
                         Err(MqttBrokerError::PasswordConfigNotFound)
                     }
                 }
-                "jwt" | "http" => {
-                    // JWT authentication or HTTP authentication
-                    // TODO: implement JWT and http authentication logic
-                    Err(MqttBrokerError::UnsupportedAuthType(
-                        "JWT or HTTP authentication not implemented yet".to_string(),
-                    ))
+                "jwt" => {
+                    // JWT authentication
+                    if let Some(jwt_config) = &conf.mqtt_auth_config.authn_config.jwt_config {
+                        jwt_check_login(
+                            &self.cache_manager,
+                            jwt_config,
+                            &info.username,
+                            &info.password,
+                        )
+                        .await
+                    } else {
+                        Err(MqttBrokerError::JwtConfigNotFound)
+                    }
                 }
                 _ => Err(MqttBrokerError::UnsupportedAuthType(
-                    conf.mqtt_auth_config.auth_type.clone(),
+                    conf.mqtt_auth_config.authn_config.authn_type.clone(),
                 )),
             }
         } else {
@@ -169,14 +204,27 @@ impl AuthDriver {
         retain: bool,
         qos: QoS,
     ) -> bool {
-        is_allow_acl(
+        if !is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
             MqttAclAction::Publish,
             retain,
             qos,
-        )
+        ) {
+            record_mqtt_acl_failed();
+            return false;
+        }
+        record_mqtt_acl_success();
+
+        // check blacklist
+        // default true if blacklist check fails
+        if is_blacklist(&self.cache_manager, connection).unwrap_or(true) {
+            record_mqtt_blacklist_blocked();
+            return false;
+        }
+
+        true
     }
 
     pub async fn auth_subscribe_check(
@@ -185,12 +233,12 @@ impl AuthDriver {
         subscribe: &Subscribe,
     ) -> bool {
         for filter in subscribe.filters.iter() {
-            let topic_list = get_sub_topic_id_list(&self.cache_manager, &filter.path).await;
-            for topic in topic_list {
+            let topic_list = get_sub_topic_name_list(&self.cache_manager, &filter.path).await;
+            for topic_name in topic_list {
                 if !is_allow_acl(
                     &self.cache_manager,
                     connection,
-                    &topic,
+                    &topic_name,
                     MqttAclAction::Subscribe,
                     false,
                     filter.qos,
@@ -306,29 +354,81 @@ impl AuthDriver {
 
 pub fn build_driver(
     client_pool: Arc<ClientPool>,
-    auth: MqttAuthStorage,
+    authn_config: &AuthnConfig,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
-    let storage_type = AuthType::from_str(&auth.storage_type)
+    match authn_config.authn_type.as_str() {
+        "password_based" => {
+            if let Some(password_based_config) = &authn_config.password_based_config {
+                let storage_config = &password_based_config.storage_config;
+                build_storage_driver(client_pool, storage_config)
+            } else {
+                Err(MqttBrokerError::PasswordConfigNotFound)
+            }
+        }
+        "jwt" => {
+            // JWT authentication doesn't need specific storage adapter (pure token validation)
+            // But we still create a minimal adapter to maintain API compatibility
+            let driver = PlacementAuthStorageAdapter::new(client_pool);
+            Ok(Arc::new(driver))
+        }
+        _ => Err(MqttBrokerError::UnsupportedAuthType(
+            authn_config.authn_type.clone(),
+        )),
+    }
+}
+
+fn build_storage_driver(
+    client_pool: Arc<ClientPool>,
+    storage_config: &StorageConfig,
+) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
+    let storage_type = AuthType::from_str(&storage_config.storage_type)
         .map_err(|_| MqttBrokerError::UnavailableStorageType)?;
-    if matches!(storage_type, AuthType::Placement) {
-        let driver = PlacementAuthStorageAdapter::new(client_pool);
-        return Ok(Arc::new(driver));
-    }
 
-    if matches!(storage_type, AuthType::Mysql) {
-        let driver = MySQLAuthStorageAdapter::new(auth.mysql_addr.clone());
-        return Ok(Arc::new(driver));
+    match storage_type {
+        AuthType::Placement => {
+            // Placement adapter only needs client_pool parameter
+            let driver = PlacementAuthStorageAdapter::new(client_pool);
+            Ok(Arc::new(driver))
+        }
+        AuthType::Mysql => {
+            if let Some(mysql_config) = &storage_config.mysql_config {
+                let driver = MySQLAuthStorageAdapter::new(mysql_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "Mysql config not found".to_string(),
+                ))
+            }
+        }
+        AuthType::Postgresql => {
+            if let Some(postgres_config) = &storage_config.postgres_config {
+                let driver = PostgresqlAuthStorageAdapter::new(postgres_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "Postgres config not found".to_string(),
+                ))
+            }
+        }
+        AuthType::Redis => {
+            if let Some(redis_config) = &storage_config.redis_config {
+                let driver = RedisAuthStorageAdapter::new(redis_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "Redis config not found".to_string(),
+                ))
+            }
+        }
+        AuthType::Http => {
+            // HTTP storage requires special handling due to its unique implementation
+            if let Some(http_config) = &storage_config.http_config {
+                let driver = HttpAuthStorageAdapter::new(http_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::HttpConfigNotFound)
+            }
+        }
+        _ => Err(MqttBrokerError::UnavailableStorageType),
     }
-
-    if matches!(storage_type, AuthType::Postgresql) {
-        let driver = PostgresqlAuthStorageAdapter::new(auth.postgres_addr.clone());
-        return Ok(Arc::new(driver));
-    }
-
-    if matches!(storage_type, AuthType::Redis) {
-        let driver = RedisAuthStorageAdapter::new(auth.redis_addr.clone());
-        return Ok(Arc::new(driver));
-    }
-
-    Err(MqttBrokerError::UnavailableStorageType)
 }

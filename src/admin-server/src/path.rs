@@ -27,7 +27,7 @@ pub const CLUSTER_CONFIG_GET_PATH: &str = "/cluster/config/get";
 
 // MQTT Overview API paths
 pub const MQTT_OVERVIEW_PATH: &str = "/mqtt/overview";
-pub const MQTT_OVERVIEW_METRICS_PATH: &str = "/mqtt/overview/metrics";
+pub const MQTT_MONITOR_PATH: &str = "/mqtt/monitor/data";
 
 // MQTT Client API paths
 pub const MQTT_CLIENT_LIST_PATH: &str = "/mqtt/client/list";
@@ -37,6 +37,8 @@ pub const MQTT_SESSION_LIST_PATH: &str = "/mqtt/session/list";
 
 // MQTT Topic API paths
 pub const MQTT_TOPIC_LIST_PATH: &str = "/mqtt/topic/list";
+pub const MQTT_TOPIC_DETAIL_PATH: &str = "/mqtt/topic/detail";
+pub const MQTT_TOPIC_DELETE_PATH: &str = "/mqtt/topic/delete";
 
 // MQTT Topic Rewrite API paths
 pub const MQTT_TOPIC_REWRITE_LIST_PATH: &str = "/mqtt/topic-rewrite/list";
@@ -46,6 +48,7 @@ pub const MQTT_TOPIC_REWRITE_DELETE_PATH: &str = "/mqtt/topic-rewrite/delete";
 // MQTT Subscribe API paths
 pub const MQTT_SUBSCRIBE_LIST_PATH: &str = "/mqtt/subscribe/list";
 pub const MQTT_SUBSCRIBE_DETAIL_PATH: &str = "/mqtt/subscribe/detail";
+pub const MQTT_SHARE_SUBSCRIBE_DETAIL_PATH: &str = "/mqtt/subscribe/share-detail";
 
 // MQTT Auto Subscribe API paths
 pub const MQTT_AUTO_SUBSCRIBE_LIST_PATH: &str = "/mqtt/auto-subscribe/list";
@@ -89,6 +92,10 @@ pub const MQTT_SCHEMA_BIND_DELETE_PATH: &str = "/mqtt/schema-bind/delete";
 // MQTT System API paths
 pub const MQTT_SYSTEM_ALARM_LIST_PATH: &str = "/mqtt/system-alarm/list";
 pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";
+
+// MQTT Message API paths
+pub const MQTT_MESSAGE_SEND_PATH: &str = "/mqtt/message/send";
+pub const MQTT_MESSAGE_READ_PATH: &str = "/mqtt/message/read";
 
 // Utility functions for building API paths with prefix
 pub const API_PREFIX: &str = "/api";

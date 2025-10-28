@@ -12,42 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::rocksdb::DB_COLUMN_FAMILY_META;
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
-use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::topic::MQTTTopic;
-use rocksdb_engine::warp::StorageDataWrap;
-use rocksdb_engine::RocksDBEngine;
-use std::sync::Arc;
-use tokio::time::{self, Duration, Interval};
-use tracing::error;
-
 use crate::storage::keys::{
-    storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,
+    storage_key_mqtt_last_will_prefix, storage_key_mqtt_retain_message_cluster_prefix,
 };
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META;
+use rocksdb_engine::warp::StorageDataWrap;
+use std::sync::Arc;
+use tracing::error;
 
 pub struct MessageExpire {
     cluster_name: String,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    interval: Interval,
 }
 
 impl MessageExpire {
     pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let intervarl = time::interval(Duration::from_secs(1));
         MessageExpire {
             cluster_name,
             rocksdb_engine_handler,
-            interval: intervarl,
         }
     }
 
-    pub async fn retain_message_expire(&mut self) {
-        self.interval.tick().await;
-        let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
+    pub async fn retain_message_expire(&self) {
+        let search_key = storage_key_mqtt_retain_message_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
         let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
@@ -84,30 +78,21 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let mut value = serde_json::from_str::<MQTTTopic>(&data.data).unwrap();
-
-            if value.retain_message.is_some() {
-                let delete = if let Some(expired_at) = value.retain_message_expired_at {
-                    now_second() >= (data.create_time + expired_at)
-                } else {
-                    false
-                };
-                if delete {
-                    value.retain_message = None;
-                    value.retain_message_expired_at = None;
-                    if let Err(e) =
-                        topic_storage.save(&self.cluster_name, &value.topic_name.clone(), value)
-                    {
-                        error!("{}", e);
-                    }
+            let value = serde_json::from_str::<MQTTRetainMessage>(&data.data).unwrap();
+            let delete = now_second() >= (value.create_time + value.retain_message_expired_at);
+            if delete {
+                if let Err(e) =
+                    topic_storage.delete_retain_message(&self.cluster_name, &value.topic_name)
+                {
+                    error!("{}", e);
                 }
             }
+
             iter.next();
         }
     }
 
-    pub async fn last_will_message_expire(&mut self) {
-        self.interval.tick().await;
+    pub async fn last_will_message_expire(&self) {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -147,7 +132,7 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let value = serde_json::from_str::<LastWillData>(&data.data).unwrap();
+            let value = serde_json::from_str::<MqttLastWillData>(&data.data).unwrap();
             if let Some(properties) = value.last_will_properties {
                 let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
                     now_second() >= ((expiry_interval as u64) + data.create_time)
@@ -169,15 +154,14 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
-    use broker_core::rocksdb::column_family_list;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
-    use metadata_struct::mqtt::lastwill::LastWillData;
-    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::lastwill::MqttLastWillData;
+    use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
     use metadata_struct::mqtt::session::MqttSession;
-    use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::common::{LastWillProperties, Publish};
-    use rocksdb_engine::RocksDBEngine;
+    use protocol::mqtt::common::LastWillProperties;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -195,35 +179,44 @@ mod tests {
             1000,
             column_family_list(),
         ));
-        let mut message_expire =
+        let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let mut topic = MQTTTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());
-        let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
-        topic.retain_message = Some(retain_msg.encode());
-        topic.retain_message_expired_at = Some(3);
+        let topic_name = unique_id();
+        let expired = 10;
+        let retain_message = MQTTRetainMessage {
+            cluster_name: cluster_name.clone(),
+            topic_name: topic_name.clone(),
+            retain_message: "message1".to_string(),
+            retain_message_expired_at: expired,
+            create_time: now_second(),
+        };
 
-        topic_storage
-            .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
-            .unwrap();
+        topic_storage.save_retain_message(retain_message).unwrap();
+
         tokio::spawn(async move {
             loop {
                 message_expire.retain_message_expire().await;
+                sleep(Duration::from_millis(1000)).await;
             }
         });
 
         let start = now_second();
+
         loop {
-            let res = topic_storage.get(&cluster_name, &topic.topic_name).unwrap();
-            let tp = res.unwrap();
-            if tp.retain_message.is_none() {
+            let res = topic_storage
+                .get_retain_message(&cluster_name, &topic_name)
+                .unwrap();
+
+            if res.is_none() {
                 break;
             }
             sleep(Duration::from_millis(100)).await;
         }
 
         let ms = now_second() - start;
-        assert!(ms == 3 || ms == 4);
+        println!("ms:{}", ms);
+        assert!((9..=11).contains(&ms))
     }
 
     #[tokio::test]
@@ -242,16 +235,17 @@ mod tests {
             message_expiry_interval: Some(3),
             ..Default::default()
         };
-        let last_will_message = LastWillData {
+        let last_will_message = MqttLastWillData {
             client_id: client_id.clone(),
             last_will: None,
             last_will_properties: Some(last_will_properties),
         };
-        let mut message_expire =
+        let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         tokio::spawn(async move {
             loop {
                 message_expire.last_will_message_expire().await;
+                sleep(Duration::from_millis(1000)).await;
             }
         });
 

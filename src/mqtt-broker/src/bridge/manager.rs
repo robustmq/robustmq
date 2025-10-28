@@ -108,7 +108,7 @@ mod tests {
         MQTTConnector {
             connector_name: "test_connector".to_string(),
             connector_type: ConnectorType::LocalFile,
-            topic_id: "test_topic".to_string(),
+            topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
             status: MQTTStatus::Running,
             broker_id: Some(1),
@@ -142,7 +142,7 @@ mod tests {
         assert!(retrieved.is_some());
         let retrieved_connector = retrieved.unwrap();
         assert_eq!(retrieved_connector.connector_name, "connector1");
-        assert_eq!(retrieved_connector.topic_id, "test_topic");
+        assert_eq!(retrieved_connector.topic_name, "test_topic");
         assert!(manager.get_connector("non_existent").is_none());
 
         // remove

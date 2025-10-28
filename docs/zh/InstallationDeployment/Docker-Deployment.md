@@ -72,9 +72,9 @@ docker-compose -f docker/docker-compose.yml logs robustmq
 **端口映射**:
 
 - MQTT TCP: 1883
-- MQTT SSL: 1884
+- MQTT SSL: 1885
 - MQTT WebSocket: 8083
-- MQTT WebSocket SSL: 8084
+- MQTT WebSocket SSL: 8085
 - Kafka: 9092
 - gRPC: 1228
 - AMQP: 5672
@@ -328,10 +328,10 @@ services:
    ```bash
    # 检查端口占用
    netstat -tlnp | grep 1883
-   
+
    # 修改端口映射
    ports:
-     - "1884:1883"  # 使用不同端口
+     - "1885:1883"  # 使用不同端口
    ```
 
 2. **权限问题**

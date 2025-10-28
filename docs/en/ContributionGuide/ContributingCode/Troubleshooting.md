@@ -2,11 +2,11 @@
 
 ## `tokio-console` support and configuration
 
-`tokio-console` is a tool that is commonly used to monitor and debug async rust applications built with the tokio runtime. Support for `tokio-console` can be enabled similar to how you would add a logging appender. The following entry in the `config.toml` file will add a `tokio-console` appender to the logging configuration:
+`tokio-console` is a tool that is commonly used to monitor and debug async rust applications built with the tokio runtime. Support for `tokio-console` can be enabled similar to how you would add a logging appender. The following entry in the `config/server-tracing.toml` file will add a `tokio-console` appender to the logging configuration:
 
 ```toml
 [tokio_console] # This is the name of the appender, choose any name you like
-kind = "TokioConsole" # Note that this is case-sensitive
+kind = "tokio_console" # Note that this is case-sensitive
 bind = "127.0.0.1:5674" # specify the server address for the tokio-console server(default: 127.0.0.1:6669)
 ```
 

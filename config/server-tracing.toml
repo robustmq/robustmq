@@ -43,6 +43,11 @@ prefix = "raft"
 suffix = "log"
 max_log_files = 50
 
+# [tokio_console]
+# grpc_web = true
+# kind = "tokio_console"
+# bind = "127.0.0.1:5673"
+
 [journal]
 kind = "rolling_file"
 targets = [{ path = "journal_server", level = "info" }]
@@ -61,20 +66,6 @@ prefix = "meta"
 suffix = "log"
 max_log_files = 50
 
-## Uncomment the section below to enable troubleshooting with `tokio-console`.
-# [tokio_console]
-# kind = "TokioConsole"
-# bind = "127.0.0.1:5675"
-
-# # Uncomment the section below to enable troubleshooting with `tokio-console`.
-# [tokio_console]
-# kind = "TokioConsole"
-# bind = "127.0.0.1:5674"
-
-# # Uncomment the section below to enable example config for
-# # separating logs by target.
-# #
-# # Use target or targets to filter logs by specific path
 
 # # Place all openraft logs in files starting with `openraft`
 # [openraft]

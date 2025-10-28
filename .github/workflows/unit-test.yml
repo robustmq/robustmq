@@ -28,33 +28,65 @@ on:
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
 
+# Cancel previous runs if a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_BUILD_JOBS: 16
+
 jobs:
-  linux-tests:
-    name: unit test
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 300
-    container:
-      image: amd64/rust
+    timeout-minutes: 45
+
     steps:
-      - name: Install build dependencies
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install system dependencies
         run: |
-          apt-get update
-          apt-get install -y clang libclang-dev cmake libssl-dev pkg-config
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler cmake
+          protoc --version
+          cmake --version
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Install latest nextest release
-        uses: taiki-e/install-action@297054b27414ad8086f67963ce1033c02fe309c3 # v2
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          tool: nextest
-      - name: Install latest expand release
-        uses: taiki-e/install-action@297054b27414ad8086f67963ce1033c02fe309c3 # v2
-        with:
-          tool: cargo-expand
-      - name: Run tests
-        run: sh ./scripts/unit-test.sh ci
+          shared-key: "unit-test"
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+
+      - name: Run unit tests
+        id: run-tests
+        run: make test
+        continue-on-error: true
+
+      - name: Test Summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## 🧪 Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "Debug: outcome = ${{ steps.run-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.run-tests.outcome }}" != "success" ]; then
+            echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY

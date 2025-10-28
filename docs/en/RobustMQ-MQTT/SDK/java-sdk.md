@@ -172,7 +172,7 @@ import java.io.FileInputStream;
 
 public class SSLConnection {
     public static void main(String[] args) {
-        String broker = "ssl://localhost:1884";
+        String broker = "ssl://localhost:1885";
         String clientId = "robustmq_ssl_client";
 
         try {
@@ -503,9 +503,9 @@ public class MQTTService {
 | Protocol            | Port | Description                    |
 | ------------------- | ---- | ------------------------------ |
 | MQTT                | 1883 | Standard MQTT port             |
-| MQTT over SSL       | 1884 | Encrypted MQTT connection      |
+| MQTT over SSL       | 1885 | Encrypted MQTT connection      |
 | MQTT over WebSocket | 8083 | WebSocket connection           |
-| MQTT over WSS       | 8084 | Encrypted WebSocket connection |
+| MQTT over WSS       | 8085 | Encrypted WebSocket connection |
 
 ## Best Practices
 

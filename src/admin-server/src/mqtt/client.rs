@@ -13,13 +13,43 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::ClientListReq,
-    response::{mqtt::ClientListRow, PageReplyData},
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
-use common_base::{http_response::success_response, utils::time_util::timestamp_to_local_datetime};
+use common_base::http_response::success_response;
+use metadata_struct::{
+    connection::NetworkConnection,
+    mqtt::{connection::MQTTConnection, session::MqttSession},
+};
+use mqtt_broker::handler::cache::ConnectionLiveTime;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClientListReq {
+    pub source_ip: Option<String>,
+    pub connection_id: Option<u64>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ClientListRow {
+    pub client_id: String,
+    pub connection_id: u64,
+    pub mqtt_connection: MQTTConnection,
+    pub network_connection: Option<NetworkConnection>,
+    pub session: Option<MqttSession>,
+    pub heartbeat: Option<ConnectionLiveTime>,
+}
 use std::sync::Arc;
 
 pub async fn client_list(
@@ -36,38 +66,24 @@ pub async fn client_list(
         params.exact_match,
     );
 
-    let mut clients = Vec::new();
-    for (connection_id, network_connection) in state.connection_manager.list_connect() {
-        let connection_flag = if let Some(id) = params.connection_id {
-            connection_id == id
-        } else {
-            true
-        };
-
-        if !connection_flag {
-            continue;
-        }
-
-        let ip_flag = if let Some(ip) = params.source_ip.clone() {
-            network_connection.addr.to_string().contains(&ip)
-        } else {
-            true
-        };
-
-        if !ip_flag {
-            continue;
-        }
-
+    let mut clients: Vec<ClientListRow> = Vec::new();
+    for (connection_id, mqtt_client) in state.mqtt_context.cache_manager.connection_info.clone() {
+        let session = state
+            .mqtt_context
+            .cache_manager
+            .get_session_info(&mqtt_client.client_id);
+        let network_connection = state.connection_manager.get_connect(mqtt_client.connect_id);
+        let heartbeat = state
+            .mqtt_context
+            .cache_manager
+            .get_heartbeat(&mqtt_client.client_id);
         clients.push(ClientListRow {
             connection_id,
-            connection_type: network_connection.connection_type.to_string(),
-            protocol: if let Some(protocol) = network_connection.protocol {
-                protocol.to_str()
-            } else {
-                "-".to_string()
-            },
-            source_addr: network_connection.addr.to_string(),
-            create_time: timestamp_to_local_datetime(network_connection.create_time as i64),
+            client_id: mqtt_client.client_id.clone(),
+            mqtt_connection: mqtt_client.clone(),
+            network_connection,
+            session,
+            heartbeat,
         });
     }
 
@@ -85,9 +101,7 @@ impl Queryable for ClientListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "connection_id" => Some(self.connection_id.to_string()),
-            "connection_type" => Some(self.connection_type.to_string()),
-            "protocol" => Some(self.protocol.to_string()),
-            "source_addr" => Some(self.source_addr.clone()),
+            "client_id" => Some(self.client_id.to_string()),
             _ => None,
         }
     }

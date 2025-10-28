@@ -65,6 +65,25 @@ macro_rules! counter_metric_inc {
 }
 
 #[macro_export]
+macro_rules! counter_metric_inc_by {
+    ($family:ident,$label:ident, $value:expr) => {{
+        let family = $family.clone();
+        let mut found = false;
+        {
+            let family_r = family.read().unwrap();
+            if let Some(counter) = family_r.get(&$label) {
+                counter.inc_by($value);
+                found = true;
+            };
+        }
+        if !found {
+            let family_w = family.write().unwrap();
+            family_w.get_or_create(&$label).inc_by($value);
+        }
+    }};
+}
+
+#[macro_export]
 macro_rules! counter_metric_get {
     ($family:ident,$label:ident, $res:ident) => {{
         let family = $family.clone();

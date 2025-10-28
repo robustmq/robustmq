@@ -16,35 +16,48 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use axum::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
+use common_config::security::RedisConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
-use r2d2_redis::redis::Commands;
+use redis::Commands;
 use std::collections::HashMap;
 use third_driver::redis::{build_redis_conn_pool, RedisPool};
 
-type RedisConnection = r2d2_redis::r2d2::PooledConnection<r2d2_redis::RedisConnectionManager>;
+type RedisConnection = r2d2::PooledConnection<redis::Client>;
 
 mod schema;
 use schema::{RedisAuthAcl, RedisAuthUser};
 
 pub struct RedisAuthStorageAdapter {
     pool: RedisPool,
+    #[allow(dead_code)]
+    config: RedisConfig,
 }
 
 impl RedisAuthStorageAdapter {
-    pub fn new(addr: String) -> Self {
+    pub fn new(config: RedisConfig) -> Self {
+        // build Redis connection address according to configuration
+        let addr = if config.password.is_empty() {
+            format!("redis://{}/{}", config.redis_addr, config.database)
+        } else {
+            format!(
+                "redis://:{}@{}/{}",
+                config.password, config.redis_addr, config.database
+            )
+        };
+
         let pool = match build_redis_conn_pool(&addr) {
             Ok(data) => data,
             Err(e) => {
-                panic!("{}", e.to_string());
+                panic!("Failed to create Redis connection pool: {}", e);
             }
         };
-        RedisAuthStorageAdapter { pool }
+        RedisAuthStorageAdapter { pool, config }
     }
 }
 
@@ -73,6 +86,8 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                                 Some(redis_user.salt)
                             },
                             is_superuser: redis_user.is_superuser == 1,
+                            // todo bugfix
+                            create_time: now_second(),
                         };
                         results.insert(redis_user.username, user);
                     }
@@ -157,6 +172,8 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                     Some(redis_user.salt)
                 },
                 is_superuser: redis_user.is_superuser == 1,
+                // todo bugfix
+                create_time: now_second(),
             })),
             Err(_) => Ok(None),
         }
@@ -176,10 +193,10 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let hash_data = redis_user.to_redis_hash();
 
         for (field, value) in hash_data {
-            conn.hset(&user_key, &field, &value)?;
+            conn.hset::<_, _, _, ()>(&user_key, &field, &value)?;
         }
 
-        conn.sadd(RedisAuthUser::redis_users_key(), &redis_user.username)?;
+        conn.sadd::<_, _, ()>(RedisAuthUser::redis_users_key(), &redis_user.username)?;
 
         Ok(())
     }
@@ -189,9 +206,9 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 
         let user_key = RedisAuthUser::redis_user_key(&username);
 
-        conn.del(&user_key)?;
+        conn.del::<_, ()>(&user_key)?;
 
-        conn.srem(RedisAuthUser::redis_users_key(), &username)?;
+        conn.srem::<_, _, ()>(RedisAuthUser::redis_users_key(), &username)?;
 
         Ok(())
     }
@@ -234,10 +251,10 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let hash_data = redis_acl.to_redis_hash();
 
         for (field, value) in hash_data {
-            conn.hset(&acl_key, &field, &value)?;
+            conn.hset::<_, _, _, ()>(&acl_key, &field, &value)?;
         }
 
-        conn.sadd(RedisAuthAcl::redis_acls_key(), &redis_acl.id)?;
+        conn.sadd::<_, _, ()>(RedisAuthAcl::redis_acls_key(), &redis_acl.id)?;
 
         Ok(())
     }
@@ -253,9 +270,9 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let id = RedisAuthAcl::generate_id(&username, &clientid, &acl.topic);
         let acl_key = RedisAuthAcl::redis_acl_key(&id);
 
-        conn.del(&acl_key)?;
+        conn.del::<_, ()>(&acl_key)?;
 
-        conn.srem(RedisAuthAcl::redis_acls_key(), &id)?;
+        conn.srem::<_, _, ()>(RedisAuthAcl::redis_acls_key(), &id)?;
 
         Ok(())
     }
@@ -272,13 +289,21 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common_config::security::RedisConfig;
 
     #[tokio::test]
     #[ignore]
     async fn read_all_user_test() {
-        let addr = "redis://127.0.0.1:6379/0".to_string();
-        init_user(&addr).await;
-        let auth_redis = RedisAuthStorageAdapter::new(addr);
+        let config = RedisConfig {
+            redis_addr: "127.0.0.1:6379".to_string(),
+            mode: "Single".to_string(),
+            database: 0,
+            password: "".to_string(),
+            query: "".to_string(),
+        };
+
+        init_user(&config).await;
+        let auth_redis = RedisAuthStorageAdapter::new(config);
         let result = auth_redis.read_all_user().await;
         assert!(result.is_ok());
         let res = result.unwrap();
@@ -290,9 +315,16 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_user_test() {
-        let addr = "redis://127.0.0.1:6379/0".to_string();
-        init_user(&addr).await;
-        let auth_redis = RedisAuthStorageAdapter::new(addr);
+        let config = RedisConfig {
+            redis_addr: "127.0.0.1:6379".to_string(),
+            mode: "Single".to_string(),
+            database: 0,
+            password: "".to_string(),
+            query: "".to_string(),
+        };
+
+        init_user(&config).await;
+        let auth_redis = RedisAuthStorageAdapter::new(config);
         let username = "robustmq".to_string();
         let result = auth_redis.get_user(username).await;
         assert!(result.is_ok());
@@ -301,13 +333,15 @@ mod tests {
         assert_eq!(user.password, "robustmq@2024");
     }
 
-    async fn init_user(addr: &str) {
-        let auth_redis = RedisAuthStorageAdapter::new(addr.to_string());
+    async fn init_user(config: &RedisConfig) {
+        let auth_redis = RedisAuthStorageAdapter::new(config.clone());
         let user = MqttUser {
             username: "robustmq".to_string(),
             password: "robustmq@2024".to_string(),
             salt: None,
             is_superuser: false,
+            // todo bugfix
+            create_time: now_second(),
         };
         let _ = auth_redis.save_user(user).await;
     }

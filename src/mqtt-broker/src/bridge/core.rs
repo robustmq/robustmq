@@ -15,22 +15,28 @@
 use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
-use common_base::{error::ResultCommonError, tools::loop_select};
+use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
-    config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
-    connector_type::ConnectorType, status::MQTTStatus,
+    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
+    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
-use super::{file::FileBridgePlugin, manager::ConnectorManager};
+use super::{
+    file::FileBridgePlugin, manager::ConnectorManager, mongodb::MongoDBBridgePlugin,
+    mysql::MySQLBridgePlugin, postgres::PostgresBridgePlugin, pulsar::PulsarBridgePlugin,
+    rabbitmq::RabbitMQBridgePlugin,
+};
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
-    pub topic_id: String,
+    pub topic_name: String,
     pub record_num: u64,
 }
 
@@ -56,7 +62,7 @@ pub async fn start_connector_thread(
         Ok(())
     };
 
-    loop_select(ac_fn, 1, &stop_send).await;
+    loop_select_ticket(ac_fn, 1, &stop_send).await;
     info!("Connector thread exited successfully");
 }
 
@@ -157,7 +163,7 @@ fn start_thread(
 
                 if let Err(e) = bridge
                     .exec(BridgePluginReadConfig {
-                        topic_id: connector.topic_id,
+                        topic_name: connector.topic_name,
                         record_num: 100,
                     })
                     .await
@@ -171,6 +177,181 @@ fn start_thread(
             }
             ConnectorType::Kafka => {}
             ConnectorType::GreptimeDB => {}
+            ConnectorType::Pulsar => {
+                let pulsar_config = match serde_json::from_str::<PulsarConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse PulsarConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = PulsarBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    pulsar_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_name: connector.topic_name,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start PulsarBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
+            ConnectorType::Postgres => {
+                let postgres_config = match serde_json::from_str::<PostgresConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse PostgresConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = PostgresBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    postgres_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_name: connector.topic_name,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start PostgresBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
+            ConnectorType::MongoDB => {
+                let mongodb_config = match serde_json::from_str::<MongoDBConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse MongoDBConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = MongoDBBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    mongodb_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_name: connector.topic_name,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start MongoDBBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
+            ConnectorType::RabbitMQ => {
+                let rabbitmq_config = match serde_json::from_str::<RabbitMQConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse RabbitMQConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = RabbitMQBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    rabbitmq_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_name: connector.topic_name,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start RabbitMQBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
+            ConnectorType::MySQL => {
+                let mysql_config = match serde_json::from_str::<MySQLConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse MySQLConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
+
+                let bridge = MySQLBridgePlugin::new(
+                    connector_manager.clone(),
+                    message_storage.clone(),
+                    connector.connector_name.clone(),
+                    mysql_config,
+                    thread.stop_send.clone(),
+                );
+
+                connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+                if let Err(e) = bridge
+                    .exec(BridgePluginReadConfig {
+                        topic_name: connector.topic_name,
+                        record_num: 100,
+                    })
+                    .await
+                {
+                    connector_manager.remove_connector_thread(&connector.connector_name);
+                    error!(
+                        "Failed to start MySQLBridgePlugin with error message: {:?}",
+                        e
+                    );
+                }
+            }
         }
     });
 }
@@ -206,7 +387,7 @@ mod tests {
         MQTTConnector {
             connector_name: "test_connector".to_string(),
             connector_type: ConnectorType::LocalFile,
-            topic_id: "test_topic".to_string(),
+            topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
             status: MQTTStatus::Running,
             broker_id: Some(1),
@@ -219,11 +400,11 @@ mod tests {
     #[test]
     fn test_bridge_plugin_read_config_creation() {
         let config = BridgePluginReadConfig {
-            topic_id: "test_topic".to_string(),
+            topic_name: "test_topic".to_string(),
             record_num: 100,
         };
 
-        assert_eq!(config.topic_id, "test_topic");
+        assert_eq!(config.topic_name, "test_topic");
         assert_eq!(config.record_num, 100);
     }
 
@@ -263,7 +444,7 @@ mod tests {
         connector.config = r#"{"local_file_path": "/tmp/test.txt"}"#.to_string();
         connector_manager.add_connector(&connector);
 
-        let shard_name = connector.topic_id.clone();
+        let shard_name = connector.topic_name.clone();
         storage_adapter
             .create_shard(ShardInfo {
                 namespace: "default".to_string(),

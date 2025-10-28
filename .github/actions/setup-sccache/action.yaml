@@ -1,0 +1,53 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Setup sccache
+description: 'Setup sccache for faster Rust compilation'
+runs:
+  using: "composite"
+  steps:
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.5
+      with:
+        # Disable GHA cache (currently having issues with GitHub service)
+        # Use local cache only which is faster and more reliable
+        skip-save: false
+      continue-on-error: true
+      id: sccache
+    
+    - name: Configure sccache with local cache
+      shell: bash
+      run: |
+        if command -v sccache &> /dev/null; then
+          echo "✅ sccache available, using local cache only"
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          # Disable GitHub Actions cache backend (causing service errors)
+          echo "SCCACHE_GHA_ENABLED=false" >> $GITHUB_ENV
+          # Use local filesystem cache instead
+          echo "SCCACHE_DIR=$HOME/.cache/sccache" >> $GITHUB_ENV
+          # Increase cache size to 5GB for better hit rate
+          echo "SCCACHE_CACHE_SIZE=5G" >> $GITHUB_ENV
+        else
+          echo "⚠️ sccache not available, continuing without cache"
+        fi
+    
+    - name: Cache sccache directory
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/sccache
+        key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-sccache-
+      continue-on-error: true
+

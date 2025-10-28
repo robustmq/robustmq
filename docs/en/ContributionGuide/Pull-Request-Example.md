@@ -52,20 +52,26 @@ Here is a complete example of the Pull Request process, specifically for fixing 
 
    If everything is fine, we can proceed to integration testing.
 
-6. **Integration Testing**
+6. **Code Quality and Testing**
 
    | Test Item                      | Command                 |
       |----------------------------|---------------------|
+   | Code quality checks         | make codecheck      |
    | Unit Tests                  | make test           |
-   | Integration Test MQTT Broker | make mqtt-ig-test   |
-   | Integration Test Meta Service | make place-ig-test  |
-   | Integration Test Journal Engine | make journal-ig-test|
+   | All tests (unit + integration) | make test-all    |
+   | MQTT integration tests only | make mqtt-ig-test   |
 
    ```shell
-   # Integration testing
+   # Run code quality checks (format, clippy, license)
+   make codecheck
+   
+   # Run all tests
+   make test-all
+   
+   # Or run tests separately
+   make test
    make mqtt-ig-test
-   make place-ig-test
-   make journal-ig-test
+   
    # If all these steps are successful, you can submit your Pull Request.
 
    git push origin pr-example

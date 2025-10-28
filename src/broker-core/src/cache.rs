@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::node::BrokerNode;
+use tokio::sync::RwLock;
 
 pub struct BrokerCacheManager {
     // start_time
@@ -28,19 +31,19 @@ pub struct BrokerCacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, BrokerConfig>,
+    pub cluster_config: Arc<RwLock<BrokerConfig>>,
 
     // (cluster_name, Status)
-    pub status: DashMap<String, NodeStatus>,
+    pub status: Arc<RwLock<NodeStatus>>,
 }
 impl BrokerCacheManager {
-    pub fn new(cluster_name: String) -> Self {
+    pub fn new(cluster: BrokerConfig) -> Self {
         BrokerCacheManager {
-            cluster_name,
+            cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
             node_lists: DashMap::with_capacity(2),
-            cluster_info: DashMap::with_capacity(1),
-            status: DashMap::with_capacity(2),
+            cluster_config: Arc::new(RwLock::new(cluster.clone())),
+            status: Arc::new(RwLock::new(NodeStatus::Starting)),
         }
     }
 
@@ -66,17 +69,27 @@ impl BrokerCacheManager {
     }
 
     // status
-    pub fn set_status(&self, status: NodeStatus) {
-        self.status.insert(self.cluster_name.clone(), status);
+    pub async fn set_status(&self, status: NodeStatus) {
+        let mut data = self.status.write().await;
+        *data = status;
+    }
+
+    pub async fn get_status(&self) -> NodeStatus {
+        self.status.read().await.clone()
+    }
+
+    pub async fn is_stop(&self) -> bool {
+        self.get_status().await == NodeStatus::Stopping
     }
 
     // cluster config
-    pub fn set_cluster_config(&self, cluster: BrokerConfig) {
-        self.cluster_info.insert(self.cluster_name.clone(), cluster);
+    pub async fn set_cluster_config(&self, config: BrokerConfig) {
+        let mut data = self.cluster_config.write().await;
+        *data = config;
     }
 
-    pub fn get_cluster_config(&self) -> BrokerConfig {
-        self.cluster_info.get(&self.cluster_name).unwrap().clone()
+    pub async fn get_cluster_config(&self) -> BrokerConfig {
+        self.cluster_config.read().await.clone()
     }
 }
 
@@ -84,11 +97,12 @@ impl BrokerCacheManager {
 mod tests {
     use crate::cache::BrokerCacheManager;
     use common_base::tools::now_second;
-    use metadata_struct::placement::node::BrokerNode;
+    use common_config::broker::default_broker_config;
+    use metadata_struct::meta::node::BrokerNode;
 
     #[tokio::test]
     async fn start_time_operations() {
-        let cache_manager = BrokerCacheManager::new("test".to_string());
+        let cache_manager = BrokerCacheManager::new(default_broker_config());
         let start_time = cache_manager.get_start_time();
         assert!(start_time > 0);
         assert!(start_time <= now_second());
@@ -96,7 +110,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let cache_manager = BrokerCacheManager::new("test".to_string());
+        let cache_manager = BrokerCacheManager::new(default_broker_config());
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),

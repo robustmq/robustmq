@@ -15,14 +15,14 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::meta::node::BrokerNode;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_cluster,
-};
 use crate::storage::keys::{key_node, key_node_prefix, key_node_prefix_all};
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_meta,
+};
 
 pub struct NodeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -37,7 +37,7 @@ impl NodeStorage {
 
     pub fn save(&self, node: &BrokerNode) -> Result<(), CommonError> {
         let node_key = key_node(&node.cluster_name, node.node_id);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node.clone())
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), node_key, node.clone())
     }
 
     pub fn delete(&self, cluster_name: &str, node_id: u64) -> Result<(), CommonError> {
@@ -73,7 +73,7 @@ impl NodeStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use broker_core::rocksdb::column_family_list;
+    use rocksdb_engine::storage::family::column_family_list;
     use tempfile::tempdir;
 
     fn setup_kv_storage() -> NodeStorage {

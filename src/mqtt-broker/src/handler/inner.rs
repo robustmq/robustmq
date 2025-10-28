@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
+use crate::{bridge::manager::ConnectorManager, common::metrics_cache::MetricsCacheManager};
 use broker_core::tool::wait_cluster_running;
 use common_config::broker::broker_config;
+use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
@@ -29,13 +30,15 @@ use protocol::broker::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::info;
+use tracing::debug;
 
 pub async fn update_cache_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
+    message_storage_adapter: &ArcStorageAdapter,
+    metrics_manager: &Arc<MetricsCacheManager>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
     let conf = broker_config();
@@ -48,6 +51,8 @@ pub async fn update_cache_by_req(
         connector_manager,
         subscribe_manager,
         schema_manager,
+        message_storage_adapter,
+        metrics_manager,
         req.clone(),
     )
     .await?;
@@ -59,7 +64,7 @@ pub async fn delete_session_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
-    info!(
+    debug!(
         "Received request from Meta service to delete expired Session. Cluster name :{}, clientId count: {:?}",
         req.cluster_name, req.client_id.len()
     );
@@ -77,7 +82,7 @@ pub async fn delete_session_by_req(
         subscribe_manager.remove_client_id(client_id);
         cache_manager.remove_session(client_id);
     }
-
+    record_mqtt_session_deleted();
     Ok(DeleteSessionReply::default())
 }
 
@@ -87,7 +92,7 @@ pub async fn send_last_will_message_by_req(
     message_storage_adapter: &ArcStorageAdapter,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
-    let data = match serde_json::from_slice::<LastWillData>(req.last_will_message.as_slice()) {
+    let data = match serde_json::from_slice::<MqttLastWillData>(req.last_will_message.as_slice()) {
         Ok(data) => data,
         Err(e) => {
             return Err(MqttBrokerError::CommonError(e.to_string()));
@@ -95,7 +100,7 @@ pub async fn send_last_will_message_by_req(
     };
 
     wait_cluster_running(&cache_manager.broker_cache).await;
-    info!(
+    debug!(
         "Received will message from meta service, source client id: {},data:{:?}",
         req.client_id, data.client_id
     );

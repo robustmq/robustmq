@@ -12,26 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    request::mqtt::OverviewMetricsReq,
-    response::mqtt::{OverViewMetricsResp, OverViewResp},
-    state::HttpState,
-};
-use axum::{extract::State, Json};
+use crate::state::HttpState;
+use axum::extract::State;
 use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
-    tools::now_second,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::node::BrokerNode;
 use mqtt_broker::{
     common::metrics_cache::MetricsCacheManager, handler::cache::MQTTCacheManager,
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct OverViewResp {
+    pub node_list: Vec<BrokerNode>,
+    pub cluster_name: String,
+    pub message_in_rate: u64,
+    pub message_out_rate: u64,
+    pub connection_num: u32,
+    pub session_num: u32,
+    pub topic_num: u32,
+    pub placement_status: String,
+    pub tcp_connection_num: u32,
+    pub tls_connection_num: u32,
+    pub websocket_connection_num: u32,
+    pub quic_connection_num: u32,
+    pub subscribe_num: u32,
+    pub exclusive_subscribe_num: u32,
+    pub share_subscribe_leader_num: u32,
+    pub share_subscribe_resub_num: u32,
+    pub exclusive_subscribe_thread_num: u32,
+    pub share_subscribe_leader_thread_num: u32,
+    pub share_subscribe_follower_thread_num: u32,
+}
 
 pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     match cluster_overview_by_req(
@@ -40,6 +60,7 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
         &state.connection_manager,
         &state.mqtt_context.cache_manager,
         &state.broker_cache,
+        &state.mqtt_context.metrics_manager,
     )
     .await
     {
@@ -48,67 +69,32 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     }
 }
 
-pub async fn overview_metrics(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<OverviewMetricsReq>,
-) -> String {
-    match cluster_overview_metrics_by_req(&state.mqtt_context.metrics_manager, &params).await {
-        Ok(data) => success_response(data),
-        Err(e) => error_response(e.to_string()),
-    }
-}
-
-async fn cluster_overview_metrics_by_req(
-    metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: &OverviewMetricsReq,
-) -> Result<OverViewMetricsResp, CommonError> {
-    let start_time = if request.start_time == 0 {
-        now_second() - 3600
-    } else {
-        request.start_time
-    };
-    let end_time = if request.end_time == 0 {
-        now_second()
-    } else {
-        request.end_time
-    };
-    let reply = OverViewMetricsResp {
-        connection_num: metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
-        topic_num: metrics_cache_manager.get_topic_num_by_time(start_time, end_time),
-        subscribe_num: metrics_cache_manager.get_subscribe_num_by_time(start_time, end_time),
-        message_in_num: metrics_cache_manager.get_message_in_num_by_time(start_time, end_time),
-        message_out_num: metrics_cache_manager.get_message_out_num_by_time(start_time, end_time),
-        message_drop_num: metrics_cache_manager.get_message_drop_num_by_time(start_time, end_time),
-    };
-
-    Ok(reply)
-}
-
 async fn cluster_overview_by_req(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     broker_cache: &Arc<BrokerCacheManager>,
+    metrics_manager: &Arc<MetricsCacheManager>,
 ) -> Result<OverViewResp, CommonError> {
     let config = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let placement_status = cluster_storage.place_cluster_status().await?;
+    let placement_status = cluster_storage.meta_cluster_status().await?;
     let node_list = broker_cache.node_list();
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: 10,
-        message_out_rate: 3,
+        message_in_rate: metrics_manager.get_message_out_rate(),
+        message_out_rate: metrics_manager.get_message_out_rate(),
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
-        subscribe_num: subscribe_manager.subscribe_list.len() as u32,
-        exclusive_subscribe_num: subscribe_manager.exclusive_push.len() as u32,
-        exclusive_subscribe_thread_num: subscribe_manager.exclusive_push_thread.len() as u32,
-        share_subscribe_leader_num: subscribe_manager.share_leader_push.len() as u32,
-        share_subscribe_leader_thread_num: subscribe_manager.share_leader_push_thread.len() as u32,
-        share_subscribe_resub_num: subscribe_manager.share_follower_resub.len() as u32,
-        share_subscribe_follower_thread_num: subscribe_manager.share_follower_resub_thread.len()
+        subscribe_num: subscribe_manager.subscribe_list_len() as u32,
+        exclusive_subscribe_num: subscribe_manager.exclusive_push_len() as u32,
+        exclusive_subscribe_thread_num: subscribe_manager.exclusive_push_thread_len() as u32,
+        share_subscribe_leader_num: subscribe_manager.share_leader_push_len() as u32,
+        share_subscribe_leader_thread_num: subscribe_manager.share_leader_push_thread_len() as u32,
+        share_subscribe_resub_num: subscribe_manager.share_follower_resub_len() as u32,
+        share_subscribe_follower_thread_num: subscribe_manager.share_follower_resub_thread_len()
             as u32,
         topic_num: cache_manager.topic_info.len() as u32,
         node_list,

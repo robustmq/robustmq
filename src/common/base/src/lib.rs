@@ -17,6 +17,7 @@ pub mod enum_type;
 pub mod error;
 pub mod http_error;
 pub mod http_response;
+pub mod inner_topic;
 pub mod logging;
 pub mod network;
 pub mod node_status;

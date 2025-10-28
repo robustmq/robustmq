@@ -13,12 +13,91 @@
 // limitations under the License.
 
 use crate::{
-    request::mqtt::{BlackListListReq, CreateBlackListReq, DeleteBlackListReq},
-    response::{mqtt::BlackListListRow, PageReplyData},
+    extractor::ValidatedJson,
     state::HttpState,
-    tool::query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+    tool::{
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        PageReplyData,
+    },
 };
 use axum::{extract::State, Json};
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BlackListListReq {
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct CreateBlackListReq {
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Blacklist type length must be between 1-50"
+    ))]
+    #[validate(custom(function = "validate_blacklist_type"))]
+    pub blacklist_type: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Resource name length must be between 1-256"
+    ))]
+    pub resource_name: String,
+
+    #[validate(range(min = 1, message = "End time must be greater than 0"))]
+    pub end_time: u64,
+
+    #[validate(length(max = 500, message = "Description length cannot exceed 500 characters"))]
+    pub desc: String,
+}
+
+fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::ValidationError> {
+    match blacklist_type {
+        "ClientId" | "User" | "Ip" => Ok(()),
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_blacklist_type");
+            err.message = Some(std::borrow::Cow::from(
+                "Blacklist type must be ClientId, User or Ip",
+            ));
+            Err(err)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct DeleteBlackListReq {
+    #[validate(length(
+        min = 1,
+        max = 50,
+        message = "Blacklist type length must be between 1-50"
+    ))]
+    #[validate(custom(function = "validate_blacklist_type"))]
+    pub blacklist_type: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Resource name length must be between 1-256"
+    ))]
+    pub resource_name: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BlackListListRow {
+    pub blacklist_type: String,
+    pub resource_name: String,
+    pub end_time: String,
+    pub desc: String,
+}
+
 use common_base::{
     enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str,
     http_response::{error_response, success_response},
@@ -85,7 +164,7 @@ impl Queryable for BlackListListRow {
 
 pub async fn blacklist_create(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<CreateBlackListReq>,
+    ValidatedJson(params): ValidatedJson<CreateBlackListReq>,
 ) -> String {
     let blacklist_type = match get_blacklist_type_by_str(&params.blacklist_type) {
         Ok(blacklist_type) => blacklist_type,
@@ -113,7 +192,7 @@ pub async fn blacklist_create(
 
 pub async fn blacklist_delete(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<DeleteBlackListReq>,
+    ValidatedJson(params): ValidatedJson<DeleteBlackListReq>,
 ) -> String {
     let blacklist_type = match get_blacklist_type_by_str(&params.blacklist_type) {
         Ok(blacklist_type) => blacklist_type,

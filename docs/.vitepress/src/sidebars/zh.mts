@@ -23,6 +23,7 @@ export const sidebar = [
         text: "快速启动",
         collapsed: true,
         items: [
+            { text: "快速安装", link: "/zh/QuickGuide/Quick-Install" },
             { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
             { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
         ],
@@ -66,6 +67,7 @@ export const sidebar = [
                     { text: "主题重写", link: "/zh/RobustMQ-MQTT/TopicRewrite" },
                     { text: "通配符订阅", link: "/zh/RobustMQ-MQTT/WildcardSubscription" },
                     { text: "会话持久化", link: "/zh/RobustMQ-MQTT/SessionPersistence" },
+                    { text: "系统告警", link: "/zh/RobustMQ-MQTT/SystemAlarm.md" },
                 ],
             },
             {
@@ -85,21 +87,15 @@ export const sidebar = [
                     { text: "概述", link: "/zh/RobustMQ-MQTT/Bridge/Overview" },
                     { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
                     { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
+                    { text: "Pulsar", link: "/zh/RobustMQ-MQTT/Bridge/Pulsar" },
+                    { text: "RabbitMQ", link: "/zh/RobustMQ-MQTT/Bridge/RabbitMQ" },
                     { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
+                    { text: "PostgreSQL", link: "/zh/RobustMQ-MQTT/Bridge/PostgreSQL" },
+                    { text: "MySQL", link: "/zh/RobustMQ-MQTT/Bridge/MySQL" },
+                    { text: "MongoDB", link: "/zh/RobustMQ-MQTT/Bridge/MongoDB" },
                 ]
             },
 
-      {
-        text: "可观测性",
-        collapsed: true,
-        items: [
-          { text: "系统告警", link: "/zh/RobustMQ-MQTT/SystemAlarm.md" },
-          { text: "指标", link: "" },
-          { text: "Trace", link: "" },
-          { text: "集成 Prometheus", link: "" },
-          { text: "集成 OpenTelemetry", link: "" },
-        ],
-      },
       { text: "MQTTX 测试指南", link: "/zh/RobustMQ-MQTT/MQTTX-Guide" },
       {
         text: "客户端 SDK",
@@ -167,6 +163,16 @@ export const sidebar = [
     ],
   },
   {
+    text: "可观测性",
+    collapsed: true,
+    items: [
+      { text: "Prometheus 接入", link: "/zh/Observability/Prometheus接入" },
+      { text: "基础设施指标", link: "/zh/Observability/基础设施指标" },
+      { text: "MQTT 专用指标", link: "/zh/Observability/MQTT专用指标" },
+      { text: "Grafana 配置指南", link: "/zh/Observability/Grafana配置指南" },
+    ],
+  },
+  {
     text: "配置说明",
     collapsed: true,
     items: [
@@ -174,6 +180,7 @@ export const sidebar = [
       { text: "MQTT 配置", link: "/zh/Configuration/MQTT" },
       { text: "Meta 配置", link: "/zh/Configuration/META" },
       { text: "Journal 配置", link: "/zh/Configuration/JOURNAL" },
+      { text: "日志配置", link: "/zh/Configuration/Logging" },
     ],
   },
   {
@@ -219,6 +226,10 @@ export const sidebar = [
           {
             text: "代码结构",
             link: "/zh/ContributionGuide/ContributingCode/Code-Structure",
+          },
+          {
+            text: "Pprof 使用指南",
+            link: "/zh/ContributionGuide/ContributingCode/Pprof-Usage",
           },
         ],
       },

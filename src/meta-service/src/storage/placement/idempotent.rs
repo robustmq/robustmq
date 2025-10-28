@@ -16,11 +16,11 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 
-use crate::storage::engine::{
-    engine_delete_by_cluster, engine_exists_by_cluster, engine_save_by_cluster,
-};
 use crate::storage::keys::key_resource_idempotent;
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta::{
+    engine_delete_by_cluster, engine_exists_by_cluster, engine_save_by_meta,
+};
 
 pub struct IdempotentStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -39,7 +39,7 @@ impl IdempotentStorage {
         seq_num: u64,
     ) -> Result<(), CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, seq_num)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, seq_num)
     }
 
     pub fn delete(
@@ -67,8 +67,8 @@ impl IdempotentStorage {
 mod test {
 
     use crate::storage::placement::idempotent::IdempotentStorage;
-    use broker_core::rocksdb::column_family_list;
-    use rocksdb_engine::RocksDBEngine;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;
     use tempfile::tempdir;
 

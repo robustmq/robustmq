@@ -12,25 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
-    cluster::{cluster_config_get, cluster_config_set},
+    cluster::{cluster_config_get, cluster_config_set, cluster_info},
     mqtt::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
         client::client_list,
         connector::{connector_create, connector_delete, connector_list},
-        overview::{overview, overview_metrics},
+        monitor::monitor_data,
+        overview::overview,
+        pub_sub::{read, send},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
         },
         session::session_list,
         subscribe::{
-            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
-            subscribe_detail, subscribe_list,
+            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list,
+            share_subscribe_detail, slow_subscribe_list, subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
-        topic::{topic_list, topic_rewrite_create, topic_rewrite_list},
+        topic::{topic_detail, topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
     path::*,
@@ -39,23 +42,20 @@ use crate::{
 use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::{
-    extract::{ConnectInfo, Request, State},
+    extract::{ConnectInfo, Request},
     http::{HeaderMap, Method, Uri},
     middleware::{self, Next},
     response::Response,
-    routing::{get, post},
+    routing::post,
     Router,
 };
-use common_base::version::version;
-use common_metrics::http::{
-    record_http_connection_end, record_http_connection_start, record_http_request,
-};
+use common_metrics::http::record_http_request;
 use reqwest::StatusCode;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
 use tokio::fs;
 use tower_http::{cors::CorsLayer, services::ServeDir};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub struct AdminServer {}
 
@@ -108,7 +108,7 @@ impl AdminServer {
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route(STATUS_PATH, get(index))
+            .route(STATUS_PATH, post(cluster_info))
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
@@ -118,20 +118,27 @@ impl AdminServer {
         Router::new()
             // overview
             .route(MQTT_OVERVIEW_PATH, post(overview))
-            .route(MQTT_OVERVIEW_METRICS_PATH, post(overview_metrics))
+            // monitor
+            .route(MQTT_MONITOR_PATH, post(monitor_data))
             // client
             .route(MQTT_CLIENT_LIST_PATH, post(client_list))
             // session
             .route(MQTT_SESSION_LIST_PATH, post(session_list))
             // topic
             .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
+            .route(MQTT_TOPIC_DETAIL_PATH, post(topic_detail))
+            .route(MQTT_TOPIC_DELETE_PATH, post(topic_delete))
             // topic-rewrite
             .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
             .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
-            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_list))
+            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_rewrite_delete))
             // subscribe
             .route(MQTT_SUBSCRIBE_LIST_PATH, post(subscribe_list))
             .route(MQTT_SUBSCRIBE_DETAIL_PATH, post(subscribe_detail))
+            .route(
+                MQTT_SHARE_SUBSCRIBE_DETAIL_PATH,
+                post(share_subscribe_detail),
+            )
             // auto subscribe
             .route(MQTT_AUTO_SUBSCRIBE_LIST_PATH, post(auto_subscribe_list))
             .route(MQTT_AUTO_SUBSCRIBE_CREATE_PATH, post(auto_subscribe_create))
@@ -166,6 +173,9 @@ impl AdminServer {
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, post(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, post(ban_log_list))
+            // message
+            .route(MQTT_MESSAGE_SEND_PATH, post(send))
+            .route(MQTT_MESSAGE_READ_PATH, post(read))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
@@ -195,9 +205,6 @@ async fn base_middleware(
     request: Request,
     next: Next,
 ) -> Response {
-    // Record connection start for active connection tracking
-    record_http_connection_start();
-
     let start = Instant::now();
     let client_ip = extract_client_ip(&headers, addr);
     let user_agent = headers
@@ -245,13 +252,13 @@ async fn base_middleware(
         200..=299 => {
             if duration_ms > 1000 {
                 // Slow requests (>1s)
-                warn!(
+                info!(
                     "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
                     format_size(request_size), format_size(response_size)
                 );
             } else {
-                info!(
+                debug!(
                     "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                     method,
                     uri,
@@ -294,7 +301,7 @@ async fn base_middleware(
             );
         }
         _ => {
-            info!(
+            debug!(
                 "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
                 method,
                 uri,
@@ -308,9 +315,6 @@ async fn base_middleware(
             );
         }
     }
-
-    // Record connection end for active connection tracking
-    record_http_connection_end();
 
     response
 }
@@ -380,10 +384,6 @@ fn extract_client_ip(headers: &HeaderMap, socket_addr: SocketAddr) -> String {
         }
     }
     socket_addr.ip().to_string()
-}
-
-pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
-    format!("RobustMQ API {}", version())
 }
 
 #[cfg(test)]

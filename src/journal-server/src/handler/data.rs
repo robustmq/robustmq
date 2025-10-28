@@ -21,7 +21,7 @@ use protocol::journal::journal_engine::{
     FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShardMeta, JournalEngineError, ReadReq,
     ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
-use rocksdb_engine::RocksDBEngine;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
