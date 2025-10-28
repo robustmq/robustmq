@@ -208,9 +208,9 @@ impl Queryable for AclListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "resource_type" => Some(self.resource_type.clone()),
-            "resource_name" => Some(self.resource_type.clone()),
-            "topic" => Some(self.resource_type.clone()),
-            "ip" => Some(self.resource_type.clone()),
+            "resource_name" => Some(self.resource_name.clone()),
+            "topic" => Some(self.topic.clone()),
+            "ip" => Some(self.ip.clone()),
             _ => None,
         }
     }
