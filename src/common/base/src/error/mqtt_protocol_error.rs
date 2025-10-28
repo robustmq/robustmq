@@ -23,8 +23,8 @@ pub enum MQTTProtocolError {
     InvalidReason(u8),
     #[error("Invalid reason = {0}")]
     InvalidRemainingLength(usize),
-    #[error("Invalid protocol used")]
-    InvalidProtocol,
+    #[error("Invalid protocol name used")]
+    InvalidProtocolName,
     #[error("Invalid protocol level {0}. Make sure right port is being used.")]
     InvalidProtocolLevel(u8),
     #[error("Reserved must be set to 0")]

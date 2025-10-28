@@ -1165,7 +1165,7 @@ pub fn connect_read(
     let protocol_name = read_mqtt_string(&mut bytes)?;
     let protocol_level = read_u8(&mut bytes)?;
     if protocol_name != "MQTT" && protocol_name != "MQIsdp" {
-        return Err(MQTTProtocolError::InvalidProtocol);
+        return Err(MQTTProtocolError::InvalidProtocolName);
     }
 
     if protocol_level == 5 {
@@ -1220,5 +1220,5 @@ pub fn connect_read(
         });
     }
 
-    Err(MQTTProtocolError::InvalidProtocol)
+    Err(MQTTProtocolError::InvalidProtocolName)
 }

@@ -77,7 +77,7 @@ pub fn read(
     let protocol_name = std::str::from_utf8(&protocol_name)?.to_owned(); // convert to string by to_owned()
     let protocol_level = read_u8(&mut bytes)?;
     if protocol_name != "MQTT" {
-        return Err(MQTTProtocolError::InvalidProtocol);
+        return Err(MQTTProtocolError::InvalidProtocolName);
     }
 
     if protocol_level != 4 && protocol_level != 3 {
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn variable_header_should_fail_with_invalid_protocol() {
+    async fn variable_header_should_fail_with_invalid_protocol_name() {
         let mut buffer = BytesMut::new();
         // Manually write an invalid protocol name
         buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
@@ -337,7 +337,30 @@ mod tests {
         let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
         let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
 
-        assert!(matches!(result, Err(MQTTProtocolError::InvalidProtocol)));
+        assert!(matches!(
+            result,
+            Err(MQTTProtocolError::InvalidProtocolName)
+        ));
+    }
+
+    #[tokio::test]
+    async fn variable_header_should_fail_with_invalid_protocol_level() {
+        let mut buffer = BytesMut::new();
+        // Manually write an invalid protocol name
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8(10); // Remaining length
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(0b0000_0101); // Invalid Protocol Level
+        buffer.put_u8(0); // Connect flags
+        buffer.put_u16(0); // Keep alive
+        write_mqtt_string(&mut buffer, "test_id");
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
+        assert!(matches!(
+            result,
+            Err(MQTTProtocolError::InvalidProtocolLevel(5))
+        ));
     }
 
     #[tokio::test]
