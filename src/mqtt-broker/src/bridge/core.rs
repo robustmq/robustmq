@@ -15,23 +15,34 @@
 use crate::{common::types::ResultMqttBrokerError, storage::connector::ConnectorStorage};
 use axum::async_trait;
 
-use common_base::{error::ResultCommonError, tools::loop_select_ticket};
+use common_base::{
+    error::ResultCommonError,
+    tools::{loop_select_ticket, now_mills},
+};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::bridge::{
-    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
+use metadata_struct::{
+    adapter::record::Record,
+    mqtt::bridge::{connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus},
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
-use tokio::{sync::broadcast, time::sleep};
+use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use super::{
-    file::start_local_file_connector, greptimedb::start_greptimedb_connector,
-    kafka::start_kafka_connector, manager::ConnectorManager, mongodb::start_mongodb_connector,
-    mysql::start_mysql_connector, postgres::start_postgres_connector,
-    pulsar::start_pulsar_connector, rabbitmq::start_rabbitmq_connector,
+    file::start_local_file_connector,
+    greptimedb::start_greptimedb_connector,
+    kafka::start_kafka_connector,
+    manager::{update_last_active, ConnectorManager},
+    mongodb::start_mongodb_connector,
+    mysql::start_mysql_connector,
+    postgres::start_postgres_connector,
+    pulsar::start_pulsar_connector,
+    rabbitmq::start_rabbitmq_connector,
 };
+
+use crate::storage::message::MessageStorage;
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
@@ -51,6 +62,104 @@ pub struct BridgePluginThread {
 #[async_trait]
 pub trait BridgePlugin {
     async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
+}
+
+#[async_trait]
+pub trait ConnectorSink: Send + Sync {
+    type SinkResource: Send;
+
+    async fn init_sink(&self)
+        -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError>;
+
+    async fn send_batch(
+        &self,
+        records: &[Record],
+        resource: &mut Self::SinkResource,
+    ) -> ResultMqttBrokerError;
+
+    async fn cleanup_sink(&self, _resource: Self::SinkResource) -> ResultMqttBrokerError {
+        Ok(())
+    }
+}
+
+pub async fn run_connector_loop<S: ConnectorSink>(
+    sink: &S,
+    connector_manager: &Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector_name: String,
+    config: BridgePluginReadConfig,
+    mut stop_recv: broadcast::Receiver<bool>,
+) -> ResultMqttBrokerError {
+    let mut resource = sink.init_sink().await?;
+    let message_storage = MessageStorage::new(message_storage);
+    let group_name = connector_name.clone();
+
+    loop {
+        let offset = message_storage.get_group_offset(&group_name).await?;
+
+        select! {
+            val = stop_recv.recv() => {
+                if let Ok(flag) = val {
+                    if flag {
+                        sink.cleanup_sink(resource).await?;
+                        break;
+                    }
+                }
+            },
+
+            val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
+                match val {
+                    Ok(data) => {
+                        connector_manager.report_heartbeat(&connector_name);
+
+                        if data.is_empty() {
+                            sleep(Duration::from_millis(100)).await;
+                            continue;
+                        }
+
+                        let start_time = now_mills();
+                        let message_count = data.len() as u64;
+
+                        match sink.send_batch(&data, &mut resource).await {
+                            Ok(_) => {
+                                message_storage.commit_group_offset(
+                                    &group_name,
+                                    &config.topic_name,
+                                    offset + message_count
+                                ).await?;
+
+                                update_last_active(
+                                    connector_manager,
+                                    &connector_name,
+                                    start_time,
+                                    message_count,
+                                    true
+                                );
+                            },
+                            Err(e) => {
+                                update_last_active(
+                                    connector_manager,
+                                    &connector_name,
+                                    start_time,
+                                    message_count,
+                                    false
+                                );
+                                error!("Connector {} failed to send batch: {}", connector_name, e);
+                                sleep(Duration::from_millis(100)).await;
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        update_last_active(connector_manager, &connector_name, now_mills(), 0, false);
+                        error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);
+                        sleep(Duration::from_millis(100)).await;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn start_connector_thread(

@@ -14,7 +14,6 @@
 
 use std::{sync::Arc, time::Duration};
 
-use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
@@ -24,12 +23,11 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
-use crate::common::types::ResultMqttBrokerError;
-use crate::storage::message::MessageStorage;
-
-use super::{
-    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
-    manager::ConnectorManager,
+use crate::{
+    bridge::core::{BridgePluginReadConfig, BridgePluginThread},
+    bridge::manager::ConnectorManager,
+    common::types::ResultMqttBrokerError,
+    storage::message::MessageStorage,
 };
 
 mod sender;
@@ -114,9 +112,8 @@ pub fn start_greptimedb_connector(
     });
 }
 
-#[async_trait]
-impl BridgePlugin for GreptimeDBBridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
+impl GreptimeDBBridgePlugin {
+    pub async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
         let message_storage = MessageStorage::new(self.message_storage.clone());
         let group_name = self.connector_name.clone();
         let offset = message_storage.get_group_offset(&group_name).await?;

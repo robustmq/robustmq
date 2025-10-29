@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
-
 use super::core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread};
 use super::manager::ConnectorManager;
 use crate::bridge::manager::update_last_active;
@@ -26,6 +24,7 @@ use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
+use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
