@@ -175,14 +175,14 @@ impl ConnectorSink for FileBridgePlugin {
 
     async fn validate(&self) -> ResultMqttBrokerError {
         let file_path = Path::new(&self.config.local_file_path);
-        
+
         if let Some(parent) = file_path.parent() {
             if !parent.exists() {
                 tokio::fs::create_dir_all(parent).await?;
                 info!("Created directory: {}", parent.display());
             }
         }
-        
+
         Ok(())
     }
 
