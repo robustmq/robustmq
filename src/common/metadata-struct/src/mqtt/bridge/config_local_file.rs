@@ -16,9 +16,27 @@ use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum RotationStrategy {
+    #[default]
+    None,
+    Size,
+    Hourly,
+    Daily,
+}
+
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct LocalFileConnectorConfig {
     pub local_file_path: String,
+    #[serde(default)]
+    pub rotation_strategy: RotationStrategy,
+    #[serde(default = "default_max_size_gb")]
+    pub max_size_gb: u64,
+}
+
+fn default_max_size_gb() -> u64 {
+    1
 }
 
 impl LocalFileConnectorConfig {
@@ -70,6 +88,33 @@ impl LocalFileConnectorConfig {
                 return Err(CommonError::CommonError(
                     "local_file_path cannot contain '..' directory traversal".to_string(),
                 ));
+            }
+        }
+
+        if self.rotation_strategy == RotationStrategy::Size
+            && (self.max_size_gb < 1 || self.max_size_gb > 10)
+        {
+            return Err(CommonError::CommonError(
+                "max_size_gb must be between 1 and 10".to_string(),
+            ));
+        }
+
+        if let Some(parent) = path.parent() {
+            if parent.exists() {
+                let metadata = std::fs::metadata(parent).map_err(|e| {
+                    CommonError::CommonError(format!(
+                        "Failed to read directory metadata {}: {}",
+                        parent.display(),
+                        e
+                    ))
+                })?;
+
+                if metadata.permissions().readonly() {
+                    return Err(CommonError::CommonError(format!(
+                        "Directory {} is read-only, no write permission",
+                        parent.display()
+                    )));
+                }
             }
         }
 

@@ -31,6 +31,7 @@ use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use super::{
+    elasticsearch::start_elasticsearch_connector,
     file::start_local_file_connector,
     greptimedb::start_greptimedb_connector,
     kafka::start_kafka_connector,
@@ -68,6 +69,8 @@ pub trait BridgePlugin {
 pub trait ConnectorSink: Send + Sync {
     type SinkResource: Send;
 
+    async fn validate(&self) -> ResultMqttBrokerError;
+
     async fn init_sink(&self)
         -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError>;
 
@@ -90,6 +93,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     config: BridgePluginReadConfig,
     mut stop_recv: broadcast::Receiver<bool>,
 ) -> ResultMqttBrokerError {
+    sink.validate().await?;
     let mut resource = sink.init_sink().await?;
     let message_storage = MessageStorage::new(message_storage);
     let group_name = connector_name.clone();
@@ -282,6 +286,9 @@ fn start_thread(
         }
         ConnectorType::MySQL => {
             start_mysql_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::Elasticsearch => {
+            start_elasticsearch_connector(connector_manager, message_storage, connector, thread);
         }
     }
 }

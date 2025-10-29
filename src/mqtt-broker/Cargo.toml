@@ -68,6 +68,7 @@ pulsar.workspace = true
 mongodb.workspace = true
 bson.workspace = true
 lapin.workspace = true
+elasticsearch.workspace = true
 sqlx = { workspace = true, features = ["mysql", "postgres", "runtime-tokio"] }
 rocksdb-engine.workspace = true
 # security

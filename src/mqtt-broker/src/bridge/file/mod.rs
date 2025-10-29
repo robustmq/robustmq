@@ -15,18 +15,149 @@
 use super::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink};
 use super::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
+use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
+use chrono::{DateTime, Local, Timelike};
+use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use tracing::error;
+use tracing::{error, info};
+
+pub struct FileWriter {
+    writer: BufWriter<File>,
+    current_path: PathBuf,
+    current_size: u64,
+    last_rotation_time: DateTime<Local>,
+    config: LocalFileConnectorConfig,
+}
+
+impl FileWriter {
+    async fn new(config: LocalFileConnectorConfig) -> Result<Self, MqttBrokerError> {
+        let path = PathBuf::from(&config.local_file_path);
+        let writer = Self::create_file(&path).await?;
+        let current_size = Self::get_file_size(&path).await?;
+
+        Ok(FileWriter {
+            writer,
+            current_path: path,
+            current_size,
+            last_rotation_time: Local::now(),
+            config,
+        })
+    }
+
+    async fn create_file(path: &Path) -> Result<BufWriter<File>, MqttBrokerError> {
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .await?;
+        Ok(BufWriter::new(file))
+    }
+
+    async fn get_file_size(path: &Path) -> Result<u64, MqttBrokerError> {
+        match tokio::fs::metadata(path).await {
+            Ok(metadata) => Ok(metadata.len()),
+            Err(_) => Ok(0),
+        }
+    }
+
+    fn generate_rotated_filename(&self) -> PathBuf {
+        let original_path = Path::new(&self.config.local_file_path);
+        let parent = original_path.parent().unwrap_or_else(|| Path::new("."));
+        let stem = original_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("file");
+        let extension = original_path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("log");
+
+        let now = Local::now();
+        let timestamp = match self.config.rotation_strategy {
+            RotationStrategy::Hourly => now.format("%Y%m%d_%H").to_string(),
+            RotationStrategy::Daily => now.format("%Y%m%d").to_string(),
+            RotationStrategy::Size => now.format("%Y%m%d_%H%M%S").to_string(),
+            RotationStrategy::None => String::new(),
+        };
+
+        parent.join(format!("{}_{}.{}", stem, timestamp, extension))
+    }
+
+    async fn should_rotate(&self) -> bool {
+        match self.config.rotation_strategy {
+            RotationStrategy::None => false,
+            RotationStrategy::Size => {
+                let max_size_bytes = self.config.max_size_gb * 1024 * 1024 * 1024;
+                self.current_size >= max_size_bytes
+            }
+            RotationStrategy::Hourly => {
+                let now = Local::now();
+                now.hour() != self.last_rotation_time.hour()
+                    || now.date_naive() != self.last_rotation_time.date_naive()
+            }
+            RotationStrategy::Daily => {
+                let now = Local::now();
+                now.date_naive() != self.last_rotation_time.date_naive()
+            }
+        }
+    }
+
+    async fn rotate(&mut self) -> Result<(), MqttBrokerError> {
+        self.writer.flush().await?;
+        self.writer.shutdown().await?;
+
+        let new_path = self.generate_rotated_filename();
+        tokio::fs::rename(&self.current_path, &new_path).await?;
+
+        info!(
+            "File rotated: {} -> {}",
+            self.current_path.display(),
+            new_path.display()
+        );
+
+        self.writer = Self::create_file(&self.current_path).await?;
+        self.current_size = 0;
+        self.last_rotation_time = Local::now();
+
+        Ok(())
+    }
+
+    async fn write(&mut self, data: &[u8]) -> Result<(), MqttBrokerError> {
+        if self.should_rotate().await {
+            self.rotate().await?;
+        }
+
+        self.writer.write_all(data).await?;
+        self.current_size += data.len() as u64;
+        Ok(())
+    }
+
+    async fn flush(&mut self) -> Result<(), MqttBrokerError> {
+        self.writer.flush().await?;
+        Ok(())
+    }
+
+    async fn shutdown(mut self) -> Result<(), MqttBrokerError> {
+        self.writer.flush().await?;
+        self.writer.shutdown().await?;
+        Ok(())
+    }
+}
 
 pub struct FileBridgePlugin {
     config: LocalFileConnectorConfig,
@@ -40,41 +171,43 @@ impl FileBridgePlugin {
 
 #[async_trait]
 impl ConnectorSink for FileBridgePlugin {
-    type SinkResource = BufWriter<File>;
+    type SinkResource = FileWriter;
+
+    async fn validate(&self) -> ResultMqttBrokerError {
+        let file_path = Path::new(&self.config.local_file_path);
+        
+        if let Some(parent) = file_path.parent() {
+            if !parent.exists() {
+                tokio::fs::create_dir_all(parent).await?;
+                info!("Created directory: {}", parent.display());
+            }
+        }
+        
+        Ok(())
+    }
 
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
-        let file_path = std::path::Path::new(&self.config.local_file_path);
-        if let Some(parent) = file_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(self.config.local_file_path.clone())
-            .await?;
-        Ok(BufWriter::new(file))
+        FileWriter::new(self.config.clone()).await
     }
 
     async fn send_batch(
         &self,
         records: &[Record],
-        writer: &mut BufWriter<File>,
+        writer: &mut FileWriter,
     ) -> ResultMqttBrokerError {
         for record in records {
             let msg = serde_json::from_slice::<MqttMessage>(&record.data)?;
             let data = serde_json::to_string(&msg)?;
-            writer.write_all(data.as_ref()).await?;
-            writer.write_all(b"\n").await?;
+            writer.write(data.as_ref()).await?;
+            writer.write(b"\n").await?;
         }
         writer.flush().await?;
         Ok(())
     }
 
-    async fn cleanup_sink(&self, mut writer: BufWriter<File>) -> ResultMqttBrokerError {
-        writer.flush().await?;
+    async fn cleanup_sink(&self, writer: FileWriter) -> ResultMqttBrokerError {
         writer.shutdown().await?;
         Ok(())
     }
@@ -209,6 +342,9 @@ mod tests {
                 .to_str()
                 .unwrap()
                 .to_string(),
+            rotation_strategy:
+                metadata_struct::mqtt::bridge::config_local_file::RotationStrategy::None,
+            max_size_gb: 1,
         };
 
         // create such file
