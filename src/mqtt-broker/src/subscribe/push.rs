@@ -125,7 +125,7 @@ pub async fn build_publish_message(
         p_kid: pkid,
         retain,
         topic: Bytes::from(context.subscriber.topic_name.clone()),
-        payload: msg.payload,
+        payload: Bytes::from(msg.payload),
     };
 
     let properties = if contain_properties {

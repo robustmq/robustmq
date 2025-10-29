@@ -121,6 +121,9 @@ mod tests {
         let (stop_send, _) = broadcast::channel::<bool>(1);
         BridgePluginThread {
             connector_name: "test_connector".to_string(),
+            last_send_time: 0,
+            send_fail_total: 0,
+            send_success_total: 0,
             stop_send,
         }
     }

@@ -1,11 +1,5 @@
 # RobustMQ Overall Architecture Overview
 
-> RobustMQ is a next-generation high-performance multi-protocol message queue built on Rust. Its vision is to become the next-generation cloud-native and AI-native messaging infrastructure. It is not simply "yet another message queue," but rather a complete rethinking and redesign of message queues for the AI era and cloud-native requirements.
-
-In [RobustMQ: Technical Design Philosophy Overview](../Blogs/02.md), we elaborated on RobustMQ's core technical concepts, covering six key features: high performance, Serverless, pluggable storage, minimalist high-cohesion architecture, compute/storage/scheduling separation, and multi-protocol support. This article will detail the design and implementation of RobustMQ's overall architecture.
-
-In [Introduction to RobustMQ Roles](../Blogs/03.md), we introduced the concept of node roles. This article will build upon that foundation to provide an in-depth analysis of RobustMQ's overall architecture design.
-
 ## Architecture Overview
 
 The overall architecture of RobustMQ is shown in the following diagram:

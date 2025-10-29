@@ -42,6 +42,9 @@ pub struct BridgePluginReadConfig {
 #[derive(Clone)]
 pub struct BridgePluginThread {
     pub connector_name: String,
+    pub last_send_time: u64,
+    pub send_success_total: u64,
+    pub send_fail_total: u64,
     pub stop_send: broadcast::Sender<bool>,
 }
 
@@ -95,6 +98,9 @@ async fn check_connector(
         let (stop_send, _) = broadcast::channel::<bool>(1);
         let thread = BridgePluginThread {
             connector_name: raw.connector_name.clone(),
+            last_send_time: 0,
+            send_fail_total: 0,
+            send_success_total: 0,
             stop_send,
         };
 
@@ -228,6 +234,9 @@ mod tests {
         let (stop_send, _) = broadcast::channel::<bool>(1);
         let thread = BridgePluginThread {
             connector_name: "test_connector".to_string(),
+            last_send_time: 0,
+            send_fail_total: 0,
+            send_success_total: 0,
             stop_send: stop_send.clone(),
         };
 
@@ -285,6 +294,9 @@ mod tests {
         let (stop_send, mut stop_recv) = broadcast::channel::<bool>(1);
         let thread = BridgePluginThread {
             connector_name: "test_connector".to_string(),
+            last_send_time: 0,
+            send_fail_total: 0,
+            send_success_total: 0,
             stop_send: stop_send.clone(),
         };
 

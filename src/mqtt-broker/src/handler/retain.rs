@@ -220,7 +220,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 p_kid: pkid,
                 retain,
                 topic: Bytes::from(topic_name.clone()),
-                payload: msg.payload,
+                payload: Bytes::from(msg.payload),
             };
 
             let packet = MqttPacket::Publish(publish.clone(), Some(properties));

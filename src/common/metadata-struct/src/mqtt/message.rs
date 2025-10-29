@@ -28,8 +28,8 @@ pub struct MqttMessage {
     pub qos: QoS,
     pub pkid: u16,
     pub retain: bool,
-    pub topic: Bytes,
-    pub payload: Bytes,
+    pub topic: String,
+    pub payload: String,
     pub format_indicator: Option<u8>,
     pub expiry_interval: u64,
     pub response_topic: Option<String>,
@@ -48,8 +48,8 @@ impl MqttMessage {
             qos: QoS::AtMostOnce,
             pkid: 0,
             retain: false,
-            topic: Bytes::from(topic_name),
-            payload: Bytes::from(payload),
+            topic: topic_name,
+            payload,
             create_time: now_second(),
             ..Default::default()
         };
@@ -76,8 +76,8 @@ impl MqttMessage {
             qos: publish.qos,
             pkid: publish.p_kid,
             retain: publish.retain,
-            topic: publish.topic.clone(),
-            payload: publish.payload.clone(),
+            topic: String::from_utf8(publish.topic.to_vec()).unwrap_or("".to_string()),
+            payload: String::from_utf8(publish.payload.to_vec()).unwrap_or("".to_string()),
             ..Default::default()
         };
         if let Some(properties) = publish_properties {
@@ -272,8 +272,8 @@ mod tests {
             qos: QoS::AtLeastOnce,
             pkid: 42,
             retain: true,
-            topic: Bytes::from("test/topic"),
-            payload: Bytes::from("test message"),
+            topic: "test/topic".to_string(),
+            payload: "test message".to_string(),
             format_indicator: Some(1),
             expiry_interval: 3600,
             response_topic: Some("response/topic".to_string()),

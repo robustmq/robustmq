@@ -19,6 +19,7 @@ use super::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 use axum::async_trait;
+use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
@@ -60,8 +61,10 @@ impl FileBridgePlugin {
         writer: &mut BufWriter<File>,
     ) -> ResultMqttBrokerError {
         for record in records {
-            let data = serde_json::to_string(record)?;
+            let msg = serde_json::from_slice::<MqttMessage>(&record.data)?;
+            let data = serde_json::to_string(&msg)?;
             writer.write_all(data.as_ref()).await?;
+            writer.write_all(b"\n").await?;
         }
         writer.flush().await?;
         Ok(())
@@ -117,7 +120,16 @@ impl BridgePlugin for FileBridgePlugin {
         let message_storage = MessageStorage::new(self.message_storage.clone());
         let group_name = self.connector_name.clone();
         let mut recv = self.stop_send.subscribe();
+
+        // Create parent directories if they don't exist
+        let file_path = std::path::Path::new(&self.config.local_file_path);
+        if let Some(parent) = file_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
+        // Open file with create option to automatically create if it doesn't exist
         let file = OpenOptions::new()
+            .create(true)
             .append(true)
             .open(self.config.local_file_path.clone())
             .await?;
@@ -151,6 +163,9 @@ impl BridgePlugin for FileBridgePlugin {
 
                             // commit offset
                             message_storage.commit_group_offset(&group_name, &config.topic_name, offset + data.len() as u64).await?;
+
+                            // update connector status
+
                         },
                         Err(e) => {
                             error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name,config.topic_name,e);
