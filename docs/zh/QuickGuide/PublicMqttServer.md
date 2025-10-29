@@ -21,9 +21,9 @@
 
 ### 管理界面
 
-- **Dashboard**: <http://117.72.92.117:8080/>
+- **Dashboard**: <http://demo.robustmq.com/>
 
-![Dashboard](../../images/dashboard.png)
+![Dashboard](../../images/web-ui.jpg)
 
 ## 快速体验
 

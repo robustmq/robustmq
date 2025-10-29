@@ -126,7 +126,7 @@ RobustMQ MQTT 是 RobustMQ 对 MQTT 协议的完整实现，提供高性能、�
 
 RobustMQ Dashboard 已完成对 RobustMQ MQTT 协议功能的支持，提供直观的 Web 界面来管理和监控 MQTT 服务。
 
-**访问地址**：[http://117.72.92.117:8080/](http://117.72.92.117:8080/)
+**访问地址**：[http://demo.robustmq.com/](http://demo.robustmq.com/)
 
 **主要功能**：
 

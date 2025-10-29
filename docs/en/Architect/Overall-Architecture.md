@@ -1,287 +1,141 @@
-# RobustMQ Overall Architecture
+# RobustMQ Overall Architecture Overview
 
-## Overview
+> RobustMQ is a next-generation high-performance multi-protocol message queue built on Rust. Its vision is to become the next-generation cloud-native and AI-native messaging infrastructure. It is not simply "yet another message queue," but rather a complete rethinking and redesign of message queues for the AI era and cloud-native requirements.
 
-RobustMQ is a next-generation, high-performance, multi-protocol message queue built in Rust, designed specifically for cloud-native and AI-native environments. This document provides a comprehensive overview of RobustMQ's overall architecture, design principles, and core components.
+In [RobustMQ: Technical Design Philosophy Overview](../Blogs/02.md), we elaborated on RobustMQ's core technical concepts, covering six key features: high performance, Serverless, pluggable storage, minimalist high-cohesion architecture, compute/storage/scheduling separation, and multi-protocol support. This article will detail the design and implementation of RobustMQ's overall architecture.
 
-## Design Philosophy
+In [Introduction to RobustMQ Roles](../Blogs/03.md), we introduced the concept of node roles. This article will build upon that foundation to provide an in-depth analysis of RobustMQ's overall architecture design.
 
-RobustMQ is built on the following core design principles:
+## Architecture Overview
 
-- **AI-Ready**: Optimized for AI workflows with microsecond-level latency
-- **Cloud-Native**: Container-first design with Kubernetes support
-- **Multi-Protocol Unification**: Single platform supporting MQTT, Kafka, and AMQP
-- **Compute-Storage Separation**: Stateless compute layer for Serverless support
-- **Pluggable Storage**: Flexible storage backends for different use cases
+The overall architecture of RobustMQ is shown in the following diagram:
 
-## High-Level Architecture
+![image](../../images/robustmq-architecture-overview.jpg)
 
-![RobustMQ Architecture](../../images/robustmq-architecture.png)
+As shown above, RobustMQ consists of five core modules: Meta Service, Broker Server, Storage Adapter, Journal Server, and Data Storage Layer:
 
-RobustMQ adopts a distributed, layered architecture with clear separation of concerns:
+**1. Meta Service (Metadata and Scheduling Layer)**
 
-### 1. Protocol Layer (Multi-Protocol Computing Layer)
-- **MQTT Broker**: Handles MQTT 3.x/4.x/5.x protocols
-- **Kafka Broker**: Provides Kafka-compatible streaming capabilities
-- **AMQP Broker**: Supports AMQP 0.9.1/1.0 for enterprise messaging
-- **Protocol Isolation**: Each protocol uses dedicated ports for optimal performance
+Responsible for cluster metadata storage and scheduling management, with primary responsibilities including:
 
-### 2. Broker Server Layer
-- **Stateless Design**: All broker nodes are stateless for horizontal scaling
-- **Load Balancing**: Automatic client distribution across broker nodes
-- **Protocol Translation**: Converts different protocols to internal message format
-- **Connection Management**: Handles millions of concurrent connections
+- Storage and distribution of Broker and Journal cluster-related metadata (Topic, Group, Queue, Partition, etc.)
+- Control and scheduling of Broker and Journal clusters, including cluster node online/offline management, configuration storage and distribution, etc.
 
-### 3. Meta Service Layer (meta service)
-- **Raft Consensus**: High-availability metadata management using Raft algorithm
-- **Cluster Coordination**: Node discovery, health checks, and failover
-- **Topic Management**: Topic routing, partitioning, and load balancing
-- **Controller Threads**: Protocol-specific controllers for cluster scheduling
+**2. Broker Server (Message Queue Logic Processing Layer)**
 
-### 4. Storage Adapter Layer
-- **Abstraction Layer**: Pluggable storage interface
-- **Protocol Translation**: Converts internal messages to storage format
-- **Batch Processing**: Optimized for high-throughput scenarios
-- **Consistency Guarantees**: WAL (Write-Ahead Log) support
-
-### 5. Storage Layer
-- **Memory Storage**: Microsecond latency for real-time applications
-- **SSD Storage**: Millisecond latency for high-frequency access
-- **Object Storage**: Second-level latency for cost-effective long-term storage
-- **Distributed Storage**: Support for S3, HDFS, and other distributed backends
-
-## Core Components
-
-### Broker Server (`src/broker-server/`)
+Responsible for parsing and logic processing of different message queue protocols, with primary responsibilities including:
 
-The main entry point that coordinates all protocol brokers and provides unified service management.
-
-**Key Responsibilities:**
-- Service coordination and lifecycle management
-- gRPC service interfaces for internal communication
-- Cluster service management and health monitoring
-- Performance metrics collection and reporting
-
-**Core Files:**
-- `cluster_service.rs`: Cluster service management
-- `grpc.rs`: gRPC service interfaces
-- `common.rs`: Shared utilities and configurations
-
-### Meta Service (`src/meta-service/`)
-
-The metadata management center responsible for cluster coordination and metadata storage.
-
-**Key Responsibilities:**
-- Cluster metadata storage using Raft consensus
-- Node management and health monitoring
-- Fault detection and automatic recovery
-- Topic routing and load balancing decisions
-
-**Core Modules:**
-- `core/`: Core caching and controller logic
-- `raft/`: Raft consensus algorithm implementation
-- `storage/`: Metadata storage engine
-- `controller/`: Protocol-specific controllers
-
-### Journal Server (`src/journal-server/`)
-
-The persistent storage layer responsible for message durability and retrieval.
-
-**Key Responsibilities:**
-- Message persistence and indexing
-- Storage engine abstraction
-- Data replication and consistency
-- Performance optimization for different access patterns
-
-**Core Features:**
-- WAL (Write-Ahead Log) for consistency
-- Pluggable storage backends
-- Efficient indexing and querying
-- Data compression and optimization
-
-### Protocol Brokers
-
-#### MQTT Broker (`src/mqtt-broker/`)
-- **Protocol Support**: MQTT 3.1.1, 3.1, and 5.0
-- **Transport**: TCP (1883), SSL/TLS (1885), WebSocket (8083), WebSocket SSL (8085)
-- **Features**: QoS levels, retained messages, will messages, shared subscriptions
-- **Performance**: Million-level concurrent connections
-
-#### Kafka Broker (`src/kafka-broker/`)
-- **Protocol Support**: Kafka 2.8+ compatible
-- **Transport**: TCP (9092)
-- **Features**: Topic partitioning, consumer groups, offset management
-- **Use Cases**: Big data streaming, AI training pipelines
-
-#### AMQP Broker (`src/amqp-broker/`)
-- **Protocol Support**: AMQP 0.9.1 and 1.0
-- **Transport**: TCP (5672)
-- **Features**: Exchanges, queues, routing, acknowledgments
-- **Use Cases**: Enterprise integration, microservices communication
-
-### Storage Adapter (`src/storage-adapter/`)
-
-Provides a unified interface for different storage backends.
-
-**Supported Storage Types:**
-- **Memory**: In-memory storage for ultra-low latency
-- **Local Files**: File-based storage for development and small deployments
-- **RocksDB**: Embedded key-value store for high performance
-- **S3**: Object storage for cloud deployments
-- **HDFS**: Distributed file system for big data scenarios
-
-### Common Components
-
-#### Network Server (`src/common/network-server/`)
-- **Connection Management**: Efficient connection pooling and management
-- **Protocol Parsing**: High-performance protocol parsing
-- **Security**: TLS/SSL support and authentication
-- **Monitoring**: Connection metrics and health checks
-
-#### Metrics (`src/common/metrics/`)
-- **Prometheus Integration**: Comprehensive metrics collection
-- **Custom Metrics**: Application-specific performance indicators
-- **Real-time Monitoring**: Live performance dashboards
-- **Alerting**: Configurable alerting rules
-
-#### Security (`src/common/security/`)
-- **Authentication**: Multiple authentication mechanisms
-- **Authorization**: Role-based access control
-- **Encryption**: End-to-end encryption support
-- **Audit Logging**: Security event logging
-
-## Deployment Architecture
-
-### All-in-One Deployment
-- **Use Case**: Development, testing, and small-scale production
-- **Components**: All services in a single process
-- **Benefits**: Simple deployment and management
-- **Limitations**: Single point of failure, limited scalability
-
-### Microservices Deployment
-- **Use Case**: Production environments requiring high availability
-- **Components**: Independent services with dedicated resources
-- **Benefits**: High availability, independent scaling, fault isolation
-- **Complexity**: More complex deployment and management
-
-### Cloud-Native Deployment
-- **Use Case**: Kubernetes environments
-- **Components**: Containerized services with K8s Operator
-- **Benefits**: Auto-scaling, service discovery, rolling updates
-- **Features**: Helm charts, CRDs, monitoring integration
-
-## Data Flow Architecture
-
-### Message Publishing Flow
-1. **Client Connection**: Client connects to appropriate broker (MQTT/Kafka/AMQP)
-2. **Protocol Parsing**: Broker parses protocol-specific message format
-3. **Message Validation**: Validate message format and permissions
-4. **Topic Resolution**: Meta service resolves topic routing information
-5. **Storage Write**: Journal server persists message to storage
-6. **Acknowledgment**: Send acknowledgment back to client
-
-### Message Consumption Flow
-1. **Subscription**: Client subscribes to topics/partitions
-2. **Load Balancing**: Meta service distributes subscriptions across brokers
-3. **Message Retrieval**: Journal server retrieves messages from storage
-4. **Protocol Conversion**: Convert internal format to client protocol
-5. **Message Delivery**: Deliver messages to subscribed clients
-6. **Acknowledgment**: Handle client acknowledgments and offset management
-
-## Performance Characteristics
-
-### Latency
-- **Memory Storage**: Microsecond-level latency
-- **SSD Storage**: Millisecond-level latency
-- **Object Storage**: Second-level latency
-
-### Throughput
-- **Concurrent Connections**: Million-level support
-- **Message Rate**: High-throughput message processing
-- **Bandwidth**: Optimized for high-bandwidth scenarios
-
-### Scalability
-- **Horizontal Scaling**: Add nodes to increase capacity
-- **Auto-scaling**: Kubernetes-based auto-scaling
-- **Load Distribution**: Automatic load balancing
-
-## Security Architecture
-
-### Authentication
-- **Username/Password**: Traditional authentication
-- **Certificate-based**: X.509 certificate authentication
-- **OAuth 2.0**: Modern authentication protocols
-- **LDAP/AD**: Enterprise directory integration
-
-### Authorization
-- **Topic-level**: Fine-grained topic access control
-- **Operation-level**: Read/write permission control
-- **Resource-based**: Resource-specific permissions
-- **Time-based**: Temporary access grants
-
-### Encryption
-- **Transport Encryption**: TLS/SSL for data in transit
-- **Storage Encryption**: Encryption at rest
-- **End-to-End**: Application-level encryption
-- **Key Management**: Secure key rotation and management
-
-## Monitoring and Observability
-
-### Metrics
-- **System Metrics**: CPU, memory, disk, network usage
-- **Application Metrics**: Message rates, latency, error rates
-- **Business Metrics**: Topic usage, client connections
-- **Custom Metrics**: Application-specific indicators
-
-### Logging
-- **Structured Logging**: JSON-formatted logs
-- **Log Levels**: Configurable log levels
-- **Log Aggregation**: Centralized log collection
-- **Log Analysis**: Real-time log analysis
-
-### Tracing
-- **Distributed Tracing**: End-to-end request tracing
-- **Performance Analysis**: Latency breakdown analysis
-- **Dependency Mapping**: Service dependency visualization
-- **Error Tracking**: Error propagation tracking
-
-## Development and Operations
-
-### Development
-- **Rust Ecosystem**: Leveraging Rust's performance and safety
-- **Async Runtime**: Tokio-based async programming
-- **Testing**: Comprehensive unit and integration tests
-- **Documentation**: Extensive API and user documentation
-
-### Operations
-- **Docker Support**: Containerized deployment
-- **Kubernetes**: Native K8s support with operators
-- **Monitoring**: Prometheus and Grafana integration
-- **Backup/Restore**: Data backup and recovery procedures
-
-## Future Roadmap
-
-### Short-term (2025)
-- **MQTT Production Ready**: Complete MQTT 5.0 support
-- **Performance Optimization**: Further latency reduction
-- **Cloud Integration**: Enhanced cloud provider integration
-
-### Medium-term (2026)
-- **Kafka Enhancement**: Full Kafka compatibility
-- **AI Pipeline Support**: Optimized AI training data pipelines
-- **Advanced Features**: Schema registry, message transformation
-
-### Long-term
-- **Apache Foundation**: Goal to become Apache top-level project
-- **Ecosystem Growth**: Rich ecosystem of tools and integrations
-- **Global Adoption**: Worldwide enterprise adoption
-
-## Conclusion
-
-RobustMQ represents a new generation of message queue systems, designed from the ground up for modern cloud-native and AI-native applications. Its layered architecture, multi-protocol support, and pluggable storage make it suitable for a wide range of use cases, from IoT devices to large-scale AI training pipelines.
-
-The separation of compute and storage, combined with Rust's performance characteristics, enables RobustMQ to deliver microsecond-level latency while maintaining high availability and scalability. This makes it an ideal choice for applications requiring real-time performance and reliable message delivery.
-
----
-
-*This document provides a comprehensive overview of RobustMQ's architecture. For more detailed information about specific components, please refer to the individual component documentation.*
+- Parsing MQTT, Kafka, AMQP, RocketMQ and other protocols
+- Integrating and abstracting common logic across different protocols, handling protocol-specific business logic, and implementing compatibility adaptation for multiple message queue protocols
+
+**3. Storage Adapter (Storage Adaptation Layer)**
+
+Unifies Topic/Queue/Partition concepts from various MQ protocols into the Shard abstraction, while adapting to different underlying storage engines (such as local file storage Journal Server, remote HDFS, object storage, self-developed storage components, etc.), achieving pluggable storage layer characteristics. Storage Adapter routes data to appropriate storage engines based on configuration.
+
+**4. Journal Server (Persistent Storage Engine)**
+
+RobustMQ's built-in persistent storage engine, adopting a local multi-replica, segmented persistent storage architecture similar to Apache BookKeeper. Its design goal is to build a high-performance, high-throughput, highly reliable persistent storage engine. From the Storage Adapter's perspective, Journal Server is one of the supported storage engines. This component is designed to meet RobustMQ's high-cohesion, no-external-dependency architectural characteristics.
+
+**5. Data Storage Layer (Local/Remote Storage)**
+
+Refers to the actual data storage medium, which can be local memory or remote storage services (such as HDFS, MinIO, AWS S3, etc.). This layer is interfaced through the Storage Adapter.
+
+## Detailed Architecture
+
+The detailed architecture of RobustMQ is shown in the following diagram:
+
+![image](../../images/robustmq-architecture.png)
+
+As shown above, this is a cluster composed of three RobustMQ Nodes. When choosing to use the built-in persistent storage engine Journal Server, no external components are required, and nodes can be started with a single command: `./bin/robust-server start`.
+
+From a single-node perspective, it consists of four main parts: Common Server, Meta Service, Message Broker, and Storage Layer:
+
+### Common Server
+
+Composed of three components: Inner gRPC Server, Admin HTTP Server, and Prometheus Server, providing common services for Meta Service, Message Broker, and Journal Server:
+
+- **Inner gRPC Server**: Used for internal communication between multiple RobustMQ Nodes
+- **Admin HTTP Server**: Provides unified external HTTP protocol operations interface
+- **Prometheus Server**: Exposes metrics collection interface for monitoring data collection
+
+### Meta Service
+
+The metadata service module within the node. After the Inner gRPC Server starts successfully, Meta Service reads the `meta_addrs` parameter from configuration to obtain all Meta Server Node information, communicates with all nodes through gRPC protocol, and elects the Meta Master node based on the Raft protocol. After election completion, Meta Service can provide services externally.
+
+### Message Broker
+
+The core module in the node responsible for message logic processing, used to adapt multiple message protocols and complete corresponding logic processing. This module adopts a layered architecture design:
+
+**1. Network Layer**
+
+Supports parsing and processing of five network protocols: TCP, TLS, WebSocket, WebSockets, and QUIC.
+
+**2. Protocol Layer**
+
+Above the network layer, responsible for parsing request packet content of different protocols. Long-term plans support MQTT, Kafka, AMQP, RocketMQ and other protocols, with current completion of MQTT and Kafka protocol support.
+
+**3. Protocol Logic Layer**
+
+Since different protocols have their own processing logic, this layer provides independent implementations for each protocol, such as mqtt-broker, kafka-broker, amqp-broker, etc., responsible for handling protocol-specific business logic.
+
+**4. Message Common Logic Layer**
+
+As a vertical domain, message queues are centered on the Pub/Sub model, with extensive reusable common logic across different protocols, such as message sending/receiving, message expiration, delayed messages, monitoring, logging, security, Schema, etc. These common codes are extracted as independent modules for protocol reuse. Based on this design, as core infrastructure improves, the development cost of adding new protocol support will be significantly reduced.
+
+**5. Storage Adaptation Layer**
+
+Responsible for adapting different storage engines, mainly completing two tasks:
+
+- Unifying MQTT Topic, AMQP Queue, Kafka Partition and other concepts into Shard abstraction
+- Interfacing with different storage engines to complete data persistent storage
+
+### Storage Layer
+
+The actual storage layer for messages, composed of two parts:
+
+- **Built-in Storage Engine**: Segmented distributed storage engine Journal Server
+- **Third-party Storage Engine**: Supports interfacing with external distributed storage systems
+
+## Single Node Startup Process
+
+![image](../../images/04.jpg)
+
+In single-node mode, the component startup sequence when a node starts is: Common Server → Meta Service → Journal Server → Message Broker. Specific process description:
+
+**1. Start Common Server Layer**
+
+First start the Server layer to establish inter-node communication capabilities.
+
+**2. Start Metadata Coordination Service**
+
+Start Meta Service. In a three-node cluster scenario, multiple Nodes elect the Meta Service Master through the Raft protocol. After election completion, the cluster metadata layer can provide services externally.
+
+**3. Start Built-in Storage Layer**
+
+Start Journal Server. Journal Server adopts a cluster architecture and depends on Meta Service to complete election, cluster construction, metadata storage, etc., so it must wait for Meta Service to be ready before starting.
+
+**4. Start Message Broker Layer**
+
+Start Message Broker. Message Broker relies on Meta Service to complete cluster construction, election, coordination, etc. If built-in storage is configured, it also depends on Journal Server to complete data persistent storage, so it must start last.
+
+## Hybrid Storage Architecture
+
+RobustMQ supports hybrid storage architecture, with storage engine selection granularity at the Topic level rather than the cluster level. During cluster startup or operation, you can configure the cluster's default storage engine, and also support configuring different storage engines for different Topics. According to business characteristics, you can choose appropriate storage solutions:
+
+**1. Local Persistent Storage Engine**
+
+Suitable for Topics with small data volume, latency-sensitive, and no data loss tolerance.
+
+**2. Memory Storage Engine**
+
+Suitable for Topics with large data volume, latency-sensitive, and can tolerate small amounts of data loss in extreme cases.
+
+**3. Remote Storage Engine**
+
+Suitable for Topics with large data volume, not latency-sensitive, no data loss tolerance, and cost-sensitive.
+
+**4. Built-in Journal Server**
+
+Suitable for Topics with large data volume, latency-sensitive, no data loss tolerance, and not cost-sensitive.
+
+According to actual business observations, most business scenarios do not require hybrid storage architecture. Even when hybrid needs exist, isolation is typically performed at the deployment level. Therefore, in actual deployment processes, configuring a single storage engine usually meets requirements.
