@@ -18,6 +18,7 @@ use axum::async_trait;
 use bson::Document;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_mongodb::MongoDBConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
 };
 use mongodb::{options::ClientOptions, Client, Collection};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -29,7 +30,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig},
+    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
     manager::ConnectorManager,
 };
 
@@ -124,6 +125,48 @@ impl MongoDBBridgePlugin {
             }
         }
     }
+}
+
+pub fn start_mongodb_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let mongodb_config = match serde_json::from_str::<MongoDBConnectorConfig>(&connector.config)
+        {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse MongoDBConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = MongoDBBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            mongodb_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start MongoDBBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]

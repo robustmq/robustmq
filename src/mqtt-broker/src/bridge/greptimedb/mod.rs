@@ -17,6 +17,7 @@ use std::{sync::Arc, time::Duration};
 use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
 };
 
 use storage_adapter::storage::ArcStorageAdapter;
@@ -27,7 +28,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig},
+    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
     manager::ConnectorManager,
 };
 
@@ -68,6 +69,49 @@ impl GreptimeDBBridgePlugin {
         }
         Ok(())
     }
+}
+
+pub fn start_greptimedb_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let greptimedb_config = match serde_json::from_str::<GreptimeDBConnectorConfig>(
+            &connector.config,
+        ) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse GreptimeDBConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = GreptimeDBBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            greptimedb_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start GreptimeDBBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]

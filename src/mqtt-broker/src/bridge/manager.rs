@@ -49,7 +49,6 @@ impl ConnectorManager {
         if let Some(thread) = self.connector_list.get(connector_name) {
             return Some(thread.clone());
         }
-
         None
     }
 

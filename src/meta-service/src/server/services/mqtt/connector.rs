@@ -15,7 +15,7 @@
 use crate::controller::mqtt::call_broker::{
     update_cache_by_delete_connector, MQTTInnerCallManager,
 };
-use crate::controller::mqtt::connector::status::save_connector;
+use crate::controller::mqtt::connector::status::ConnectorContext;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::StorageDriver;
@@ -91,6 +91,7 @@ pub async fn create_connector_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
     req: &CreateConnectorRequest,
 ) -> Result<CreateConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
@@ -102,13 +103,14 @@ pub async fn create_connector_by_req(
         ));
     }
 
-    save_connector(
-        raft_machine_apply,
-        req.clone(),
-        mqtt_call_manager,
-        client_pool,
-    )
-    .await?;
+    let connector = serde_json::from_slice(&req.connector)?;
+    let ctx = ConnectorContext::new(
+        raft_machine_apply.clone(),
+        mqtt_call_manager.clone(),
+        client_pool.clone(),
+        cache_manager.clone(),
+    );
+    ctx.save_connector(connector).await?;
 
     Ok(CreateConnectorReply {})
 }
@@ -118,6 +120,7 @@ pub async fn update_connector_by_req(
     raft_machine_apply: &Arc<StorageDriver>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
     req: &UpdateConnectorRequest,
 ) -> Result<UpdateConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
@@ -129,19 +132,14 @@ pub async fn update_connector_by_req(
         ));
     }
 
-    let create_req = CreateConnectorRequest {
-        cluster_name: req.cluster_name.clone(),
-        connector_name: req.connector_name.clone(),
-        connector: req.connector.clone(),
-    };
-
-    save_connector(
-        raft_machine_apply,
-        create_req,
-        mqtt_call_manager,
-        client_pool,
-    )
-    .await?;
+    let connector = serde_json::from_slice(&req.connector)?;
+    let ctx = ConnectorContext::new(
+        raft_machine_apply.clone(),
+        mqtt_call_manager.clone(),
+        client_pool.clone(),
+        cache_manager.clone(),
+    );
+    ctx.save_connector(connector).await?;
 
     Ok(UpdateConnectorReply {})
 }

@@ -17,6 +17,7 @@ use std::{sync::Arc, time::Duration};
 use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_postgres::PostgresConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -27,7 +28,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig},
+    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
     manager::ConnectorManager,
 };
 
@@ -226,6 +227,49 @@ impl PostgresBridgePlugin {
 
         Ok(())
     }
+}
+
+pub fn start_postgres_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let postgres_config = match serde_json::from_str::<PostgresConnectorConfig>(
+            &connector.config,
+        ) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse PostgresConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = PostgresBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            postgres_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start PostgresBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]

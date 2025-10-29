@@ -21,6 +21,7 @@ use lapin::{
 };
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_rabbitmq::RabbitMQConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
 };
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
@@ -30,7 +31,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig},
+    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
     manager::ConnectorManager,
 };
 
@@ -108,6 +109,49 @@ impl RabbitMQBridgePlugin {
             self.config.virtual_host
         )
     }
+}
+
+pub fn start_rabbitmq_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let rabbitmq_config = match serde_json::from_str::<RabbitMQConnectorConfig>(
+            &connector.config,
+        ) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse RabbitMQConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = RabbitMQBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            rabbitmq_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start RabbitMQBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]

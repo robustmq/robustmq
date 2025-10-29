@@ -15,7 +15,10 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::async_trait;
-use metadata_struct::{adapter::record::Record, mqtt::bridge::config_mysql::MySQLConnectorConfig};
+use metadata_struct::{
+    adapter::record::Record, mqtt::bridge::config_mysql::MySQLConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
+};
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
@@ -25,7 +28,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig},
+    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
     manager::ConnectorManager,
 };
 
@@ -161,6 +164,47 @@ impl MySQLBridgePlugin {
 
         Ok(())
     }
+}
+
+pub fn start_mysql_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let mysql_config = match serde_json::from_str::<MySQLConnectorConfig>(&connector.config) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse MySQLConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = MySQLBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            mysql_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start MySQLBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]

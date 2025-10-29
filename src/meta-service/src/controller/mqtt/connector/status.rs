@@ -25,86 +25,132 @@ use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus
 use prost::Message;
 use protocol::meta::meta_service_mqtt::CreateConnectorRequest;
 use std::sync::Arc;
+use tracing::{info, warn};
 
-pub async fn update_connector_status_to_idle(
-    raft_machine_apply: &Arc<StorageDriver>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
-    cluster_name: &str,
-    connector_name: &str,
-) -> Result<(), MetaServiceError> {
-    update_connector_status(
-        raft_machine_apply,
-        call_manager,
-        client_pool,
-        cache_manager,
-        cluster_name,
-        connector_name,
-        MQTTStatus::Idle,
-    )
-    .await
+/// Connector status management context - encapsulates shared dependencies
+pub struct ConnectorContext {
+    raft_machine_apply: Arc<StorageDriver>,
+    call_manager: Arc<MQTTInnerCallManager>,
+    client_pool: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
 }
 
-pub async fn update_connector_status_to_running(
-    raft_machine_apply: &Arc<StorageDriver>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
-    cluster_name: &str,
-    connector_name: &str,
-) -> Result<(), MetaServiceError> {
-    update_connector_status(
-        raft_machine_apply,
-        call_manager,
-        client_pool,
-        cache_manager,
-        cluster_name,
-        connector_name,
-        MQTTStatus::Running,
-    )
-    .await
-}
+impl ConnectorContext {
+    pub fn new(
+        raft_machine_apply: Arc<StorageDriver>,
+        call_manager: Arc<MQTTInnerCallManager>,
+        client_pool: Arc<ClientPool>,
+        cache_manager: Arc<CacheManager>,
+    ) -> Self {
+        Self {
+            raft_machine_apply,
+            call_manager,
+            client_pool,
+            cache_manager,
+        }
+    }
 
-async fn update_connector_status(
-    raft_machine_apply: &Arc<StorageDriver>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
-    cluster_name: &str,
-    connector_name: &str,
-    status: MQTTStatus,
-) -> Result<(), MetaServiceError> {
-    if let Some(mut connector) = cache_manager.get_connector(cluster_name, connector_name) {
+    /// Update connector status to Idle and clear broker assignment
+    pub async fn update_status_to_idle(
+        &self,
+        cluster_name: &str,
+        connector_name: &str,
+    ) -> Result<(), MetaServiceError> {
+        info!(
+            "Updating connector {} status to Idle in cluster {}",
+            connector_name, cluster_name
+        );
+        self.update_status(cluster_name, connector_name, MQTTStatus::Idle)
+            .await
+    }
+
+    /// Update connector status to Running
+    pub async fn update_status_to_running(
+        &self,
+        cluster_name: &str,
+        connector_name: &str,
+    ) -> Result<(), MetaServiceError> {
+        info!(
+            "Updating connector {} status to Running in cluster {}",
+            connector_name, cluster_name
+        );
+        self.update_status(cluster_name, connector_name, MQTTStatus::Running)
+            .await
+    }
+
+    /// Update connector status to the specified value
+    async fn update_status(
+        &self,
+        cluster_name: &str,
+        connector_name: &str,
+        status: MQTTStatus,
+    ) -> Result<(), MetaServiceError> {
+        let mut connector = self
+            .cache_manager
+            .get_connector(cluster_name, connector_name)
+            .ok_or_else(|| {
+                warn!(
+                    "Connector {} not found in cluster {} during status update",
+                    connector_name, cluster_name
+                );
+                MetaServiceError::ConnectorNotFound(connector_name.to_string())
+            })?;
+
+        let old_status = connector.status.clone();
+        let new_status = status.clone();
+
+        // Update status
         connector.status = status;
 
+        // Clear broker_id when status changes to Idle
         if connector.status == MQTTStatus::Idle {
             connector.broker_id = None;
+            info!(
+                "Connector {} status changed: {:?} -> {:?}, broker_id cleared",
+                connector_name, old_status, new_status
+            );
+        } else {
+            info!(
+                "Connector {} status changed: {:?} -> {:?}",
+                connector_name, old_status, new_status
+            );
         }
 
+        self.save_connector_internal(connector).await
+    }
+
+    /// Save connector to Raft and update cache
+    pub async fn save_connector(&self, connector: MQTTConnector) -> Result<(), MetaServiceError> {
+        self.save_connector_internal(connector).await
+    }
+
+    /// Internal implementation for saving connector
+    async fn save_connector_internal(
+        &self,
+        connector: MQTTConnector,
+    ) -> Result<(), MetaServiceError> {
         let req = CreateConnectorRequest {
             cluster_name: connector.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
             connector: connector.encode(),
         };
-        save_connector(raft_machine_apply, req, call_manager, client_pool).await?;
+
+        // Write to Raft for persistence
+        let data = StorageData::new(
+            StorageDataType::MqttSetConnector,
+            CreateConnectorRequest::encode_to_vec(&req),
+        );
+        self.raft_machine_apply.client_write(data).await?;
+
+        // Update cache across all brokers
+        update_cache_by_add_connector(
+            &req.cluster_name,
+            &self.call_manager,
+            &self.client_pool,
+            connector,
+        )
+        .await?;
+
+        Ok(())
     }
-    Ok(())
-}
-
-pub async fn save_connector(
-    raft_machine_apply: &Arc<StorageDriver>,
-    req: CreateConnectorRequest,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSetConnector,
-        CreateConnectorRequest::encode_to_vec(&req),
-    );
-    raft_machine_apply.client_write(data).await?;
-
-    let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
-    update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
-    Ok(())
 }

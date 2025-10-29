@@ -17,7 +17,7 @@ use std::{sync::Arc, time::Duration};
 use crate::storage::message::MessageStorage;
 use crate::{
     bridge::{
-        core::{BridgePlugin, BridgePluginReadConfig},
+        core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
         manager::ConnectorManager,
     },
     common::types::ResultMqttBrokerError,
@@ -25,6 +25,7 @@ use crate::{
 use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_pulsar::PulsarConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
 };
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
@@ -66,6 +67,47 @@ impl PulsarBridgePlugin {
 
         Ok(())
     }
+}
+
+pub fn start_pulsar_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let pulsar_config = match serde_json::from_str::<PulsarConnectorConfig>(&connector.config) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse PulsarConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = PulsarBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            pulsar_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start PulsarBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]
