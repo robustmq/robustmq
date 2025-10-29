@@ -153,7 +153,7 @@ pub async fn read_inner(
 
     for row in data {
         let message = serde_json::from_slice::<MqttMessage>(&row.data)?;
-        let content = String::from_utf8(message.payload.to_vec())?;
+        let content = message.payload;
         results.push(ReadMessageRow {
             offset: row.offset.unwrap(),
             content,

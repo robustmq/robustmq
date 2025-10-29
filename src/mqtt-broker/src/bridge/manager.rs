@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_second;
+use std::sync::Arc;
+
+use common_base::tools::{now_mills, now_second};
+use common_metrics::mqtt::connector::{
+    record_connector_messages_sent_failure, record_connector_messages_sent_success,
+    record_connector_send_duration,
+};
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 
@@ -97,6 +103,28 @@ impl ConnectorManager {
     }
 }
 
+pub fn update_last_active(
+    connector_manager: &Arc<ConnectorManager>,
+    connector_name: &str,
+    start_time: u128,
+    message_count: u64,
+    success: bool,
+) {
+    if let Some(mut thread) = connector_manager.connector_thread.get_mut(connector_name) {
+        thread.last_send_time = now_second();
+
+        if success {
+            thread.send_success_total += message_count;
+            let duration_ms = (now_mills() - start_time) as f64;
+            record_connector_messages_sent_success(connector_name.to_owned(), message_count);
+            record_connector_send_duration(connector_name.to_owned(), duration_ms);
+        } else {
+            thread.send_fail_total += message_count;
+            record_connector_messages_sent_failure(connector_name.to_owned(), message_count);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,6 +149,9 @@ mod tests {
         let (stop_send, _) = broadcast::channel::<bool>(1);
         BridgePluginThread {
             connector_name: "test_connector".to_string(),
+            last_send_time: 0,
+            send_fail_total: 0,
+            send_success_total: 0,
             stop_send,
         }
     }
@@ -194,5 +225,48 @@ mod tests {
         let current_time = now_second();
         assert!(heartbeat_time.value() <= &current_time);
         assert!(heartbeat_time.value() > &(current_time - 10));
+    }
+
+    #[test]
+    fn update_last_active_success() {
+        let manager = Arc::new(ConnectorManager::new());
+        let thread = create_test_thread();
+        manager.add_connector_thread("test_connector", thread);
+
+        update_last_active(&manager, "test_connector", now_mills(), 100, true);
+
+        let thread = manager.get_connector_thread("test_connector").unwrap();
+        assert_eq!(thread.send_success_total, 100);
+        assert_eq!(thread.send_fail_total, 0);
+        assert!(thread.last_send_time > 0);
+    }
+
+    #[test]
+    fn update_last_active_failure() {
+        let manager = Arc::new(ConnectorManager::new());
+        let thread = create_test_thread();
+        manager.add_connector_thread("test_connector", thread);
+
+        update_last_active(&manager, "test_connector", now_mills(), 50, false);
+
+        let thread = manager.get_connector_thread("test_connector").unwrap();
+        assert_eq!(thread.send_success_total, 0);
+        assert_eq!(thread.send_fail_total, 50);
+        assert!(thread.last_send_time > 0);
+    }
+
+    #[test]
+    fn update_last_active_multiple_batches() {
+        let manager = Arc::new(ConnectorManager::new());
+        let thread = create_test_thread();
+        manager.add_connector_thread("test_connector", thread);
+
+        update_last_active(&manager, "test_connector", now_mills(), 100, true);
+        update_last_active(&manager, "test_connector", now_mills(), 50, true);
+        update_last_active(&manager, "test_connector", now_mills(), 10, false);
+
+        let thread = manager.get_connector_thread("test_connector").unwrap();
+        assert_eq!(thread.send_success_total, 150);
+        assert_eq!(thread.send_fail_total, 10);
     }
 }

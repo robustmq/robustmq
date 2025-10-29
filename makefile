@@ -4,8 +4,8 @@
 VERSION := $(shell grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
 
 ##@ Development
-.PHONY: dev
-dev: ## Run broker-server in development mode
+.PHONY: run
+run: ## Run broker-server in development mode
 	cargo run --package cmd --bin broker-server
 
 .PHONY: codecheck
@@ -46,49 +46,6 @@ build-version: ## Build package with specific version (usage: make build-version
 	@echo "Building package with version: $(VERSION)"
 	./scripts/build.sh --version $(VERSION)
 
-.PHONY: build-clean
-build-clean: ## Clean build directory and rebuild package (removes all build artifacts first)
-	@echo "Cleaning and rebuilding package..."
-	@echo "This will:"
-	@echo "  • Remove build/ directory completely"
-	@echo "  • Rebuild everything from scratch"
-	@echo "  • Create package: build/robustmq-{version}-{platform}.tar.gz"
-	./scripts/build.sh --clean
-
-##@ Docker
-.PHONY: docker-clean
-docker-clean: ## Clean all Docker data (images, containers, volumes, cache)
-	@echo "🧹 Cleaning Docker data..."
-	@if docker info >/dev/null 2>&1; then \
-		echo "📊 Before: $$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo 'N/A')"; \
-		if [ "$$(docker ps -q)" ]; then docker stop $$(docker ps -q) 2>/dev/null; fi; \
-		docker system prune -a --volumes -f; \
-		echo "✅ Cleaned! After: $$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo 'N/A')"; \
-	else \
-		echo "❌ Docker not running"; \
-		exit 1; \
-	fi
-
-.PHONY: docker-app
-docker-app: ## Build and push application image to registry (requires ARGS parameter)
-	@echo "Building application image with cargo-chef optimization..."
-	@echo "This will:"
-	@echo "  • Build RobustMQ application Docker image (using cargo-chef for dependency caching)"
-	@echo "  • Push to specified registry (GHCR or Docker Hub)"
-	@echo "  • Usage: make docker-app ARGS='--org yourorg --version 0.2.0'"
-	@echo "  • Example: make docker-app ARGS='--org socutes --version 0.2.0 --registry ghcr'"
-	./scripts/build-and-push-app.sh $(ARGS)
-
-.PHONY: docker-app-ghcr
-docker-app-ghcr: ## Build and push application image to GHCR (usage: make docker-app-ghcr ORG=yourorg VERSION=0.2.0)
-	@echo "Building application image for GHCR with cargo-chef optimization..."
-	./scripts/build-and-push-app.sh --org $(ORG) --version $(VERSION) --registry ghcr --push-latest
-
-.PHONY: docker-app-dockerhub
-docker-app-dockerhub: ## Build and push application image to Docker Hub (usage: make docker-app-dockerhub ORG=yourorg VERSION=0.2.0)
-	@echo "Building application image for Docker Hub with cargo-chef optimization..."
-	./scripts/build-and-push-app.sh --org $(ORG) --version $(VERSION) --registry dockerhub
-
 ##@ Release
 .PHONY: release
 release: ## Create new GitHub release and upload package
@@ -99,21 +56,15 @@ release: ## Create new GitHub release and upload package
 	@echo "  • Requires GITHUB_TOKEN environment variable"
 	./scripts/release.sh
 
+.PHONY: release-docker
+release-docker: ## Build and push application image to GHCR
+	@echo "Building application image for GHCR (org=robustmq, version=$(VERSION))..."
+	./scripts/build-and-push-app.sh --org robustmq --version $(VERSION) --registry ghcr --push-latest
+
 .PHONY: release-version
 release-version: ## Create new GitHub release with specific version (usage: make release-version VERSION=v0.1.30)
 	@echo "Creating GitHub release with version: $(VERSION)"
 	./scripts/release.sh --version $(VERSION)
-
-.PHONY: release-upload
-release-upload: ## Upload package to existing release (usage: make release-upload VERSION=v0.1.30)
-	@echo "Uploading package to existing release: $(VERSION)"
-	./scripts/release.sh --upload-only --version $(VERSION)
-
-##@ Install
-.PHONY: install
-install: ## Auto-download and install RobustMQ
-	@echo "Installing RobustMQ..."
-	./scripts/install.sh
 
 ##@ Test
 .PHONY: test
@@ -136,18 +87,9 @@ ig-test-ci: ## Run integration tests with broker startup (for CI)
 
 ##@ Clean
 .PHONY: clean
-clean: ## Full clean (removes all build artifacts)
+clean: ## Clean all build artifacts
 	cargo clean
 	rm -rf build
-
-.PHONY: clean-light
-clean-light: ## Light clean (cache and test artifacts only)
-	@echo "Light cleaning..."
-	@rm -rf target/*/incremental
-	@rm -rf target/nextest
-	@rm -rf target/debug/build
-	@find target -type f -name "*-????????????????" -delete 2>/dev/null || true
-	@echo "✅ Done!"
 
 ##@ Help
 .PHONY: help

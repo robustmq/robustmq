@@ -44,7 +44,7 @@ mqttx sub -t 'sensor/temperature' -i 'robustmq_client' --no-clean -h '117.72.92.
 
 ### 2. Disconnect and Verify Session Persistence
 
-Disconnect the client. The session will be preserved in RobustMQ's Meta Service. You can verify this through the RobustMQ Dashboard at [http://117.72.92.117:8080/](http://117.72.92.117:8080/).
+Disconnect the client. The session will be preserved in RobustMQ's Meta Service. You can verify this through the RobustMQ Dashboard at [http://demo.robustmq.com/](http://demo.robustmq.com/).
 
 ### 3. Send Messages to Offline Client
 

@@ -92,7 +92,7 @@ mod tests {
         assert!(result_message_qt.is_some());
 
         let msg = result_message.unwrap();
-        let payload = String::from_utf8(msg.payload.to_vec()).unwrap();
+        let payload = msg.payload;
         assert_eq!(payload, content);
 
         topic_storage

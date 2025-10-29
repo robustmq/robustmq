@@ -35,7 +35,7 @@ RobustMQ 的连接抖动检测功能提供：
 
 ### 通过 RobustMQ Dashboard 配置
 
-1. 访问 RobustMQ Dashboard：[http://117.72.92.117:8080/](http://117.72.92.117:8080/)
+1. 访问 RobustMQ Dashboard：[http://demo.robustmq.com/](http://demo.robustmq.com/)
 2. 导航到**访问控制** -> **连接抖动**
 3. 启用连接抖动检测功能
 4. 配置以下参数：

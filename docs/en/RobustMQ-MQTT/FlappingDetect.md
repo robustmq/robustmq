@@ -35,7 +35,7 @@ RobustMQ's flapping detection feature provides:
 
 ### Configure via RobustMQ Dashboard
 
-1. Access RobustMQ Dashboard: [http://117.72.92.117:8080/](http://117.72.92.117:8080/)
+1. Access RobustMQ Dashboard: [http://demo.robustmq.com/](http://demo.robustmq.com/)
 2. Navigate to **Access Control** -> **Flapping Detection**
 3. Enable flapping detection feature
 4. Configure the following parameters:

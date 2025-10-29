@@ -44,7 +44,7 @@ mqttx sub -t 'sensor/temperature' -i 'robustmq_client' --no-clean -h '117.72.92.
 
 ### 2. 断开连接并验证会话持久化
 
-断开客户端连接。会话将在 RobustMQ 的 Meta Service 中保留。您可以通过 [http://117.72.92.117:8080/](http://117.72.92.117:8080/) 的 RobustMQ Dashboard 验证这一点。
+断开客户端连接。会话将在 RobustMQ 的 Meta Service 中保留。您可以通过 [http://demo.robustmq.com/](http://demo.robustmq.com/) 的 RobustMQ Dashboard 验证这一点。
 
 ### 3. 向离线客户端发送消息
 

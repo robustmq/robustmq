@@ -9,7 +9,7 @@ RobustMQ build process generates the following types of artifacts:
 | Artifact Type | File Format | Build Command | Purpose |
 |---------------|-------------|---------------|---------|
 | **Installation Package** | `.tar.gz` archive | `make build` / `make build-full` | Binary package for user download and installation |
-| **Docker Image** | Docker image | `make docker-app-*` | Containerized deployment |
+| **Docker Image** | Docker image | `make release-docker` | Containerized deployment |
 | **GitHub Release** | Online release page | `make release` | User download and view releases |
 
 ### Artifact Details
@@ -27,7 +27,6 @@ RobustMQ build process generates the following types of artifacts:
 | `make build` | Basic build | Auto-read from Cargo.toml | Build current platform package (without frontend) |
 | `make build-full` | Full build | Auto-read from Cargo.toml | Build complete package with frontend |
 | `make build-version VERSION=v0.1.30` | Specific version build | Manual specification | Build package with specific version |
-| `make build-clean` | Clean rebuild | Auto-read from Cargo.toml | Clean and rebuild |
 
 > **Version Note**: When version is not specified, all build commands automatically read the current version number from the `Cargo.toml` file in the project root directory.
 
@@ -37,17 +36,17 @@ RobustMQ build process generates the following types of artifacts:
 
 | Command | Function | Version Source | Description |
 |---------|----------|----------------|-------------|
-| `make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'` | Flexible app image build | Manual specification | Application image build with custom parameters |
-| `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | GHCR app image | Manual specification | Build and push to GitHub Container Registry |
-| `make docker-app-dockerhub ORG=yourorg VERSION=0.2.0` | Docker Hub app image | Manual specification | Build and push to Docker Hub |
+| `make release-docker` | GHCR app image | Auto-read from Cargo.toml | Build and push to GitHub Container Registry (org=robustmq) |
+
+> **Version Note**: The `release-docker` command automatically reads the version number from `Cargo.toml` and uses `robustmq` as the organization name.
 
 ## 🚀 Version Release
 
 | Command | Function | Version Source | Description |
 |---------|----------|----------------|-------------|
 | `make release` | Create new release | Auto-read from Cargo.toml | Create GitHub release and upload package |
+| `make release-docker` | Release Docker image | Auto-read from Cargo.toml | Build and push Docker image to GHCR |
 | `make release-version VERSION=v0.1.30` | Specific version release | Manual specification | Create GitHub release with specific version |
-| `make release-upload VERSION=v0.1.30` | Upload to existing release | Manual specification | Upload package to existing GitHub release |
 
 ### Prerequisites
 
@@ -88,9 +87,8 @@ export GITHUB_TOKEN="your_github_token_here"
 |----------|---------|----------|-------------|
 | **Development Testing** | `make build` | Local `.tar.gz` installation package | Quick build test package for local development and testing |
 | **Release Preparation** | `make build-full` | Local complete `.tar.gz` installation package | Build complete release package with frontend for official release |
-| **Application Deployment** | `make docker-app-ghcr ORG=yourorg VERSION=0.2.0` | Docker application image | Build and push application image to GitHub Container Registry (with cargo-chef automatic dependency caching) |
+| **Application Deployment** | `make release-docker` | Docker application image | Build and push application image to GitHub Container Registry (with cargo-chef automatic dependency caching) |
 | **Version Release** | `make release` | GitHub release page + installation package | Create GitHub release and upload installation package for user download |
-| **Multi-platform Release** | `make release-upload VERSION=v0.1.31` | Update GitHub release | Add current platform installation package to existing GitHub release |
 
 ## 🔧 Docker Build Optimization
 
@@ -142,7 +140,6 @@ docker build --no-cache -f docker/robustmq/Dockerfile -t robustmq:latest .
 |---------|--------|-------------|
 | Frontend build | ✅ | Always includes frontend build |
 | Current platform | ✅ | Always builds current system platform |
-| Existing release upload | ❌ | `--upload-only` requires existing release |
 
 ## 🔧 Environment Requirements
 
