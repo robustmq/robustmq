@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
@@ -25,11 +26,6 @@ pub struct GreptimeDBConnectorConfig {
 }
 
 impl GreptimeDBConnectorConfig {
-    /// create a new GreptimeDBConnectorConfig.
-    /// note: currently we only support second precision, see [`Record`],
-    /// **If you want to support other precision, you need to modify the [`Record`]'s timestaomp at the same time**
-    ///
-    /// [`Record`]: use crate::adapter::record::Record;
     pub fn new(server_addr: String, database: String, user: String, password: String) -> Self {
         GreptimeDBConnectorConfig {
             server_addr,
@@ -38,6 +34,50 @@ impl GreptimeDBConnectorConfig {
             password,
             precision: TimePrecision::Second,
         }
+    }
+
+    pub fn validate(&self) -> Result<(), CommonError> {
+        if self.server_addr.is_empty() {
+            return Err(CommonError::CommonError(
+                "server_addr cannot be empty".to_string(),
+            ));
+        }
+
+        if self.server_addr.len() > 512 {
+            return Err(CommonError::CommonError(
+                "server_addr length cannot exceed 512 characters".to_string(),
+            ));
+        }
+
+        if self.database.is_empty() {
+            return Err(CommonError::CommonError(
+                "database cannot be empty".to_string(),
+            ));
+        }
+
+        if self.database.len() > 256 {
+            return Err(CommonError::CommonError(
+                "database length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if self.user.is_empty() {
+            return Err(CommonError::CommonError("user cannot be empty".to_string()));
+        }
+
+        if self.user.len() > 256 {
+            return Err(CommonError::CommonError(
+                "user length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if self.password.len() > 256 {
+            return Err(CommonError::CommonError(
+                "password length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        Ok(())
     }
 }
 

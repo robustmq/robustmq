@@ -15,7 +15,10 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::async_trait;
-use metadata_struct::{adapter::record::Record, mqtt::bridge::config_kafka::KafkaConnectorConfig};
+use metadata_struct::{
+    adapter::record::Record, mqtt::bridge::config_kafka::KafkaConnectorConfig,
+    mqtt::bridge::connector::MQTTConnector,
+};
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
@@ -25,7 +28,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig},
+    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
     manager::ConnectorManager,
 };
 
@@ -75,6 +78,47 @@ impl KafkaBridgePlugin {
         producer.flush(Duration::from_secs(0))?;
         Ok(())
     }
+}
+
+pub fn start_kafka_connector(
+    connector_manager: Arc<ConnectorManager>,
+    message_storage: ArcStorageAdapter,
+    connector: MQTTConnector,
+    thread: BridgePluginThread,
+) {
+    tokio::spawn(async move {
+        let kafka_config = match serde_json::from_str::<KafkaConnectorConfig>(&connector.config) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse KafkaConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+                return;
+            }
+        };
+
+        let bridge = KafkaBridgePlugin::new(
+            connector_manager.clone(),
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            kafka_config,
+            thread.stop_send.clone(),
+        );
+
+        connector_manager.add_connector_thread(&connector.connector_name, thread);
+
+        if let Err(e) = bridge
+            .exec(BridgePluginReadConfig {
+                topic_name: connector.topic_name,
+                record_num: 100,
+            })
+            .await
+        {
+            connector_manager.remove_connector_thread(&connector.connector_name);
+            error!(
+                "Failed to start KafkaBridgePlugin with error message: {:?}",
+                e
+            );
+        }
+    });
 }
 
 #[async_trait]

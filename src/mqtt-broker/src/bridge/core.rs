@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
+use crate::{common::types::ResultMqttBrokerError, storage::connector::ConnectorStorage};
 use axum::async_trait;
 
 use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use common_config::broker::broker_config;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{
-    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
     connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
 };
 use std::{sync::Arc, time::Duration};
@@ -29,9 +27,10 @@ use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use super::{
-    file::FileBridgePlugin, manager::ConnectorManager, mongodb::MongoDBBridgePlugin,
-    mysql::MySQLBridgePlugin, postgres::PostgresBridgePlugin, pulsar::PulsarBridgePlugin,
-    rabbitmq::RabbitMQBridgePlugin,
+    file::start_local_file_connector, greptimedb::start_greptimedb_connector,
+    kafka::start_kafka_connector, manager::ConnectorManager, mongodb::start_mongodb_connector,
+    mysql::start_mysql_connector, postgres::start_postgres_connector,
+    pulsar::start_pulsar_connector, rabbitmq::start_rabbitmq_connector,
 };
 
 #[derive(Clone)]
@@ -52,12 +51,13 @@ pub trait BridgePlugin {
 }
 
 pub async fn start_connector_thread(
+    client_pool: Arc<ClientPool>,
     message_storage: ArcStorageAdapter,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        check_connector(&message_storage, &connector_manager).await;
+        check_connector(&message_storage, &connector_manager, &client_pool).await;
         sleep(Duration::from_secs(1)).await;
         Ok(())
     };
@@ -69,6 +69,7 @@ pub async fn start_connector_thread(
 async fn check_connector(
     message_storage: &ArcStorageAdapter,
     connector_manager: &Arc<ConnectorManager>,
+    client_pool: &Arc<ClientPool>,
 ) {
     let config = broker_config();
 
@@ -127,6 +128,10 @@ async fn check_connector(
             }
             if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
                 connector.status = MQTTStatus::Idle;
+                let storage = ConnectorStorage::new(client_pool.clone());
+                if let Err(e) = storage.update_connector(connector).await {
+                    error!("update connector fail,error:{}", e);
+                }
             }
         }
     }
@@ -138,222 +143,32 @@ fn start_thread(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
-        match connector.connector_type {
-            ConnectorType::LocalFile => {
-                let local_file_config = match serde_json::from_str::<LocalFileConnectorConfig>(
-                    &connector.config,
-                ) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        error!("Failed to parse LocalFileConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
-                        return;
-                    }
-                };
-
-                let bridge = FileBridgePlugin::new(
-                    connector_manager.clone(),
-                    message_storage.clone(),
-                    connector.connector_name.clone(),
-                    local_file_config,
-                    thread.stop_send.clone(),
-                );
-
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
-
-                if let Err(e) = bridge
-                    .exec(BridgePluginReadConfig {
-                        topic_name: connector.topic_name,
-                        record_num: 100,
-                    })
-                    .await
-                {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!(
-                        "Failed to start FileBridgePlugin with error message: {:?}",
-                        e
-                    );
-                }
-            }
-            ConnectorType::Kafka => {}
-            ConnectorType::GreptimeDB => {}
-            ConnectorType::Pulsar => {
-                let pulsar_config = match serde_json::from_str::<PulsarConnectorConfig>(
-                    &connector.config,
-                ) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        error!("Failed to parse PulsarConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
-                        return;
-                    }
-                };
-
-                let bridge = PulsarBridgePlugin::new(
-                    connector_manager.clone(),
-                    message_storage.clone(),
-                    connector.connector_name.clone(),
-                    pulsar_config,
-                    thread.stop_send.clone(),
-                );
-
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
-
-                if let Err(e) = bridge
-                    .exec(BridgePluginReadConfig {
-                        topic_name: connector.topic_name,
-                        record_num: 100,
-                    })
-                    .await
-                {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!(
-                        "Failed to start PulsarBridgePlugin with error message: {:?}",
-                        e
-                    );
-                }
-            }
-            ConnectorType::Postgres => {
-                let postgres_config = match serde_json::from_str::<PostgresConnectorConfig>(
-                    &connector.config,
-                ) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        error!("Failed to parse PostgresConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
-                        return;
-                    }
-                };
-
-                let bridge = PostgresBridgePlugin::new(
-                    connector_manager.clone(),
-                    message_storage.clone(),
-                    connector.connector_name.clone(),
-                    postgres_config,
-                    thread.stop_send.clone(),
-                );
-
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
-
-                if let Err(e) = bridge
-                    .exec(BridgePluginReadConfig {
-                        topic_name: connector.topic_name,
-                        record_num: 100,
-                    })
-                    .await
-                {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!(
-                        "Failed to start PostgresBridgePlugin with error message: {:?}",
-                        e
-                    );
-                }
-            }
-            ConnectorType::MongoDB => {
-                let mongodb_config = match serde_json::from_str::<MongoDBConnectorConfig>(
-                    &connector.config,
-                ) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        error!("Failed to parse MongoDBConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
-                        return;
-                    }
-                };
-
-                let bridge = MongoDBBridgePlugin::new(
-                    connector_manager.clone(),
-                    message_storage.clone(),
-                    connector.connector_name.clone(),
-                    mongodb_config,
-                    thread.stop_send.clone(),
-                );
-
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
-
-                if let Err(e) = bridge
-                    .exec(BridgePluginReadConfig {
-                        topic_name: connector.topic_name,
-                        record_num: 100,
-                    })
-                    .await
-                {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!(
-                        "Failed to start MongoDBBridgePlugin with error message: {:?}",
-                        e
-                    );
-                }
-            }
-            ConnectorType::RabbitMQ => {
-                let rabbitmq_config = match serde_json::from_str::<RabbitMQConnectorConfig>(
-                    &connector.config,
-                ) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        error!("Failed to parse RabbitMQConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
-                        return;
-                    }
-                };
-
-                let bridge = RabbitMQBridgePlugin::new(
-                    connector_manager.clone(),
-                    message_storage.clone(),
-                    connector.connector_name.clone(),
-                    rabbitmq_config,
-                    thread.stop_send.clone(),
-                );
-
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
-
-                if let Err(e) = bridge
-                    .exec(BridgePluginReadConfig {
-                        topic_name: connector.topic_name,
-                        record_num: 100,
-                    })
-                    .await
-                {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!(
-                        "Failed to start RabbitMQBridgePlugin with error message: {:?}",
-                        e
-                    );
-                }
-            }
-            ConnectorType::MySQL => {
-                let mysql_config = match serde_json::from_str::<MySQLConnectorConfig>(
-                    &connector.config,
-                ) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        error!("Failed to parse MySQLConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
-                        return;
-                    }
-                };
-
-                let bridge = MySQLBridgePlugin::new(
-                    connector_manager.clone(),
-                    message_storage.clone(),
-                    connector.connector_name.clone(),
-                    mysql_config,
-                    thread.stop_send.clone(),
-                );
-
-                connector_manager.add_connector_thread(&connector.connector_name, thread);
-
-                if let Err(e) = bridge
-                    .exec(BridgePluginReadConfig {
-                        topic_name: connector.topic_name,
-                        record_num: 100,
-                    })
-                    .await
-                {
-                    connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!(
-                        "Failed to start MySQLBridgePlugin with error message: {:?}",
-                        e
-                    );
-                }
-            }
+    match connector.connector_type {
+        ConnectorType::LocalFile => {
+            start_local_file_connector(connector_manager, message_storage, connector, thread);
         }
-    });
+        ConnectorType::Kafka => {
+            start_kafka_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::GreptimeDB => {
+            start_greptimedb_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::Pulsar => {
+            start_pulsar_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::Postgres => {
+            start_postgres_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::MongoDB => {
+            start_mongodb_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::RabbitMQ => {
+            start_rabbitmq_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::MySQL => {
+            start_mysql_connector(connector_manager, message_storage, connector, thread);
+        }
+    }
 }
 
 fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
@@ -424,9 +239,10 @@ mod tests {
     async fn test_start_connector_thread() {
         let (storage_adapter, connector_manager) = setup();
         let (stop_send, _) = broadcast::channel::<bool>(1);
-
+        let client_pool = Arc::new(ClientPool::new(1));
         let start_handle = tokio::spawn(async move {
-            start_connector_thread(storage_adapter, connector_manager, stop_send).await;
+            start_connector_thread(client_pool, storage_adapter, connector_manager, stop_send)
+                .await;
         });
 
         sleep(Duration::from_millis(100)).await;
@@ -454,7 +270,8 @@ mod tests {
             .await
             .unwrap();
 
-        check_connector(&storage_adapter, &connector_manager).await;
+        let client_pool = Arc::new(ClientPool::new(1));
+        check_connector(&storage_adapter, &connector_manager, &client_pool).await;
 
         sleep(Duration::from_millis(100)).await;
 

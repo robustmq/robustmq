@@ -214,8 +214,10 @@ impl MqttBrokerServer {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
         let stop_send = self.inner_stop.clone();
+        let client_poll = self.client_pool.clone();
         tokio::spawn(async move {
-            start_connector_thread(message_storage, connector_manager, stop_send).await;
+            start_connector_thread(client_poll, message_storage, connector_manager, stop_send)
+                .await;
         });
     }
 

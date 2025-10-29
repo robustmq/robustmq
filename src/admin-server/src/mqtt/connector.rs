@@ -219,28 +219,36 @@ async fn connector_create_inner(
 fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> ResultCommonError {
     match connector_type {
         ConnectorType::LocalFile => {
-            let _file_config: LocalFileConnectorConfig = serde_json::from_str(config)?;
+            let file_config: LocalFileConnectorConfig = serde_json::from_str(config)?;
+            file_config.validate()?;
         }
         ConnectorType::Kafka => {
-            let _kafka_config: KafkaConnectorConfig = serde_json::from_str(config)?;
+            let kafka_config: KafkaConnectorConfig = serde_json::from_str(config)?;
+            kafka_config.validate()?;
         }
         ConnectorType::GreptimeDB => {
-            let _greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
+            let greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
+            greptime_config.validate()?;
         }
         ConnectorType::Pulsar => {
-            let _pulsar_config: PulsarConnectorConfig = serde_json::from_str(config)?;
+            let pulsar_config: PulsarConnectorConfig = serde_json::from_str(config)?;
+            pulsar_config.validate()?;
         }
         ConnectorType::Postgres => {
-            let _postgres_config: PostgresConnectorConfig = serde_json::from_str(config)?;
+            let postgres_config: PostgresConnectorConfig = serde_json::from_str(config)?;
+            postgres_config.validate()?;
         }
         ConnectorType::MongoDB => {
-            let _mongo_config: MongoDBConnectorConfig = serde_json::from_str(config)?;
+            let mongo_config: MongoDBConnectorConfig = serde_json::from_str(config)?;
+            mongo_config.validate()?;
         }
         ConnectorType::RabbitMQ => {
-            let _rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
+            let rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
+            rabbitmq_config.validate()?;
         }
         ConnectorType::MySQL => {
-            let _mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
+            let mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
+            mysql_config.validate()?;
         }
     }
     Ok(())

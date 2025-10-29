@@ -507,6 +507,7 @@ impl MqttService for GrpcMqttService {
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
+            &self.cache_manager,
             &req,
         )
         .await
@@ -525,6 +526,7 @@ impl MqttService for GrpcMqttService {
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
+            &self.cache_manager,
             &req,
         )
         .await

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -47,5 +48,97 @@ impl PostgresConnectorConfig {
 
     pub fn is_upsert_enabled(&self) -> bool {
         self.enable_upsert.unwrap_or(false)
+    }
+
+    pub fn validate(&self) -> Result<(), CommonError> {
+        if self.host.is_empty() {
+            return Err(CommonError::CommonError("host cannot be empty".to_string()));
+        }
+
+        if self.host.len() > 512 {
+            return Err(CommonError::CommonError(
+                "host length cannot exceed 512 characters".to_string(),
+            ));
+        }
+
+        if self.port == 0 {
+            return Err(CommonError::CommonError(
+                "port must be greater than 0".to_string(),
+            ));
+        }
+
+        if self.database.is_empty() {
+            return Err(CommonError::CommonError(
+                "database cannot be empty".to_string(),
+            ));
+        }
+
+        if self.database.len() > 256 {
+            return Err(CommonError::CommonError(
+                "database length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if self.username.is_empty() {
+            return Err(CommonError::CommonError(
+                "username cannot be empty".to_string(),
+            ));
+        }
+
+        if self.username.len() > 256 {
+            return Err(CommonError::CommonError(
+                "username length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if self.password.len() > 256 {
+            return Err(CommonError::CommonError(
+                "password length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if self.table.is_empty() {
+            return Err(CommonError::CommonError(
+                "table cannot be empty".to_string(),
+            ));
+        }
+
+        if self.table.len() > 256 {
+            return Err(CommonError::CommonError(
+                "table length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if let Some(sql) = &self.sql_template {
+            if sql.len() > 4096 {
+                return Err(CommonError::CommonError(
+                    "sql_template length cannot exceed 4096 characters".to_string(),
+                ));
+            }
+        }
+
+        if let Some(size) = self.pool_size {
+            if size == 0 || size > 1000 {
+                return Err(CommonError::CommonError(
+                    "pool_size must be between 1 and 1000".to_string(),
+                ));
+            }
+        }
+
+        if self.enable_upsert.unwrap_or(false) {
+            if let Some(columns) = &self.conflict_columns {
+                if columns.is_empty() {
+                    return Err(CommonError::CommonError(
+                        "conflict_columns cannot be empty when upsert is enabled".to_string(),
+                    ));
+                }
+            } else {
+                return Err(CommonError::CommonError(
+                    "conflict_columns must be provided when upsert is enabled".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
     }
 }

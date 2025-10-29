@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -47,5 +48,65 @@ impl PulsarConnectorConfig {
         self.basic_name = Some(name);
         self.basic_password = Some(password);
         self
+    }
+
+    pub fn validate(&self) -> Result<(), CommonError> {
+        if self.server.is_empty() {
+            return Err(CommonError::CommonError(
+                "server cannot be empty".to_string(),
+            ));
+        }
+
+        if self.server.len() > 512 {
+            return Err(CommonError::CommonError(
+                "server length cannot exceed 512 characters".to_string(),
+            ));
+        }
+
+        if self.topic.is_empty() {
+            return Err(CommonError::CommonError(
+                "topic cannot be empty".to_string(),
+            ));
+        }
+
+        if self.topic.len() > 256 {
+            return Err(CommonError::CommonError(
+                "topic length cannot exceed 256 characters".to_string(),
+            ));
+        }
+
+        if let Some(token) = &self.token {
+            if token.len() > 1024 {
+                return Err(CommonError::CommonError(
+                    "token length cannot exceed 1024 characters".to_string(),
+                ));
+            }
+        }
+
+        if let Some(oauth) = &self.oauth {
+            if oauth.len() > 1024 {
+                return Err(CommonError::CommonError(
+                    "oauth length cannot exceed 1024 characters".to_string(),
+                ));
+            }
+        }
+
+        if let Some(name) = &self.basic_name {
+            if name.len() > 256 {
+                return Err(CommonError::CommonError(
+                    "basic_name length cannot exceed 256 characters".to_string(),
+                ));
+            }
+        }
+
+        if let Some(password) = &self.basic_password {
+            if password.len() > 256 {
+                return Err(CommonError::CommonError(
+                    "basic_password length cannot exceed 256 characters".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
