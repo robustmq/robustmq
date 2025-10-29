@@ -5,8 +5,19 @@ export const sidebar = [
         items: [
             { text: "What is RobustMQ", link: "/en/OverView/What-is-RobustMQ" },
             { text: "Why RobustMQ", link: "/en/OverView/Why-RobustMQ" },
-            { text: "IGGY Comparison", link: "/en/OverView/Diff-iggy" },
-            { text: "MQ Comparison", link: "/en/OverView/Diff-MQ" },
+            {
+                text: "MQ Comparison",
+                collapsed: true,
+                items: [
+                    { text: "vs Kafka", link: "/en/OverView/Diff-kafka" },
+                    { text: "vs Pulsar", link: "/en/OverView/Diff-pulsar" },
+                    { text: "vs NATS", link: "/en/OverView/Diff-nats" },
+                    { text: "vs Redpanda", link: "/en/OverView/Diff-redpanda" },
+                    { text: "vs Iggy", link: "/en/OverView/Diff-iggy" },
+                    { text: "Comprehensive Comparison", link: "/en/OverView/Diff-MQ" },
+                    { text: "Summary & Assessment", link: "/en/OverView/Summary" },
+                ],
+            },
             {
                 text: "Version planning",
                 collapsed: true,

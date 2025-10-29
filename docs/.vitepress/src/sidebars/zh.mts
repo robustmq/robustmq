@@ -5,8 +5,19 @@ export const sidebar = [
         items: [
             { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
             { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
-            { text: "和IGGY对比", link: "/zh/OverView/Diff-iggy" },
-            { text: "和主流消息队列对比", link: "/zh/OverView/Diff-MQ" },
+            {
+                text: "和主流MQ的对比",
+                collapsed: true,
+                items: [
+                    { text: "和 Kafka 对比", link: "/zh/OverView/Diff-kafka" },
+                    { text: "和 Pulsar 对比", link: "/zh/OverView/Diff-pulsar" },
+                    { text: "和 NATS 对比", link: "/zh/OverView/Diff-nats" },
+                    { text: "和 Redpanda 对比", link: "/zh/OverView/Diff-redpanda" },
+                    { text: "和 Iggy 对比", link: "/zh/OverView/Diff-iggy" },
+                    { text: "综合对比", link: "/zh/OverView/Diff-MQ" },
+                    { text: "对比总结与技术评估", link: "/zh/OverView/Summary" },
+                ],
+            },
             {
                 text: "版本计划",
                 collapsed: true,
