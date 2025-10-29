@@ -21,46 +21,43 @@ use metadata_struct::{
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use storage_adapter::storage::ArcStorageAdapter;
-use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{error, info};
+use tracing::error;
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
+    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
     manager::ConnectorManager,
 };
 
 pub struct KafkaBridgePlugin {
-    connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
-    connector_name: String,
     config: KafkaConnectorConfig,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl KafkaBridgePlugin {
-    pub fn new(
-        connector_manager: Arc<ConnectorManager>,
-        message_storage: ArcStorageAdapter,
-        connector_name: String,
-        config: KafkaConnectorConfig,
-        stop_send: broadcast::Sender<bool>,
-    ) -> Self {
-        KafkaBridgePlugin {
-            connector_manager,
-            message_storage,
-            connector_name,
-            config,
-            stop_send,
-        }
+    pub fn new(config: KafkaConnectorConfig) -> Self {
+        KafkaBridgePlugin { config }
+    }
+}
+
+#[async_trait]
+impl ConnectorSink for KafkaBridgePlugin {
+    type SinkResource = FutureProducer;
+
+    async fn init_sink(
+        &self,
+    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+        let producer: FutureProducer = rdkafka::ClientConfig::new()
+            .set("bootstrap.servers", self.config.bootstrap_servers.as_str())
+            .set("message.timeout.ms", "5000")
+            .create()?;
+        Ok(producer)
     }
 
-    pub async fn append(
+    async fn send_batch(
         &self,
-        records: &Vec<Record>,
-        producer: FutureProducer,
+        records: &[Record],
+        producer: &mut FutureProducer,
     ) -> ResultMqttBrokerError {
         for record in records {
             let data = serde_json::to_string(record)?;
@@ -76,6 +73,11 @@ impl KafkaBridgePlugin {
         }
 
         producer.flush(Duration::from_secs(0))?;
+        Ok(())
+    }
+
+    async fn cleanup_sink(&self, producer: FutureProducer) -> ResultMqttBrokerError {
+        producer.flush(Duration::from_secs(5))?;
         Ok(())
     }
 }
@@ -95,22 +97,23 @@ pub fn start_kafka_connector(
             }
         };
 
-        let bridge = KafkaBridgePlugin::new(
-            connector_manager.clone(),
-            message_storage.clone(),
-            connector.connector_name.clone(),
-            kafka_config,
-            thread.stop_send.clone(),
-        );
+        let bridge = KafkaBridgePlugin::new(kafka_config);
 
+        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
-        if let Err(e) = bridge
-            .exec(BridgePluginReadConfig {
+        if let Err(e) = run_connector_loop(
+            &bridge,
+            &connector_manager,
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
-            })
-            .await
+            },
+            stop_recv,
+        )
+        .await
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
@@ -119,54 +122,4 @@ pub fn start_kafka_connector(
             );
         }
     });
-}
-
-#[async_trait]
-impl BridgePlugin for KafkaBridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
-        let message_storage = MessageStorage::new(self.message_storage.clone());
-        let group_name = self.connector_name.clone();
-        let offset = message_storage.get_group_offset(&group_name).await?;
-        let mut recv = self.stop_send.subscribe();
-        let producer: FutureProducer = rdkafka::ClientConfig::new()
-            .set("bootstrap.servers", self.config.bootstrap_servers.as_str())
-            .set("message.timeout.ms", "5000")
-            .create()?;
-
-        loop {
-            select! {
-                val = recv.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("{}","Connector thread exited successfully");
-                            break;
-                        }
-                    }
-                }
-
-                val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
-                    match val {
-                        Ok(data) => {
-                            self.connector_manager.report_heartbeat(&self.connector_name);
-                            if data.is_empty() {
-                                tokio::time::sleep(Duration::from_millis(100)).await;
-                                continue;
-                            }
-
-                            if let Err(e) = self.append(&data, producer.clone()).await{
-                                error!("Connector {} failed to write data to kafka topic {}, error message: {}", self.connector_name, self.config.topic, e);
-                                sleep(Duration::from_millis(100)).await;
-                            }
-                        },
-                        Err(e) => {
-                            error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name,config.topic_name,e);
-                            sleep(Duration::from_millis(100)).await;
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
 }

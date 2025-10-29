@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use axum::async_trait;
 use lapin::{
@@ -24,46 +24,58 @@ use metadata_struct::{
     mqtt::bridge::connector::MQTTConnector,
 };
 use storage_adapter::storage::ArcStorageAdapter;
-use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{error, info};
+use tracing::error;
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
+    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
     manager::ConnectorManager,
 };
 
 pub struct RabbitMQBridgePlugin {
-    connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
-    connector_name: String,
     config: RabbitMQConnectorConfig,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl RabbitMQBridgePlugin {
-    pub fn new(
-        connector_manager: Arc<ConnectorManager>,
-        message_storage: ArcStorageAdapter,
-        connector_name: String,
-        config: RabbitMQConnectorConfig,
-        stop_send: broadcast::Sender<bool>,
-    ) -> Self {
-        RabbitMQBridgePlugin {
-            connector_manager,
-            message_storage,
-            connector_name,
-            config,
-            stop_send,
-        }
+    pub fn new(config: RabbitMQConnectorConfig) -> Self {
+        RabbitMQBridgePlugin { config }
     }
 
-    pub async fn append(
+    fn build_connection_uri(&self) -> String {
+        let protocol = if self.config.enable_tls {
+            "amqps"
+        } else {
+            "amqp"
+        };
+        format!(
+            "{}://{}:{}@{}:{}/{}",
+            protocol,
+            self.config.username,
+            self.config.password,
+            self.config.server,
+            self.config.port,
+            self.config.virtual_host
+        )
+    }
+}
+
+#[async_trait]
+impl ConnectorSink for RabbitMQBridgePlugin {
+    type SinkResource = Connection;
+
+    async fn init_sink(
         &self,
-        records: &Vec<Record>,
-        connection: &Connection,
+    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+        let uri = self.build_connection_uri();
+        let connection = Connection::connect(&uri, ConnectionProperties::default()).await?;
+        Ok(connection)
+    }
+
+    async fn send_batch(
+        &self,
+        records: &[Record],
+        connection: &mut Connection,
     ) -> ResultMqttBrokerError {
         let channel = connection.create_channel().await?;
 
@@ -93,21 +105,9 @@ impl RabbitMQBridgePlugin {
         Ok(())
     }
 
-    fn build_connection_uri(&self) -> String {
-        let protocol = if self.config.enable_tls {
-            "amqps"
-        } else {
-            "amqp"
-        };
-        format!(
-            "{}://{}:{}@{}:{}/{}",
-            protocol,
-            self.config.username,
-            self.config.password,
-            self.config.server,
-            self.config.port,
-            self.config.virtual_host
-        )
+    async fn cleanup_sink(&self, connection: Connection) -> ResultMqttBrokerError {
+        connection.close(200, "Closing connection").await?;
+        Ok(())
     }
 }
 
@@ -128,22 +128,23 @@ pub fn start_rabbitmq_connector(
             }
         };
 
-        let bridge = RabbitMQBridgePlugin::new(
-            connector_manager.clone(),
-            message_storage.clone(),
-            connector.connector_name.clone(),
-            rabbitmq_config,
-            thread.stop_send.clone(),
-        );
+        let bridge = RabbitMQBridgePlugin::new(rabbitmq_config);
 
+        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
-        if let Err(e) = bridge
-            .exec(BridgePluginReadConfig {
+        if let Err(e) = run_connector_loop(
+            &bridge,
+            &connector_manager,
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
-            })
-            .await
+            },
+            stop_recv,
+        )
+        .await
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
@@ -152,72 +153,4 @@ pub fn start_rabbitmq_connector(
             );
         }
     });
-}
-
-#[async_trait]
-impl BridgePlugin for RabbitMQBridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
-        let message_storage = MessageStorage::new(self.message_storage.clone());
-        let group_name = self.connector_name.clone();
-        let mut recv = self.stop_send.subscribe();
-
-        let uri = self.build_connection_uri();
-
-        info!(
-            "Connecting to RabbitMQ at {}:{} (exchange: {}, routing_key: {})",
-            self.config.server, self.config.port, self.config.exchange, self.config.routing_key
-        );
-
-        let connection = Connection::connect(&uri, ConnectionProperties::default()).await?;
-
-        info!("Successfully connected to RabbitMQ");
-
-        loop {
-            let offset = message_storage.get_group_offset(&group_name).await?;
-
-            select! {
-                val = recv.recv() => {
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("RabbitMQ connector thread exited successfully");
-                            if let Err(e) = connection.close(200, "Normal shutdown").await {
-                                error!("Error closing RabbitMQ connection: {}", e);
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
-                    match val {
-                        Ok(data) => {
-                            self.connector_manager.report_heartbeat(&self.connector_name);
-
-                            if data.is_empty() {
-                                tokio::time::sleep(Duration::from_millis(100)).await;
-                                continue;
-                            }
-
-                            if let Err(e) = self.append(&data, &connection).await {
-                                error!(
-                                    "Connector {} failed to write data to RabbitMQ exchange {}, error: {}",
-                                    self.connector_name, self.config.exchange, e
-                                );
-                                sleep(Duration::from_millis(100)).await;
-                            }
-                        },
-                        Err(e) => {
-                            error!(
-                                "Connector {} failed to read Topic {} data with error: {}",
-                                self.connector_name, config.topic_name, e
-                            );
-                            sleep(Duration::from_millis(100)).await;
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use axum::async_trait;
 use metadata_struct::{
@@ -21,40 +21,22 @@ use metadata_struct::{
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::storage::ArcStorageAdapter;
-use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::storage::message::MessageStorage;
 
 use super::{
-    core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread},
+    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
     manager::ConnectorManager,
 };
 
 pub struct PostgresBridgePlugin {
-    connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
-    connector_name: String,
     config: PostgresConnectorConfig,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl PostgresBridgePlugin {
-    pub fn new(
-        connector_manager: Arc<ConnectorManager>,
-        message_storage: ArcStorageAdapter,
-        connector_name: String,
-        config: PostgresConnectorConfig,
-        stop_send: broadcast::Sender<bool>,
-    ) -> Self {
-        PostgresBridgePlugin {
-            connector_manager,
-            message_storage,
-            connector_name,
-            config,
-            stop_send,
-        }
+    pub fn new(config: PostgresConnectorConfig) -> Self {
+        PostgresBridgePlugin { config }
     }
 
     async fn create_pool(&self) -> Result<Pool<Postgres>, sqlx::Error> {
@@ -64,31 +46,9 @@ impl PostgresBridgePlugin {
             .await
     }
 
-    pub async fn append(
-        &self,
-        records: &Vec<Record>,
-        pool: &Pool<Postgres>,
-    ) -> ResultMqttBrokerError {
-        if records.is_empty() {
-            return Ok(());
-        }
-
-        if self.config.is_batch_insert_enabled() {
-            if self.config.sql_template.is_some() {
-                warn!(
-                    "Connector {}: sql_template is not applied in batch mode; default batch INSERT will be used",
-                    self.connector_name
-                );
-            }
-            self.batch_insert(records, pool).await
-        } else {
-            self.single_insert(records, pool).await
-        }
-    }
-
     async fn single_insert(
         &self,
-        records: &Vec<Record>,
+        records: &[Record],
         pool: &Pool<Postgres>,
     ) -> ResultMqttBrokerError {
         for record in records {
@@ -108,8 +68,7 @@ impl PostgresBridgePlugin {
                     .count();
                 if placeholder_count != 5 {
                     warn!(
-                        "Connector {}: sql_template expects 5 placeholders, but found {}. Using provided template with binds (client_id, topic, timestamp, payload, data) in order.",
-                        self.connector_name,
+                        "sql_template expects 5 placeholders, but found {}. Using provided template with binds (client_id, topic, timestamp, payload, data) in order.",
                         placeholder_count
                     );
                 }
@@ -151,7 +110,7 @@ impl PostgresBridgePlugin {
 
     async fn batch_insert(
         &self,
-        records: &Vec<Record>,
+        records: &[Record],
         pool: &Pool<Postgres>,
     ) -> ResultMqttBrokerError {
         let mut value_placeholders = Vec::with_capacity(records.len());
@@ -229,6 +188,44 @@ impl PostgresBridgePlugin {
     }
 }
 
+#[async_trait]
+impl ConnectorSink for PostgresBridgePlugin {
+    type SinkResource = Pool<Postgres>;
+
+    async fn init_sink(
+        &self,
+    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+        let pool = self.create_pool().await?;
+        Ok(pool)
+    }
+
+    async fn send_batch(
+        &self,
+        records: &[Record],
+        pool: &mut Pool<Postgres>,
+    ) -> ResultMqttBrokerError {
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        if self.config.is_batch_insert_enabled() {
+            if self.config.sql_template.is_some() {
+                warn!(
+                    "sql_template is not applied in batch mode; default batch INSERT will be used"
+                );
+            }
+            self.batch_insert(records, pool).await
+        } else {
+            self.single_insert(records, pool).await
+        }
+    }
+
+    async fn cleanup_sink(&self, pool: Pool<Postgres>) -> ResultMqttBrokerError {
+        pool.close().await;
+        Ok(())
+    }
+}
+
 pub fn start_postgres_connector(
     connector_manager: Arc<ConnectorManager>,
     message_storage: ArcStorageAdapter,
@@ -246,22 +243,23 @@ pub fn start_postgres_connector(
             }
         };
 
-        let bridge = PostgresBridgePlugin::new(
-            connector_manager.clone(),
-            message_storage.clone(),
-            connector.connector_name.clone(),
-            postgres_config,
-            thread.stop_send.clone(),
-        );
+        let bridge = PostgresBridgePlugin::new(postgres_config);
 
+        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
-        if let Err(e) = bridge
-            .exec(BridgePluginReadConfig {
+        if let Err(e) = run_connector_loop(
+            &bridge,
+            &connector_manager,
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
-            })
-            .await
+            },
+            stop_recv,
+        )
+        .await
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
@@ -270,68 +268,4 @@ pub fn start_postgres_connector(
             );
         }
     });
-}
-
-#[async_trait]
-impl BridgePlugin for PostgresBridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
-        let message_storage = MessageStorage::new(self.message_storage.clone());
-        let group_name = self.connector_name.clone();
-        let mut recv = self.stop_send.subscribe();
-
-        let pool = match self.create_pool().await {
-            Ok(p) => p,
-            Err(e) => {
-                error!(
-                    "Connector {} failed to create PostgreSQL connection pool: {}",
-                    self.connector_name, e
-                );
-                return Err(e.into());
-            }
-        };
-
-        loop {
-            let offset = message_storage.get_group_offset(&group_name).await?;
-
-            select! {
-                val = recv.recv() => {
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("Connector {} thread exited successfully", self.connector_name);
-                            break;
-                        }
-                    }
-                }
-
-                val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
-                    match val {
-                        Ok(data) => {
-                            self.connector_manager.report_heartbeat(&self.connector_name);
-
-                            if data.is_empty() {
-                                sleep(Duration::from_millis(100)).await;
-                                continue;
-                            }
-
-                            if let Err(e) = self.append(&data, &pool).await {
-                                error!("Connector {} failed to write data to PostgreSQL table {}, error message: {}", self.connector_name, self.config.table, e);
-                                sleep(Duration::from_millis(100)).await;
-                            }
-
-                            // commit offset
-                            message_storage
-                                .commit_group_offset(&group_name, &config.topic_name, offset + data.len() as u64)
-                                .await?;
-                        }
-                        Err(e) => {
-                            error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name, config.topic_name, e);
-                            sleep(Duration::from_millis(100)).await;
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
 }

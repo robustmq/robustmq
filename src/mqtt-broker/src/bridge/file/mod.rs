@@ -12,53 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread};
+use super::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink};
 use super::manager::ConnectorManager;
-use crate::bridge::manager::update_last_active;
 use crate::common::types::ResultMqttBrokerError;
-use crate::storage::message::MessageStorage;
 use axum::async_trait;
-use common_base::tools::now_mills;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::fs::File;
+use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use tokio::{fs::OpenOptions, select, sync::broadcast, time::sleep};
 use tracing::error;
 
 pub struct FileBridgePlugin {
-    connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
-    connector_name: String,
     config: LocalFileConnectorConfig,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl FileBridgePlugin {
-    pub fn new(
-        connector_manager: Arc<ConnectorManager>,
-        message_storage: ArcStorageAdapter,
-        connector_name: String,
-        config: LocalFileConnectorConfig,
-        stop_send: broadcast::Sender<bool>,
-    ) -> Self {
-        FileBridgePlugin {
-            connector_manager,
-            message_storage,
-            connector_name,
-            config,
-            stop_send,
+    pub fn new(config: LocalFileConnectorConfig) -> Self {
+        FileBridgePlugin { config }
+    }
+}
+
+#[async_trait]
+impl ConnectorSink for FileBridgePlugin {
+    type SinkResource = BufWriter<File>;
+
+    async fn init_sink(
+        &self,
+    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+        let file_path = std::path::Path::new(&self.config.local_file_path);
+        if let Some(parent) = file_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
         }
+
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.config.local_file_path.clone())
+            .await?;
+        Ok(BufWriter::new(file))
     }
 
-    pub async fn append(
+    async fn send_batch(
         &self,
-        records: &Vec<Record>,
+        records: &[Record],
         writer: &mut BufWriter<File>,
     ) -> ResultMqttBrokerError {
         for record in records {
@@ -68,6 +70,12 @@ impl FileBridgePlugin {
             writer.write_all(b"\n").await?;
         }
         writer.flush().await?;
+        Ok(())
+    }
+
+    async fn cleanup_sink(&self, mut writer: BufWriter<File>) -> ResultMqttBrokerError {
+        writer.flush().await?;
+        writer.shutdown().await?;
         Ok(())
     }
 }
@@ -89,22 +97,23 @@ pub fn start_local_file_connector(
             }
         };
 
-        let bridge = FileBridgePlugin::new(
-            connector_manager.clone(),
-            message_storage.clone(),
-            connector.connector_name.clone(),
-            local_file_config,
-            thread.stop_send.clone(),
-        );
+        let bridge = FileBridgePlugin::new(local_file_config);
 
+        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
-        if let Err(e) = bridge
-            .exec(BridgePluginReadConfig {
+        if let Err(e) = run_connector_loop(
+            &bridge,
+            &connector_manager,
+            message_storage.clone(),
+            connector.connector_name.clone(),
+            BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
-            })
-            .await
+            },
+            stop_recv,
+        )
+        .await
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
@@ -113,74 +122,6 @@ pub fn start_local_file_connector(
             );
         }
     });
-}
-
-#[async_trait]
-impl BridgePlugin for FileBridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
-        let message_storage = MessageStorage::new(self.message_storage.clone());
-        let group_name = self.connector_name.clone();
-        let mut recv = self.stop_send.subscribe();
-
-        let file_path = std::path::Path::new(&self.config.local_file_path);
-        if let Some(parent) = file_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(self.config.local_file_path.clone())
-            .await?;
-        let mut writer = tokio::io::BufWriter::new(file);
-
-        loop {
-            let offset = message_storage.get_group_offset(&group_name).await?;
-
-            select! {
-                val = recv.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            break;
-                        }
-                    }
-                },
-
-                val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
-                    match val {
-                        Ok(data) => {
-                            self.connector_manager.report_heartbeat(&self.connector_name);
-                            if data.is_empty() {
-                                sleep(Duration::from_millis(100)).await;
-                                continue;
-                            }
-
-                            let start_time = now_mills();
-                            let message_count = data.len() as u64;
-
-                            match self.append(&data,&mut writer).await {
-                                Ok(_) => {
-                                    message_storage.commit_group_offset(&group_name, &config.topic_name, offset + message_count).await?;
-                                    update_last_active(&self.connector_manager, &self.connector_name,start_time, message_count ,true);
-                                },
-                                Err(e) => {
-                                    update_last_active(&self.connector_manager, &self.connector_name,start_time, message_count ,false);
-                                    error!("Connector {} failed to write data to {}, error message :{}", self.connector_name,self.config.local_file_path, e);
-                                    sleep(Duration::from_millis(100)).await;
-                                }
-                            }
-                        },
-                        Err(e) => {
-                            update_last_active(&self.connector_manager, &self.connector_name,now_mills(), 0 ,false);
-                            error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name,config.topic_name,e);
-                            sleep(Duration::from_millis(100)).await;
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -199,7 +140,7 @@ mod tests {
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
     use crate::bridge::{
-        core::{BridgePlugin, BridgePluginReadConfig},
+        core::{run_connector_loop, BridgePluginReadConfig},
         file::FileBridgePlugin,
         manager::ConnectorManager,
     };
@@ -276,13 +217,7 @@ mod tests {
 
         let (stop_send, _) = broadcast::channel(1);
 
-        let file_bridge_plugin = FileBridgePlugin::new(
-            connector_manager.clone(),
-            storage_adapter.clone(),
-            connector_name.clone(),
-            config.clone(),
-            stop_send.clone(),
-        );
+        let file_bridge_plugin = FileBridgePlugin::new(config.clone());
 
         let read_config = BridgePluginReadConfig {
             topic_name: shard_name.clone(),
@@ -290,8 +225,22 @@ mod tests {
         };
 
         let record_config_clone = read_config.clone();
+        let connector_manager_clone = connector_manager.clone();
+        let storage_adapter_clone = storage_adapter.clone();
+        let connector_name_clone = connector_name.clone();
+        let stop_recv = stop_send.subscribe();
+
         let handle = tokio::spawn(async move {
-            file_bridge_plugin.exec(record_config_clone).await.unwrap();
+            run_connector_loop(
+                &file_bridge_plugin,
+                &connector_manager_clone,
+                storage_adapter_clone,
+                connector_name_clone,
+                record_config_clone,
+                stop_recv,
+            )
+            .await
+            .unwrap();
         });
 
         // wait for a while
