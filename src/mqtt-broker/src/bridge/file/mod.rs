@@ -16,9 +16,11 @@ use std::{sync::Arc, time::Duration};
 
 use super::core::{BridgePlugin, BridgePluginReadConfig, BridgePluginThread};
 use super::manager::ConnectorManager;
+use crate::bridge::manager::update_last_active;
 use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 use axum::async_trait;
+use common_base::tools::now_mills;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
@@ -121,13 +123,11 @@ impl BridgePlugin for FileBridgePlugin {
         let group_name = self.connector_name.clone();
         let mut recv = self.stop_send.subscribe();
 
-        // Create parent directories if they don't exist
         let file_path = std::path::Path::new(&self.config.local_file_path);
         if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        // Open file with create option to automatically create if it doesn't exist
         let file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -156,18 +156,23 @@ impl BridgePlugin for FileBridgePlugin {
                                 continue;
                             }
 
-                            if let Err(e) = self.append(&data,&mut writer).await{
-                                error!("Connector {} failed to write data to {}, error message :{}", self.connector_name,self.config.local_file_path, e);
-                                sleep(Duration::from_millis(100)).await;
+                            let start_time = now_mills();
+                            let message_count = data.len() as u64;
+
+                            match self.append(&data,&mut writer).await {
+                                Ok(_) => {
+                                    message_storage.commit_group_offset(&group_name, &config.topic_name, offset + message_count).await?;
+                                    update_last_active(&self.connector_manager, &self.connector_name,start_time, message_count ,true);
+                                },
+                                Err(e) => {
+                                    update_last_active(&self.connector_manager, &self.connector_name,start_time, message_count ,false);
+                                    error!("Connector {} failed to write data to {}, error message :{}", self.connector_name,self.config.local_file_path, e);
+                                    sleep(Duration::from_millis(100)).await;
+                                }
                             }
-
-                            // commit offset
-                            message_storage.commit_group_offset(&group_name, &config.topic_name, offset + data.len() as u64).await?;
-
-                            // update connector status
-
                         },
                         Err(e) => {
+                            update_last_active(&self.connector_manager, &self.connector_name,now_mills(), 0 ,false);
                             error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name,config.topic_name,e);
                             sleep(Duration::from_millis(100)).await;
                         }
@@ -181,8 +186,6 @@ impl BridgePlugin for FileBridgePlugin {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-
     use common_base::{
         tools::{now_second, unique_id},
         utils::crc::calc_crc32,
@@ -192,6 +195,7 @@ mod tests {
         adapter::record::{Header, Record},
         mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     };
+    use std::{fs, path::PathBuf, sync::Arc, time::Duration};
     use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
