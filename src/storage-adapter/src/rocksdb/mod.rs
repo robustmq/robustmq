@@ -156,6 +156,33 @@ impl RocksDBStorageAdapter {
     pub fn shard_info_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
         format!("/shard/{namespace}/{shard}")
     }
+
+    #[inline(always)]
+    pub fn timestamp_offset_key<S1: Display>(
+        namespace: &S1,
+        shard: &S1,
+        timestamp: u64,
+        offset: u64,
+    ) -> String {
+        format!("/timestamp/{namespace}/{shard}/{timestamp:020}/{offset:020}")
+    }
+
+    #[inline(always)]
+    pub fn timestamp_offset_key_prefix<S1: Display>(
+        namespace: &S1,
+        shard: &S1,
+    ) -> String {
+        format!("/timestamp/{namespace}/{shard}/")
+    }
+
+    #[inline(always)]
+    pub fn timestamp_offset_key_search_prefix<S1: Display>(
+        namespace: &S1,
+        shard: &S1,
+        timestamp: u64,
+    ) -> String {
+        format!("/timestamp/{namespace}/{shard}/{timestamp:020}/")
+    }
 }
 
 impl RocksDBStorageAdapter {
@@ -279,6 +306,8 @@ impl RocksDBStorageAdapter {
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
+        use rocksdb::WriteBatch;
+        
         let cf = db.cf_handle(DB_COLUMN_FAMILY).unwrap(); // unwrap is safe since we created this column family
 
         // get the starting shard offset
@@ -293,34 +322,47 @@ impl RocksDBStorageAdapter {
         };
 
         let mut start_offset = offset;
-
         let mut offset_res = Vec::new();
+        
+        // Create a write batch for atomic and efficient batch writes
+        let mut batch = WriteBatch::default();
 
         for mut msg in messages {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
 
-            // write the shard record
+            // Serialize the message record
             let shard_record_key = Self::shard_record_key(&namespace, &shard_name, start_offset);
-            db.write(cf.clone(), &shard_record_key, &msg)?;
+            let serialized_msg = serde_json::to_string(&msg)
+                .map_err(|e| CommonError::CommonError(format!("Failed to serialize record: {e}")))?;
+            batch.put_cf(&cf, shard_record_key.as_bytes(), serialized_msg.as_bytes());
 
-            // write the key offset
+            // Write the key offset index
             if !msg.key.is_empty() {
                 let key_offset_key = Self::key_offset_key(&namespace, &shard_name, &msg.key);
-                db.write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
+                let serialized_offset = serde_json::to_string(&start_offset)
+                    .map_err(|e| CommonError::CommonError(format!("Failed to serialize offset: {e}")))?;
+                batch.put_cf(&cf, key_offset_key.as_bytes(), serialized_offset.as_bytes());
             }
 
+            // Write tag offset indexes
             for tag in msg.tags.iter() {
-                let tag_offsets_key =
-                    Self::tag_offsets_key(&namespace, &shard_name, tag, start_offset);
-                db.write(cf.clone(), &tag_offsets_key, &start_offset)?;
+                let tag_offsets_key = Self::tag_offsets_key(&namespace, &shard_name, tag, start_offset);
+                let serialized_offset = serde_json::to_string(&start_offset)
+                    .map_err(|e| CommonError::CommonError(format!("Failed to serialize offset: {e}")))?;
+                batch.put_cf(&cf, tag_offsets_key.as_bytes(), serialized_offset.as_bytes());
             }
 
             start_offset += 1;
         }
 
-        // update the shard offset
-        db.write(cf.clone(), shard_offset_key.as_str(), &start_offset)?;
+        // Update the shard offset
+        let serialized_new_offset = serde_json::to_string(&start_offset)
+            .map_err(|e| CommonError::CommonError(format!("Failed to serialize new offset: {e}")))?;
+        batch.put_cf(&cf, shard_offset_key.as_bytes(), serialized_new_offset.as_bytes());
+
+        // Commit all writes atomically in one batch
+        db.write_batch(batch)?;
 
         Ok(offset_res)
     }
@@ -389,10 +431,30 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
+        // Stop the write thread for this shard
+        let handle_key = Self::write_handle_key(&namespace, &shard_name);
+        if let Some((_, handle)) = self.write_handles.remove(&handle_key) {
+            // Send stop signal to the write thread
+            let _ = handle.stop_sender.send(true);
+        }
+
+        // Delete all message records: /record/{namespace}/{shard}/record/*
+        let record_prefix = Self::shard_record_key_prefix(&namespace, &shard_name);
+        self.db.delete_prefix(cf.clone(), &record_prefix)?;
+
+        // Delete all key indexes: /key/{namespace}/{shard}/*
+        let key_index_prefix = format!("/key/{}/{}/", namespace, shard_name);
+        self.db.delete_prefix(cf.clone(), &key_index_prefix)?;
+
+        // Delete all tag indexes: /tag/{namespace}/{shard}/*
+        let tag_index_prefix = format!("/tag/{}/{}/", namespace, shard_name);
+        self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
+
+        // Delete shard offset: /offset/{namespace}/{shard}
         self.db
             .delete(cf.clone(), &Self::shard_offset_key(&namespace, &shard_name))?;
 
-        // also delete the shard info
+        // Delete shard info: /shard/{namespace}/{shard}
         self.db
             .delete(cf, &Self::shard_info_key(&namespace, &shard_name))
     }
@@ -522,7 +584,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         match self.db.read::<u64>(cf.clone(), &key_offset_key)? {
             Some(key_offset) if key_offset >= offset && read_config.max_record_num >= 1 => {
-                let shard_record_key = Self::shard_record_key(&namespace, &shard_name, offset);
+                let shard_record_key = Self::shard_record_key(&namespace, &shard_name, key_offset);
                 let record = self
                     .db
                     .read::<Record>(cf.clone(), &shard_record_key)?
