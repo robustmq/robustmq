@@ -35,7 +35,7 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 | **Confluent** | ✅ | ❌ | RobustMQ 暂不支持 Confluent |
 | **Couchbase** | ✅ | ❌ | RobustMQ 暂不支持 Couchbase |
 | **DynamoDB** | ✅ | ❌ | RobustMQ 暂不支持 DynamoDB |
-| **Elasticsearch** | ✅ | ❌ | RobustMQ 暂不支持 Elasticsearch |
+| **Elasticsearch** | ✅ | ✅ | RobustMQ 支持 Elasticsearch 连接器 |
 | **GCP PubSub** | ✅ | ❌ | RobustMQ 暂不支持 GCP PubSub |
 | **GreptimeDB** | ✅ | ✅ | RobustMQ 支持 GreptimeDB 连接器 |
 | **HStreamDB** | ✅ | ❌ | RobustMQ 暂不支持 HStreamDB |
@@ -60,7 +60,7 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 ### 支持情况总结
 
 - **EMQX 支持**：30+ 种数据集成类型
-- **RobustMQ 支持**：8 种数据集成类型
+- **RobustMQ 支持**：9 种数据集成类型
   - ✅ Apache Kafka
   - ✅ Apache Pulsar
   - ✅ RabbitMQ
@@ -68,12 +68,13 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
   - ✅ PostgreSQL
   - ✅ MySQL
   - ✅ MongoDB
+  - ✅ Elasticsearch
   - ✅ 本地文件
 
-RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar、RabbitMQ）、时序数据库（GreptimeDB）、关系型数据库（PostgreSQL、MySQL）、NoSQL 数据库（MongoDB）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
+RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar、RabbitMQ）、时序数据库（GreptimeDB）、关系型数据库（PostgreSQL、MySQL）、NoSQL 数据库（MongoDB）、搜索引擎（Elasticsearch）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
 
 ## 总结
 
-RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 8 种核心连接器类型：Kafka、Pulsar、RabbitMQ、GreptimeDB、PostgreSQL、MySQL、MongoDB 和本地文件，覆盖了消息队列、时序数据库、关系型数据库、NoSQL 数据库和文件存储的主要场景。
+RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 9 种核心连接器类型：Kafka、Pulsar、RabbitMQ、GreptimeDB、PostgreSQL、MySQL、MongoDB、Elasticsearch 和本地文件，覆盖了消息队列、时序数据库、关系型数据库、NoSQL 数据库、搜索引擎和文件存储的主要场景。
 
 相比 EMQX 的 30+ 种数据集成类型，RobustMQ 专注于核心场景，通过 Rust 语言的内存安全和零成本抽象特性，实现了高性能、高可靠性的消息桥接。这种精简而高效的设计理念，为构建可靠的 IoT 数据管道提供了坚实的基础。

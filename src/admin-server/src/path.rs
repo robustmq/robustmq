@@ -79,6 +79,7 @@ pub const MQTT_FLAPPING_DETECT_LIST_PATH: &str = "/mqtt/flapping_detect/list";
 // MQTT Connector API paths
 pub const MQTT_CONNECTOR_LIST_PATH: &str = "/mqtt/connector/list";
 pub const MQTT_CONNECTOR_CREATE_PATH: &str = "/mqtt/connector/create";
+pub const MQTT_CONNECTOR_DETAIL_PATH: &str = "/mqtt/connector/detail";
 pub const MQTT_CONNECTOR_DELETE_PATH: &str = "/mqtt/connector/delete";
 
 // MQTT Schema API paths

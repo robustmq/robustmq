@@ -20,6 +20,7 @@ use protocol::broker::broker_mqtt_inner::{
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
 use tonic::transport::Channel;
+use tracing::{error, info};
 
 use crate::macros::impl_retriable_request;
 
@@ -41,16 +42,21 @@ impl Manager for MqttBrokerPlacementServiceManager {
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MqttBrokerInnerServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+        let url = format!("http://{}", self.addr);
+        match MqttBrokerInnerServiceClient::connect(url.clone()).await {
             Ok(client) => {
+                info!("Successfully connected to MQTT Broker at {}", self.addr);
                 return Ok(client);
             }
             Err(err) => {
+                error!(
+                    "Failed to connect to MQTT Broker at {}: {} (full error: {:?})",
+                    self.addr, err, err
+                );
                 return Err(CommonError::CommonError(format!(
-                    "{},{}",
-                    err,
-                    self.addr.clone()
-                )))
+                    "Failed to connect to MQTT Broker at {}: {}",
+                    self.addr, err
+                )));
             }
         };
     }

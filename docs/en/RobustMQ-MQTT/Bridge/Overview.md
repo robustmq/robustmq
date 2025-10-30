@@ -35,7 +35,7 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 | **Confluent** | ✅ | ❌ | RobustMQ does not support Confluent |
 | **Couchbase** | ✅ | ❌ | RobustMQ does not support Couchbase |
 | **DynamoDB** | ✅ | ❌ | RobustMQ does not support DynamoDB |
-| **Elasticsearch** | ✅ | ❌ | RobustMQ does not support Elasticsearch |
+| **Elasticsearch** | ✅ | ✅ | RobustMQ supports Elasticsearch connector |
 | **GCP PubSub** | ✅ | ❌ | RobustMQ does not support GCP PubSub |
 | **GreptimeDB** | ✅ | ✅ | RobustMQ supports GreptimeDB connector |
 | **HStreamDB** | ✅ | ❌ | RobustMQ does not support HStreamDB |
@@ -60,7 +60,7 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 ### Support Summary
 
 - **EMQX Support**: 30+ data integration types
-- **RobustMQ Support**: 8 data integration types
+- **RobustMQ Support**: 9 data integration types
   - ✅ Apache Kafka
   - ✅ Apache Pulsar
   - ✅ RabbitMQ
@@ -68,12 +68,13 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
   - ✅ PostgreSQL
   - ✅ MySQL
   - ✅ MongoDB
+  - ✅ Elasticsearch
   - ✅ Local File
 
-RobustMQ currently focuses on core data integration scenarios, supporting the most commonly used message queues (Kafka, Pulsar, RabbitMQ), time-series databases (GreptimeDB), relational databases (PostgreSQL, MySQL), NoSQL databases (MongoDB), and local file storage. Future versions will gradually expand more data integration types.
+RobustMQ currently focuses on core data integration scenarios, supporting the most commonly used message queues (Kafka, Pulsar, RabbitMQ), time-series databases (GreptimeDB), relational databases (PostgreSQL, MySQL), NoSQL databases (MongoDB), search engines (Elasticsearch), and local file storage. Future versions will gradually expand more data integration types.
 
 ## Summary
 
-RobustMQ connectors adopt a plugin-based architecture design, providing efficient data integration capabilities for MQTT messages. Currently supporting 8 core connector types: Kafka, Pulsar, RabbitMQ, GreptimeDB, PostgreSQL, MySQL, MongoDB, and local file, covering the main scenarios of message queues, time-series databases, relational databases, NoSQL databases, and file storage.
+RobustMQ connectors adopt a plugin-based architecture design, providing efficient data integration capabilities for MQTT messages. Currently supporting 9 core connector types: Kafka, Pulsar, RabbitMQ, GreptimeDB, PostgreSQL, MySQL, MongoDB, Elasticsearch, and local file, covering the main scenarios of message queues, time-series databases, relational databases, NoSQL databases, search engines, and file storage.
 
 Compared to EMQX's 30+ data integration types, RobustMQ focuses on core scenarios, achieving high-performance and high-reliability message bridging through Rust's memory safety and zero-cost abstraction features. This streamlined and efficient design philosophy provides a solid foundation for building reliable IoT data pipelines.

@@ -355,6 +355,16 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Get connector detail
+    pub async fn get_connector_detail<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(MQTT_CONNECTOR_DETAIL_PATH), request)
+            .await
+    }
+
     /// Create connector
     pub async fn create_connector<T>(&self, request: &T) -> Result<String, HttpClientError>
     where

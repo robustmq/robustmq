@@ -46,10 +46,35 @@
     "share_subscribe_resub_num": 200,
     "exclusive_subscribe_thread_num": 8,
     "share_subscribe_leader_thread_num": 4,
-    "share_subscribe_follower_thread_num": 4
+    "share_subscribe_follower_thread_num": 4,
+    "connector_num": 5,
+    "connector_thread_num": 3
   }
 }
 ```
+
+**字段说明**：
+- `node_list`: 集群节点列表
+- `cluster_name`: 集群名称
+- `message_in_rate`: 消息接收速率（消息/秒）
+- `message_out_rate`: 消息发送速率（消息/秒）
+- `connection_num`: 总连接数
+- `session_num`: 会话总数
+- `topic_num`: 主题总数
+- `placement_status`: Placement Center 状态（Leader/Follower）
+- `tcp_connection_num`: TCP 连接数
+- `tls_connection_num`: TLS 连接数
+- `websocket_connection_num`: WebSocket 连接数
+- `quic_connection_num`: QUIC 连接数
+- `subscribe_num`: 订阅总数
+- `exclusive_subscribe_num`: 独占订阅数
+- `share_subscribe_leader_num`: 共享订阅 Leader 数
+- `share_subscribe_resub_num`: 共享订阅 Resub 数
+- `exclusive_subscribe_thread_num`: 独占订阅线程数
+- `share_subscribe_leader_thread_num`: 共享订阅 Leader 线程数
+- `share_subscribe_follower_thread_num`: 共享订阅 Follower 线程数
+- `connector_num`: 连接器总数
+- `connector_thread_num`: 活跃连接器线程数
 
 #### 1.2 监控数据查询
 - **接口**: `POST /api/mqtt/monitor/data`
@@ -60,7 +85,8 @@
   "data_type": "connection_num",      // 必填，监控数据类型
   "topic_name": "sensor/temperature", // 可选，部分类型需要
   "client_id": "client001",           // 可选，部分类型需要
-  "path": "sensor/+"                  // 可选，部分类型需要
+  "path": "sensor/+",                 // 可选，部分类型需要
+  "connector_name": "kafka_conn_01"   // 可选，连接器监控类型需要
 }
 ```
 
@@ -89,6 +115,12 @@
 **会话级监控类型**（需要 `client_id`）：
 - `session_in_num` - 会话接收消息数
 - `session_out_num` - 会话发送消息数
+
+**连接器监控类型**：
+- `connector_send_success_total` - 所有连接器发送成功消息总数（无需额外参数）
+- `connector_send_failure_total` - 所有连接器发送失败消息总数（无需额外参数）
+- `connector_send_success` - 指定连接器发送成功消息数（需要 `connector_name`）
+- `connector_send_failure` - 指定连接器发送失败消息数（需要 `connector_name`）
 
 - **响应数据结构**:
 ```json
@@ -141,6 +173,7 @@
   - 订阅级监控（`subscribe_send_success_num`、`subscribe_send_failure_num`）：必须提供 `client_id` 和 `path`
   - 订阅主题级监控（`subscribe_topic_send_success_num`、`subscribe_topic_send_failure_num`）：必须提供 `client_id`、`path` 和 `topic_name`
   - 会话级监控（`session_in_num`、`session_out_num`）：必须提供 `client_id`
+  - 连接器级监控（`connector_send_success`、`connector_send_failure`）：必须提供 `connector_name`
   - 如果缺少必需参数，将返回空数组
 - 返回的数据按时间戳自然排序
 
@@ -1058,7 +1091,59 @@
 }
 ```
 
-#### 9.2 创建连接器
+#### 9.2 连接器详情查询
+- **接口**: `POST /api/mqtt/connector/detail`
+- **描述**: 查询指定连接器的详细运行状态
+- **请求参数**:
+```json
+{
+  "connector_name": "kafka_connector"  // 连接器名称
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "last_send_time": 1698765432,        // 最后发送时间（Unix 时间戳，秒）
+    "send_success_total": 10245,         // 累计发送成功消息数
+    "send_fail_total": 3,                // 累计发送失败消息数
+    "last_msg": "Batch sent successfully" // 最后一条消息（可能为空）
+  }
+}
+```
+
+- **错误响应**:
+```json
+{
+  "code": 1,
+  "message": "Connector kafka_connector does not exist."
+}
+```
+
+或
+
+```json
+{
+  "code": 1,
+  "message": "Connector thread kafka_connector does not exist."
+}
+```
+
+- **字段说明**:
+  - `last_send_time`: 连接器最后一次发送消息的时间戳（秒）
+  - `send_success_total`: 自连接器启动以来成功发送的消息总数
+  - `send_fail_total`: 自连接器启动以来失败的消息总数
+  - `last_msg`: 最后一次操作的消息描述，可能为 `null`
+
+- **使用说明**:
+  - 连接器必须存在且当前正在运行（有活跃线程）才能查询详情
+  - 如果连接器存在但未运行，将返回"线程不存在"错误
+  - 统计数据在连接器重启后会重置
+
+#### 9.3 创建连接器
 - **接口**: `POST /api/mqtt/connector/create`
 - **描述**: 创建新的连接器
 - **请求参数**:
@@ -1073,7 +1158,7 @@
 
 - **参数验证规则**:
   - `connector_name`: 长度必须在 1-128 个字符之间
-  - `connector_type`: 长度必须在 1-50 个字符之间，必须是 `kafka`、`pulsar`、`rabbitmq`、`greptime`、`postgres`、`mysql`、`mongodb` 或 `file`
+  - `connector_type`: 长度必须在 1-50 个字符之间，必须是 `kafka`、`pulsar`、`rabbitmq`、`greptime`、`postgres`、`mysql`、`mongodb`、`file` 或 `elasticsearch`
   - `config`: 长度必须在 1-4096 个字符之间
   - `topic_name`: 长度必须在 1-256 个字符之间
 
@@ -1145,9 +1230,42 @@
 }
 ```
 
+**文件连接器（带滚动策略）**:
+```json
+{
+  "connector_type": "file",
+  "config": "{\"local_file_path\":\"/var/log/mqtt/messages.log\",\"rotation_strategy\":\"daily\"}"
+}
+```
+
+配置参数说明：
+- `local_file_path`: 必填，文件路径
+- `rotation_strategy`: 可选，文件滚动策略，可选值：`none`（默认）、`size`、`hourly`、`daily`
+- `max_size_gb`: 可选，文件最大大小（GB），仅在 `rotation_strategy` 为 `size` 时生效，范围 1-10，默认值 1
+
+**Elasticsearch 连接器**:
+```json
+{
+  "connector_type": "elasticsearch",
+  "config": "{\"url\":\"http://localhost:9200\",\"index\":\"mqtt_messages\",\"auth_type\":\"basic\",\"username\":\"elastic\",\"password\":\"password123\"}"
+}
+```
+
+配置参数说明：
+- `url`: 必填，Elasticsearch 服务器地址
+- `index`: 必填，索引名称
+- `auth_type`: 可选，认证类型，可选值：`none`（默认）、`basic`、`apikey`
+- `username`: 可选，用户名（Basic 认证时必填）
+- `password`: 可选，密码（Basic 认证时必填）
+- `api_key`: 可选，API 密钥（ApiKey 认证时必填）
+- `enable_tls`: 可选，是否启用 TLS，默认 false
+- `ca_cert_path`: 可选，CA 证书路径
+- `timeout_secs`: 可选，请求超时时间（秒），范围 1-300，默认值 30
+- `max_retries`: 可选，最大重试次数，最大值 10，默认值 3
+
 - **响应**: 成功返回 "Created successfully!"
 
-#### 9.3 删除连接器
+#### 9.4 删除连接器
 - **接口**: `POST /api/mqtt/connector/delete`
 - **描述**: 删除连接器
 - **请求参数**:
@@ -1478,6 +1596,7 @@
 - `mysql`: MySQL 关系型数据库
 - `mongodb`: MongoDB NoSQL 数据库
 - `file`: 本地文件存储
+- `elasticsearch`: Elasticsearch 搜索引擎
 
 ### Schema 类型 (schema_type)
 - `json`: JSON Schema
@@ -1556,6 +1675,36 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
     "data_type": "session_out_num",
     "client_id": "client001"
   }'
+
+# 查询所有连接器发送成功消息总数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_success_total"
+  }'
+
+# 查询所有连接器发送失败消息总数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_failure_total"
+  }'
+
+# 查询指定连接器发送成功消息数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_success",
+    "connector_name": "kafka_connector_01"
+  }'
+
+# 查询指定连接器发送失败消息数
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_failure",
+    "connector_name": "kafka_connector_01"
+  }'
 ```
 
 ### 查询客户端列表
@@ -1601,6 +1750,15 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
     "ip": "192.168.1.100",
     "action": "Publish",
     "permission": "Allow"
+  }'
+```
+
+### 查询连接器详情
+```bash
+curl -X POST http://localhost:8080/api/mqtt/connector/detail \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge"
   }'
 ```
 

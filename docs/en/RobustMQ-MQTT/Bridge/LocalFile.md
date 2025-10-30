@@ -12,32 +12,87 @@ The Local File connector uses the `LocalFileConnectorConfig` structure for confi
 
 ```rust
 pub struct LocalFileConnectorConfig {
-    pub local_file_path: String,  // Local file path
+    pub local_file_path: String,       // Local file path
+    pub rotation_strategy: RotationStrategy,  // File rotation strategy
+    pub max_size_gb: u64,              // Maximum file size (GB)
+}
+
+pub enum RotationStrategy {
+    None,    // No rotation
+    Size,    // Rotate by size
+    Hourly,  // Rotate hourly
+    Daily,   // Rotate daily
 }
 ```
 
 ### Configuration Parameters
 
-| Parameter | Type | Required | Description | Example |
-|-----------|------|----------|-------------|---------|
-| `local_file_path` | String | Yes | Complete path to the local file | `/var/log/mqtt_messages.log` |
+| Parameter | Type | Required | Default | Description | Example |
+|-----------|------|----------|---------|-------------|---------|
+| `local_file_path` | String | Yes | - | Complete path to the local file | `/var/log/mqtt_messages.log` |
+| `rotation_strategy` | String | No | `none` | File rotation strategy: `none` (no rotation), `size` (rotate by size), `hourly` (rotate hourly), `daily` (rotate daily) | `daily` |
+| `max_size_gb` | Number | No | `1` | Maximum file size in GB, only effective when `rotation_strategy` is `size`, range: 1-10 | `5` |
 
 ### Configuration Examples
 
 #### JSON Configuration Format
+
+**Basic Configuration (No Rotation)**
 ```json
 {
   "local_file_path": "/var/log/mqtt_messages.log"
 }
 ```
 
+**Rotate by Size**
+```json
+{
+  "local_file_path": "/var/log/mqtt_messages.log",
+  "rotation_strategy": "size",
+  "max_size_gb": 5
+}
+```
+
+**Rotate Hourly**
+```json
+{
+  "local_file_path": "/var/log/mqtt_messages.log",
+  "rotation_strategy": "hourly"
+}
+```
+
+**Rotate Daily**
+```json
+{
+  "local_file_path": "/var/log/mqtt_messages.log",
+  "rotation_strategy": "daily"
+}
+```
+
 #### Complete Connector Configuration
+
+**Without Rotation**
 ```json
 {
   "cluster_name": "default",
   "connector_name": "file_connector_01",
   "connector_type": "LocalFile",
   "config": "{\"local_file_path\": \"/var/log/mqtt_messages.log\"}",
+  "topic_name": "sensor/data",
+  "status": "Idle",
+  "broker_id": null,
+  "create_time": 1640995200,
+  "update_time": 1640995200
+}
+```
+
+**With Rotation Strategy**
+```json
+{
+  "cluster_name": "default",
+  "connector_name": "file_connector_01",
+  "connector_type": "LocalFile",
+  "config": "{\"local_file_path\": \"/var/log/mqtt_messages.log\", \"rotation_strategy\": \"daily\"}",
   "topic_name": "sensor/data",
   "status": "Idle",
   "broker_id": null,
@@ -95,6 +150,77 @@ The Local File connector converts MQTT messages to JSON format for storage, with
 | `tags` | Array | Message tags array |
 | `timestamp` | Number | Message timestamp (seconds) |
 | `crc_num` | Number | Message CRC checksum value |
+
+## File Rotation Strategy
+
+### Feature Description
+
+The Local File connector supports automatic file rotation functionality, which can automatically create new files based on file size or time, preventing a single file from becoming too large.
+
+### Rotation Strategy Types
+
+#### 1. None (No Rotation)
+- Default strategy, all data written to the same file
+- Suitable for scenarios with low message volume
+
+#### 2. Size (Rotate by Size)
+- Automatically rotates when the file reaches the specified size
+- Size range: 1GB - 10GB
+- Rotated filename format: `original_name_YYYYMMdd_HHMMSS.extension`
+- Example: `mqtt_messages_20231215_143025.log`
+
+#### 3. Hourly (Rotate Hourly)
+- Automatically creates a new file every hour
+- Rotated filename format: `original_name_YYYYMMdd_HH.extension`
+- Example: `mqtt_messages_20231215_14.log`
+
+#### 4. Daily (Rotate Daily)
+- Automatically creates a new file every day
+- Rotated filename format: `original_name_YYYYMMdd.extension`
+- Example: `mqtt_messages_20231215.log`
+
+### Usage Examples
+
+#### Rotate by Size (5GB)
+```bash
+robust-ctl mqtt connector create \
+  --connector-name "file_size_rotation" \
+  --connector-type "LocalFile" \
+  --config '{"local_file_path": "/var/log/robustmq/mqtt.log", "rotation_strategy": "size", "max_size_gb": 5}' \
+  --topic-id "sensor/data"
+```
+
+#### Rotate Hourly
+```bash
+robust-ctl mqtt connector create \
+  --connector-name "file_hourly_rotation" \
+  --connector-type "LocalFile" \
+  --config '{"local_file_path": "/var/log/robustmq/mqtt.log", "rotation_strategy": "hourly"}' \
+  --topic-id "sensor/data"
+```
+
+#### Rotate Daily
+```bash
+robust-ctl mqtt connector create \
+  --connector-name "file_daily_rotation" \
+  --connector-type "LocalFile" \
+  --config '{"local_file_path": "/var/log/robustmq/mqtt.log", "rotation_strategy": "daily"}' \
+  --topic-id "sensor/data"
+```
+
+### Rotation Behavior
+
+1. **File Check**: Checks if rotation is needed before writing data
+2. **File Rename**: Current file is renamed to a timestamped file
+3. **Create New File**: A new file is created using the original filename
+4. **Continue Writing**: New data is written to the new file
+
+### Important Notes
+
+- Rotation operations are atomic and will not lose data
+- Old files need to be manually cleaned up or managed through log rotation tools
+- When rotating by size, the actual file size may be slightly larger than the set value (because it checks after batch writes)
+- When rotating by time, the precision is at the second level
 
 ## Creating File Connectors with robust-ctl
 
