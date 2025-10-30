@@ -20,7 +20,7 @@ use protocol::broker::broker_mqtt_inner::{
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
 use tonic::transport::Channel;
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::macros::impl_retriable_request;
 
@@ -43,25 +43,48 @@ impl Manager for MqttBrokerPlacementServiceManager {
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         let url = format!("http://{}", self.addr);
+        debug!(
+            "Attempting to connect to MQTT Broker at {} (url: {})",
+            self.addr, url
+        );
+
+        let start = std::time::Instant::now();
         match MqttBrokerInnerServiceClient::connect(url.clone()).await {
             Ok(client) => {
-                info!("Successfully connected to MQTT Broker at {}", self.addr);
+                let duration = start.elapsed();
+                info!(
+                    "Successfully connected to MQTT Broker at {} (took {:?})",
+                    self.addr, duration
+                );
+
+                if duration.as_secs() > 2 {
+                    warn!(
+                        "Connection to MQTT Broker at {} took longer than expected: {:?}",
+                        self.addr, duration
+                    );
+                }
+
                 return Ok(client);
             }
             Err(err) => {
+                let duration = start.elapsed();
                 error!(
-                    "Failed to connect to MQTT Broker at {}: {} (full error: {:?})",
-                    self.addr, err, err
+                    "Failed to connect to MQTT Broker at {} after {:?}: {} (full error: {:?})",
+                    self.addr, duration, err, err
                 );
                 return Err(CommonError::CommonError(format!(
-                    "Failed to connect to MQTT Broker at {}: {}",
-                    self.addr, err
+                    "Failed to connect to MQTT Broker at {} after {:?}: {}",
+                    self.addr, duration, err
                 )));
             }
         };
     }
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
+        // Basic connection validation
+        // Note: gRPC connections are lazy, so we just validate the connection object exists
+        // The actual health check happens when the first RPC is made
+        debug!("Checking MQTT Broker connection health for {}", self.addr);
         Ok(conn)
     }
 }

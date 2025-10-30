@@ -22,7 +22,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
 
-
 #[derive(Debug)]
 pub struct RocksDBEngine {
     pub db: Arc<DB>,
@@ -105,11 +104,9 @@ impl RocksDBEngine {
 
     /// Execute a write batch atomically
     /// This provides better performance for multiple writes
-    pub fn write_batch(
-        &self,
-        batch: rocksdb::WriteBatch,
-    ) -> Result<(), CommonError> {
-        self.db.write(batch)
+    pub fn write_batch(&self, batch: rocksdb::WriteBatch) -> Result<(), CommonError> {
+        self.db
+            .write(batch)
             .map_err(|e| CommonError::CommonError(format!("Failed to write batch: {e:?}")))?;
         Ok(())
     }

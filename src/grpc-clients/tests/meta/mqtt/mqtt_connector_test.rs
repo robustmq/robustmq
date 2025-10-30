@@ -24,10 +24,8 @@ mod test {
         pool::ClientPool,
     };
     use metadata_struct::mqtt::bridge::{
-        config_kafka::KafkaConnectorConfig,
-        config_local_file::{LocalFileConnectorConfig, RotationStrategy},
-        connector::MQTTConnector,
-        connector_type::ConnectorType,
+        config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
+        connector::MQTTConnector, connector_type::ConnectorType,
     };
     use protocol::meta::meta_service_mqtt::{
         CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
