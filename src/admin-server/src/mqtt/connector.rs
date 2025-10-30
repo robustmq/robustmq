@@ -41,8 +41,9 @@ use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ConnectorListReq {
+    pub connector_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -141,9 +142,23 @@ pub async fn connector_list(
         params.exact_match,
     );
 
-    let mut connectors = Vec::new();
-    for connector in state.mqtt_context.connector_manager.get_all_connector() {
-        connectors.push(ConnectorListRow {
+    let mut results = Vec::new();
+    let connectors = if let Some(connector_name) = params.connector_name {
+        if let Some(connector) = state
+            .mqtt_context
+            .connector_manager
+            .get_connector(&connector_name)
+        {
+            vec![connector]
+        } else {
+            Vec::new()
+        }
+    } else {
+        state.mqtt_context.connector_manager.get_all_connector()
+    };
+
+    for connector in connectors {
+        results.push(ConnectorListRow {
             connector_name: connector.connector_name.clone(),
             connector_type: connector.connector_type.to_string(),
             config: connector.config.clone(),
@@ -158,8 +173,7 @@ pub async fn connector_list(
             update_time: timestamp_to_local_datetime(connector.update_time as i64),
         });
     }
-
-    let filtered = apply_filters(connectors, &options);
+    let filtered = apply_filters(results, &options);
     let sorted = apply_sorting(filtered, &options);
     let pagination = apply_pagination(sorted, &options);
 
