@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::async_trait;
 use bson::Document;
@@ -20,9 +21,12 @@ use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_mongodb::MongoDBConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
-use mongodb::{options::ClientOptions, Client, Collection};
+use mongodb::{
+    options::{ClientOptions, InsertManyOptions, WriteConcern},
+    Client, Collection,
+};
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::error;
+use tracing::{debug, error, info, warn};
 
 use crate::handler::error::MqttBrokerError;
 use crate::{bridge::failure::FailureHandlingStrategy, common::types::ResultMqttBrokerError};
@@ -43,17 +47,58 @@ impl MongoDBBridgePlugin {
 
     async fn create_client(&self) -> Result<Client, MqttBrokerError> {
         let uri = self.config.build_connection_uri();
-        let client_options = ClientOptions::parse(&uri)
-            .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?;
+        debug!("Connecting to MongoDB at {}", self.config.host);
 
-        Client::with_options(client_options)
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))
+        let mut client_options = ClientOptions::parse(&uri).await.map_err(|e| {
+            MqttBrokerError::MongoDBError(format!(
+                "Failed to parse MongoDB URI for {}: {}",
+                self.config.host, e
+            ))
+        })?;
+
+        client_options.connect_timeout =
+            Some(Duration::from_secs(self.config.connect_timeout_secs));
+        client_options.server_selection_timeout = Some(Duration::from_secs(
+            self.config.server_selection_timeout_secs,
+        ));
+
+        if let Some(max_pool) = self.config.max_pool_size {
+            client_options.max_pool_size = Some(max_pool);
+        }
+        if let Some(min_pool) = self.config.min_pool_size {
+            client_options.min_pool_size = Some(min_pool);
+        }
+
+        let w_value = if self.config.w == "majority" {
+            WriteConcern::builder()
+                .w(mongodb::options::Acknowledgment::Majority)
+                .build()
+        } else if let Ok(w_num) = self.config.w.parse::<u32>() {
+            WriteConcern::builder()
+                .w(mongodb::options::Acknowledgment::Nodes(w_num))
+                .build()
+        } else {
+            WriteConcern::builder()
+                .w(mongodb::options::Acknowledgment::Nodes(1))
+                .build()
+        };
+        client_options.write_concern = Some(w_value);
+
+        Client::with_options(client_options).map_err(|e| {
+            MqttBrokerError::MongoDBError(format!(
+                "Failed to create MongoDB client for {}:{}: {}",
+                self.config.host, self.config.port, e
+            ))
+        })
     }
 
     fn record_to_document(&self, record: &Record) -> Result<Document, MqttBrokerError> {
-        bson::to_document(record)
-            .map_err(|e| MqttBrokerError::BsonSerializationError(e.to_string()))
+        bson::to_document(record).map_err(|e| {
+            MqttBrokerError::BsonSerializationError(format!(
+                "Failed to serialize record with key '{}' at timestamp {}: {}",
+                record.key, record.timestamp, e
+            ))
+        })
     }
 }
 
@@ -62,13 +107,48 @@ impl ConnectorSink for MongoDBBridgePlugin {
     type SinkResource = Collection<Document>;
 
     async fn validate(&self) -> ResultMqttBrokerError {
-        Ok(())
+        info!(
+            "Validating MongoDB connector configuration for {}:{}",
+            self.config.host, self.config.port
+        );
+
+        let client = self.create_client().await?;
+
+        let db = client.database(&self.config.database);
+
+        match tokio::time::timeout(
+            Duration::from_secs(self.config.server_selection_timeout_secs),
+            db.run_command(bson::doc! { "ping": 1 }, None),
+        )
+        .await
+        {
+            Ok(Ok(_)) => {
+                info!(
+                    "Successfully validated MongoDB connection to {}:{}/{}",
+                    self.config.host, self.config.port, self.config.database
+                );
+                Ok(())
+            }
+            Ok(Err(e)) => Err(MqttBrokerError::MongoDBError(format!(
+                "MongoDB ping failed for {}:{}/{}: {}",
+                self.config.host, self.config.port, self.config.database, e
+            ))),
+            Err(_) => Err(MqttBrokerError::MongoDBError(format!(
+                "MongoDB ping timeout for {}:{}/{}",
+                self.config.host, self.config.port, self.config.database
+            ))),
+        }
     }
 
     async fn init_sink(&self) -> Result<Self::SinkResource, MqttBrokerError> {
+        info!(
+            "Initializing MongoDB sink: {}:{}/{}/{}",
+            self.config.host, self.config.port, self.config.database, self.config.collection
+        );
         let client = self.create_client().await?;
         let db = client.database(&self.config.database);
         let collection = db.collection(&self.config.collection);
+        info!("MongoDB sink initialized successfully");
         Ok(collection)
     }
 
@@ -81,29 +161,72 @@ impl ConnectorSink for MongoDBBridgePlugin {
             return Ok(());
         }
 
+        debug!("Processing batch of {} records for MongoDB", records.len());
+
         let mut documents = Vec::with_capacity(records.len());
-        for record in records {
+        let mut failed_serializations = Vec::new();
+
+        for (idx, record) in records.iter().enumerate() {
             match self.record_to_document(record) {
                 Ok(doc) => documents.push(doc),
                 Err(e) => {
-                    error!(
-                        "Failed to convert record to MongoDB document: {}. Record will be skipped.",
+                    warn!(
+                        "Failed to serialize record {}/{} (key: '{}', timestamp: {}): {}",
+                        idx + 1,
+                        records.len(),
+                        record.key,
+                        record.timestamp,
                         e
                     );
-                    continue;
+                    failed_serializations.push((idx, e));
                 }
             }
         }
 
         if documents.is_empty() {
-            return Ok(());
+            return Err(MqttBrokerError::MongoDBError(format!(
+                "All {} records failed to serialize to BSON",
+                records.len()
+            )));
         }
 
-        collection
-            .insert_many(documents, None)
-            .await
-            .map(|_| ())
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))
+        if !failed_serializations.is_empty() {
+            warn!(
+                "{}/{} records failed serialization and will not be inserted",
+                failed_serializations.len(),
+                records.len()
+            );
+        }
+
+        let options = InsertManyOptions::builder()
+            .ordered(self.config.ordered_insert)
+            .build();
+
+        debug!(
+            "Inserting {} documents into MongoDB (ordered={})",
+            documents.len(),
+            self.config.ordered_insert
+        );
+
+        match collection.insert_many(documents, options).await {
+            Ok(result) => {
+                info!(
+                    "Successfully inserted {} documents into {}.{}",
+                    result.inserted_ids.len(),
+                    self.config.database,
+                    self.config.collection
+                );
+                Ok(())
+            }
+            Err(e) => {
+                let error_msg = format!(
+                    "Failed to insert documents into {}.{}: {}",
+                    self.config.database, self.config.collection, e
+                );
+                error!("{}", error_msg);
+                Err(MqttBrokerError::MongoDBError(error_msg))
+            }
+        }
     }
 }
 
@@ -133,6 +256,7 @@ pub fn start_mongodb_connector(
             }
         };
 
+        let batch_size = mongodb_config.batch_size as u64;
         let bridge = MongoDBBridgePlugin::new(mongodb_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -145,7 +269,7 @@ pub fn start_mongodb_connector(
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
-                record_num: 100,
+                record_num: batch_size,
                 strategy: failure_strategy,
             },
             stop_recv,

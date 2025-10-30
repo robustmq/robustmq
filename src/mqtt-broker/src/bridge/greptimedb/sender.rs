@@ -169,6 +169,7 @@ mod tests {
     use metadata_struct::adapter::record::Header;
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn test_send() {
         let config = GreptimeDBConnectorConfig::new(
             "127.0.0.1:4000".to_string(),

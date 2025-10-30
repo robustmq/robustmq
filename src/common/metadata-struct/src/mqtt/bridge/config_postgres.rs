@@ -15,7 +15,55 @@
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+fn default_connect_timeout_secs() -> u64 {
+    10
+}
+
+fn default_acquire_timeout_secs() -> u64 {
+    30
+}
+
+fn default_idle_timeout_secs() -> u64 {
+    600
+}
+
+fn default_max_lifetime_secs() -> u64 {
+    1800
+}
+
+fn default_batch_size() -> usize {
+    100
+}
+
+fn default_min_pool_size() -> u32 {
+    2
+}
+
+impl Default for PostgresConnectorConfig {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            port: 5432,
+            database: String::new(),
+            username: String::new(),
+            password: String::new(),
+            table: String::new(),
+            sql_template: None,
+            pool_size: None,
+            enable_batch_insert: None,
+            enable_upsert: None,
+            conflict_columns: None,
+            connect_timeout_secs: default_connect_timeout_secs(),
+            acquire_timeout_secs: default_acquire_timeout_secs(),
+            idle_timeout_secs: default_idle_timeout_secs(),
+            max_lifetime_secs: default_max_lifetime_secs(),
+            batch_size: default_batch_size(),
+            min_pool_size: default_min_pool_size(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PostgresConnectorConfig {
     pub host: String,
     pub port: u16,
@@ -28,6 +76,20 @@ pub struct PostgresConnectorConfig {
     pub enable_batch_insert: Option<bool>,
     pub enable_upsert: Option<bool>,
     pub conflict_columns: Option<String>,
+
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    #[serde(default = "default_acquire_timeout_secs")]
+    pub acquire_timeout_secs: u64,
+    #[serde(default = "default_idle_timeout_secs")]
+    pub idle_timeout_secs: u64,
+    #[serde(default = "default_max_lifetime_secs")]
+    pub max_lifetime_secs: u64,
+
+    #[serde(default = "default_batch_size")]
+    pub batch_size: usize,
+    #[serde(default = "default_min_pool_size")]
+    pub min_pool_size: u32,
 }
 
 impl PostgresConnectorConfig {
@@ -109,6 +171,16 @@ impl PostgresConnectorConfig {
             ));
         }
 
+        if !self
+            .table
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+        {
+            return Err(CommonError::CommonError(
+                "table name can only contain letters, numbers, underscores and dots (for schema.table)".to_string(),
+            ));
+        }
+
         if let Some(sql) = &self.sql_template {
             if sql.len() > 4096 {
                 return Err(CommonError::CommonError(
@@ -135,6 +207,60 @@ impl PostgresConnectorConfig {
             } else {
                 return Err(CommonError::CommonError(
                     "conflict_columns must be provided when upsert is enabled".to_string(),
+                ));
+            }
+        }
+
+        if self.connect_timeout_secs == 0 || self.connect_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "connect_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.acquire_timeout_secs == 0 || self.acquire_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "acquire_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.idle_timeout_secs > 3600 {
+            return Err(CommonError::CommonError(
+                "idle_timeout_secs cannot exceed 3600 seconds".to_string(),
+            ));
+        }
+
+        if self.max_lifetime_secs > 7200 {
+            return Err(CommonError::CommonError(
+                "max_lifetime_secs cannot exceed 7200 seconds (2 hours)".to_string(),
+            ));
+        }
+
+        if self.batch_size == 0 || self.batch_size > 10000 {
+            return Err(CommonError::CommonError(
+                "batch_size must be between 1 and 10000".to_string(),
+            ));
+        }
+
+        if self.min_pool_size > self.pool_size.unwrap_or(10) {
+            return Err(CommonError::CommonError(
+                "min_pool_size cannot be greater than pool_size".to_string(),
+            ));
+        }
+
+        if let Some(sql) = &self.sql_template {
+            let placeholder_count = (1..=10)
+                .filter(|i| sql.contains(&format!("${}", i)))
+                .count();
+            if placeholder_count != 5 {
+                return Err(CommonError::CommonError(format!(
+                    "sql_template must contain exactly 5 placeholders ($1-$5), found {}",
+                    placeholder_count
+                )));
+            }
+
+            if self.is_batch_insert_enabled() {
+                return Err(CommonError::CommonError(
+                    "sql_template cannot be used with batch insert mode. Please disable batch insert or remove sql_template.".to_string(),
                 ));
             }
         }

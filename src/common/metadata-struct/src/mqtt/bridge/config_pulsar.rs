@@ -15,7 +15,46 @@
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+fn default_connection_timeout_secs() -> u64 {
+    30
+}
+
+fn default_operation_timeout_secs() -> u64 {
+    30
+}
+
+fn default_batch_size() -> usize {
+    100
+}
+
+fn default_max_pending_messages() -> u32 {
+    1000
+}
+
+fn default_send_timeout_secs() -> u64 {
+    30
+}
+
+impl Default for PulsarConnectorConfig {
+    fn default() -> Self {
+        Self {
+            server: String::new(),
+            topic: String::new(),
+            token: None,
+            oauth: None,
+            basic_name: None,
+            basic_password: None,
+            connection_timeout_secs: default_connection_timeout_secs(),
+            operation_timeout_secs: default_operation_timeout_secs(),
+            batch_size: default_batch_size(),
+            max_pending_messages: default_max_pending_messages(),
+            send_timeout_secs: default_send_timeout_secs(),
+            compression: None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PulsarConnectorConfig {
     pub server: String,
     pub topic: String,
@@ -23,6 +62,20 @@ pub struct PulsarConnectorConfig {
     pub oauth: Option<String>,
     pub basic_name: Option<String>,
     pub basic_password: Option<String>,
+
+    #[serde(default = "default_connection_timeout_secs")]
+    pub connection_timeout_secs: u64,
+    #[serde(default = "default_operation_timeout_secs")]
+    pub operation_timeout_secs: u64,
+
+    #[serde(default = "default_batch_size")]
+    pub batch_size: usize,
+    #[serde(default = "default_max_pending_messages")]
+    pub max_pending_messages: u32,
+    #[serde(default = "default_send_timeout_secs")]
+    pub send_timeout_secs: u64,
+
+    pub compression: Option<String>,
 }
 
 impl PulsarConnectorConfig {
@@ -104,6 +157,68 @@ impl PulsarConnectorConfig {
                 return Err(CommonError::CommonError(
                     "basic_password length cannot exceed 256 characters".to_string(),
                 ));
+            }
+        }
+
+        let auth_count = [
+            self.token.is_some(),
+            self.oauth.is_some(),
+            self.basic_name.is_some() || self.basic_password.is_some(),
+        ]
+        .iter()
+        .filter(|&&x| x)
+        .count();
+
+        if auth_count > 1 {
+            return Err(CommonError::CommonError(
+                "Only one authentication method can be specified (token, oauth, or basic)"
+                    .to_string(),
+            ));
+        }
+
+        if self.basic_name.is_some() != self.basic_password.is_some() {
+            return Err(CommonError::CommonError(
+                "basic_name and basic_password must be provided together".to_string(),
+            ));
+        }
+
+        if self.connection_timeout_secs == 0 || self.connection_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "connection_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.operation_timeout_secs == 0 || self.operation_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "operation_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.send_timeout_secs == 0 || self.send_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "send_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.batch_size == 0 || self.batch_size > 10000 {
+            return Err(CommonError::CommonError(
+                "batch_size must be between 1 and 10000".to_string(),
+            ));
+        }
+
+        if self.max_pending_messages == 0 || self.max_pending_messages > 100000 {
+            return Err(CommonError::CommonError(
+                "max_pending_messages must be between 1 and 100000".to_string(),
+            ));
+        }
+
+        if let Some(compression) = &self.compression {
+            let valid_compressions = ["none", "lz4", "zlib", "zstd", "snappy"];
+            if !valid_compressions.contains(&compression.to_lowercase().as_str()) {
+                return Err(CommonError::CommonError(format!(
+                    "compression must be one of: none, lz4, zlib, zstd, snappy (got: {})",
+                    compression
+                )));
             }
         }
 

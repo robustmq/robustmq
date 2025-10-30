@@ -23,7 +23,7 @@ pub enum MongoDBDeploymentMode {
     Sharded,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MongoDBConnectorConfig {
     pub host: String,
     #[serde(default = "default_port")]
@@ -46,10 +46,74 @@ pub struct MongoDBConnectorConfig {
     pub max_pool_size: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_pool_size: Option<u32>,
+
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    #[serde(default = "default_server_selection_timeout_secs")]
+    pub server_selection_timeout_secs: u64,
+    #[serde(default = "default_socket_timeout_secs")]
+    pub socket_timeout_secs: u64,
+
+    #[serde(default = "default_batch_size")]
+    pub batch_size: usize,
+    #[serde(default = "default_ordered_insert")]
+    pub ordered_insert: bool,
+
+    #[serde(default = "default_w")]
+    pub w: String,
 }
 
 fn default_port() -> u16 {
     27017
+}
+
+fn default_connect_timeout_secs() -> u64 {
+    10
+}
+
+fn default_server_selection_timeout_secs() -> u64 {
+    30
+}
+
+fn default_socket_timeout_secs() -> u64 {
+    60
+}
+
+fn default_batch_size() -> usize {
+    100
+}
+
+fn default_ordered_insert() -> bool {
+    false
+}
+
+fn default_w() -> String {
+    "1".to_string()
+}
+
+impl Default for MongoDBConnectorConfig {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            port: default_port(),
+            database: String::new(),
+            collection: String::new(),
+            username: None,
+            password: None,
+            auth_source: None,
+            deployment_mode: MongoDBDeploymentMode::Single,
+            replica_set_name: None,
+            enable_tls: false,
+            max_pool_size: None,
+            min_pool_size: None,
+            connect_timeout_secs: default_connect_timeout_secs(),
+            server_selection_timeout_secs: default_server_selection_timeout_secs(),
+            socket_timeout_secs: default_socket_timeout_secs(),
+            batch_size: default_batch_size(),
+            ordered_insert: default_ordered_insert(),
+            w: default_w(),
+        }
+    }
 }
 
 impl MongoDBConnectorConfig {
@@ -184,6 +248,40 @@ impl MongoDBConnectorConfig {
                         "min_pool_size cannot be greater than max_pool_size".to_string(),
                     ));
                 }
+            }
+        }
+
+        if self.connect_timeout_secs == 0 || self.connect_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "connect_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.server_selection_timeout_secs == 0 || self.server_selection_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "server_selection_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.socket_timeout_secs == 0 || self.socket_timeout_secs > 600 {
+            return Err(CommonError::CommonError(
+                "socket_timeout_secs must be between 1 and 600 seconds".to_string(),
+            ));
+        }
+
+        if self.batch_size == 0 || self.batch_size > 10000 {
+            return Err(CommonError::CommonError(
+                "batch_size must be between 1 and 10000".to_string(),
+            ));
+        }
+
+        let valid_w_values = ["0", "1", "majority"];
+        if !valid_w_values.contains(&self.w.as_str()) {
+            let w_num: Result<u32, _> = self.w.parse();
+            if w_num.is_err() || w_num.unwrap() > 10 {
+                return Err(CommonError::CommonError(
+                    "w must be '0', '1', 'majority', or a number between 2 and 10".to_string(),
+                ));
             }
         }
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::async_trait;
 use metadata_struct::{
@@ -21,7 +22,7 @@ use metadata_struct::{
 };
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{bridge::failure::FailureHandlingStrategy, common::types::ResultMqttBrokerError};
 
@@ -40,85 +41,193 @@ impl MySQLBridgePlugin {
     }
 
     async fn create_pool(&self) -> Result<Pool<MySql>, sqlx::Error> {
+        debug!(
+            "Creating MySQL connection pool: {}:{}/{}",
+            self.config.host, self.config.port, self.config.database
+        );
+
         MySqlPoolOptions::new()
             .max_connections(self.config.get_pool_size())
+            .min_connections(self.config.min_pool_size)
+            .acquire_timeout(Duration::from_secs(self.config.acquire_timeout_secs))
+            .idle_timeout(Some(Duration::from_secs(self.config.idle_timeout_secs)))
+            .max_lifetime(Some(Duration::from_secs(self.config.max_lifetime_secs)))
             .connect(&self.config.connection_url())
             .await
     }
 
     async fn single_insert(&self, records: &[Record], pool: &Pool<MySql>) -> ResultMqttBrokerError {
-        for record in records {
-            let payload = serde_json::to_string(record)?;
+        let mut success_count = 0;
+        let mut failed_records = Vec::new();
+
+        for (idx, record) in records.iter().enumerate() {
+            let payload = match serde_json::to_string(record) {
+                Ok(p) => p,
+                Err(e) => {
+                    warn!(
+                        "Failed to serialize record {}/{} (key: '{}', timestamp: {}): {}",
+                        idx + 1,
+                        records.len(),
+                        record.key,
+                        record.timestamp,
+                        e
+                    );
+                    failed_records.push((idx, e.to_string()));
+                    continue;
+                }
+            };
 
             let base_sql = if let Some(template) = &self.config.sql_template {
-                let placeholder_count = template.matches('?').count();
-                if placeholder_count != 3 {
-                    warn!(
-                        "sql_template expects 3 placeholders, but found {}. Using provided template with binds (key, payload, timestamp) in order.",
-                        placeholder_count
-                    );
-                }
                 template.clone()
             } else {
                 format!(
-                    "INSERT INTO {} (record_key, payload, timestamp) VALUES (?, ?, ?)",
+                    "INSERT INTO `{}` (record_key, payload, timestamp) VALUES (?, ?, ?)",
                     self.config.table
                 )
             };
 
             let sql = if self.config.is_upsert_enabled() {
                 format!(
-                    "{} ON DUPLICATE KEY UPDATE payload = VALUES(payload), timestamp = VALUES(timestamp)",
+                    "{} AS new_vals ON DUPLICATE KEY UPDATE payload = new_vals.payload, timestamp = new_vals.timestamp",
                     base_sql
                 )
             } else {
                 base_sql
             };
 
-            sqlx::query(&sql)
+            match sqlx::query(&sql)
                 .bind(&record.key)
                 .bind(&payload)
                 .bind(record.timestamp as i64)
                 .execute(pool)
-                .await?;
+                .await
+            {
+                Ok(_) => {
+                    success_count += 1;
+                    debug!("Successfully inserted record {}/{}", idx + 1, records.len());
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to insert record {}/{} (key: '{}', timestamp: {}): {}",
+                        idx + 1,
+                        records.len(),
+                        record.key,
+                        record.timestamp,
+                        e
+                    );
+                    failed_records.push((idx, e.to_string()));
+                }
+            }
+        }
+
+        if success_count > 0 {
+            info!(
+                "Inserted {}/{} records successfully into table {}",
+                success_count,
+                records.len(),
+                self.config.table
+            );
+        }
+
+        if failed_records.len() == records.len() {
+            return Err(crate::handler::error::MqttBrokerError::CommonError(
+                format!("All {} records failed to insert into MySQL", records.len()),
+            ));
         }
 
         Ok(())
     }
 
     async fn batch_insert(&self, records: &[Record], pool: &Pool<MySql>) -> ResultMqttBrokerError {
+        debug!("Processing batch insert of {} records", records.len());
+
         let mut values_placeholders = Vec::with_capacity(records.len());
         let mut bindings = Vec::with_capacity(records.len());
+        let mut failed_serializations = Vec::new();
 
-        for record in records {
+        for (idx, record) in records.iter().enumerate() {
+            let payload = match serde_json::to_string(record) {
+                Ok(p) => p,
+                Err(e) => {
+                    warn!(
+                        "Failed to serialize record {}/{} (key: '{}', timestamp: {}): {}",
+                        idx + 1,
+                        records.len(),
+                        record.key,
+                        record.timestamp,
+                        e
+                    );
+                    failed_serializations.push((idx, e.to_string()));
+                    continue;
+                }
+            };
             values_placeholders.push("(?, ?, ?)");
-            let payload = serde_json::to_string(record)?;
             bindings.push((record.key.clone(), payload, record.timestamp as i64));
         }
 
+        if bindings.is_empty() {
+            return Err(crate::handler::error::MqttBrokerError::CommonError(
+                format!("All {} records failed to serialize", records.len()),
+            ));
+        }
+
+        if !failed_serializations.is_empty() {
+            warn!(
+                "{}/{} records failed serialization and will not be inserted",
+                failed_serializations.len(),
+                records.len()
+            );
+        }
+
         let base_sql = format!(
-            "INSERT INTO {} (record_key, payload, timestamp) VALUES {}",
+            "INSERT INTO `{}` (record_key, payload, timestamp) VALUES {}",
             self.config.table,
             values_placeholders.join(", ")
         );
 
         let sql = if self.config.is_upsert_enabled() {
             format!(
-                "{} ON DUPLICATE KEY UPDATE payload = VALUES(payload), timestamp = VALUES(timestamp)",
+                "{} AS new_vals ON DUPLICATE KEY UPDATE payload = new_vals.payload, timestamp = new_vals.timestamp",
                 base_sql
             )
         } else {
             base_sql
         };
 
+        debug!(
+            "Batch inserting {} records into table {}",
+            bindings.len(),
+            self.config.table
+        );
+
         let mut query = sqlx::query(&sql);
-        for (key, payload, timestamp) in bindings {
+        for (key, payload, timestamp) in bindings.iter() {
             query = query.bind(key).bind(payload).bind(timestamp);
         }
 
-        query.execute(pool).await?;
-
-        Ok(())
+        match query.execute(pool).await {
+            Ok(result) => {
+                info!(
+                    "Successfully batch inserted {} records into table {} (affected rows: {})",
+                    bindings.len(),
+                    self.config.table,
+                    result.rows_affected()
+                );
+                Ok(())
+            }
+            Err(e) => {
+                let error_msg = format!(
+                    "Failed to batch insert {} records into table {}: {}",
+                    bindings.len(),
+                    self.config.table,
+                    e
+                );
+                error!("{}", error_msg);
+                Err(crate::handler::error::MqttBrokerError::CommonError(
+                    error_msg,
+                ))
+            }
+        }
     }
 }
 
@@ -127,13 +236,78 @@ impl ConnectorSink for MySQLBridgePlugin {
     type SinkResource = Pool<MySql>;
 
     async fn validate(&self) -> ResultMqttBrokerError {
+        info!(
+            "Validating MySQL connector configuration for {}:{}/{}",
+            self.config.host, self.config.port, self.config.database
+        );
+
+        let pool = self.create_pool().await.map_err(|e| {
+            crate::handler::error::MqttBrokerError::CommonError(format!(
+                "Failed to create MySQL connection pool: {}",
+                e
+            ))
+        })?;
+
+        sqlx::query("SELECT 1").execute(&pool).await.map_err(|e| {
+            crate::handler::error::MqttBrokerError::CommonError(format!(
+                "Failed to ping MySQL server at {}:{}/{}: {}",
+                self.config.host, self.config.port, self.config.database, e
+            ))
+        })?;
+
+        let table_check_sql =
+            "SELECT 1 FROM information_schema.tables WHERE table_schema = ? AND table_name = ?"
+                .to_string();
+
+        let table_name = if self.config.table.contains('.') {
+            let parts: Vec<&str> = self.config.table.split('.').collect();
+            parts.get(1).unwrap_or(&parts[0]).to_string()
+        } else {
+            self.config.table.clone()
+        };
+
+        let table_exists = sqlx::query(&table_check_sql)
+            .bind(&self.config.database)
+            .bind(&table_name)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| {
+                crate::handler::error::MqttBrokerError::CommonError(format!(
+                    "Failed to check if table {} exists: {}",
+                    self.config.table, e
+                ))
+            })?;
+
+        if table_exists.is_none() {
+            warn!(
+                "Table {} does not exist in database {}. It must be created before starting the connector.",
+                self.config.table, self.config.database
+            );
+        }
+
+        pool.close().await;
+
+        info!(
+            "Successfully validated MySQL connection to {}:{}/{}, table: {}",
+            self.config.host, self.config.port, self.config.database, self.config.table
+        );
+
         Ok(())
     }
 
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+        info!(
+            "Initializing MySQL sink: {}:{}/{}.{}",
+            self.config.host, self.config.port, self.config.database, self.config.table
+        );
         let pool = self.create_pool().await?;
+        info!(
+            "MySQL sink initialized successfully (pool size: {}-{})",
+            self.config.min_pool_size,
+            self.config.get_pool_size()
+        );
         Ok(pool)
     }
 
@@ -145,12 +319,20 @@ impl ConnectorSink for MySQLBridgePlugin {
         if records.is_empty() {
             return Ok(());
         }
+
+        let mode = if self.config.is_batch_insert_enabled() {
+            "batch"
+        } else {
+            "single"
+        };
+
+        debug!(
+            "Sending {} records to MySQL in {} mode",
+            records.len(),
+            mode
+        );
+
         if self.config.is_batch_insert_enabled() {
-            if self.config.sql_template.is_some() {
-                warn!(
-                    "sql_template is not applied in batch mode; default batch INSERT will be used"
-                );
-            }
             self.batch_insert(records, pool).await
         } else {
             self.single_insert(records, pool).await
@@ -158,7 +340,12 @@ impl ConnectorSink for MySQLBridgePlugin {
     }
 
     async fn cleanup_sink(&self, pool: Pool<MySql>) -> ResultMqttBrokerError {
+        info!(
+            "Closing MySQL connection pool for {}:{}/{}",
+            self.config.host, self.config.port, self.config.database
+        );
         pool.close().await;
+        info!("MySQL connection pool closed successfully");
         Ok(())
     }
 }
@@ -188,6 +375,7 @@ pub fn start_mysql_connector(
             }
         };
 
+        let batch_size = mysql_config.batch_size as u64;
         let bridge = MySQLBridgePlugin::new(mysql_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -200,7 +388,7 @@ pub fn start_mysql_connector(
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
-                record_num: 100,
+                record_num: batch_size,
                 strategy: failure_strategy,
             },
             stop_recv,
