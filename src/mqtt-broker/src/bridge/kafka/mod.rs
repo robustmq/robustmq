@@ -44,6 +44,10 @@ impl KafkaBridgePlugin {
 impl ConnectorSink for KafkaBridgePlugin {
     type SinkResource = FutureProducer;
 
+    async fn validate(&self) -> ResultMqttBrokerError {
+        Ok(())
+    }
+
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {

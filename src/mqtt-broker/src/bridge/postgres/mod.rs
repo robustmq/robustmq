@@ -192,6 +192,10 @@ impl PostgresBridgePlugin {
 impl ConnectorSink for PostgresBridgePlugin {
     type SinkResource = Pool<Postgres>;
 
+    async fn validate(&self) -> ResultMqttBrokerError {
+        Ok(())
+    }
+
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {

@@ -174,6 +174,7 @@ impl MqttBrokerServer {
         let cache_manager = self.cache_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let connection_manager = self.connection_manager.clone();
+        let connector_manager = self.connector_manager.clone();
         let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
             metrics_record_thread(
@@ -181,6 +182,7 @@ impl MqttBrokerServer {
                 cache_manager.clone(),
                 subscribe_manager.clone(),
                 connection_manager.clone(),
+                connector_manager.clone(),
                 30,
                 raw_stop_send.clone(),
             );

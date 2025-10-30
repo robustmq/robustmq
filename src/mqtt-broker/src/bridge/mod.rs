@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod core;
+pub mod elasticsearch;
 pub mod file;
 pub mod greptimedb;
 pub mod heartbeat;

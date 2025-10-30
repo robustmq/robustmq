@@ -131,6 +131,168 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
     Ok(())
 }
 
+#[macro_export]
+macro_rules! define_simple_metric {
+    ($record_fn:ident, $get_fn:ident, $key:expr) => {
+        pub fn $record_fn(&self, time: u64, num: u64) -> Result<(), CommonError> {
+            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, $key, time, num)
+        }
+
+        pub fn $get_fn(&self) -> Result<DashMap<u64, u64>, CommonError> {
+            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, $key)
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_cumulative_metric {
+    ($record_fn:ident, $get_fn:ident, $get_pre_fn:ident, $get_rate_fn:ident, $key:expr) => {
+        pub async fn $record_fn(&self, time: u64, total: u64, num: u64) -> Result<(), CommonError> {
+            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, $key, time, num)?;
+            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, $key, total)
+        }
+
+        pub fn $get_fn(&self) -> Result<DashMap<u64, u64>, CommonError> {
+            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, $key)
+        }
+
+        pub async fn $get_pre_fn(&self) -> Result<u64, CommonError> {
+            $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, $key).await
+        }
+
+        pub fn $get_rate_fn(&self) -> Result<u64, CommonError> {
+            use $crate::metrics_cache::get_max_key_value;
+            let data = self.$get_fn()?;
+            Ok(get_max_key_value(&data))
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_dimensional_metric_1d {
+    ($record_fn:ident, $get_fn:ident, $get_pre_fn:ident, $key:expr, $dim1:ident: $dim1_ty:ty) => {
+        pub fn $record_fn(
+            &self,
+            $dim1: $dim1_ty,
+            time: u64,
+            total: u64,
+            num: u64,
+        ) -> Result<(), CommonError> {
+            let key = format!("{}_{}", $key, $dim1);
+            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, &key, time, num)?;
+            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, &key, total)
+        }
+
+        pub fn $get_fn(&self, $dim1: $dim1_ty) -> Result<DashMap<u64, u64>, CommonError> {
+            let key = format!("{}_{}", $key, $dim1);
+            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, &key)
+        }
+
+        pub async fn $get_pre_fn(&self, $dim1: $dim1_ty, num: u64) -> Result<u64, CommonError> {
+            let key = format!("{}_{}", $key, $dim1);
+            Ok(
+                $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, &key)
+                    .await
+                    .map_or(num, |v| v),
+            )
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_dimensional_metric_3d {
+    ($record_fn:ident, $get_fn:ident, $get_pre_fn:ident, $key:expr,
+     $dim1:ident: $dim1_ty:ty, $dim2:ident: $dim2_ty:ty, $dim3:ident: $dim3_ty:ty) => {
+        pub fn $record_fn(
+            &self,
+            $dim1: $dim1_ty,
+            $dim2: $dim2_ty,
+            $dim3: $dim3_ty,
+            time: u64,
+            total: u64,
+            num: u64,
+        ) -> Result<(), CommonError> {
+            let key = format!("{}_{}_{}_{}", $key, $dim1, $dim2, $dim3);
+            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, &key, time, num)?;
+            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, &key, total)
+        }
+
+        pub fn $get_fn(
+            &self,
+            $dim1: $dim1_ty,
+            $dim2: $dim2_ty,
+            $dim3: $dim3_ty,
+        ) -> Result<DashMap<u64, u64>, CommonError> {
+            let key = format!("{}_{}_{}_{}", $key, $dim1, $dim2, $dim3);
+            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, &key)
+        }
+
+        pub async fn $get_pre_fn(
+            &self,
+            $dim1: $dim1_ty,
+            $dim2: $dim2_ty,
+            $dim3: $dim3_ty,
+            num: u64,
+        ) -> Result<u64, CommonError> {
+            let key = format!("{}_{}_{}_{}", $key, $dim1, $dim2, $dim3);
+            Ok(
+                $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, &key)
+                    .await
+                    .map_or(num, |v| v),
+            )
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_dimensional_metric_4d {
+    ($record_fn:ident, $get_fn:ident, $get_pre_fn:ident, $key:expr,
+     $dim1:ident: $dim1_ty:ty, $dim2:ident: $dim2_ty:ty, $dim3:ident: $dim3_ty:ty, $dim4:ident: $dim4_ty:ty) => {
+        #[allow(clippy::too_many_arguments)]
+        pub fn $record_fn(
+            &self,
+            $dim1: $dim1_ty,
+            $dim2: $dim2_ty,
+            $dim3: $dim3_ty,
+            $dim4: $dim4_ty,
+            time: u64,
+            total: u64,
+            num: u64,
+        ) -> Result<(), CommonError> {
+            let key = format!("{}_{}_{}_{}_{}", $key, $dim1, $dim2, $dim3, $dim4);
+            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, &key, time, num)?;
+            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, &key, total)
+        }
+
+        pub fn $get_fn(
+            &self,
+            $dim1: $dim1_ty,
+            $dim2: $dim2_ty,
+            $dim3: $dim3_ty,
+            $dim4: $dim4_ty,
+        ) -> Result<DashMap<u64, u64>, CommonError> {
+            let key = format!("{}_{}_{}_{}_{}", $key, $dim1, $dim2, $dim3, $dim4);
+            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, &key)
+        }
+
+        pub async fn $get_pre_fn(
+            &self,
+            $dim1: $dim1_ty,
+            $dim2: $dim2_ty,
+            $dim3: $dim3_ty,
+            $dim4: $dim4_ty,
+            num: u64,
+        ) -> Result<u64, CommonError> {
+            let key = format!("{}_{}_{}_{}_{}", $key, $dim1, $dim2, $dim3, $dim4);
+            Ok(
+                $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, &key)
+                    .await
+                    .map_or(num, |v| v),
+            )
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;

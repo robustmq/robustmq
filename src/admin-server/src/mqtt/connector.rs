@@ -66,10 +66,10 @@ pub struct CreateConnectorReq {
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
     match connector_type {
         "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
-        | "file" => Ok(()),
+        | "file" | "elasticsearch" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_connector_type");
-            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb or file"));
+            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch or file"));
             Err(err)
         }
     }
@@ -104,6 +104,7 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::mqtt::bridge::{
+    config_elasticsearch::ElasticsearchConnectorConfig,
     config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
     config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
     config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
@@ -249,6 +250,10 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         ConnectorType::MySQL => {
             let mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
             mysql_config.validate()?;
+        }
+        ConnectorType::Elasticsearch => {
+            let es_config: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
+            es_config.validate()?;
         }
     }
     Ok(())
