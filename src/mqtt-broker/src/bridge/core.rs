@@ -28,7 +28,7 @@ use metadata_struct::{
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 use super::{
     elasticsearch::start_elasticsearch_connector,
@@ -58,6 +58,7 @@ pub struct BridgePluginThread {
     pub send_success_total: u64,
     pub send_fail_total: u64,
     pub stop_send: broadcast::Sender<bool>,
+    pub last_msg: Option<String>,
 }
 
 #[async_trait]
@@ -188,25 +189,64 @@ async fn check_connector(
     client_pool: &Arc<ClientPool>,
 ) {
     let config = broker_config();
+    let current_broker_id = config.broker_id;
+
+    let all_connectors = connector_manager.get_all_connector();
+    let all_threads = connector_manager.get_all_connector_thread();
+
+    debug!(
+        "Checking connectors: current_broker_id={}, total_connectors={}, running_threads={}",
+        current_broker_id,
+        all_connectors.len(),
+        all_threads.len()
+    );
+
+    let mut started_count = 0;
+    let mut skipped_count = 0;
+    let mut stopped_count = 0;
 
     // Start connector thread
-    for raw in connector_manager.get_all_connector() {
+    for raw in all_connectors {
+        // Skip if broker_id is not assigned
         if raw.broker_id.is_none() {
+            debug!(
+                "Skipping connector '{}': broker_id not assigned (status: {:?})",
+                raw.connector_name, raw.status
+            );
+            skipped_count += 1;
             continue;
         }
 
+        // Skip if not assigned to current broker
         if let Some(broker_id) = raw.broker_id {
-            if broker_id != config.broker_id {
+            if broker_id != current_broker_id {
+                debug!(
+                    "Skipping connector '{}': assigned to broker {} (current: {})",
+                    raw.connector_name, broker_id, current_broker_id
+                );
+                skipped_count += 1;
                 continue;
             }
         }
 
+        // Skip if thread already running
         if connector_manager
             .get_connector_thread(&raw.connector_name)
             .is_some()
         {
+            debug!(
+                "Connector '{}' thread already running, skipping",
+                raw.connector_name
+            );
+            skipped_count += 1;
             continue;
         }
+
+        // Start new connector thread
+        info!(
+            "Starting connector '{}' (type: {:?}, topic: {}, broker_id: {})",
+            raw.connector_name, raw.connector_type, raw.topic_name, current_broker_id
+        );
 
         let (stop_send, _) = broadcast::channel::<bool>(1);
         let thread = BridgePluginThread {
@@ -215,6 +255,7 @@ async fn check_connector(
             send_fail_total: 0,
             send_success_total: 0,
             stop_send,
+            last_msg: None,
         };
 
         start_thread(
@@ -223,36 +264,85 @@ async fn check_connector(
             raw.clone(),
             thread,
         );
+        started_count += 1;
     }
 
     // Gc connector thread
-    for raw in connector_manager.get_all_connector_thread() {
-        let is_stop_thread =
-            if let Some(connecttor) = connector_manager.get_connector(&raw.connector_name) {
-                if let Some(broker_id) = connecttor.broker_id {
-                    broker_id != config.broker_id
+    for raw in all_threads {
+        let (is_stop_thread, stop_reason) =
+            if let Some(connector) = connector_manager.get_connector(&raw.connector_name) {
+                if let Some(broker_id) = connector.broker_id {
+                    if broker_id != current_broker_id {
+                        (
+                            true,
+                            format!(
+                                "broker reassigned from {} to {}",
+                                current_broker_id, broker_id
+                            ),
+                        )
+                    } else {
+                        (false, String::new())
+                    }
                 } else {
-                    true
+                    (true, "broker_id is None".to_string())
                 }
             } else {
-                true
+                (
+                    true,
+                    "connector not found in manager, possibly deleted".to_string(),
+                )
             };
 
         if is_stop_thread {
-            if let Err(e) = stop_thread(raw.clone()) {
-                error!(
-                    "Stopping connector {} Thread failed with error message: {}",
-                    raw.connector_name, e
-                );
-            }
-            if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
-                connector.status = MQTTStatus::Idle;
-                let storage = ConnectorStorage::new(client_pool.clone());
-                if let Err(e) = storage.update_connector(connector).await {
-                    error!("update connector fail,error:{}", e);
+            info!(
+                "Stopping connector '{}' thread: {}",
+                raw.connector_name, stop_reason
+            );
+
+            match stop_thread(raw.clone()) {
+                Ok(_) => {
+                    info!(
+                        "Successfully sent stop signal to connector '{}'",
+                        raw.connector_name
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to send stop signal to connector '{}': {}",
+                        raw.connector_name, e
+                    );
                 }
             }
+
+            connector_manager.remove_connector_thread(&raw.connector_name);
+
+            if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
+                let old_status = connector.status.clone();
+                connector.status = MQTTStatus::Idle;
+
+                info!(
+                    "Updating connector '{}' status: {:?} -> {:?}",
+                    raw.connector_name, old_status, connector.status
+                );
+
+                let storage = ConnectorStorage::new(client_pool.clone());
+                if let Err(e) = storage.update_connector(connector).await {
+                    error!(
+                        "Failed to update connector '{}' status to Idle: {}",
+                        raw.connector_name, e
+                    );
+                }
+            }
+
+            stopped_count += 1;
         }
+    }
+
+    if started_count > 0 || stopped_count > 0 {
+        debug!(
+            "Connector check completed: started={}, stopped={}, skipped={}",
+            started_count, stopped_count, skipped_count
+        );
     }
 }
 
@@ -262,7 +352,15 @@ fn start_thread(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    match connector.connector_type {
+    let connector_name = connector.connector_name.clone();
+    let connector_type = connector.connector_type.clone();
+
+    debug!(
+        "Dispatching connector '{}' to type-specific handler: {:?}",
+        connector_name, connector_type
+    );
+
+    match connector_type {
         ConnectorType::LocalFile => {
             start_local_file_connector(connector_manager, message_storage, connector, thread);
         }
@@ -294,6 +392,10 @@ fn start_thread(
 }
 
 fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
+    debug!(
+        "Sending stop signal to connector '{}' thread",
+        thread.connector_name
+    );
     thread.stop_send.send(true)?;
     Ok(())
 }
@@ -354,6 +456,7 @@ mod tests {
             send_fail_total: 0,
             send_success_total: 0,
             stop_send: stop_send.clone(),
+            last_msg: None,
         };
 
         assert_eq!(thread.connector_name, "test_connector");
@@ -414,6 +517,7 @@ mod tests {
             send_fail_total: 0,
             send_success_total: 0,
             stop_send: stop_send.clone(),
+            last_msg: None,
         };
 
         assert!(stop_thread(thread).is_ok());

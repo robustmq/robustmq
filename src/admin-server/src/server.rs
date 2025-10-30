@@ -19,7 +19,7 @@ use crate::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
         client::client_list,
-        connector::{connector_create, connector_delete, connector_list},
+        connector::{connector_create, connector_delete, connector_detail, connector_list},
         monitor::monitor_data,
         overview::overview,
         pub_sub::{read, send},
@@ -162,6 +162,7 @@ impl AdminServer {
             // connector
             .route(MQTT_CONNECTOR_LIST_PATH, post(connector_list))
             .route(MQTT_CONNECTOR_CREATE_PATH, post(connector_create))
+            .route(MQTT_CONNECTOR_DETAIL_PATH, post(connector_detail))
             .route(MQTT_CONNECTOR_DELETE_PATH, post(connector_delete))
             // schema
             .route(MQTT_SCHEMA_LIST_PATH, post(schema_list))
