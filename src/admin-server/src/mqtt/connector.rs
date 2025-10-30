@@ -86,6 +86,9 @@ pub struct CreateConnectorReq {
     #[validate(length(min = 1, max = 4096, message = "Config length must be between 1-4096"))]
     pub config: String,
 
+    #[validate(length(min = 1, max = 4096, message = "Config length must be between 1-4096"))]
+    pub failure_strategy: String,
+
     #[validate(length(
         min = 1,
         max = 256,
@@ -234,6 +237,7 @@ async fn connector_create_inner(
         connector_name: params.connector_name.clone(),
         connector_type,
         config: params.config.clone(),
+        failure_strategy: params.failure_strategy.clone(),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
         broker_id: None,

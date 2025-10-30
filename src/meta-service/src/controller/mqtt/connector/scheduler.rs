@@ -399,6 +399,7 @@ mod tests {
                         connector_type: ConnectorType::LocalFile,
                         topic_name: "test_topic".to_string(),
                         config: "{}".to_string(),
+                        failure_strategy: "{}".to_string(),
                         status: MQTTStatus::Idle,
                         broker_id: Some(broker_id),
                         create_time: now_second(),
@@ -487,6 +488,7 @@ mod tests {
                     connector_type: ConnectorType::LocalFile,
                     topic_name: "test_topic".to_string(),
                     config: "{}".to_string(),
+                    failure_strategy: "{}".to_string(),
                     status: MQTTStatus::Idle,
                     broker_id: None, // Unassigned - should be ignored
                     create_time: now_second(),

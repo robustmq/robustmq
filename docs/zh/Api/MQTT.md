@@ -1152,7 +1152,8 @@
   "connector_name": "new_connector",   // 连接器名称
   "connector_type": "kafka",           // 连接器类型
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // 配置信息（JSON字符串）
-  "topic_name": "sensor/+"               // 关联的主题ID
+  "topic_name": "sensor/+",            // 关联的主题ID
+  "failure_strategy": "{\"Discard\":{}}" // 可选，失败处理策略（JSON字符串），默认为 Discard
 }
 ```
 
@@ -1161,6 +1162,7 @@
   - `connector_type`: 长度必须在 1-50 个字符之间，必须是 `kafka`、`pulsar`、`rabbitmq`、`greptime`、`postgres`、`mysql`、`mongodb`、`file` 或 `elasticsearch`
   - `config`: 长度必须在 1-4096 个字符之间
   - `topic_name`: 长度必须在 1-256 个字符之间
+  - `failure_strategy`: 可选，长度必须在 1-1024 个字符之间（JSON字符串）
 
 **连接器类型和配置示例**：
 
@@ -1262,6 +1264,53 @@
 - `ca_cert_path`: 可选，CA 证书路径
 - `timeout_secs`: 可选，请求超时时间（秒），范围 1-300，默认值 30
 - `max_retries`: 可选，最大重试次数，最大值 10，默认值 3
+
+**失败处理策略 (`failure_strategy`)**：
+
+`failure_strategy` 参数定义了连接器如何处理消息投递失败的情况。这是一个可选的 JSON 字符串，支持以下几种策略：
+
+**1. 丢弃策略** (默认值):
+```json
+{
+  "failure_strategy": "{\"Discard\":{}}"
+}
+```
+- 立即丢弃失败的消息
+- 不进行任何重试
+- 适用于允许消息丢失的场景
+
+**2. 重试后丢弃策略**:
+```json
+{
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":3,\"wait_time_ms\":1000}}"
+}
+```
+- 在指定次数内重试投递，超过次数后丢弃
+- `retry_total_times`: 重试总次数（必填）
+- `wait_time_ms`: 重试间隔时间（毫秒，必填）
+- 适用于处理临时网络问题的场景
+
+**3. 死信队列策略**:
+```json
+{
+  "failure_strategy": "{\"DeadMessageQueue\":{\"topic_name\":\"dead_letter_queue\"}}"
+}
+```
+- 将失败的消息发送到指定的死信队列主题
+- `topic_name`: 死信队列主题名称（必填）
+- 适用于需要对失败消息进行恢复和分析的场景
+- 注意：此功能当前正在开发中
+
+**带失败策略的示例**:
+```json
+{
+  "connector_name": "kafka_bridge",
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+  "topic_name": "sensor/+",
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
+}
+```
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -1764,6 +1813,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/detail \
 
 ### 创建连接器
 ```bash
+# 不带失败策略创建连接器（使用默认的 Discard 策略）
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -1771,6 +1821,17 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
+  }'
+
+# 带重试策略创建连接器
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_retry",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+    "topic_name": "sensor/+",
+    "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
   }'
 ```
 

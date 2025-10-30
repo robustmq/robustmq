@@ -1152,7 +1152,8 @@ or
   "connector_name": "new_connector",   // Connector name
   "connector_type": "kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
-  "topic_name": "sensor/+"               // Associated topic ID
+  "topic_name": "sensor/+",            // Associated topic ID
+  "failure_strategy": "{\"Discard\":{}}" // Optional, failure handling strategy (JSON string), defaults to Discard
 }
 ```
 
@@ -1161,6 +1162,7 @@ or
   - `connector_type`: Length must be between 1-50 characters, must be `kafka`, `pulsar`, `rabbitmq`, `greptime`, `postgres`, `mysql`, `mongodb`, `file`, or `elasticsearch`
   - `config`: Length must be between 1-4096 characters
   - `topic_name`: Length must be between 1-256 characters
+  - `failure_strategy`: Optional, length must be between 1-1024 characters (JSON string)
 
 **Connector Types and Configuration Examples**：
 
@@ -1262,6 +1264,53 @@ Configuration parameters:
 - `ca_cert_path`: Optional, CA certificate path
 - `timeout_secs`: Optional, request timeout in seconds, range 1-300, default 30
 - `max_retries`: Optional, maximum retry attempts, max 10, default 3
+
+**Failure Handling Strategy (`failure_strategy`)**:
+
+The `failure_strategy` parameter defines how the connector handles message delivery failures. It's an optional JSON string with the following strategies:
+
+**1. Discard Strategy** (Default):
+```json
+{
+  "failure_strategy": "{\"Discard\":{}}"
+}
+```
+- Immediately discards failed messages
+- No retry attempts
+- Suitable for scenarios where message loss is acceptable
+
+**2. Discard After Retry Strategy**:
+```json
+{
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":3,\"wait_time_ms\":1000}}"
+}
+```
+- Retries delivery for specified number of times before discarding
+- `retry_total_times`: Total number of retry attempts (required)
+- `wait_time_ms`: Wait time in milliseconds between retries (required)
+- Suitable for handling temporary network issues
+
+**3. Dead Message Queue Strategy**:
+```json
+{
+  "failure_strategy": "{\"DeadMessageQueue\":{\"topic_name\":\"dead_letter_queue\"}}"
+}
+```
+- Sends failed messages to a designated dead letter queue topic
+- `topic_name`: Name of the dead letter queue topic (required)
+- Suitable for scenarios requiring message recovery and analysis
+- Note: This feature is currently under development
+
+**Example with failure strategy**:
+```json
+{
+  "connector_name": "kafka_bridge",
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+  "topic_name": "sensor/+",
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
+}
+```
 
 - **Response**: Returns "Created successfully!" on success
 
@@ -1764,6 +1813,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/detail \
 
 ### Create Connector
 ```bash
+# Create connector without failure strategy (uses default Discard)
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -1771,6 +1821,17 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
+  }'
+
+# Create connector with retry strategy
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_retry",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+    "topic_name": "sensor/+",
+    "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
   }'
 ```
 

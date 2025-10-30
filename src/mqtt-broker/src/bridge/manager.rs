@@ -137,6 +137,7 @@ mod tests {
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
+            failure_strategy: "{}".to_string(),
             status: MQTTStatus::Running,
             broker_id: Some(1),
             cluster_name: "test_cluster".to_string(),

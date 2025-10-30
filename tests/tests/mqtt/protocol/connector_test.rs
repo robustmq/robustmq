@@ -50,6 +50,7 @@ mod tests {
             connector_type: "file".to_string(),
             topic_name: topic.to_string(),
             config: serde_json::to_string(&config).unwrap(),
+            failure_strategy: "{}".to_string(),
         };
 
         let res = admin_client.create_connector(&connector).await;

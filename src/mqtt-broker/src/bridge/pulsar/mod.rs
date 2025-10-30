@@ -15,8 +15,11 @@
 use std::sync::Arc;
 
 use crate::{
-    bridge::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
-    bridge::manager::ConnectorManager,
+    bridge::{
+        core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+        failure::FailureHandlingStrategy,
+        manager::ConnectorManager,
+    },
     common::types::ResultMqttBrokerError,
 };
 use axum::async_trait;
@@ -82,6 +85,16 @@ pub fn start_pulsar_connector(
             }
         };
 
+        let failure_strategy = match serde_json::from_str::<FailureHandlingStrategy>(
+            &connector.failure_strategy,
+        ) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Failed to parse FailureHandlingStrategy file with error message :{}, configuration contents: {}", e, connector.failure_strategy);
+                return;
+            }
+        };
+
         let bridge = PulsarBridgePlugin::new(pulsar_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -95,6 +108,7 @@ pub fn start_pulsar_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
+                strategy: failure_strategy,
             },
             stop_recv,
         )

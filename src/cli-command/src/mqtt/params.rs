@@ -607,6 +607,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
                 connector_name: arg.connector_name,
                 connector_type: arg.connector_type,
                 config: arg.config,
+                failure_strategy: "{}".to_string(),
                 topic_name: arg.topic_name,
             })
         }

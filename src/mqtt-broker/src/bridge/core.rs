@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{common::types::ResultMqttBrokerError, storage::connector::ConnectorStorage};
+use crate::{
+    bridge::failure::{failure_message_process, FailureHandlingStrategy},
+    common::types::ResultMqttBrokerError,
+    storage::connector::ConnectorStorage,
+};
 use axum::async_trait;
 
 use common_base::{
@@ -49,6 +53,7 @@ use crate::storage::message::MessageStorage;
 pub struct BridgePluginReadConfig {
     pub topic_name: String,
     pub record_num: u64,
+    pub strategy: FailureHandlingStrategy,
 }
 
 #[derive(Clone)]
@@ -124,35 +129,43 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
                         let start_time = now_mills();
                         let message_count = data.len() as u64;
+                        let mut retry_times = 0;
+                        loop{
+                            match sink.send_batch(&data, &mut resource).await {
+                                Ok(_) => {
+                                    message_storage.commit_group_offset(
+                                        &group_name,
+                                        &config.topic_name,
+                                        offset + message_count
+                                    ).await?;
 
-                        match sink.send_batch(&data, &mut resource).await {
-                            Ok(_) => {
-                                message_storage.commit_group_offset(
-                                    &group_name,
-                                    &config.topic_name,
-                                    offset + message_count
-                                ).await?;
-
-                                update_last_active(
-                                    connector_manager,
-                                    &connector_name,
-                                    start_time,
-                                    message_count,
-                                    true
-                                );
-                            },
-                            Err(e) => {
-                                update_last_active(
-                                    connector_manager,
-                                    &connector_name,
-                                    start_time,
-                                    message_count,
-                                    false
-                                );
-                                error!("Connector {} failed to send batch: {}", connector_name, e);
-                                sleep(Duration::from_millis(100)).await;
+                                    update_last_active(
+                                        connector_manager,
+                                        &connector_name,
+                                        start_time,
+                                        message_count,
+                                        true
+                                    );
+                                    break;
+                                },
+                                Err(e) => {
+                                    update_last_active(
+                                        connector_manager,
+                                        &connector_name,
+                                        start_time,
+                                        message_count,
+                                        false
+                                    );
+                                    error!("Connector {} failed to send batch: {}", connector_name, e);
+                                    if failure_message_process(config.strategy.clone(),retry_times).await{
+                                        sleep(Duration::from_millis(100)).await;
+                                        break
+                                    }
+                                    retry_times +=1;
+                                }
                             }
                         }
+
                     },
                     Err(e) => {
                         update_last_active(connector_manager, &connector_name, now_mills(), 0, false);
@@ -428,6 +441,7 @@ mod tests {
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
+            failure_strategy: "{}".to_string(),
             status: MQTTStatus::Running,
             broker_id: Some(1),
             cluster_name: "test_cluster".to_string(),
@@ -441,6 +455,7 @@ mod tests {
         let config = BridgePluginReadConfig {
             topic_name: "test_topic".to_string(),
             record_num: 100,
+            strategy: FailureHandlingStrategy::Discard,
         };
 
         assert_eq!(config.topic_name, "test_topic");
