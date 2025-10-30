@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    counter_metric_inc_by, histogram_metric_observe, register_counter_metric,
+    counter_metric_get, counter_metric_inc_by, histogram_metric_observe, register_counter_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
 use prometheus_client::encoding::EncodeLabelSet;
@@ -25,6 +25,14 @@ pub struct ConnectorLabel {
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct MessageLabel {}
+
+macro_rules! get_counter_metric_with_label {
+    ($metric:ident, $label_var:ident) => {{
+        let mut result = 0u64;
+        counter_metric_get!($metric, $label_var, result);
+        result
+    }};
+}
 
 register_counter_metric!(
     MQTT_CONNECTOR_MESSAGES_SENT_SUCCESS,
@@ -102,6 +110,30 @@ pub fn record_connector_send_duration(connector_name: String, duration_ms: f64) 
         duration_ms,
         total_label
     );
+}
+
+pub fn get_connector_messages_sent_success(connector_name: &str) -> u64 {
+    let label = ConnectorLabel {
+        connector_name: connector_name.to_string(),
+    };
+    get_counter_metric_with_label!(MQTT_CONNECTOR_MESSAGES_SENT_SUCCESS, label)
+}
+
+pub fn get_connector_messages_sent_failure(connector_name: &str) -> u64 {
+    let label = ConnectorLabel {
+        connector_name: connector_name.to_string(),
+    };
+    get_counter_metric_with_label!(MQTT_CONNECTOR_MESSAGES_SENT_FAILURE, label)
+}
+
+pub fn get_connector_messages_sent_success_total() -> u64 {
+    let label = MessageLabel {};
+    get_counter_metric_with_label!(MQTT_CONNECTOR_MESSAGES_SENT_SUCCESS_TOTAL, label)
+}
+
+pub fn get_connector_messages_sent_failure_total() -> u64 {
+    let label = MessageLabel {};
+    get_counter_metric_with_label!(MQTT_CONNECTOR_MESSAGES_SENT_FAILURE_TOTAL, label)
 }
 
 #[cfg(test)]

@@ -12,6 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::{
+    error::ResultCommonError,
+    http_response::{error_response, success_response},
+    tools::now_second,
+    utils::time_util::timestamp_to_local_datetime,
+};
+use metadata_struct::mqtt::bridge::{
+    config_elasticsearch::ElasticsearchConnectorConfig,
+    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
+    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
+};
+use mqtt_broker::storage::connector::ConnectorStorage;
+use std::{str::FromStr, sync::Arc};
+
 use crate::{
     extractor::ValidatedJson,
     state::HttpState,
@@ -33,6 +50,19 @@ pub struct ConnectorListReq {
     pub filter_field: Option<String>,
     pub filter_values: Option<Vec<String>>,
     pub exact_match: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConnectorDetailReq {
+    pub connector_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConnectorDetailResp {
+    pub last_send_time: u64,
+    pub send_success_total: u64,
+    pub send_fail_total: u64,
+    pub last_msg: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
@@ -66,10 +96,10 @@ pub struct CreateConnectorReq {
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
     match connector_type {
         "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
-        | "file" => Ok(()),
+        | "file" | "elasticsearch" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_connector_type");
-            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb or file"));
+            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch or file"));
             Err(err)
         }
     }
@@ -96,22 +126,6 @@ pub struct ConnectorListRow {
     pub create_time: String,
     pub update_time: String,
 }
-
-use common_base::{
-    error::ResultCommonError,
-    http_response::{error_response, success_response},
-    tools::now_second,
-    utils::time_util::timestamp_to_local_datetime,
-};
-use metadata_struct::mqtt::bridge::{
-    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
-    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
-    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
-};
-use mqtt_broker::storage::connector::ConnectorStorage;
-use std::{str::FromStr, sync::Arc};
 
 pub async fn connector_list(
     State(state): State<Arc<HttpState>>,
@@ -250,6 +264,47 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
             let mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
             mysql_config.validate()?;
         }
+        ConnectorType::Elasticsearch => {
+            let es_config: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
+            es_config.validate()?;
+        }
     }
     Ok(())
+}
+
+pub async fn connector_detail(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<ConnectorDetailReq>,
+) -> String {
+    if state
+        .mqtt_context
+        .connector_manager
+        .get_connector(&params.connector_name)
+        .is_none()
+    {
+        return error_response(format!(
+            "Connector {} does not exist.",
+            params.connector_name
+        ));
+    }
+
+    match state
+        .mqtt_context
+        .connector_manager
+        .get_connector_thread(&params.connector_name)
+    {
+        Some(data) => {
+            let req = ConnectorDetailResp {
+                last_msg: data.last_msg,
+                last_send_time: data.last_send_time,
+                send_fail_total: data.send_fail_total,
+                send_success_total: data.send_success_total,
+            };
+            success_response(req)
+        }
+        None => error_response(format!(
+            "Connector thread {} does not exist.",
+            params.connector_name
+        )),
+    }
 }

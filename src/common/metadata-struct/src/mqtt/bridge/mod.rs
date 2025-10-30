@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod config_elasticsearch;
 pub mod config_greptimedb;
 pub mod config_kafka;
 pub mod config_local_file;

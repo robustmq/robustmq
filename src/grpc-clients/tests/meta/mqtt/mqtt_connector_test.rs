@@ -62,6 +62,7 @@ mod test {
             connector_type: ConnectorType::LocalFile,
             config: serde_json::to_string(&LocalFileConnectorConfig {
                 local_file_path: "/tmp/test".to_string(),
+                ..Default::default()
             })
             .unwrap(),
             topic_name: "test_topic-1".to_string(),

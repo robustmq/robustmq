@@ -31,6 +31,7 @@ pub struct MonitorDataReq {
     pub topic_name: Option<String>,
     pub client_id: Option<String>,
     pub path: Option<String>,
+    pub connector_name: Option<String>,
 }
 
 pub enum MonitorDataType {
@@ -48,6 +49,10 @@ pub enum MonitorDataType {
     SubscribeTopicSendFailureNum,
     SessionInNum,
     SessionOutNum,
+    ConnectorSendSuccessTotal,
+    ConnectorSendFailureTotal,
+    ConnectorSendSuccess,
+    ConnectorSendFailure,
 }
 
 impl FromStr for MonitorDataType {
@@ -69,6 +74,10 @@ impl FromStr for MonitorDataType {
             "subscribe_topic_send_failure_num" => Ok(MonitorDataType::SubscribeTopicSendFailureNum),
             "session_in_num" => Ok(MonitorDataType::SessionInNum),
             "session_out_num" => Ok(MonitorDataType::SessionOutNum),
+            "connector_send_success_total" => Ok(MonitorDataType::ConnectorSendSuccessTotal),
+            "connector_send_failure_total" => Ok(MonitorDataType::ConnectorSendFailureTotal),
+            "connector_send_success" => Ok(MonitorDataType::ConnectorSendSuccess),
+            "connector_send_failure" => Ok(MonitorDataType::ConnectorSendFailure),
             _ => Err(format!("Unknown monitor data type: {}", s)),
         }
     }
@@ -210,6 +219,38 @@ pub fn get_monitor_data(
                     .mqtt_context
                     .metrics_manager
                     .get_session_out_num(&params.client_id.unwrap())
+            } else {
+                Ok(DashMap::new())
+            }
+        }
+
+        MonitorDataType::ConnectorSendSuccessTotal => state
+            .mqtt_context
+            .metrics_manager
+            .get_connector_success_total_num(),
+
+        MonitorDataType::ConnectorSendFailureTotal => state
+            .mqtt_context
+            .metrics_manager
+            .get_connector_failure_total_num(),
+
+        MonitorDataType::ConnectorSendSuccess => {
+            if let Some(connector_name) = params.connector_name {
+                state
+                    .mqtt_context
+                    .metrics_manager
+                    .get_connector_success_num(&connector_name)
+            } else {
+                Ok(DashMap::new())
+            }
+        }
+
+        MonitorDataType::ConnectorSendFailure => {
+            if let Some(connector_name) = params.connector_name {
+                state
+                    .mqtt_context
+                    .metrics_manager
+                    .get_connector_failure_num(&connector_name)
             } else {
                 Ok(DashMap::new())
             }

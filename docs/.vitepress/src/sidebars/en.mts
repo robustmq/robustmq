@@ -104,6 +104,7 @@ export const sidebar = [
                     { text: "PostgreSQL", link: "/en/RobustMQ-MQTT/Bridge/PostgreSQL" },
                     { text: "MySQL", link: "/en/RobustMQ-MQTT/Bridge/MySQL" },
                     { text: "MongoDB", link: "/en/RobustMQ-MQTT/Bridge/MongoDB" },
+                    { text: "Elasticsearch", link: "/en/RobustMQ-MQTT/Bridge/Elasticsearch" },
                 ]
             },
       { text: "MQTTX Testing Guide", link: "/en/RobustMQ-MQTT/MQTTX-Guide" },

@@ -153,6 +153,7 @@ mod tests {
             send_fail_total: 0,
             send_success_total: 0,
             stop_send,
+            last_msg: None,
         }
     }
 

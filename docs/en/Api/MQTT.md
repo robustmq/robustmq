@@ -46,10 +46,35 @@
     "share_subscribe_resub_num": 200,
     "exclusive_subscribe_thread_num": 8,
     "share_subscribe_leader_thread_num": 4,
-    "share_subscribe_follower_thread_num": 4
+    "share_subscribe_follower_thread_num": 4,
+    "connector_num": 5,
+    "connector_thread_num": 3
   }
 }
 ```
+
+**Field Descriptions**:
+- `node_list`: Cluster node list
+- `cluster_name`: Cluster name
+- `message_in_rate`: Message receive rate (messages/second)
+- `message_out_rate`: Message send rate (messages/second)
+- `connection_num`: Total number of connections
+- `session_num`: Total number of sessions
+- `topic_num`: Total number of topics
+- `placement_status`: Placement Center status (Leader/Follower)
+- `tcp_connection_num`: Number of TCP connections
+- `tls_connection_num`: Number of TLS connections
+- `websocket_connection_num`: Number of WebSocket connections
+- `quic_connection_num`: Number of QUIC connections
+- `subscribe_num`: Total number of subscriptions
+- `exclusive_subscribe_num`: Number of exclusive subscriptions
+- `share_subscribe_leader_num`: Number of shared subscription leaders
+- `share_subscribe_resub_num`: Number of shared subscription resubs
+- `exclusive_subscribe_thread_num`: Number of exclusive subscription threads
+- `share_subscribe_leader_thread_num`: Number of shared subscription leader threads
+- `share_subscribe_follower_thread_num`: Number of shared subscription follower threads
+- `connector_num`: Total number of connectors
+- `connector_thread_num`: Number of active connector threads
 
 #### 1.2 Monitor Data Query
 - **Endpoint**: `POST /api/mqtt/monitor/data`
@@ -60,7 +85,8 @@
   "data_type": "connection_num",      // Required, monitoring data type
   "topic_name": "sensor/temperature", // Optional, required for certain types
   "client_id": "client001",           // Optional, required for certain types
-  "path": "sensor/+"                  // Optional, required for certain types
+  "path": "sensor/+",                 // Optional, required for certain types
+  "connector_name": "kafka_conn_01"   // Optional, required for connector monitoring types
 }
 ```
 
@@ -89,6 +115,12 @@
 **Session-Level Monitoring Types** (requires `client_id`):
 - `session_in_num` - Number of messages received by session
 - `session_out_num` - Number of messages sent by session
+
+**Connector Monitoring Types**:
+- `connector_send_success_total` - Total number of successfully sent messages across all connectors (no additional parameters required)
+- `connector_send_failure_total` - Total number of failed sent messages across all connectors (no additional parameters required)
+- `connector_send_success` - Number of successfully sent messages for a specific connector (requires `connector_name`)
+- `connector_send_failure` - Number of failed sent messages for a specific connector (requires `connector_name`)
 
 - **Response Data Structure**:
 ```json
@@ -141,6 +173,7 @@ Query message count for a specific topic:
   - Subscription-level monitoring (`subscribe_send_success_num`, `subscribe_send_failure_num`): Must provide `client_id` and `path`
   - Subscription-topic-level monitoring (`subscribe_topic_send_success_num`, `subscribe_topic_send_failure_num`): Must provide `client_id`, `path` and `topic_name`
   - Session-level monitoring (`session_in_num`, `session_out_num`): Must provide `client_id`
+  - Connector-level monitoring (`connector_send_success`, `connector_send_failure`): Must provide `connector_name`
   - If required parameters are missing, an empty array will be returned
 - Returned data is naturally sorted by timestamp
 
@@ -1058,7 +1091,59 @@ Query message count for a specific topic:
 }
 ```
 
-#### 9.2 Create Connector
+#### 9.2 Connector Detail Query
+- **Endpoint**: `POST /api/mqtt/connector/detail`
+- **Description**: Query detailed runtime status of a specific connector
+- **Request Parameters**:
+```json
+{
+  "connector_name": "kafka_connector"  // Connector name
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "last_send_time": 1698765432,        // Last send timestamp (Unix timestamp, seconds)
+    "send_success_total": 10245,         // Total successful messages sent
+    "send_fail_total": 3,                // Total failed messages
+    "last_msg": "Batch sent successfully" // Last message description (may be null)
+  }
+}
+```
+
+- **Error Responses**:
+```json
+{
+  "code": 1,
+  "message": "Connector kafka_connector does not exist."
+}
+```
+
+or
+
+```json
+{
+  "code": 1,
+  "message": "Connector thread kafka_connector does not exist."
+}
+```
+
+- **Field Descriptions**:
+  - `last_send_time`: Timestamp (seconds) of the last message sent by the connector
+  - `send_success_total`: Total number of successfully sent messages since connector startup
+  - `send_fail_total`: Total number of failed messages since connector startup
+  - `last_msg`: Description of the last operation message, may be `null`
+
+- **Usage Notes**:
+  - The connector must exist and be currently running (with an active thread) to query details
+  - If the connector exists but is not running, an "thread does not exist" error will be returned
+  - Statistics data will be reset when the connector restarts
+
+#### 9.3 Create Connector
 - **Endpoint**: `POST /api/mqtt/connector/create`
 - **Description**: Create new connector
 - **Request Parameters**:
@@ -1073,7 +1158,7 @@ Query message count for a specific topic:
 
 - **Parameter Validation Rules**:
   - `connector_name`: Length must be between 1-128 characters
-  - `connector_type`: Length must be between 1-50 characters, must be `kafka`, `pulsar`, `rabbitmq`, `greptime`, `postgres`, `mysql`, `mongodb`, or `file`
+  - `connector_type`: Length must be between 1-50 characters, must be `kafka`, `pulsar`, `rabbitmq`, `greptime`, `postgres`, `mysql`, `mongodb`, `file`, or `elasticsearch`
   - `config`: Length must be between 1-4096 characters
   - `topic_name`: Length must be between 1-256 characters
 
@@ -1145,9 +1230,42 @@ Query message count for a specific topic:
 }
 ```
 
+**Local File Connector (with Rotation Strategy)**:
+```json
+{
+  "connector_type": "file",
+  "config": "{\"local_file_path\":\"/var/log/mqtt/messages.log\",\"rotation_strategy\":\"daily\"}"
+}
+```
+
+Configuration parameters:
+- `local_file_path`: Required, file path
+- `rotation_strategy`: Optional, file rotation strategy, values: `none` (default), `size`, `hourly`, `daily`
+- `max_size_gb`: Optional, maximum file size in GB, only effective when `rotation_strategy` is `size`, range 1-10, default 1
+
+**Elasticsearch Connector**:
+```json
+{
+  "connector_type": "elasticsearch",
+  "config": "{\"url\":\"http://localhost:9200\",\"index\":\"mqtt_messages\",\"auth_type\":\"basic\",\"username\":\"elastic\",\"password\":\"password123\"}"
+}
+```
+
+Configuration parameters:
+- `url`: Required, Elasticsearch server address
+- `index`: Required, index name
+- `auth_type`: Optional, authentication type, values: `none` (default), `basic`, `apikey`
+- `username`: Optional, username (required for Basic auth)
+- `password`: Optional, password (required for Basic auth)
+- `api_key`: Optional, API key (required for ApiKey auth)
+- `enable_tls`: Optional, enable TLS, default false
+- `ca_cert_path`: Optional, CA certificate path
+- `timeout_secs`: Optional, request timeout in seconds, range 1-300, default 30
+- `max_retries`: Optional, maximum retry attempts, max 10, default 3
+
 - **Response**: Returns "Created successfully!" on success
 
-#### 9.3 Delete Connector
+#### 9.4 Delete Connector
 - **Endpoint**: `POST /api/mqtt/connector/delete`
 - **Description**: Delete connector
 - **Request Parameters**:
@@ -1478,6 +1596,7 @@ Query message count for a specific topic:
 - `mysql`: MySQL relational database
 - `mongodb`: MongoDB NoSQL database
 - `file`: Local file storage
+- `elasticsearch`: Elasticsearch search engine
 
 ### Schema Type (schema_type)
 - `json`: JSON Schema
@@ -1556,6 +1675,36 @@ curl -X POST http://localhost:8080/api/mqtt/monitor/data \
     "data_type": "session_out_num",
     "client_id": "client001"
   }'
+
+# Query total successful messages sent by all connectors
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_success_total"
+  }'
+
+# Query total failed messages sent by all connectors
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_failure_total"
+  }'
+
+# Query successful messages sent by a specific connector
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_success",
+    "connector_name": "kafka_connector_01"
+  }'
+
+# Query failed messages sent by a specific connector
+curl -X POST http://localhost:8080/api/mqtt/monitor/data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_type": "connector_send_failure",
+    "connector_name": "kafka_connector_01"
+  }'
 ```
 
 ### Query Client List
@@ -1601,6 +1750,15 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
     "ip": "192.168.1.100",
     "action": "Publish",
     "permission": "Allow"
+  }'
+```
+
+### Query Connector Detail
+```bash
+curl -X POST http://localhost:8080/api/mqtt/connector/detail \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge"
   }'
 ```
 

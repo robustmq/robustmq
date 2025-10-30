@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::get_max_key_value;
 use crate::{
-    metrics_cache::base::{
-        delete_by_prefix, get_metric_data, get_pre_num, record_num, record_pre_num,
-    },
+    define_cumulative_metric, define_dimensional_metric_1d, define_dimensional_metric_3d,
+    define_dimensional_metric_4d, define_simple_metric, metrics_cache::base::delete_by_prefix,
     rocksdb::RocksDBEngine,
 };
 use common_base::error::{common::CommonError, ResultCommonError};
@@ -36,6 +34,10 @@ pub const METRICS_TYPE_KEY_SUBSCRIBE_SEND: &str = "subscribe_send";
 pub const METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND: &str = "subscribe_topic_send";
 pub const METRICS_TYPE_KEY_SESSION_IN_NUM: &str = "session_in";
 pub const METRICS_TYPE_KEY_SESSION_OUT_NUM: &str = "session_out";
+pub const METRICS_TYPE_KEY_CONNECTOR_SUCCESS_NUM: &str = "connector_success";
+pub const METRICS_TYPE_KEY_CONNECTOR_FAILURE_NUM: &str = "connector_failure";
+pub const METRICS_TYPE_KEY_CONNECTOR_SUCCESS_TOTAL: &str = "connector_success_total";
+pub const METRICS_TYPE_KEY_CONNECTOR_FAILURE_TOTAL: &str = "connector_failure_total";
 
 #[derive(Clone)]
 pub struct MQTTMetricsCache {
@@ -47,342 +49,126 @@ impl MQTTMetricsCache {
         Self { rocksdb_engine }
     }
 
-    // Connection num
-    pub fn record_connection_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
-        record_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_CONNECTION_NUM,
-            time,
-            num,
-        )
-    }
+    define_simple_metric!(
+        record_connection_num,
+        get_connection_num,
+        METRICS_TYPE_KEY_CONNECTION_NUM
+    );
+    define_simple_metric!(record_topic_num, get_topic_num, METRICS_TYPE_KEY_TOPIC_NUM);
+    define_simple_metric!(
+        record_subscribe_num,
+        get_subscribe_num,
+        METRICS_TYPE_KEY_SUBSCRIBE_NUM
+    );
 
-    pub fn get_connection_num(&self) -> Result<DashMap<u64, u64>, CommonError> {
-        get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_CONNECTION_NUM)
-    }
+    define_cumulative_metric!(
+        record_message_in_num,
+        get_message_in_num,
+        get_pre_message_in,
+        get_message_in_rate,
+        METRICS_TYPE_KEY_MESSAGE_IN_NUM
+    );
 
-    // Topic num
-    pub fn record_topic_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
-        record_num(&self.rocksdb_engine, METRICS_TYPE_KEY_TOPIC_NUM, time, num)
-    }
+    define_cumulative_metric!(
+        record_message_out_num,
+        get_message_out_num,
+        get_pre_message_out,
+        get_message_out_rate,
+        METRICS_TYPE_KEY_MESSAGE_OUT_NUM
+    );
 
-    pub fn get_topic_num(&self) -> Result<DashMap<u64, u64>, CommonError> {
-        get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_TOPIC_NUM)
-    }
+    define_cumulative_metric!(
+        record_message_drop_num,
+        get_message_drop_num,
+        get_pre_message_drop,
+        get_message_drop_rate,
+        METRICS_TYPE_KEY_MESSAGE_DROP_NUM
+    );
 
-    // topic in
-    pub fn record_topic_in_num(
-        &self,
-        topic: &str,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_IN_NUM, topic);
-        record_num(&self.rocksdb_engine, &key, time, num)?;
-        record_pre_num(&self.rocksdb_engine, &key, total)
-    }
+    define_dimensional_metric_1d!(
+        record_topic_in_num,
+        get_topic_in_num,
+        get_topic_in_pre_total,
+        METRICS_TYPE_KEY_TOPIC_IN_NUM,
+        topic: &str
+    );
 
-    pub fn get_topic_in_num(&self, topic: &str) -> Result<DashMap<u64, u64>, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_IN_NUM, topic);
-        get_metric_data(&self.rocksdb_engine, &key)
-    }
+    define_dimensional_metric_1d!(
+        record_topic_out_num,
+        get_topic_out_num,
+        get_topic_out_pre_total,
+        METRICS_TYPE_KEY_TOPIC_OUT_NUM,
+        topic: &str
+    );
 
-    pub async fn get_topic_in_pre_total(&self, topic: &str, num: u64) -> Result<u64, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_IN_NUM, topic);
-        Ok(get_pre_num(&self.rocksdb_engine, &key)
-            .await
-            .map_or(num, |v| v))
-    }
+    define_dimensional_metric_1d!(
+        record_session_in_num,
+        get_session_in_num,
+        get_session_in_pre_total,
+        METRICS_TYPE_KEY_SESSION_IN_NUM,
+        client_id: &str
+    );
 
-    // topic out
-    pub fn record_topic_out_num(
-        &self,
-        topic: &str,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_OUT_NUM, topic);
-        record_num(&self.rocksdb_engine, &key, time, num)?;
-        record_pre_num(&self.rocksdb_engine, &key, total)
-    }
+    define_dimensional_metric_1d!(
+        record_session_out_num,
+        get_session_out_num,
+        get_session_out_pre_total,
+        METRICS_TYPE_KEY_SESSION_OUT_NUM,
+        client_id: &str
+    );
 
-    pub fn get_topic_out_num(&self, topic: &str) -> Result<DashMap<u64, u64>, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_OUT_NUM, topic);
-        get_metric_data(&self.rocksdb_engine, &key)
-    }
-
-    pub async fn get_topic_out_pre_total(&self, topic: &str, num: u64) -> Result<u64, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_OUT_NUM, topic);
-        Ok(get_pre_num(&self.rocksdb_engine, &key)
-            .await
-            .map_or(num, |v| v))
-    }
-
-    // Subscribe num
-    pub fn record_subscribe_num(&self, time: u64, num: u64) -> Result<(), CommonError> {
-        record_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_SUBSCRIBE_NUM,
-            time,
-            num,
-        )
-    }
-
-    pub fn get_subscribe_num(&self) -> Result<DashMap<u64, u64>, CommonError> {
-        get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_SUBSCRIBE_NUM)
-    }
-
-    // Subscribe send num
-    pub fn record_subscribe_send_num(
-        &self,
+    define_dimensional_metric_3d!(
+        record_subscribe_send_num,
+        get_subscribe_send_num,
+        get_subscribe_send_pre_total,
+        METRICS_TYPE_KEY_SUBSCRIBE_SEND,
         client_id: &str,
         path: &str,
-        success: bool,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        let key = format!(
-            "{}_{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_SEND, client_id, path, success
-        );
-        record_num(&self.rocksdb_engine, &key, time, num)?;
-        record_pre_num(&self.rocksdb_engine, &key, total)
-    }
+        success: bool
+    );
 
-    pub fn get_subscribe_send_num(
-        &self,
-        client_id: &str,
-        path: &str,
-        success: bool,
-    ) -> Result<DashMap<u64, u64>, CommonError> {
-        let key = format!(
-            "{}_{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_SEND, client_id, path, success
-        );
-        get_metric_data(&self.rocksdb_engine, &key)
-    }
-
-    pub async fn get_subscribe_send_pre_total(
-        &self,
-        client_id: &str,
-        path: &str,
-        success: bool,
-        num: u64,
-    ) -> Result<u64, CommonError> {
-        let key = format!(
-            "{}_{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_SEND, client_id, path, success
-        );
-        Ok(get_pre_num(&self.rocksdb_engine, &key)
-            .await
-            .map_or(num, |v| v))
-    }
-
-    // subscribe topic
-    #[allow(clippy::too_many_arguments)]
-    pub fn record_subscribe_topic_send_num(
-        &self,
+    define_dimensional_metric_4d!(
+        record_subscribe_topic_send_num,
+        get_subscribe_topic_send_num,
+        get_subscribe_topic_send_pre_total,
+        METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND,
         client_id: &str,
         path: &str,
         topic: &str,
-        success: bool,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        let key = format!(
-            "{}_{}_{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND, client_id, path, topic, success
-        );
-        record_num(&self.rocksdb_engine, &key, time, num)?;
-        record_pre_num(&self.rocksdb_engine, &key, total)
-    }
+        success: bool
+    );
 
-    pub fn get_subscribe_topic_send_num(
-        &self,
-        client_id: &str,
-        path: &str,
-        topic: &str,
-        success: bool,
-    ) -> Result<DashMap<u64, u64>, CommonError> {
-        let key = format!(
-            "{}_{}_{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND, client_id, path, topic, success
-        );
-        get_metric_data(&self.rocksdb_engine, &key)
-    }
+    define_dimensional_metric_1d!(
+        record_connector_success_num,
+        get_connector_success_num,
+        get_connector_success_pre_total,
+        METRICS_TYPE_KEY_CONNECTOR_SUCCESS_NUM,
+        connector_name: &str
+    );
 
-    pub async fn get_subscribe_topic_send_pre_total(
-        &self,
-        client_id: &str,
-        path: &str,
-        topic: &str,
-        success: bool,
-        num: u64,
-    ) -> Result<u64, CommonError> {
-        let key = format!(
-            "{}_{}_{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND, client_id, path, topic, success
-        );
-        Ok(get_pre_num(&self.rocksdb_engine, &key)
-            .await
-            .map_or(num, |v| v))
-    }
+    define_dimensional_metric_1d!(
+        record_connector_failure_num,
+        get_connector_failure_num,
+        get_connector_failure_pre_total,
+        METRICS_TYPE_KEY_CONNECTOR_FAILURE_NUM,
+        connector_name: &str
+    );
 
-    // message in
-    pub async fn record_message_in_num(
-        &self,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        record_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_MESSAGE_IN_NUM,
-            time,
-            num,
-        )?;
-        record_pre_num(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_IN_NUM, total)
-    }
+    define_cumulative_metric!(
+        record_connector_success_total_num,
+        get_connector_success_total_num,
+        get_connector_success_total_pre,
+        get_connector_success_total_rate,
+        METRICS_TYPE_KEY_CONNECTOR_SUCCESS_TOTAL
+    );
 
-    pub fn get_message_in_num(&self) -> Result<DashMap<u64, u64>, CommonError> {
-        get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_IN_NUM)
-    }
-
-    pub async fn get_pre_message_in(&self) -> Result<u64, CommonError> {
-        get_pre_num(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_IN_NUM).await
-    }
-
-    pub fn get_message_in_rate(&self) -> Result<u64, CommonError> {
-        let data = self.get_message_in_num()?;
-        Ok(get_max_key_value(&data))
-    }
-
-    // message out
-    pub async fn record_message_out_num(
-        &self,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        record_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_MESSAGE_OUT_NUM,
-            time,
-            num,
-        )?;
-        record_pre_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_MESSAGE_OUT_NUM,
-            total,
-        )
-    }
-
-    pub fn get_message_out_num(&self) -> Result<DashMap<u64, u64>, CommonError> {
-        get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_OUT_NUM)
-    }
-
-    pub async fn get_pre_message_out(&self) -> Result<u64, CommonError> {
-        get_pre_num(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_OUT_NUM).await
-    }
-
-    pub fn get_message_out_rate(&self) -> Result<u64, CommonError> {
-        let data = self.get_message_out_num()?;
-        Ok(get_max_key_value(&data))
-    }
-
-    // message drop
-    pub async fn record_message_drop_num(
-        &self,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        record_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_MESSAGE_DROP_NUM,
-            time,
-            num,
-        )?;
-        record_pre_num(
-            &self.rocksdb_engine,
-            METRICS_TYPE_KEY_MESSAGE_DROP_NUM,
-            total,
-        )
-    }
-
-    pub fn get_message_drop_num(&self) -> Result<DashMap<u64, u64>, CommonError> {
-        get_metric_data(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_DROP_NUM)
-    }
-
-    pub async fn get_pre_message_drop(&self) -> Result<u64, CommonError> {
-        get_pre_num(&self.rocksdb_engine, METRICS_TYPE_KEY_MESSAGE_DROP_NUM).await
-    }
-
-    pub fn get_message_drop_rate(&self) -> Result<u64, CommonError> {
-        let data = self.get_message_drop_num()?;
-        Ok(get_max_key_value(&data))
-    }
-
-    // Session metrics
-    pub fn record_session_in_num(
-        &self,
-        client_id: &str,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
-        record_num(&self.rocksdb_engine, &key, time, num)?;
-        record_pre_num(&self.rocksdb_engine, &key, total)
-    }
-
-    pub fn get_session_in_num(&self, client_id: &str) -> Result<DashMap<u64, u64>, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
-        get_metric_data(&self.rocksdb_engine, &key)
-    }
-
-    pub async fn get_session_in_pre_total(
-        &self,
-        client_id: &str,
-        num: u64,
-    ) -> Result<u64, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
-        Ok(get_pre_num(&self.rocksdb_engine, &key)
-            .await
-            .map_or(num, |v| v))
-    }
-
-    pub fn record_session_out_num(
-        &self,
-        client_id: &str,
-        time: u64,
-        total: u64,
-        num: u64,
-    ) -> Result<(), CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
-        record_num(&self.rocksdb_engine, &key, time, num)?;
-        record_pre_num(&self.rocksdb_engine, &key, total)
-    }
-
-    pub fn get_session_out_num(&self, client_id: &str) -> Result<DashMap<u64, u64>, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
-        get_metric_data(&self.rocksdb_engine, &key)
-    }
-
-    pub async fn get_session_out_pre_total(
-        &self,
-        client_id: &str,
-        num: u64,
-    ) -> Result<u64, CommonError> {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
-        Ok(get_pre_num(&self.rocksdb_engine, &key)
-            .await
-            .map_or(num, |v| v))
-    }
+    define_cumulative_metric!(
+        record_connector_failure_total_num,
+        get_connector_failure_total_num,
+        get_connector_failure_total_pre,
+        get_connector_failure_total_rate,
+        METRICS_TYPE_KEY_CONNECTOR_FAILURE_TOTAL
+    );
 
     // Utility methods
     pub fn convert_monitor_data(&self, data_list: DashMap<u64, u64>) -> Vec<HashMap<String, u64>> {
@@ -422,6 +208,21 @@ impl MQTTMetricsCache {
         delete_by_prefix(&self.rocksdb_engine, &key)?;
 
         let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
+        Ok(())
+    }
+
+    pub fn remove_connector(&self, connector_name: &str) -> ResultCommonError {
+        let key = format!(
+            "{}_{}",
+            METRICS_TYPE_KEY_CONNECTOR_SUCCESS_NUM, connector_name
+        );
+        delete_by_prefix(&self.rocksdb_engine, &key)?;
+
+        let key = format!(
+            "{}_{}",
+            METRICS_TYPE_KEY_CONNECTOR_FAILURE_NUM, connector_name
+        );
         delete_by_prefix(&self.rocksdb_engine, &key)?;
         Ok(())
     }

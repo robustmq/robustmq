@@ -64,6 +64,10 @@ impl RabbitMQBridgePlugin {
 impl ConnectorSink for RabbitMQBridgePlugin {
     type SinkResource = Connection;
 
+    async fn validate(&self) -> ResultMqttBrokerError {
+        Ok(())
+    }
+
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {

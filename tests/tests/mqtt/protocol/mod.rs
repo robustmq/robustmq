@@ -36,6 +36,7 @@ pub mod common;
 pub mod connect5_test;
 pub mod connect_packet_size_test;
 pub mod connect_test;
+pub mod connector_test;
 pub mod content_type_test;
 pub mod delay_publish_test;
 mod flapping_detect_test;

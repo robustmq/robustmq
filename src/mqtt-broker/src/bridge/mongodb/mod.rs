@@ -61,6 +61,10 @@ impl MongoDBBridgePlugin {
 impl ConnectorSink for MongoDBBridgePlugin {
     type SinkResource = Collection<Document>;
 
+    async fn validate(&self) -> ResultMqttBrokerError {
+        Ok(())
+    }
+
     async fn init_sink(&self) -> Result<Self::SinkResource, MqttBrokerError> {
         let client = self.create_client().await?;
         let db = client.database(&self.config.database);
