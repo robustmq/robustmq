@@ -55,8 +55,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
-        let sender = sender::Sender::new(&self.config);
-        Ok(sender)
+        sender::Sender::new(&self.config)
     }
 
     async fn send_batch(
@@ -64,10 +63,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
         records: &[Record],
         sender: &mut sender::Sender,
     ) -> ResultMqttBrokerError {
-        for record in records {
-            sender.send(record).await?;
-        }
-        Ok(())
+        sender.send_batch(records).await
     }
 }
 

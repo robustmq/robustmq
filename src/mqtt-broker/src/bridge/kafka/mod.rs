@@ -51,10 +51,34 @@ impl ConnectorSink for KafkaBridgePlugin {
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
-        let producer: FutureProducer = rdkafka::ClientConfig::new()
-            .set("bootstrap.servers", self.config.bootstrap_servers.as_str())
-            .set("message.timeout.ms", "5000")
-            .create()?;
+        use tracing::info;
+
+        let mut client_config = rdkafka::ClientConfig::new();
+
+        client_config
+            .set("bootstrap.servers", &self.config.bootstrap_servers)
+            .set(
+                "message.timeout.ms",
+                self.config.message_timeout_ms.to_string(),
+            )
+            .set("compression.type", &self.config.compression_type)
+            .set("batch.size", self.config.batch_size.to_string())
+            .set("linger.ms", self.config.linger_ms.to_string())
+            .set("acks", &self.config.acks)
+            .set("retries", self.config.retries.to_string())
+            .set("queue.buffering.max.messages", "100000")
+            .set("queue.buffering.max.kbytes", "1048576");
+
+        info!(
+            "Kafka producer initialized: servers={}, topic={}, compression={}, batch_size={}, acks={}",
+            self.config.bootstrap_servers,
+            self.config.topic,
+            self.config.compression_type,
+            self.config.batch_size,
+            self.config.acks
+        );
+
+        let producer: FutureProducer = client_config.create()?;
         Ok(producer)
     }
 
@@ -63,25 +87,58 @@ impl ConnectorSink for KafkaBridgePlugin {
         records: &[Record],
         producer: &mut FutureProducer,
     ) -> ResultMqttBrokerError {
+        use futures::future::join_all;
+
+        let mut serialized_data = Vec::with_capacity(records.len());
+        let mut keys = Vec::with_capacity(records.len());
+
         for record in records {
             let data = serde_json::to_string(record)?;
-            producer
-                .send(
-                    FutureRecord::to(self.config.topic.as_str())
-                        .key(self.config.key.as_str())
-                        .payload(&data),
-                    Duration::from_secs(0),
-                )
-                .await
-                .map_err(|(e, _)| e)?;
+            serialized_data.push(data);
+
+            let key = if self.config.key.is_empty() {
+                if record.key.is_empty() {
+                    String::new()
+                } else {
+                    record.key.clone()
+                }
+            } else {
+                self.config.key.clone()
+            };
+            keys.push(key);
         }
 
-        producer.flush(Duration::from_secs(0))?;
+        let mut send_futures = Vec::with_capacity(serialized_data.len());
+
+        for (data, key) in serialized_data.iter().zip(keys.iter()) {
+            let future = producer.send(
+                FutureRecord::to(self.config.topic.as_str())
+                    .key(key)
+                    .payload(data),
+                Duration::from_secs(0),
+            );
+            send_futures.push(future);
+        }
+
+        let results = join_all(send_futures).await;
+
+        if results.iter().all(|r| r.is_err()) {
+            return Err(crate::handler::error::MqttBrokerError::CommonError(
+                "All records failed to send to Kafka".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
     async fn cleanup_sink(&self, producer: FutureProducer) -> ResultMqttBrokerError {
-        producer.flush(Duration::from_secs(5))?;
+        use tracing::info;
+
+        info!(
+            "Flushing Kafka producer with timeout of {}s",
+            self.config.cleanup_timeout_secs
+        );
+        producer.flush(Duration::from_secs(self.config.cleanup_timeout_secs))?;
         Ok(())
     }
 }

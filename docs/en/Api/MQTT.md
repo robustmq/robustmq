@@ -1174,7 +1174,92 @@ or
 }
 ```
 
-> Note: The `key` field is required but can be an empty string. If you need to specify a message key, set it to a specific value, such as `"key":"sensor_data"`.
+**Kafka Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"127.0.0.1:9092,127.0.0.2:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5,\"message_timeout_ms\":60000,\"cleanup_timeout_secs\":15}"
+}
+```
+
+**Kafka Configuration Parameters**:
+
+**Required Parameters**:
+- `bootstrap_servers`: Kafka broker addresses, format: `host1:port1,host2:port2,host3:port3`
+  - Supports multiple comma-separated addresses for cluster configuration
+  - Each address will be validated for correct format (host:port)
+  - At least one broker must be reachable (network connectivity check performed during validation)
+  - Example: `"127.0.0.1:9092"` or `"127.0.0.1:9092,127.0.0.2:9092,127.0.0.3:9092"`
+- `topic`: Kafka topic name where messages will be published
+
+**Optional Parameters**:
+- `key`: Message key for partitioning (default: `""`)
+  - Empty string: uses message's inherent key or Kafka round-robin partitioning
+  - Non-empty: all messages use this fixed key for partition assignment
+  - Max length: 256 characters
+
+**Performance Parameters**:
+- `compression_type`: Message compression algorithm (default: `"none"`)
+  - Valid values: `"none"`, `"gzip"`, `"snappy"`, `"lz4"`, `"zstd"`
+  - Recommended: `"lz4"` for best balance of speed and compression ratio
+- `batch_size`: Maximum batch size in bytes (default: `16384`)
+  - Range: 1 to 1,048,576 bytes (1MB)
+  - Larger values improve throughput but increase latency
+- `linger_ms`: Time to wait before sending batch in milliseconds (default: `5`)
+  - Range: 0 to 60,000 ms (60 seconds)
+  - Higher values batch more messages but increase end-to-end latency
+
+**Reliability Parameters**:
+- `acks`: Message acknowledgment level (default: `"1"`)
+  - `"0"`: No acknowledgment (fastest, least reliable)
+  - `"1"`: Leader acknowledgment only (balanced)
+  - `"all"` or `"-1"`: All in-sync replicas acknowledgment (slowest, most reliable)
+- `retries`: Maximum number of retry attempts on failure (default: `3`)
+  - Range: 0 to 100
+- `message_timeout_ms`: Total timeout for message delivery in milliseconds (default: `30000`)
+  - Range: 1,000 to 300,000 ms (1 second to 5 minutes)
+  - Includes retries and waiting for acknowledgments
+
+**Cleanup Parameters**:
+- `cleanup_timeout_secs`: Timeout for flushing messages during connector shutdown (default: `10`)
+  - Range: 0 to 300 seconds
+  - Ensures buffered messages are sent before connector stops
+
+**Configuration Examples**:
+
+*High throughput configuration*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_high_volume",
+  "compression_type": "lz4",
+  "batch_size": 65536,
+  "linger_ms": 50,
+  "acks": "1"
+}
+```
+
+*High reliability configuration*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_critical",
+  "acks": "all",
+  "retries": 10,
+  "message_timeout_ms": 60000
+}
+```
+
+*Low latency configuration*:
+```json
+{
+  "bootstrap_servers": "kafka:9092",
+  "topic": "mqtt_realtime",
+  "batch_size": 1024,
+  "linger_ms": 0,
+  "compression_type": "none"
+}
+```
 
 **Pulsar Connector**:
 ```json
@@ -1813,7 +1898,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/detail \
 
 ### Create Connector
 ```bash
-# Create connector without failure strategy (uses default Discard)
+# Create basic Kafka connector (uses default settings)
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -1823,7 +1908,17 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "topic_name": "sensor/+"
   }'
 
-# Create connector with retry strategy
+# Create Kafka connector with advanced configuration
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_advanced",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"kafka1:9092,kafka2:9092,kafka3:9092\",\"topic\":\"mqtt_messages\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5}",
+    "topic_name": "sensor/+"
+  }'
+
+# Create connector with retry failure strategy
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{

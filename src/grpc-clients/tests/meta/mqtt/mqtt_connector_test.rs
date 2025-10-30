@@ -110,6 +110,7 @@ mod test {
             bootstrap_servers: "127.0.0.1:9092".to_string(),
             topic: "test_topic".to_string(),
             key: "test_key".to_string(),
+            ..Default::default()
         })
         .unwrap();
         connector.topic_name = "test_topic-2".to_string();

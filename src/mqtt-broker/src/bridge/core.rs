@@ -100,6 +100,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     mut stop_recv: broadcast::Receiver<bool>,
 ) -> ResultMqttBrokerError {
     sink.validate().await?;
+
     let mut resource = sink.init_sink().await?;
     let message_storage = MessageStorage::new(message_storage);
     let group_name = connector_name.clone();

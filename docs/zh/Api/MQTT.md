@@ -1174,7 +1174,92 @@
 }
 ```
 
-> 注意：`key` 字段必须提供，但可以为空字符串。如果需要指定消息键，可以设置为具体值，如 `"key":"sensor_data"`。
+**Kafka 连接器（高级配置）**:
+```json
+{
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"127.0.0.1:9092,127.0.0.2:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5,\"message_timeout_ms\":60000,\"cleanup_timeout_secs\":15}"
+}
+```
+
+**Kafka 配置参数说明**:
+
+**必填参数**:
+- `bootstrap_servers`: Kafka broker 地址，格式: `host1:port1,host2:port2,host3:port3`
+  - 支持逗号分隔的多个地址用于集群配置
+  - 每个地址会被验证格式是否正确（host:port）
+  - 至少一个 broker 必须可达（创建时会进行网络连通性检查）
+  - 示例: `"127.0.0.1:9092"` 或 `"127.0.0.1:9092,127.0.0.2:9092,127.0.0.3:9092"`
+- `topic`: Kafka 主题名称，消息将发布到该主题
+
+**可选参数**:
+- `key`: 消息键，用于分区路由（默认值: `""`）
+  - 空字符串：使用消息自身的 key 或由 Kafka 进行轮询分区
+  - 非空：所有消息使用固定的 key 进行分区分配
+  - 最大长度：256 字符
+
+**性能参数**:
+- `compression_type`: 消息压缩算法（默认值: `"none"`）
+  - 有效值: `"none"`、`"gzip"`、`"snappy"`、`"lz4"`、`"zstd"`
+  - 推荐: `"lz4"` 在速度和压缩率之间有最佳平衡
+- `batch_size`: 批量发送的最大字节数（默认值: `16384`）
+  - 范围: 1 到 1,048,576 字节（1MB）
+  - 较大值提高吞吐量但增加延迟
+- `linger_ms`: 发送批次前的等待时间（毫秒）（默认值: `5`）
+  - 范围: 0 到 60,000 毫秒（60 秒）
+  - 较高值可批处理更多消息但增加端到端延迟
+
+**可靠性参数**:
+- `acks`: 消息确认级别（默认值: `"1"`）
+  - `"0"`: 无确认（最快，可靠性最低）
+  - `"1"`: 仅 leader 确认（平衡）
+  - `"all"` 或 `"-1"`: 所有同步副本确认（最慢，可靠性最高）
+- `retries`: 失败时的最大重试次数（默认值: `3`）
+  - 范围: 0 到 100
+- `message_timeout_ms`: 消息投递的总超时时间（毫秒）（默认值: `30000`）
+  - 范围: 1,000 到 300,000 毫秒（1 秒到 5 分钟）
+  - 包括重试和等待确认的时间
+
+**清理参数**:
+- `cleanup_timeout_secs`: 连接器关闭时刷新消息的超时时间（秒）（默认值: `10`）
+  - 范围: 0 到 300 秒
+  - 确保缓冲的消息在连接器停止前发送完成
+
+**配置示例**:
+
+*高吞吐量配置*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_high_volume",
+  "compression_type": "lz4",
+  "batch_size": 65536,
+  "linger_ms": 50,
+  "acks": "1"
+}
+```
+
+*高可靠性配置*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_critical",
+  "acks": "all",
+  "retries": 10,
+  "message_timeout_ms": 60000
+}
+```
+
+*低延迟配置*:
+```json
+{
+  "bootstrap_servers": "kafka:9092",
+  "topic": "mqtt_realtime",
+  "batch_size": 1024,
+  "linger_ms": 0,
+  "compression_type": "none"
+}
+```
 
 **Pulsar 连接器**:
 ```json
@@ -1813,7 +1898,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/detail \
 
 ### 创建连接器
 ```bash
-# 不带失败策略创建连接器（使用默认的 Discard 策略）
+# 创建基础 Kafka 连接器（使用默认配置）
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -1823,7 +1908,17 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "topic_name": "sensor/+"
   }'
 
-# 带重试策略创建连接器
+# 创建带高级配置的 Kafka 连接器
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_advanced",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"kafka1:9092,kafka2:9092,kafka3:9092\",\"topic\":\"mqtt_messages\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5}",
+    "topic_name": "sensor/+"
+  }'
+
+# 创建带重试失败策略的连接器
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
