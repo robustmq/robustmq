@@ -320,11 +320,6 @@ impl ConnectorScheduler {
                 Ok(())
             }
             MQTTStatus::Idle => {
-                info!(
-                    "Connector {} state changes from Idle to Running",
-                    connector.connector_name
-                );
-
                 self.connector_context
                     .update_status_to_running(&connector.cluster_name, &connector.connector_name)
                     .await
