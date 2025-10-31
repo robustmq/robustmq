@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, fmt::Display, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -111,84 +111,167 @@ impl RocksDBStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn shard_record_key<S1: Display>(namespace: &S1, shard: &S1, record_offset: u64) -> String {
-        format!("/record/{namespace}/{shard}/record/{record_offset:020}")
+    pub fn shard_record_key(namespace: &str, shard: &str, record_offset: u64) -> String {
+        let mut key = String::with_capacity(17 + namespace.len() + shard.len() + 20);
+        key.push_str("/record/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push_str("/record/");
+        use std::fmt::Write;
+        let _ = write!(key, "{:020}", record_offset);
+        key
     }
 
     #[inline(always)]
-    pub fn shard_record_key_prefix<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/record/{namespace}/{shard}/record/")
+    pub fn shard_record_key_prefix(namespace: &str, shard: &str) -> String {
+        let mut key = String::with_capacity(17 + namespace.len() + shard.len());
+        key.push_str("/record/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push_str("/record/");
+        key
     }
 
     #[inline(always)]
-    pub fn shard_offset_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/offset/{namespace}/{shard}")
+    pub fn shard_offset_key(namespace: &str, shard: &str) -> String {
+        let mut key = String::with_capacity(9 + namespace.len() + shard.len());
+        key.push_str("/offset/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key
     }
 
     #[inline(always)]
-    pub fn key_offset_key<S1: Display>(namespace: &S1, shard: &S1, key: &S1) -> String {
-        format!("/key/{namespace}/{shard}/{key}")
+    pub fn key_offset_key(namespace: &str, shard: &str, record_key: &str) -> String {
+        let mut key = String::with_capacity(7 + namespace.len() + shard.len() + record_key.len());
+        key.push_str("/key/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push('/');
+        key.push_str(record_key);
+        key
     }
 
     #[inline(always)]
-    pub fn tag_offsets_key<S1: Display>(
-        namespace: &S1,
-        shard: &S1,
-        tag: &S1,
-        offset: u64,
-    ) -> String {
-        format!("/tag/{namespace}/{shard}/{tag}/{offset:020}")
+    pub fn tag_offsets_key(namespace: &str, shard: &str, tag: &str, offset: u64) -> String {
+        let mut key = String::with_capacity(7 + namespace.len() + shard.len() + tag.len() + 20);
+        key.push_str("/tag/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push('/');
+        key.push_str(tag);
+        key.push('/');
+        use std::fmt::Write;
+        let _ = write!(key, "{:020}", offset);
+        key
     }
 
     #[inline(always)]
-    pub fn tag_offsets_key_prefix<S1: Display>(namespace: &S1, shard: &S1, tag: &S1) -> String {
-        format!("/tag/{namespace}/{shard}/{tag}/")
+    pub fn tag_offsets_key_prefix(namespace: &str, shard: &str, tag: &str) -> String {
+        let mut key = String::with_capacity(7 + namespace.len() + shard.len() + tag.len());
+        key.push_str("/tag/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push('/');
+        key.push_str(tag);
+        key.push('/');
+        key
     }
 
     #[inline(always)]
-    pub fn group_record_offsets_key<S1: Display>(group: &S1, namespace: &S1, shard: &S1) -> String {
-        format!("/group/{group}/{namespace}/{shard}")
+    pub fn group_record_offsets_key(group: &str, namespace: &str, shard: &str) -> String {
+        let mut key = String::with_capacity(9 + group.len() + namespace.len() + shard.len());
+        key.push_str("/group/");
+        key.push_str(group);
+        key.push('/');
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key
     }
 
     #[inline(always)]
-    pub fn group_record_offsets_key_prefix<S1: Display>(group: &S1) -> String {
-        format!("/group/{group}/")
+    pub fn group_record_offsets_key_prefix(group: &str) -> String {
+        let mut key = String::with_capacity(8 + group.len());
+        key.push_str("/group/");
+        key.push_str(group);
+        key.push('/');
+        key
     }
 
     #[inline(always)]
-    pub fn shard_info_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/shard/{namespace}/{shard}")
+    pub fn shard_info_key(namespace: &str, shard: &str) -> String {
+        let mut key = String::with_capacity(8 + namespace.len() + shard.len());
+        key.push_str("/shard/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key
     }
 
     #[inline(always)]
-    pub fn timestamp_offset_key<S1: Display>(
-        namespace: &S1,
-        shard: &S1,
+    pub fn timestamp_offset_key(
+        namespace: &str,
+        shard: &str,
         timestamp: u64,
         offset: u64,
     ) -> String {
-        format!("/timestamp/{namespace}/{shard}/{timestamp:020}/{offset:020}")
+        let mut key = String::with_capacity(13 + namespace.len() + shard.len() + 40);
+        key.push_str("/timestamp/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push('/');
+        use std::fmt::Write;
+        let _ = write!(key, "{:020}/{:020}", timestamp, offset);
+        key
     }
 
     #[inline(always)]
-    pub fn timestamp_offset_key_prefix<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/timestamp/{namespace}/{shard}/")
+    pub fn timestamp_offset_key_prefix(namespace: &str, shard: &str) -> String {
+        let mut key = String::with_capacity(13 + namespace.len() + shard.len());
+        key.push_str("/timestamp/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push('/');
+        key
     }
 
     #[inline(always)]
-    pub fn timestamp_offset_key_search_prefix<S1: Display>(
-        namespace: &S1,
-        shard: &S1,
+    pub fn timestamp_offset_key_search_prefix(
+        namespace: &str,
+        shard: &str,
         timestamp: u64,
     ) -> String {
-        format!("/timestamp/{namespace}/{shard}/{timestamp:020}/")
+        let mut key = String::with_capacity(13 + namespace.len() + shard.len() + 20);
+        key.push_str("/timestamp/");
+        key.push_str(namespace);
+        key.push('/');
+        key.push_str(shard);
+        key.push('/');
+        use std::fmt::Write;
+        let _ = write!(key, "{:020}/", timestamp);
+        key
     }
 }
 
 impl RocksDBStorageAdapter {
     #[inline(always)]
     fn write_handle_key(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
-        format!("{}-{}", namespace.as_ref(), shard_name.as_ref())
+        let ns = namespace.as_ref();
+        let shard = shard_name.as_ref();
+        let mut key = String::with_capacity(ns.len() + shard.len() + 1);
+        key.push_str(ns);
+        key.push('-');
+        key.push_str(shard);
+        key
     }
 
     async fn handle_write_request(
@@ -748,6 +831,10 @@ impl StorageAdapter for RocksDBStorageAdapter {
                 .write(cf.clone(), &group_record_offsets_key, &offset)
         })?;
 
+        Ok(())
+    }
+
+    async fn message_expire(&self) -> Result<(), CommonError> {
         Ok(())
     }
 

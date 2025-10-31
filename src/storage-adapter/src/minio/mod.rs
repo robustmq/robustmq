@@ -562,6 +562,10 @@ impl StorageAdapter for MinIoStorageAdapter {
         Ok(())
     }
 
+    async fn message_expire(&self) -> Result<(), CommonError> {
+        Ok(())
+    }
+
     async fn close(&self) -> Result<(), CommonError> {
         let write_handles = self.get_all_write_handles().await;
 

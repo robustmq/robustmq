@@ -250,6 +250,10 @@ impl StorageAdapter for JournalStorageAdapter {
             .await
     }
 
+    async fn message_expire(&self) -> Result<(), CommonError> {
+        Ok(())
+    }
+
     async fn close(&self) -> Result<(), CommonError> {
         if let Err(e) = self.client.close().await {
             return Err(CommonError::CommonError(e.to_string()));

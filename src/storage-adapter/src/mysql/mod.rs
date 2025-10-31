@@ -633,6 +633,10 @@ impl StorageAdapter for MySQLStorageAdapter {
         Ok(())
     }
 
+    async fn message_expire(&self) -> Result<(), CommonError> {
+        Ok(())
+    }
+
     async fn close(&self) -> Result<(), CommonError> {
         self.stop_send.send(true).await.map_err(|err| {
             CommonError::CommonError(format!("Failed to send stop signal: {err}"))

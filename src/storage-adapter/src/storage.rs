@@ -106,6 +106,8 @@ pub trait StorageAdapter {
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 
+    async fn message_expire(&self) -> Result<(), CommonError>;
+
     async fn close(&self) -> Result<(), CommonError>;
 }
 
