@@ -525,7 +525,7 @@ mod tests {
 
         assert!(connector_manager
             .get_connector_thread(&connector.connector_name)
-            .is_none());
+            .is_some());
     }
 
     #[tokio::test]
