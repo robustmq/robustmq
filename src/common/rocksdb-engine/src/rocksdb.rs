@@ -102,6 +102,15 @@ impl RocksDBEngine {
         Ok(())
     }
 
+    /// Execute a write batch atomically
+    /// This provides better performance for multiple writes
+    pub fn write_batch(&self, batch: rocksdb::WriteBatch) -> Result<(), CommonError> {
+        self.db
+            .write(batch)
+            .map_err(|e| CommonError::CommonError(format!("Failed to write batch: {e:?}")))?;
+        Ok(())
+    }
+
     // Read data from the RocksDB
     pub fn read<T: DeserializeOwned>(
         &self,

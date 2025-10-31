@@ -24,10 +24,8 @@ mod test {
         pool::ClientPool,
     };
     use metadata_struct::mqtt::bridge::{
-        config_kafka::KafkaConnectorConfig,
-        config_local_file::{LocalFileConnectorConfig, RotationStrategy},
-        connector::MQTTConnector,
-        connector_type::ConnectorType,
+        config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
+        connector::MQTTConnector, connector_type::ConnectorType,
     };
     use protocol::meta::meta_service_mqtt::{
         CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
@@ -64,8 +62,7 @@ mod test {
             connector_type: ConnectorType::LocalFile,
             config: serde_json::to_string(&LocalFileConnectorConfig {
                 local_file_path: "/tmp/test".to_string(),
-                max_size_gb: 1,
-                rotation_strategy: RotationStrategy::Daily,
+                ..Default::default()
             })
             .unwrap(),
             topic_name: "test_topic-1".to_string(),
@@ -113,6 +110,7 @@ mod test {
             bootstrap_servers: "127.0.0.1:9092".to_string(),
             topic: "test_topic".to_string(),
             key: "test_key".to_string(),
+            ..Default::default()
         })
         .unwrap();
         connector.topic_name = "test_topic-2".to_string();

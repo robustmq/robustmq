@@ -18,6 +18,7 @@ use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use rocksdb::WriteBatch;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use tokio::{
     select,
@@ -89,7 +90,9 @@ impl RocksDBStorageAdapter {
         namespace: impl AsRef<str>,
         shard: impl AsRef<str>,
     ) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
         let shard_offset_key = Self::shard_offset_key(&namespace.as_ref(), &shard.as_ref());
 
         if self
@@ -156,6 +159,30 @@ impl RocksDBStorageAdapter {
     pub fn shard_info_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
         format!("/shard/{namespace}/{shard}")
     }
+
+    #[inline(always)]
+    pub fn timestamp_offset_key<S1: Display>(
+        namespace: &S1,
+        shard: &S1,
+        timestamp: u64,
+        offset: u64,
+    ) -> String {
+        format!("/timestamp/{namespace}/{shard}/{timestamp:020}/{offset:020}")
+    }
+
+    #[inline(always)]
+    pub fn timestamp_offset_key_prefix<S1: Display>(namespace: &S1, shard: &S1) -> String {
+        format!("/timestamp/{namespace}/{shard}/")
+    }
+
+    #[inline(always)]
+    pub fn timestamp_offset_key_search_prefix<S1: Display>(
+        namespace: &S1,
+        shard: &S1,
+        timestamp: u64,
+    ) -> String {
+        format!("/timestamp/{namespace}/{shard}/{timestamp:020}/")
+    }
 }
 
 impl RocksDBStorageAdapter {
@@ -200,7 +227,10 @@ impl RocksDBStorageAdapter {
                 .await;
         }
 
-        self.write_handles.get(&handle_key).unwrap().clone()
+        self.write_handles
+            .get(&handle_key)
+            .map(|h| h.clone())
+            .expect("Write handle should exist after creation")
     }
 
     async fn get_all_write_handles(&self) -> Vec<ThreadWriteHandle> {
@@ -251,12 +281,11 @@ impl RocksDBStorageAdapter {
                         }
                     },
                     val = data_recv.recv() => {
-                        if val.is_none() {
+                        let Some(packet) = val else {
                             sleep(Duration::from_millis(100)).await;
                             continue
-                        }
+                        };
 
-                        let packet = val.unwrap();  // unwrap is safe here since we checked for None before
                         let res = Self::
                             thread_batch_write(db.clone(), packet.namespace, packet.shard, packet.records)
                             .await;
@@ -279,7 +308,9 @@ impl RocksDBStorageAdapter {
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        let cf = db.cf_handle(DB_COLUMN_FAMILY).unwrap(); // unwrap is safe since we created this column family
+        let cf = db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         // get the starting shard offset
         let shard_offset_key = Self::shard_offset_key(&namespace, &shard_name);
@@ -293,34 +324,72 @@ impl RocksDBStorageAdapter {
         };
 
         let mut start_offset = offset;
-
         let mut offset_res = Vec::new();
+
+        // Create a write batch for atomic and efficient batch writes
+        let mut batch = WriteBatch::default();
 
         for mut msg in messages {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
 
-            // write the shard record
+            // Serialize the message record
             let shard_record_key = Self::shard_record_key(&namespace, &shard_name, start_offset);
-            db.write(cf.clone(), &shard_record_key, &msg)?;
+            let serialized_msg = serde_json::to_string(&msg).map_err(|e| {
+                CommonError::CommonError(format!("Failed to serialize record: {e}"))
+            })?;
+            batch.put_cf(&cf, shard_record_key.as_bytes(), serialized_msg.as_bytes());
 
-            // write the key offset
+            // Write the key offset index
             if !msg.key.is_empty() {
                 let key_offset_key = Self::key_offset_key(&namespace, &shard_name, &msg.key);
-                db.write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
+                let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
+                    CommonError::CommonError(format!("Failed to serialize offset: {e}"))
+                })?;
+                batch.put_cf(&cf, key_offset_key.as_bytes(), serialized_offset.as_bytes());
             }
 
+            // Write tag offset indexes
             for tag in msg.tags.iter() {
                 let tag_offsets_key =
                     Self::tag_offsets_key(&namespace, &shard_name, tag, start_offset);
-                db.write(cf.clone(), &tag_offsets_key, &start_offset)?;
+                let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
+                    CommonError::CommonError(format!("Failed to serialize offset: {e}"))
+                })?;
+                batch.put_cf(
+                    &cf,
+                    tag_offsets_key.as_bytes(),
+                    serialized_offset.as_bytes(),
+                );
             }
+
+            // Write timestamp offset index for efficient timestamp-based queries
+            let timestamp_offset_key =
+                Self::timestamp_offset_key(&namespace, &shard_name, msg.timestamp, start_offset);
+            let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
+                CommonError::CommonError(format!("Failed to serialize offset: {e}"))
+            })?;
+            batch.put_cf(
+                &cf,
+                timestamp_offset_key.as_bytes(),
+                serialized_offset.as_bytes(),
+            );
 
             start_offset += 1;
         }
 
-        // update the shard offset
-        db.write(cf.clone(), shard_offset_key.as_str(), &start_offset)?;
+        // Update the shard offset
+        let serialized_new_offset = serde_json::to_string(&start_offset).map_err(|e| {
+            CommonError::CommonError(format!("Failed to serialize new offset: {e}"))
+        })?;
+        batch.put_cf(
+            &cf,
+            shard_offset_key.as_bytes(),
+            serialized_new_offset.as_bytes(),
+        );
+
+        // Commit all writes atomically in one batch
+        db.write_batch(batch)?;
 
         Ok(offset_res)
     }
@@ -333,7 +402,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let namespace = shard.namespace.clone();
         let shard_name = shard.shard_name.clone();
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         let shard_offset_key = Self::shard_offset_key(&namespace, &shard_name);
 
@@ -364,7 +435,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
         namespace: String,
         shard_name: String,
     ) -> Result<Vec<ShardInfo>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         let prefix_key = if namespace.is_empty() {
             "/shard/".to_string()
@@ -387,12 +460,38 @@ impl StorageAdapter for RocksDBStorageAdapter {
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
         self.ensure_shard_exists(&namespace, &shard_name)?;
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
+        // Stop the write thread for this shard
+        let handle_key = Self::write_handle_key(&namespace, &shard_name);
+        if let Some((_, handle)) = self.write_handles.remove(&handle_key) {
+            // Send stop signal to the write thread
+            let _ = handle.stop_sender.send(true);
+        }
+
+        // Delete all message records: /record/{namespace}/{shard}/record/*
+        let record_prefix = Self::shard_record_key_prefix(&namespace, &shard_name);
+        self.db.delete_prefix(cf.clone(), &record_prefix)?;
+
+        // Delete all key indexes: /key/{namespace}/{shard}/*
+        let key_index_prefix = format!("/key/{}/{}/", namespace, shard_name);
+        self.db.delete_prefix(cf.clone(), &key_index_prefix)?;
+
+        // Delete all tag indexes: /tag/{namespace}/{shard}/*
+        let tag_index_prefix = format!("/tag/{}/{}/", namespace, shard_name);
+        self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
+
+        // Delete all timestamp indexes: /timestamp/{namespace}/{shard}/*
+        let timestamp_index_prefix = Self::timestamp_offset_key_prefix(&namespace, &shard_name);
+        self.db.delete_prefix(cf.clone(), &timestamp_index_prefix)?;
+
+        // Delete shard offset: /offset/{namespace}/{shard}
         self.db
             .delete(cf.clone(), &Self::shard_offset_key(&namespace, &shard_name))?;
 
-        // also delete the shard info
+        // Delete shard info: /shard/{namespace}/{shard}
         self.db
             .delete(cf, &Self::shard_info_key(&namespace, &shard_name))
     }
@@ -406,8 +505,10 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.ensure_shard_exists(&namespace, &shard_name)?;
 
         self.handle_write_request(namespace, shard_name, vec![message])
-            .await
-            .map(|offsets| offsets.first().cloned().unwrap()) // unwrap is safe here because we know the vector is not empty
+            .await?
+            .first()
+            .cloned()
+            .ok_or_else(|| CommonError::CommonError("Empty offset result from write".to_string()))
     }
 
     async fn batch_write(
@@ -431,7 +532,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         self.ensure_shard_exists(&namespace, &shard_name)?;
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         let mut records = Vec::new();
 
@@ -441,18 +544,18 @@ impl StorageAdapter for RocksDBStorageAdapter {
             let shard_record_key = Self::shard_record_key(&namespace, &shard_name, i);
             let record = self.db.read::<Record>(cf.clone(), &shard_record_key)?;
 
-            if record.is_none() {
+            let Some(record) = record else {
                 break;
-            }
+            };
 
-            let record_bytes = record.as_ref().unwrap().data.len() as u64;
+            let record_bytes = record.data.len() as u64;
 
             if total_size + record_bytes > read_config.max_size {
                 break;
             }
 
             total_size += record_bytes;
-            records.push(record.unwrap());
+            records.push(record);
         }
 
         Ok(records)
@@ -468,7 +571,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         self.ensure_shard_exists(&namespace, &shard_name)?;
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         let tag_offset_key_preix = Self::tag_offsets_key_prefix(&namespace, &shard_name, &tag);
 
@@ -516,13 +621,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         self.ensure_shard_exists(&namespace, &shard_name)?;
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         let key_offset_key = Self::key_offset_key(&namespace, &shard_name, &key);
 
         match self.db.read::<u64>(cf.clone(), &key_offset_key)? {
             Some(key_offset) if key_offset >= offset && read_config.max_record_num >= 1 => {
-                let shard_record_key = Self::shard_record_key(&namespace, &shard_name, offset);
+                let shard_record_key = Self::shard_record_key(&namespace, &shard_name, key_offset);
                 let record = self
                     .db
                     .read::<Record>(cf.clone(), &shard_record_key)?
@@ -546,22 +653,44 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Option<ShardOffset>, CommonError> {
         self.ensure_shard_exists(&namespace, &shard_name)?;
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
-        let shard_record_key_prefix = Self::shard_record_key_prefix(&namespace, &shard_name);
+        // Use timestamp index for efficient lookup
+        // Search from the given timestamp onwards
+        let timestamp_prefix =
+            Self::timestamp_offset_key_search_prefix(&namespace, &shard_name, timestamp);
 
-        let raw_res = self.db.read_prefix(cf.clone(), &shard_record_key_prefix)?;
+        // Try to find exact timestamp match first
+        let raw_res = self.db.read_prefix(cf.clone(), &timestamp_prefix)?;
 
-        for (_, v) in raw_res {
-            let record = serde_json::from_slice::<Record>(&v)?;
+        if let Some((_, v)) = raw_res.first() {
+            let offset = serde_json::from_slice::<u64>(v)?;
+            return Ok(Some(ShardOffset {
+                offset,
+                ..Default::default()
+            }));
+        }
 
-            if record.timestamp >= timestamp {
-                return Ok(Some(ShardOffset {
-                    offset: record.offset.ok_or(CommonError::CommonError(
-                        "Record offset is None".to_string(),
-                    ))?,
-                    ..Default::default()
-                }));
+        // If no exact match, scan forward from the given timestamp
+        // This is still efficient as we're using the index prefix
+        let timestamp_index_prefix = Self::timestamp_offset_key_prefix(&namespace, &shard_name);
+        let all_timestamps = self.db.read_prefix(cf.clone(), &timestamp_index_prefix)?;
+
+        for (key, v) in all_timestamps {
+            // Extract timestamp from key: /timestamp/{namespace}/{shard}/{timestamp:020}/{offset:020}
+            let parts: Vec<&str> = key.split('/').collect();
+            if parts.len() >= 5 {
+                if let Ok(ts) = parts[4].parse::<u64>() {
+                    if ts >= timestamp {
+                        let offset = serde_json::from_slice::<u64>(&v)?;
+                        return Ok(Some(ShardOffset {
+                            offset,
+                            ..Default::default()
+                        }));
+                    }
+                }
             }
         }
 
@@ -572,7 +701,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
         &self,
         group_name: String,
     ) -> Result<Vec<ShardOffset>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         let group_record_offsets_key_prefix = Self::group_record_offsets_key_prefix(&group_name);
 
@@ -600,7 +731,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
         namespace: String,
         offsets: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
+            CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
+        })?;
 
         offsets.into_iter().try_for_each(|(shard_name, offset)| {
             let group_record_offsets_key =

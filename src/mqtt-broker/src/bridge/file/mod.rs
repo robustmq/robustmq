@@ -243,6 +243,7 @@ pub fn start_local_file_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )
@@ -266,7 +267,9 @@ mod tests {
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
         adapter::record::{Header, Record},
-        mqtt::bridge::config_local_file::LocalFileConnectorConfig,
+        mqtt::bridge::{
+            config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
+        },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
     use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
@@ -358,6 +361,7 @@ mod tests {
         let read_config = BridgePluginReadConfig {
             topic_name: shard_name.clone(),
             record_num: 100,
+            strategy: FailureHandlingStrategy::Discard,
         };
 
         let record_config_clone = read_config.clone();

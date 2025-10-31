@@ -22,7 +22,62 @@ pub enum DeliveryMode {
     Persistent,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+fn default_port() -> u16 {
+    5672
+}
+
+fn default_virtual_host() -> String {
+    "/".to_string()
+}
+
+fn default_connection_timeout_secs() -> u64 {
+    30
+}
+
+fn default_heartbeat_secs() -> u16 {
+    60
+}
+
+fn default_batch_size() -> usize {
+    100
+}
+
+fn default_channel_max() -> u16 {
+    2047
+}
+
+fn default_frame_max() -> u32 {
+    131072
+}
+
+fn default_confirm_timeout_secs() -> u64 {
+    30
+}
+
+impl Default for RabbitMQConnectorConfig {
+    fn default() -> Self {
+        Self {
+            server: String::new(),
+            port: default_port(),
+            username: String::new(),
+            password: String::new(),
+            virtual_host: default_virtual_host(),
+            exchange: String::new(),
+            routing_key: String::new(),
+            delivery_mode: DeliveryMode::default(),
+            enable_tls: false,
+            connection_timeout_secs: default_connection_timeout_secs(),
+            heartbeat_secs: default_heartbeat_secs(),
+            batch_size: default_batch_size(),
+            channel_max: default_channel_max(),
+            frame_max: default_frame_max(),
+            confirm_timeout_secs: default_confirm_timeout_secs(),
+            publisher_confirms: true,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RabbitMQConnectorConfig {
     pub server: String,
     #[serde(default = "default_port")]
@@ -37,6 +92,26 @@ pub struct RabbitMQConnectorConfig {
     pub delivery_mode: DeliveryMode,
     #[serde(default)]
     pub enable_tls: bool,
+
+    #[serde(default = "default_connection_timeout_secs")]
+    pub connection_timeout_secs: u64,
+    #[serde(default = "default_heartbeat_secs")]
+    pub heartbeat_secs: u16,
+
+    #[serde(default = "default_batch_size")]
+    pub batch_size: usize,
+    #[serde(default = "default_channel_max")]
+    pub channel_max: u16,
+    #[serde(default = "default_frame_max")]
+    pub frame_max: u32,
+    #[serde(default = "default_confirm_timeout_secs")]
+    pub confirm_timeout_secs: u64,
+    #[serde(default = "default_publisher_confirms")]
+    pub publisher_confirms: bool,
+}
+
+fn default_publisher_confirms() -> bool {
+    true
 }
 
 impl DeliveryMode {
@@ -110,14 +185,42 @@ impl RabbitMQConnectorConfig {
             ));
         }
 
+        if self.connection_timeout_secs == 0 || self.connection_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "connection_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
+        if self.heartbeat_secs > 300 {
+            return Err(CommonError::CommonError(
+                "heartbeat_secs cannot exceed 300 seconds".to_string(),
+            ));
+        }
+
+        if self.batch_size == 0 || self.batch_size > 10000 {
+            return Err(CommonError::CommonError(
+                "batch_size must be between 1 and 10000".to_string(),
+            ));
+        }
+
+        if self.channel_max == 0 {
+            return Err(CommonError::CommonError(
+                "channel_max must be greater than 0".to_string(),
+            ));
+        }
+
+        if self.frame_max < 4096 || self.frame_max > 1048576 {
+            return Err(CommonError::CommonError(
+                "frame_max must be between 4096 and 1048576 bytes".to_string(),
+            ));
+        }
+
+        if self.confirm_timeout_secs == 0 || self.confirm_timeout_secs > 300 {
+            return Err(CommonError::CommonError(
+                "confirm_timeout_secs must be between 1 and 300 seconds".to_string(),
+            ));
+        }
+
         Ok(())
     }
-}
-
-fn default_port() -> u16 {
-    5672
-}
-
-fn default_virtual_host() -> String {
-    "/".to_string()
 }

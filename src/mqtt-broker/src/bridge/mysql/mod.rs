@@ -191,6 +191,7 @@ pub fn start_mysql_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

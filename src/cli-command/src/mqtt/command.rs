@@ -1025,6 +1025,7 @@ impl MqttBrokerCommand {
 
         // Create request for connector list
         let request = admin_server::mqtt::connector::ConnectorListReq {
+            connector_name: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
             sort_field: None,

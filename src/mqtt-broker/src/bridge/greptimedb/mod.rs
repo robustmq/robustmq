@@ -24,8 +24,10 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
 
 use crate::{
-    bridge::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
-    bridge::manager::ConnectorManager,
+    bridge::{
+        core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+        manager::ConnectorManager,
+    },
     common::types::ResultMqttBrokerError,
 };
 
@@ -52,8 +54,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
-        let sender = sender::Sender::new(&self.config);
-        Ok(sender)
+        sender::Sender::new(&self.config)
     }
 
     async fn send_batch(
@@ -61,10 +62,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
         records: &[Record],
         sender: &mut sender::Sender,
     ) -> ResultMqttBrokerError {
-        for record in records {
-            sender.send(record).await?;
-        }
-        Ok(())
+        sender.send_batch(records).await
     }
 }
 
@@ -98,6 +96,7 @@ pub fn start_greptimedb_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

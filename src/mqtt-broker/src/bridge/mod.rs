@@ -14,6 +14,7 @@
 
 pub mod core;
 pub mod elasticsearch;
+pub mod failure;
 pub mod file;
 pub mod greptimedb;
 pub mod heartbeat;

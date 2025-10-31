@@ -1152,7 +1152,8 @@ or
   "connector_name": "new_connector",   // Connector name
   "connector_type": "kafka",           // Connector type
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // Configuration (JSON string)
-  "topic_name": "sensor/+"               // Associated topic ID
+  "topic_name": "sensor/+",            // Associated topic ID
+  "failure_strategy": "{\"Discard\":{}}" // Optional, failure handling strategy (JSON string), defaults to Discard
 }
 ```
 
@@ -1161,6 +1162,7 @@ or
   - `connector_type`: Length must be between 1-50 characters, must be `kafka`, `pulsar`, `rabbitmq`, `greptime`, `postgres`, `mysql`, `mongodb`, `file`, or `elasticsearch`
   - `config`: Length must be between 1-4096 characters
   - `topic_name`: Length must be between 1-256 characters
+  - `failure_strategy`: Optional, length must be between 1-1024 characters (JSON string)
 
 **Connector Types and Configuration Examples**：
 
@@ -1172,7 +1174,92 @@ or
 }
 ```
 
-> Note: The `key` field is required but can be an empty string. If you need to specify a message key, set it to a specific value, such as `"key":"sensor_data"`.
+**Kafka Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"127.0.0.1:9092,127.0.0.2:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5,\"message_timeout_ms\":60000,\"cleanup_timeout_secs\":15}"
+}
+```
+
+**Kafka Configuration Parameters**:
+
+**Required Parameters**:
+- `bootstrap_servers`: Kafka broker addresses, format: `host1:port1,host2:port2,host3:port3`
+  - Supports multiple comma-separated addresses for cluster configuration
+  - Each address will be validated for correct format (host:port)
+  - At least one broker must be reachable (network connectivity check performed during validation)
+  - Example: `"127.0.0.1:9092"` or `"127.0.0.1:9092,127.0.0.2:9092,127.0.0.3:9092"`
+- `topic`: Kafka topic name where messages will be published
+
+**Optional Parameters**:
+- `key`: Message key for partitioning (default: `""`)
+  - Empty string: uses message's inherent key or Kafka round-robin partitioning
+  - Non-empty: all messages use this fixed key for partition assignment
+  - Max length: 256 characters
+
+**Performance Parameters**:
+- `compression_type`: Message compression algorithm (default: `"none"`)
+  - Valid values: `"none"`, `"gzip"`, `"snappy"`, `"lz4"`, `"zstd"`
+  - Recommended: `"lz4"` for best balance of speed and compression ratio
+- `batch_size`: Maximum batch size in bytes (default: `16384`)
+  - Range: 1 to 1,048,576 bytes (1MB)
+  - Larger values improve throughput but increase latency
+- `linger_ms`: Time to wait before sending batch in milliseconds (default: `5`)
+  - Range: 0 to 60,000 ms (60 seconds)
+  - Higher values batch more messages but increase end-to-end latency
+
+**Reliability Parameters**:
+- `acks`: Message acknowledgment level (default: `"1"`)
+  - `"0"`: No acknowledgment (fastest, least reliable)
+  - `"1"`: Leader acknowledgment only (balanced)
+  - `"all"` or `"-1"`: All in-sync replicas acknowledgment (slowest, most reliable)
+- `retries`: Maximum number of retry attempts on failure (default: `3`)
+  - Range: 0 to 100
+- `message_timeout_ms`: Total timeout for message delivery in milliseconds (default: `30000`)
+  - Range: 1,000 to 300,000 ms (1 second to 5 minutes)
+  - Includes retries and waiting for acknowledgments
+
+**Cleanup Parameters**:
+- `cleanup_timeout_secs`: Timeout for flushing messages during connector shutdown (default: `10`)
+  - Range: 0 to 300 seconds
+  - Ensures buffered messages are sent before connector stops
+
+**Configuration Examples**:
+
+*High throughput configuration*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_high_volume",
+  "compression_type": "lz4",
+  "batch_size": 65536,
+  "linger_ms": 50,
+  "acks": "1"
+}
+```
+
+*High reliability configuration*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_critical",
+  "acks": "all",
+  "retries": 10,
+  "message_timeout_ms": 60000
+}
+```
+
+*Low latency configuration*:
+```json
+{
+  "bootstrap_servers": "kafka:9092",
+  "topic": "mqtt_realtime",
+  "batch_size": 1024,
+  "linger_ms": 0,
+  "compression_type": "none"
+}
+```
 
 **Pulsar Connector**:
 ```json
@@ -1182,11 +1269,318 @@ or
 }
 ```
 
+**Pulsar Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "pulsar",
+  "config": "{\"server\":\"pulsar://pulsar.example.com:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\",\"connection_timeout_secs\":30,\"operation_timeout_secs\":30,\"send_timeout_secs\":30,\"batch_size\":500,\"max_pending_messages\":5000,\"compression\":\"lz4\"}"
+}
+```
+
+**Pulsar Configuration Parameters**:
+
+**Required Parameters**:
+- `server`: Pulsar broker address
+  - Format: `pulsar://host:port` or `pulsar+ssl://host:port` for TLS
+  - Example: `"pulsar://localhost:6650"` or `"pulsar://broker1.example.com:6650"`
+  - Length: 1 to 512 characters
+- `topic`: Pulsar topic name where messages will be published
+  - Example: `"mqtt-messages"` or `"persistent://tenant/namespace/topic"`
+  - Length: 1 to 256 characters
+  - Supports full topic format with tenant and namespace
+
+**Authentication Parameters** (choose one method):
+- **Token Authentication**:
+  - `token`: Authentication token
+    - Length: up to 1,024 characters
+    - Example: `"eyJhbGciOiJIUzI1NiJ9..."`
+
+- **OAuth2 Authentication**:
+  - `oauth`: OAuth2 configuration as JSON string
+    - Length: up to 1,024 characters
+    - Must be valid JSON containing OAuth2 parameters
+    - Example: `"{\"issuer_url\":\"https://auth.example.com\",\"credentials_url\":\"file:///path/to/credentials.json\"}"`
+
+- **Basic Authentication**:
+  - `basic_name`: Username for basic authentication
+    - Length: up to 256 characters
+  - `basic_password`: Password for basic authentication
+    - Length: up to 256 characters
+    - Both `basic_name` and `basic_password` must be provided together
+
+**Important**: Only one authentication method can be specified. If multiple methods are provided, validation will fail.
+
+**Timeout Parameters**:
+- `connection_timeout_secs`: Connection timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Time to wait when establishing connection to Pulsar broker
+- `operation_timeout_secs`: Operation timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Timeout for Pulsar operations (e.g., creating producer, lookup)
+- `send_timeout_secs`: Send timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Maximum time to wait for message send confirmation
+
+**Performance Parameters**:
+- `batch_size`: Number of records to process in a single batch (default: `100`)
+  - Range: 1 to 10,000
+  - Larger values improve throughput but increase latency and memory usage
+  - Used by the connector read loop to determine how many records to fetch
+- `max_pending_messages`: Maximum number of pending messages in the queue (default: `1000`)
+  - Range: 1 to 100,000
+  - Controls memory usage and backpressure
+  - Higher values allow more messages to be queued but increase memory usage
+
+**Compression Parameters**:
+- `compression`: Compression algorithm for message payload (default: `none`)
+  - Valid values: `"none"`, `"lz4"`, `"zlib"`, `"zstd"`, `"snappy"`
+  - `none`: No compression (fastest, largest size)
+  - `lz4`: Fast compression with decent compression ratio
+  - `zlib`: Balanced compression
+  - `zstd`: High compression ratio (recommended for bandwidth-limited scenarios)
+  - `snappy`: Very fast compression (good for low-latency scenarios)
+
+**Configuration Examples**:
+
+*Basic configuration (development)*:
+```json
+{
+  "server": "pulsar://localhost:6650",
+  "topic": "mqtt-messages"
+}
+```
+
+*Production configuration with token authentication*:
+```json
+{
+  "server": "pulsar://pulsar-broker.example.com:6650",
+  "topic": "persistent://public/default/mqtt-messages",
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtcXR0LXVzZXIifQ...",
+  "connection_timeout_secs": 30,
+  "operation_timeout_secs": 30,
+  "send_timeout_secs": 30,
+  "batch_size": 200,
+  "max_pending_messages": 2000,
+  "compression": "lz4"
+}
+```
+
+*High throughput configuration with compression*:
+```json
+{
+  "server": "pulsar://pulsar-cluster.example.com:6650",
+  "topic": "persistent://mqtt/logs/high-volume",
+  "token": "production-token",
+  "connection_timeout_secs": 15,
+  "operation_timeout_secs": 15,
+  "send_timeout_secs": 60,
+  "batch_size": 1000,
+  "max_pending_messages": 10000,
+  "compression": "zstd"
+}
+```
+
+*OAuth2 authentication configuration*:
+```json
+{
+  "server": "pulsar+ssl://secure-pulsar.example.com:6651",
+  "topic": "persistent://enterprise/production/mqtt-events",
+  "oauth": "{\"issuer_url\":\"https://auth.example.com\",\"credentials_url\":\"file:///etc/pulsar/oauth2.json\",\"audience\":\"urn:pulsar:cluster\"}",
+  "connection_timeout_secs": 30,
+  "operation_timeout_secs": 30,
+  "batch_size": 500,
+  "compression": "lz4"
+}
+```
+
+*Basic authentication configuration*:
+```json
+{
+  "server": "pulsar://internal-broker.example.com:6650",
+  "topic": "mqtt-internal",
+  "basic_name": "mqtt_user",
+  "basic_password": "secure_password",
+  "batch_size": 100,
+  "max_pending_messages": 1000
+}
+```
+
 **RabbitMQ Connector**:
 ```json
 {
   "connector_type": "rabbitmq",
   "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false}"
+}
+```
+
+**RabbitMQ Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "rabbitmq",
+  "config": "{\"server\":\"rabbitmq.example.com\",\"port\":5672,\"username\":\"mqtt_producer\",\"password\":\"secure_password\",\"virtual_host\":\"/mqtt\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.#\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false,\"connection_timeout_secs\":30,\"heartbeat_secs\":60,\"batch_size\":100,\"channel_max\":2047,\"frame_max\":131072,\"confirm_timeout_secs\":30,\"publisher_confirms\":true}"
+}
+```
+
+**RabbitMQ Configuration Parameters**:
+
+**Required Parameters**:
+- `server`: RabbitMQ server address (hostname or IP address)
+  - Example: `"localhost"`, `"rabbitmq.example.com"`, `"192.168.1.100"`
+  - Length: 1 to 512 characters
+- `username`: Username for authentication
+  - Example: `"guest"`, `"mqtt_producer"`
+  - Length: 1 to 256 characters
+- `exchange`: Exchange name where messages will be published
+  - Example: `"mqtt_messages"`, `"amq.topic"`
+  - Length: 1 to 256 characters
+  - The exchange should exist before publishing messages
+
+**Optional Parameters**:
+- `port`: RabbitMQ server port (default: `5672`)
+  - Standard port: `5672` (AMQP), `5671` (AMQPS with TLS)
+  - Must be greater than 0
+- `password`: Password for authentication (default: `""`)
+  - Length: up to 256 characters
+  - Can be empty if RabbitMQ allows passwordless authentication
+- `virtual_host`: Virtual host name (default: `"/"`)
+  - Example: `"/"`, `"/mqtt"`, `"/production"`
+  - Length: up to 256 characters
+  - Virtual hosts provide logical separation within RabbitMQ
+- `routing_key`: Routing key for message routing (default: `""`)
+  - Example: `"sensor.temperature"`, `"sensor.#"`, `"*.critical"`
+  - Length: up to 256 characters
+  - Empty string: messages routed based on exchange type
+  - Supports wildcards for topic exchanges: `*` (one word), `#` (zero or more words)
+- `delivery_mode`: Message persistence mode (default: `"NonPersistent"`)
+  - Valid values: `"NonPersistent"`, `"Persistent"`
+  - `NonPersistent`: Faster, messages may be lost on broker restart
+  - `Persistent`: Slower, messages survive broker restarts (requires durable exchange and queue)
+- `enable_tls`: Enable TLS/SSL connection (default: `false`)
+  - `false`: Use AMQP protocol (port 5672)
+  - `true`: Use AMQPS protocol (port 5671)
+
+**Connection Parameters**:
+- `connection_timeout_secs`: Connection timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Time to wait when establishing connection to RabbitMQ broker
+- `heartbeat_secs`: Heartbeat interval in seconds (default: `60`)
+  - Range: 0 to 300 seconds
+  - `0`: Disable heartbeat
+  - Recommended: 30-120 seconds for production
+  - Lower values detect connection failures faster but increase network traffic
+- `channel_max`: Maximum number of channels per connection (default: `2047`)
+  - Must be greater than 0
+  - RabbitMQ protocol maximum is 65535, but most servers limit to 2047
+  - This connector uses 1 channel, but the setting is applied to the connection
+- `frame_max`: Maximum frame size in bytes (default: `131072`)
+  - Range: 4,096 to 1,048,576 bytes (4KB to 1MB)
+  - Larger frames reduce protocol overhead but increase memory usage
+  - Most RabbitMQ servers default to 128KB (131072 bytes)
+
+**Performance Parameters**:
+- `batch_size`: Number of records to process in a single batch (default: `100`)
+  - Range: 1 to 10,000
+  - Larger values improve throughput when publisher confirms are enabled
+  - Used by the connector read loop to determine how many records to fetch
+- `publisher_confirms`: Enable publisher confirms for reliability (default: `true`)
+  - `true`: Wait for broker acknowledgment (reliable, slower)
+  - `false`: Fire-and-forget mode (fast, may lose messages)
+  - Recommended: `true` for production to ensure message delivery
+- `confirm_timeout_secs`: Timeout for publisher confirms in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Only applies when `publisher_confirms` is `true`
+  - Timeout for waiting for broker acknowledgment per message
+  - Higher values accommodate slow brokers but delay error detection
+
+**Configuration Examples**:
+
+*Basic configuration (development)*:
+```json
+{
+  "server": "localhost",
+  "port": 5672,
+  "username": "guest",
+  "password": "guest",
+  "virtual_host": "/",
+  "exchange": "mqtt_messages",
+  "routing_key": "",
+  "delivery_mode": "NonPersistent",
+  "enable_tls": false
+}
+```
+
+*Production configuration (high reliability)*:
+```json
+{
+  "server": "rabbitmq-cluster.example.com",
+  "port": 5671,
+  "username": "mqtt_producer",
+  "password": "secure_password",
+  "virtual_host": "/production",
+  "exchange": "mqtt_messages_persistent",
+  "routing_key": "mqtt.messages",
+  "delivery_mode": "Persistent",
+  "enable_tls": true,
+  "connection_timeout_secs": 60,
+  "heartbeat_secs": 30,
+  "batch_size": 100,
+  "confirm_timeout_secs": 30,
+  "publisher_confirms": true
+}
+```
+
+*High throughput configuration*:
+```json
+{
+  "server": "rabbitmq.example.com",
+  "port": 5672,
+  "username": "mqtt_producer",
+  "password": "xxx",
+  "virtual_host": "/mqtt",
+  "exchange": "mqtt_high_volume",
+  "routing_key": "",
+  "delivery_mode": "NonPersistent",
+  "enable_tls": false,
+  "connection_timeout_secs": 30,
+  "heartbeat_secs": 60,
+  "batch_size": 1000,
+  "confirm_timeout_secs": 60,
+  "publisher_confirms": true
+}
+```
+
+*Low latency configuration*:
+```json
+{
+  "server": "localhost",
+  "port": 5672,
+  "username": "guest",
+  "password": "guest",
+  "virtual_host": "/",
+  "exchange": "mqtt_realtime",
+  "routing_key": "realtime",
+  "delivery_mode": "NonPersistent",
+  "enable_tls": false,
+  "batch_size": 10,
+  "publisher_confirms": false
+}
+```
+
+*Topic exchange with routing patterns*:
+```json
+{
+  "server": "rabbitmq.example.com",
+  "port": 5672,
+  "username": "mqtt_producer",
+  "password": "xxx",
+  "virtual_host": "/sensors",
+  "exchange": "amq.topic",
+  "routing_key": "sensor.temperature.room1",
+  "delivery_mode": "Persistent",
+  "enable_tls": false,
+  "batch_size": 50,
+  "publisher_confirms": true,
+  "confirm_timeout_secs": 30
 }
 ```
 
@@ -1206,6 +1600,160 @@ or
 }
 ```
 
+**PostgreSQL Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "postgres",
+  "config": "{\"host\":\"postgres.example.com\",\"port\":5432,\"database\":\"mqtt_prod\",\"username\":\"mqtt_user\",\"password\":\"secure_password\",\"table\":\"mqtt_messages\",\"pool_size\":20,\"min_pool_size\":5,\"enable_batch_insert\":true,\"enable_upsert\":true,\"conflict_columns\":\"client_id, topic\",\"connect_timeout_secs\":10,\"acquire_timeout_secs\":30,\"idle_timeout_secs\":600,\"max_lifetime_secs\":1800,\"batch_size\":500}"
+}
+```
+
+**PostgreSQL Configuration Parameters**:
+
+**Required Parameters**:
+- `host`: PostgreSQL server address
+  - Example: `"localhost"` or `"postgres.example.com"`
+  - Length: 1 to 512 characters
+- `port`: PostgreSQL server port (default: `5432`)
+- `database`: Database name
+  - Length: 1 to 256 characters
+- `username`: PostgreSQL username for authentication
+  - Length: 1 to 256 characters
+- `password`: PostgreSQL password for authentication
+  - Length: up to 256 characters
+- `table`: Table name where messages will be stored
+  - Length: 1 to 256 characters
+  - Can only contain letters, numbers, underscores, and dots (for schema.table format)
+  - Format validation is performed during connector creation
+  - Example: `"mqtt_messages"` or `"public.mqtt_messages"`
+
+**Connection Pool Parameters** (optional):
+- `pool_size`: Maximum number of connections in the pool (default: `10`)
+  - Range: 1 to 1,000
+  - Larger values support higher concurrency
+- `min_pool_size`: Minimum number of connections in the pool (default: `2`)
+  - Must be less than or equal to `pool_size`
+  - Keeps connections warm for faster access
+
+**Timeout Parameters**:
+- `connect_timeout_secs`: Connection timeout in seconds (default: `10`)
+  - Range: 1 to 300 seconds
+  - Time to wait when establishing a new database connection
+  - Note: This is controlled by the connection string, not the pool options
+- `acquire_timeout_secs`: Connection acquisition timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Maximum time to wait for getting a connection from the pool
+- `idle_timeout_secs`: Idle connection timeout in seconds (default: `600`, 10 minutes)
+  - Range: 0 to 3,600 seconds (0 means no timeout)
+  - Connections idle longer than this will be closed
+- `max_lifetime_secs`: Maximum connection lifetime in seconds (default: `1800`, 30 minutes)
+  - Range: 0 to 7,200 seconds (0 means no limit)
+  - Connections older than this will be closed and recreated
+
+**Performance Parameters**:
+- `batch_size`: Number of records to process in a single batch (default: `100`)
+  - Range: 1 to 10,000
+  - Larger values improve throughput but increase latency and memory usage
+  - Used by the connector read loop to determine how many records to fetch
+- `enable_batch_insert`: Whether to use batch insert mode (default: `false`)
+  - `true`: Insert multiple records in a single SQL statement (much faster for high throughput)
+  - `false`: Insert records one by one (allows custom sql_template)
+  - Cannot be used together with `sql_template`
+- `enable_upsert`: Whether to enable upsert behavior (default: `false`)
+  - `true`: Update existing records on conflict (uses PostgreSQL `ON CONFLICT ... DO UPDATE`)
+  - `false`: Insert only (fails on duplicate key)
+
+**Upsert Configuration**:
+- `conflict_columns`: Column name(s) to detect conflicts (required when `enable_upsert` is `true`)
+  - Example: `"client_id, topic"` or `"id"`
+  - Used to identify which records should be updated
+  - Must match the unique constraint or primary key in the table
+
+**Custom SQL Configuration**:
+- `sql_template`: Custom SQL template for inserts (optional)
+  - Must contain exactly 5 placeholders (`$1`-`$5`) in order: `client_id`, `topic`, `timestamp`, `payload`, `data`
+  - Example: `"INSERT INTO mqtt_messages (client_id, topic, ts, payload, data) VALUES ($1, $2, $3, $4, $5)"`
+  - Cannot be used together with `enable_batch_insert` (will be rejected during validation)
+  - Useful for custom table schemas or additional columns with default values
+  - Note: PostgreSQL uses `$1`, `$2` syntax for parameters, not `?` like MySQL
+
+**Configuration Examples**:
+
+*Basic configuration (development)*:
+```json
+{
+  "host": "localhost",
+  "port": 5432,
+  "database": "mqtt_data",
+  "username": "postgres",
+  "password": "password123",
+  "table": "mqtt_messages"
+}
+```
+
+*Production configuration with connection pooling*:
+```json
+{
+  "host": "postgres-primary.example.com",
+  "port": 5432,
+  "database": "mqtt_prod",
+  "username": "mqtt_user",
+  "password": "secure_password",
+  "table": "messages",
+  "pool_size": 50,
+  "min_pool_size": 10,
+  "connect_timeout_secs": 10,
+  "acquire_timeout_secs": 30,
+  "idle_timeout_secs": 600,
+  "max_lifetime_secs": 1800,
+  "batch_size": 200,
+  "enable_batch_insert": true
+}
+```
+
+*High throughput configuration with upsert*:
+```json
+{
+  "host": "postgres-cluster.example.com",
+  "port": 5432,
+  "database": "mqtt_logs",
+  "username": "mqtt_writer",
+  "password": "write_password",
+  "table": "high_volume_messages",
+  "pool_size": 100,
+  "min_pool_size": 20,
+  "connect_timeout_secs": 5,
+  "acquire_timeout_secs": 15,
+  "idle_timeout_secs": 300,
+  "max_lifetime_secs": 900,
+  "batch_size": 1000,
+  "enable_batch_insert": true,
+  "enable_upsert": true,
+  "conflict_columns": "client_id, topic"
+}
+```
+
+*High reliability configuration with custom SQL*:
+```json
+{
+  "host": "postgres-replica.example.com",
+  "port": 5432,
+  "database": "mqtt_critical",
+  "username": "mqtt_user",
+  "password": "critical_password",
+  "table": "critical_messages",
+  "pool_size": 20,
+  "min_pool_size": 5,
+  "connect_timeout_secs": 15,
+  "acquire_timeout_secs": 60,
+  "idle_timeout_secs": 1200,
+  "max_lifetime_secs": 3600,
+  "batch_size": 50,
+  "enable_batch_insert": false,
+  "sql_template": "INSERT INTO critical_messages (client_id, topic, timestamp, payload, data, created_at) VALUES ($1, $2, $3, $4, $5, NOW())"
+}
+```
+
 **MySQL Connector**:
 ```json
 {
@@ -1214,11 +1762,286 @@ or
 }
 ```
 
+**MySQL Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "mysql",
+  "config": "{\"host\":\"mysql.example.com\",\"port\":3306,\"database\":\"mqtt_prod\",\"username\":\"mqtt_user\",\"password\":\"secure_password\",\"table\":\"mqtt_messages\",\"pool_size\":20,\"min_pool_size\":5,\"enable_batch_insert\":true,\"enable_upsert\":true,\"conflict_columns\":\"record_key\",\"connect_timeout_secs\":10,\"acquire_timeout_secs\":30,\"idle_timeout_secs\":600,\"max_lifetime_secs\":1800,\"batch_size\":500}"
+}
+```
+
+**MySQL Configuration Parameters**:
+
+**Required Parameters**:
+- `host`: MySQL server address
+  - Example: `"localhost"` or `"mysql.example.com"`
+  - Length: 1 to 512 characters
+- `port`: MySQL server port (default: `3306`)
+- `database`: Database name
+  - Length: 1 to 256 characters
+- `username`: MySQL username for authentication
+  - Length: 1 to 256 characters
+- `password`: MySQL password for authentication
+  - Length: up to 256 characters
+- `table`: Table name where messages will be stored
+  - Length: 1 to 256 characters
+  - Can only contain letters, numbers, underscores, and dots (for schema.table format)
+  - Format validation is performed during connector creation
+  - Example: `"mqtt_messages"` or `"mqtt_db.messages"`
+
+**Connection Pool Parameters** (optional):
+- `pool_size`: Maximum number of connections in the pool (default: `10`)
+  - Range: 1 to 1,000
+  - Larger values support higher concurrency
+- `min_pool_size`: Minimum number of connections in the pool (default: `2`)
+  - Must be less than or equal to `pool_size`
+  - Keeps connections warm for faster access
+
+**Timeout Parameters**:
+- `connect_timeout_secs`: Connection timeout in seconds (default: `10`)
+  - Range: 1 to 300 seconds
+  - Time to wait when establishing a new database connection
+  - Note: This is controlled by the connection string, not the pool options
+- `acquire_timeout_secs`: Connection acquisition timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Maximum time to wait for getting a connection from the pool
+- `idle_timeout_secs`: Idle connection timeout in seconds (default: `600`, 10 minutes)
+  - Range: 0 to 3,600 seconds (0 means no timeout)
+  - Connections idle longer than this will be closed
+- `max_lifetime_secs`: Maximum connection lifetime in seconds (default: `1800`, 30 minutes)
+  - Range: 0 to 7,200 seconds (0 means no limit)
+  - Connections older than this will be closed and recreated
+
+**Performance Parameters**:
+- `batch_size`: Number of records to process in a single batch (default: `100`)
+  - Range: 1 to 10,000
+  - Larger values improve throughput but increase latency and memory usage
+  - Used by the connector read loop to determine how many records to fetch
+- `enable_batch_insert`: Whether to use batch insert mode (default: `false`)
+  - `true`: Insert multiple records in a single SQL statement (much faster for high throughput)
+  - `false`: Insert records one by one (allows custom sql_template)
+  - Cannot be used together with `sql_template`
+- `enable_upsert`: Whether to enable upsert behavior (default: `false`)
+  - `true`: Update existing records on conflict (uses `ON DUPLICATE KEY UPDATE`)
+  - `false`: Insert only (fails on duplicate key)
+  - Uses MySQL 8.0.19+ syntax: `AS new_vals ON DUPLICATE KEY UPDATE ...`
+
+**Upsert Configuration**:
+- `conflict_columns`: Column name(s) to detect conflicts (required when `enable_upsert` is `true`)
+  - Example: `"record_key"` or `"id"`
+  - Used to identify which records should be updated
+
+**Custom SQL Configuration**:
+- `sql_template`: Custom SQL template for inserts (optional)
+  - Must contain exactly 3 placeholders (`?`) in order: `record_key`, `payload`, `timestamp`
+  - Example: `"INSERT INTO mqtt_messages (key, data, ts) VALUES (?, ?, ?)"`
+  - Cannot be used together with `enable_batch_insert` (will be rejected during validation)
+  - Useful for custom table schemas or additional columns with default values
+
+**Configuration Examples**:
+
+*Basic configuration (development)*:
+```json
+{
+  "host": "localhost",
+  "port": 3306,
+  "database": "mqtt_data",
+  "username": "root",
+  "password": "password123",
+  "table": "mqtt_messages"
+}
+```
+
+*Production configuration with connection pooling*:
+```json
+{
+  "host": "mysql-primary.example.com",
+  "port": 3306,
+  "database": "mqtt_prod",
+  "username": "mqtt_user",
+  "password": "secure_password",
+  "table": "messages",
+  "pool_size": 50,
+  "min_pool_size": 10,
+  "connect_timeout_secs": 10,
+  "acquire_timeout_secs": 30,
+  "idle_timeout_secs": 600,
+  "max_lifetime_secs": 1800,
+  "batch_size": 200,
+  "enable_batch_insert": true
+}
+```
+
+*High throughput configuration with upsert*:
+```json
+{
+  "host": "mysql-cluster.example.com",
+  "port": 3306,
+  "database": "mqtt_logs",
+  "username": "mqtt_writer",
+  "password": "write_password",
+  "table": "high_volume_messages",
+  "pool_size": 100,
+  "min_pool_size": 20,
+  "connect_timeout_secs": 5,
+  "acquire_timeout_secs": 15,
+  "idle_timeout_secs": 300,
+  "max_lifetime_secs": 900,
+  "batch_size": 1000,
+  "enable_batch_insert": true,
+  "enable_upsert": true,
+  "conflict_columns": "record_key"
+}
+```
+
+*High reliability configuration with custom SQL*:
+```json
+{
+  "host": "mysql-replica.example.com",
+  "port": 3306,
+  "database": "mqtt_critical",
+  "username": "mqtt_user",
+  "password": "critical_password",
+  "table": "critical_messages",
+  "pool_size": 20,
+  "min_pool_size": 5,
+  "connect_timeout_secs": 15,
+  "acquire_timeout_secs": 60,
+  "idle_timeout_secs": 1200,
+  "max_lifetime_secs": 3600,
+  "batch_size": 50,
+  "enable_batch_insert": false,
+  "sql_template": "INSERT INTO critical_messages (msg_key, msg_payload, msg_timestamp, created_at) VALUES (?, ?, ?, NOW())"
+}
+```
+
 **MongoDB Connector**:
 ```json
 {
   "connector_type": "mongodb",
   "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"auth_source\":\"admin\",\"deployment_mode\":\"single\",\"enable_tls\":false,\"max_pool_size\":10,\"min_pool_size\":2}"
+}
+```
+
+**MongoDB Connector (with advanced configuration)**:
+```json
+{
+  "connector_type": "mongodb",
+  "config": "{\"host\":\"mongo1.example.com\",\"port\":27017,\"database\":\"mqtt_prod\",\"collection\":\"messages\",\"username\":\"mqtt_user\",\"password\":\"secure_password\",\"deployment_mode\":\"replicaset\",\"replica_set_name\":\"rs0\",\"enable_tls\":true,\"max_pool_size\":50,\"min_pool_size\":5,\"connect_timeout_secs\":10,\"server_selection_timeout_secs\":30,\"socket_timeout_secs\":60,\"batch_size\":500,\"ordered_insert\":false,\"w\":\"majority\"}"
+}
+```
+
+**MongoDB Configuration Parameters**:
+
+**Required Parameters**:
+- `host`: MongoDB server address
+  - Example: `"localhost"` or `"mongo.example.com"`
+- `port`: MongoDB server port (default: `27017`)
+- `database`: Database name
+- `collection`: Collection name where messages will be stored
+
+**Authentication Parameters** (optional):
+- `username`: MongoDB username for authentication
+- `password`: MongoDB password for authentication
+- `auth_source`: Authentication database (default: `"admin"`)
+
+**Deployment Parameters**:
+- `deployment_mode`: MongoDB deployment mode (default: `"single"`)
+  - Valid values: `"single"`, `"replicaset"`, `"sharded"`
+- `replica_set_name`: Replica set name (required if `deployment_mode` is `"replicaset"`)
+- `enable_tls`: Enable TLS/SSL connection (default: `false`)
+
+**Connection Pool Parameters** (optional):
+- `max_pool_size`: Maximum number of connections in the pool (range: 1-1000)
+  - Larger values support higher concurrency
+- `min_pool_size`: Minimum number of connections in the pool
+  - Must be less than or equal to `max_pool_size`
+
+**Timeout Parameters**:
+- `connect_timeout_secs`: Connection timeout in seconds (default: `10`)
+  - Range: 1 to 300 seconds
+  - Prevents hanging during connection establishment
+- `server_selection_timeout_secs`: Server selection timeout in seconds (default: `30`)
+  - Range: 1 to 300 seconds
+  - Time to wait when selecting a server from the cluster
+- `socket_timeout_secs`: Socket operation timeout in seconds (default: `60`)
+  - Range: 1 to 600 seconds
+  - Time to wait for socket operations to complete
+
+**Performance Parameters**:
+- `batch_size`: Number of records to insert in a single batch (default: `100`)
+  - Range: 1 to 10,000
+  - Larger values improve throughput but increase latency and memory usage
+- `ordered_insert`: Whether to insert documents in order (default: `false`)
+  - `false`: If one document fails, others can still be inserted (recommended for reliability)
+  - `true`: Stops insertion on first failure (may cause data loss)
+- `w`: Write concern level (default: `"1"`)
+  - `"0"`: No acknowledgment (fastest, least reliable)
+  - `"1"`: Acknowledgment from primary only (balanced)
+  - `"majority"`: Acknowledgment from majority of replica set members (slowest, most reliable)
+  - Numbers 2-10: Acknowledgment from specific number of nodes
+
+**Configuration Examples**:
+
+*Basic configuration (development)*:
+```json
+{
+  "host": "localhost",
+  "port": 27017,
+  "database": "mqtt_data",
+  "collection": "messages"
+}
+```
+
+*Production configuration with replica set*:
+```json
+{
+  "host": "mongo-primary.example.com",
+  "port": 27017,
+  "database": "mqtt_prod",
+  "collection": "messages",
+  "username": "mqtt_user",
+  "password": "secure_password",
+  "auth_source": "admin",
+  "deployment_mode": "replicaset",
+  "replica_set_name": "rs0",
+  "enable_tls": true,
+  "max_pool_size": 50,
+  "min_pool_size": 10,
+  "connect_timeout_secs": 10,
+  "server_selection_timeout_secs": 30,
+  "batch_size": 500,
+  "ordered_insert": false,
+  "w": "majority"
+}
+```
+
+*High throughput configuration*:
+```json
+{
+  "host": "mongodb-cluster.example.com",
+  "database": "mqtt_logs",
+  "collection": "messages",
+  "batch_size": 1000,
+  "ordered_insert": false,
+  "w": "1",
+  "max_pool_size": 100
+}
+```
+
+*High reliability configuration*:
+```json
+{
+  "host": "mongodb-cluster.example.com",
+  "database": "mqtt_critical",
+  "collection": "messages",
+  "deployment_mode": "replicaset",
+  "replica_set_name": "rs0",
+  "batch_size": 100,
+  "ordered_insert": false,
+  "w": "majority",
+  "connect_timeout_secs": 15,
+  "server_selection_timeout_secs": 60
 }
 ```
 
@@ -1262,6 +2085,53 @@ Configuration parameters:
 - `ca_cert_path`: Optional, CA certificate path
 - `timeout_secs`: Optional, request timeout in seconds, range 1-300, default 30
 - `max_retries`: Optional, maximum retry attempts, max 10, default 3
+
+**Failure Handling Strategy (`failure_strategy`)**:
+
+The `failure_strategy` parameter defines how the connector handles message delivery failures. It's an optional JSON string with the following strategies:
+
+**1. Discard Strategy** (Default):
+```json
+{
+  "failure_strategy": "{\"Discard\":{}}"
+}
+```
+- Immediately discards failed messages
+- No retry attempts
+- Suitable for scenarios where message loss is acceptable
+
+**2. Discard After Retry Strategy**:
+```json
+{
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":3,\"wait_time_ms\":1000}}"
+}
+```
+- Retries delivery for specified number of times before discarding
+- `retry_total_times`: Total number of retry attempts (required)
+- `wait_time_ms`: Wait time in milliseconds between retries (required)
+- Suitable for handling temporary network issues
+
+**3. Dead Message Queue Strategy**:
+```json
+{
+  "failure_strategy": "{\"DeadMessageQueue\":{\"topic_name\":\"dead_letter_queue\"}}"
+}
+```
+- Sends failed messages to a designated dead letter queue topic
+- `topic_name`: Name of the dead letter queue topic (required)
+- Suitable for scenarios requiring message recovery and analysis
+- Note: This feature is currently under development
+
+**Example with failure strategy**:
+```json
+{
+  "connector_name": "kafka_bridge",
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+  "topic_name": "sensor/+",
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
+}
+```
 
 - **Response**: Returns "Created successfully!" on success
 
@@ -1764,6 +2634,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/detail \
 
 ### Create Connector
 ```bash
+# Create basic Kafka connector (uses default settings)
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -1771,6 +2642,27 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
+  }'
+
+# Create Kafka connector with advanced configuration
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_advanced",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"kafka1:9092,kafka2:9092,kafka3:9092\",\"topic\":\"mqtt_messages\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5}",
+    "topic_name": "sensor/+"
+  }'
+
+# Create connector with retry failure strategy
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_retry",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+    "topic_name": "sensor/+",
+    "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
   }'
 ```
 

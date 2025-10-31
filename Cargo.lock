@@ -7654,6 +7654,7 @@ dependencies = [
  "opendal",
  "protocol",
  "r2d2_mysql",
+ "rocksdb",
  "rocksdb-engine",
  "serde",
  "serde_json",

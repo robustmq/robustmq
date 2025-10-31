@@ -128,7 +128,9 @@ pub fn update_last_active(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::mqtt::bridge::{connector_type::ConnectorType, status::MQTTStatus};
+    use metadata_struct::mqtt::bridge::{
+        connector::FailureHandlingStrategy, connector_type::ConnectorType, status::MQTTStatus,
+    };
     use tokio::sync::broadcast;
 
     fn create_test_connector() -> MQTTConnector {
@@ -137,6 +139,7 @@ mod tests {
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
+            failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
             cluster_name: "test_cluster".to_string(),

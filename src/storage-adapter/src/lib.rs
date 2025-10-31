@@ -16,7 +16,6 @@
 
 use std::str::FromStr;
 
-pub mod file;
 pub mod journal;
 pub mod memory;
 pub mod meta;

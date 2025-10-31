@@ -246,7 +246,6 @@ pub fn start_postgres_connector(
                 return;
             }
         };
-
         let bridge = PostgresBridgePlugin::new(postgres_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -260,6 +259,7 @@ pub fn start_postgres_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

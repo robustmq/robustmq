@@ -15,8 +15,10 @@
 use std::sync::Arc;
 
 use crate::{
-    bridge::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
-    bridge::manager::ConnectorManager,
+    bridge::{
+        core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+        manager::ConnectorManager,
+    },
     common::types::ResultMqttBrokerError,
 };
 use axum::async_trait;
@@ -95,6 +97,7 @@ pub fn start_pulsar_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

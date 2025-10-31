@@ -1152,7 +1152,8 @@
   "connector_name": "new_connector",   // 连接器名称
   "connector_type": "kafka",           // 连接器类型
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",  // 配置信息（JSON字符串）
-  "topic_name": "sensor/+"               // 关联的主题ID
+  "topic_name": "sensor/+",            // 关联的主题ID
+  "failure_strategy": "{\"Discard\":{}}" // 可选，失败处理策略（JSON字符串），默认为 Discard
 }
 ```
 
@@ -1161,6 +1162,7 @@
   - `connector_type`: 长度必须在 1-50 个字符之间，必须是 `kafka`、`pulsar`、`rabbitmq`、`greptime`、`postgres`、`mysql`、`mongodb`、`file` 或 `elasticsearch`
   - `config`: 长度必须在 1-4096 个字符之间
   - `topic_name`: 长度必须在 1-256 个字符之间
+  - `failure_strategy`: 可选，长度必须在 1-1024 个字符之间（JSON字符串）
 
 **连接器类型和配置示例**：
 
@@ -1172,7 +1174,92 @@
 }
 ```
 
-> 注意：`key` 字段必须提供，但可以为空字符串。如果需要指定消息键，可以设置为具体值，如 `"key":"sensor_data"`。
+**Kafka 连接器（高级配置）**:
+```json
+{
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"127.0.0.1:9092,127.0.0.2:9092\",\"topic\":\"mqtt_messages\",\"key\":\"\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5,\"message_timeout_ms\":60000,\"cleanup_timeout_secs\":15}"
+}
+```
+
+**Kafka 配置参数说明**:
+
+**必填参数**:
+- `bootstrap_servers`: Kafka broker 地址，格式: `host1:port1,host2:port2,host3:port3`
+  - 支持逗号分隔的多个地址用于集群配置
+  - 每个地址会被验证格式是否正确（host:port）
+  - 至少一个 broker 必须可达（创建时会进行网络连通性检查）
+  - 示例: `"127.0.0.1:9092"` 或 `"127.0.0.1:9092,127.0.0.2:9092,127.0.0.3:9092"`
+- `topic`: Kafka 主题名称，消息将发布到该主题
+
+**可选参数**:
+- `key`: 消息键，用于分区路由（默认值: `""`）
+  - 空字符串：使用消息自身的 key 或由 Kafka 进行轮询分区
+  - 非空：所有消息使用固定的 key 进行分区分配
+  - 最大长度：256 字符
+
+**性能参数**:
+- `compression_type`: 消息压缩算法（默认值: `"none"`）
+  - 有效值: `"none"`、`"gzip"`、`"snappy"`、`"lz4"`、`"zstd"`
+  - 推荐: `"lz4"` 在速度和压缩率之间有最佳平衡
+- `batch_size`: 批量发送的最大字节数（默认值: `16384`）
+  - 范围: 1 到 1,048,576 字节（1MB）
+  - 较大值提高吞吐量但增加延迟
+- `linger_ms`: 发送批次前的等待时间（毫秒）（默认值: `5`）
+  - 范围: 0 到 60,000 毫秒（60 秒）
+  - 较高值可批处理更多消息但增加端到端延迟
+
+**可靠性参数**:
+- `acks`: 消息确认级别（默认值: `"1"`）
+  - `"0"`: 无确认（最快，可靠性最低）
+  - `"1"`: 仅 leader 确认（平衡）
+  - `"all"` 或 `"-1"`: 所有同步副本确认（最慢，可靠性最高）
+- `retries`: 失败时的最大重试次数（默认值: `3`）
+  - 范围: 0 到 100
+- `message_timeout_ms`: 消息投递的总超时时间（毫秒）（默认值: `30000`）
+  - 范围: 1,000 到 300,000 毫秒（1 秒到 5 分钟）
+  - 包括重试和等待确认的时间
+
+**清理参数**:
+- `cleanup_timeout_secs`: 连接器关闭时刷新消息的超时时间（秒）（默认值: `10`）
+  - 范围: 0 到 300 秒
+  - 确保缓冲的消息在连接器停止前发送完成
+
+**配置示例**:
+
+*高吞吐量配置*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_high_volume",
+  "compression_type": "lz4",
+  "batch_size": 65536,
+  "linger_ms": 50,
+  "acks": "1"
+}
+```
+
+*高可靠性配置*:
+```json
+{
+  "bootstrap_servers": "kafka1:9092,kafka2:9092,kafka3:9092",
+  "topic": "mqtt_critical",
+  "acks": "all",
+  "retries": 10,
+  "message_timeout_ms": 60000
+}
+```
+
+*低延迟配置*:
+```json
+{
+  "bootstrap_servers": "kafka:9092",
+  "topic": "mqtt_realtime",
+  "batch_size": 1024,
+  "linger_ms": 0,
+  "compression_type": "none"
+}
+```
 
 **Pulsar 连接器**:
 ```json
@@ -1182,11 +1269,318 @@
 }
 ```
 
+**Pulsar 连接器（高级配置）**:
+```json
+{
+  "connector_type": "pulsar",
+  "config": "{\"server\":\"pulsar://pulsar.example.com:6650\",\"topic\":\"mqtt-messages\",\"token\":\"your-auth-token\",\"connection_timeout_secs\":30,\"operation_timeout_secs\":30,\"send_timeout_secs\":30,\"batch_size\":500,\"max_pending_messages\":5000,\"compression\":\"lz4\"}"
+}
+```
+
+**Pulsar 配置参数说明**:
+
+**必填参数**:
+- `server`: Pulsar broker 地址
+  - 格式: `pulsar://host:port` 或 `pulsar+ssl://host:port`（使用 TLS）
+  - 示例: `"pulsar://localhost:6650"` 或 `"pulsar://broker1.example.com:6650"`
+  - 长度: 1 到 512 个字符
+- `topic`: Pulsar topic 名称，消息将发布到该 topic
+  - 示例: `"mqtt-messages"` 或 `"persistent://tenant/namespace/topic"`
+  - 长度: 1 到 256 个字符
+  - 支持完整的 topic 格式（包含 tenant 和 namespace）
+
+**认证参数**（选择一种方式）:
+- **Token 认证**:
+  - `token`: 认证 token
+    - 长度: 最多 1,024 个字符
+    - 示例: `"eyJhbGciOiJIUzI1NiJ9..."`
+
+- **OAuth2 认证**:
+  - `oauth`: OAuth2 配置（JSON 字符串）
+    - 长度: 最多 1,024 个字符
+    - 必须是包含 OAuth2 参数的有效 JSON
+    - 示例: `"{\"issuer_url\":\"https://auth.example.com\",\"credentials_url\":\"file:///path/to/credentials.json\"}"`
+
+- **基本认证**:
+  - `basic_name`: 基本认证用户名
+    - 长度: 最多 256 个字符
+  - `basic_password`: 基本认证密码
+    - 长度: 最多 256 个字符
+    - `basic_name` 和 `basic_password` 必须同时提供
+
+**重要提示**: 只能指定一种认证方式。如果提供多种认证方式，验证将失败。
+
+**超时参数**:
+- `connection_timeout_secs`: 连接超时时间（秒）（默认值: `30`）
+  - 范围: 1 到 300 秒
+  - 建立 Pulsar broker 连接时的等待时间
+- `operation_timeout_secs`: 操作超时时间（秒）（默认值: `30`）
+  - 范围: 1 到 300 秒
+  - Pulsar 操作的超时时间（例如：创建 producer、查找服务）
+- `send_timeout_secs`: 发送超时时间（秒）（默认值: `30`）
+  - 范围: 1 到 300 秒
+  - 等待消息发送确认的最大时间
+
+**性能参数**:
+- `batch_size`: 单次批量处理的记录数（默认值: `100`）
+  - 范围: 1 到 10,000
+  - 较大值提高吞吐量但增加延迟和内存使用
+  - 由连接器读取循环使用，决定一次获取多少记录
+- `max_pending_messages`: 队列中最大待发送消息数（默认值: `1000`）
+  - 范围: 1 到 100,000
+  - 控制内存使用和背压
+  - 较高值允许更多消息排队，但会增加内存使用
+
+**压缩参数**:
+- `compression`: 消息负载的压缩算法（默认值: `none`）
+  - 有效值: `"none"`, `"lz4"`, `"zlib"`, `"zstd"`, `"snappy"`
+  - `none`: 无压缩（最快，体积最大）
+  - `lz4`: 快速压缩，压缩比适中
+  - `zlib`: 平衡的压缩
+  - `zstd`: 高压缩比（推荐带宽受限场景）
+  - `snappy`: 非常快的压缩（适合低延迟场景）
+
+**配置示例**:
+
+*基础配置（开发环境）*:
+```json
+{
+  "server": "pulsar://localhost:6650",
+  "topic": "mqtt-messages"
+}
+```
+
+*生产环境配置（Token 认证）*:
+```json
+{
+  "server": "pulsar://pulsar-broker.example.com:6650",
+  "topic": "persistent://public/default/mqtt-messages",
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtcXR0LXVzZXIifQ...",
+  "connection_timeout_secs": 30,
+  "operation_timeout_secs": 30,
+  "send_timeout_secs": 30,
+  "batch_size": 200,
+  "max_pending_messages": 2000,
+  "compression": "lz4"
+}
+```
+
+*高吞吐量配置（带压缩）*:
+```json
+{
+  "server": "pulsar://pulsar-cluster.example.com:6650",
+  "topic": "persistent://mqtt/logs/high-volume",
+  "token": "production-token",
+  "connection_timeout_secs": 15,
+  "operation_timeout_secs": 15,
+  "send_timeout_secs": 60,
+  "batch_size": 1000,
+  "max_pending_messages": 10000,
+  "compression": "zstd"
+}
+```
+
+*OAuth2 认证配置*:
+```json
+{
+  "server": "pulsar+ssl://secure-pulsar.example.com:6651",
+  "topic": "persistent://enterprise/production/mqtt-events",
+  "oauth": "{\"issuer_url\":\"https://auth.example.com\",\"credentials_url\":\"file:///etc/pulsar/oauth2.json\",\"audience\":\"urn:pulsar:cluster\"}",
+  "connection_timeout_secs": 30,
+  "operation_timeout_secs": 30,
+  "batch_size": 500,
+  "compression": "lz4"
+}
+```
+
+*基本认证配置*:
+```json
+{
+  "server": "pulsar://internal-broker.example.com:6650",
+  "topic": "mqtt-internal",
+  "basic_name": "mqtt_user",
+  "basic_password": "secure_password",
+  "batch_size": 100,
+  "max_pending_messages": 1000
+}
+```
+
 **RabbitMQ 连接器**:
 ```json
 {
   "connector_type": "rabbitmq",
   "config": "{\"server\":\"localhost\",\"port\":5672,\"username\":\"guest\",\"password\":\"guest\",\"virtual_host\":\"/\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.data\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false}"
+}
+```
+
+**RabbitMQ 连接器（高级配置）**:
+```json
+{
+  "connector_type": "rabbitmq",
+  "config": "{\"server\":\"rabbitmq.example.com\",\"port\":5672,\"username\":\"mqtt_producer\",\"password\":\"secure_password\",\"virtual_host\":\"/mqtt\",\"exchange\":\"mqtt_messages\",\"routing_key\":\"sensor.#\",\"delivery_mode\":\"Persistent\",\"enable_tls\":false,\"connection_timeout_secs\":30,\"heartbeat_secs\":60,\"batch_size\":100,\"channel_max\":2047,\"frame_max\":131072,\"confirm_timeout_secs\":30,\"publisher_confirms\":true}"
+}
+```
+
+**RabbitMQ 配置参数**:
+
+**必需参数**:
+- `server`: RabbitMQ 服务器地址（主机名或 IP 地址）
+  - 示例: `"localhost"`、`"rabbitmq.example.com"`、`"192.168.1.100"`
+  - 长度: 1 至 512 个字符
+- `username`: 用于身份验证的用户名
+  - 示例: `"guest"`、`"mqtt_producer"`
+  - 长度: 1 至 256 个字符
+- `exchange`: 消息将发布到的交换机名称
+  - 示例: `"mqtt_messages"`、`"amq.topic"`
+  - 长度: 1 至 256 个字符
+  - 交换机应在发布消息之前就已存在
+
+**可选参数**:
+- `port`: RabbitMQ 服务器端口（默认: `5672`）
+  - 标准端口: `5672` (AMQP)、`5671` (AMQPS with TLS)
+  - 必须大于 0
+- `password`: 用于身份验证的密码（默认: `""`）
+  - 长度: 最多 256 个字符
+  - 如果 RabbitMQ 允许无密码身份验证，则可以为空
+- `virtual_host`: 虚拟主机名称（默认: `"/"`）
+  - 示例: `"/"`、`"/mqtt"`、`"/production"`
+  - 长度: 最多 256 个字符
+  - 虚拟主机在 RabbitMQ 中提供逻辑隔离
+- `routing_key`: 用于消息路由的路由键（默认: `""`）
+  - 示例: `"sensor.temperature"`、`"sensor.#"`、`"*.critical"`
+  - 长度: 最多 256 个字符
+  - 空字符串: 消息根据交换机类型进行路由
+  - 支持主题交换机的通配符: `*`（一个单词）、`#`（零个或多个单词）
+- `delivery_mode`: 消息持久化模式（默认: `"NonPersistent"`）
+  - 有效值: `"NonPersistent"`、`"Persistent"`
+  - `NonPersistent`: 更快，但代理重启时消息可能丢失
+  - `Persistent`: 更慢，消息在代理重启后仍然存在（需要持久化的交换机和队列）
+- `enable_tls`: 启用 TLS/SSL 连接（默认: `false`）
+  - `false`: 使用 AMQP 协议（端口 5672）
+  - `true`: 使用 AMQPS 协议（端口 5671）
+
+**连接参数**:
+- `connection_timeout_secs`: 连接超时时间（秒）（默认: `30`）
+  - 范围: 1 至 300 秒
+  - 建立与 RabbitMQ 代理连接时的等待时间
+- `heartbeat_secs`: 心跳间隔（秒）（默认: `60`）
+  - 范围: 0 至 300 秒
+  - `0`: 禁用心跳
+  - 推荐: 生产环境使用 30-120 秒
+  - 较低的值可以更快地检测连接失败，但会增加网络流量
+- `channel_max`: 每个连接的最大通道数（默认: `2047`）
+  - 必须大于 0
+  - RabbitMQ 协议最大值为 65535，但大多数服务器限制为 2047
+  - 此连接器使用 1 个通道，但该设置应用于连接
+- `frame_max`: 最大帧大小（字节）（默认: `131072`）
+  - 范围: 4,096 至 1,048,576 字节（4KB 至 1MB）
+  - 较大的帧减少协议开销，但会增加内存使用
+  - 大多数 RabbitMQ 服务器默认为 128KB（131072 字节）
+
+**性能参数**:
+- `batch_size`: 单批次处理的记录数（默认: `100`）
+  - 范围: 1 至 10,000
+  - 启用发布者确认时，较大的值可提高吞吐量
+  - 连接器读取循环使用此值来确定要获取的记录数
+- `publisher_confirms`: 启用发布者确认以提高可靠性（默认: `true`）
+  - `true`: 等待代理确认（可靠，较慢）
+  - `false`: 即发即弃模式（快速，可能丢失消息）
+  - 推荐: 生产环境使用 `true` 以确保消息传递
+- `confirm_timeout_secs`: 发布者确认超时时间（秒）（默认: `30`）
+  - 范围: 1 至 300 秒
+  - 仅在 `publisher_confirms` 为 `true` 时适用
+  - 等待每条消息的代理确认的超时时间
+  - 较高的值可适应慢速代理，但会延迟错误检测
+
+**配置示例**:
+
+*基本配置（开发环境）*:
+```json
+{
+  "server": "localhost",
+  "port": 5672,
+  "username": "guest",
+  "password": "guest",
+  "virtual_host": "/",
+  "exchange": "mqtt_messages",
+  "routing_key": "",
+  "delivery_mode": "NonPersistent",
+  "enable_tls": false
+}
+```
+
+*生产配置（高可靠性）*:
+```json
+{
+  "server": "rabbitmq-cluster.example.com",
+  "port": 5671,
+  "username": "mqtt_producer",
+  "password": "secure_password",
+  "virtual_host": "/production",
+  "exchange": "mqtt_messages_persistent",
+  "routing_key": "mqtt.messages",
+  "delivery_mode": "Persistent",
+  "enable_tls": true,
+  "connection_timeout_secs": 60,
+  "heartbeat_secs": 30,
+  "batch_size": 100,
+  "confirm_timeout_secs": 30,
+  "publisher_confirms": true
+}
+```
+
+*高吞吐量配置*:
+```json
+{
+  "server": "rabbitmq.example.com",
+  "port": 5672,
+  "username": "mqtt_producer",
+  "password": "xxx",
+  "virtual_host": "/mqtt",
+  "exchange": "mqtt_high_volume",
+  "routing_key": "",
+  "delivery_mode": "NonPersistent",
+  "enable_tls": false,
+  "connection_timeout_secs": 30,
+  "heartbeat_secs": 60,
+  "batch_size": 1000,
+  "confirm_timeout_secs": 60,
+  "publisher_confirms": true
+}
+```
+
+*低延迟配置*:
+```json
+{
+  "server": "localhost",
+  "port": 5672,
+  "username": "guest",
+  "password": "guest",
+  "virtual_host": "/",
+  "exchange": "mqtt_realtime",
+  "routing_key": "realtime",
+  "delivery_mode": "NonPersistent",
+  "enable_tls": false,
+  "batch_size": 10,
+  "publisher_confirms": false
+}
+```
+
+*主题交换机配置（路由模式）*:
+```json
+{
+  "server": "rabbitmq.example.com",
+  "port": 5672,
+  "username": "mqtt_producer",
+  "password": "xxx",
+  "virtual_host": "/sensors",
+  "exchange": "amq.topic",
+  "routing_key": "sensor.temperature.room1",
+  "delivery_mode": "Persistent",
+  "enable_tls": false,
+  "batch_size": 50,
+  "publisher_confirms": true,
+  "confirm_timeout_secs": 30
 }
 ```
 
@@ -1206,6 +1600,160 @@
 }
 ```
 
+**PostgreSQL 连接器（高级配置）**:
+```json
+{
+  "connector_type": "postgres",
+  "config": "{\"host\":\"postgres.example.com\",\"port\":5432,\"database\":\"mqtt_prod\",\"username\":\"mqtt_user\",\"password\":\"secure_password\",\"table\":\"mqtt_messages\",\"pool_size\":20,\"min_pool_size\":5,\"enable_batch_insert\":true,\"enable_upsert\":true,\"conflict_columns\":\"client_id, topic\",\"connect_timeout_secs\":10,\"acquire_timeout_secs\":30,\"idle_timeout_secs\":600,\"max_lifetime_secs\":1800,\"batch_size\":500}"
+}
+```
+
+**PostgreSQL 配置参数说明**:
+
+**必填参数**:
+- `host`: PostgreSQL 服务器地址
+  - 示例: `"localhost"` 或 `"postgres.example.com"`
+  - 长度: 1 到 512 个字符
+- `port`: PostgreSQL 服务器端口（默认值: `5432`）
+- `database`: 数据库名称
+  - 长度: 1 到 256 个字符
+- `username`: PostgreSQL 用户名
+  - 长度: 1 到 256 个字符
+- `password`: PostgreSQL 密码
+  - 长度: 最多 256 个字符
+- `table`: 表名称，消息将存储到该表
+  - 长度: 1 到 256 个字符
+  - 只能包含字母、数字、下划线和点号（用于 schema.table 格式）
+  - 在创建连接器时会进行格式验证
+  - 示例: `"mqtt_messages"` 或 `"public.mqtt_messages"`
+
+**连接池参数**（可选）:
+- `pool_size`: 连接池最大连接数（默认值: `10`）
+  - 范围: 1 到 1,000
+  - 较大值支持更高的并发
+- `min_pool_size`: 连接池最小连接数（默认值: `2`）
+  - 必须小于或等于 `pool_size`
+  - 保持连接预热以便快速访问
+
+**超时参数**:
+- `connect_timeout_secs`: 连接超时时间（秒）（默认值: `10`）
+  - 范围: 1 到 300 秒
+  - 建立新数据库连接时的等待时间
+  - 注意: 这由连接字符串控制，而非池选项
+- `acquire_timeout_secs`: 获取连接超时时间（秒）（默认值: `30`）
+  - 范围: 1 到 300 秒
+  - 从连接池获取连接的最大等待时间
+- `idle_timeout_secs`: 空闲连接超时时间（秒）（默认值: `600`，10 分钟）
+  - 范围: 0 到 3,600 秒（0 表示无超时）
+  - 空闲时间超过此值的连接将被关闭
+- `max_lifetime_secs`: 连接最大生命周期（秒）（默认值: `1800`，30 分钟）
+  - 范围: 0 到 7,200 秒（0 表示无限制）
+  - 超过此生命周期的连接将被关闭并重建
+
+**性能参数**:
+- `batch_size`: 单次批量处理的记录数（默认值: `100`）
+  - 范围: 1 到 10,000
+  - 较大值提高吞吐量但增加延迟和内存使用
+  - 由连接器读取循环使用，决定一次获取多少记录
+- `enable_batch_insert`: 是否启用批量插入模式（默认值: `false`）
+  - `true`: 在单个 SQL 语句中插入多条记录（高吞吐量场景下更快）
+  - `false`: 逐条插入记录（允许使用自定义 sql_template）
+  - 不能与 `sql_template` 同时使用
+- `enable_upsert`: 是否启用 upsert 行为（默认值: `false`）
+  - `true`: 冲突时更新现有记录（使用 PostgreSQL 的 `ON CONFLICT ... DO UPDATE`）
+  - `false`: 仅插入（重复键时失败）
+
+**Upsert 配置**:
+- `conflict_columns`: 用于检测冲突的列名（当 `enable_upsert` 为 `true` 时必填）
+  - 示例: `"client_id, topic"` 或 `"id"`
+  - 用于标识哪些记录应该被更新
+  - 必须与表中的唯一约束或主键匹配
+
+**自定义 SQL 配置**:
+- `sql_template`: 自定义 SQL 插入模板（可选）
+  - 必须包含恰好 5 个占位符（`$1`-`$5`），顺序为: `client_id`, `topic`, `timestamp`, `payload`, `data`
+  - 示例: `"INSERT INTO mqtt_messages (client_id, topic, ts, payload, data) VALUES ($1, $2, $3, $4, $5)"`
+  - 不能与 `enable_batch_insert` 同时使用（验证时会被拒绝）
+  - 适用于自定义表结构或带默认值的额外列
+  - 注意: PostgreSQL 使用 `$1`, `$2` 参数语法，而不是 MySQL 的 `?`
+
+**配置示例**:
+
+*基础配置（开发环境）*:
+```json
+{
+  "host": "localhost",
+  "port": 5432,
+  "database": "mqtt_data",
+  "username": "postgres",
+  "password": "password123",
+  "table": "mqtt_messages"
+}
+```
+
+*生产环境配置（带连接池）*:
+```json
+{
+  "host": "postgres-primary.example.com",
+  "port": 5432,
+  "database": "mqtt_prod",
+  "username": "mqtt_user",
+  "password": "secure_password",
+  "table": "messages",
+  "pool_size": 50,
+  "min_pool_size": 10,
+  "connect_timeout_secs": 10,
+  "acquire_timeout_secs": 30,
+  "idle_timeout_secs": 600,
+  "max_lifetime_secs": 1800,
+  "batch_size": 200,
+  "enable_batch_insert": true
+}
+```
+
+*高吞吐量配置（带 upsert）*:
+```json
+{
+  "host": "postgres-cluster.example.com",
+  "port": 5432,
+  "database": "mqtt_logs",
+  "username": "mqtt_writer",
+  "password": "write_password",
+  "table": "high_volume_messages",
+  "pool_size": 100,
+  "min_pool_size": 20,
+  "connect_timeout_secs": 5,
+  "acquire_timeout_secs": 15,
+  "idle_timeout_secs": 300,
+  "max_lifetime_secs": 900,
+  "batch_size": 1000,
+  "enable_batch_insert": true,
+  "enable_upsert": true,
+  "conflict_columns": "client_id, topic"
+}
+```
+
+*高可靠性配置（自定义 SQL）*:
+```json
+{
+  "host": "postgres-replica.example.com",
+  "port": 5432,
+  "database": "mqtt_critical",
+  "username": "mqtt_user",
+  "password": "critical_password",
+  "table": "critical_messages",
+  "pool_size": 20,
+  "min_pool_size": 5,
+  "connect_timeout_secs": 15,
+  "acquire_timeout_secs": 60,
+  "idle_timeout_secs": 1200,
+  "max_lifetime_secs": 3600,
+  "batch_size": 50,
+  "enable_batch_insert": false,
+  "sql_template": "INSERT INTO critical_messages (client_id, topic, timestamp, payload, data, created_at) VALUES ($1, $2, $3, $4, $5, NOW())"
+}
+```
+
 **MySQL 连接器**:
 ```json
 {
@@ -1214,11 +1762,286 @@
 }
 ```
 
+**MySQL 连接器（高级配置）**:
+```json
+{
+  "connector_type": "mysql",
+  "config": "{\"host\":\"mysql.example.com\",\"port\":3306,\"database\":\"mqtt_prod\",\"username\":\"mqtt_user\",\"password\":\"secure_password\",\"table\":\"mqtt_messages\",\"pool_size\":20,\"min_pool_size\":5,\"enable_batch_insert\":true,\"enable_upsert\":true,\"conflict_columns\":\"record_key\",\"connect_timeout_secs\":10,\"acquire_timeout_secs\":30,\"idle_timeout_secs\":600,\"max_lifetime_secs\":1800,\"batch_size\":500}"
+}
+```
+
+**MySQL 配置参数说明**:
+
+**必填参数**:
+- `host`: MySQL 服务器地址
+  - 示例: `"localhost"` 或 `"mysql.example.com"`
+  - 长度: 1 到 512 个字符
+- `port`: MySQL 服务器端口（默认值: `3306`）
+- `database`: 数据库名称
+  - 长度: 1 到 256 个字符
+- `username`: MySQL 用户名
+  - 长度: 1 到 256 个字符
+- `password`: MySQL 密码
+  - 长度: 最多 256 个字符
+- `table`: 表名称，消息将存储到该表
+  - 长度: 1 到 256 个字符
+  - 只能包含字母、数字、下划线和点号（用于 schema.table 格式）
+  - 在创建连接器时会进行格式验证
+  - 示例: `"mqtt_messages"` 或 `"mqtt_db.messages"`
+
+**连接池参数**（可选）:
+- `pool_size`: 连接池最大连接数（默认值: `10`）
+  - 范围: 1 到 1,000
+  - 较大值支持更高的并发
+- `min_pool_size`: 连接池最小连接数（默认值: `2`）
+  - 必须小于或等于 `pool_size`
+  - 保持连接预热以便快速访问
+
+**超时参数**:
+- `connect_timeout_secs`: 连接超时时间（秒）（默认值: `10`）
+  - 范围: 1 到 300 秒
+  - 建立新数据库连接时的等待时间
+  - 注意: 这由连接字符串控制，而非池选项
+- `acquire_timeout_secs`: 获取连接超时时间（秒）（默认值: `30`）
+  - 范围: 1 到 300 秒
+  - 从连接池获取连接的最大等待时间
+- `idle_timeout_secs`: 空闲连接超时时间（秒）（默认值: `600`，10 分钟）
+  - 范围: 0 到 3,600 秒（0 表示无超时）
+  - 空闲时间超过此值的连接将被关闭
+- `max_lifetime_secs`: 连接最大生命周期（秒）（默认值: `1800`，30 分钟）
+  - 范围: 0 到 7,200 秒（0 表示无限制）
+  - 超过此生命周期的连接将被关闭并重建
+
+**性能参数**:
+- `batch_size`: 单次批量处理的记录数（默认值: `100`）
+  - 范围: 1 到 10,000
+  - 较大值提高吞吐量但增加延迟和内存使用
+  - 由连接器读取循环使用，决定一次获取多少记录
+- `enable_batch_insert`: 是否启用批量插入模式（默认值: `false`）
+  - `true`: 在单个 SQL 语句中插入多条记录（高吞吐量场景下更快）
+  - `false`: 逐条插入记录（允许使用自定义 sql_template）
+  - 不能与 `sql_template` 同时使用
+- `enable_upsert`: 是否启用 upsert 行为（默认值: `false`）
+  - `true`: 冲突时更新现有记录（使用 `ON DUPLICATE KEY UPDATE`）
+  - `false`: 仅插入（重复键时失败）
+  - 使用 MySQL 8.0.19+ 语法: `AS new_vals ON DUPLICATE KEY UPDATE ...`
+
+**Upsert 配置**:
+- `conflict_columns`: 用于检测冲突的列名（当 `enable_upsert` 为 `true` 时必填）
+  - 示例: `"record_key"` 或 `"id"`
+  - 用于标识哪些记录应该被更新
+
+**自定义 SQL 配置**:
+- `sql_template`: 自定义 SQL 插入模板（可选）
+  - 必须包含恰好 3 个占位符（`?`），顺序为: `record_key`, `payload`, `timestamp`
+  - 示例: `"INSERT INTO mqtt_messages (key, data, ts) VALUES (?, ?, ?)"`
+  - 不能与 `enable_batch_insert` 同时使用（验证时会被拒绝）
+  - 适用于自定义表结构或带默认值的额外列
+
+**配置示例**:
+
+*基础配置（开发环境）*:
+```json
+{
+  "host": "localhost",
+  "port": 3306,
+  "database": "mqtt_data",
+  "username": "root",
+  "password": "password123",
+  "table": "mqtt_messages"
+}
+```
+
+*生产环境配置（带连接池）*:
+```json
+{
+  "host": "mysql-primary.example.com",
+  "port": 3306,
+  "database": "mqtt_prod",
+  "username": "mqtt_user",
+  "password": "secure_password",
+  "table": "messages",
+  "pool_size": 50,
+  "min_pool_size": 10,
+  "connect_timeout_secs": 10,
+  "acquire_timeout_secs": 30,
+  "idle_timeout_secs": 600,
+  "max_lifetime_secs": 1800,
+  "batch_size": 200,
+  "enable_batch_insert": true
+}
+```
+
+*高吞吐量配置（带 upsert）*:
+```json
+{
+  "host": "mysql-cluster.example.com",
+  "port": 3306,
+  "database": "mqtt_logs",
+  "username": "mqtt_writer",
+  "password": "write_password",
+  "table": "high_volume_messages",
+  "pool_size": 100,
+  "min_pool_size": 20,
+  "connect_timeout_secs": 5,
+  "acquire_timeout_secs": 15,
+  "idle_timeout_secs": 300,
+  "max_lifetime_secs": 900,
+  "batch_size": 1000,
+  "enable_batch_insert": true,
+  "enable_upsert": true,
+  "conflict_columns": "record_key"
+}
+```
+
+*高可靠性配置（自定义 SQL）*:
+```json
+{
+  "host": "mysql-replica.example.com",
+  "port": 3306,
+  "database": "mqtt_critical",
+  "username": "mqtt_user",
+  "password": "critical_password",
+  "table": "critical_messages",
+  "pool_size": 20,
+  "min_pool_size": 5,
+  "connect_timeout_secs": 15,
+  "acquire_timeout_secs": 60,
+  "idle_timeout_secs": 1200,
+  "max_lifetime_secs": 3600,
+  "batch_size": 50,
+  "enable_batch_insert": false,
+  "sql_template": "INSERT INTO critical_messages (msg_key, msg_payload, msg_timestamp, created_at) VALUES (?, ?, ?, NOW())"
+}
+```
+
 **MongoDB 连接器**:
 ```json
 {
   "connector_type": "mongodb",
   "config": "{\"host\":\"localhost\",\"port\":27017,\"database\":\"mqtt_data\",\"collection\":\"mqtt_messages\",\"username\":\"mqtt_user\",\"password\":\"mqtt_pass\",\"auth_source\":\"admin\",\"deployment_mode\":\"single\",\"enable_tls\":false,\"max_pool_size\":10,\"min_pool_size\":2}"
+}
+```
+
+**MongoDB 连接器（高级配置）**:
+```json
+{
+  "connector_type": "mongodb",
+  "config": "{\"host\":\"mongo1.example.com\",\"port\":27017,\"database\":\"mqtt_prod\",\"collection\":\"messages\",\"username\":\"mqtt_user\",\"password\":\"secure_password\",\"deployment_mode\":\"replicaset\",\"replica_set_name\":\"rs0\",\"enable_tls\":true,\"max_pool_size\":50,\"min_pool_size\":5,\"connect_timeout_secs\":10,\"server_selection_timeout_secs\":30,\"socket_timeout_secs\":60,\"batch_size\":500,\"ordered_insert\":false,\"w\":\"majority\"}"
+}
+```
+
+**MongoDB 配置参数说明**:
+
+**必填参数**:
+- `host`: MongoDB 服务器地址
+  - 示例: `"localhost"` 或 `"mongo.example.com"`
+- `port`: MongoDB 服务器端口（默认值: `27017`）
+- `database`: 数据库名称
+- `collection`: 集合名称，消息将存储到该集合
+
+**认证参数**（可选）:
+- `username`: MongoDB 用户名
+- `password`: MongoDB 密码
+- `auth_source`: 认证数据库（默认值: `"admin"`）
+
+**部署参数**:
+- `deployment_mode`: MongoDB 部署模式（默认值: `"single"`）
+  - 有效值: `"single"`, `"replicaset"`, `"sharded"`
+- `replica_set_name`: 副本集名称（当 `deployment_mode` 为 `"replicaset"` 时必填）
+- `enable_tls`: 启用 TLS/SSL 连接（默认值: `false`）
+
+**连接池参数**（可选）:
+- `max_pool_size`: 连接池最大连接数（范围: 1-1000）
+  - 较大值支持更高的并发
+- `min_pool_size`: 连接池最小连接数
+  - 必须小于或等于 `max_pool_size`
+
+**超时参数**:
+- `connect_timeout_secs`: 连接超时时间（秒）（默认值: `10`）
+  - 范围: 1 到 300 秒
+  - 防止连接建立时永久挂起
+- `server_selection_timeout_secs`: 服务器选择超时时间（秒）（默认值: `30`）
+  - 范围: 1 到 300 秒
+  - 从集群中选择服务器时的等待时间
+- `socket_timeout_secs`: Socket 操作超时时间（秒）（默认值: `60`）
+  - 范围: 1 到 600 秒
+  - Socket 操作完成的等待时间
+
+**性能参数**:
+- `batch_size`: 单次批量插入的记录数（默认值: `100`）
+  - 范围: 1 到 10,000
+  - 较大值提高吞吐量但增加延迟和内存使用
+- `ordered_insert`: 是否顺序插入文档（默认值: `false`）
+  - `false`: 如果某个文档失败，其他文档仍可插入（推荐，提高可靠性）
+  - `true`: 遇到第一个失败就停止插入（可能导致数据丢失）
+- `w`: 写关注级别（默认值: `"1"`）
+  - `"0"`: 无确认（最快，可靠性最低）
+  - `"1"`: 仅主节点确认（平衡）
+  - `"majority"`: 副本集多数成员确认（最慢，可靠性最高）
+  - 数字 2-10: 指定数量的节点确认
+
+**配置示例**:
+
+*基础配置（开发环境）*:
+```json
+{
+  "host": "localhost",
+  "port": 27017,
+  "database": "mqtt_data",
+  "collection": "messages"
+}
+```
+
+*生产环境副本集配置*:
+```json
+{
+  "host": "mongo-primary.example.com",
+  "port": 27017,
+  "database": "mqtt_prod",
+  "collection": "messages",
+  "username": "mqtt_user",
+  "password": "secure_password",
+  "auth_source": "admin",
+  "deployment_mode": "replicaset",
+  "replica_set_name": "rs0",
+  "enable_tls": true,
+  "max_pool_size": 50,
+  "min_pool_size": 10,
+  "connect_timeout_secs": 10,
+  "server_selection_timeout_secs": 30,
+  "batch_size": 500,
+  "ordered_insert": false,
+  "w": "majority"
+}
+```
+
+*高吞吐量配置*:
+```json
+{
+  "host": "mongodb-cluster.example.com",
+  "database": "mqtt_logs",
+  "collection": "messages",
+  "batch_size": 1000,
+  "ordered_insert": false,
+  "w": "1",
+  "max_pool_size": 100
+}
+```
+
+*高可靠性配置*:
+```json
+{
+  "host": "mongodb-cluster.example.com",
+  "database": "mqtt_critical",
+  "collection": "messages",
+  "deployment_mode": "replicaset",
+  "replica_set_name": "rs0",
+  "batch_size": 100,
+  "ordered_insert": false,
+  "w": "majority",
+  "connect_timeout_secs": 15,
+  "server_selection_timeout_secs": 60
 }
 ```
 
@@ -1262,6 +2085,53 @@
 - `ca_cert_path`: 可选，CA 证书路径
 - `timeout_secs`: 可选，请求超时时间（秒），范围 1-300，默认值 30
 - `max_retries`: 可选，最大重试次数，最大值 10，默认值 3
+
+**失败处理策略 (`failure_strategy`)**：
+
+`failure_strategy` 参数定义了连接器如何处理消息投递失败的情况。这是一个可选的 JSON 字符串，支持以下几种策略：
+
+**1. 丢弃策略** (默认值):
+```json
+{
+  "failure_strategy": "{\"Discard\":{}}"
+}
+```
+- 立即丢弃失败的消息
+- 不进行任何重试
+- 适用于允许消息丢失的场景
+
+**2. 重试后丢弃策略**:
+```json
+{
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":3,\"wait_time_ms\":1000}}"
+}
+```
+- 在指定次数内重试投递，超过次数后丢弃
+- `retry_total_times`: 重试总次数（必填）
+- `wait_time_ms`: 重试间隔时间（毫秒，必填）
+- 适用于处理临时网络问题的场景
+
+**3. 死信队列策略**:
+```json
+{
+  "failure_strategy": "{\"DeadMessageQueue\":{\"topic_name\":\"dead_letter_queue\"}}"
+}
+```
+- 将失败的消息发送到指定的死信队列主题
+- `topic_name`: 死信队列主题名称（必填）
+- 适用于需要对失败消息进行恢复和分析的场景
+- 注意：此功能当前正在开发中
+
+**带失败策略的示例**:
+```json
+{
+  "connector_name": "kafka_bridge",
+  "connector_type": "kafka",
+  "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+  "topic_name": "sensor/+",
+  "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
+}
+```
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -1764,6 +2634,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/detail \
 
 ### 创建连接器
 ```bash
+# 创建基础 Kafka 连接器（使用默认配置）
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -1771,6 +2642,27 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
     "topic_name": "sensor/+"
+  }'
+
+# 创建带高级配置的 Kafka 连接器
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_advanced",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"kafka1:9092,kafka2:9092,kafka3:9092\",\"topic\":\"mqtt_messages\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5}",
+    "topic_name": "sensor/+"
+  }'
+
+# 创建带重试失败策略的连接器
+curl -X POST http://localhost:8080/api/mqtt/connector/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "kafka_bridge_retry",
+    "connector_type": "kafka",
+    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
+    "topic_name": "sensor/+",
+    "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
   }'
 ```
 
