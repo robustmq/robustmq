@@ -28,8 +28,8 @@ use mongodb::{
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{debug, error, info, warn};
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
-use crate::{bridge::failure::FailureHandlingStrategy, common::types::ResultMqttBrokerError};
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -246,16 +246,6 @@ pub fn start_mongodb_connector(
             }
         };
 
-        let failure_strategy = match serde_json::from_str::<FailureHandlingStrategy>(
-            &connector.failure_strategy,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse FailureHandlingStrategy file with error message :{}, configuration contents: {}", e, connector.failure_strategy);
-                return;
-            }
-        };
-
         let batch_size = mongodb_config.batch_size as u64;
         let bridge = MongoDBBridgePlugin::new(mongodb_config);
 
@@ -270,7 +260,7 @@ pub fn start_mongodb_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: batch_size,
-                strategy: failure_strategy,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

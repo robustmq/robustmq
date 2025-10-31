@@ -18,7 +18,7 @@ mod tests {
 
     use admin_server::mqtt::connector::{
         ConnectorDetailReq, ConnectorDetailResp, ConnectorListReq, ConnectorListRow,
-        CreateConnectorReq,
+        CreateConnectorReq, FailureStrategy,
     };
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::bridge::config_local_file::{
@@ -50,7 +50,10 @@ mod tests {
             connector_type: "file".to_string(),
             topic_name: topic.to_string(),
             config: serde_json::to_string(&config).unwrap(),
-            failure_strategy: "{}".to_string(),
+            failure_strategy: FailureStrategy {
+                strategy: "discard".to_string(),
+                ..Default::default()
+            },
         };
 
         let res = admin_client.create_connector(&connector).await;

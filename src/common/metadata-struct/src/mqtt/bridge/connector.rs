@@ -22,12 +22,31 @@ pub struct MQTTConnector {
     pub connector_name: String,
     pub connector_type: ConnectorType,
     pub config: String,
-    pub failure_strategy: String,
+    pub failure_strategy: FailureHandlingStrategy,
     pub topic_name: String,
     pub status: MQTTStatus,
     pub broker_id: Option<u64>,
     pub create_time: u64,
     pub update_time: u64,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub enum FailureHandlingStrategy {
+    #[default]
+    Discard,
+    DiscardAfterRetry(DiscardAfterRetryStrategy),
+    DeadMessageQueue(DeadMessageQueueStrategy),
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct DiscardAfterRetryStrategy {
+    pub retry_total_times: u32,
+    pub wait_time_ms: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct DeadMessageQueueStrategy {
+    pub topic_name: String,
 }
 
 impl MQTTConnector {

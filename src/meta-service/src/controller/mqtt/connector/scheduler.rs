@@ -359,7 +359,7 @@ mod tests {
     use super::*;
     use common_base::tools::now_second;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+    use metadata_struct::mqtt::bridge::connector::{FailureHandlingStrategy, MQTTConnector};
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::mqtt::bridge::status::MQTTStatus;
     use rocksdb_engine::test::test_rocksdb_instance;
@@ -399,7 +399,7 @@ mod tests {
                         connector_type: ConnectorType::LocalFile,
                         topic_name: "test_topic".to_string(),
                         config: "{}".to_string(),
-                        failure_strategy: "{}".to_string(),
+                        failure_strategy: FailureHandlingStrategy::Discard,
                         status: MQTTStatus::Idle,
                         broker_id: Some(broker_id),
                         create_time: now_second(),
@@ -488,7 +488,7 @@ mod tests {
                     connector_type: ConnectorType::LocalFile,
                     topic_name: "test_topic".to_string(),
                     config: "{}".to_string(),
-                    failure_strategy: "{}".to_string(),
+                    failure_strategy: FailureHandlingStrategy::Discard,
                     status: MQTTStatus::Idle,
                     broker_id: None, // Unassigned - should be ignored
                     create_time: now_second(),

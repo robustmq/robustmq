@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::async_trait;
 use metadata_struct::{
@@ -22,9 +21,9 @@ use metadata_struct::{
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{debug, error, info, warn};
+use tracing::{error, warn};
 
-use crate::{bridge::failure::FailureHandlingStrategy, common::types::ResultMqttBrokerError};
+use crate::common::types::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -41,17 +40,8 @@ impl PostgresBridgePlugin {
     }
 
     async fn create_pool(&self) -> Result<Pool<Postgres>, sqlx::Error> {
-        debug!(
-            "Creating PostgreSQL connection pool: {}:{}/{}",
-            self.config.host, self.config.port, self.config.database
-        );
-
         PgPoolOptions::new()
             .max_connections(self.config.get_pool_size())
-            .min_connections(self.config.min_pool_size)
-            .acquire_timeout(Duration::from_secs(self.config.acquire_timeout_secs))
-            .idle_timeout(Some(Duration::from_secs(self.config.idle_timeout_secs)))
-            .max_lifetime(Some(Duration::from_secs(self.config.max_lifetime_secs)))
             .connect(&self.config.connection_url())
             .await
     }
@@ -61,10 +51,7 @@ impl PostgresBridgePlugin {
         records: &[Record],
         pool: &Pool<Postgres>,
     ) -> ResultMqttBrokerError {
-        let mut success_count = 0;
-        let mut failed_records = Vec::new();
-
-        for (idx, record) in records.iter().enumerate() {
+        for record in records {
             let client_id = &record.key;
             let timestamp = record.timestamp as i64;
             let topic = record
@@ -76,10 +63,19 @@ impl PostgresBridgePlugin {
             let payload_str = String::from_utf8_lossy(&record.data).to_string();
 
             let base_sql = if let Some(template) = &self.config.sql_template {
+                let placeholder_count = (1..=10)
+                    .filter(|i| template.contains(&format!("${}", i)))
+                    .count();
+                if placeholder_count != 5 {
+                    warn!(
+                        "sql_template expects 5 placeholders, but found {}. Using provided template with binds (client_id, topic, timestamp, payload, data) in order.",
+                        placeholder_count
+                    );
+                }
                 template.clone()
             } else {
                 format!(
-                    "INSERT INTO \"{}\" (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5)",
+                    "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES ($1, $2, $3, $4, $5)",
                     self.config.table
                 )
             };
@@ -99,50 +95,14 @@ impl PostgresBridgePlugin {
                 base_sql
             };
 
-            match sqlx::query(&sql)
+            sqlx::query(&sql)
                 .bind(client_id)
                 .bind(&topic)
                 .bind(timestamp)
                 .bind(&payload_str)
                 .bind(&record.data)
                 .execute(pool)
-                .await
-            {
-                Ok(_) => {
-                    success_count += 1;
-                    debug!("Successfully inserted record {}/{}", idx + 1, records.len());
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to insert record {}/{} (client_id: '{}', topic: '{}', timestamp: {}): {}",
-                        idx + 1,
-                        records.len(),
-                        client_id,
-                        topic,
-                        timestamp,
-                        e
-                    );
-                    failed_records.push((idx, e.to_string()));
-                }
-            }
-        }
-
-        if success_count > 0 {
-            info!(
-                "Inserted {}/{} records successfully into table {}",
-                success_count,
-                records.len(),
-                self.config.table
-            );
-        }
-
-        if failed_records.len() == records.len() {
-            return Err(crate::handler::error::MqttBrokerError::CommonError(
-                format!(
-                    "All {} records failed to insert into PostgreSQL",
-                    records.len()
-                ),
-            ));
+                .await?;
         }
 
         Ok(())
@@ -153,8 +113,6 @@ impl PostgresBridgePlugin {
         records: &[Record],
         pool: &Pool<Postgres>,
     ) -> ResultMqttBrokerError {
-        debug!("Processing batch insert of {} records", records.len());
-
         let mut value_placeholders = Vec::with_capacity(records.len());
         let mut param_index = 1;
 
@@ -194,7 +152,7 @@ impl PostgresBridgePlugin {
         }
 
         let base_sql = format!(
-            "INSERT INTO \"{}\" (client_id, topic, timestamp, payload, data) VALUES {}",
+            "INSERT INTO {} (client_id, topic, timestamp, payload, data) VALUES {}",
             self.config.table,
             value_placeholders.join(", ")
         );
@@ -214,12 +172,6 @@ impl PostgresBridgePlugin {
             base_sql
         };
 
-        debug!(
-            "Batch inserting {} records into table {}",
-            records.len(),
-            self.config.table
-        );
-
         let mut query = sqlx::query(&sql);
         for i in 0..records.len() {
             query = query
@@ -230,29 +182,9 @@ impl PostgresBridgePlugin {
                 .bind(&data_vec[i]);
         }
 
-        match query.execute(pool).await {
-            Ok(result) => {
-                info!(
-                    "Successfully batch inserted {} records into table {} (affected rows: {})",
-                    records.len(),
-                    self.config.table,
-                    result.rows_affected()
-                );
-                Ok(())
-            }
-            Err(e) => {
-                let error_msg = format!(
-                    "Failed to batch insert {} records into table {}: {}",
-                    records.len(),
-                    self.config.table,
-                    e
-                );
-                error!("{}", error_msg);
-                Err(crate::handler::error::MqttBrokerError::CommonError(
-                    error_msg,
-                ))
-            }
-        }
+        query.execute(pool).await?;
+
+        Ok(())
     }
 }
 
@@ -261,77 +193,13 @@ impl ConnectorSink for PostgresBridgePlugin {
     type SinkResource = Pool<Postgres>;
 
     async fn validate(&self) -> ResultMqttBrokerError {
-        info!(
-            "Validating PostgreSQL connector configuration for {}:{}/{}",
-            self.config.host, self.config.port, self.config.database
-        );
-
-        let pool = self.create_pool().await.map_err(|e| {
-            crate::handler::error::MqttBrokerError::CommonError(format!(
-                "Failed to create PostgreSQL connection pool: {}",
-                e
-            ))
-        })?;
-
-        sqlx::query("SELECT 1").execute(&pool).await.map_err(|e| {
-            crate::handler::error::MqttBrokerError::CommonError(format!(
-                "Failed to ping PostgreSQL server at {}:{}/{}: {}",
-                self.config.host, self.config.port, self.config.database, e
-            ))
-        })?;
-
-        let table_check_sql =
-            "SELECT 1 FROM information_schema.tables WHERE table_catalog = $1 AND table_name = $2";
-
-        let table_name = if self.config.table.contains('.') {
-            let parts: Vec<&str> = self.config.table.split('.').collect();
-            parts.get(1).unwrap_or(&parts[0]).to_string()
-        } else {
-            self.config.table.clone()
-        };
-
-        let table_exists = sqlx::query(table_check_sql)
-            .bind(&self.config.database)
-            .bind(&table_name)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|e| {
-                crate::handler::error::MqttBrokerError::CommonError(format!(
-                    "Failed to check if table {} exists: {}",
-                    self.config.table, e
-                ))
-            })?;
-
-        if table_exists.is_none() {
-            warn!(
-                "Table {} does not exist in database {}. It must be created before starting the connector.",
-                self.config.table, self.config.database
-            );
-        }
-
-        pool.close().await;
-
-        info!(
-            "Successfully validated PostgreSQL connection to {}:{}/{}, table: {}",
-            self.config.host, self.config.port, self.config.database, self.config.table
-        );
-
         Ok(())
     }
 
     async fn init_sink(
         &self,
     ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
-        info!(
-            "Initializing PostgreSQL sink: {}:{}/{}.{}",
-            self.config.host, self.config.port, self.config.database, self.config.table
-        );
         let pool = self.create_pool().await?;
-        info!(
-            "PostgreSQL sink initialized successfully (pool size: {}-{})",
-            self.config.min_pool_size,
-            self.config.get_pool_size()
-        );
         Ok(pool)
     }
 
@@ -344,19 +212,12 @@ impl ConnectorSink for PostgresBridgePlugin {
             return Ok(());
         }
 
-        let mode = if self.config.is_batch_insert_enabled() {
-            "batch"
-        } else {
-            "single"
-        };
-
-        debug!(
-            "Sending {} records to PostgreSQL in {} mode",
-            records.len(),
-            mode
-        );
-
         if self.config.is_batch_insert_enabled() {
+            if self.config.sql_template.is_some() {
+                warn!(
+                    "sql_template is not applied in batch mode; default batch INSERT will be used"
+                );
+            }
             self.batch_insert(records, pool).await
         } else {
             self.single_insert(records, pool).await
@@ -364,12 +225,7 @@ impl ConnectorSink for PostgresBridgePlugin {
     }
 
     async fn cleanup_sink(&self, pool: Pool<Postgres>) -> ResultMqttBrokerError {
-        info!(
-            "Closing PostgreSQL connection pool for {}:{}/{}",
-            self.config.host, self.config.port, self.config.database
-        );
         pool.close().await;
-        info!("PostgreSQL connection pool closed successfully");
         Ok(())
     }
 }
@@ -390,18 +246,6 @@ pub fn start_postgres_connector(
                 return;
             }
         };
-
-        let failure_strategy = match serde_json::from_str::<FailureHandlingStrategy>(
-            &connector.failure_strategy,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse FailureHandlingStrategy file with error message :{}, configuration contents: {}", e, connector.failure_strategy);
-                return;
-            }
-        };
-
-        let batch_size = postgres_config.batch_size as u64;
         let bridge = PostgresBridgePlugin::new(postgres_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -414,8 +258,8 @@ pub fn start_postgres_connector(
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
-                record_num: batch_size,
-                strategy: failure_strategy,
+                record_num: 100,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

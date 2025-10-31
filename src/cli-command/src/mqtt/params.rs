@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::mqtt::command::MqttActionType;
+use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
+use admin_server::mqtt::connector::FailureStrategy;
 use clap::builder::EnumValueParser;
 use clap::{arg, Parser};
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use core::option::Option::Some;
-
-use crate::mqtt::command::MqttActionType;
-use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 
 // session
 #[derive(clap::Args, Debug)]
@@ -607,7 +606,10 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
                 connector_name: arg.connector_name,
                 connector_type: arg.connector_type,
                 config: arg.config,
-                failure_strategy: "{}".to_string(),
+                failure_strategy: FailureStrategy {
+                    strategy: "discard".to_string(),
+                    ..Default::default()
+                },
                 topic_name: arg.topic_name,
             })
         }

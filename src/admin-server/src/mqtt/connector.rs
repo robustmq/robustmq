@@ -20,11 +20,17 @@ use common_base::{
 };
 use metadata_struct::mqtt::bridge::{
     config_elasticsearch::ElasticsearchConnectorConfig,
-    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
-    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
-    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
+    config_greptimedb::GreptimeDBConnectorConfig,
+    config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig,
+    config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig,
+    config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig,
+    config_rabbitmq::RabbitMQConnectorConfig,
+    connector::{FailureHandlingStrategy, MQTTConnector},
+    connector_type::ConnectorType,
+    status::MQTTStatus,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::{str::FromStr, sync::Arc};
@@ -86,8 +92,7 @@ pub struct CreateConnectorReq {
     #[validate(length(min = 1, max = 4096, message = "Config length must be between 1-4096"))]
     pub config: String,
 
-    #[validate(length(min = 1, max = 4096, message = "Config length must be between 1-4096"))]
-    pub failure_strategy: String,
+    pub failure_strategy: FailureStrategy,
 
     #[validate(length(
         min = 1,
@@ -95,6 +100,19 @@ pub struct CreateConnectorReq {
         message = "Topic name length must be between 1-256"
     ))]
     pub topic_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate, Default)]
+pub struct FailureStrategy {
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Failure strategy length must be between 1-128"
+    ))]
+    pub strategy: String,
+    pub retry_total_times: Option<u32>,
+    pub wait_time_ms: Option<u64>,
+    pub topic_name: Option<String>,
 }
 
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
@@ -237,7 +255,7 @@ async fn connector_create_inner(
         connector_name: params.connector_name.clone(),
         connector_type,
         config: params.config.clone(),
-        failure_strategy: params.failure_strategy.clone(),
+        failure_strategy: parse_failure_strategy(params.failure_strategy),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
         broker_id: None,
@@ -290,6 +308,34 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
     Ok(())
 }
 
+fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy {
+    use metadata_struct::mqtt::bridge::connector::{
+        DeadMessageQueueStrategy, DiscardAfterRetryStrategy,
+    };
+
+    match strategy.strategy.to_lowercase().as_str() {
+        "discard" => FailureHandlingStrategy::Discard,
+        "discard_after_retry" => {
+            let retry_total_times = strategy.retry_total_times.unwrap_or(3);
+            let wait_time_ms = strategy.wait_time_ms.unwrap_or(1000);
+            FailureHandlingStrategy::DiscardAfterRetry(DiscardAfterRetryStrategy {
+                retry_total_times,
+                wait_time_ms,
+            })
+        }
+        "dead_message_queue" => {
+            let topic_name = strategy
+                .topic_name
+                .unwrap_or_else(|| "dead_letter_queue".to_string());
+            FailureHandlingStrategy::DeadMessageQueue(DeadMessageQueueStrategy { topic_name })
+        }
+        _ => {
+            // Default to Discard if strategy is not recognized
+            FailureHandlingStrategy::Discard
+        }
+    }
+}
+
 pub async fn connector_detail(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<ConnectorDetailReq>,
@@ -318,6 +364,7 @@ pub async fn connector_detail(
                 send_fail_total: data.send_fail_total,
                 send_success_total: data.send_success_total,
             };
+            println!("{:?}", req);
             success_response(req)
         }
         None => error_response(format!(

@@ -12,28 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
+use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
 use std::time::Duration;
 use tokio::time::sleep;
-
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub enum FailureHandlingStrategy {
-    #[default]
-    Discard,
-    DiscardAfterRetry(DiscardAfterRetryStrategy),
-    DeadMessageQueue(DeadMessageQueueStrategy),
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct DiscardAfterRetryStrategy {
-    retry_total_times: u32,
-    wait_time_ms: u64,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct DeadMessageQueueStrategy {
-    topic_name: String,
-}
 
 pub async fn failure_message_process(strategy: FailureHandlingStrategy, retry_times: u32) -> bool {
     match strategy {

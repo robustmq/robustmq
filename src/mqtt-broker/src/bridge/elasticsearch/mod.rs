@@ -31,8 +31,8 @@ use serde_json::{json, Value};
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
-use crate::{bridge::failure::FailureHandlingStrategy, common::types::ResultMqttBrokerError};
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -191,17 +191,6 @@ pub fn start_elasticsearch_connector(
                 return;
             }
         };
-
-        let failure_strategy = match serde_json::from_str::<FailureHandlingStrategy>(
-            &connector.failure_strategy,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse FailureHandlingStrategy file with error message :{}, configuration contents: {}", e, connector.failure_strategy);
-                return;
-            }
-        };
-
         let bridge = ElasticsearchBridgePlugin::new(es_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -215,7 +204,7 @@ pub fn start_elasticsearch_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
-                strategy: failure_strategy,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )

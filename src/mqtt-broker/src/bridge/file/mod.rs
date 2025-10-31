@@ -14,7 +14,6 @@
 
 use super::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink};
 use super::manager::ConnectorManager;
-use crate::bridge::failure::FailureHandlingStrategy;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
@@ -231,16 +230,6 @@ pub fn start_local_file_connector(
             }
         };
 
-        let failure_strategy = match serde_json::from_str::<FailureHandlingStrategy>(
-            &connector.failure_strategy,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse FailureHandlingStrategy file with error message :{}, configuration contents: {}", e, connector.failure_strategy);
-                return;
-            }
-        };
-
         let bridge = FileBridgePlugin::new(local_file_config);
 
         let stop_recv = thread.stop_send.subscribe();
@@ -254,7 +243,7 @@ pub fn start_local_file_connector(
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
                 record_num: 100,
-                strategy: failure_strategy,
+                strategy: connector.failure_strategy,
             },
             stop_recv,
         )
@@ -278,7 +267,9 @@ mod tests {
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
         adapter::record::{Header, Record},
-        mqtt::bridge::config_local_file::LocalFileConnectorConfig,
+        mqtt::bridge::{
+            config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
+        },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
     use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
@@ -286,7 +277,6 @@ mod tests {
 
     use crate::bridge::{
         core::{run_connector_loop, BridgePluginReadConfig},
-        failure::FailureHandlingStrategy,
         file::FileBridgePlugin,
         manager::ConnectorManager,
     };

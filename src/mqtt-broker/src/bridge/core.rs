@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    bridge::failure::{failure_message_process, FailureHandlingStrategy},
-    common::types::ResultMqttBrokerError,
+    bridge::failure::failure_message_process, common::types::ResultMqttBrokerError,
     storage::connector::ConnectorStorage,
 };
 use axum::async_trait;
@@ -27,7 +26,11 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     adapter::record::Record,
-    mqtt::bridge::{connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus},
+    mqtt::bridge::{
+        connector::{FailureHandlingStrategy, MQTTConnector},
+        connector_type::ConnectorType,
+        status::MQTTStatus,
+    },
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -420,6 +423,7 @@ mod tests {
     use crate::bridge::manager::ConnectorManager;
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
+    use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
     use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter, ShardInfo};
 
     fn setup() -> (ArcStorageAdapter, Arc<ConnectorManager>) {
@@ -442,7 +446,7 @@ mod tests {
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
             config: "{}".to_string(),
-            failure_strategy: "{}".to_string(),
+            failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
             cluster_name: "test_cluster".to_string(),
@@ -521,7 +525,7 @@ mod tests {
 
         assert!(connector_manager
             .get_connector_thread(&connector.connector_name)
-            .is_some());
+            .is_none());
     }
 
     #[tokio::test]
