@@ -48,7 +48,7 @@ impl OffsetIndexManager {
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             start_offset,
         )?)
     }
@@ -61,7 +61,7 @@ impl OffsetIndexManager {
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
         )? {
             return Ok(serde_json::from_str::<i64>(&res.data)?);
         }
@@ -78,7 +78,7 @@ impl OffsetIndexManager {
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             end_offset,
         )?)
     }
@@ -91,7 +91,7 @@ impl OffsetIndexManager {
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
         )? {
             return Ok(serde_json::from_str::<i64>(&res.data)?);
         }
@@ -109,7 +109,7 @@ impl OffsetIndexManager {
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             index_data,
         )?)
     }

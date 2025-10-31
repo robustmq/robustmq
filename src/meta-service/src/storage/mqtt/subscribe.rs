@@ -38,8 +38,7 @@ use crate::storage::keys::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
+    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
 };
 
 pub struct MqttSubscribeStorage {
@@ -60,12 +59,12 @@ impl MqttSubscribeStorage {
         subscribe: MqttSubscribe,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, subscribe)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, subscribe)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_cluster_prefix(cluster_name);
-        let resp = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let resp = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in resp {
             let topic = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
@@ -80,7 +79,7 @@ impl MqttSubscribeStorage {
         client_id: &str,
     ) -> Result<Vec<MqttSubscribe>, CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
-        let resp = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let resp = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in resp {
             let topic = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
@@ -95,7 +94,7 @@ impl MqttSubscribeStorage {
         client_id: &str,
     ) -> Result<(), CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
-        let list = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let list = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         for raw in list {
             let sub = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
             self.delete_by_path(&sub.cluster_name, &sub.client_id, &sub.filter.path)?;
@@ -111,7 +110,7 @@ impl MqttSubscribeStorage {
     ) -> Result<Option<MqttSubscribe>, MetaServiceError> {
         let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, path);
 
-        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
             let subscribe = serde_json::from_str::<MqttSubscribe>(&data.data)?;
             return Ok(Some(subscribe));
         }
@@ -125,7 +124,7 @@ impl MqttSubscribeStorage {
         path: &str,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
+        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn save_auto_subscribe_rule(
@@ -137,7 +136,7 @@ impl MqttSubscribeStorage {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
         engine_save_by_meta(
             self.rocksdb_engine_handler.clone(),
-            key,
+            &key,
             auto_subscribe_rule,
         )?;
         Ok(())
@@ -149,7 +148,7 @@ impl MqttSubscribeStorage {
         topic: &str,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 
@@ -158,7 +157,7 @@ impl MqttSubscribeStorage {
         cluster_name: &str,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name);
-        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
             let topic = serde_json::from_str::<MqttAutoSubscribeRule>(&raw.data)?;

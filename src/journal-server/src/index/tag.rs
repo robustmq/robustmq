@@ -46,7 +46,7 @@ impl TagIndexManager {
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             index_data,
         )?)
     }
@@ -113,7 +113,7 @@ impl TagIndexManager {
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             index_data,
         )?)
     }

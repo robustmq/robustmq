@@ -33,8 +33,7 @@ use rocksdb_engine::warp::StorageDataWrap;
 use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
+    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
 };
 
 pub struct MqttSessionStorage {
@@ -54,12 +53,12 @@ impl MqttSessionStorage {
         session: MqttSession,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, session)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, session)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<StorageDataWrap>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
-        engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)
+        engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)
     }
 
     pub fn get(
@@ -68,7 +67,7 @@ impl MqttSessionStorage {
         client_id: &str,
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
             return Ok(Some(serde_json::from_str::<MqttSession>(&data.data)?));
         }
         Ok(None)
@@ -76,7 +75,7 @@ impl MqttSessionStorage {
 
     pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
+        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
     }
 }
 

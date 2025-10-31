@@ -32,11 +32,17 @@ pub fn raft_column_family_list() -> Vec<String> {
 }
 
 pub fn storage_data_fold(path: &str) -> String {
-    format!("{path}/_data")
+    let mut result = String::with_capacity(path.len() + 6);
+    result.push_str(path);
+    result.push_str("/_data");
+    result
 }
 
 pub fn storage_raft_fold(path: &str) -> String {
-    format!("{path}/_raft")
+    let mut result = String::with_capacity(path.len() + 6);
+    result.push_str(path);
+    result.push_str("/_raft");
+    result
 }
 
 #[cfg(test)]

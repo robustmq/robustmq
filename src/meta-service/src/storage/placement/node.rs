@@ -20,8 +20,7 @@ use metadata_struct::meta::node::BrokerNode;
 use crate::storage::keys::{key_node, key_node_prefix, key_node_prefix_all};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
+    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
 };
 
 pub struct NodeStorage {
@@ -37,18 +36,18 @@ impl NodeStorage {
 
     pub fn save(&self, node: &BrokerNode) -> Result<(), CommonError> {
         let node_key = key_node(&node.cluster_name, node.node_id);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), node_key, node.clone())
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &node_key, node.clone())
     }
 
     pub fn delete(&self, cluster_name: &str, node_id: u64) -> Result<(), CommonError> {
         let node_key = key_node(cluster_name, node_id);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), node_key)
+        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &node_key)
     }
 
     #[allow(dead_code)]
     pub fn get(&self, cluster_name: &str, node_id: u64) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(cluster_name, node_id);
-        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), node_key)? {
+        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &node_key)? {
             return Ok(Some(serde_json::from_str::<BrokerNode>(&data.data)?));
         }
         Ok(None)
@@ -61,7 +60,7 @@ impl NodeStorage {
             key_node_prefix_all()
         };
 
-        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
             results.push(serde_json::from_str::<BrokerNode>(&raw.data)?);

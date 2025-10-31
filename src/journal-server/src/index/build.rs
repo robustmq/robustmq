@@ -271,7 +271,7 @@ fn save_finish_build_index(
     Ok(rocksdb_engine_save(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
-        key,
+        &key,
         now_second(),
     )?)
 }
@@ -281,7 +281,7 @@ fn is_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, JournalServerError> {
     let key = finish_build_index(segment_iden);
-    let res = rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?;
+    let res = rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
     Ok(res.is_some())
 }
 
@@ -294,7 +294,7 @@ fn save_last_offset_build_index(
     Ok(rocksdb_engine_save(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
-        key,
+        &key,
         offset,
     )?)
 }
@@ -305,7 +305,7 @@ fn get_last_offset_build_index(
 ) -> Result<Option<u64>, JournalServerError> {
     let key = last_offset_build_index(segment_iden);
     if let Some(res) =
-        rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?
+        rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
     {
         return Ok(Some(serde_json::from_str::<u64>(&res.data)?));
     }
@@ -322,14 +322,10 @@ pub fn delete_segment_index(
     let data = rocksdb_engine_list_by_prefix_to_map(
         rocksdb_engine_handler.clone(),
         comlumn_family,
-        prefix_key_name,
+        &prefix_key_name,
     )?;
     for raw in data.iter() {
-        rocksdb_engine_delete(
-            rocksdb_engine_handler.clone(),
-            comlumn_family,
-            raw.key().to_string(),
-        )?;
+        rocksdb_engine_delete(rocksdb_engine_handler.clone(), comlumn_family, raw.key())?;
     }
     Ok(())
 }
@@ -400,7 +396,7 @@ mod tests {
         let data = rocksdb_engine_list_by_prefix_to_map(
             rocksdb_engine_handler.clone(),
             comlumn_family,
-            prefix_key_name,
+            &prefix_key_name,
         )
         .unwrap();
         assert!(!data.is_empty());
@@ -415,7 +411,7 @@ mod tests {
         let data = rocksdb_engine_list_by_prefix_to_map(
             rocksdb_engine_handler.clone(),
             comlumn_family,
-            prefix_key_name,
+            &prefix_key_name,
         )
         .unwrap();
 
@@ -441,7 +437,7 @@ mod tests {
         let data = rocksdb_engine_list_by_prefix_to_map(
             rocksdb_engine_handler.clone(),
             comlumn_family,
-            prefix_key_name,
+            &prefix_key_name,
         )
         .unwrap();
 

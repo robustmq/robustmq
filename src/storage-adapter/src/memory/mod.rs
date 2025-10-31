@@ -674,7 +674,7 @@ mod tests {
         // Verify offset state is correct
         let state = adapter.shard_state.get(&shard_key).unwrap();
         assert_eq!(state.start_offset, 2); // First 2 messages evicted
-        assert_eq!(state.next_offset, 5);  // Next offset to assign
+        assert_eq!(state.next_offset, 5); // Next offset to assign
 
         // Test read evicted records (offset 0-1)
         let evicted = adapter
@@ -787,10 +787,7 @@ mod tests {
         assert_eq!(all_shards.len(), 2);
 
         // Test list specific shard
-        let specific_shard = adapter
-            .list_shard(&namespace, "shard-1")
-            .await
-            .unwrap();
+        let specific_shard = adapter.list_shard(&namespace, "shard-1").await.unwrap();
         assert_eq!(specific_shard.len(), 1);
         assert_eq!(specific_shard[0].shard_name, "shard-1");
 
@@ -801,10 +798,7 @@ mod tests {
         let remaining_shards = adapter.list_shard(&namespace, "").await.unwrap();
         assert_eq!(remaining_shards.len(), 1);
 
-        let deleted_shard = adapter
-            .list_shard(&namespace, "shard-1")
-            .await
-            .unwrap();
+        let deleted_shard = adapter.list_shard(&namespace, "shard-1").await.unwrap();
         assert_eq!(deleted_shard.len(), 0);
     }
 
@@ -868,12 +862,8 @@ mod tests {
         // Write messages with different timestamps
         let timestamps = [1000u64, 2000, 3000];
         for (i, &timestamp) in timestamps.iter().enumerate() {
-            let msg = create_message_with_metadata(
-                format!("msg{}", i).as_bytes(),
-                vec![],
-                "",
-                timestamp,
-            );
+            let msg =
+                create_message_with_metadata(format!("msg{}", i).as_bytes(), vec![], "", timestamp);
             adapter.write(&namespace, shard_name, &msg).await.unwrap();
         }
 
