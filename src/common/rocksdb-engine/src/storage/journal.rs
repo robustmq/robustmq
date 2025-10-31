@@ -129,17 +129,32 @@ pub fn engine_list_by_prefix_to_map_by_journal(
     column_family: &str,
     prefix_key_name: &str,
 ) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
-    let list = engine_prefix_list(
-        rocksdb_engine_handler,
-        column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
-        prefix_key_name,
-    )?;
-    let results = DashMap::with_capacity(list.len());
-    for item in list {
-        // Extract key from StorageDataWrap if needed
-        // For now, we'll use a sequential key
-        results.insert(format!("{}", results.len()), item);
+    use common_base::tools::now_mills;
+    use common_metrics::rocksdb::metrics_rocksdb_list_ms;
+    
+    let start_time = now_mills();
+    
+    let cf = rocksdb_engine_handler
+        .cf_handle(column_family)
+        .ok_or_else(|| CommonError::RocksDBFamilyNotAvailable(column_family.to_string()))?;
+
+    let raw = rocksdb_engine_handler.read_prefix(cf, prefix_key_name)?;
+    let results = DashMap::with_capacity(raw.len().min(64));
+
+    for (key, v) in raw {
+        match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
+            Ok(v) => {
+                results.insert(key.clone(), v);
+            }
+            Err(_e) => {
+                // Silently skip deserialization errors
+                continue;
+            }
+        }
     }
+    
+    let duration = (now_mills() - start_time) as f64;
+    metrics_rocksdb_list_ms(DB_COLUMN_FAMILY_JOURNAL, duration);
+    
     Ok(results)
 }
