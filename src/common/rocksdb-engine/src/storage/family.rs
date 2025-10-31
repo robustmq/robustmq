@@ -54,7 +54,7 @@ mod tests {
     #[tokio::test]
     async fn column_family_list_test() {
         let list = column_family_list();
-        assert_eq!(list.len(), 2);
+        assert_eq!(list.len(), 3);
         assert_eq!(list[0], "meta");
     }
 
