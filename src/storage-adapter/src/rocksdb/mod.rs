@@ -93,7 +93,7 @@ impl RocksDBStorageAdapter {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
-        let shard_offset_key = Self::shard_offset_key(&namespace.as_ref(), &shard.as_ref());
+        let shard_offset_key = Self::shard_offset_key(namespace.as_ref(), shard.as_ref());
 
         if self
             .db
@@ -525,7 +525,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let prefix_key = if namespace.is_empty() {
             "/shard/".to_string()
         } else {
-            Self::shard_info_key(&namespace, &shard_name)
+            Self::shard_info_key(namespace, shard_name)
         };
 
         let raw_shard_info = self.db.read_prefix(cf.clone(), &prefix_key)?;
@@ -555,7 +555,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         }
 
         // Delete all message records: /record/{namespace}/{shard}/record/*
-        let record_prefix = Self::shard_record_key_prefix(&namespace, &shard_name);
+        let record_prefix = Self::shard_record_key_prefix(namespace, shard_name);
         self.db.delete_prefix(cf.clone(), &record_prefix)?;
 
         // Delete all key indexes: /key/{namespace}/{shard}/*
@@ -567,16 +567,16 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
 
         // Delete all timestamp indexes: /timestamp/{namespace}/{shard}/*
-        let timestamp_index_prefix = Self::timestamp_offset_key_prefix(&namespace, &shard_name);
+        let timestamp_index_prefix = Self::timestamp_offset_key_prefix(namespace, shard_name);
         self.db.delete_prefix(cf.clone(), &timestamp_index_prefix)?;
 
         // Delete shard offset: /offset/{namespace}/{shard}
         self.db
-            .delete(cf.clone(), &Self::shard_offset_key(&namespace, &shard_name))?;
+            .delete(cf.clone(), &Self::shard_offset_key(namespace, shard_name))?;
 
         // Delete shard info: /shard/{namespace}/{shard}
         self.db
-            .delete(cf, &Self::shard_info_key(&namespace, &shard_name))
+            .delete(cf, &Self::shard_info_key(namespace, shard_name))
     }
 
     async fn write(
@@ -632,7 +632,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let mut total_size = 0;
 
         for i in offset..offset.saturating_add(read_config.max_record_num) {
-            let shard_record_key = Self::shard_record_key(&namespace, &shard_name, i);
+            let shard_record_key = Self::shard_record_key(namespace, shard_name, i);
             let record = self.db.read::<Record>(cf.clone(), &shard_record_key)?;
 
             let Some(record) = record else {
@@ -666,7 +666,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
 
-        let tag_offset_key_preix = Self::tag_offsets_key_prefix(&namespace, &shard_name, &tag);
+        let tag_offset_key_preix = Self::tag_offsets_key_prefix(namespace, shard_name, tag);
 
         let raw_offsets = self.db.read_prefix(cf.clone(), &tag_offset_key_preix)?;
 
@@ -684,7 +684,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let mut total_size = 0;
 
         for offset in offsets {
-            let shard_record_key = Self::shard_record_key(&namespace, &shard_name, offset);
+            let shard_record_key = Self::shard_record_key(namespace, shard_name, offset);
             let record = self
                 .db
                 .read::<Record>(cf.clone(), &shard_record_key)?
@@ -716,11 +716,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
 
-        let key_offset_key = Self::key_offset_key(&namespace, &shard_name, &key);
+        let key_offset_key = Self::key_offset_key(namespace, shard_name, key);
 
         match self.db.read::<u64>(cf.clone(), &key_offset_key)? {
             Some(key_offset) if key_offset >= offset && read_config.max_record_num >= 1 => {
-                let shard_record_key = Self::shard_record_key(&namespace, &shard_name, key_offset);
+                let shard_record_key = Self::shard_record_key(namespace, shard_name, key_offset);
                 let record = self
                     .db
                     .read::<Record>(cf.clone(), &shard_record_key)?
@@ -751,7 +751,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         // Use timestamp index for efficient lookup
         // Search from the given timestamp onwards
         let timestamp_prefix =
-            Self::timestamp_offset_key_search_prefix(&namespace, &shard_name, timestamp);
+            Self::timestamp_offset_key_search_prefix(namespace, shard_name, timestamp);
 
         // Try to find exact timestamp match first
         let raw_res = self.db.read_prefix(cf.clone(), &timestamp_prefix)?;
@@ -766,7 +766,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         // If no exact match, scan forward from the given timestamp
         // This is still efficient as we're using the index prefix
-        let timestamp_index_prefix = Self::timestamp_offset_key_prefix(&namespace, &shard_name);
+        let timestamp_index_prefix = Self::timestamp_offset_key_prefix(namespace, shard_name);
         let all_timestamps = self.db.read_prefix(cf.clone(), &timestamp_index_prefix)?;
 
         for (key, v) in all_timestamps {
@@ -793,7 +793,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
 
-        let group_record_offsets_key_prefix = Self::group_record_offsets_key_prefix(&group_name);
+        let group_record_offsets_key_prefix = Self::group_record_offsets_key_prefix(group_name);
 
         let raw_offsets = self
             .db
@@ -825,7 +825,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         offsets.iter().try_for_each(|(shard_name, offset)| {
             let group_record_offsets_key =
-                Self::group_record_offsets_key(&group_name, &namespace, &shard_name.as_str());
+                Self::group_record_offsets_key(group_name, namespace, shard_name.as_str());
 
             self.db
                 .write(cf.clone(), &group_record_offsets_key, &offset)

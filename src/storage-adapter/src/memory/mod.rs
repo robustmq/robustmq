@@ -345,7 +345,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         data: &Record,
     ) -> Result<u64, CommonError> {
         let offsets = self
-            .internal_batch_write(namespace, shard_name, &[data.clone()])
+            .internal_batch_write(namespace, shard_name, std::slice::from_ref(data))
             .await?;
         Ok(offsets[0])
     }
@@ -576,285 +576,335 @@ mod tests {
     use super::*;
     use common_base::tools::unique_id;
 
-    const READ_CFG: ReadConfig = ReadConfig {
-        max_record_num: 10,
-        max_size: 1024 * 1024,
-    };
+    // Helper: Default read configuration for tests
+    fn read_config() -> ReadConfig {
+        ReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        }
+    }
 
-    fn msg(data: &[u8]) -> Record {
+    // Helper: Create a simple message record
+    fn create_message(data: &[u8]) -> Record {
         Record::build_byte(data.to_vec())
     }
 
-    fn msg_with_meta(data: &[u8], tags: Vec<&str>, key: &str, ts: u64) -> Record {
-        let mut msg = msg(data);
-        msg.tags = tags.into_iter().map(|s| s.to_string()).collect();
-        msg.key = key.to_string();
-        msg.timestamp = ts;
-        msg
+    // Helper: Create message with metadata (tags, key, timestamp)
+    fn create_message_with_metadata(
+        data: &[u8],
+        tags: Vec<&str>,
+        key: &str,
+        timestamp: u64,
+    ) -> Record {
+        let mut record = create_message(data);
+        record.tags = tags.into_iter().map(|s| s.to_string()).collect();
+        record.key = key.to_string();
+        record.timestamp = timestamp;
+        record
     }
 
     #[tokio::test]
     async fn test_write_and_read() {
+        // Setup
         let adapter = MemoryStorageAdapter::new();
-        let ns = unique_id();
+        let namespace = unique_id();
+        let shard_name = "test-shard";
+        let config = read_config();
 
-        assert_eq!(
-            adapter
-                .batch_write(&ns, "shard", &[msg(b"msg1"), msg(b"msg2")])
-                .await
-                .unwrap(),
-            vec![0, 1]
-        );
-        let result = adapter
-            .read_by_offset(&ns, "shard", 0, &READ_CFG)
+        // Test batch write and verify offsets
+        let messages = vec![create_message(b"msg1"), create_message(b"msg2")];
+        let offsets = adapter
+            .batch_write(&namespace, shard_name, &messages)
             .await
             .unwrap();
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].data, b"msg1");
+        assert_eq!(offsets, vec![0, 1]);
 
-        assert_eq!(
-            adapter.batch_write(&ns, "shard", &[]).await.unwrap().len(),
-            0
-        );
-        assert_eq!(
-            adapter
-                .read_by_offset(&ns, "none", 0, &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            0
-        );
+        // Test read by offset
+        let records = adapter
+            .read_by_offset(&namespace, shard_name, 0, &config)
+            .await
+            .unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].data, b"msg1");
+
+        // Test empty batch write
+        let empty_offsets = adapter
+            .batch_write(&namespace, shard_name, &[])
+            .await
+            .unwrap();
+        assert_eq!(empty_offsets.len(), 0);
+
+        // Test read from non-existent shard
+        let empty_records = adapter
+            .read_by_offset(&namespace, "nonexistent", 0, &config)
+            .await
+            .unwrap();
+        assert_eq!(empty_records.len(), 0);
     }
 
     #[tokio::test]
     async fn test_lru_eviction() {
+        // Setup: Create adapter with max capacity of 3 records per shard
         let adapter = MemoryStorageAdapter::with_capacity(3);
-        let ns = unique_id();
+        let namespace = unique_id();
+        let shard_name = "lru-test";
+        let config = read_config();
 
+        // Write 5 messages (exceeds capacity)
         for i in 0..5 {
-            adapter
-                .write(
-                    &ns,
-                    "lru",
-                    &msg_with_meta(
-                        format!("msg{}", i).as_bytes(),
-                        vec![&format!("tag-{}", i)],
-                        "",
-                        1000 + i * 100,
-                    ),
-                )
-                .await
-                .unwrap();
+            let msg = create_message_with_metadata(
+                format!("msg{}", i).as_bytes(),
+                vec![&format!("tag-{}", i)],
+                "",
+                1000 + i * 100,
+            );
+            adapter.write(&namespace, shard_name, &msg).await.unwrap();
         }
 
-        let key = adapter.shard_key(&ns, "lru");
-        assert_eq!(adapter.shard_data.get(&key).unwrap().len(), 5);
+        // Verify all 5 messages are stored before eviction
+        let shard_key = adapter.shard_key(&namespace, shard_name);
+        assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 5);
 
+        // Trigger LRU eviction
         adapter.message_expire().await.unwrap();
 
-        assert_eq!(adapter.shard_data.get(&key).unwrap().len(), 3);
-        let state = adapter.shard_state.get(&key).unwrap();
-        assert_eq!((state.start_offset, state.next_offset), (2, 5));
+        // Verify only 3 newest messages remain
+        assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 3);
 
-        assert_eq!(
-            adapter
-                .read_by_offset(&ns, "lru", 0, &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            0
-        );
-        assert_eq!(
-            adapter
-                .read_by_offset(&ns, "lru", 2, &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            3
-        );
-        assert_eq!(
-            adapter
-                .read_by_tag(&ns, "lru", 0, "tag-0", &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            0
-        );
-        assert_eq!(
-            adapter
-                .read_by_tag(&ns, "lru", 0, "tag-3", &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            1
-        );
-        assert!(
-            adapter
-                .get_offset_by_timestamp(&ns, "lru", 1150)
-                .await
-                .unwrap()
-                .unwrap()
-                .offset
-                >= 2
-        );
+        // Verify offset state is correct
+        let state = adapter.shard_state.get(&shard_key).unwrap();
+        assert_eq!(state.start_offset, 2); // First 2 messages evicted
+        assert_eq!(state.next_offset, 5);  // Next offset to assign
+
+        // Test read evicted records (offset 0-1)
+        let evicted = adapter
+            .read_by_offset(&namespace, shard_name, 0, &config)
+            .await
+            .unwrap();
+        assert_eq!(evicted.len(), 0);
+
+        // Test read remaining records (offset 2-4)
+        let remaining = adapter
+            .read_by_offset(&namespace, shard_name, 2, &config)
+            .await
+            .unwrap();
+        assert_eq!(remaining.len(), 3);
+
+        // Test evicted tag is not found
+        let evicted_tag = adapter
+            .read_by_tag(&namespace, shard_name, 0, "tag-0", &config)
+            .await
+            .unwrap();
+        assert_eq!(evicted_tag.len(), 0);
+
+        // Test remaining tag is found
+        let remaining_tag = adapter
+            .read_by_tag(&namespace, shard_name, 0, "tag-3", &config)
+            .await
+            .unwrap();
+        assert_eq!(remaining_tag.len(), 1);
+
+        // Test timestamp query after eviction
+        let offset_result = adapter
+            .get_offset_by_timestamp(&namespace, shard_name, 1150)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(offset_result.offset >= 2); // Should point to remaining messages
     }
 
     #[tokio::test]
     async fn test_indexed_queries() {
+        // Setup
         let adapter = MemoryStorageAdapter::new();
-        let ns = unique_id();
+        let namespace = unique_id();
+        let shard_name = "index-test";
+        let config = read_config();
 
-        adapter
-            .write(
-                &ns,
-                "idx",
-                &msg_with_meta(b"msg1", vec!["tag-a"], "key-1", 0),
-            )
+        // Write messages with tags and keys
+        let msg1 = create_message_with_metadata(b"msg1", vec!["tag-a"], "key-1", 0);
+        let msg2 = create_message_with_metadata(b"msg2", vec!["tag-b"], "key-2", 0);
+        adapter.write(&namespace, shard_name, &msg1).await.unwrap();
+        adapter.write(&namespace, shard_name, &msg2).await.unwrap();
+
+        // Test read by tag (using index)
+        let tag_results = adapter
+            .read_by_tag(&namespace, shard_name, 0, "tag-a", &config)
             .await
             .unwrap();
-        adapter
-            .write(
-                &ns,
-                "idx",
-                &msg_with_meta(b"msg2", vec!["tag-b"], "key-2", 0),
-            )
+        assert_eq!(tag_results.len(), 1);
+        assert_eq!(tag_results[0].data, b"msg1");
+
+        // Test read by key (using index)
+        let key_results = adapter
+            .read_by_key(&namespace, shard_name, 0, "key-2", &config)
             .await
             .unwrap();
+        assert_eq!(key_results.len(), 1);
+        assert_eq!(key_results[0].data, b"msg2");
 
-        assert_eq!(
-            adapter
-                .read_by_tag(&ns, "idx", 0, "tag-a", &READ_CFG)
-                .await
-                .unwrap()[0]
-                .data,
-            b"msg1"
-        );
-        assert_eq!(
-            adapter
-                .read_by_key(&ns, "idx", 0, "key-2", &READ_CFG)
-                .await
-                .unwrap()[0]
-                .data,
-            b"msg2"
-        );
-        assert_eq!(
-            adapter
-                .read_by_tag(&ns, "idx", 0, "none", &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            0
-        );
+        // Test read with non-existent tag
+        let empty_tag = adapter
+            .read_by_tag(&namespace, shard_name, 0, "nonexistent", &config)
+            .await
+            .unwrap();
+        assert_eq!(empty_tag.len(), 0);
 
-        adapter.tag_index.remove(&adapter.shard_key(&ns, "idx"));
-        adapter.key_index.remove(&adapter.shard_key(&ns, "idx"));
-        assert_eq!(
-            adapter
-                .read_by_tag(&ns, "idx", 0, "tag-a", &READ_CFG)
-                .await
-                .unwrap()
-                .len(),
-            1
-        );
+        // Test fallback to linear scan when index is removed
+        let shard_key = adapter.shard_key(&namespace, shard_name);
+        adapter.tag_index.remove(&shard_key);
+        adapter.key_index.remove(&shard_key);
+
+        let fallback_results = adapter
+            .read_by_tag(&namespace, shard_name, 0, "tag-a", &config)
+            .await
+            .unwrap();
+        assert_eq!(fallback_results.len(), 1); // Still finds via linear scan
     }
 
     #[tokio::test]
     async fn test_shard_management() {
+        // Setup
         let adapter = MemoryStorageAdapter::new();
-        let ns = unique_id();
+        let namespace = unique_id();
 
-        for name in ["s1", "s2"] {
-            adapter
-                .create_shard(&ShardInfo {
-                    namespace: ns.clone(),
-                    shard_name: name.to_string(),
-                    replica_num: 3,
-                })
-                .await
-                .unwrap();
-        }
+        // Create two shards
+        let shard1 = ShardInfo {
+            namespace: namespace.clone(),
+            shard_name: "shard-1".to_string(),
+            replica_num: 3,
+        };
+        let shard2 = ShardInfo {
+            namespace: namespace.clone(),
+            shard_name: "shard-2".to_string(),
+            replica_num: 3,
+        };
+        adapter.create_shard(&shard1).await.unwrap();
+        adapter.create_shard(&shard2).await.unwrap();
 
-        assert_eq!(adapter.list_shard(&ns, "").await.unwrap().len(), 2);
-        assert_eq!(
-            adapter.list_shard(&ns, "s1").await.unwrap()[0].shard_name,
-            "s1"
-        );
+        // Test list all shards
+        let all_shards = adapter.list_shard(&namespace, "").await.unwrap();
+        assert_eq!(all_shards.len(), 2);
 
-        adapter.delete_shard(&ns, "s1").await.unwrap();
+        // Test list specific shard
+        let specific_shard = adapter
+            .list_shard(&namespace, "shard-1")
+            .await
+            .unwrap();
+        assert_eq!(specific_shard.len(), 1);
+        assert_eq!(specific_shard[0].shard_name, "shard-1");
 
-        assert_eq!(adapter.list_shard(&ns, "").await.unwrap().len(), 1);
-        assert_eq!(adapter.list_shard(&ns, "s1").await.unwrap().len(), 0);
+        // Test delete shard
+        adapter.delete_shard(&namespace, "shard-1").await.unwrap();
+
+        // Verify shard-1 is deleted
+        let remaining_shards = adapter.list_shard(&namespace, "").await.unwrap();
+        assert_eq!(remaining_shards.len(), 1);
+
+        let deleted_shard = adapter
+            .list_shard(&namespace, "shard-1")
+            .await
+            .unwrap();
+        assert_eq!(deleted_shard.len(), 0);
     }
 
     #[tokio::test]
     async fn test_consumer_group_offset() {
+        // Setup
         let adapter = MemoryStorageAdapter::new();
-        let ns = unique_id();
+        let namespace = unique_id();
+        let shard_name = "group-test";
+        let group_name = "consumer-group-1";
 
+        // Write some messages
+        let messages = vec![
+            create_message(b"msg1"),
+            create_message(b"msg2"),
+            create_message(b"msg3"),
+        ];
         adapter
-            .batch_write(&ns, "grp", &[msg(b"m1"), msg(b"m2"), msg(b"m3")])
+            .batch_write(&namespace, shard_name, &messages)
             .await
             .unwrap();
 
-        let mut offsets = HashMap::from([("grp".to_string(), 1u64)]);
-        adapter.commit_offset("cg1", &ns, &offsets).await.unwrap();
-        assert_eq!(
-            adapter.get_offset_by_group("cg1").await.unwrap()[0].offset,
-            1
-        );
+        // Commit offset 1 for the consumer group
+        let mut offsets = HashMap::from([(shard_name.to_string(), 1u64)]);
+        adapter
+            .commit_offset(group_name, &namespace, &offsets)
+            .await
+            .unwrap();
 
-        offsets.insert("grp".to_string(), 2);
-        adapter.commit_offset("cg1", &ns, &offsets).await.unwrap();
-        assert_eq!(
-            adapter.get_offset_by_group("cg1").await.unwrap()[0].offset,
-            2
-        );
-        assert_eq!(adapter.get_offset_by_group("none").await.unwrap().len(), 0);
+        // Verify committed offset
+        let group_offsets = adapter.get_offset_by_group(group_name).await.unwrap();
+        assert_eq!(group_offsets.len(), 1);
+        assert_eq!(group_offsets[0].offset, 1);
+
+        // Update offset to 2
+        offsets.insert(shard_name.to_string(), 2);
+        adapter
+            .commit_offset(group_name, &namespace, &offsets)
+            .await
+            .unwrap();
+
+        // Verify updated offset
+        let updated_offsets = adapter.get_offset_by_group(group_name).await.unwrap();
+        assert_eq!(updated_offsets[0].offset, 2);
+
+        // Test get offset for non-existent group
+        let empty_offsets = adapter
+            .get_offset_by_group("nonexistent-group")
+            .await
+            .unwrap();
+        assert_eq!(empty_offsets.len(), 0);
     }
 
     #[tokio::test]
     async fn test_timestamp_query() {
+        // Setup
         let adapter = MemoryStorageAdapter::new();
-        let ns = unique_id();
+        let namespace = unique_id();
+        let shard_name = "timestamp-test";
 
-        for (i, ts) in [1000u64, 2000, 3000].iter().enumerate() {
-            adapter
-                .write(
-                    &ns,
-                    "ts",
-                    &msg_with_meta(format!("m{}", i).as_bytes(), vec![], "", *ts),
-                )
-                .await
-                .unwrap();
+        // Write messages with different timestamps
+        let timestamps = [1000u64, 2000, 3000];
+        for (i, &timestamp) in timestamps.iter().enumerate() {
+            let msg = create_message_with_metadata(
+                format!("msg{}", i).as_bytes(),
+                vec![],
+                "",
+                timestamp,
+            );
+            adapter.write(&namespace, shard_name, &msg).await.unwrap();
         }
 
-        assert_eq!(
-            adapter
-                .get_offset_by_timestamp(&ns, "ts", 1500)
-                .await
-                .unwrap()
-                .unwrap()
-                .offset,
-            1
-        );
-        assert_eq!(
-            adapter
-                .get_offset_by_timestamp(&ns, "ts", 500)
-                .await
-                .unwrap()
-                .unwrap()
-                .offset,
-            0
-        );
-        assert!(adapter
-            .get_offset_by_timestamp(&ns, "ts", 4000)
+        // Test query: timestamp 1500 should return offset 1 (closest match)
+        let result = adapter
+            .get_offset_by_timestamp(&namespace, shard_name, 1500)
             .await
             .unwrap()
-            .is_none());
-        assert!(adapter
-            .get_offset_by_timestamp(&ns, "none", 1000)
+            .unwrap();
+        assert_eq!(result.offset, 1);
+
+        // Test query: timestamp 500 should return offset 0 (first message)
+        let result = adapter
+            .get_offset_by_timestamp(&namespace, shard_name, 500)
             .await
             .unwrap()
-            .is_none());
+            .unwrap();
+        assert_eq!(result.offset, 0);
+
+        // Test query: timestamp 4000 (beyond all messages) should return None
+        let result = adapter
+            .get_offset_by_timestamp(&namespace, shard_name, 4000)
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Test query: non-existent shard should return None
+        let result = adapter
+            .get_offset_by_timestamp(&namespace, "nonexistent", 1000)
+            .await
+            .unwrap();
+        assert!(result.is_none());
     }
 }
