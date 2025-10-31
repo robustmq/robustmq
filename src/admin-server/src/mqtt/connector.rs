@@ -364,7 +364,6 @@ pub async fn connector_detail(
                 send_fail_total: data.send_fail_total,
                 send_success_total: data.send_success_total,
             };
-            println!("{:?}", req);
             success_response(req)
         }
         None => error_response(format!(
