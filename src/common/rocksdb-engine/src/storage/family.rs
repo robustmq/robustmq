@@ -16,11 +16,13 @@ pub const DB_COLUMN_FAMILY_META: &str = "meta";
 pub const DB_COLUMN_FAMILY_META_RAFT_LOG: &str = "meta_raft_log";
 pub const DB_COLUMN_FAMILY_META_RAFT_STORE: &str = "meta_raft_store";
 pub const DB_COLUMN_FAMILY_BROKER: &str = "broker";
+pub const DB_COLUMN_FAMILY_JOURNAL: &str = "journal";
 
 pub fn column_family_list() -> Vec<String> {
     vec![
         DB_COLUMN_FAMILY_META.to_string(),
         DB_COLUMN_FAMILY_BROKER.to_string(),
+        DB_COLUMN_FAMILY_JOURNAL.to_string(),
     ]
 }
 

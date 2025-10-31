@@ -14,7 +14,7 @@
 
 use crate::{
     define_cumulative_metric, define_dimensional_metric_1d, define_dimensional_metric_3d,
-    define_dimensional_metric_4d, define_simple_metric, metrics_cache::base::delete_by_prefix,
+    define_dimensional_metric_4d, define_simple_metric, metrics::base::delete_by_prefix,
     rocksdb::RocksDBEngine,
 };
 use common_base::error::{common::CommonError, ResultCommonError};
@@ -232,7 +232,7 @@ impl MQTTMetricsCache {
 mod tests {
     use common_base::tools::now_second;
 
-    use crate::{metrics_cache::mqtt::MQTTMetricsCache, test::test_rocksdb_instance};
+    use crate::{metrics::mqtt::MQTTMetricsCache, test::test_rocksdb_instance};
 
     #[tokio::test]
     async fn connection_num_test() {

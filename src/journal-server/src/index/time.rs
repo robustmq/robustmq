@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::{rocksdb_engine_get, rocksdb_engine_save};
+use rocksdb_engine::storage::journal::{engine_get_by_journal, engine_save_by_journal};
 use rocksdb_engine::warp::StorageDataWrap;
 
 use super::keys::{
@@ -45,7 +45,7 @@ impl TimestampIndexManager {
         start_timestamp: u64,
     ) -> Result<(), JournalServerError> {
         let key = timestamp_segment_start(segment_iden);
-        Ok(rocksdb_engine_save(
+        Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,
@@ -58,7 +58,7 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_start(segment_iden);
-        if let Some(res) = rocksdb_engine_get(
+        if let Some(res) = engine_get_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,
@@ -75,7 +75,7 @@ impl TimestampIndexManager {
         end_timestamp: u64,
     ) -> Result<(), JournalServerError> {
         let key = timestamp_segment_end(segment_iden);
-        Ok(rocksdb_engine_save(
+        Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,
@@ -88,7 +88,7 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_end(segment_iden);
-        if let Some(res) = rocksdb_engine_get(
+        if let Some(res) = engine_get_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,
@@ -106,7 +106,7 @@ impl TimestampIndexManager {
         index_data: IndexData,
     ) -> Result<(), JournalServerError> {
         let key = timestamp_segment_time(segment_iden, timestamp);
-        Ok(rocksdb_engine_save(
+        Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,

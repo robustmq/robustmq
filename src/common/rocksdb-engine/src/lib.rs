@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-pub mod metrics_cache;
+pub mod metrics;
 pub mod rocksdb;
 pub mod storage;
 pub mod test;

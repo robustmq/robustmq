@@ -27,7 +27,7 @@ use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;

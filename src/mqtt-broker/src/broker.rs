@@ -38,7 +38,7 @@ use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;

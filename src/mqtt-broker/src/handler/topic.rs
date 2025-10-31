@@ -24,7 +24,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};

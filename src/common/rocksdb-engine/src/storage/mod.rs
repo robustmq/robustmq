@@ -14,8 +14,8 @@
 
 pub mod base;
 pub mod broker;
-pub mod engine;
 pub mod family;
+pub mod journal;
 pub mod meta;
 pub mod raft_log;
 pub mod raft_store;

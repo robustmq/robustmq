@@ -18,9 +18,9 @@ use std::time::Duration;
 use common_base::tools::now_second;
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::{
-    rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_list_by_prefix_to_map,
-    rocksdb_engine_save,
+use rocksdb_engine::storage::journal::{
+    engine_delete_by_journal, engine_get_by_journal, engine_list_by_prefix_to_map_by_journal,
+    engine_save_by_journal,
 };
 use tokio::select;
 use tokio::sync::broadcast::{self, Receiver};
@@ -268,7 +268,7 @@ fn save_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
     let key = finish_build_index(segment_iden);
-    Ok(rocksdb_engine_save(
+    Ok(engine_save_by_journal(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
         &key,
@@ -281,7 +281,7 @@ fn is_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, JournalServerError> {
     let key = finish_build_index(segment_iden);
-    let res = rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
+    let res = engine_get_by_journal(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
     Ok(res.is_some())
 }
 
@@ -291,7 +291,7 @@ fn save_last_offset_build_index(
     offset: u64,
 ) -> Result<(), JournalServerError> {
     let key = last_offset_build_index(segment_iden);
-    Ok(rocksdb_engine_save(
+    Ok(engine_save_by_journal(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
         &key,
@@ -305,7 +305,7 @@ fn get_last_offset_build_index(
 ) -> Result<Option<u64>, JournalServerError> {
     let key = last_offset_build_index(segment_iden);
     if let Some(res) =
-        rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
+        engine_get_by_journal(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
     {
         return Ok(Some(serde_json::from_str::<u64>(&res.data)?));
     }
@@ -319,13 +319,13 @@ pub fn delete_segment_index(
 ) -> Result<(), JournalServerError> {
     let prefix_key_name = segment_index_prefix(segment_iden);
     let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-    let data = rocksdb_engine_list_by_prefix_to_map(
+    let data = engine_list_by_prefix_to_map_by_journal(
         rocksdb_engine_handler.clone(),
         comlumn_family,
         &prefix_key_name,
     )?;
     for raw in data.iter() {
-        rocksdb_engine_delete(rocksdb_engine_handler.clone(), comlumn_family, raw.key())?;
+        engine_delete_by_journal(rocksdb_engine_handler.clone(), comlumn_family, raw.key())?;
     }
     Ok(())
 }
@@ -336,7 +336,7 @@ mod tests {
     use std::time::Duration;
 
     use common_base::tools::now_second;
-    use rocksdb_engine::storage::engine::rocksdb_engine_list_by_prefix_to_map;
+    use rocksdb_engine::storage::journal::engine_list_by_prefix_to_map_by_journal;
     use tokio::time::sleep;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
@@ -393,7 +393,7 @@ mod tests {
         // check data
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = rocksdb_engine_list_by_prefix_to_map(
+        let data = engine_list_by_prefix_to_map_by_journal(
             rocksdb_engine_handler.clone(),
             comlumn_family,
             &prefix_key_name,
@@ -408,7 +408,7 @@ mod tests {
         // check data
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = rocksdb_engine_list_by_prefix_to_map(
+        let data = engine_list_by_prefix_to_map_by_journal(
             rocksdb_engine_handler.clone(),
             comlumn_family,
             &prefix_key_name,
@@ -434,7 +434,7 @@ mod tests {
         sleep(Duration::from_secs(120)).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = rocksdb_engine_list_by_prefix_to_map(
+        let data = engine_list_by_prefix_to_map_by_journal(
             rocksdb_engine_handler.clone(),
             comlumn_family,
             &prefix_key_name,

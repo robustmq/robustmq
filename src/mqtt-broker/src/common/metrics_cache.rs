@@ -36,7 +36,7 @@ use common_metrics::mqtt::subscribe::{
 };
 use common_metrics::mqtt::topic::{get_topic_messages_sent, get_topic_messages_written};
 use network_server::common::connection_manager::ConnectionManager;
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{error, info};

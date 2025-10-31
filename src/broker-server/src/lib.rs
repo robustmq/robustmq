@@ -56,7 +56,7 @@ use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{
-    metrics_cache::mqtt::MQTTMetricsCache,
+    metrics::mqtt::MQTTMetricsCache,
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
 };

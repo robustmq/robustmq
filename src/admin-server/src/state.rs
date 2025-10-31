@@ -22,7 +22,7 @@ use mqtt_broker::{
 };
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::RateLimiterManager;
-use rocksdb_engine::{metrics_cache::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
+use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::ArcStorageAdapter;
 
