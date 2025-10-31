@@ -162,7 +162,7 @@ pub async fn try_init_topic(
 
         // Create the resource object of the storage layer
         let list = message_storage_adapter
-            .list_shard(namespace.clone(), topic_name.to_owned())
+            .list_shard(&namespace, topic_name)
             .await?;
         if list.is_empty() {
             let shard = ShardInfo {
@@ -170,7 +170,7 @@ pub async fn try_init_topic(
                 shard_name: topic_name.to_owned(),
                 replica_num: 1,
             };
-            message_storage_adapter.create_shard(shard).await?;
+            message_storage_adapter.create_shard(&shard).await?;
         }
         metadata_cache.set_re_calc_topic_rewrite(true).await;
         return Ok(topic);
@@ -188,11 +188,11 @@ pub async fn delete_topic(
     // delete shard
     let namespace = cluster_name();
     let list = message_storage_adapter
-        .list_shard(namespace.clone(), topic_name.to_owned())
+        .list_shard(&namespace, topic_name)
         .await?;
     if !list.is_empty() {
         message_storage_adapter
-            .delete_shard(namespace, topic_name.to_string())
+            .delete_shard(&namespace, topic_name)
             .await?;
     }
 

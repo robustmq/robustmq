@@ -301,7 +301,7 @@ mod tests {
 
         // prepare some data for testing
         storage_adapter
-            .create_shard(ShardInfo {
+            .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
                 ..Default::default()
@@ -329,7 +329,7 @@ mod tests {
         }
 
         storage_adapter
-            .batch_write(namespace.clone(), shard_name.clone(), test_data.clone())
+            .batch_write(&namespace, &shard_name, &test_data)
             .await
             .unwrap();
 

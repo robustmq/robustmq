@@ -21,7 +21,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::memory::MemoryStorageAdapter;
 
-pub type ArcStorageAdapter = Arc<Box<dyn StorageAdapter + Send + Sync>>;
+pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ShardInfo {
@@ -30,7 +30,7 @@ pub struct ShardInfo {
     pub replica_num: u32,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct ShardOffset {
     pub namespace: String,
     pub shard_name: String,
@@ -40,78 +40,75 @@ pub struct ShardOffset {
 
 #[async_trait]
 pub trait StorageAdapter {
-    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError>;
+    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError>;
 
     async fn list_shard(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
     ) -> Result<Vec<ShardInfo>, CommonError>;
 
-    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError>;
+    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError>;
 
     async fn write(
         &self,
-        namespace: String,
-        shard_name: String,
-        data: Record,
+        namespace: &str,
+        shard_name: &str,
+        data: &Record,
     ) -> Result<u64, CommonError>;
 
     async fn batch_write(
         &self,
-        namespace: String,
-        shard_name: String,
-        data: Vec<Record>,
+        namespace: &str,
+        shard_name: &str,
+        data: &[Record],
     ) -> Result<Vec<u64>, CommonError>;
 
     async fn read_by_offset(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        read_config: ReadConfig,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;
 
     async fn read_by_tag(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        tag: String,
-        read_config: ReadConfig,
+        tag: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;
 
     async fn read_by_key(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        key: String,
-        read_config: ReadConfig,
+        key: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError>;
 
-    async fn get_offset_by_group(
-        &self,
-        group_name: String,
-    ) -> Result<Vec<ShardOffset>, CommonError>;
+    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError>;
 
     async fn commit_offset(
         &self,
-        group_name: String,
-        namespace: String,
-        offset: HashMap<String, u64>,
+        group_name: &str,
+        namespace: &str,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {
-    Arc::new(Box::new(MemoryStorageAdapter::new()))
+    Arc::new(MemoryStorageAdapter::new())
 }

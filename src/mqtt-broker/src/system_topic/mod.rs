@@ -455,13 +455,9 @@ mod test {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
+        let cluster = cluster_name();
         let results = message_storage_adapter
-            .read_by_offset(
-                cluster_name().to_owned(),
-                topic.topic_name.to_owned(),
-                0,
-                read_config,
-            )
+            .read_by_offset(&cluster, &topic.topic_name, 0, &read_config)
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
@@ -504,13 +500,9 @@ mod test {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
+        let cluster = cluster_name();
         let results = message_storage_adapter
-            .read_by_offset(
-                cluster_name().to_owned(),
-                mqtt_topic.topic_name.clone(),
-                0,
-                read_config,
-            )
+            .read_by_offset(&cluster, &mqtt_topic.topic_name, 0, &read_config)
             .await
             .unwrap();
 

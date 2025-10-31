@@ -398,7 +398,7 @@ impl RocksDBStorageAdapter {
 #[async_trait]
 impl StorageAdapter for RocksDBStorageAdapter {
     /// create a shard by inserting an offset 0
-    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         let namespace = shard.namespace.clone();
         let shard_name = shard.shard_name.clone();
 
@@ -432,8 +432,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn list_shard(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
     ) -> Result<Vec<ShardInfo>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
@@ -457,15 +457,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
         Ok(res)
     }
 
-    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
+        self.ensure_shard_exists(namespace, shard_name)?;
 
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
 
         // Stop the write thread for this shard
-        let handle_key = Self::write_handle_key(&namespace, &shard_name);
+        let handle_key = Self::write_handle_key(namespace, shard_name);
         if let Some((_, handle)) = self.write_handles.remove(&handle_key) {
             // Send stop signal to the write thread
             let _ = handle.stop_sender.send(true);
@@ -498,39 +498,47 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn write(
         &self,
-        namespace: String,
-        shard_name: String,
-        message: Record,
+        namespace: &str,
+        shard_name: &str,
+        message: &Record,
     ) -> Result<u64, CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+        self.ensure_shard_exists(namespace, shard_name)?;
 
-        self.handle_write_request(namespace, shard_name, vec![message])
-            .await?
-            .first()
-            .cloned()
-            .ok_or_else(|| CommonError::CommonError("Empty offset result from write".to_string()))
+        self.handle_write_request(
+            namespace.to_string(),
+            shard_name.to_string(),
+            vec![message.clone()],
+        )
+        .await?
+        .first()
+        .cloned()
+        .ok_or_else(|| CommonError::CommonError("Empty offset result from write".to_string()))
     }
 
     async fn batch_write(
         &self,
-        namespace: String,
-        shard_name: String,
-        messages: Vec<Record>,
+        namespace: &str,
+        shard_name: &str,
+        messages: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+        self.ensure_shard_exists(namespace, shard_name)?;
 
-        self.handle_write_request(namespace, shard_name, messages)
-            .await
+        self.handle_write_request(
+            namespace.to_string(),
+            shard_name.to_string(),
+            messages.to_vec(),
+        )
+        .await
     }
 
     async fn read_by_offset(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        read_config: ReadConfig,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+        self.ensure_shard_exists(namespace, shard_name)?;
 
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
@@ -563,13 +571,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        tag: String,
-        read_config: ReadConfig,
+        tag: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+        self.ensure_shard_exists(namespace, shard_name)?;
 
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
@@ -613,13 +621,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        key: String,
-        read_config: ReadConfig,
+        key: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+        self.ensure_shard_exists(namespace, shard_name)?;
 
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
@@ -647,11 +655,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        self.ensure_shard_exists(&namespace, &shard_name)?;
+        self.ensure_shard_exists(namespace, shard_name)?;
 
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
@@ -697,10 +705,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         Ok(None)
     }
 
-    async fn get_offset_by_group(
-        &self,
-        group_name: String,
-    ) -> Result<Vec<ShardOffset>, CommonError> {
+    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
@@ -727,17 +732,17 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn commit_offset(
         &self,
-        group_name: String,
-        namespace: String,
-        offsets: HashMap<String, u64>,
+        group_name: &str,
+        namespace: &str,
+        offsets: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).ok_or_else(|| {
             CommonError::CommonError(format!("Column family '{}' not found", DB_COLUMN_FAMILY))
         })?;
 
-        offsets.into_iter().try_for_each(|(shard_name, offset)| {
+        offsets.iter().try_for_each(|(shard_name, offset)| {
             let group_record_offsets_key =
-                Self::group_record_offsets_key(&group_name, &namespace, &shard_name);
+                Self::group_record_offsets_key(&group_name, &namespace, &shard_name.as_str());
 
             self.db
                 .write(cf.clone(), &group_record_offsets_key, &offset)
@@ -784,7 +789,7 @@ mod tests {
 
         // step 1: create shard
         storage_adapter
-            .create_shard(ShardInfo {
+            .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
                 replica_num: 1,
@@ -794,7 +799,7 @@ mod tests {
 
         // step 2: list the shard just created
         let shards = storage_adapter
-            .list_shard(namespace.clone(), shard_name.clone())
+            .list_shard(&namespace, &shard_name)
             .await
             .unwrap();
 
@@ -812,7 +817,7 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .batch_write(namespace.clone(), shard_name.clone(), data)
+            .batch_write(&namespace, &shard_name, &data)
             .await
             .unwrap();
 
@@ -823,10 +828,10 @@ mod tests {
         assert_eq!(
             storage_adapter
                 .read_by_offset(
-                    namespace.clone(),
-                    shard_name.clone(),
+                    &namespace.clone(),
+                    &shard_name,
                     0,
-                    ReadConfig {
+                    &ReadConfig {
                         max_record_num: u64::MAX,
                         max_size: u64::MAX,
                     }
@@ -846,17 +851,17 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .batch_write(namespace.clone(), shard_name.clone(), data)
+            .batch_write(&namespace, &shard_name, &data)
             .await
             .unwrap();
 
         // read from offset 2
         let result_read = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace.clone(),
+                &shard_name,
                 2,
-                ReadConfig {
+                &ReadConfig {
                     max_record_num: u64::MAX,
                     max_size: u64::MAX,
                 },
@@ -870,7 +875,7 @@ mod tests {
 
         // test group functionalities
         let group_id = unique_id();
-        let read_config = ReadConfig {
+        let read_config = &ReadConfig {
             max_record_num: 1,
             max_size: u64::MAX,
         };
@@ -878,12 +883,7 @@ mod tests {
         // read m1
         let offset = 0;
         let res = storage_adapter
-            .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
-                offset,
-                read_config.clone(),
-            )
+            .read_by_offset(&namespace.clone(), &shard_name, offset, read_config)
             .await
             .unwrap();
 
@@ -899,22 +899,22 @@ mod tests {
         );
 
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // read ms2
         let offset = storage_adapter
-            .get_offset_by_group(group_id.clone())
+            .get_offset_by_group(&group_id)
             .await
             .unwrap();
 
         let res = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace.clone(),
+                &shard_name,
                 offset.first().unwrap().offset + 1,
-                read_config.clone(),
+                read_config,
             )
             .await
             .unwrap();
@@ -930,22 +930,22 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // read m3
         let offset: Vec<crate::storage::ShardOffset> = storage_adapter
-            .get_offset_by_group(group_id.clone())
+            .get_offset_by_group(&group_id)
             .await
             .unwrap();
 
         let res = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace.clone(),
+                &shard_name,
                 offset.first().unwrap().offset + 1,
-                read_config.clone(),
+                read_config,
             )
             .await
             .unwrap();
@@ -960,22 +960,22 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // read m4
         let offset = storage_adapter
-            .get_offset_by_group(group_id.clone())
+            .get_offset_by_group(&group_id)
             .await
             .unwrap();
 
         let res = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace.clone(),
+                &shard_name,
                 offset.first().unwrap().offset + 1,
-                read_config.clone(),
+                read_config,
             )
             .await
             .unwrap();
@@ -990,19 +990,19 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // delete shard
         storage_adapter
-            .delete_shard(namespace.clone(), shard_name.clone())
+            .delete_shard(&namespace, &shard_name)
             .await
             .unwrap();
 
         // check if the shard is deleted
         let shards = storage_adapter
-            .list_shard(namespace, shard_name)
+            .list_shard(&namespace, &shard_name)
             .await
             .unwrap();
 
@@ -1027,7 +1027,7 @@ mod tests {
         // create shards
         for i in 0..shards.len() {
             storage_adapter
-                .create_shard(ShardInfo {
+                .create_shard(&ShardInfo {
                     namespace: namespace.clone(),
                     shard_name: shards.get(i).unwrap().clone(),
                     replica_num: 1,
@@ -1037,10 +1037,7 @@ mod tests {
         }
 
         // list the shard we just created
-        let list_res = storage_adapter
-            .list_shard(namespace.clone(), "".to_string())
-            .await
-            .unwrap();
+        let list_res = storage_adapter.list_shard(&namespace, "").await.unwrap();
 
         assert_eq!(list_res.len(), 4);
 
@@ -1076,7 +1073,7 @@ mod tests {
                 }
 
                 let write_offsets = storage_adapter
-                    .batch_write(namespace.clone(), shard_name.clone(), batch_data.clone())
+                    .batch_write(&namespace, &shard_name, &batch_data)
                     .await
                     .unwrap();
 
@@ -1087,10 +1084,10 @@ mod tests {
                 for offset in write_offsets.iter() {
                     let records = storage_adapter
                         .read_by_offset(
-                            namespace.clone(),
-                            shard_name.clone(),
+                            &namespace.clone(),
+                            &shard_name,
                             *offset,
-                            ReadConfig {
+                            &ReadConfig {
                                 max_record_num: 1,
                                 max_size: u64::MAX,
                             },
@@ -1108,13 +1105,14 @@ mod tests {
                 }
 
                 // test read by tag
+                let tag = format!("task-{tid}");
                 let tag_records = storage_adapter
                     .read_by_tag(
-                        namespace.clone(),
-                        shard_name.clone(),
+                        &namespace,
+                        &shard_name,
                         0,
-                        format!("task-{tid}"),
-                        ReadConfig {
+                        &tag,
+                        &ReadConfig {
                             max_record_num: u64::MAX,
                             max_size: u64::MAX,
                         },
@@ -1140,10 +1138,10 @@ mod tests {
         for shard in shards.iter() {
             let len = storage_adapter
                 .read_by_offset(
-                    namespace.clone(),
-                    shard.clone(),
+                    &namespace,
+                    shard,
                     0,
-                    ReadConfig {
+                    &ReadConfig {
                         max_record_num: u64::MAX,
                         max_size: u64::MAX,
                     },
@@ -1158,16 +1156,13 @@ mod tests {
         // delete all shards
         for shard in shards.iter() {
             storage_adapter
-                .delete_shard(namespace.clone(), shard.clone())
+                .delete_shard(&namespace, shard)
                 .await
                 .unwrap();
         }
 
         // check if the shards are deleted
-        let list_res = storage_adapter
-            .list_shard(namespace.clone(), "".to_string())
-            .await
-            .unwrap();
+        let list_res = storage_adapter.list_shard(&namespace, "").await.unwrap();
 
         assert_eq!(list_res.len(), 0);
 

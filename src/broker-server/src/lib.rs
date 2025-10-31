@@ -313,13 +313,12 @@ impl BrokerServer {
             broker_cache.clone(),
         ));
 
-        let storage_driver = match build_message_storage_driver() {
+        let message_storage_adapter = match build_message_storage_driver() {
             Ok(storage) => storage,
             Err(e) => {
                 panic!("{}", e.to_string());
             }
         };
-        let arc_storage_driver = Arc::new(storage_driver);
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
 
@@ -327,7 +326,7 @@ impl BrokerServer {
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             config.cluster_name.clone(),
             1,
-            arc_storage_driver.clone(),
+            message_storage_adapter.clone(),
         ));
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
@@ -335,7 +334,7 @@ impl BrokerServer {
         MqttBrokerServerParams {
             cache_manager,
             client_pool,
-            message_storage_adapter: arc_storage_driver,
+            message_storage_adapter,
             subscribe_manager,
             connection_manager,
             connector_manager,

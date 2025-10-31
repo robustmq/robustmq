@@ -510,7 +510,7 @@ mod tests {
 
         let shard_name = connector.topic_name.clone();
         storage_adapter
-            .create_shard(ShardInfo {
+            .create_shard(&ShardInfo {
                 namespace: "default".to_string(),
                 shard_name,
                 ..Default::default()

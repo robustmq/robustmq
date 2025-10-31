@@ -342,7 +342,7 @@ impl MinIoStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MinIoStorageAdapter {
-    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         self.op
             .write(
                 &Self::offsets_path(&shard.namespace, &shard.shard_name),
@@ -353,7 +353,7 @@ impl StorageAdapter for MinIoStorageAdapter {
         self.op
             .write(
                 &Self::shard_info(&shard.namespace, &shard.shard_name),
-                serde_json::to_vec(&shard)?,
+                serde_json::to_vec(shard)?,
             )
             .await?;
 
@@ -362,27 +362,31 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn list_shard(
         &self,
-        _namespace: String,
-        _shard_name: String,
+        _namespace: &str,
+        _shard_name: &str,
     ) -> Result<Vec<ShardInfo>, CommonError> {
         Ok(Vec::new())
     }
 
-    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
+    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
         self.op
-            .remove_all(&Self::offsets_path(&namespace, &shard_name))
+            .remove_all(&Self::offsets_path(namespace, shard_name))
             .await?;
         Ok(())
     }
 
     async fn write(
         &self,
-        namespace: String,
-        shard_name: String,
-        data: Record,
+        namespace: &str,
+        shard_name: &str,
+        data: &Record,
     ) -> Result<u64, CommonError> {
         let offsets = self
-            .handle_write_request(namespace, shard_name, vec![data])
+            .handle_write_request(
+                namespace.to_string(),
+                shard_name.to_string(),
+                vec![data.clone()],
+            )
             .await?;
 
         Ok(offsets[0])
@@ -390,25 +394,26 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn batch_write(
         &self,
-        namespace: String,
-        shard_name: String,
-        data: Vec<Record>,
+        namespace: &str,
+        shard_name: &str,
+        data: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
-        self.handle_write_request(namespace, shard_name, data).await
+        self.handle_write_request(namespace.to_string(), shard_name.to_string(), data.to_vec())
+            .await
     }
 
     async fn read_by_offset(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        read_config: ReadConfig,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         let mut res = Vec::new();
         let mut total_bytes = 0;
 
         for i in offset..offset + read_config.max_record_num {
-            let path = Self::records_path(&namespace, &shard_name, i);
+            let path = Self::records_path(namespace, shard_name, i);
             if !self.op.exists(&path).await? {
                 break;
             }
@@ -426,13 +431,13 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         start_offset: u64,
-        tag: String,
-        read_config: ReadConfig,
+        tag: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let tags_path_prefix = Self::tags_path_prefix(&namespace, &shard_name, &tag);
+        let tags_path_prefix = Self::tags_path_prefix(namespace, shard_name, tag);
 
         let mut lister = self.op.lister_with(&tags_path_prefix).await?;
 
@@ -471,11 +476,11 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        key: String,
-        read_config: ReadConfig,
+        key: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         if read_config.max_record_num == 0 {
             return Ok(vec![]);
@@ -483,7 +488,7 @@ impl StorageAdapter for MinIoStorageAdapter {
 
         let record_bytes = self
             .op
-            .read(&Self::key_path(&namespace, &shard_name, key))
+            .read(&Self::key_path(namespace, shard_name, key))
             .await?
             .to_vec();
 
@@ -502,26 +507,19 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        _namespace: String,
-        _shard_name: String,
+        _namespace: &str,
+        _shard_name: &str,
         _timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         Ok(None)
     }
 
-    async fn get_offset_by_group(
-        &self,
-        group_name: String,
-    ) -> Result<Vec<ShardOffset>, CommonError> {
-        if self
-            .op
-            .exists(&Self::group_path_prefix(&group_name))
-            .await?
-        {
+    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
+        if self.op.exists(&Self::group_path_prefix(group_name)).await? {
             let mut offsets = Vec::new();
             let mut lister = self
                 .op
-                .lister_with(&Self::group_path_prefix(&group_name))
+                .lister_with(&Self::group_path_prefix(group_name))
                 .await?;
 
             while let Some(entry) = lister.try_next().await? {
@@ -548,14 +546,14 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn commit_offset(
         &self,
-        group_name: String,
-        namespace: String,
-        offset: HashMap<String, u64>,
+        group_name: &str,
+        namespace: &str,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         for (shard_name, offset) in offset {
             self.op
                 .write(
-                    &Self::group_path(&group_name, &namespace, &shard_name),
+                    &Self::group_path(group_name, namespace, shard_name),
                     serde_json::to_vec(&offset)?,
                 )
                 .await?;
@@ -603,7 +601,7 @@ mod tests {
 
         // step 1: create shard
         storage_adapter
-            .create_shard(ShardInfo {
+            .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
                 replica_num: 1,
@@ -620,7 +618,7 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .batch_write(namespace.clone(), shard_name.clone(), data)
+            .batch_write(&namespace, &shard_name, &data)
             .await
             .unwrap();
 
@@ -631,10 +629,10 @@ mod tests {
         assert_eq!(
             storage_adapter
                 .read_by_offset(
-                    namespace.clone(),
-                    shard_name.clone(),
+                    &namespace,
+                    &shard_name,
                     0,
-                    ReadConfig {
+                    &ReadConfig {
                         max_record_num: 10,
                         max_size: u64::MAX,
                     }
@@ -654,17 +652,17 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .batch_write(namespace.clone(), shard_name.clone(), data)
+            .batch_write(&namespace, &shard_name, &data)
             .await
             .unwrap();
 
         // read from offset 2
         let result_read = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace,
+                &shard_name,
                 2,
-                ReadConfig {
+                &ReadConfig {
                     max_record_num: 10,
                     max_size: u64::MAX,
                 },
@@ -686,12 +684,7 @@ mod tests {
         // read m1
         let offset = 0;
         let res = storage_adapter
-            .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
-                offset,
-                read_config.clone(),
-            )
+            .read_by_offset(&namespace, &shard_name, offset, &read_config)
             .await
             .unwrap();
 
@@ -707,22 +700,22 @@ mod tests {
         );
 
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // read ms2
         let offset = storage_adapter
-            .get_offset_by_group(group_id.clone())
+            .get_offset_by_group(&group_id)
             .await
             .unwrap();
 
         let res = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace,
+                &shard_name,
                 offset.first().unwrap().offset + 1,
-                read_config.clone(),
+                &read_config,
             )
             .await
             .unwrap();
@@ -738,22 +731,22 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // read m3
         let offset: Vec<crate::storage::ShardOffset> = storage_adapter
-            .get_offset_by_group(group_id.clone())
+            .get_offset_by_group(&group_id)
             .await
             .unwrap();
 
         let res = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace,
+                &shard_name,
                 offset.first().unwrap().offset + 1,
-                read_config.clone(),
+                &read_config,
             )
             .await
             .unwrap();
@@ -768,22 +761,22 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // read m4
         let offset = storage_adapter
-            .get_offset_by_group(group_id.clone())
+            .get_offset_by_group(&group_id)
             .await
             .unwrap();
 
         let res = storage_adapter
             .read_by_offset(
-                namespace.clone(),
-                shard_name.clone(),
+                &namespace,
+                &shard_name,
                 offset.first().unwrap().offset + 1,
-                read_config.clone(),
+                &read_config,
             )
             .await
             .unwrap();
@@ -798,13 +791,13 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         storage_adapter
-            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .commit_offset(&group_id, &namespace, &offset_data)
             .await
             .unwrap();
 
         // delete shard
         storage_adapter
-            .delete_shard(namespace, shard_name)
+            .delete_shard(&namespace, &shard_name)
             .await
             .unwrap();
     }
@@ -821,7 +814,7 @@ mod tests {
         // create shards
         for i in 0..shards.len() {
             storage_adapter
-                .create_shard(ShardInfo {
+                .create_shard(&ShardInfo {
                     namespace: namespace.clone(),
                     shard_name: shards.get(i).unwrap().clone(),
                     replica_num: 1,
@@ -862,7 +855,7 @@ mod tests {
                 }
 
                 let write_offsets = storage_adapter
-                    .batch_write(namespace.clone(), shard_name.clone(), batch_data.clone())
+                    .batch_write(&namespace, &shard_name, &batch_data)
                     .await
                     .unwrap();
 
@@ -873,10 +866,10 @@ mod tests {
                 for offset in write_offsets.iter() {
                     let records = storage_adapter
                         .read_by_offset(
-                            namespace.clone(),
-                            shard_name.clone(),
+                            &namespace,
+                            &shard_name,
                             *offset,
-                            ReadConfig {
+                            &ReadConfig {
                                 max_record_num: 1,
                                 max_size: u64::MAX,
                             },
@@ -894,13 +887,14 @@ mod tests {
                 }
 
                 // test read by tag
+                let tag = format!("task-{tid}");
                 let tag_records = storage_adapter
                     .read_by_tag(
-                        namespace.clone(),
-                        shard_name.clone(),
+                        &namespace,
+                        &shard_name,
                         0,
-                        format!("task-{tid}"),
-                        ReadConfig {
+                        &tag,
+                        &ReadConfig {
                             max_record_num: u64::MAX,
                             max_size: u64::MAX,
                         },
@@ -926,10 +920,10 @@ mod tests {
         for shard in shards.iter() {
             let len = storage_adapter
                 .read_by_offset(
-                    namespace.clone(),
-                    shard.clone(),
+                    &namespace,
+                    shard,
                     0,
-                    ReadConfig {
+                    &ReadConfig {
                         max_record_num: u64::MAX,
                         max_size: u64::MAX,
                     },
