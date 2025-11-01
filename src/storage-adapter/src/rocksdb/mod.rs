@@ -100,39 +100,32 @@ impl RocksDBStorageAdapter {
             // save key
             if !msg.key.is_empty() {
                 let key_offset_key = key_offset_key(namespace, shard_name, &msg.key);
-                let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
-                    CommonError::CommonError(format!("Failed to serialize offset: {e}"))
-                })?;
-                batch.put_cf(&cf, key_offset_key.as_bytes(), serialized_offset.as_bytes());
+                batch.put_cf(&cf, key_offset_key.as_bytes(), &start_offset.to_be_bytes());
             }
 
             // save tag
             for tag in msg.tags.iter() {
                 let tag_offsets_key = tag_offsets_key(namespace, shard_name, tag, start_offset);
-                let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
-                    CommonError::CommonError(format!("Failed to serialize offset: {e}"))
-                })?;
-                batch.put_cf(
-                    &cf,
-                    tag_offsets_key.as_bytes(),
-                    serialized_offset.as_bytes(),
-                );
+                batch.put_cf(&cf, tag_offsets_key.as_bytes(), &start_offset.to_be_bytes());
             }
 
             // save timestamp
-            if msg.timestamp > 0 && offset % 5000 == 0 {
+            // Time index every 5,000 records
+            if msg.timestamp > 0 && start_offset % 5000 == 0 {
                 let timestamp_offset_key =
                     timestamp_offset_key(namespace, shard_name, msg.timestamp, start_offset);
                 batch.put_cf(
                     &cf,
                     timestamp_offset_key.as_bytes(),
-                    start_offset.to_be_bytes(),
+                    &start_offset.to_be_bytes(),
                 );
             }
 
             start_offset += 1;
         }
+
         self.db.write_batch(batch)?;
+
         self.save_offset(namespace, shard_name, start_offset)?;
         Ok(offset_res)
     }
@@ -146,11 +139,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let cf = self.get_cf()?;
         let shard_offset_key = shard_offset_key(namespace, shard_name);
 
-        if self
-            .db
-            .read::<u64>(cf.clone(), &shard_offset_key)?
-            .is_some()
-        {
+        if self.get_offset(namespace, shard_name).is_ok() {
             return Err(CommonError::CommonError(format!(
                 "shard {shard_name} under namespace {namespace} already exists"
             )));
@@ -279,7 +268,14 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let mut offsets = Vec::with_capacity(capacity);
 
         for (_, v) in raw_offsets {
-            let record_offset = serde_json::from_slice::<u64>(&v)?;
+            if v.len() != 8 {
+                continue;
+            }
+            let record_offset = u64::from_be_bytes(
+                v.as_slice()
+                    .try_into()
+                    .map_err(|_| CommonError::CommonError("Invalid offset bytes".to_string()))?,
+            );
 
             if record_offset >= offset {
                 offsets.push(record_offset);
@@ -325,20 +321,36 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let cf = self.get_cf()?;
         let key_offset_key = key_offset_key(namespace, shard_name, key);
 
-        match self.db.read::<u64>(cf.clone(), &key_offset_key)? {
-            Some(key_offset) if key_offset >= offset => {
-                let shard_record_key = shard_record_key(namespace, shard_name, key_offset);
-                let Some(record) = self.db.read::<Record>(cf, &shard_record_key)? else {
-                    return Ok(Vec::new());
-                };
-
-                if record.data.len() as u64 > read_config.max_size {
-                    return Ok(Vec::new());
-                }
-
-                Ok(vec![record])
+        let key_offset_bytes = match self.db.db.get_cf(&cf, &key_offset_key) {
+            Ok(Some(data)) if data.len() == 8 => data,
+            Ok(_) => return Ok(Vec::new()),
+            Err(e) => {
+                return Err(CommonError::CommonError(format!(
+                    "Failed to read key offset: {e:?}"
+                )))
             }
-            _ => Ok(Vec::new()),
+        };
+
+        let key_offset = u64::from_be_bytes(
+            key_offset_bytes
+                .as_slice()
+                .try_into()
+                .map_err(|_| CommonError::CommonError("Invalid offset bytes".to_string()))?,
+        );
+
+        if key_offset >= offset {
+            let shard_record_key = shard_record_key(namespace, shard_name, key_offset);
+            let Some(record) = self.db.read::<Record>(cf, &shard_record_key)? else {
+                return Ok(Vec::new());
+            };
+
+            if record.data.len() as u64 > read_config.max_size {
+                return Ok(Vec::new());
+            }
+
+            Ok(vec![record])
+        } else {
+            Ok(Vec::new())
         }
     }
 
@@ -353,13 +365,18 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let raw_res = self.db.read_prefix(cf.clone(), &timestamp_prefix)?;
 
         if let Some((_, v)) = raw_res.first() {
-            let offset = serde_json::from_slice::<u64>(v)?;
-            return Ok(Some(ShardOffset {
-                namespace: namespace.to_string(),
-                shard_name: shard_name.to_string(),
-                segment_no: 0,
-                offset,
-            }));
+            if v.len() == 8 {
+                let offset =
+                    u64::from_be_bytes(v.as_slice().try_into().map_err(|_| {
+                        CommonError::CommonError("Invalid offset bytes".to_string())
+                    })?);
+                return Ok(Some(ShardOffset {
+                    namespace: namespace.to_string(),
+                    shard_name: shard_name.to_string(),
+                    segment_no: 0,
+                    offset,
+                }));
+            }
         }
 
         let timestamp_index_prefix = timestamp_offset_key_prefix(namespace, shard_name);
@@ -369,8 +386,10 @@ impl StorageAdapter for RocksDBStorageAdapter {
             let parts: Vec<&str> = key.split('/').collect();
             if parts.len() >= 5 {
                 if let Ok(ts) = parts[4].parse::<u64>() {
-                    if ts >= timestamp {
-                        let offset = serde_json::from_slice::<u64>(&v)?;
+                    if ts >= timestamp && v.len() == 8 {
+                        let offset = u64::from_be_bytes(v.as_slice().try_into().map_err(|_| {
+                            CommonError::CommonError("Invalid offset bytes".to_string())
+                        })?);
                         return Ok(Some(ShardOffset {
                             namespace: namespace.to_string(),
                             shard_name: shard_name.to_string(),
@@ -393,7 +412,14 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let mut offsets = Vec::with_capacity(raw_offsets.len());
 
         for (_, v) in raw_offsets {
-            let offset = serde_json::from_slice::<u64>(&v)?;
+            if v.len() != 8 {
+                continue;
+            }
+            let offset = u64::from_be_bytes(
+                v.as_slice()
+                    .try_into()
+                    .map_err(|_| CommonError::CommonError("Invalid offset bytes".to_string()))?,
+            );
             offsets.push(ShardOffset {
                 offset,
                 ..Default::default()
@@ -419,7 +445,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             let group_record_offsets_key =
                 group_record_offsets_key(group_name, namespace, shard_name);
             self.db
-                .write(cf.clone(), &group_record_offsets_key, offset)?;
+                .write_raw(cf.clone(), &group_record_offsets_key, &offset.to_be_bytes())?;
         }
 
         Ok(())
