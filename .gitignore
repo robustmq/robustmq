@@ -200,3 +200,4 @@ core.*
 *.old
 *~
 src/common/rocksdb-engine/data
+src/storage-adapter/data

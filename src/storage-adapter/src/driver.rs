@@ -13,12 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    memory::MemoryStorageAdapter,
-    message_expire::{message_expire_thread, MessageExpireConfig},
-    mysql::MySQLStorageAdapter,
-    rocksdb::RocksDBStorageAdapter,
-    storage::ArcStorageAdapter,
-    StorageType,
+    memory::MemoryStorageAdapter, mysql::MySQLStorageAdapter, rocksdb::RocksDBStorageAdapter,
+    storage::ArcStorageAdapter, StorageType,
 };
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
@@ -48,6 +44,5 @@ pub fn build_message_storage_driver(
         }
     };
 
-    message_expire_thread(storage.clone(), MessageExpireConfig::default());
     Ok(storage)
 }

@@ -90,12 +90,14 @@ impl RocksDBStorageAdapter {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
 
+            // save record
             let shard_record_key = shard_record_key(namespace, shard_name, start_offset);
             let serialized_msg = serde_json::to_string(&msg).map_err(|e| {
                 CommonError::CommonError(format!("Failed to serialize record: {e}"))
             })?;
             batch.put_cf(&cf, shard_record_key.as_bytes(), serialized_msg.as_bytes());
 
+            // save key
             if !msg.key.is_empty() {
                 let key_offset_key = key_offset_key(namespace, shard_name, &msg.key);
                 let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
@@ -104,6 +106,7 @@ impl RocksDBStorageAdapter {
                 batch.put_cf(&cf, key_offset_key.as_bytes(), serialized_offset.as_bytes());
             }
 
+            // save tag
             for tag in msg.tags.iter() {
                 let tag_offsets_key = tag_offsets_key(namespace, shard_name, tag, start_offset);
                 let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
@@ -116,16 +119,14 @@ impl RocksDBStorageAdapter {
                 );
             }
 
-            if msg.timestamp > 0 {
+            // save timestamp
+            if msg.timestamp > 0 && offset % 5000 == 0 {
                 let timestamp_offset_key =
                     timestamp_offset_key(namespace, shard_name, msg.timestamp, start_offset);
-                let serialized_offset = serde_json::to_string(&start_offset).map_err(|e| {
-                    CommonError::CommonError(format!("Failed to serialize offset: {e}"))
-                })?;
                 batch.put_cf(
                     &cf,
                     timestamp_offset_key.as_bytes(),
-                    serialized_offset.as_bytes(),
+                    start_offset.to_be_bytes(),
                 );
             }
 
@@ -436,8 +437,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc, vec};
-
+    use super::RocksDBStorageAdapter;
+    use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::{tools::unique_id, utils::crc::calc_crc32};
     use futures::future;
     use metadata_struct::adapter::{
@@ -445,10 +446,7 @@ mod tests {
         record::{Header, Record},
     };
     use rocksdb_engine::test::test_rocksdb_instance;
-
-    use crate::storage::{ShardInfo, StorageAdapter};
-
-    use super::RocksDBStorageAdapter;
+    use std::{collections::HashMap, sync::Arc, vec};
 
     #[tokio::test]
     async fn stream_read_write() {

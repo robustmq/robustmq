@@ -30,10 +30,8 @@ pub enum MessageExpireStrategy {
     // Timestamp,
 }
 
-pub fn message_expire_thread(driver: ArcStorageAdapter, config: MessageExpireConfig) {
-    tokio::spawn(async move {
-        if let Err(e) = driver.message_expire(&config).await {
-            error!("{}", e);
-        }
-    });
+pub async fn message_expire_thread(driver: ArcStorageAdapter, config: MessageExpireConfig) {
+    if let Err(e) = driver.message_expire(&config).await {
+        error!("{}", e);
+    }
 }

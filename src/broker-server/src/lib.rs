@@ -68,7 +68,10 @@ use std::{
     thread::sleep,
     time::Duration,
 };
-use storage_adapter::driver::build_message_storage_driver;
+use storage_adapter::{
+    driver::build_message_storage_driver,
+    message_expire::{message_expire_thread, MessageExpireConfig},
+};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -267,6 +270,12 @@ impl BrokerServer {
         let raw_stop_send = stop_send.clone();
         server_runtime
             .spawn(async move { network_connection_gc(connection_manager, raw_stop_send).await });
+
+        // message expire
+        let storage = self.mqtt_params.message_storage_adapter.clone();
+        server_runtime.spawn(async move {
+            message_expire_thread(storage.clone(), MessageExpireConfig::default()).await;
+        });
 
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
