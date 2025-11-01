@@ -23,6 +23,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
 use std::{collections::HashMap, sync::Arc};
 
+mod expire;
 mod key;
 #[derive(Clone)]
 pub struct RocksDBStorageAdapter {
@@ -86,18 +87,20 @@ impl RocksDBStorageAdapter {
         let mut batch = WriteBatch::default();
 
         for msg in messages {
-            let mut msg = msg.clone();
             offset_res.push(start_offset);
-            msg.offset = Some(start_offset);
+
+            // Clone and set offset (unavoidable due to serialization requirement)
+            let mut record_to_save = msg.clone();
+            record_to_save.offset = Some(start_offset);
 
             // save record (using bincode for better performance)
             let shard_record_key = shard_record_key(namespace, shard_name, start_offset);
-            let serialized_msg = bincode::serialize(&msg).map_err(|e| {
+            let serialized_msg = bincode::serialize(&record_to_save).map_err(|e| {
                 CommonError::CommonError(format!("Failed to serialize record: {e}"))
             })?;
             batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
-            // save key
+            // save key (use original msg to avoid borrow issues)
             if !msg.key.is_empty() {
                 let key_offset_key = key_offset_key(namespace, shard_name, &msg.key);
                 batch.put_cf(&cf, key_offset_key.as_bytes(), start_offset.to_be_bytes());
@@ -169,9 +172,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
         raw_shard_info
             .into_iter()
-            .map(|(_, v)| bincode::deserialize::<ShardInfo>(v.as_slice()).map_err(|e| {
-                CommonError::CommonError(format!("Failed to deserialize ShardInfo: {e}"))
-            }))
+            .map(|(_, v)| {
+                bincode::deserialize::<ShardInfo>(v.as_slice()).map_err(|e| {
+                    CommonError::CommonError(format!("Failed to deserialize ShardInfo: {e}"))
+                })
+            })
             .collect::<Result<Vec<ShardInfo>, CommonError>>()
     }
 
@@ -232,13 +237,26 @@ impl StorageAdapter for RocksDBStorageAdapter {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let capacity = (read_config.max_record_num as usize).min(1024);
+
+        // Limit the number of keys to prevent overflow and excessive memory allocation
+        let max_batch_size = read_config.max_record_num.min(1024) as usize;
+        let capacity = max_batch_size.min(1024);
+
+        // Generate keys for batch read (capped at reasonable size)
+        let keys: Vec<String> = (offset..offset.saturating_add(max_batch_size as u64))
+            .map(|i| shard_record_key(namespace, shard_name, i))
+            .collect();
+
+        // Batch read all records at once (much faster than individual reads)
+        let batch_results = self.db.multi_get::<Record>(cf, &keys)?;
+
+        // Process results and apply size limits
         let mut records = Vec::with_capacity(capacity);
         let mut total_size = 0;
 
-        for i in offset..offset.saturating_add(read_config.max_record_num) {
-            let shard_record_key = shard_record_key(namespace, shard_name, i);
-            let Some(record) = self.db.read::<Record>(cf.clone(), &shard_record_key)? else {
+        for record_opt in batch_results {
+            let Some(record) = record_opt else {
+                // Stop on first missing record (assumes sequential)
                 break;
             };
 
@@ -297,7 +315,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .map(|off| shard_record_key(namespace, shard_name, *off))
             .collect();
 
-        let batch_results = self.db.multi_get::<Record>(cf.clone(), &keys)?;
+        let batch_results = self.db.multi_get::<Record>(cf, &keys)?;
 
         let mut records = Vec::with_capacity(offsets.len());
         let mut total_size = 0;
@@ -464,9 +482,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         Ok(())
     }
 
-    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
-        // TODO: Implement message expiration logic
-        Ok(())
+    async fn message_expire(&self, config: &MessageExpireConfig) -> Result<(), CommonError> {
+        expire::expire_messages_by_timestamp(self.db.clone(), config).await
     }
 
     async fn close(&self) -> Result<(), CommonError> {
