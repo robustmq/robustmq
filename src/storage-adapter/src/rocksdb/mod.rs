@@ -100,13 +100,13 @@ impl RocksDBStorageAdapter {
             // save key
             if !msg.key.is_empty() {
                 let key_offset_key = key_offset_key(namespace, shard_name, &msg.key);
-                batch.put_cf(&cf, key_offset_key.as_bytes(), &start_offset.to_be_bytes());
+                batch.put_cf(&cf, key_offset_key.as_bytes(), start_offset.to_be_bytes());
             }
 
             // save tag
             for tag in msg.tags.iter() {
                 let tag_offsets_key = tag_offsets_key(namespace, shard_name, tag, start_offset);
-                batch.put_cf(&cf, tag_offsets_key.as_bytes(), &start_offset.to_be_bytes());
+                batch.put_cf(&cf, tag_offsets_key.as_bytes(), start_offset.to_be_bytes());
             }
 
             // save timestamp
@@ -117,7 +117,7 @@ impl RocksDBStorageAdapter {
                 batch.put_cf(
                     &cf,
                     timestamp_offset_key.as_bytes(),
-                    &start_offset.to_be_bytes(),
+                    start_offset.to_be_bytes(),
                 );
             }
 
