@@ -6594,6 +6594,7 @@ dependencies = [
 name = "rocksdb-engine"
 version = "0.2.4"
 dependencies = [
+ "bincode",
  "common-base",
  "common-config",
  "common-metrics",
@@ -7644,6 +7645,7 @@ name = "storage-adapter"
 version = "0.2.4"
 dependencies = [
  "axum",
+ "bincode",
  "bytes",
  "common-base",
  "common-config",

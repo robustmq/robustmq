@@ -320,7 +320,7 @@ impl DataRoute {
 
         for raw in records {
             self.rocksdb_engine_handler
-                .write_raw(cf.clone(), &raw.0, &raw.1)?;
+                .write(cf.clone(), &raw.0, &raw.1)?;
         }
 
         info!(

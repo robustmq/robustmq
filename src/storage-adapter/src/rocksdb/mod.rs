@@ -90,12 +90,12 @@ impl RocksDBStorageAdapter {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
 
-            // save record
+            // save record (using bincode for better performance)
             let shard_record_key = shard_record_key(namespace, shard_name, start_offset);
-            let serialized_msg = serde_json::to_string(&msg).map_err(|e| {
+            let serialized_msg = bincode::serialize(&msg).map_err(|e| {
                 CommonError::CommonError(format!("Failed to serialize record: {e}"))
             })?;
-            batch.put_cf(&cf, shard_record_key.as_bytes(), serialized_msg.as_bytes());
+            batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
             // save key
             if !msg.key.is_empty() {
@@ -169,7 +169,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
         raw_shard_info
             .into_iter()
-            .map(|(_, v)| serde_json::from_slice::<ShardInfo>(v.as_slice()).map_err(Into::into))
+            .map(|(_, v)| bincode::deserialize::<ShardInfo>(v.as_slice()).map_err(|e| {
+                CommonError::CommonError(format!("Failed to deserialize ShardInfo: {e}"))
+            }))
             .collect::<Result<Vec<ShardInfo>, CommonError>>()
     }
 
@@ -285,12 +287,23 @@ impl StorageAdapter for RocksDBStorageAdapter {
             }
         }
 
+        // Use batch read for better performance
+        if offsets.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let keys: Vec<String> = offsets
+            .iter()
+            .map(|off| shard_record_key(namespace, shard_name, *off))
+            .collect();
+
+        let batch_results = self.db.multi_get::<Record>(cf.clone(), &keys)?;
+
         let mut records = Vec::with_capacity(offsets.len());
         let mut total_size = 0;
 
-        for off in offsets {
-            let shard_record_key = shard_record_key(namespace, shard_name, off);
-            let Some(record) = self.db.read::<Record>(cf.clone(), &shard_record_key)? else {
+        for record_opt in batch_results {
+            let Some(record) = record_opt else {
                 continue;
             };
 
@@ -445,7 +458,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             let group_record_offsets_key =
                 group_record_offsets_key(group_name, namespace, shard_name);
             self.db
-                .write_raw(cf.clone(), &group_record_offsets_key, &offset.to_be_bytes())?;
+                .write(cf.clone(), &group_record_offsets_key, &offset.to_be_bytes())?;
         }
 
         Ok(())

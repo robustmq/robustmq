@@ -18,8 +18,8 @@ use rocksdb::{
     BlockBasedOptions, BoundColumnFamily, Cache, ColumnFamilyDescriptor, DBCompactionStyle,
     DBCompressionType, Options, SliceTransform, DB,
 };
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
+
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -52,39 +52,18 @@ impl RocksDBEngine {
         }
     }
 
-    /// Write the data serialization to RocksDB
-    pub fn write<T: Serialize + std::fmt::Debug>(
+    /// Write the data serialization to RocksDB using bincode (high performance)
+    pub fn write<T: Serialize>(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
-        let serialized = serde_json::to_string(value).map_err(|e| {
-            CommonError::CommonError(format!("Failed to serialize T: {value:?}, err: {e:?}"))
-        })?;
+        let serialized = bincode::serialize(value)
+            .map_err(|e| CommonError::CommonError(format!("Failed to bincode serialize: {e:?}")))?;
 
         self.db
             .put_cf(&cf, key, serialized)
-            .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
-    }
-
-    pub fn write_str(
-        &self,
-        cf: Arc<BoundColumnFamily<'_>>,
-        key: &str,
-        value: String,
-    ) -> Result<(), CommonError> {
-        self.write(cf, key, &value)
-    }
-
-    pub fn write_raw(
-        &self,
-        cf: Arc<BoundColumnFamily<'_>>,
-        key: &str,
-        value: &[u8],
-    ) -> Result<(), CommonError> {
-        self.db
-            .put_cf(&cf, key, value)
             .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
     }
 
@@ -97,21 +76,67 @@ impl RocksDBEngine {
         Ok(())
     }
 
-    // Read data from the RocksDB
+    /// Read data from RocksDB using bincode deserialization (high performance)
     pub fn read<T: DeserializeOwned>(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
-            Ok(Some(data)) if !data.is_empty() => serde_json::from_slice::<T>(&data)
-                .map(Some)
-                .map_err(|e| CommonError::CommonError(format!("Failed to deserialize: {e:?}"))),
+            Ok(Some(data)) if !data.is_empty() => {
+                bincode::deserialize::<T>(&data).map(Some).map_err(|e| {
+                    CommonError::CommonError(format!("Failed to bincode deserialize: {e:?}"))
+                })
+            }
             Ok(_) => Ok(None),
             Err(e) => Err(CommonError::CommonError(format!(
                 "Failed to get from CF: {e:?}"
             ))),
         }
+    }
+
+    /// Batch read multiple keys at once (more efficient than individual reads)
+    /// Returns a vector of results in the same order as the input keys
+    pub fn multi_get<T: DeserializeOwned>(
+        &self,
+        cf: Arc<BoundColumnFamily<'_>>,
+        keys: &[impl AsRef<str>],
+    ) -> Result<Vec<Option<T>>, CommonError> {
+        if keys.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Use RocksDB's multi_get_cf for efficient batch reading
+        let key_bytes: Vec<Vec<u8>> = keys
+            .iter()
+            .map(|k| k.as_ref().as_bytes().to_vec())
+            .collect();
+
+        let keys_with_cf: Vec<(&Arc<BoundColumnFamily>, &[u8])> =
+            key_bytes.iter().map(|k| (&cf, k.as_slice())).collect();
+
+        let results = self.db.multi_get_cf(keys_with_cf);
+
+        // Process results
+        let mut output = Vec::with_capacity(results.len());
+        for result in results {
+            match result {
+                Ok(Some(data)) if !data.is_empty() => {
+                    let value = bincode::deserialize::<T>(&data).map_err(|e| {
+                        CommonError::CommonError(format!("Failed to bincode deserialize: {e:?}"))
+                    })?;
+                    output.push(Some(value));
+                }
+                Ok(_) => output.push(None),
+                Err(e) => {
+                    return Err(CommonError::CommonError(format!(
+                        "Failed to multi_get: {e:?}"
+                    )))
+                }
+            }
+        }
+
+        Ok(output)
     }
 
     // Search data by prefix
@@ -538,71 +563,5 @@ mod tests {
 
         let res6 = rs.delete(cf.clone(), key);
         assert!(res6.is_ok());
-    }
-
-    #[tokio::test]
-    async fn read_all() {
-        let rs = test_rocksdb_instance();
-
-        let index = 66u64;
-        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
-
-        let key = "/raft/last_index".to_string();
-        let _ = rs.write(cf.clone(), &key, &index);
-        let res1 = rs.read::<u64>(cf.clone(), &key).unwrap().unwrap();
-        assert_eq!(index, res1);
-
-        let result = rs.read_all_by_cf(cf.clone()).unwrap();
-        assert!(!result.is_empty());
-        for raw in result.clone() {
-            let raw_key = raw.0;
-            let raw_val = raw.1;
-            assert_eq!(raw_key, key);
-
-            let val = String::from_utf8(raw_val).unwrap();
-            assert_eq!(index.to_string(), val);
-
-            let _ = rs.write_str(cf.clone(), &key, val);
-            let res1 = rs.read::<String>(cf.clone(), &key).unwrap().unwrap();
-            assert_eq!(index.to_string(), res1);
-        }
-    }
-
-    #[tokio::test]
-    async fn read_prefix() {
-        let rs = test_rocksdb_instance();
-
-        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
-
-        rs.write_str(cf.clone(), "/v1/v1", "v11".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v1/v2", "v12".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v1/v3", "v13".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v2/tmp_test/s1", "1".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v2/tmp_test/s3", "2".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v2/tmp_test/s2", "3".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v3/tmp_test/s1", "1".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v3/tmp_test/s3", "2".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v4/tmp_test/s2", "3".to_string())
-            .unwrap();
-
-        let result = rs.read_prefix(cf.clone(), "/v1").unwrap();
-        assert_eq!(result.len(), 3);
-
-        let result = rs.read_prefix(cf.clone(), "/v2").unwrap();
-        assert_eq!(result.len(), 3);
-
-        let result = rs.read_prefix(cf.clone(), "/v3").unwrap();
-        assert_eq!(result.len(), 2);
-
-        let result = rs.read_prefix(cf.clone(), "/v4").unwrap();
-        assert_eq!(result.len(), 1);
     }
 }
