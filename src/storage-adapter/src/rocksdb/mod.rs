@@ -142,28 +142,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         let namespace = &shard.namespace;
         let shard_name = &shard.shard_name;
-
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
+        let cf = self.get_cf()?;
+        self.get_offset(namespace, shard_name)?;
 
         let shard_offset_key = shard_offset_key(namespace, shard_name);
-
-        if self
-            .db
-            .read::<u64>(cf.clone(), &shard_offset_key)?
-            .is_some()
-        {
-            return Err(CommonError::CommonError(format!(
-                "shard {shard_name} under namespace {namespace} already exists"
-            )));
-        }
-
         self.db.write(cf.clone(), &shard_offset_key, &0_u64)?;
-
         self.db
             .write(cf, &shard_info_key(namespace, shard_name), shard)
     }
@@ -173,14 +156,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         namespace: &str,
         shard_name: &str,
     ) -> Result<Vec<ShardInfo>, CommonError> {
-        let cf: Arc<rocksdb::BoundColumnFamily<'_>> =
-            self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-                CommonError::CommonError(format!(
-                    "Column family '{}' not found",
-                    DB_COLUMN_FAMILY_BROKER
-                ))
-            })?;
-
+        let cf = self.get_cf()?;
         let prefix_key = if shard_name.is_empty() {
             if namespace.is_empty() {
                 "/shard/".to_string()
@@ -192,34 +168,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
         };
 
         let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
-        let mut res = Vec::with_capacity(raw_shard_info.len());
-
-        for (_, v) in raw_shard_info {
-            let shard_info = serde_json::from_slice::<ShardInfo>(v.as_slice())?;
-            res.push(shard_info);
-        }
-
-        Ok(res)
+        raw_shard_info
+            .into_iter()
+            .map(|(_, v)| serde_json::from_slice::<ShardInfo>(v.as_slice()).map_err(Into::into))
+            .collect::<Result<Vec<ShardInfo>, CommonError>>()
     }
 
     async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
-
-        let shard_offset_key = shard_offset_key(namespace, shard_name);
-        if self
-            .db
-            .read::<u64>(cf.clone(), &shard_offset_key)?
-            .is_none()
-        {
-            return Err(CommonError::CommonError(format!(
-                "shard {shard_name} under namespace {namespace} not exists"
-            )));
-        }
+        let cf = self.get_cf()?;
+        self.get_offset(namespace, shard_name)?;
 
         let record_prefix = shard_record_key_prefix(namespace, shard_name);
         self.db.delete_prefix(cf.clone(), &record_prefix)?;
@@ -233,8 +190,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let timestamp_index_prefix = timestamp_offset_key_prefix(namespace, shard_name);
         self.db.delete_prefix(cf.clone(), &timestamp_index_prefix)?;
 
-        self.db.delete(cf.clone(), &shard_offset_key)?;
-
+        self.db
+            .delete(cf.clone(), &shard_offset_key(namespace, shard_name))?;
         self.db.delete(cf, &shard_info_key(namespace, shard_name))
     }
 
@@ -273,13 +230,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
-
+        let cf = self.get_cf()?;
         let capacity = (read_config.max_record_num as usize).min(1024);
         let mut records = Vec::with_capacity(capacity);
         let mut total_size = 0;
@@ -310,13 +261,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
-
+        let cf = self.get_cf()?;
         let tag_offset_key_prefix = tag_offsets_key_prefix(namespace, shard_name, tag);
         let raw_offsets = self.db.read_prefix(cf.clone(), &tag_offset_key_prefix)?;
 
@@ -367,13 +312,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             return Ok(Vec::new());
         }
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
-
+        let cf = self.get_cf()?;
         let key_offset_key = key_offset_key(namespace, shard_name, key);
 
         match self.db.read::<u64>(cf.clone(), &key_offset_key)? {
@@ -399,13 +338,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
-
+        let cf = self.get_cf()?;
         let timestamp_prefix = timestamp_offset_key_search_prefix(namespace, shard_name, timestamp);
         let raw_res = self.db.read_prefix(cf.clone(), &timestamp_prefix)?;
 
@@ -443,13 +376,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
     }
 
     async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
-
+        let cf = self.get_cf()?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);
         let raw_offsets = self.db.read_prefix(cf, &group_record_offsets_key_prefix)?;
 
@@ -476,12 +403,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             return Ok(());
         }
 
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_BROKER
-            ))
-        })?;
+        let cf = self.get_cf()?;
 
         for (shard_name, offset) in offsets.iter() {
             let group_record_offsets_key =

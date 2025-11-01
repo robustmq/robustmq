@@ -18,9 +18,9 @@ use crate::storage::ArcStorageAdapter;
 
 #[derive(Default, Clone)]
 pub struct MessageExpireConfig {
-    strategy: MessageExpireStrategy,
+    _strategy: MessageExpireStrategy,
     // data_size: Option<u32>,
-    timestamp: Option<u32>,
+    _timestamp: Option<u32>,
 }
 
 #[derive(Default, Clone)]
