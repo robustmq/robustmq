@@ -12,20 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
-use std::str::FromStr;
-use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
-use storage_adapter::mysql::MySQLStorageAdapter;
-use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use storage_adapter::storage::ArcStorageAdapter;
-use storage_adapter::StorageType;
-use third_driver::mysql::build_mysql_conn_pool;
 
 pub fn cluster_name() -> String {
     let conf = broker_config();
@@ -104,32 +96,4 @@ impl MessageStorage {
             .commit_offset(group_id, &namespace, &offset_data)
             .await
     }
-}
-
-pub fn build_message_storage_driver() -> Result<ArcStorageAdapter, MqttBrokerError> {
-    let conf = broker_config();
-    let storage_type = StorageType::from_str(conf.mqtt_message_storage.storage_type.as_str())
-        .expect("Storage type not supported");
-
-    let storage: ArcStorageAdapter = match storage_type {
-        StorageType::Memory => Arc::new(MemoryStorageAdapter::new()),
-
-        StorageType::Mysql => {
-            let pool = build_mysql_conn_pool(&conf.mqtt_message_storage.mysql_addr)?;
-            Arc::new(MySQLStorageAdapter::new(pool.clone())?)
-        }
-
-        StorageType::RocksDB => Arc::new(RocksDBStorageAdapter::new(
-            conf.mqtt_message_storage.rocksdb_data_path.as_str(),
-            conf.mqtt_message_storage
-                .rocksdb_max_open_files
-                .unwrap_or(10000),
-        )),
-
-        _ => {
-            return Err(MqttBrokerError::UnavailableStorageType);
-        }
-    };
-
-    Ok(storage)
 }

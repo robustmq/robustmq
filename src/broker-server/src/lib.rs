@@ -48,7 +48,6 @@ use mqtt_broker::{
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     handler::cache::MQTTCacheManager as MqttCacheManager,
     security::AuthDriver,
-    storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
@@ -69,6 +68,7 @@ use std::{
     thread::sleep,
     time::Duration,
 };
+use storage_adapter::driver::build_message_storage_driver;
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -313,12 +313,13 @@ impl BrokerServer {
             broker_cache.clone(),
         ));
 
-        let message_storage_adapter = match build_message_storage_driver() {
-            Ok(storage) => storage,
-            Err(e) => {
-                panic!("{}", e.to_string());
-            }
-        };
+        let message_storage_adapter =
+            match build_message_storage_driver(rocksdb_engine_handler.clone()) {
+                Ok(storage) => storage,
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            };
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
 

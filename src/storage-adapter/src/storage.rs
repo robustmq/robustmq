@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::memory::MemoryStorageAdapter;
+use crate::message_expire::MessageExpireConfig;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
-
-use crate::memory::MemoryStorageAdapter;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
@@ -106,7 +106,7 @@ pub trait StorageAdapter {
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 
-    async fn message_expire(&self) -> Result<(), CommonError>;
+    async fn message_expire(&self, config: &MessageExpireConfig) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
 }

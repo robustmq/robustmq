@@ -131,9 +131,9 @@ pub fn engine_list_by_prefix_to_map_by_journal(
 ) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
     use common_base::tools::now_mills;
     use common_metrics::rocksdb::metrics_rocksdb_list_ms;
-    
+
     let start_time = now_mills();
-    
+
     let cf = rocksdb_engine_handler
         .cf_handle(column_family)
         .ok_or_else(|| CommonError::RocksDBFamilyNotAvailable(column_family.to_string()))?;
@@ -152,9 +152,9 @@ pub fn engine_list_by_prefix_to_map_by_journal(
             }
         }
     }
-    
+
     let duration = (now_mills() - start_time) as f64;
     metrics_rocksdb_list_ms(DB_COLUMN_FAMILY_JOURNAL, duration);
-    
+
     Ok(results)
 }

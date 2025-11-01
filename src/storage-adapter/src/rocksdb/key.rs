@@ -138,12 +138,7 @@ pub fn shard_info_key(namespace: &str, shard: &str) -> String {
 /// Generate timestamp-to-offset mapping key
 /// Format: /timestamp/{namespace}/{shard}/{timestamp:020}/{offset:020}
 #[inline(always)]
-pub fn timestamp_offset_key(
-    namespace: &str,
-    shard: &str,
-    timestamp: u64,
-    offset: u64,
-) -> String {
+pub fn timestamp_offset_key(namespace: &str, shard: &str, timestamp: u64, offset: u64) -> String {
     let mut key = String::with_capacity(13 + namespace.len() + shard.len() + 40);
     key.push_str("/timestamp/");
     key.push_str(namespace);
@@ -170,11 +165,7 @@ pub fn timestamp_offset_key_prefix(namespace: &str, shard: &str) -> String {
 /// Generate timestamp search prefix for searching from a specific timestamp
 /// Format: /timestamp/{namespace}/{shard}/{timestamp:020}/
 #[inline(always)]
-pub fn timestamp_offset_key_search_prefix(
-    namespace: &str,
-    shard: &str,
-    timestamp: u64,
-) -> String {
+pub fn timestamp_offset_key_search_prefix(namespace: &str, shard: &str, timestamp: u64) -> String {
     let mut key = String::with_capacity(13 + namespace.len() + shard.len() + 20);
     key.push_str("/timestamp/");
     key.push_str(namespace);
@@ -264,4 +255,3 @@ mod tests {
         assert_eq!(key, "/timestamp/ns1/shard1/00000000001234567890/");
     }
 }
-

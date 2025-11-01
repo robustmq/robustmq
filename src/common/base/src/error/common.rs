@@ -155,6 +155,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     OpenDALError(#[from] opendal::Error),
+
+    #[error("Unavailable storage type")]
+    UnavailableStorageType,
 }
 
 impl From<CommonError> for Status {

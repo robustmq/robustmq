@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, time::Duration};
-
+use crate::message_expire::MessageExpireConfig;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::TryStreamExt;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use opendal::{services::S3, EntryMode, Operator};
+use std::{collections::HashMap, time::Duration};
 use tokio::{
     select,
     sync::{
@@ -562,7 +562,7 @@ impl StorageAdapter for MinIoStorageAdapter {
         Ok(())
     }
 
-    async fn message_expire(&self) -> Result<(), CommonError> {
+    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
         Ok(())
     }
 

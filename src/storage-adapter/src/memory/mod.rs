@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::message_expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -531,7 +532,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         Ok(())
     }
 
-    async fn message_expire(&self) -> Result<(), CommonError> {
+    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
         let shard_keys: Vec<String> = self
             .shard_data
             .iter()
@@ -666,7 +667,10 @@ mod tests {
         assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 5);
 
         // Trigger LRU eviction
-        adapter.message_expire().await.unwrap();
+        adapter
+            .message_expire(&MessageExpireConfig::default())
+            .await
+            .unwrap();
 
         // Verify only 3 newest messages remain
         assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 3);

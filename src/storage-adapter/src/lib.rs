@@ -16,8 +16,10 @@
 
 use std::str::FromStr;
 
+pub mod driver;
 pub mod journal;
 pub mod memory;
+pub mod message_expire;
 pub mod minio;
 pub mod mysql;
 pub mod rocksdb;

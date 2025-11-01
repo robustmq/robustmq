@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::message_expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
@@ -633,7 +634,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         Ok(())
     }
 
-    async fn message_expire(&self) -> Result<(), CommonError> {
+    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
         Ok(())
     }
 
