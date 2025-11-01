@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::rocksdb_engine_save;
+use rocksdb_engine::storage::journal::engine_save_by_journal;
 use rocksdb_engine::warp::StorageDataWrap;
 
 use super::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_prefix};
@@ -43,10 +43,10 @@ impl TagIndexManager {
         index_data: IndexData,
     ) -> Result<(), JournalServerError> {
         let key = tag_segment(segment_iden, tag, index_data.offset);
-        Ok(rocksdb_engine_save(
+        Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             index_data,
         )?)
     }
@@ -110,10 +110,10 @@ impl TagIndexManager {
         index_data: IndexData,
     ) -> Result<(), JournalServerError> {
         let key = key_segment(segment_iden, key, index_data.offset);
-        Ok(rocksdb_engine_save(
+        Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
-            key,
+            &key,
             index_data,
         )?)
     }

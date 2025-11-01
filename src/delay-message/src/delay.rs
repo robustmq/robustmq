@@ -97,7 +97,7 @@ pub(crate) async fn persist_delay_message(
     data: Record,
 ) -> Result<u64, CommonError> {
     let offset = message_storage_adapter
-        .write(namespace.to_owned(), shard_name.to_owned(), data.clone())
+        .write(namespace, shard_name, &data)
         .await?;
 
     Ok(offset)
@@ -111,7 +111,7 @@ pub(crate) async fn init_delay_message_shard(
     for i in 0..shard_num {
         let shard_name = get_delay_message_shard_name(i);
         let results = message_storage_adapter
-            .list_shard(namespace.to_owned(), shard_name.clone())
+            .list_shard(namespace, &shard_name)
             .await?;
 
         if results.is_empty() {
@@ -120,7 +120,7 @@ pub(crate) async fn init_delay_message_shard(
                 shard_name: shard_name.clone(),
                 replica_num: 1,
             };
-            message_storage_adapter.create_shard(shard).await?;
+            message_storage_adapter.create_shard(&shard).await?;
             info!("init shard:{}, {}", namespace, shard_name);
         }
     }
@@ -171,7 +171,7 @@ mod test {
 
         let shard_name = get_delay_message_shard_name(shard_num - 1);
         let res = message_storage_adapter
-            .list_shard(namespace, shard_name.clone())
+            .list_shard(&namespace, &shard_name)
             .await;
         assert!(res.is_ok());
         let res = res.unwrap();

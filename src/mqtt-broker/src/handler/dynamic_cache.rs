@@ -35,7 +35,7 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;

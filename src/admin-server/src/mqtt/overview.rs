@@ -27,7 +27,7 @@ use mqtt_broker::{
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

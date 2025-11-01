@@ -18,7 +18,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use std::sync::Arc;
 
-use crate::metrics_cache::MetricsValue;
+use crate::metrics::MetricsValue;
 use crate::storage::broker::{
     engine_delete_by_broker, engine_delete_prefix_by_broker, engine_prefix_list_by_broker,
     engine_save_by_broker,
@@ -42,7 +42,7 @@ pub(crate) fn record_num(
         value: num,
         timestamp: time,
     };
-    engine_save_by_broker(rocksdb_engine.clone(), db_key, value)
+    engine_save_by_broker(rocksdb_engine.clone(), &db_key, value)
 }
 
 pub(crate) fn get_metric_data(
@@ -51,7 +51,7 @@ pub(crate) fn get_metric_data(
 ) -> Result<DashMap<u64, u64>, CommonError> {
     let prefix = format!("{}/{}/", DB_COLUMN_FAMILY_METRICS, key_prefix);
     let results = DashMap::new();
-    for row in engine_prefix_list_by_broker(rocksdb_engine.clone(), prefix)? {
+    for row in engine_prefix_list_by_broker(rocksdb_engine.clone(), &prefix)? {
         let data = serde_json::from_str::<MetricsValue>(&row.data)?;
         results.insert(data.timestamp, data.value);
     }
@@ -65,7 +65,7 @@ pub(crate) fn record_pre_num(
     total: u64,
 ) -> Result<(), CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    engine_save_by_broker(rocksdb_engine.clone(), db_key, total)
+    engine_save_by_broker(rocksdb_engine.clone(), &db_key, total)
 }
 
 pub(crate) async fn get_pre_num(
@@ -73,7 +73,7 @@ pub(crate) async fn get_pre_num(
     key: &str,
 ) -> Result<u64, CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    let res = match engine_get_by_broker(rocksdb_engine.clone(), db_key)? {
+    let res = match engine_get_by_broker(rocksdb_engine.clone(), &db_key)? {
         Some(data) => data,
         None => return Ok(0),
     };
@@ -115,7 +115,7 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
                 match serde_json::from_slice::<StorageDataWrap>(value.as_ref()) {
                     Ok(v) => {
                         if now_time > (v.create_time + save_time) {
-                            engine_delete_by_broker(rocksdb_engine.clone(), key)?;
+                            engine_delete_by_broker(rocksdb_engine.clone(), &key)?;
                         }
                     }
                     Err(_) => {
@@ -135,11 +135,11 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
 macro_rules! define_simple_metric {
     ($record_fn:ident, $get_fn:ident, $key:expr) => {
         pub fn $record_fn(&self, time: u64, num: u64) -> Result<(), CommonError> {
-            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, $key, time, num)
+            $crate::metrics::base::record_num(&self.rocksdb_engine, $key, time, num)
         }
 
         pub fn $get_fn(&self) -> Result<DashMap<u64, u64>, CommonError> {
-            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, $key)
+            $crate::metrics::base::get_metric_data(&self.rocksdb_engine, $key)
         }
     };
 }
@@ -148,20 +148,20 @@ macro_rules! define_simple_metric {
 macro_rules! define_cumulative_metric {
     ($record_fn:ident, $get_fn:ident, $get_pre_fn:ident, $get_rate_fn:ident, $key:expr) => {
         pub async fn $record_fn(&self, time: u64, total: u64, num: u64) -> Result<(), CommonError> {
-            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, $key, time, num)?;
-            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, $key, total)
+            $crate::metrics::base::record_num(&self.rocksdb_engine, $key, time, num)?;
+            $crate::metrics::base::record_pre_num(&self.rocksdb_engine, $key, total)
         }
 
         pub fn $get_fn(&self) -> Result<DashMap<u64, u64>, CommonError> {
-            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, $key)
+            $crate::metrics::base::get_metric_data(&self.rocksdb_engine, $key)
         }
 
         pub async fn $get_pre_fn(&self) -> Result<u64, CommonError> {
-            $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, $key).await
+            $crate::metrics::base::get_pre_num(&self.rocksdb_engine, $key).await
         }
 
         pub fn $get_rate_fn(&self) -> Result<u64, CommonError> {
-            use $crate::metrics_cache::get_max_key_value;
+            use $crate::metrics::get_max_key_value;
             let data = self.$get_fn()?;
             Ok(get_max_key_value(&data))
         }
@@ -179,19 +179,19 @@ macro_rules! define_dimensional_metric_1d {
             num: u64,
         ) -> Result<(), CommonError> {
             let key = format!("{}_{}", $key, $dim1);
-            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, &key, time, num)?;
-            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, &key, total)
+            $crate::metrics::base::record_num(&self.rocksdb_engine, &key, time, num)?;
+            $crate::metrics::base::record_pre_num(&self.rocksdb_engine, &key, total)
         }
 
         pub fn $get_fn(&self, $dim1: $dim1_ty) -> Result<DashMap<u64, u64>, CommonError> {
             let key = format!("{}_{}", $key, $dim1);
-            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, &key)
+            $crate::metrics::base::get_metric_data(&self.rocksdb_engine, &key)
         }
 
         pub async fn $get_pre_fn(&self, $dim1: $dim1_ty, num: u64) -> Result<u64, CommonError> {
             let key = format!("{}_{}", $key, $dim1);
             Ok(
-                $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, &key)
+                $crate::metrics::base::get_pre_num(&self.rocksdb_engine, &key)
                     .await
                     .map_or(num, |v| v),
             )
@@ -213,8 +213,8 @@ macro_rules! define_dimensional_metric_3d {
             num: u64,
         ) -> Result<(), CommonError> {
             let key = format!("{}_{}_{}_{}", $key, $dim1, $dim2, $dim3);
-            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, &key, time, num)?;
-            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, &key, total)
+            $crate::metrics::base::record_num(&self.rocksdb_engine, &key, time, num)?;
+            $crate::metrics::base::record_pre_num(&self.rocksdb_engine, &key, total)
         }
 
         pub fn $get_fn(
@@ -224,7 +224,7 @@ macro_rules! define_dimensional_metric_3d {
             $dim3: $dim3_ty,
         ) -> Result<DashMap<u64, u64>, CommonError> {
             let key = format!("{}_{}_{}_{}", $key, $dim1, $dim2, $dim3);
-            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, &key)
+            $crate::metrics::base::get_metric_data(&self.rocksdb_engine, &key)
         }
 
         pub async fn $get_pre_fn(
@@ -236,7 +236,7 @@ macro_rules! define_dimensional_metric_3d {
         ) -> Result<u64, CommonError> {
             let key = format!("{}_{}_{}_{}", $key, $dim1, $dim2, $dim3);
             Ok(
-                $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, &key)
+                $crate::metrics::base::get_pre_num(&self.rocksdb_engine, &key)
                     .await
                     .map_or(num, |v| v),
             )
@@ -260,8 +260,8 @@ macro_rules! define_dimensional_metric_4d {
             num: u64,
         ) -> Result<(), CommonError> {
             let key = format!("{}_{}_{}_{}_{}", $key, $dim1, $dim2, $dim3, $dim4);
-            $crate::metrics_cache::base::record_num(&self.rocksdb_engine, &key, time, num)?;
-            $crate::metrics_cache::base::record_pre_num(&self.rocksdb_engine, &key, total)
+            $crate::metrics::base::record_num(&self.rocksdb_engine, &key, time, num)?;
+            $crate::metrics::base::record_pre_num(&self.rocksdb_engine, &key, total)
         }
 
         pub fn $get_fn(
@@ -272,7 +272,7 @@ macro_rules! define_dimensional_metric_4d {
             $dim4: $dim4_ty,
         ) -> Result<DashMap<u64, u64>, CommonError> {
             let key = format!("{}_{}_{}_{}_{}", $key, $dim1, $dim2, $dim3, $dim4);
-            $crate::metrics_cache::base::get_metric_data(&self.rocksdb_engine, &key)
+            $crate::metrics::base::get_metric_data(&self.rocksdb_engine, &key)
         }
 
         pub async fn $get_pre_fn(
@@ -285,7 +285,7 @@ macro_rules! define_dimensional_metric_4d {
         ) -> Result<u64, CommonError> {
             let key = format!("{}_{}_{}_{}_{}", $key, $dim1, $dim2, $dim3, $dim4);
             Ok(
-                $crate::metrics_cache::base::get_pre_num(&self.rocksdb_engine, &key)
+                $crate::metrics::base::get_pre_num(&self.rocksdb_engine, &key)
                     .await
                     .map_or(num, |v| v),
             )
@@ -301,7 +301,7 @@ mod tests {
     use tokio::time::sleep;
 
     use crate::{
-        metrics_cache::base::{gc, get_metric_data, get_pre_num, record_num, record_pre_num},
+        metrics::base::{gc, get_metric_data, get_pre_num, record_num, record_pre_num},
         test::test_rocksdb_instance,
     };
 

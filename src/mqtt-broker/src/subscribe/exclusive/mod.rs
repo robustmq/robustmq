@@ -36,7 +36,7 @@ use common_metrics::mqtt::subscribe::record_subscribe_topic_messages_sent;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::QoS;
-use rocksdb_engine::metrics_cache::mqtt::MQTTMetricsCache;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use std::time::Duration;

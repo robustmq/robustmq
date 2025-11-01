@@ -32,8 +32,7 @@ use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use crate::storage::keys::{storage_key_mqtt_connector, storage_key_mqtt_connector_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{
-    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-    engine_save_by_meta,
+    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
 };
 
 pub struct MqttConnectorStorage {
@@ -53,13 +52,13 @@ impl MqttConnectorStorage {
         connector: &MQTTConnector,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, connector)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, connector)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTConnector>, CommonError> {
         let prefix_key = storage_key_mqtt_connector_prefix(cluster_name);
         let mut results = Vec::new();
-        for raw in engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)? {
+        for raw in engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)? {
             if let Ok(data) = serde_json::from_str::<MQTTConnector>(&raw.data) {
                 results.push(data);
             }
@@ -73,7 +72,7 @@ impl MqttConnectorStorage {
         connector_name: &str,
     ) -> Result<Option<MQTTConnector>, CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
-        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
             return Ok(Some(serde_json::from_str::<MQTTConnector>(&data.data)?));
         }
         Ok(None)
@@ -81,7 +80,7 @@ impl MqttConnectorStorage {
 
     pub fn delete(&self, cluster_name: &str, connector_name: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
+        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
     }
 }
 

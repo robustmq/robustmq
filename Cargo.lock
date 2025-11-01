@@ -1027,6 +1027,7 @@ dependencies = [
  "rocksdb-engine",
  "schema-register",
  "serde_json",
+ "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
  "tonic",
@@ -7645,6 +7646,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "grpc-clients",
@@ -7662,6 +7664,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]

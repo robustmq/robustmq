@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
-use std::str::FromStr;
-use storage_adapter::memory::MemoryStorageAdapter;
-use storage_adapter::mysql::MySQLStorageAdapter;
-use storage_adapter::rocksdb::RocksDBStorageAdapter;
-use storage_adapter::storage::{ArcStorageAdapter, StorageAdapter};
-use storage_adapter::StorageType;
-use third_driver::mysql::build_mysql_conn_pool;
+use storage_adapter::storage::ArcStorageAdapter;
 
 pub fn cluster_name() -> String {
     let conf = broker_config();
@@ -50,7 +43,7 @@ impl MessageStorage {
         let namespace = cluster_name();
         let results = self
             .storage_adapter
-            .batch_write(namespace, shard_name.to_owned(), record)
+            .batch_write(&namespace, shard_name, &record)
             .await?;
         Ok(results)
     }
@@ -68,7 +61,7 @@ impl MessageStorage {
 
         let records = self
             .storage_adapter
-            .read_by_offset(namespace, shard_name.to_owned(), offset, read_config)
+            .read_by_offset(&namespace, shard_name, offset, &read_config)
             .await?;
         for raw in records.iter() {
             if !raw.crc32_check() {
@@ -79,10 +72,7 @@ impl MessageStorage {
     }
 
     pub async fn get_group_offset(&self, group_id: &str) -> Result<u64, CommonError> {
-        let offset_data = self
-            .storage_adapter
-            .get_offset_by_group(group_id.to_owned())
-            .await?;
+        let offset_data = self.storage_adapter.get_offset_by_group(group_id).await?;
 
         if let Some(offset) = offset_data.first() {
             return Ok(offset.offset);
@@ -103,36 +93,7 @@ impl MessageStorage {
         offset_data.insert(shard_name.to_owned(), offset);
 
         self.storage_adapter
-            .commit_offset(group_id.to_owned(), namespace, offset_data)
+            .commit_offset(group_id, &namespace, &offset_data)
             .await
     }
-}
-
-pub fn build_message_storage_driver(
-) -> Result<Box<dyn StorageAdapter + Send + Sync>, MqttBrokerError> {
-    let conf = broker_config();
-    let storage_type = StorageType::from_str(conf.mqtt_message_storage.storage_type.as_str())
-        .expect("Storage type not supported");
-
-    let storage: Box<dyn StorageAdapter + Send + Sync> = match storage_type {
-        StorageType::Memory => Box::new(MemoryStorageAdapter::new()),
-
-        StorageType::Mysql => {
-            let pool = build_mysql_conn_pool(&conf.mqtt_message_storage.mysql_addr)?;
-            Box::new(MySQLStorageAdapter::new(pool.clone())?)
-        }
-
-        StorageType::RocksDB => Box::new(RocksDBStorageAdapter::new(
-            conf.mqtt_message_storage.rocksdb_data_path.as_str(),
-            conf.mqtt_message_storage
-                .rocksdb_max_open_files
-                .unwrap_or(10000),
-        )),
-
-        _ => {
-            return Err(MqttBrokerError::UnavailableStorageType);
-        }
-    };
-
-    Ok(storage)
 }

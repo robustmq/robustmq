@@ -12,10 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod base;
-pub mod broker;
-pub mod family;
-pub mod journal;
-pub mod meta;
-pub mod raft_log;
-pub mod raft_store;
+use tracing::error;
+
+use crate::storage::ArcStorageAdapter;
+
+#[derive(Default, Clone)]
+pub struct MessageExpireConfig {
+    _strategy: MessageExpireStrategy,
+    // data_size: Option<u32>,
+    _timestamp: Option<u32>,
+}
+
+#[derive(Default, Clone)]
+pub enum MessageExpireStrategy {
+    #[default]
+    DataSize,
+    // Timestamp,
+}
+
+pub async fn message_expire_thread(driver: ArcStorageAdapter, config: MessageExpireConfig) {
+    if let Err(e) = driver.message_expire(&config).await {
+        error!("{}", e);
+    }
+}

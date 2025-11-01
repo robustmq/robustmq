@@ -31,24 +31,21 @@ impl RocksDBEngine {
     /// Create a rocksdb instance
     pub fn new(data_path: &str, max_open_files: i32, cf_list: Vec<String>) -> Self {
         let opts: Options = Self::open_db_opts(max_open_files);
-        let path = data_path.to_string();
 
         // Create shared cache for all column families (512MB total)
         // This is more memory-efficient than per-CF caches
         let shared_cache = Cache::new_lru_cache(512 * 1024 * 1024);
 
-        let mut cf_column_family = Vec::new();
-        for cf in cf_list {
-            // Use optimized column family options with shared cache
-            let cf_opts = Self::open_cf_opts(max_open_files, &shared_cache);
-            cf_column_family.push(ColumnFamilyDescriptor::new(cf, cf_opts));
-        }
-        let instance = match DB::open_cf_descriptors(&opts, path, cf_column_family) {
-            Ok(instance) => instance,
-            Err(e) => {
-                panic!("Open RocksDB Fail,{e}");
-            }
-        };
+        let cf_column_family: Vec<_> = cf_list
+            .into_iter()
+            .map(|cf| {
+                let cf_opts = Self::open_cf_opts(max_open_files, &shared_cache);
+                ColumnFamilyDescriptor::new(cf, cf_opts)
+            })
+            .collect();
+
+        let instance = DB::open_cf_descriptors(&opts, data_path, cf_column_family)
+            .unwrap_or_else(|e| panic!("Open RocksDB Fail: {e}"));
 
         RocksDBEngine {
             db: Arc::new(instance),
@@ -62,21 +59,13 @@ impl RocksDBEngine {
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
-        match serde_json::to_string(&value) {
-            Ok(serialized) => {
-                if let Err(e) = self.db.put_cf(&cf.clone(), key, serialized) {
-                    return Err(CommonError::CommonError(format!(
-                        "Failed to put to ColumnFamily:{e:?}"
-                    )));
-                }
-            }
-            Err(err) => {
-                return Err(CommonError::CommonError(format!(
-                    "Failed to serialize to String. T: {value:?}, err: {err:?}"
-                )))
-            }
-        }
-        Ok(())
+        let serialized = serde_json::to_string(value).map_err(|e| {
+            CommonError::CommonError(format!("Failed to serialize T: {value:?}, err: {e:?}"))
+        })?;
+
+        self.db
+            .put_cf(&cf, key, serialized)
+            .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
     }
 
     pub fn write_str(
@@ -94,12 +83,9 @@ impl RocksDBEngine {
         key: &str,
         value: &[u8],
     ) -> Result<(), CommonError> {
-        if let Err(e) = self.db.put_cf(&cf.clone(), key, value) {
-            return Err(CommonError::CommonError(format!(
-                "Failed to put to ColumnFamily:{e:?}"
-            )));
-        }
-        Ok(())
+        self.db
+            .put_cf(&cf, key, value)
+            .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
     }
 
     /// Execute a write batch atomically
@@ -118,21 +104,12 @@ impl RocksDBEngine {
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
-            Ok(Some(found)) => {
-                if found.is_empty() {
-                    return Ok(None);
-                }
-
-                match serde_json::from_slice::<T>(&found) {
-                    Ok(t) => Ok(Some(t)),
-                    Err(err) => Err(CommonError::CommonError(format!(
-                        "Failed to deserialize: {err:?}"
-                    ))),
-                }
-            }
-            Ok(None) => Ok(None),
-            Err(err) => Err(CommonError::CommonError(format!(
-                "Failed to get from ColumnFamily: {err:?}"
+            Ok(Some(data)) if !data.is_empty() => serde_json::from_slice::<T>(&data)
+                .map(Some)
+                .map_err(|e| CommonError::CommonError(format!("Failed to deserialize: {e:?}"))),
+            Ok(_) => Ok(None),
+            Err(e) => Err(CommonError::CommonError(format!(
+                "Failed to get from CF: {e:?}"
             ))),
         }
     }
@@ -146,16 +123,20 @@ impl RocksDBEngine {
         let mut iter = self.db.raw_iterator_cf(&cf);
         iter.seek(search_key);
 
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(64); // Pre-allocate capacity
+
         while iter.valid() {
-            if let Some(key) = iter.key() {
-                if let Some(val) = iter.value() {
-                    let key = String::from_utf8(key.to_vec())?;
-                    if !key.starts_with(search_key) {
-                        break;
-                    }
-                    result.push((key, val.to_vec()));
-                }
+            let Some(key_bytes) = iter.key() else {
+                break;
+            };
+
+            let key = String::from_utf8(key_bytes.to_vec())?;
+            if !key.starts_with(search_key) {
+                break;
+            }
+
+            if let Some(val) = iter.value() {
+                result.push((key, val.to_vec()));
             }
 
             iter.next();
@@ -169,10 +150,10 @@ impl RocksDBEngine {
         cf: Arc<BoundColumnFamily<'_>>,
         mode: &rocksdb::IteratorMode,
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
-        let mut result = Vec::new();
-        let iter = self.db.iterator_cf(&cf, *mode);
-        for raw in iter {
-            let (k, value) = raw?;
+        let mut result = Vec::with_capacity(64); // Pre-allocate capacity
+
+        for item in self.db.iterator_cf(&cf, *mode) {
+            let (k, value) = item?;
             let key = String::from_utf8(k.to_vec())?;
             result.push((key, value.to_vec()));
         }
@@ -187,14 +168,19 @@ impl RocksDBEngine {
         let mut iter = self.db.raw_iterator_cf(&cf);
         iter.seek_to_first();
 
-        let mut result: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut result = Vec::with_capacity(128); // Pre-allocate for "all" data
+
         while iter.valid() {
-            if let Some(key) = iter.key() {
-                if let Some(val) = iter.value() {
-                    let key = String::from_utf8(key.to_vec())?;
-                    result.push((key, val.to_vec()));
-                }
+            let Some(key_bytes) = iter.key() else {
+                break;
+            };
+
+            let key = String::from_utf8(key_bytes.to_vec())?;
+
+            if let Some(val) = iter.value() {
+                result.push((key, val.to_vec()));
             }
+
             iter.next();
         }
         Ok(result)
@@ -223,6 +209,7 @@ impl RocksDBEngine {
         self.delete_range_cf(cf, start, end)
     }
 
+    #[inline]
     fn prefix_range_end(&self, prefix: &str) -> Vec<u8> {
         let mut end = prefix.as_bytes().to_vec();
 
@@ -242,10 +229,7 @@ impl RocksDBEngine {
     }
 
     pub fn cf_handle(&self, name: &str) -> Option<Arc<BoundColumnFamily<'_>>> {
-        if let Some(cf) = self.db.cf_handle(name) {
-            return Some(cf);
-        }
-        None
+        self.db.cf_handle(name)
     }
 
     fn open_cf_opts(_max_open_files: i32, shared_cache: &Cache) -> Options {
@@ -604,7 +588,7 @@ mod tests {
             .unwrap();
         rs.write_str(cf.clone(), "/v3/tmp_test/s1", "1".to_string())
             .unwrap();
-        rs.write_str(cf.clone().clone(), "/v3/tmp_test/s3", "2".to_string())
+        rs.write_str(cf.clone(), "/v3/tmp_test/s3", "2".to_string())
             .unwrap();
         rs.write_str(cf.clone(), "/v4/tmp_test/s2", "3".to_string())
             .unwrap();

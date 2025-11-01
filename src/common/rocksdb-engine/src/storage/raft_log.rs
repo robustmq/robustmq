@@ -30,7 +30,7 @@ use std::sync::Arc;
 
 pub fn engine_save_by_raft_log<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    key_name: String,
+    key_name: &str,
     value: T,
 ) -> Result<(), CommonError>
 where
@@ -47,7 +47,7 @@ where
 
 pub fn engine_get_by_raft_log(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    key_name: String,
+    key_name: &str,
 ) -> Result<Option<StorageDataWrap>, CommonError> {
     engine_get(
         rocksdb_engine_handler,
@@ -59,7 +59,7 @@ pub fn engine_get_by_raft_log(
 
 pub fn engine_exists_by_raft_log(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    key_name: String,
+    key_name: &str,
 ) -> Result<bool, CommonError> {
     engine_exists(
         rocksdb_engine_handler,
@@ -71,7 +71,7 @@ pub fn engine_exists_by_raft_log(
 
 pub fn engine_delete_by_raft_log(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    key_name: String,
+    key_name: &str,
 ) -> Result<(), CommonError> {
     engine_delete(
         rocksdb_engine_handler,
@@ -97,7 +97,7 @@ pub fn engine_delete_range_by_raft_log(
 
 pub fn engine_list_prefix_by_raft_log(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    prefix_key_name: String,
+    prefix_key_name: &str,
 ) -> Result<Vec<StorageDataWrap>, CommonError> {
     engine_prefix_list(
         rocksdb_engine_handler,

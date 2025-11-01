@@ -20,10 +20,12 @@ license.workspace = true
 
 
 [dependencies]
+tracing.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
 common-base.workspace = true
+common-config.workspace = true
 grpc-clients.workspace = true
 protocol.workspace = true
 tokio.workspace = true

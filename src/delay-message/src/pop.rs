@@ -83,11 +83,7 @@ async fn send_delay_message_to_shard(
         };
 
         match message_storage_adapter
-            .write(
-                namespace.to_owned(),
-                delay_message.target_shard_name.to_owned(),
-                record.clone(),
-            )
+            .write(namespace, &delay_message.target_shard_name, &record)
             .await
         {
             Ok(id) => {
@@ -114,12 +110,7 @@ pub(crate) async fn read_offset_data(
         max_size: 1024 * 1024 * 1024,
     };
     let results = message_storage_adapter
-        .read_by_offset(
-            namespace.to_owned(),
-            shard_name.to_owned(),
-            offset,
-            read_config,
-        )
+        .read_by_offset(namespace, shard_name, offset, &read_config)
         .await?;
 
     for record in results {
@@ -152,7 +143,7 @@ mod test {
         for i in 0..100 {
             let data = Record::build_str(format!("data{i}"));
             let res = message_storage_adapter
-                .write(namespace.to_owned(), shard_name.to_owned(), data)
+                .write(&namespace, &shard_name, &data)
                 .await;
             assert!(res.is_ok());
         }
@@ -176,7 +167,7 @@ mod test {
         for i in 0..100 {
             let data = Record::build_str(format!("data{i}"));
             let res = message_storage_adapter
-                .write(namespace.to_owned(), shard_name.to_owned(), data)
+                .write(&namespace, &shard_name, &data)
                 .await;
             assert!(res.is_ok());
         }

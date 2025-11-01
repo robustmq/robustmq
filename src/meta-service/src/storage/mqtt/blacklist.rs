@@ -20,7 +20,7 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use crate::storage::keys::{storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{
-    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_meta,
+    engine_delete_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
 };
 
 pub struct MqttBlackListStorage {
@@ -40,12 +40,12 @@ impl MqttBlackListStorage {
             &blacklist.blacklist_type.to_string(),
             &blacklist.resource_name,
         );
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), key, blacklist)
+        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, blacklist)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {
         let prefix_key = storage_key_mqtt_blacklist_prefix(cluster_name);
-        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
             let blacklist = serde_json::from_str::<MqttAclBlackList>(&raw.data)?;
@@ -61,7 +61,7 @@ impl MqttBlackListStorage {
         resource_name: &str,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(cluster_name, blacklist_type, resource_name);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
+        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
     }
 }
 

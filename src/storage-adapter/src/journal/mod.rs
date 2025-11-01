@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
+use crate::message_expire::MessageExpireConfig;
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
@@ -22,8 +21,8 @@ use journal_client::client::{JournalClient, JournalClientWriteData};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use offset::PlaceOffsetManager;
-
-use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub mod offset;
 
@@ -56,7 +55,7 @@ impl JournalStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for JournalStorageAdapter {
-    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         if let Err(e) = self
             .client
             .create_shard(&shard.namespace, &shard.shard_name, shard.replica_num)
@@ -64,17 +63,17 @@ impl StorageAdapter for JournalStorageAdapter {
         {
             return Err(CommonError::CommonError(e.to_string()));
         }
-        return Ok(());
+        Ok(())
     }
 
     async fn list_shard(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
     ) -> Result<Vec<ShardInfo>, CommonError> {
         let reply = self
             .client
-            .list_shard(namespace.as_str(), shard_name.as_str())
+            .list_shard(namespace, shard_name)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))?;
 
@@ -93,8 +92,8 @@ impl StorageAdapter for JournalStorageAdapter {
         Ok(res)
     }
 
-    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
-        if let Err(e) = self.client.delete_shard(&namespace, &shard_name).await {
+    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
+        if let Err(e) = self.client.delete_shard(namespace, shard_name).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -102,45 +101,51 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn write(
         &self,
-        namespace: String,
-        shard_name: String,
-        record: Record,
+        namespace: &str,
+        shard_name: &str,
+        record: &Record,
     ) -> Result<u64, CommonError> {
         let data = JournalClientWriteData {
-            key: record.key,
-            content: record.data,
-            tags: record.tags,
+            key: record.key.clone(),
+            content: record.data.clone(),
+            tags: record.tags.clone(),
         };
 
-        match self.client.write(namespace, shard_name, data).await {
+        match self
+            .client
+            .write(namespace.to_string(), shard_name.to_string(), data)
+            .await
+        {
             Ok(resp) => {
                 if let Some(err) = resp.error {
                     return Err(CommonError::CommonError(err));
                 }
-                return Ok(resp.offset);
+                Ok(resp.offset)
             }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
     async fn batch_write(
         &self,
-        namespace: String,
-        shard_name: String,
-        records: Vec<Record>,
+        namespace: &str,
+        shard_name: &str,
+        records: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
         let mut data = Vec::new();
         for record in records {
             data.push(JournalClientWriteData {
-                key: record.key,
-                content: record.data,
-                tags: record.tags,
+                key: record.key.clone(),
+                content: record.data.clone(),
+                tags: record.tags.clone(),
             });
         }
 
-        match self.client.batch_write(namespace, shard_name, data).await {
+        match self
+            .client
+            .batch_write(namespace.to_string(), shard_name.to_string(), data)
+            .await
+        {
             Ok(resp) => {
                 let mut resp_offsets = Vec::new();
                 for raw in resp {
@@ -149,113 +154,105 @@ impl StorageAdapter for JournalStorageAdapter {
                     }
                     resp_offsets.push(raw.offset);
                 }
-                return Ok(resp_offsets);
+                Ok(resp_offsets)
             }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
     async fn read_by_offset(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        read_config: ReadConfig,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_offset(&namespace, &shard_name, offset, &read_config)
+            .read_by_offset(namespace, shard_name, offset, read_config)
             .await
         {
             Ok(results) => Ok(results),
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
     async fn read_by_tag(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        tag: String,
-        read_config: ReadConfig,
+        tag: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_tag(&namespace, &shard_name, offset, &tag, &read_config)
+            .read_by_tag(namespace, shard_name, offset, tag, read_config)
             .await
         {
             Ok(results) => Ok(results),
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
     async fn read_by_key(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         offset: u64,
-        key: String,
-        read_config: ReadConfig,
+        key: &str,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_key(&namespace, &shard_name, offset, &key, &read_config)
+            .read_by_key(namespace, shard_name, offset, key, read_config)
             .await
         {
             Ok(results) => Ok(results),
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
-    async fn get_offset_by_group(&self, group: String) -> Result<Vec<ShardOffset>, CommonError> {
+    async fn get_offset_by_group(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
         self.offset_manager
-            .get_shard_offset(&self.cluster_name, &group)
+            .get_shard_offset(&self.cluster_name, group)
             .await
     }
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         match self
             .client
-            .get_offset_by_timestamp(&namespace, &shard_name, timestamp)
+            .get_offset_by_timestamp(namespace, shard_name, timestamp)
             .await
         {
-            Ok(result) => {
-                return Ok(Some(ShardOffset {
-                    shard_name: shard_name.clone(),
-                    segment_no: result.0,
-                    offset: result.1,
-                    ..Default::default()
-                }));
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+            Ok(result) => Ok(Some(ShardOffset {
+                shard_name: shard_name.to_string(),
+                segment_no: result.0,
+                offset: result.1,
+                ..Default::default()
+            })),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
     async fn commit_offset(
         &self,
-        group_name: String,
-        namespace: String,
-        offset: HashMap<String, u64>,
+        group_name: &str,
+        namespace: &str,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(&self.cluster_name, &group_name, &namespace, offset)
+            .commit_offset(&self.cluster_name, group_name, namespace, offset.clone())
             .await
+    }
+
+    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
+        Ok(())
     }
 
     async fn close(&self) -> Result<(), CommonError> {

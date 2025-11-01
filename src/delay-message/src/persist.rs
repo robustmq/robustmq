@@ -33,11 +33,7 @@ pub async fn persist_delay_info(
 ) -> Result<(), CommonError> {
     let data = Record::build_byte(serde_json::to_vec(&delay_info)?);
     message_storage_adapter
-        .write(
-            namespace.to_owned(),
-            DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
-            data,
-        )
+        .write(namespace, DELAY_QUEUE_INFO_SHARD_NAME, &data)
         .await?;
     Ok(())
 }
@@ -53,12 +49,7 @@ pub async fn recover_delay_queue(
     let mut total_num = 0;
     loop {
         let data = match message_storage_adapter
-            .read_by_offset(
-                namespace.to_owned(),
-                DELAY_QUEUE_INFO_SHARD_NAME.to_owned(),
-                offset,
-                read_config.clone(),
-            )
+            .read_by_offset(namespace, DELAY_QUEUE_INFO_SHARD_NAME, offset, &read_config)
             .await
         {
             Ok(data) => data,
