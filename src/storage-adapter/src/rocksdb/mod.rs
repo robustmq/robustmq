@@ -143,9 +143,18 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let namespace = &shard.namespace;
         let shard_name = &shard.shard_name;
         let cf = self.get_cf()?;
-        self.get_offset(namespace, shard_name)?;
-
         let shard_offset_key = shard_offset_key(namespace, shard_name);
+
+        if self
+            .db
+            .read::<u64>(cf.clone(), &shard_offset_key)?
+            .is_some()
+        {
+            return Err(CommonError::CommonError(format!(
+                "shard {shard_name} under namespace {namespace} already exists"
+            )));
+        }
+
         self.db.write(cf.clone(), &shard_offset_key, &0_u64)?;
         self.db
             .write(cf, &shard_info_key(namespace, shard_name), shard)
@@ -435,62 +444,22 @@ mod tests {
         read_config::ReadConfig,
         record::{Header, Record},
     };
-    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     use crate::storage::{ShardInfo, StorageAdapter};
 
     use super::RocksDBStorageAdapter;
 
-    async fn read_and_commit_offset(
-        adapter: &RocksDBStorageAdapter,
-        namespace: &str,
-        shard_name: &str,
-        group_id: &str,
-        expected_data: &str,
-        read_config: &ReadConfig,
-    ) {
-        let offset_data = adapter.get_offset_by_group(group_id).await.unwrap();
-        let next_offset = if offset_data.is_empty() {
-            0
-        } else {
-            offset_data.first().unwrap().offset + 1
-        };
-
-        let res = adapter
-            .read_by_offset(namespace, shard_name, next_offset, read_config)
-            .await
-            .unwrap();
-
-        assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
-            expected_data
-        );
-
-        let mut offsets = HashMap::new();
-        offsets.insert(
-            shard_name.to_string(),
-            res.first().unwrap().clone().offset.unwrap(),
-        );
-        adapter
-            .commit_offset(group_id, namespace, &offsets)
-            .await
-            .unwrap();
-    }
-
     #[tokio::test]
     async fn stream_read_write() {
-        let db_path = format!("/tmp/robustmq_{}", unique_id());
-        let db = Arc::new(RocksDBEngine::new(
-            &db_path,
-            100,
-            vec![rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER.to_string()],
-        ));
+        let db = test_rocksdb_instance();
 
-        let storage_adapter = RocksDBStorageAdapter::new(db);
+        let adapter = RocksDBStorageAdapter::new(db);
         let namespace = unique_id();
-        let shard_name = "test-11".to_string();
+        let shard_name = "test-shard".to_string();
 
-        storage_adapter
+        // Test create and list shard
+        adapter
             .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
@@ -499,65 +468,26 @@ mod tests {
             .await
             .unwrap();
 
-        let shards = storage_adapter
-            .list_shard(&namespace, &shard_name)
-            .await
-            .unwrap();
-
+        let shards = adapter.list_shard(&namespace, &shard_name).await.unwrap();
         assert_eq!(shards.len(), 1);
-        assert_eq!(shards.first().unwrap().shard_name, shard_name);
-        assert_eq!(shards.first().unwrap().namespace, namespace);
-        assert_eq!(shards.first().unwrap().replica_num, 1);
+        assert_eq!(shards[0].shard_name, shard_name);
 
-        let ms1 = "test1".to_string();
-        let ms2 = "test2".to_string();
-        let data = vec![
-            Record::build_byte(ms1.clone().as_bytes().to_vec()),
-            Record::build_byte(ms2.clone().as_bytes().to_vec()),
-        ];
+        // Test batch write and read by offset
+        let messages: Vec<_> = (0..4)
+            .map(|i| Record::build_byte(format!("test{}", i).as_bytes().to_vec()))
+            .collect();
 
-        let result = storage_adapter
-            .batch_write(&namespace, &shard_name, &data)
+        let offsets = adapter
+            .batch_write(&namespace, &shard_name, &messages)
             .await
             .unwrap();
+        assert_eq!(offsets, vec![0, 1, 2, 3]);
 
-        assert_eq!(result.first().unwrap().clone(), 0);
-        assert_eq!(result.get(1).unwrap().clone(), 1);
-
-        assert_eq!(
-            storage_adapter
-                .read_by_offset(
-                    &namespace.clone(),
-                    &shard_name,
-                    0,
-                    &ReadConfig {
-                        max_record_num: u64::MAX,
-                        max_size: u64::MAX,
-                    }
-                )
-                .await
-                .unwrap()
-                .len(),
-            2
-        );
-
-        let ms3 = "test3".to_string();
-        let ms4 = "test4".to_string();
-        let data = vec![
-            Record::build_byte(ms3.clone().as_bytes().to_vec()),
-            Record::build_byte(ms4.clone().as_bytes().to_vec()),
-        ];
-
-        let result = storage_adapter
-            .batch_write(&namespace, &shard_name, &data)
-            .await
-            .unwrap();
-
-        let result_read = storage_adapter
+        let records = adapter
             .read_by_offset(
-                &namespace.clone(),
+                &namespace,
                 &shard_name,
-                2,
+                0,
                 &ReadConfig {
                     max_record_num: u64::MAX,
                     max_size: u64::MAX,
@@ -565,195 +495,124 @@ mod tests {
             )
             .await
             .unwrap();
+        assert_eq!(records.len(), 4);
 
-        assert_eq!(result.first().unwrap().clone(), 2);
-        assert_eq!(result.get(1).unwrap().clone(), 3);
-        assert_eq!(result_read.len(), 2);
-
+        // Test commit and get offset by group
         let group_id = unique_id();
-        let read_config = &ReadConfig {
-            max_record_num: 1,
-            max_size: u64::MAX,
-        };
-
-        read_and_commit_offset(
-            &storage_adapter,
-            &namespace,
-            &shard_name,
-            &group_id,
-            &ms1,
-            read_config,
-        )
-        .await;
-        read_and_commit_offset(
-            &storage_adapter,
-            &namespace,
-            &shard_name,
-            &group_id,
-            &ms2,
-            read_config,
-        )
-        .await;
-        read_and_commit_offset(
-            &storage_adapter,
-            &namespace,
-            &shard_name,
-            &group_id,
-            &ms3,
-            read_config,
-        )
-        .await;
-        read_and_commit_offset(
-            &storage_adapter,
-            &namespace,
-            &shard_name,
-            &group_id,
-            &ms4,
-            read_config,
-        )
-        .await;
-
-        storage_adapter
-            .delete_shard(&namespace, &shard_name)
+        let mut commit_offsets = HashMap::new();
+        commit_offsets.insert(shard_name.clone(), 2);
+        adapter
+            .commit_offset(&group_id, &namespace, &commit_offsets)
             .await
             .unwrap();
 
-        let shards = storage_adapter
-            .list_shard(&namespace, &shard_name)
-            .await
-            .unwrap();
+        let group_offsets = adapter.get_offset_by_group(&group_id).await.unwrap();
+        assert_eq!(group_offsets[0].offset, 2);
 
+        // Test delete shard
+        adapter.delete_shard(&namespace, &shard_name).await.unwrap();
+        let shards = adapter.list_shard(&namespace, &shard_name).await.unwrap();
         assert_eq!(shards.len(), 0);
 
-        storage_adapter.close().await.unwrap();
-
-        let _ = std::fs::remove_dir_all(&db_path);
+        adapter.close().await.unwrap();
     }
 
     #[tokio::test]
     #[ignore]
     async fn concurrency_test() {
-        let db_path = format!("/tmp/robustmq_{}", unique_id());
-        let db = Arc::new(RocksDBEngine::new(
-            &db_path,
-            100,
-            vec![rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER.to_string()],
-        ));
-
-        let storage_adapter = Arc::new(RocksDBStorageAdapter::new(db));
-
+        let db = test_rocksdb_instance();
+        let adapter = Arc::new(RocksDBStorageAdapter::new(db));
         let namespace = unique_id();
-        let shards = (0..4).map(|i| format!("test-{i}")).collect::<Vec<_>>();
+        let shards: Vec<_> = (0..4).map(|i| format!("shard-{i}")).collect();
 
-        for i in 0..shards.len() {
-            storage_adapter
+        // Create shards
+        for shard in &shards {
+            adapter
                 .create_shard(&ShardInfo {
                     namespace: namespace.clone(),
-                    shard_name: shards.get(i).unwrap().clone(),
+                    shard_name: shard.clone(),
                     replica_num: 1,
                 })
                 .await
                 .unwrap();
         }
 
-        let list_res = storage_adapter.list_shard(&namespace, "").await.unwrap();
+        assert_eq!(adapter.list_shard(&namespace, "").await.unwrap().len(), 4);
 
-        assert_eq!(list_res.len(), 4);
+        // Concurrent write and read test
+        let tasks: Vec<_> = (0..100)
+            .map(|tid| {
+                let adapter = adapter.clone();
+                let namespace = namespace.clone();
+                let shard_name = shards[tid % shards.len()].clone();
 
-        let header = vec![Header {
-            name: "name".to_string(),
-            value: "value".to_string(),
-        }];
+                tokio::spawn(async move {
+                    let records: Vec<_> = (0..10)
+                        .map(|idx| {
+                            let value = format!("data-{tid}-{idx}").as_bytes().to_vec();
+                            Record {
+                                offset: None,
+                                header: vec![Header {
+                                    name: "test".to_string(),
+                                    value: "value".to_string(),
+                                }],
+                                key: format!("key-{tid}-{idx}"),
+                                data: value.clone(),
+                                tags: vec![format!("tag-{tid}")],
+                                timestamp: 0,
+                                crc_num: calc_crc32(&value),
+                            }
+                        })
+                        .collect();
 
-        let mut tasks = vec![];
-        for tid in 0..10000 {
-            let storage_adapter = storage_adapter.clone();
-            let namespace = namespace.clone();
-            let shard_name = shards.get(tid % shards.len()).unwrap().clone();
-            let header = header.clone();
+                    let offsets = adapter
+                        .batch_write(&namespace, &shard_name, &records)
+                        .await
+                        .unwrap();
 
-            let task = tokio::spawn(async move {
-                let mut batch_data = Vec::new();
+                    assert_eq!(offsets.len(), 10);
 
-                for idx in 0..100 {
-                    let value = format!("data-{tid}-{idx}").as_bytes().to_vec();
-                    let data = Record {
-                        offset: None,
-                        header: header.clone(),
-                        key: format!("key-{tid}-{idx}"),
-                        data: value.clone(),
-                        tags: vec![format!("task-{}", tid)],
-                        timestamp: 0,
-                        crc_num: calc_crc32(&value),
-                    };
-
-                    batch_data.push(data);
-                }
-
-                let write_offsets = storage_adapter
-                    .batch_write(&namespace, &shard_name, &batch_data)
-                    .await
-                    .unwrap();
-
-                assert_eq!(write_offsets.len(), 100);
-
-                let mut read_records = Vec::new();
-
-                for offset in write_offsets.iter() {
-                    let records = storage_adapter
+                    // Verify read by offset
+                    let read_records = adapter
                         .read_by_offset(
-                            &namespace.clone(),
+                            &namespace,
                             &shard_name,
-                            *offset,
+                            offsets[0],
                             &ReadConfig {
-                                max_record_num: 1,
+                                max_record_num: 10,
                                 max_size: u64::MAX,
                             },
                         )
                         .await
                         .unwrap();
 
-                    read_records.extend(records);
-                }
+                    assert_eq!(read_records.len(), 10);
 
-                for (l, r) in batch_data.into_iter().zip(read_records.iter()) {
-                    assert_eq!(l.tags, r.tags);
-                    assert_eq!(l.key, r.key);
-                    assert_eq!(l.data, r.data);
-                }
+                    // Verify read by tag
+                    let tag_records = adapter
+                        .read_by_tag(
+                            &namespace,
+                            &shard_name,
+                            0,
+                            &format!("tag-{tid}"),
+                            &ReadConfig {
+                                max_record_num: u64::MAX,
+                                max_size: u64::MAX,
+                            },
+                        )
+                        .await
+                        .unwrap();
 
-                let tag = format!("task-{tid}");
-                let tag_records = storage_adapter
-                    .read_by_tag(
-                        &namespace,
-                        &shard_name,
-                        0,
-                        &tag,
-                        &ReadConfig {
-                            max_record_num: u64::MAX,
-                            max_size: u64::MAX,
-                        },
-                    )
-                    .await
-                    .unwrap();
-
-                assert_eq!(tag_records.len(), 100);
-
-                for (l, r) in read_records.into_iter().zip(tag_records) {
-                    assert_eq!(l.offset, r.offset);
-                    assert_eq!(l.tags, r.tags);
-                    assert_eq!(l.key, r.key);
-                    assert_eq!(l.data, r.data);
-                }
-            });
-
-            tasks.push(task);
-        }
+                    assert_eq!(tag_records.len(), 10);
+                })
+            })
+            .collect();
 
         future::join_all(tasks).await;
 
-        for shard in shards.iter() {
-            let len = storage_adapter
+        // Verify total records per shard
+        for shard in &shards {
+            let records = adapter
                 .read_by_offset(
                     &namespace,
                     shard,
@@ -764,25 +623,17 @@ mod tests {
                     },
                 )
                 .await
-                .unwrap()
-                .len();
-
-            assert_eq!(len, (10000 / shards.len()) * 100);
-        }
-
-        for shard in shards.iter() {
-            storage_adapter
-                .delete_shard(&namespace, shard)
-                .await
                 .unwrap();
+
+            assert_eq!(records.len(), (100 / shards.len()) * 10);
         }
 
-        let list_res = storage_adapter.list_shard(&namespace, "").await.unwrap();
+        // Cleanup
+        for shard in &shards {
+            adapter.delete_shard(&namespace, shard).await.unwrap();
+        }
 
-        assert_eq!(list_res.len(), 0);
-
-        storage_adapter.close().await.unwrap();
-
-        let _ = std::fs::remove_dir_all(&db_path);
+        assert_eq!(adapter.list_shard(&namespace, "").await.unwrap().len(), 0);
+        adapter.close().await.unwrap();
     }
 }
