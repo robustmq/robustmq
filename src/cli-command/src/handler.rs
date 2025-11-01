@@ -142,7 +142,7 @@ pub struct StatusArgs {
     server: String,
 }
 
-pub async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
+pub async fn handle_mqtt(args: MqttArgs) {
     let params = MqttCliCommandParam {
         server: args.server,
         action: match args.action {
@@ -190,10 +190,10 @@ pub async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::AutoSubscribe(args) => process_auto_subscribe_args(args),
         },
     };
-    cmd.start(params).await;
+    MqttBrokerCommand::new().start(params).await;
 }
 
-pub async fn handle_cluster(args: ClusterArgs, cmd: ClusterCommand) {
+pub async fn handle_cluster(args: ClusterArgs) {
     let params = ClusterCliCommandParam {
         server: args.server,
         action: match args.action {
@@ -202,7 +202,7 @@ pub async fn handle_cluster(args: ClusterArgs, cmd: ClusterCommand) {
             },
         },
     };
-    cmd.start(params).await;
+    ClusterCommand::new().start(params).await;
 }
 
 // TODO: implement journal engine

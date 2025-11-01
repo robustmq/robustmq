@@ -27,7 +27,7 @@ pub fn banner_info() {
 
 pub fn banner_print() {
     let b = banner();
-    print!("{b}");
+    print!("{b}\n");
 }
 
 pub fn banner() -> String {

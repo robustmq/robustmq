@@ -14,21 +14,19 @@
 
 use clap::Parser;
 use cli_command::{
-    cluster::command::ClusterCommand,
     handler::{
         handle_cluster, handle_journal, handle_mqtt, handle_status, RobustMQCli, RobustMQCliCommand,
     },
-    mqtt::command::MqttBrokerCommand,
 };
 use common_base::version::logo::banner_print;
 
 #[tokio::main]
 async fn main() {
-    print!("{:?}", banner_print());
+    banner_print();
     let args = RobustMQCli::parse();
     match args.command {
-        RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
-        RobustMQCliCommand::Cluster(args) => handle_cluster(args, ClusterCommand::new()).await,
+        RobustMQCliCommand::Mqtt(args) => handle_mqtt(args).await,
+        RobustMQCliCommand::Cluster(args) => handle_cluster(args).await,
         RobustMQCliCommand::Journal(args) => handle_journal(args).await,
         RobustMQCliCommand::Status(args) => handle_status(args).await,
     }
