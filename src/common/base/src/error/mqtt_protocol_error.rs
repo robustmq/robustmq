@@ -27,8 +27,8 @@ pub enum MQTTProtocolError {
     InvalidProtocolName,
     #[error("Invalid protocol level {0}. Make sure right port is being used.")]
     InvalidProtocolLevel(u8),
-    #[error("Reserved must be set to 0")]
-    ReservedMustBeSetToZero,
+    #[error("Reserved bit set error")]
+    ReservedSetError,
     #[error("Invalid packet format")]
     IncorrectPacketFormat,
     #[error("Invalid packet type = {0}")]
