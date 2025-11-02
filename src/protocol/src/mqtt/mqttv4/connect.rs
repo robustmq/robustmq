@@ -93,7 +93,14 @@ pub fn read(
     let keep_alive = read_u16(&mut bytes)?;
 
     let client_id = read_mqtt_bytes(&mut bytes)?;
+    // TODO: when clean session is 1, client id can be zero length
+    // for this code, we will read and return "", for this case
+    // maybe we need give a random client id later
+
     let client_id = std::str::from_utf8(&client_id)?.to_owned();
+    if client_id.is_empty() && (connect_flags & 0b10) == 0 {
+        return Err(MQTTProtocolError::IncorrectPacketFormat);
+    }
     let last_will = will::read(connect_flags, &mut bytes)?;
     let login = login::read(connect_flags, &mut bytes)?;
 
@@ -209,6 +216,10 @@ pub mod login {
     use super::*;
 
     pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, MQTTProtocolError> {
+        // if username is zero and password is not zero, return incorrect packet format
+        if (connect_flags & 0b1000_0000) == 0 && (connect_flags & 0b0100_0000) != 0 {
+            return Err(MQTTProtocolError::IncorrectPacketFormat);
+        }
         let username = match connect_flags & 0b1000_0000 {
             0 => String::new(),
             _ => {
@@ -364,6 +375,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn variable_header_should_fail_when_user_name_flag_is_zero_and_password_flag_is_not_zero()
+    {
+        let mut buffer = BytesMut::new();
+        // Manually write an invalid protocol name
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8(10); // Remaining length
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        buffer.put_u8(0b0100_0000); // Connect flags with Username Flag 0 but Password Flag 1
+        buffer.put_u16(0); // Keep alive
+        write_mqtt_string(&mut buffer, "test_id");
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
+
+        assert!(matches!(
+            result,
+            Err(MQTTProtocolError::IncorrectPacketFormat)
+        ));
+    }
+
+    #[tokio::test]
     async fn variable_header_should_fail_when_will_flag_is_zero_and_will_retain_is_not_zero() {
         let mut buffer = BytesMut::new();
         // Manually write an invalid protocol name
@@ -393,7 +426,7 @@ mod tests {
         write_mqtt_string(&mut buffer, "MQTT");
         buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
         // Connect flags with Will Flag 0 but Will QoS not 0
-        buffer.put_u8(0b0010_1000);
+        buffer.put_u8(0b0000_1000);
         buffer.put_u16(0); // Keep alive
         write_mqtt_string(&mut buffer, "test_id");
 
@@ -404,6 +437,29 @@ mod tests {
             result,
             Err(MQTTProtocolError::IncorrectPacketFormat)
         ));
+    }
+
+    #[tokio::test]
+    async fn variable_header_should_fail_with_invalid_qos_value() {
+        let mut buffer = BytesMut::new();
+        // Manually write an invalid protocol name
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8(10); // Remaining length
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        // Connect flags with Will Flag 1 and invalid Will QoS 3
+        buffer.put_u8(0b0001_1100);
+        buffer.put_u16(0); // Keep alive
+        write_mqtt_string(&mut buffer, "test_id");
+        // Will Topic
+        write_mqtt_string(&mut buffer, "will_topic");
+        // Will Message
+        write_mqtt_string(&mut buffer, "will_message");
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
+
+        assert!(matches!(result, Err(MQTTProtocolError::InvalidQoS(3))));
     }
 
     #[tokio::test]
@@ -422,6 +478,144 @@ mod tests {
         let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
 
         assert!(matches!(result, Err(MQTTProtocolError::ReservedSetError)));
+    }
+
+    #[tokio::test]
+    async fn payload_need_in_order_of_client_id_will_topic_will_message_username_and_password() {
+        let client_id = "test_id";
+        let will_topic = "will_topic";
+        let will_message = "will_message";
+        let user_name = "test_username";
+        let user_password = "test_password";
+        let pay_load_length = client_id.len()
+            + will_topic.len()
+            + will_message.len()
+            + user_name.len()
+            + user_password.len();
+
+        let mut buffer = BytesMut::new();
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8((10 + pay_load_length) as u8); // Remaining length will be updated later
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        // Connect flags with Will Flag 1, Will QoS 1, Will Retain 1, Username Flag 1 and Password Flag 1
+        buffer.put_u8(0b1110_1100);
+        buffer.put_u16(0); // Keep alive
+
+        // Client ID
+        write_mqtt_string(&mut buffer, client_id);
+        // Will Topic
+        write_mqtt_string(&mut buffer, will_topic);
+        // Will Message
+        write_mqtt_string(&mut buffer, will_message);
+        // Username
+        write_mqtt_string(&mut buffer, user_name);
+        // Password
+        write_mqtt_string(&mut buffer, user_password);
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (_protocol_level, connect, login, last_will) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(connect.client_id, client_id);
+        let lw = last_will.unwrap();
+        assert_eq!(std::str::from_utf8(&lw.topic).unwrap(), will_topic);
+        assert_eq!(std::str::from_utf8(&lw.message).unwrap(), will_message);
+        assert_eq!(lw.qos, QoS::AtLeastOnce);
+        assert!(lw.retain);
+        let lg = login.unwrap();
+        assert_eq!(lg.username, user_name);
+        assert_eq!(lg.password, user_password);
+    }
+
+    #[tokio::test]
+    async fn client_id_can_set_zero_when_clean_session_set_1() {
+        let client_id = "";
+        let will_topic = "will_topic";
+        let will_message = "will_message";
+        let user_name = "test_username";
+        let user_password = "test_password";
+        let pay_load_length = client_id.len()
+            + will_topic.len()
+            + will_message.len()
+            + user_name.len()
+            + user_password.len();
+
+        let mut buffer = BytesMut::new();
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8((10 + pay_load_length) as u8); // Remaining length will be updated later
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        // Connect flags with Will Flag 1, Will QoS 1, Will Retain 1, Username Flag 1 and Password Flag 1
+        // Clean Session 1
+        buffer.put_u8(0b1110_1110);
+        buffer.put_u16(0); // Keep alive
+
+        // Client ID
+        write_mqtt_string(&mut buffer, client_id);
+        // Will Topic
+        write_mqtt_string(&mut buffer, will_topic);
+        // Will Message
+        write_mqtt_string(&mut buffer, will_message);
+        // Username
+        write_mqtt_string(&mut buffer, user_name);
+        // Password
+        write_mqtt_string(&mut buffer, user_password);
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (_protocol_level, connect, login, last_will) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(connect.client_id, client_id);
+        let lw = last_will.unwrap();
+        assert_eq!(std::str::from_utf8(&lw.topic).unwrap(), will_topic);
+        assert_eq!(std::str::from_utf8(&lw.message).unwrap(), will_message);
+        assert_eq!(lw.qos, QoS::AtLeastOnce);
+        assert!(lw.retain);
+        let lg = login.unwrap();
+        assert_eq!(lg.username, user_name);
+        assert_eq!(lg.password, user_password);
+    }
+
+    #[tokio::test]
+    async fn client_id_can_not_set_zero_when_clean_session_set_0() {
+        let client_id = "";
+        let will_topic = "will_topic";
+        let will_message = "will_message";
+        let user_name = "test_username";
+        let user_password = "test_password";
+        let pay_load_length = client_id.len()
+            + will_topic.len()
+            + will_message.len()
+            + user_name.len()
+            + user_password.len();
+
+        let mut buffer = BytesMut::new();
+        buffer.put_u8(MQTT_CONTROL_PACKET_TYPE_CONNECT);
+        buffer.put_u8((10 + pay_load_length) as u8); // Remaining length will be updated later
+        write_mqtt_string(&mut buffer, "MQTT");
+        buffer.put_u8(MQTT_PROTOCOL_VERSION_3_1_1);
+        // Connect flags with Will Flag 1, Will QoS 1, Will Retain 1, Username Flag 1 and Password Flag 1
+        // Clean Session 0
+        buffer.put_u8(0b1110_1100);
+        buffer.put_u16(0); // Keep alive
+
+        // Client ID
+        write_mqtt_string(&mut buffer, client_id);
+        // Will Topic
+        write_mqtt_string(&mut buffer, will_topic);
+        // Will Message
+        write_mqtt_string(&mut buffer, will_message);
+        // Username
+        write_mqtt_string(&mut buffer, user_name);
+        // Password
+        write_mqtt_string(&mut buffer, user_password);
+
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let result = read(fixed_header, buffer.copy_to_bytes(buffer.len()));
+
+        assert!(matches!(
+            result,
+            Err(MQTTProtocolError::IncorrectPacketFormat)
+        ));
     }
 
     #[test]
