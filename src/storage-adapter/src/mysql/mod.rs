@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::message_expire::MessageExpireConfig;
+use crate::expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
+use common_config::storage::mysql::StorageDriverMySQLConfig;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use r2d2_mysql::mysql::{params, prelude::Queryable, Row};
 use std::{collections::HashMap, time::Duration};
-use third_driver::mysql::MysqlPool;
+use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 use tokio::{
     sync::mpsc::{self, Receiver},
     time::sleep,
@@ -32,7 +33,8 @@ pub struct MySQLStorageAdapter {
 }
 
 impl MySQLStorageAdapter {
-    pub fn new(pool: MysqlPool) -> Result<Self, CommonError> {
+    pub fn new(config: StorageDriverMySQLConfig) -> Result<Self, CommonError> {
+        let pool = build_mysql_conn_pool(&config.mysql_addr)?;
         // init tags and groups table
         let mut conn = pool.get()?;
 
@@ -650,38 +652,20 @@ impl StorageAdapter for MySQLStorageAdapter {
 mod tests {
     use std::{collections::HashMap, sync::Arc};
 
+    use super::MySQLStorageAdapter;
+    use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::{tools::unique_id, utils::crc::calc_crc32};
+    use common_config::storage::mysql::StorageDriverMySQLConfig;
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
         record::{Header, Record},
     };
 
-    use r2d2_mysql::mysql::prelude::Queryable;
-    use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
-
-    use super::MySQLStorageAdapter;
-    use crate::storage::{ShardInfo, StorageAdapter};
-
-    async fn clean_resources(pool: MysqlPool) {
-        let mut conn = pool.get().unwrap();
-
-        conn.query::<String, _>("SHOW TABLES;")
-            .unwrap()
-            .into_iter()
-            .for_each(|row| {
-                conn.query_drop(format!("DROP TABLE IF EXISTS `{row}`"))
-                    .unwrap();
-            });
-    }
-
     #[tokio::test]
     #[ignore]
     async fn mysql_create_shard() {
-        let addr = "mysql://root@127.0.0.1:3306/mqtt";
-        let pool = build_mysql_conn_pool(addr).unwrap();
-
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap();
         let shard_name = String::from("test");
         let namespace = unique_id();
         mysql_adapter
@@ -697,16 +681,12 @@ mod tests {
             .delete_shard(&namespace, &shard_name)
             .await
             .unwrap();
-
-        clean_resources(pool).await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn mysql_batch_write() {
-        let addr = "mysql://root@127.0.0.1:3306/mqtt";
-        let pool = build_mysql_conn_pool(addr).unwrap();
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap();
         let shard_name = String::from("test");
         let namespace = unique_id();
         mysql_adapter
@@ -776,17 +756,12 @@ mod tests {
 
         assert_eq!(records[0].offset, Some(0));
         assert_eq!(records[1].offset, Some(1));
-
-        clean_resources(pool).await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn mysql_stream_read_write() {
-        let addr = "mysql://root@127.0.0.1:3306/mqtt";
-        let pool = build_mysql_conn_pool(addr).unwrap();
-
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap();
 
         let namespace = unique_id();
         let shard_name = "test-11".to_string();
@@ -1004,17 +979,13 @@ mod tests {
         assert_eq!(shards.len(), 0);
 
         mysql_adapter.close().await.unwrap();
-
-        clean_resources(pool).await;
     }
 
     #[tokio::test]
     #[ignore]
     async fn mysql_concurrent_batch_write_test() {
-        let addr = "mysql://root@127.0.0.1:3306/mqtt";
-        let pool = build_mysql_conn_pool(addr).unwrap();
-
-        let mysql_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap());
+        let mysql_adapter =
+            Arc::new(MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap());
 
         let namespace = unique_id();
         let shard_name = "test-concurrent".to_string();
@@ -1094,7 +1065,5 @@ mod tests {
 
         // wait for all tasks to finish
         future::join_all(handles).await;
-
-        clean_resources(pool).await;
     }
 }

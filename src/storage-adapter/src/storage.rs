@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::expire::MessageExpireConfig;
 use crate::memory::MemoryStorageAdapter;
-use crate::message_expire::MessageExpireConfig;
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use common_config::storage::memory::StorageDriverMemoryConfig;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use serde::{Deserialize, Serialize};
@@ -112,5 +113,7 @@ pub trait StorageAdapter {
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {
-    Arc::new(MemoryStorageAdapter::new())
+    Arc::new(MemoryStorageAdapter::new(
+        StorageDriverMemoryConfig::default(),
+    ))
 }

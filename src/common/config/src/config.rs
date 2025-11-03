@@ -15,9 +15,9 @@
 use super::default::{
     default_broker_id, default_cluster_name, default_flapping_detect, default_grpc_port,
     default_http_port, default_journal_runtime, default_journal_server, default_journal_storage,
-    default_meta_addrs, default_mqtt_auth_config, default_mqtt_keep_alive,
-    default_mqtt_message_storage, default_mqtt_offline_message, default_mqtt_protocol_config,
-    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
+    default_message_storage, default_meta_addrs, default_mqtt_auth_config, default_mqtt_keep_alive,
+    default_mqtt_offline_message, default_mqtt_protocol_config, default_mqtt_runtime,
+    default_mqtt_schema, default_mqtt_security, default_mqtt_server,
     default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
     default_place_runtime, default_rocksdb, default_roles, default_runtime,
 };
@@ -25,6 +25,7 @@ use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
 use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
+use crate::storage::StorageAdapterConfig;
 use common_base::enum_type::delay_type::DelayType;
 use serde::{Deserialize, Serialize};
 use toml::Table;
@@ -65,6 +66,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_pprof")]
     pub p_prof: PProf,
 
+    #[serde(default = "default_message_storage")]
+    pub message_storage: StorageAdapterConfig,
+
     // meta
     #[serde(default = "default_place_runtime")]
     pub meta_runtime: MetaRuntime,
@@ -91,9 +95,6 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_mqtt_auth_config")]
     pub mqtt_auth_config: MqttAuthConfig,
-
-    #[serde(default = "default_mqtt_message_storage")]
-    pub mqtt_message_storage: MqttMessageStorage,
 
     #[serde(default = "default_mqtt_runtime")]
     pub mqtt_runtime: MqttRuntime,
@@ -206,15 +207,6 @@ pub struct MqttKeepAlive {
     pub default_time: u16,
     pub max_time: u16,
     pub default_timeout: u16,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MqttMessageStorage {
-    pub storage_type: String,
-    pub journal_addr: String,
-    pub mysql_addr: String,
-    pub rocksdb_data_path: String,
-    pub rocksdb_max_open_files: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::message_expire::MessageExpireConfig;
+use crate::expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
@@ -47,13 +48,13 @@ pub struct MemoryStorageAdapter {
 
 impl Default for MemoryStorageAdapter {
     fn default() -> Self {
-        Self::new()
+        Self::new(StorageDriverMemoryConfig::default())
     }
 }
 
 impl MemoryStorageAdapter {
-    pub fn new() -> Self {
-        Self::with_capacity(DEFAULT_LRU_CACHE_SIZE)
+    pub fn new(config: StorageDriverMemoryConfig) -> Self {
+        Self::with_capacity(config.lru_cache_size)
     }
 
     pub fn with_capacity(max_shard_size: usize) -> Self {
@@ -607,7 +608,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_and_read() {
         // Setup
-        let adapter = MemoryStorageAdapter::new();
+        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
         let namespace = unique_id();
         let shard_name = "test-shard";
         let config = read_config();
@@ -720,7 +721,7 @@ mod tests {
     #[tokio::test]
     async fn test_indexed_queries() {
         // Setup
-        let adapter = MemoryStorageAdapter::new();
+        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
         let namespace = unique_id();
         let shard_name = "index-test";
         let config = read_config();
@@ -769,7 +770,7 @@ mod tests {
     #[tokio::test]
     async fn test_shard_management() {
         // Setup
-        let adapter = MemoryStorageAdapter::new();
+        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
         let namespace = unique_id();
 
         // Create two shards
@@ -809,7 +810,7 @@ mod tests {
     #[tokio::test]
     async fn test_consumer_group_offset() {
         // Setup
-        let adapter = MemoryStorageAdapter::new();
+        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
         let namespace = unique_id();
         let shard_name = "group-test";
         let group_name = "consumer-group-1";
@@ -859,7 +860,7 @@ mod tests {
     #[tokio::test]
     async fn test_timestamp_query() {
         // Setup
-        let adapter = MemoryStorageAdapter::new();
+        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
         let namespace = unique_id();
         let shard_name = "timestamp-test";
 

@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::message_expire::MessageExpireConfig;
+use crate::expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
 use key::*;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use rocksdb::WriteBatch;
@@ -50,7 +51,13 @@ pub struct RocksDBStorageAdapter {
 }
 
 impl RocksDBStorageAdapter {
-    pub fn new(db: Arc<RocksDBEngine>) -> Self {
+    pub fn new(config: StorageDriverRocksDBConfig) -> Self {
+        let db = Arc::new(RocksDBEngine::new(
+            &config.data_path,
+            config.max_open_files,
+            vec![DB_COLUMN_FAMILY_BROKER.to_string()],
+        ));
+
         RocksDBStorageAdapter { db }
     }
 
@@ -551,19 +558,17 @@ mod tests {
     use super::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::{tools::unique_id, utils::crc::calc_crc32};
+    use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
         record::{Header, Record},
     };
-    use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, vec};
 
     #[tokio::test]
     async fn stream_read_write() {
-        let db = test_rocksdb_instance();
-
-        let adapter = RocksDBStorageAdapter::new(db);
+        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
@@ -629,8 +634,9 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn concurrency_test() {
-        let db = test_rocksdb_instance();
-        let adapter = Arc::new(RocksDBStorageAdapter::new(db));
+        let adapter = Arc::new(RocksDBStorageAdapter::new(
+            StorageDriverRocksDBConfig::default(),
+        ));
         let namespace = unique_id();
         let shards: Vec<_> = (0..4).map(|i| format!("shard-{i}")).collect();
 
@@ -750,8 +756,9 @@ mod tests {
     /// This is critical for data integrity
     #[tokio::test]
     async fn test_concurrent_write_offset_uniqueness() {
-        let db = test_rocksdb_instance();
-        let adapter = Arc::new(RocksDBStorageAdapter::new(db));
+        let adapter = Arc::new(RocksDBStorageAdapter::new(
+            StorageDriverRocksDBConfig::default(),
+        ));
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 

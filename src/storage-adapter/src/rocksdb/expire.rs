@@ -14,7 +14,7 @@
 
 use crate::rocksdb::key::*;
 use crate::storage::ShardInfo;
-use crate::{message_expire::MessageExpireConfig, rocksdb::parse_offset_bytes};
+use crate::{expire::MessageExpireConfig, rocksdb::parse_offset_bytes};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
@@ -165,7 +165,7 @@ pub async fn expire_messages_by_timestamp(
                 }
 
                 // Delete timestamp index (if exists)
-                if record.timestamp > 0 && offset % 5000 == 0 {
+                if record.timestamp > 0 && offset.is_multiple_of(5000) {
                     let ts_index =
                         timestamp_offset_key(namespace, shard_name, record.timestamp, offset);
                     batch.delete(ts_index.as_bytes());
@@ -176,7 +176,7 @@ pub async fn expire_messages_by_timestamp(
 
         let deleted_count = batch.len();
         db.write_batch(batch)?;
-        
+
         if deleted_count > 0 {
             info!(
                 "Expired {} messages from shard {}/{} (scanned {})",
@@ -200,13 +200,12 @@ mod tests {
     use crate::rocksdb::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::tools::unique_id;
+    use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
     use metadata_struct::adapter::record::Record;
-    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[tokio::test]
     async fn test_expire_messages_by_timestamp() {
-        let db = test_rocksdb_instance();
-        let adapter = RocksDBStorageAdapter::new(db.clone());
+        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
 
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
@@ -274,29 +273,29 @@ mod tests {
         // Expire messages older than 30 minutes (1800 seconds)
         let config = MessageExpireConfig::with_timestamp(1800);
 
-        expire_messages_by_timestamp(db.clone(), &config)
+        expire_messages_by_timestamp(adapter.db.clone(), &config)
             .await
             .unwrap();
 
         // Verify: first message (1 hour old) should be expired
         // Note: batch read stops at first missing record, so we can't read offset 1-2 directly
         // Instead, we check specific offsets individually
-        let cf = db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
+        let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
 
         // Check offset 0 (should be deleted)
         let key0 = shard_record_key(&namespace, &shard_name, 0);
-        let record0 = db.read::<Record>(cf.clone(), &key0).unwrap();
+        let record0 = adapter.db.read::<Record>(cf.clone(), &key0).unwrap();
         assert!(record0.is_none(), "Offset 0 should be expired");
 
         // Check offset 1 (should exist)
         let key1 = shard_record_key(&namespace, &shard_name, 1);
-        let record1 = db.read::<Record>(cf.clone(), &key1).unwrap();
+        let record1 = adapter.db.read::<Record>(cf.clone(), &key1).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
         assert_eq!(record1.unwrap().key, "key2");
 
         // Check offset 2 (should exist)
         let key2 = shard_record_key(&namespace, &shard_name, 2);
-        let record2 = db.read::<Record>(cf.clone(), &key2).unwrap();
+        let record2 = adapter.db.read::<Record>(cf.clone(), &key2).unwrap();
         assert!(record2.is_some(), "Offset 2 should exist");
         assert_eq!(record2.unwrap().key, "key3");
     }
@@ -304,8 +303,7 @@ mod tests {
     /// Test that key index is NOT deleted when the same key has newer messages
     #[tokio::test]
     async fn test_expire_preserves_key_index_for_newer_messages() {
-        let db = test_rocksdb_instance();
-        let adapter = RocksDBStorageAdapter::new(db.clone());
+        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
 
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
@@ -350,9 +348,13 @@ mod tests {
             .unwrap();
 
         // Verify key index points to the latest offset (offset 1)
-        let cf = db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
+        let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
         let key_index_key = key_offset_key(&namespace, &shard_name, "same_key");
-        let key_index_bytes = db.db.get_cf(&cf, &key_index_key).unwrap().unwrap();
+        let key_index_bytes: Vec<u8> = adapter
+            .db
+            .read(cf.clone(), &key_index_key)
+            .unwrap()
+            .unwrap();
         assert_eq!(key_index_bytes.len(), 8);
         let key_index_offset = u64::from_be_bytes(key_index_bytes.as_slice().try_into().unwrap());
         assert_eq!(
@@ -362,23 +364,23 @@ mod tests {
 
         // Expire old messages (older than 30 minutes)
         let config = MessageExpireConfig::with_timestamp(1800);
-        expire_messages_by_timestamp(db.clone(), &config)
+        expire_messages_by_timestamp(adapter.db.clone(), &config)
             .await
             .unwrap();
 
         // Verify: offset 0 (old message) should be deleted
         let record0_key = shard_record_key(&namespace, &shard_name, 0);
-        let record0 = db.read::<Record>(cf.clone(), &record0_key).unwrap();
+        let record0 = adapter.db.read::<Record>(cf.clone(), &record0_key).unwrap();
         assert!(record0.is_none(), "Offset 0 should be expired");
 
         // Verify: offset 1 (new message) should still exist
         let record1_key = shard_record_key(&namespace, &shard_name, 1);
-        let record1 = db.read::<Record>(cf.clone(), &record1_key).unwrap();
+        let record1 = adapter.db.read::<Record>(cf.clone(), &record1_key).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
         assert_eq!(record1.unwrap().data, b"new_data");
 
         // CRITICAL: Verify key index still exists and points to offset 1
-        let key_index_bytes_after = db.db.get_cf(&cf, &key_index_key).unwrap().unwrap();
+        let key_index_bytes_after = adapter.db.db.get_cf(&cf, &key_index_key).unwrap().unwrap();
         let key_index_offset_after =
             u64::from_be_bytes(key_index_bytes_after.as_slice().try_into().unwrap());
         assert_eq!(
@@ -402,9 +404,7 @@ mod tests {
     /// Test batch commit logic with large number of deletions
     #[tokio::test]
     async fn test_expire_batch_commit_logic() {
-        let db = test_rocksdb_instance();
-        let adapter = RocksDBStorageAdapter::new(db.clone());
-
+        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
@@ -439,21 +439,21 @@ mod tests {
             .unwrap();
 
         // Verify all messages exist before expiration
-        let cf = db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
+        let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
         let record0_key = shard_record_key(&namespace, &shard_name, 0);
-        let record0 = db.read::<Record>(cf.clone(), &record0_key).unwrap();
+        let record0 = adapter.db.read::<Record>(cf.clone(), &record0_key).unwrap();
         assert!(record0.is_some());
 
         // Expire messages older than 1 hour
         let config = MessageExpireConfig::with_timestamp(3600);
-        expire_messages_by_timestamp(db.clone(), &config)
+        expire_messages_by_timestamp(adapter.db.clone(), &config)
             .await
             .unwrap();
 
         // Verify all messages are deleted
         for i in 0..2500 {
             let record_key = shard_record_key(&namespace, &shard_name, i);
-            let record = db.read::<Record>(cf.clone(), &record_key).unwrap();
+            let record = adapter.db.read::<Record>(cf.clone(), &record_key).unwrap();
             assert!(record.is_none(), "Record at offset {} should be expired", i);
         }
     }
