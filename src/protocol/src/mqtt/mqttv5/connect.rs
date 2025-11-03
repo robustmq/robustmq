@@ -101,7 +101,7 @@ pub fn read(
     let protocol_name = read_mqtt_string(&mut bytes)?;
     let protocol_level = read_u8(&mut bytes)?;
     if protocol_name != "MQTT" {
-        return Err(MQTTProtocolError::InvalidProtocol);
+        return Err(MQTTProtocolError::InvalidProtocolName);
     }
     if protocol_level != 5 {
         return Err(MQTTProtocolError::InvalidProtocolLevel(protocol_level));

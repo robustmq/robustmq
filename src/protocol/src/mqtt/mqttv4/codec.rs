@@ -100,8 +100,8 @@ impl codec::Decoder for Mqtt4Codec {
             PacketType::PingResp => MqttPacket::PingResp(super::PingResp),
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
             // hit when Disconnect packet has properties which are only valid for MQTT V5
-            PacketType::Disconnect => return Err(MQTTProtocolError::InvalidProtocol),
-            PacketType::Auth => return Err(MQTTProtocolError::InvalidProtocol),
+            PacketType::Disconnect => return Err(MQTTProtocolError::InvalidProtocolName),
+            PacketType::Auth => return Err(MQTTProtocolError::InvalidProtocolName),
         };
         Ok(Some(packet))
     }

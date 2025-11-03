@@ -84,13 +84,13 @@ impl MqttCodec {
                     }
                 }
                 Err(_) => {
-                    return Err(MQTTProtocolError::InvalidProtocol);
+                    return Err(MQTTProtocolError::InvalidProtocolName);
                 }
             }
         }
 
         if self.protocol_version.is_none() {
-            return Err(MQTTProtocolError::InvalidProtocol);
+            return Err(MQTTProtocolError::InvalidProtocolName);
         }
 
         let protocol_version = self.protocol_version.unwrap();
@@ -216,7 +216,7 @@ impl MqttCodec {
             return Ok(Some(packet));
         }
 
-        Err(MQTTProtocolError::InvalidProtocol)
+        Err(MQTTProtocolError::InvalidProtocolName)
     }
 
     pub fn encode_data(
