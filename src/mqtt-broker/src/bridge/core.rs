@@ -48,6 +48,7 @@ use super::{
     postgres::start_postgres_connector,
     pulsar::start_pulsar_connector,
     rabbitmq::start_rabbitmq_connector,
+    redis::start_redis_connector,
 };
 
 use crate::storage::message::MessageStorage;
@@ -404,6 +405,9 @@ fn start_thread(
         }
         ConnectorType::Elasticsearch => {
             start_elasticsearch_connector(connector_manager, message_storage, connector, thread);
+        }
+        ConnectorType::Redis => {
+            start_redis_connector(connector_manager, message_storage, connector, thread);
         }
     }
 }

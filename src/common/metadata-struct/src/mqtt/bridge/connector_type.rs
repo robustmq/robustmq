@@ -29,6 +29,7 @@ pub enum ConnectorType {
     RabbitMQ,
     MySQL,
     Elasticsearch,
+    Redis,
 }
 
 pub const CONNECTOR_TYPE_FILE: &str = "file";
@@ -40,6 +41,7 @@ pub const CONNECTOR_TYPE_MONGODB: &str = "mongodb";
 pub const CONNECTOR_TYPE_RABBITMQ: &str = "rabbitmq";
 pub const CONNECTOR_TYPE_MYSQL: &str = "mysql";
 pub const CONNECTOR_TYPE_ELASTICSEARCH: &str = "elasticsearch";
+pub const CONNECTOR_TYPE_REDIS: &str = "redis";
 
 impl Display for ConnectorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -61,6 +63,7 @@ impl FromStr for ConnectorType {
             CONNECTOR_TYPE_RABBITMQ => Ok(ConnectorType::RabbitMQ),
             CONNECTOR_TYPE_MYSQL => Ok(ConnectorType::MySQL),
             CONNECTOR_TYPE_ELASTICSEARCH => Ok(ConnectorType::Elasticsearch),
+            CONNECTOR_TYPE_REDIS => Ok(ConnectorType::Redis),
             _ => Err(CommonError::IneligibleConnectorType(s.to_string())),
         }
     }
