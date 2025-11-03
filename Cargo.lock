@@ -37,7 +37,7 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 name = "admin-server"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "broker-core",
  "bytes",
  "common-base",
@@ -650,7 +650,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
 dependencies = [
  "async-trait",
- "axum-core",
+ "axum-core 0.4.5",
  "base64 0.22.1",
  "bytes",
  "futures-util",
@@ -660,7 +660,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit",
+ "matchit 0.7.3",
  "memchr",
  "mime",
  "percent-encoding",
@@ -674,6 +674,32 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-tungstenite",
+ "tower 0.5.2",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "axum"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a18ed336352031311f4e0b4dd2ff392d4fbb370777c9d18d7fc9d7359f73871"
+dependencies = [
+ "axum-core 0.5.5",
+ "bytes",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "itoa",
+ "matchit 0.8.4",
+ "memchr",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "serde_core",
+ "sync_wrapper",
  "tower 0.5.2",
  "tower-layer",
  "tower-service",
@@ -702,27 +728,44 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-extra"
-version = "0.9.6"
+name = "axum-core"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c794b30c904f0a1c2fb7740f7df7f7972dfaa14ef6f57cb6178dc63e5dca2f04"
+checksum = "59446ce19cd142f8833f856eb31f3eb097812d1479ab224f54d72428ca21ea22"
 dependencies = [
- "axum",
- "axum-core",
  "bytes",
- "fastrand 2.3.0",
+ "futures-core",
+ "http",
+ "http-body",
+ "http-body-util",
+ "mime",
+ "pin-project-lite",
+ "sync_wrapper",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "axum-extra"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5136e6c5e7e7978fe23e9876fb924af2c0f84c72127ac6ac17e7c46f457d362c"
+dependencies = [
+ "axum 0.8.6",
+ "axum-core 0.5.5",
+ "bytes",
+ "futures-core",
  "futures-util",
  "headers",
  "http",
  "http-body",
  "http-body-util",
  "mime",
- "multer",
  "pin-project-lite",
- "serde",
- "tower 0.5.2",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -1008,7 +1051,7 @@ name = "broker-server"
 version = "0.2.4"
 dependencies = [
  "admin-server",
- "axum",
+ "axum 0.7.9",
  "broker-core",
  "bytes",
  "common-base",
@@ -1304,7 +1347,7 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 name = "cli-bench"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "clap",
  "clap-cargo",
  "common-base",
@@ -1325,7 +1368,7 @@ name = "cli-command"
 version = "0.2.4"
 dependencies = [
  "admin-server",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "clap",
  "clap-cargo",
@@ -1407,7 +1450,7 @@ version = "0.2.4"
 dependencies = [
  "anyhow",
  "apache-avro",
- "axum",
+ "axum 0.7.9",
  "bincode",
  "chrono",
  "chrono-tz",
@@ -1459,7 +1502,7 @@ dependencies = [
 name = "common-metrics"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "common-base",
  "dashmap",
@@ -1950,7 +1993,7 @@ dependencies = [
 name = "delay-message"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "common-base",
  "common-metrics",
@@ -3650,7 +3693,7 @@ dependencies = [
 name = "journal-server"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "common-base",
  "common-config",
@@ -4023,6 +4066,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 
 [[package]]
+name = "matchit"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4062,7 +4111,7 @@ name = "meta-service"
 version = "0.2.4"
 dependencies = [
  "async-stream",
- "axum",
+ "axum 0.7.9",
  "bincode",
  "broker-core",
  "byteorder",
@@ -4262,7 +4311,7 @@ name = "mqtt-broker"
 version = "0.2.4"
 dependencies = [
  "async-stream",
- "axum",
+ "axum 0.7.9",
  "axum-server",
  "base64 0.22.1",
  "bcrypt",
@@ -4327,23 +4376,6 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tracing",
-]
-
-[[package]]
-name = "multer"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
-dependencies = [
- "bytes",
- "encoding_rs",
- "futures-util",
- "http",
- "httparse",
- "memchr",
- "mime",
- "spin 0.9.8",
- "version_check",
 ]
 
 [[package]]
@@ -4489,7 +4521,7 @@ dependencies = [
 name = "network-server"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "axum-extra",
  "axum-server",
  "broker-core",
@@ -5484,7 +5516,7 @@ dependencies = [
 name = "pprof-monitor"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "hyper",
  "mockall",
@@ -5854,7 +5886,7 @@ dependencies = [
 name = "protocol"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bincode",
  "bytes",
  "common-base",
@@ -6548,7 +6580,7 @@ version = "0.2.4"
 dependencies = [
  "admin-server",
  "apache-avro",
- "axum",
+ "axum 0.7.9",
  "bincode",
  "broker-core",
  "bytes",
@@ -6942,7 +6974,7 @@ name = "schema-register"
 version = "0.2.4"
 dependencies = [
  "apache-avro",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "common-base",
  "dashmap",
@@ -7643,7 +7675,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storage-adapter"
 version = "0.2.4"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "common-base",
  "common-config",
@@ -8274,7 +8306,7 @@ checksum = "877c5b330756d856ffcc4553ab34a5684481ade925ecc54bcd1bf02b1d0d4d52"
 dependencies = [
  "async-stream",
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "bytes",
  "h2",
