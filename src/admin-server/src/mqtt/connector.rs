@@ -28,6 +28,7 @@ use metadata_struct::mqtt::bridge::{
     config_postgres::PostgresConnectorConfig,
     config_pulsar::PulsarConnectorConfig,
     config_rabbitmq::RabbitMQConnectorConfig,
+    config_redis::RedisConnectorConfig,
     connector::{FailureHandlingStrategy, MQTTConnector},
     connector_type::ConnectorType,
     status::MQTTStatus,
@@ -118,10 +119,10 @@ pub struct FailureStrategy {
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
     match connector_type {
         "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
-        | "file" | "elasticsearch" => Ok(()),
+        | "file" | "elasticsearch" | "redis" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_connector_type");
-            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch or file"));
+            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch, redis or file"));
             Err(err)
         }
     }
@@ -303,6 +304,10 @@ fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> R
         ConnectorType::Elasticsearch => {
             let es_config: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
             es_config.validate()?;
+        }
+        ConnectorType::Redis => {
+            let redis_config: RedisConnectorConfig = serde_json::from_str(config)?;
+            redis_config.validate()?;
         }
     }
     Ok(())

@@ -25,3 +25,4 @@ pub mod mysql;
 pub mod postgres;
 pub mod pulsar;
 pub mod rabbitmq;
+pub mod redis;
