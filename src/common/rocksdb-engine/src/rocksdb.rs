@@ -92,6 +92,19 @@ impl RocksDBEngine {
             .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
     }
 
+    /// Write raw bytes directly to RocksDB without serialization
+    /// This is useful for snapshot recovery where data is already serialized
+    pub fn write_raw(
+        &self,
+        cf: Arc<BoundColumnFamily<'_>>,
+        key: &str,
+        value: &[u8],
+    ) -> Result<(), CommonError> {
+        self.db
+            .put_cf(&cf, key, value)
+            .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
+    }
+
     /// Execute a write batch atomically
     /// This provides better performance for multiple writes
     pub fn write_batch(&self, batch: rocksdb::WriteBatch) -> Result<(), CommonError> {

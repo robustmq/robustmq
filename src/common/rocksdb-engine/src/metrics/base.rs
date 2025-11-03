@@ -112,7 +112,7 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
                     break;
                 }
                 let value = val.to_vec();
-                match serde_json::from_slice::<StorageDataWrap>(value.as_ref()) {
+                match bincode::deserialize::<StorageDataWrap>(value.as_ref()) {
                     Ok(v) => {
                         if now_time > (v.create_time + save_time) {
                             engine_delete_by_broker(rocksdb_engine.clone(), &key)?;

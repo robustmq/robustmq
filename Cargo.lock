@@ -3651,6 +3651,7 @@ name = "journal-server"
 version = "0.2.4"
 dependencies = [
  "axum",
+ "bincode",
  "bytes",
  "common-base",
  "common-config",
@@ -4054,10 +4055,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "message-expire"
-version = "0.2.4"
-
-[[package]]
 name = "meta-service"
 version = "0.2.4"
 dependencies = [
@@ -4163,6 +4160,16 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "mmap-file"
+version = "0.2.4"
+dependencies = [
+ "chrono",
+ "common-base",
+ "memmap2",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

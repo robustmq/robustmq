@@ -56,14 +56,12 @@ pub async fn expire_messages_by_timestamp(
         ))
     })?;
 
-    // Step 1: Get all shards
     let shard_prefix = "/shard/";
     let shard_entries = db.read_prefix(cf.clone(), shard_prefix)?;
 
     let mut total_deleted = 0_usize;
     let mut total_scanned = 0_usize;
 
-    // Step 2: Process each shard
     for (shard_key, shard_data) in shard_entries {
         let shard_info: ShardInfo = match bincode::deserialize(&shard_data) {
             Ok(info) => info,
@@ -84,18 +82,14 @@ pub async fn expire_messages_by_timestamp(
             namespace, shard_name
         );
 
-        // Step 3: Use Iterator to scan records (memory-efficient, no full table load)
         let record_prefix = shard_record_key_prefix(namespace, shard_name);
         let mut iter = db.db.raw_iterator_cf(&cf);
         iter.seek(&record_prefix);
 
-        // Use BatchWriter for automatic batching and commits
         let mut batch = WriteBatch::default();
         let mut shard_scanned = 0_usize;
 
-        // Stream through records using iterator (memory O(1) instead of O(n))
         while iter.valid() {
-            // Get key and check if still in this shard's prefix
             let Some(key_bytes) = iter.key() else {
                 break;
             };
@@ -108,12 +102,10 @@ pub async fn expire_messages_by_timestamp(
                 }
             };
 
-            // Stop if we've moved past this shard's records
             if !record_key.starts_with(&record_prefix) {
                 break;
             }
 
-            // Get record data
             let Some(record_data) = iter.value() else {
                 iter.next();
                 continue;
@@ -122,7 +114,6 @@ pub async fn expire_messages_by_timestamp(
             shard_scanned += 1;
             total_scanned += 1;
 
-            // Deserialize record to check timestamp
             let record: Record = match bincode::deserialize(record_data) {
                 Ok(r) => r,
                 Err(e) => {
@@ -132,12 +123,9 @@ pub async fn expire_messages_by_timestamp(
                 }
             };
 
-            // Check if record should be expired
             if record.timestamp > 0 && record.timestamp < expire_before {
-                // Delete the record
-                batch.delete(record_key.as_bytes());
+                batch.delete_cf(&cf, record_key.as_bytes());
 
-                // Also delete associated indexes
                 let offset = record.offset.unwrap_or(0);
 
                 // Delete key index (only if it points to this offset)
@@ -146,13 +134,11 @@ pub async fn expire_messages_by_timestamp(
                 if !record.key.is_empty() {
                     let key_index_key = key_offset_key(namespace, shard_name, &record.key);
 
-                    // Check if the key index points to this offset
                     if let Ok(Some(indexed_offset_bytes)) = db.db.get_cf(&cf, &key_index_key) {
-                        // Use utility function for offset parsing
                         if let Ok(indexed_offset) = parse_offset_bytes(&indexed_offset_bytes) {
                             // Only delete if it points to the current expired record
                             if indexed_offset == offset {
-                                batch.delete(key_index_key.as_bytes());
+                                batch.delete_cf(&cf, key_index_key.as_bytes());
                             }
                         }
                     }
@@ -161,14 +147,13 @@ pub async fn expire_messages_by_timestamp(
                 // Delete tag indexes (always safe to delete as tags are many-to-many)
                 for tag in &record.tags {
                     let tag_index = tag_offsets_key(namespace, shard_name, tag, offset);
-                    batch.delete(tag_index.as_bytes());
+                    batch.delete_cf(&cf, tag_index.as_bytes());
                 }
 
-                // Delete timestamp index (if exists)
                 if record.timestamp > 0 && offset.is_multiple_of(5000) {
                     let ts_index =
                         timestamp_offset_key(namespace, shard_name, record.timestamp, offset);
-                    batch.delete(ts_index.as_bytes());
+                    batch.delete_cf(&cf, ts_index.as_bytes());
                 }
             }
             iter.next();
@@ -200,17 +185,16 @@ mod tests {
     use crate::rocksdb::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::tools::unique_id;
-    use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
     use metadata_struct::adapter::record::Record;
+    use rocksdb_engine::test::test_storage_driver_rockdb_config;
 
     #[tokio::test]
     async fn test_expire_messages_by_timestamp() {
-        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
+        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
 
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
-        // Create shard
         adapter
             .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
@@ -222,8 +206,6 @@ mod tests {
 
         let now = now_second();
 
-        // Write messages with different timestamps
-        // All messages are recent so they won't be expired yet
         let messages = vec![
             Record {
                 offset: None,
@@ -259,7 +241,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify all messages exist
         let read_config = metadata_struct::adapter::read_config::ReadConfig {
             max_record_num: 10,
             max_size: u64::MAX,
@@ -282,18 +263,15 @@ mod tests {
         // Instead, we check specific offsets individually
         let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
 
-        // Check offset 0 (should be deleted)
         let key0 = shard_record_key(&namespace, &shard_name, 0);
         let record0 = adapter.db.read::<Record>(cf.clone(), &key0).unwrap();
         assert!(record0.is_none(), "Offset 0 should be expired");
 
-        // Check offset 1 (should exist)
         let key1 = shard_record_key(&namespace, &shard_name, 1);
         let record1 = adapter.db.read::<Record>(cf.clone(), &key1).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
         assert_eq!(record1.unwrap().key, "key2");
 
-        // Check offset 2 (should exist)
         let key2 = shard_record_key(&namespace, &shard_name, 2);
         let record2 = adapter.db.read::<Record>(cf.clone(), &key2).unwrap();
         assert!(record2.is_some(), "Offset 2 should exist");
@@ -303,12 +281,10 @@ mod tests {
     /// Test that key index is NOT deleted when the same key has newer messages
     #[tokio::test]
     async fn test_expire_preserves_key_index_for_newer_messages() {
-        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
-
+        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
-        // Create shard
         adapter
             .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
@@ -320,7 +296,6 @@ mod tests {
 
         let now = now_second();
 
-        // Write two messages with the SAME key but different timestamps
         let messages = vec![
             Record {
                 offset: None,
@@ -347,14 +322,9 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify key index points to the latest offset (offset 1)
         let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
         let key_index_key = key_offset_key(&namespace, &shard_name, "same_key");
-        let key_index_bytes: Vec<u8> = adapter
-            .db
-            .read(cf.clone(), &key_index_key)
-            .unwrap()
-            .unwrap();
+        let key_index_bytes = adapter.db.db.get_cf(&cf, &key_index_key).unwrap().unwrap();
         assert_eq!(key_index_bytes.len(), 8);
         let key_index_offset = u64::from_be_bytes(key_index_bytes.as_slice().try_into().unwrap());
         assert_eq!(
@@ -368,12 +338,10 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify: offset 0 (old message) should be deleted
         let record0_key = shard_record_key(&namespace, &shard_name, 0);
         let record0 = adapter.db.read::<Record>(cf.clone(), &record0_key).unwrap();
         assert!(record0.is_none(), "Offset 0 should be expired");
 
-        // Verify: offset 1 (new message) should still exist
         let record1_key = shard_record_key(&namespace, &shard_name, 1);
         let record1 = adapter.db.read::<Record>(cf.clone(), &record1_key).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
@@ -388,7 +356,6 @@ mod tests {
             "Key index should still point to offset 1 after expiration"
         );
 
-        // Verify read_by_key still works
         let read_config = metadata_struct::adapter::read_config::ReadConfig {
             max_record_num: 10,
             max_size: u64::MAX,
@@ -404,11 +371,10 @@ mod tests {
     /// Test batch commit logic with large number of deletions
     #[tokio::test]
     async fn test_expire_batch_commit_logic() {
-        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
+        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
-        // Create shard
         adapter
             .create_shard(&ShardInfo {
                 namespace: namespace.clone(),
@@ -420,7 +386,6 @@ mod tests {
 
         let now = now_second();
 
-        // Write 2500 old messages (will trigger 2 batch commits at 1000 and 2000)
         let messages: Vec<Record> = (0..2500)
             .map(|i| Record {
                 offset: None,
@@ -438,7 +403,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify all messages exist before expiration
         let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
         let record0_key = shard_record_key(&namespace, &shard_name, 0);
         let record0 = adapter.db.read::<Record>(cf.clone(), &record0_key).unwrap();
@@ -450,7 +414,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify all messages are deleted
         for i in 0..2500 {
             let record_key = shard_record_key(&namespace, &shard_name, i);
             let record = adapter.db.read::<Record>(cf.clone(), &record_key).unwrap();

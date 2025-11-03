@@ -142,7 +142,7 @@ pub fn engine_list_by_prefix_to_map_by_journal(
     let results = DashMap::with_capacity(raw.len().min(64));
 
     for (key, v) in raw {
-        match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
+        match bincode::deserialize::<StorageDataWrap>(v.as_ref()) {
             Ok(v) => {
                 results.insert(key.clone(), v);
             }

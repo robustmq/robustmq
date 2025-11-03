@@ -25,7 +25,7 @@ members = [
     "src/cli-bench",
     "src/delay-message",
     "src/schema-register",
-    "src/message-expire",
+    "src/common/mmap-file",
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
@@ -255,7 +255,7 @@ journal-client = { path = "src/journal-client" }
 
 # Message Processing
 delay-message = { path = "src/delay-message" }
-message-expire = { path = "src/message-expire" }
+mmap-file = { path = "src/common/mmap-file" }
 schema-register = { path = "src/schema-register" }
 rule-engine = { path = "src/rule-engine" }
 

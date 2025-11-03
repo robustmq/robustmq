@@ -565,17 +565,17 @@ mod tests {
     use super::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::{tools::unique_id, utils::crc::calc_crc32};
-    use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
         record::{Header, Record},
     };
+    use rocksdb_engine::test::test_storage_driver_rockdb_config;
     use std::{collections::HashMap, sync::Arc, vec};
 
     #[tokio::test]
     async fn stream_read_write() {
-        let adapter = RocksDBStorageAdapter::new(StorageDriverRocksDBConfig::default());
+        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
@@ -642,7 +642,7 @@ mod tests {
     #[ignore]
     async fn concurrency_test() {
         let adapter = Arc::new(RocksDBStorageAdapter::new(
-            StorageDriverRocksDBConfig::default(),
+            test_storage_driver_rockdb_config(),
         ));
         let namespace = unique_id();
         let shards: Vec<_> = (0..4).map(|i| format!("shard-{i}")).collect();
@@ -764,7 +764,7 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_write_offset_uniqueness() {
         let adapter = Arc::new(RocksDBStorageAdapter::new(
-            StorageDriverRocksDBConfig::default(),
+            test_storage_driver_rockdb_config(),
         ));
         let namespace = unique_id();
         let shard_name = "test-shard".to_string();

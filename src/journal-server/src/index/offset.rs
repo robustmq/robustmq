@@ -144,8 +144,12 @@ impl OffsetIndexManager {
                         break;
                     }
 
-                    let data = serde_json::from_slice::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
+                    let data = bincode::deserialize::<StorageDataWrap>(val).map_err(|e| {
+                        CommonError::CommonError(format!(
+                            "Failed to deserialize StorageDataWrap: {e:?}"
+                        ))
+                    })?;
+                    let index_data = serde_json::from_str::<IndexData>(&data.data)?;
 
                     if index_data.offset < start_offset {
                         iter.next();

@@ -43,3 +43,4 @@ prost.workspace = true
 rocksdb-engine.workspace = true
 common-config.workspace = true
 tracing-appender.workspace = true
+bincode.workspace = true
