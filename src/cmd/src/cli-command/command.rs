@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use clap::Parser;
-use cli_command::{
-    handler::{
-        handle_cluster, handle_journal, handle_mqtt, handle_status, RobustMQCli, RobustMQCliCommand,
-    },
+use cli_command::handler::{
+    handle_cluster, handle_journal, handle_mqtt, handle_status, RobustMQCli, RobustMQCliCommand,
 };
 use common_base::version::logo::banner_print;
 
