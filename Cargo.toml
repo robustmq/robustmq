@@ -192,7 +192,7 @@ prettytable-rs = "0.10"
 # ====================
 # Data Validation & Schema
 # ====================
-validator = { version = "0.19", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 valico = "4.0.0"
 apache-avro = "0.17.0"
 
