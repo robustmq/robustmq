@@ -180,7 +180,7 @@ opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rus
 opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "grpc-tonic",
 ] }
-pprof = { version = "0.14.0", features = ["flamegraph"] }
+pprof = { version = "0.15.0", features = ["flamegraph"] }
 
 # ====================
 # CLI & Command Line Tools
