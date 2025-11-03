@@ -1030,8 +1030,8 @@ dependencies = [
  "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
- "tonic",
- "tonic-web",
+ "tonic 0.12.3",
+ "tonic-web 0.14.2",
  "tower 0.5.2",
  "tower-http 0.5.2",
  "tracing",
@@ -1435,7 +1435,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -1469,7 +1469,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
 ]
 
@@ -1512,7 +1512,7 @@ dependencies = [
  "futures-core",
  "prost",
  "prost-types",
- "tonic",
+ "tonic 0.12.3",
  "tracing-core",
 ]
 
@@ -1536,8 +1536,8 @@ dependencies = [
  "thread_local",
  "tokio",
  "tokio-stream",
- "tonic",
- "tonic-web",
+ "tonic 0.12.3",
+ "tonic-web 0.12.3",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -2954,7 +2954,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
 ]
 
@@ -3668,8 +3668,8 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.4",
  "tokio-util",
- "tonic",
- "tonic-web",
+ "tonic 0.12.3",
+ "tonic-web 0.14.2",
  "tower-http 0.5.2",
  "tracing",
  "tracing-appender",
@@ -4086,8 +4086,8 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "tonic",
- "tonic-web",
+ "tonic 0.12.3",
+ "tonic-web 0.14.2",
  "tower 0.5.2",
  "tower-http 0.5.2",
  "tracing",
@@ -4325,7 +4325,7 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.4",
  "tokio-util",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
 ]
 
@@ -4894,7 +4894,7 @@ dependencies = [
  "reqwest",
  "thiserror 2.0.17",
  "tokio",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
 ]
 
@@ -4906,7 +4906,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
  "prost",
- "tonic",
+ "tonic 0.12.3",
 ]
 
 [[package]]
@@ -5869,7 +5869,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
- "tonic",
+ "tonic 0.12.3",
  "tonic-build",
 ]
 
@@ -6538,7 +6538,7 @@ dependencies = [
  "prost-validate",
  "quote",
  "syn 2.0.106",
- "tonic",
+ "tonic 0.12.3",
  "trybuild",
 ]
 
@@ -6575,7 +6575,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
- "tonic",
+ "tonic 0.12.3",
  "tracing",
  "uuid",
 ]
@@ -8297,6 +8297,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tonic"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb7613188ce9f7df5bfe185db26c5814347d110db17920415cf2fbcad85e7203"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "percent-encoding",
+ "pin-project",
+ "sync_wrapper",
+ "tokio-stream",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "tonic-build"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8323,8 +8343,26 @@ dependencies = [
  "http-body-util",
  "pin-project",
  "tokio-stream",
- "tonic",
+ "tonic 0.12.3",
  "tower-http 0.5.2",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tonic-web"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75214f6b6bd28c19aa752ac09fdf0eea546095670906c21fe3940e180a4c43f2"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "http",
+ "http-body",
+ "pin-project",
+ "tokio-stream",
+ "tonic 0.14.2",
  "tower-layer",
  "tower-service",
  "tracing",
