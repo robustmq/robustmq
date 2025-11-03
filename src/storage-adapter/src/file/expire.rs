@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rocksdb::key::*;
+use crate::file::key::*;
 use crate::storage::ShardInfo;
-use crate::{expire::MessageExpireConfig, rocksdb::parse_offset_bytes};
+use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
@@ -182,7 +182,7 @@ pub async fn expire_messages_by_timestamp(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rocksdb::RocksDBStorageAdapter;
+    use crate::file::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
