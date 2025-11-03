@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::message_expire::MessageExpireConfig;
+use crate::expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use common_config::storage::journal::StorageDriverJournalConfig;
 use grpc_clients::pool::ClientPool;
 use journal_client::client::{JournalClient, JournalClientWriteData};
 use metadata_struct::adapter::read_config::ReadConfig;
@@ -35,18 +36,16 @@ pub struct JournalStorageAdapter {
 impl JournalStorageAdapter {
     pub async fn new(
         client_pool: Arc<ClientPool>,
-        cluster_name: String,
-        journal_addrs: Vec<String>,
-        place_addrs: Vec<String>,
+        config: StorageDriverJournalConfig,
     ) -> Result<JournalStorageAdapter, CommonError> {
-        let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs.clone());
-        let client = match JournalClient::new(journal_addrs.clone()).await {
+        let offset_manager = PlaceOffsetManager::new(client_pool, config.place_addrs.clone());
+        let client = match JournalClient::new(config.journal_addrs.clone()).await {
             Ok(client) => client,
             Err(e) => return Err(CommonError::CommonError(e.to_string())),
         };
         let adapter = JournalStorageAdapter {
             offset_manager,
-            cluster_name,
+            cluster_name: config.cluster_name,
             client,
         };
         Ok(adapter)

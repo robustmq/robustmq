@@ -15,10 +15,11 @@
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
     JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttFlappingDetect,
-    MqttKeepAlive, MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
-    MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
-    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
+    MqttKeepAlive, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity,
+    MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime,
+    SchemaFailedOperation, SchemaStrategy,
 };
+use crate::storage::{StorageAdapterConfig, StorageAdapterType};
 use common_base::enum_type::delay_type::DelayType;
 use common_base::runtime::get_runtime_worker_threads;
 use toml::Table;
@@ -111,13 +112,10 @@ pub fn default_mqtt_auth_config() -> MqttAuthConfig {
     }
 }
 
-pub fn default_mqtt_message_storage() -> MqttMessageStorage {
-    MqttMessageStorage {
-        storage_type: "memory".to_string(),
-        journal_addr: "".to_string(),
-        mysql_addr: "".to_string(),
-        rocksdb_data_path: "".to_string(),
-        rocksdb_max_open_files: None,
+pub fn default_message_storage() -> StorageAdapterConfig {
+    StorageAdapterConfig {
+        storage_type: StorageAdapterType::Memory,
+        ..Default::default()
     }
 }
 

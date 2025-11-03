@@ -363,7 +363,6 @@ mod test {
         let snapshot = data_route.build_snapshot();
 
         // GET A NEW ONE
-
         let new_rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
@@ -371,11 +370,9 @@ mod test {
         ));
 
         let new_data_route = DataRoute::new(new_rocksdb_engine.clone(), cache_manager);
-
         new_data_route.recover_snapshot(snapshot).unwrap();
 
         let cf = new_rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
-
         // check value again
         for i in 0..10 {
             let value = new_rocksdb_engine

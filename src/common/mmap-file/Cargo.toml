@@ -13,10 +13,16 @@
 # limitations under the License.
 
 [package]
-name = "message-expire"
+name = "mmap-file"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 
 [dependencies]
+memmap2 = "0.9"
+common-base = { path = "../base" }
+thiserror = "1.0"
+
+[dev-dependencies]
+chrono = "0.4"

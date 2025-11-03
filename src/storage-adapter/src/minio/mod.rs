@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::message_expire::MessageExpireConfig;
+use crate::expire::MessageExpireConfig;
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use common_config::storage::minio::StorageDriverMinIoConfig;
 use dashmap::DashMap;
 use futures::TryStreamExt;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
@@ -29,8 +31,6 @@ use tokio::{
     },
     time::{sleep, timeout},
 };
-
-use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -66,17 +66,17 @@ impl WriteThreadData {
 }
 
 #[allow(dead_code)]
-struct MinIoStorageAdapter {
+pub struct MinIoStorageAdapter {
     op: Operator,
     write_handles: DashMap<String, ThreadWriteHandle>,
 }
 
 #[allow(dead_code)]
 impl MinIoStorageAdapter {
-    pub fn new(data_dir: impl AsRef<str>, bucket: impl AsRef<str>) -> Result<Self, CommonError> {
+    pub fn new(config: StorageDriverMinIoConfig) -> Result<Self, CommonError> {
         let builder = S3::default()
-            .root(data_dir.as_ref())
-            .bucket(bucket.as_ref())
+            .root(config.data_dir.as_ref())
+            .bucket(config.bucket.as_ref())
             .endpoint("http://127.0.0.1:9000")
             .access_key_id("minioadmin")
             .secret_access_key("minioadmin");
@@ -585,6 +585,7 @@ mod tests {
     use std::{collections::HashMap, sync::Arc, vec};
 
     use common_base::{tools::unique_id, utils::crc::calc_crc32};
+    use common_config::storage::minio::StorageDriverMinIoConfig;
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
@@ -599,7 +600,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn stream_read_write() {
-        let storage_adapter = MinIoStorageAdapter::new("/tmp/minio", "test").unwrap();
+        let storage_adapter =
+            MinIoStorageAdapter::new(StorageDriverMinIoConfig::default()).unwrap();
         let namespace = unique_id();
         let shard_name = "test-11".to_string();
 
@@ -809,7 +811,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn concurrency_test() {
-        let storage_adapter = Arc::new(MinIoStorageAdapter::new("/tmp/minio", "test").unwrap());
+        let storage_adapter =
+            Arc::new(MinIoStorageAdapter::new(StorageDriverMinIoConfig::default()).unwrap());
 
         // create one namespace with 10 shards
         let namespace = unique_id();

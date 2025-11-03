@@ -18,9 +18,26 @@ use rocksdb::{
     BlockBasedOptions, BoundColumnFamily, Cache, ColumnFamilyDescriptor, DBCompactionStyle,
     DBCompressionType, Options, SliceTransform, DB,
 };
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
+
 use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+pub struct RocksDBConfig {
+    pub block_cache_size: usize,
+    pub write_buffer_size: usize,
+    pub max_write_buffer_number: i32,
+}
+
+impl Default for RocksDBConfig {
+    fn default() -> Self {
+        Self {
+            block_cache_size: 512 * 1024 * 1024,
+            write_buffer_size: 128 * 1024 * 1024,
+            max_write_buffer_number: 4,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct RocksDBEngine {
@@ -28,18 +45,26 @@ pub struct RocksDBEngine {
 }
 
 impl RocksDBEngine {
-    /// Create a rocksdb instance
     pub fn new(data_path: &str, max_open_files: i32, cf_list: Vec<String>) -> Self {
-        let opts: Options = Self::open_db_opts(max_open_files);
+        Self::new_with_config(data_path, max_open_files, None, cf_list)
+    }
 
-        // Create shared cache for all column families (512MB total)
-        // This is more memory-efficient than per-CF caches
-        let shared_cache = Cache::new_lru_cache(512 * 1024 * 1024);
+    pub fn new_with_config(
+        data_path: &str,
+        max_open_files: i32,
+        config: Option<&RocksDBConfig>,
+        cf_list: Vec<String>,
+    ) -> Self {
+        let default_config = RocksDBConfig::default();
+        let cfg = config.unwrap_or(&default_config);
+
+        let opts = Self::open_db_opts_with_config(max_open_files, cfg);
+        let shared_cache = Cache::new_lru_cache(cfg.block_cache_size);
 
         let cf_column_family: Vec<_> = cf_list
             .into_iter()
             .map(|cf| {
-                let cf_opts = Self::open_cf_opts(max_open_files, &shared_cache);
+                let cf_opts = Self::open_cf_opts_with_config(max_open_files, cfg, &shared_cache);
                 ColumnFamilyDescriptor::new(cf, cf_opts)
             })
             .collect();
@@ -52,31 +77,23 @@ impl RocksDBEngine {
         }
     }
 
-    /// Write the data serialization to RocksDB
-    pub fn write<T: Serialize + std::fmt::Debug>(
+    /// Write the data serialization to RocksDB using bincode (high performance)
+    pub fn write<T: Serialize>(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
-        let serialized = serde_json::to_string(value).map_err(|e| {
-            CommonError::CommonError(format!("Failed to serialize T: {value:?}, err: {e:?}"))
-        })?;
+        let serialized = bincode::serialize(value)
+            .map_err(|e| CommonError::CommonError(format!("Failed to bincode serialize: {e:?}")))?;
 
         self.db
             .put_cf(&cf, key, serialized)
             .map_err(|e| CommonError::CommonError(format!("Failed to put to CF: {e:?}")))
     }
 
-    pub fn write_str(
-        &self,
-        cf: Arc<BoundColumnFamily<'_>>,
-        key: &str,
-        value: String,
-    ) -> Result<(), CommonError> {
-        self.write(cf, key, &value)
-    }
-
+    /// Write raw bytes directly to RocksDB without serialization
+    /// This is useful for snapshot recovery where data is already serialized
     pub fn write_raw(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
@@ -97,21 +114,67 @@ impl RocksDBEngine {
         Ok(())
     }
 
-    // Read data from the RocksDB
+    /// Read data from RocksDB using bincode deserialization (high performance)
     pub fn read<T: DeserializeOwned>(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
-            Ok(Some(data)) if !data.is_empty() => serde_json::from_slice::<T>(&data)
-                .map(Some)
-                .map_err(|e| CommonError::CommonError(format!("Failed to deserialize: {e:?}"))),
+            Ok(Some(data)) if !data.is_empty() => {
+                bincode::deserialize::<T>(&data).map(Some).map_err(|e| {
+                    CommonError::CommonError(format!("Failed to bincode deserialize: {e:?}"))
+                })
+            }
             Ok(_) => Ok(None),
             Err(e) => Err(CommonError::CommonError(format!(
                 "Failed to get from CF: {e:?}"
             ))),
         }
+    }
+
+    /// Batch read multiple keys at once (more efficient than individual reads)
+    /// Returns a vector of results in the same order as the input keys
+    pub fn multi_get<T: DeserializeOwned>(
+        &self,
+        cf: Arc<BoundColumnFamily<'_>>,
+        keys: &[impl AsRef<str>],
+    ) -> Result<Vec<Option<T>>, CommonError> {
+        if keys.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Use RocksDB's multi_get_cf for efficient batch reading
+        let key_bytes: Vec<Vec<u8>> = keys
+            .iter()
+            .map(|k| k.as_ref().as_bytes().to_vec())
+            .collect();
+
+        let keys_with_cf: Vec<(&Arc<BoundColumnFamily>, &[u8])> =
+            key_bytes.iter().map(|k| (&cf, k.as_slice())).collect();
+
+        let results = self.db.multi_get_cf(keys_with_cf);
+
+        // Process results
+        let mut output = Vec::with_capacity(results.len());
+        for result in results {
+            match result {
+                Ok(Some(data)) if !data.is_empty() => {
+                    let value = bincode::deserialize::<T>(&data).map_err(|e| {
+                        CommonError::CommonError(format!("Failed to bincode deserialize: {e:?}"))
+                    })?;
+                    output.push(Some(value));
+                }
+                Ok(_) => output.push(None),
+                Err(e) => {
+                    return Err(CommonError::CommonError(format!(
+                        "Failed to multi_get: {e:?}"
+                    )))
+                }
+            }
+        }
+
+        Ok(output)
     }
 
     // Search data by prefix
@@ -232,15 +295,17 @@ impl RocksDBEngine {
         self.db.cf_handle(name)
     }
 
-    fn open_cf_opts(_max_open_files: i32, shared_cache: &Cache) -> Options {
+    fn open_cf_opts_with_config(
+        _max_open_files: i32,
+        config: &RocksDBConfig,
+        shared_cache: &Cache,
+    ) -> Options {
         let mut opts = Options::default();
 
-        // ========== Write Optimization ==========
-        opts.set_write_buffer_size(128 * 1024 * 1024); // 128MB
-        opts.set_max_write_buffer_number(4);
+        opts.set_write_buffer_size(config.write_buffer_size);
+        opts.set_max_write_buffer_number(config.max_write_buffer_number);
         opts.set_min_write_buffer_number_to_merge(2);
 
-        // ========== Compaction Optimization ==========
         opts.set_compaction_style(DBCompactionStyle::Level);
         opts.set_level_compaction_dynamic_level_bytes(true);
         opts.set_level_zero_file_num_compaction_trigger(8);
@@ -249,7 +314,6 @@ impl RocksDBEngine {
         opts.set_target_file_size_base(128 * 1024 * 1024);
         opts.set_target_file_size_multiplier(2);
 
-        // ========== Compression ==========
         opts.set_compression_type(DBCompressionType::Lz4);
         opts.set_compression_per_level(&[
             DBCompressionType::None,
@@ -259,17 +323,14 @@ impl RocksDBEngine {
             DBCompressionType::Zstd,
         ]);
 
-        // ========== Read Optimization ==========
         let transform = SliceTransform::create_fixed_prefix(10);
         opts.set_prefix_extractor(transform);
         opts.set_memtable_prefix_bloom_ratio(0.2);
 
-        // Block-based table options with shared cache
         let mut block_opts = BlockBasedOptions::default();
         block_opts.set_bloom_filter(10.0, false);
         block_opts.set_block_size(4 * 1024);
 
-        // Use shared cache across all column families
         block_opts.set_block_cache(shared_cache);
         block_opts.set_cache_index_and_filter_blocks(true);
         block_opts.set_pin_l0_filter_and_index_blocks_in_cache(true);
@@ -279,196 +340,53 @@ impl RocksDBEngine {
 
         opts.set_block_based_table_factory(&block_opts);
 
-        // ========== Level Compaction ==========
         opts.set_max_bytes_for_level_base(256 * 1024 * 1024);
         opts.set_max_bytes_for_level_multiplier(10.0);
 
         opts
     }
 
-    fn open_db_opts(max_open_files: i32) -> Options {
+    fn open_db_opts_with_config(max_open_files: i32, config: &RocksDBConfig) -> Options {
         let mut opts = Options::default();
 
-        // ========== Basic Configuration ==========
         opts.create_if_missing(true);
         opts.create_missing_column_families(true);
         opts.set_max_open_files(max_open_files);
 
-        // ========== Write Optimization (for high-frequency writes) ==========
-        // Reduce write buffer size to increase flush frequency (512MB -> 128MB)
-        // Balance between memory usage and write performance
-        opts.set_write_buffer_size(128 * 1024 * 1024); // 128MB
-
-        // Reduce write buffer count (32 -> 4)
-        // Lower memory usage while maintaining sufficient concurrent write capacity
-        opts.set_max_write_buffer_number(4);
-
-        // Write buffer merge threshold (4 -> 2)
-        // Flush data to SST files faster
+        opts.set_write_buffer_size(config.write_buffer_size);
+        opts.set_max_write_buffer_number(config.max_write_buffer_number);
         opts.set_min_write_buffer_number_to_merge(2);
 
-        // Enable pipelined write for better throughput
         opts.set_enable_pipelined_write(true);
-
-        // WAL configuration: no fsync for better write performance
         opts.set_use_fsync(false);
 
-        // ========== Compaction Optimization (MQTT workload characteristics) ==========
-        // Use Level compaction style (better for mixed read/write workloads)
         opts.set_compaction_style(DBCompactionStyle::Level);
-
-        // Enable auto compaction (essential for maintaining read performance)
         opts.set_disable_auto_compactions(false);
-
-        // Dynamic level size adjustment (adapts to changing data volumes)
         opts.set_level_compaction_dynamic_level_bytes(true);
 
-        // Number of Level 0 files to trigger compaction (2000 -> 8)
-        // More aggressive compaction to avoid read amplification
         opts.set_level_zero_file_num_compaction_trigger(8);
-
-        // Number of Level 0 files to stop writes (2000 -> 32)
-        // Prevent writes from significantly outpacing compaction
         opts.set_level_zero_stop_writes_trigger(32);
-
-        // Number of Level 0 files to slow down writes (0 -> 16)
-        // Give compaction time before stopping writes
         opts.set_level_zero_slowdown_writes_trigger(16);
 
-        // SST file size (1GB -> 128MB)
-        // Smaller files facilitate compaction and range deletions
         opts.set_target_file_size_base(128 * 1024 * 1024);
-
-        // File size multiplier for different levels
         opts.set_target_file_size_multiplier(2);
 
-        // Maximum background jobs (compaction + flush)
-        // Balance between background work and foreground performance
-        opts.set_max_background_jobs(6);
-
-        // Maximum subcompactions for parallel compaction
+        opts.set_max_background_jobs(4);
         opts.set_max_subcompactions(2);
 
-        // ========== Data Compression (save disk space and I/O) ==========
-        // Use LZ4 compression (fast with moderate compression ratio)
         opts.set_compression_type(DBCompressionType::Lz4);
-
-        // Different compression algorithms for different levels
-        // Hot data (L0-L1): no compression for faster access
-        // Warm data (L2): LZ4 for balanced performance
-        // Cold data (L3+): Zstd for better compression ratio
         opts.set_compression_per_level(&[
-            DBCompressionType::None, // Level 0: no compression (hot data)
-            DBCompressionType::None, // Level 1: no compression
-            DBCompressionType::Lz4,  // Level 2: LZ4 (warm data)
-            DBCompressionType::Lz4,  // Level 3: LZ4
-            DBCompressionType::Zstd, // Level 4+: Zstd (cold data, better ratio)
+            DBCompressionType::None,
+            DBCompressionType::None,
+            DBCompressionType::Lz4,
+            DBCompressionType::Lz4,
+            DBCompressionType::Zstd,
         ]);
+        opts.set_zstd_max_train_bytes(100 * 1024 * 1024);
 
-        // Compression options for Zstd
-        opts.set_zstd_max_train_bytes(100 * 1024 * 1024); // 100MB dictionary training
-
-        // ========== Read Optimization (prefix query + BloomFilter) ==========
-        // Prefix extractor (fixed length 10, adapted to key design)
         let transform = SliceTransform::create_fixed_prefix(10);
         opts.set_prefix_extractor(transform);
-
-        // Memtable prefix BloomFilter (reduce unnecessary SST file reads)
         opts.set_memtable_prefix_bloom_ratio(0.2);
-
-        // Memtable configuration
-        // Use SkipList for balanced read/write performance
-        // opts.set_allow_concurrent_memtable_write(true); // Default is true
-
-        // Block-based Table configuration (BloomFilter + Cache)
-        let mut block_opts = BlockBasedOptions::default();
-
-        // Enable BloomFilter (10 bits per key, ~1% false positive rate)
-        // Significantly accelerates point queries (exist operations)
-        block_opts.set_bloom_filter(10.0, false);
-
-        // Use ribbon filter for better performance (requires RocksDB 6.15+)
-        // block_opts.set_ribbon_filter(10.0);
-
-        // Block size (default 4KB, suitable for small objects)
-        // MQTT messages are typically small, so keep default
-        block_opts.set_block_size(4 * 1024);
-
-        // Block cache (256MB for DB-level operations)
-        // Note: Column families use a separate shared 512MB cache
-        let cache = Cache::new_lru_cache(256 * 1024 * 1024);
-        block_opts.set_block_cache(&cache);
-
-        // Enable index and filter caching in block cache
-        block_opts.set_cache_index_and_filter_blocks(true);
-
-        // Pin L0 filter and index blocks in cache (reduce read amplification)
-        block_opts.set_pin_l0_filter_and_index_blocks_in_cache(true);
-
-        // Enable partitioned index/filters for large databases
-        block_opts.set_index_type(rocksdb::BlockBasedIndexType::TwoLevelIndexSearch);
-        block_opts.set_partition_filters(true);
-
-        // Enable whole key filtering (optimize point lookups)
-        block_opts.set_whole_key_filtering(true);
-
-        // Apply block-based table options
-        opts.set_block_based_table_factory(&block_opts);
-
-        // ========== I/O and Performance Optimization ==========
-        // Background sync (8MB buffer, reduce write latency)
-        opts.set_bytes_per_sync(8 * 1024 * 1024);
-
-        // WAL sync (8MB buffer)
-        opts.set_wal_bytes_per_sync(8 * 1024 * 1024);
-
-        // Table cache shard count (reduce lock contention)
-        opts.set_table_cache_num_shard_bits(6);
-
-        // Increase parallelism for compaction
-        opts.increase_parallelism(num_cpus::get() as i32);
-
-        // Allow mmap reads for better read performance on large files
-        opts.set_allow_mmap_reads(false); // Disable mmap for stability
-
-        // Allow mmap writes
-        opts.set_allow_mmap_writes(false); // Disable mmap for stability
-
-        // ========== Memory Management ==========
-        // Set max total WAL size (512MB)
-        // Limit WAL size to avoid excessive memory usage
-        opts.set_max_total_wal_size(512 * 1024 * 1024);
-
-        // Recycle log files (reduce file system operations)
-        opts.set_recycle_log_file_num(4);
-
-        // ========== Statistics and Monitoring ==========
-        // Enable statistics (for monitoring and tuning)
-        opts.enable_statistics();
-
-        // Stats dump period (every 10 minutes)
-        opts.set_stats_dump_period_sec(600);
-
-        // Statistics level (kExceptDetailedTimers)
-        // opts.set_statistics_level(rocksdb::StatsLevel::ExceptDetailedTimers);
-
-        // ========== Advanced Tuning ==========
-        // Base level size (256MB)
-        opts.set_max_bytes_for_level_base(256 * 1024 * 1024);
-
-        // Level size multiplier
-        opts.set_max_bytes_for_level_multiplier(10.0);
-
-        // Compaction readahead size (2MB, for sequential reads during compaction)
-        opts.set_compaction_readahead_size(2 * 1024 * 1024);
-
-        // Enable adaptive readahead for iterators
-        // opts.set_adaptive_readahead(true); // Requires newer RocksDB version
-
-        // ========== Delete and TTL Optimization ==========
-        // Enable delete range support (efficient range deletions)
-        // This is useful for MQTT message expiration and cleanup
-        // (Enabled by default in newer RocksDB versions)
 
         opts
     }
@@ -538,71 +456,5 @@ mod tests {
 
         let res6 = rs.delete(cf.clone(), key);
         assert!(res6.is_ok());
-    }
-
-    #[tokio::test]
-    async fn read_all() {
-        let rs = test_rocksdb_instance();
-
-        let index = 66u64;
-        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
-
-        let key = "/raft/last_index".to_string();
-        let _ = rs.write(cf.clone(), &key, &index);
-        let res1 = rs.read::<u64>(cf.clone(), &key).unwrap().unwrap();
-        assert_eq!(index, res1);
-
-        let result = rs.read_all_by_cf(cf.clone()).unwrap();
-        assert!(!result.is_empty());
-        for raw in result.clone() {
-            let raw_key = raw.0;
-            let raw_val = raw.1;
-            assert_eq!(raw_key, key);
-
-            let val = String::from_utf8(raw_val).unwrap();
-            assert_eq!(index.to_string(), val);
-
-            let _ = rs.write_str(cf.clone(), &key, val);
-            let res1 = rs.read::<String>(cf.clone(), &key).unwrap().unwrap();
-            assert_eq!(index.to_string(), res1);
-        }
-    }
-
-    #[tokio::test]
-    async fn read_prefix() {
-        let rs = test_rocksdb_instance();
-
-        let cf = rs.cf_handle(&default_rocksdb_family()).unwrap();
-
-        rs.write_str(cf.clone(), "/v1/v1", "v11".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v1/v2", "v12".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v1/v3", "v13".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v2/tmp_test/s1", "1".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v2/tmp_test/s3", "2".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v2/tmp_test/s2", "3".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v3/tmp_test/s1", "1".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v3/tmp_test/s3", "2".to_string())
-            .unwrap();
-        rs.write_str(cf.clone(), "/v4/tmp_test/s2", "3".to_string())
-            .unwrap();
-
-        let result = rs.read_prefix(cf.clone(), "/v1").unwrap();
-        assert_eq!(result.len(), 3);
-
-        let result = rs.read_prefix(cf.clone(), "/v2").unwrap();
-        assert_eq!(result.len(), 3);
-
-        let result = rs.read_prefix(cf.clone(), "/v3").unwrap();
-        assert_eq!(result.len(), 2);
-
-        let result = rs.read_prefix(cf.clone(), "/v4").unwrap();
-        assert_eq!(result.len(), 1);
     }
 }

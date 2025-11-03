@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/server.toml";
+use serde::{Deserialize, Serialize};
 
-pub mod broker;
-pub mod common;
-pub mod config;
-pub mod default;
-pub mod security;
-pub mod storage;
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct StorageDriverJournalConfig {
+    pub cluster_name: String,
+    pub journal_addrs: Vec<String>,
+    pub place_addrs: Vec<String>,
+}

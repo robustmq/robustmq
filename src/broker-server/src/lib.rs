@@ -70,7 +70,8 @@ use std::{
 };
 use storage_adapter::{
     driver::build_message_storage_driver,
-    message_expire::{message_expire_thread, MessageExpireConfig},
+    expire::{message_expire_thread, MessageExpireConfig},
+    storage::ArcStorageAdapter,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
@@ -123,12 +124,31 @@ impl BrokerServer {
             )
             .await
         });
+
+        let raw_client_pool = client_pool.clone();
+        let message_storage_adapter = main_runtime.block_on(async move {
+            let storage = match build_message_storage_driver(
+                raw_client_pool.clone(),
+                config.message_storage.clone(),
+            )
+            .await
+            {
+                Ok(storage) => storage,
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            };
+            storage
+        });
+
         let mqtt_params = BrokerServer::build_mqtt_server(
             client_pool.clone(),
             broker_cache.clone(),
             rocksdb_engine_handler.clone(),
             connection_manager.clone(),
+            message_storage_adapter,
         );
+
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
@@ -315,23 +335,15 @@ impl BrokerServer {
         broker_cache: Arc<BrokerCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         connection_manager: Arc<NetworkConnectionManager>,
+        message_storage_adapter: ArcStorageAdapter,
     ) -> MqttBrokerServerParams {
         let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
             broker_cache.clone(),
         ));
-
-        let message_storage_adapter =
-            match build_message_storage_driver(rocksdb_engine_handler.clone()) {
-                Ok(storage) => storage,
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
-            };
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
-
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             config.cluster_name.clone(),

@@ -140,7 +140,7 @@ pub fn engine_prefix_list(
         let mut results = Vec::with_capacity(raw.len().min(64));
 
         for (_key, v) in raw {
-            match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
+            match bincode::deserialize::<StorageDataWrap>(v.as_ref()) {
                 Ok(v) => results.push(v),
                 Err(_e) => {
                     // Silently skip deserialization errors
@@ -165,7 +165,7 @@ pub fn engine_list_by_model(
         let results = DashMap::with_capacity(raw.len().min(32));
 
         for (key, v) in raw {
-            match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
+            match bincode::deserialize::<StorageDataWrap>(v.as_ref()) {
                 Ok(v) => {
                     results.insert(key.clone(), v);
                 }

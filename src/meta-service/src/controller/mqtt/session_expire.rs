@@ -114,7 +114,7 @@ impl SessionExpire {
             }
 
             let result_value = value.unwrap();
-            let session = match serde_json::from_slice::<StorageDataWrap>(result_value) {
+            let session = match bincode::deserialize::<StorageDataWrap>(result_value) {
                 Ok(data) => match serde_json::from_str::<MqttSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {

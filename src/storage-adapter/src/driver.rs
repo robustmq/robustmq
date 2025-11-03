@@ -13,35 +13,44 @@
 // limitations under the License.
 
 use crate::{
-    memory::MemoryStorageAdapter, mysql::MySQLStorageAdapter, rocksdb::RocksDBStorageAdapter,
-    storage::ArcStorageAdapter, StorageType,
+    journal::JournalStorageAdapter, memory::MemoryStorageAdapter, minio::MinIoStorageAdapter,
+    mysql::MySQLStorageAdapter, rocksdb::RocksDBStorageAdapter, s3::S3StorageAdapter,
+    storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
-use common_config::broker::broker_config;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::{str::FromStr, sync::Arc};
-use third_driver::mysql::build_mysql_conn_pool;
+use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
+use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
 
-pub fn build_message_storage_driver(
-    db: Arc<RocksDBEngine>,
+pub async fn build_message_storage_driver(
+    client_pool: Arc<ClientPool>,
+    config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
-    let conf = broker_config();
-    let storage_type = StorageType::from_str(conf.mqtt_message_storage.storage_type.as_str())
-        .expect("Storage type not supported");
+    let storage: ArcStorageAdapter = match config.storage_type {
+        StorageAdapterType::Memory => Arc::new(MemoryStorageAdapter::new(
+            config.memory_config.unwrap_or_default(),
+        )),
 
-    let storage: ArcStorageAdapter = match storage_type {
-        StorageType::Memory => Arc::new(MemoryStorageAdapter::new()),
+        StorageAdapterType::Journal => Arc::new(
+            JournalStorageAdapter::new(client_pool, config.journal_config.unwrap_or_default())
+                .await?,
+        ),
 
-        StorageType::Mysql => {
-            let pool = build_mysql_conn_pool(&conf.mqtt_message_storage.mysql_addr)?;
-            Arc::new(MySQLStorageAdapter::new(pool.clone())?)
+        StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
+            config.mysql_config.unwrap_or_default(),
+        )?),
+
+        StorageAdapterType::RocksDB => Arc::new(RocksDBStorageAdapter::new(
+            config.rocksdb_config.unwrap_or_default(),
+        )),
+
+        StorageAdapterType::S3 => {
+            Arc::new(S3StorageAdapter::new(config.s3_config.unwrap_or_default()))
         }
 
-        StorageType::RocksDB => Arc::new(RocksDBStorageAdapter::new(db)),
-
-        _ => {
-            return Err(CommonError::UnavailableStorageType);
-        }
+        StorageAdapterType::MinIO => Arc::new(MinIoStorageAdapter::new(
+            config.minio_config.unwrap_or_default(),
+        )?),
     };
 
     Ok(storage)
