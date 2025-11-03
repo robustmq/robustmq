@@ -194,7 +194,7 @@ prettytable-rs = "0.10"
 # ====================
 validator = { version = "0.19", features = ["derive"] }
 valico = "4.0.0"
-apache-avro = "0.17.0"
+apache-avro = "0.20.0"
 
 # ====================
 # Utilities
