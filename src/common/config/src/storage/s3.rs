@@ -15,4 +15,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct StorageDriverS3Config {}
+pub struct StorageDriverS3Config {
+    pub bucket: String,
+}

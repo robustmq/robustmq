@@ -23,11 +23,6 @@ use metadata_struct::adapter::record::Record;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-const MAX_SHARD_SIZE: usize = 10_000_000;
-const DEFAULT_LRU_CACHE_SIZE: usize = 100;
-const DEFAULT_SHARD_CAPACITY: usize = 16;
-const DEFAULT_GROUP_CAPACITY: usize = 8;
-
 #[derive(Clone, Debug, Default)]
 pub struct ShardState {
     pub start_offset: u64,
@@ -36,7 +31,7 @@ pub struct ShardState {
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
-    max_shard_size: usize,
+    config: StorageDriverMemoryConfig,
     pub shard_info: DashMap<String, ShardInfo>,
     pub shard_data: DashMap<String, Vec<Arc<Record>>>,
     pub group_data: DashMap<String, DashMap<String, u64>>,
@@ -54,35 +49,15 @@ impl Default for MemoryStorageAdapter {
 
 impl MemoryStorageAdapter {
     pub fn new(config: StorageDriverMemoryConfig) -> Self {
-        Self::with_capacity(config.lru_cache_size)
-    }
-
-    pub fn with_capacity(max_shard_size: usize) -> Self {
-        Self::with_shard_capacity(max_shard_size, DEFAULT_SHARD_CAPACITY)
-    }
-
-    pub fn with_shard_capacity(max_shard_size: usize, shard_capacity: usize) -> Self {
-        let effective_size = if max_shard_size == 0 {
-            DEFAULT_LRU_CACHE_SIZE
-        } else {
-            max_shard_size.min(MAX_SHARD_SIZE)
-        };
-
-        let effective_shard_capacity = if shard_capacity == 0 {
-            DEFAULT_SHARD_CAPACITY
-        } else {
-            shard_capacity
-        };
-
         MemoryStorageAdapter {
-            max_shard_size: effective_size,
-            shard_info: DashMap::with_capacity(effective_shard_capacity),
-            shard_data: DashMap::with_capacity(effective_shard_capacity),
-            shard_state: DashMap::with_capacity(effective_shard_capacity),
-            tag_index: DashMap::with_capacity(effective_shard_capacity),
-            key_index: DashMap::with_capacity(effective_shard_capacity),
-            timestamp_index: DashMap::with_capacity(effective_shard_capacity),
-            group_data: DashMap::with_capacity(DEFAULT_GROUP_CAPACITY),
+            shard_info: DashMap::with_capacity(config.initial_shard_capacity),
+            shard_data: DashMap::with_capacity(config.initial_shard_capacity),
+            shard_state: DashMap::with_capacity(config.initial_shard_capacity),
+            tag_index: DashMap::with_capacity(config.initial_shard_capacity),
+            key_index: DashMap::with_capacity(config.initial_shard_capacity),
+            timestamp_index: DashMap::with_capacity(config.initial_shard_capacity),
+            group_data: DashMap::with_capacity(config.initial_group_capacity),
+            config,
         }
     }
 
@@ -104,19 +79,19 @@ impl MemoryStorageAdapter {
     }
 
     fn update_indexes(&self, shard_key: &str, record: &Record, offset: u64) {
-        if !record.tags.is_empty() {
+        if self.config.enable_tag_index && !record.tags.is_empty() {
             let mut tag_map = self.tag_index.entry(shard_key.to_string()).or_default();
             for tag in &record.tags {
                 tag_map.entry(tag.clone()).or_default().push(offset);
             }
         }
 
-        if !record.key.is_empty() {
+        if self.config.enable_key_index && !record.key.is_empty() {
             let mut key_map = self.key_index.entry(shard_key.to_string()).or_default();
             key_map.entry(record.key.clone()).or_default().push(offset);
         }
 
-        if record.timestamp > 0 {
+        if self.config.enable_timestamp_index && record.timestamp > 0 {
             let mut ts_map = self
                 .timestamp_index
                 .entry(shard_key.to_string())
@@ -126,7 +101,7 @@ impl MemoryStorageAdapter {
     }
 
     fn remove_offset_from_indexes(&self, shard_key: &str, record: &Record, offset: u64) {
-        if !record.tags.is_empty() {
+        if self.config.enable_tag_index && !record.tags.is_empty() {
             if let Some(mut tag_map) = self.tag_index.get_mut(shard_key) {
                 for tag in &record.tags {
                     if let Some(offsets) = tag_map.get_mut(tag) {
@@ -139,7 +114,7 @@ impl MemoryStorageAdapter {
             }
         }
 
-        if !record.key.is_empty() {
+        if self.config.enable_key_index && !record.key.is_empty() {
             if let Some(mut key_map) = self.key_index.get_mut(shard_key) {
                 if let Some(offsets) = key_map.get_mut(&record.key) {
                     offsets.retain(|&o| o != offset);
@@ -150,7 +125,7 @@ impl MemoryStorageAdapter {
             }
         }
 
-        if record.timestamp > 0 {
+        if self.config.enable_timestamp_index && record.timestamp > 0 {
             if let Some(mut ts_map) = self.timestamp_index.get_mut(shard_key) {
                 ts_map.remove(&record.timestamp);
             }
@@ -217,7 +192,8 @@ impl MemoryStorageAdapter {
 
             offsets
         } else {
-            let mut data_list = Vec::with_capacity(messages.len().min(self.max_shard_size));
+            let mut data_list =
+                Vec::with_capacity(messages.len().min(self.config.max_records_per_shard));
             let offsets = self.process_and_insert_messages(&shard_key, messages, 0, &mut data_list);
 
             self.shard_data.insert(shard_key.clone(), data_list);
@@ -293,8 +269,10 @@ impl MemoryStorageAdapter {
 impl StorageAdapter for MemoryStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         let key = self.shard_key(&shard.namespace, &shard.shard_name);
-        self.shard_data
-            .insert(key.clone(), Vec::with_capacity(self.max_shard_size));
+        self.shard_data.insert(
+            key.clone(),
+            Vec::with_capacity(self.config.max_records_per_shard),
+        );
         self.shard_info.insert(key.clone(), shard.clone());
         self.shard_state.insert(key, ShardState::default());
         Ok(())
@@ -537,17 +515,17 @@ impl StorageAdapter for MemoryStorageAdapter {
         let shard_keys: Vec<String> = self
             .shard_data
             .iter()
-            .filter(|entry| entry.value().len() > self.max_shard_size)
+            .filter(|entry| entry.value().len() > self.config.max_records_per_shard)
             .map(|entry| entry.key().clone())
             .collect();
 
         for shard_key in shard_keys {
             if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
-                if data_list.len() <= self.max_shard_size {
+                if data_list.len() <= self.config.max_records_per_shard {
                     continue;
                 }
 
-                let to_evict = data_list.len() - self.max_shard_size;
+                let to_evict = data_list.len() - self.config.max_records_per_shard;
 
                 for record in data_list.iter().take(to_evict) {
                     if let Some(offset) = record.offset {
@@ -646,8 +624,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_lru_eviction() {
-        // Setup: Create adapter with max capacity of 3 records per shard
-        let adapter = MemoryStorageAdapter::with_capacity(3);
+        let config_adapter = StorageDriverMemoryConfig {
+            max_records_per_shard: 3,
+            ..Default::default()
+        };
+        let adapter = MemoryStorageAdapter::new(config_adapter);
         let namespace = unique_id();
         let shard_name = "lru-test";
         let config = read_config();

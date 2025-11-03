@@ -46,6 +46,7 @@ impl StorageAdapter for S3StorageAdapter {
         _namespace: &str,
         _shard_name: &str,
     ) -> Result<Vec<ShardInfo>, CommonError> {
+        println!("{}", self.config.bucket);
         Ok(Vec::new())
     }
 

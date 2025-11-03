@@ -14,8 +14,61 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageDriverRocksDBConfig {
     pub data_path: String,
     pub max_open_files: i32,
+    pub block_cache_size: usize,
+    pub write_buffer_size: usize,
+    pub max_write_buffer_number: i32,
+}
+
+impl Default for StorageDriverRocksDBConfig {
+    fn default() -> Self {
+        Self {
+            data_path: "./robustmq_data/rocksdb".to_string(),
+            max_open_files: 1000,
+            block_cache_size: 512 * 1024 * 1024,
+            write_buffer_size: 128 * 1024 * 1024,
+            max_write_buffer_number: 4,
+        }
+    }
+}
+
+impl StorageDriverRocksDBConfig {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.data_path.is_empty() {
+            return Err("data_path cannot be empty".to_string());
+        }
+
+        if self.max_open_files < -1 {
+            return Err(format!(
+                "max_open_files ({}) must be >= -1 (-1 means unlimited)",
+                self.max_open_files
+            ));
+        }
+
+        if self.block_cache_size < 8 * 1024 * 1024 {
+            return Err(format!(
+                "block_cache_size ({}) must be at least 8MB",
+                self.block_cache_size
+            ));
+        }
+
+        if self.write_buffer_size < 8 * 1024 * 1024 {
+            return Err(format!(
+                "write_buffer_size ({}) must be at least 8MB",
+                self.write_buffer_size
+            ));
+        }
+
+        if self.max_write_buffer_number < 2 {
+            return Err(format!(
+                "max_write_buffer_number ({}) must be at least 2",
+                self.max_write_buffer_number
+            ));
+        }
+
+        Ok(())
+    }
 }

@@ -52,9 +52,16 @@ pub struct RocksDBStorageAdapter {
 
 impl RocksDBStorageAdapter {
     pub fn new(config: StorageDriverRocksDBConfig) -> Self {
-        let db = Arc::new(RocksDBEngine::new(
+        let engine_config = rocksdb_engine::rocksdb::RocksDBConfig {
+            block_cache_size: config.block_cache_size,
+            write_buffer_size: config.write_buffer_size,
+            max_write_buffer_number: config.max_write_buffer_number,
+        };
+
+        let db = Arc::new(RocksDBEngine::new_with_config(
             &config.data_path,
             config.max_open_files,
+            Some(&engine_config),
             vec![DB_COLUMN_FAMILY_BROKER.to_string()],
         ));
 
