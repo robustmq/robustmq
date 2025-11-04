@@ -15,7 +15,7 @@
 use crate::expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
-use common_base::error::common::CommonError;
+use common_base::{error::common::CommonError, utils::serialize};
 use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
 use key::*;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
@@ -128,9 +128,7 @@ impl RocksDBStorageAdapter {
 
             // save record (using bincode for better performance)
             let shard_record_key = shard_record_key(namespace, shard_name, start_offset);
-            let serialized_msg = bincode::serialize(&record_to_save).map_err(|e| {
-                CommonError::CommonError(format!("Failed to serialize record: {e}"))
-            })?;
+            let serialized_msg = serialize::serialize(&record_to_save)?;
             batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
             // save key (use original msg to avoid borrow issues)
@@ -207,11 +205,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
         raw_shard_info
             .into_iter()
-            .map(|(_, v)| {
-                bincode::deserialize::<ShardInfo>(v.as_slice()).map_err(|e| {
-                    CommonError::CommonError(format!("Failed to deserialize ShardInfo: {e}"))
-                })
-            })
+            .map(|(_, v)| serialize::deserialize::<ShardInfo>(v.as_slice()))
             .collect::<Result<Vec<ShardInfo>, CommonError>>()
     }
 

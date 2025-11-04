@@ -16,8 +16,7 @@ use crate::core::cache::CacheManager;
 use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will_message};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
@@ -114,7 +113,7 @@ impl SessionExpire {
             }
 
             let result_value = value.unwrap();
-            let session = match bincode::deserialize::<StorageDataWrap>(result_value) {
+            let session = match serialize::deserialize::<StorageDataWrap>(result_value) {
                 Ok(data) => match serde_json::from_str::<MqttSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {

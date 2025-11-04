@@ -15,8 +15,7 @@
 use crate::file::key::*;
 use crate::storage::ShardInfo;
 use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use metadata_struct::adapter::record::Record;
 use rocksdb::WriteBatch;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -63,7 +62,7 @@ pub async fn expire_messages_by_timestamp(
     let mut total_scanned = 0_usize;
 
     for (shard_key, shard_data) in shard_entries {
-        let shard_info: ShardInfo = match bincode::deserialize(&shard_data) {
+        let shard_info: ShardInfo = match serialize::deserialize(&shard_data) {
             Ok(info) => info,
             Err(e) => {
                 warn!(
@@ -114,7 +113,7 @@ pub async fn expire_messages_by_timestamp(
             shard_scanned += 1;
             total_scanned += 1;
 
-            let record: Record = match bincode::deserialize(record_data) {
+            let record: Record = match serialize::deserialize(record_data) {
                 Ok(r) => r,
                 Err(e) => {
                     warn!("Failed to deserialize record {}: {}", record_key, e);

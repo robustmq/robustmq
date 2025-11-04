@@ -23,7 +23,7 @@ use crate::{
     },
     warp::StorageDataWrap,
 };
-use common_base::error::common::CommonError;
+use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
 use serde::Serialize;
 use std::sync::Arc;
@@ -142,7 +142,7 @@ pub fn engine_list_by_prefix_to_map_by_journal(
     let results = DashMap::with_capacity(raw.len().min(64));
 
     for (key, v) in raw {
-        match bincode::deserialize::<StorageDataWrap>(v.as_ref()) {
+        match serialize::deserialize::<StorageDataWrap>(v.as_ref()) {
             Ok(v) => {
                 results.insert(key.clone(), v);
             }

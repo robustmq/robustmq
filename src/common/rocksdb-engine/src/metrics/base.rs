@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use common_base::error::ResultCommonError;
-use common_base::tools::now_second;
+use common_base::{
+    error::{common::CommonError, ResultCommonError},
+    tools::now_second,
+    utils::serialize,
+};
 use dashmap::DashMap;
 use std::sync::Arc;
 
@@ -112,7 +114,7 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
                     break;
                 }
                 let value = val.to_vec();
-                match bincode::deserialize::<StorageDataWrap>(value.as_ref()) {
+                match serialize::deserialize::<StorageDataWrap>(value.as_ref()) {
                     Ok(v) => {
                         if now_time > (v.create_time + save_time) {
                             engine_delete_by_broker(rocksdb_engine.clone(), &key)?;

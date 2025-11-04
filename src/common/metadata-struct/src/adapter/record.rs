@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use bytes::Bytes;
-use common_base::{tools::now_second, utils::crc::calc_crc32};
+use common_base::{
+    tools::now_second,
+    utils::{crc::calc_crc32, serialize},
+};
 use pulsar::{producer, Error as PulsarError, SerializeMessage};
 use serde::{Deserialize, Serialize};
 
@@ -163,7 +166,8 @@ impl Record {
 impl SerializeMessage for Record {
     fn serialize_message(input: adapter::record::Record) -> Result<producer::Message, PulsarError> {
         // Use bincode for better performance (3-5x faster than JSON)
-        let payload = bincode::serialize(&input).map_err(|e| PulsarError::Custom(e.to_string()))?;
+        let payload =
+            serialize::serialize(&input).map_err(|e| PulsarError::Custom(e.to_string()))?;
         Ok(producer::Message {
             payload,
             ..Default::default()
@@ -191,11 +195,11 @@ mod tests {
         };
 
         // Serialize
-        let serialized = bincode::serialize(&record).expect("Failed to serialize");
+        let serialized = serialize::serialize(&record).expect("Failed to serialize");
 
         // Deserialize
         let deserialized: Record =
-            bincode::deserialize(&serialized).expect("Failed to deserialize");
+            serialize::deserialize(&serialized).expect("Failed to deserialize");
 
         // Verify
         assert_eq!(record.offset, deserialized.offset);
@@ -220,7 +224,7 @@ mod tests {
 
         println!("Original record: {:?}", record);
 
-        let serialized = bincode::serialize(&record).expect("Failed to serialize");
+        let serialized = serialize::serialize(&record).expect("Failed to serialize");
         println!("Serialized bytes length: {}", serialized.len());
         println!(
             "Serialized bytes (first 50): {:?}",
@@ -228,7 +232,7 @@ mod tests {
         );
 
         let deserialized: Record =
-            bincode::deserialize(&serialized).expect("Failed to deserialize");
+            serialize::deserialize(&serialized).expect("Failed to deserialize");
         println!("Deserialized record: {:?}", deserialized);
 
         assert_eq!(record.offset, deserialized.offset);
