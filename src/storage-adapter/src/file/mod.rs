@@ -134,15 +134,17 @@ impl RocksDBStorageAdapter {
             batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
             // save key (use original msg to avoid borrow issues)
-            if !msg.key.is_empty() {
-                let key_offset_key = key_offset_key(namespace, shard_name, &msg.key);
+            if let Some(key) = &msg.key {
+                let key_offset_key = key_offset_key(namespace, shard_name, key);
                 batch.put_cf(&cf, key_offset_key.as_bytes(), start_offset.to_be_bytes());
             }
 
             // save tag
-            for tag in msg.tags.iter() {
-                let tag_offsets_key = tag_offsets_key(namespace, shard_name, tag, start_offset);
-                batch.put_cf(&cf, tag_offsets_key.as_bytes(), start_offset.to_be_bytes());
+            if let Some(tags) = &msg.tags {
+                for tag in tags.iter() {
+                    let tag_offsets_key = tag_offsets_key(namespace, shard_name, tag, start_offset);
+                    batch.put_cf(&cf, tag_offsets_key.as_bytes(), start_offset.to_be_bytes());
+                }
             }
 
             // save timestamp
@@ -595,7 +597,7 @@ mod tests {
 
         // Test batch write and read by offset
         let messages: Vec<_> = (0..4)
-            .map(|i| Record::build_byte(format!("test{}", i).as_bytes().to_vec()))
+            .map(|i| Record::from_bytes(format!("test{}", i).as_bytes().to_vec()))
             .collect();
 
         let offsets = adapter
@@ -674,13 +676,13 @@ mod tests {
                             let value = format!("data-{tid}-{idx}").as_bytes().to_vec();
                             Record {
                                 offset: None,
-                                header: vec![Header {
+                                header: Some(vec![Header {
                                     name: "test".to_string(),
                                     value: "value".to_string(),
-                                }],
-                                key: format!("key-{tid}-{idx}"),
-                                data: value.clone(),
-                                tags: vec![format!("tag-{tid}")],
+                                }]),
+                                key: Some(format!("key-{tid}-{idx}")),
+                                data: value.clone().into(),
+                                tags: Some(vec![format!("tag-{tid}")]),
                                 timestamp: 0,
                                 crc_num: calc_crc32(&value),
                             }
@@ -790,10 +792,10 @@ mod tests {
                     let records: Vec<_> = (0..20)
                         .map(|idx| Record {
                             offset: None,
-                            header: vec![],
-                            key: format!("key-{}-{}", tid, idx),
-                            data: format!("data-{}-{}", tid, idx).into_bytes(),
-                            tags: vec![format!("tag-{}", tid)],
+                            header: None,
+                            key: Some(format!("key-{}-{}", tid, idx)),
+                            data: format!("data-{}-{}", tid, idx).into_bytes().into(),
+                            tags: Some(vec![format!("tag-{}", tid)]),
                             timestamp: 0,
                             crc_num: 0,
                         })

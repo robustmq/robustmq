@@ -31,3 +31,5 @@ crc32fast.workspace = true
 tokio.workspace = true
 clap.workspace = true
 pulsar.workspace = true
+bincode.workspace = true
+serde_bytes.workspace = true

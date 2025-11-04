@@ -314,13 +314,13 @@ mod tests {
         for i in 0..1000 {
             let record = Record {
                 offset: Some(i),
-                header: vec![Header {
+                header: Some(vec![Header {
                     name: "test_name".to_string(),
                     value: "test_value".to_string(),
-                }],
-                key: format!("test_key_{i}"),
-                data: format!("test_data_{i}").as_bytes().to_vec(),
-                tags: vec![],
+                }]),
+                key: Some(format!("test_key_{i}")),
+                data: format!("test_data_{i}").as_bytes().to_vec().into(),
+                tags: Some(vec![]),
                 timestamp: now_second(),
                 crc_num: calc_crc32(format!("test_data_{i}").as_bytes()),
             };

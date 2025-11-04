@@ -105,9 +105,9 @@ impl StorageAdapter for JournalStorageAdapter {
         record: &Record,
     ) -> Result<u64, CommonError> {
         let data = JournalClientWriteData {
-            key: record.key.clone(),
-            content: record.data.clone(),
-            tags: record.tags.clone(),
+            key: record.key.clone().unwrap_or_default(),
+            content: record.data.to_vec(),
+            tags: record.tags.clone().unwrap_or_default(),
         };
 
         match self
@@ -134,9 +134,9 @@ impl StorageAdapter for JournalStorageAdapter {
         let mut data = Vec::new();
         for record in records {
             data.push(JournalClientWriteData {
-                key: record.key.clone(),
-                content: record.data.clone(),
-                tags: record.tags.clone(),
+                key: record.key.clone().unwrap_or_default(),
+                content: record.data.to_vec(),
+                tags: record.tags.clone().unwrap_or_default(),
             });
         }
 

@@ -4099,6 +4099,7 @@ dependencies = [
 name = "metadata-struct"
 version = "0.2.4"
 dependencies = [
+ "bincode",
  "bytes",
  "clap",
  "common-base",
@@ -4107,6 +4108,7 @@ dependencies = [
  "protocol",
  "pulsar",
  "serde",
+ "serde_bytes",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",

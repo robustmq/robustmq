@@ -55,7 +55,7 @@ impl MqttMessage {
         };
 
         match serde_json::to_vec(&message) {
-            Ok(data) => Some(Record::build_byte(data)),
+            Ok(data) => Some(Record::from_bytes(data)),
 
             Err(e) => {
                 error!("Message encoding failed, error message :{}", e.to_string());
@@ -110,7 +110,7 @@ impl MqttMessage {
         let msg =
             MqttMessage::build_message(client_id, publish, publish_properties, expiry_interval);
         match serde_json::to_vec(&msg) {
-            Ok(data) => Some(Record::build_byte(data)),
+            Ok(data) => Some(Record::from_bytes(data)),
 
             Err(e) => {
                 error!("Message encoding failed, error message :{}", e.to_string());
@@ -120,7 +120,7 @@ impl MqttMessage {
     }
 
     pub fn decode_record(record: Record) -> Result<MqttMessage, CommonError> {
-        let data: MqttMessage = match serde_json::from_slice(record.data.as_slice()) {
+        let data: MqttMessage = match serde_json::from_slice(&record.data) {
             Ok(da) => da,
             Err(e) => {
                 return Err(CommonError::CommonError(e.to_string()));
@@ -285,7 +285,7 @@ mod tests {
         };
 
         let encoded = msg.encode();
-        let record = Record::build_byte(encoded);
+        let record = Record::from_bytes(encoded);
         let decoded = MqttMessage::decode_record(record).unwrap();
 
         assert_eq!(decoded.client_id, msg.client_id);

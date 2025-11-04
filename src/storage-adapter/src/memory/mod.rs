@@ -79,16 +79,20 @@ impl MemoryStorageAdapter {
     }
 
     fn update_indexes(&self, shard_key: &str, record: &Record, offset: u64) {
-        if self.config.enable_tag_index && !record.tags.is_empty() {
-            let mut tag_map = self.tag_index.entry(shard_key.to_string()).or_default();
-            for tag in &record.tags {
-                tag_map.entry(tag.clone()).or_default().push(offset);
+        if self.config.enable_tag_index {
+            if let Some(tags) = &record.tags {
+                let mut tag_map = self.tag_index.entry(shard_key.to_string()).or_default();
+                for tag in tags {
+                    tag_map.entry(tag.clone()).or_default().push(offset);
+                }
             }
         }
 
-        if self.config.enable_key_index && !record.key.is_empty() {
-            let mut key_map = self.key_index.entry(shard_key.to_string()).or_default();
-            key_map.entry(record.key.clone()).or_default().push(offset);
+        if self.config.enable_key_index {
+            if let Some(key) = &record.key {
+                let mut key_map = self.key_index.entry(shard_key.to_string()).or_default();
+                key_map.entry(key.clone()).or_default().push(offset);
+            }
         }
 
         if self.config.enable_timestamp_index && record.timestamp > 0 {
@@ -101,25 +105,29 @@ impl MemoryStorageAdapter {
     }
 
     fn remove_offset_from_indexes(&self, shard_key: &str, record: &Record, offset: u64) {
-        if self.config.enable_tag_index && !record.tags.is_empty() {
-            if let Some(mut tag_map) = self.tag_index.get_mut(shard_key) {
-                for tag in &record.tags {
-                    if let Some(offsets) = tag_map.get_mut(tag) {
-                        offsets.retain(|&o| o != offset);
-                        if offsets.is_empty() {
-                            tag_map.remove(tag);
+        if self.config.enable_tag_index {
+            if let Some(tags) = &record.tags {
+                if let Some(mut tag_map) = self.tag_index.get_mut(shard_key) {
+                    for tag in tags {
+                        if let Some(offsets) = tag_map.get_mut(tag) {
+                            offsets.retain(|&o| o != offset);
+                            if offsets.is_empty() {
+                                tag_map.remove(tag);
+                            }
                         }
                     }
                 }
             }
         }
 
-        if self.config.enable_key_index && !record.key.is_empty() {
-            if let Some(mut key_map) = self.key_index.get_mut(shard_key) {
-                if let Some(offsets) = key_map.get_mut(&record.key) {
-                    offsets.retain(|&o| o != offset);
-                    if offsets.is_empty() {
-                        key_map.remove(&record.key);
+        if self.config.enable_key_index {
+            if let Some(key) = &record.key {
+                if let Some(mut key_map) = self.key_index.get_mut(shard_key) {
+                    if let Some(offsets) = key_map.get_mut(key) {
+                        offsets.retain(|&o| o != offset);
+                        if offsets.is_empty() {
+                            key_map.remove(key);
+                        }
                     }
                 }
             }
@@ -394,7 +402,10 @@ impl StorageAdapter for MemoryStorageAdapter {
         if let Some(data_list) = self.shard_data.get(&shard_key) {
             return Ok(
                 self.linear_scan(&shard_key, offset, &data_list, read_config, |record| {
-                    record.tags.contains(&tag.to_string())
+                    record
+                        .tags
+                        .as_ref()
+                        .is_some_and(|tags| tags.contains(&tag.to_string()))
                 }),
             );
         }
@@ -429,7 +440,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         if let Some(data_list) = self.shard_data.get(&shard_key) {
             return Ok(
                 self.linear_scan(&shard_key, offset, &data_list, read_config, |record| {
-                    record.key == key
+                    record.key.as_deref() == Some(key)
                 }),
             );
         }
@@ -566,7 +577,7 @@ mod tests {
 
     // Helper: Create a simple message record
     fn create_message(data: &[u8]) -> Record {
-        Record::build_byte(data.to_vec())
+        Record::from_bytes(data.to_vec())
     }
 
     // Helper: Create message with metadata (tags, key, timestamp)
@@ -577,8 +588,8 @@ mod tests {
         timestamp: u64,
     ) -> Record {
         let mut record = create_message(data);
-        record.tags = tags.into_iter().map(|s| s.to_string()).collect();
-        record.key = key.to_string();
+        record.tags = Some(tags.into_iter().map(|s| s.to_string()).collect());
+        record.key = Some(key.to_string());
         record.timestamp = timestamp;
         record
     }
@@ -605,7 +616,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(records.len(), 2);
-        assert_eq!(records[0].data, b"msg1");
+        assert_eq!(records[0].data.as_ref(), b"msg1");
 
         // Test empty batch write
         let empty_offsets = adapter
@@ -719,7 +730,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(tag_results.len(), 1);
-        assert_eq!(tag_results[0].data, b"msg1");
+        assert_eq!(tag_results[0].data.as_ref(), b"msg1");
 
         // Test read by key (using index)
         let key_results = adapter
@@ -727,7 +738,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(key_results.len(), 1);
-        assert_eq!(key_results[0].data, b"msg2");
+        assert_eq!(key_results[0].data.as_ref(), b"msg2");
 
         // Test read with non-existent tag
         let empty_tag = adapter

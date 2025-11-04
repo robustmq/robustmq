@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    journal::JournalStorageAdapter, memory::MemoryStorageAdapter, minio::MinIoStorageAdapter,
-    mysql::MySQLStorageAdapter, file::RocksDBStorageAdapter, s3::S3StorageAdapter,
+    file::RocksDBStorageAdapter, journal::JournalStorageAdapter, memory::MemoryStorageAdapter,
+    minio::MinIoStorageAdapter, mysql::MySQLStorageAdapter, s3::S3StorageAdapter,
     storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;

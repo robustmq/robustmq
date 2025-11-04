@@ -78,11 +78,14 @@ impl Sender {
     }
 
     fn record_to_line(record: &Record) -> Result<String, MqttBrokerError> {
-        let mut tags = Vec::with_capacity(record.header.len());
-        for header in &record.header {
-            let tag_key = Self::escape_tag_value(&header.name);
-            let tag_value = Self::escape_tag_value(&header.value);
-            tags.push(format!("{}={}", tag_key, tag_value));
+        let mut tags = Vec::new();
+        if let Some(headers) = &record.header {
+            tags.reserve(headers.len());
+            for header in headers {
+                let tag_key = Self::escape_tag_value(&header.name);
+                let tag_value = Self::escape_tag_value(&header.value);
+                tags.push(format!("{}={}", tag_key, tag_value));
+            }
         }
         let tags = tags.join(",");
 
@@ -106,7 +109,7 @@ impl Sender {
         fields.push(format!("crc_num={}i", record.crc_num));
         let fields = fields.join(",");
 
-        let measurement = Self::escape_measurement(&record.key);
+        let measurement = Self::escape_measurement(record.key.as_deref().unwrap_or("unknown"));
         Ok(format!(
             "{},{} {} {}",
             measurement, tags, fields, record.timestamp
@@ -178,7 +181,7 @@ mod tests {
             "greptime_pwd".to_string(),
         );
         let sender = Sender::new(&config).expect("Failed to create sender");
-        let mut record = Record::build_str("test".to_string());
+        let mut record = Record::from_string("test".to_string());
         record.set_key("test".to_string());
         record.set_header(vec![Header {
             name: "h1".to_string(),
@@ -211,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_record_to_line() {
-        let mut record = Record::build_str("test data".to_string());
+        let mut record = Record::from_string("test data".to_string());
         record.set_key("sensor_data".to_string());
         record.set_header(vec![Header {
             name: "location".to_string(),

@@ -59,7 +59,7 @@ impl FromStr for StorageAdapterType {
             "journal" => Ok(StorageAdapterType::Journal),
             "memory" => Ok(StorageAdapterType::Memory),
             "mysql" => Ok(StorageAdapterType::Mysql),
-            "file" => Ok(StorageAdapterType::File),
+            "file" | "rocksdb" => Ok(StorageAdapterType::File), // "rocksdb" is an alias for backward compatibility
             "minio" => Ok(StorageAdapterType::MinIO),
             "s3" => Ok(StorageAdapterType::S3),
             _ => Err(()),

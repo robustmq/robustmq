@@ -184,7 +184,7 @@ mod test {
         let message_storage_adapter = build_memory_storage_driver();
         let namespace = unique_id();
         let shard_name = "test".to_string();
-        let data = Record::build_str("test".to_string());
+        let data = Record::from_string("test".to_string());
         let res =
             persist_delay_message(&message_storage_adapter, &namespace, &shard_name, data).await;
         assert!(res.is_ok());
@@ -194,7 +194,7 @@ mod test {
         assert!(res.is_ok());
         let res = res.unwrap().unwrap();
         assert_eq!(res.offset.unwrap(), offset);
-        let d1: String = serde_json::from_slice(&res.data).unwrap();
+        let d1 = String::from_utf8(res.data.to_vec()).unwrap();
         assert_eq!(d1, "test".to_string());
     }
 }

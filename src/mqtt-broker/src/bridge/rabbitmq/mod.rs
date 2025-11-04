@@ -153,7 +153,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
                 Ok(d) => d,
                 Err(e) => {
                     warn!(
-                        "Failed to serialize record {}/{} (key: '{}'): {}",
+                        "Failed to serialize record {}/{} (key: '{:?}'): {}",
                         idx + 1,
                         records.len(),
                         record.key,
@@ -191,7 +191,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to publish record {}/{} (key: '{}') to exchange {}: {}",
+                        "Failed to publish record {}/{} (key: '{:?}') to exchange {}: {}",
                         idx + 1,
                         records.len(),
                         record.key,

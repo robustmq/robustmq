@@ -130,7 +130,7 @@ impl RedisBridgePlugin {
         replacements.insert("timestamp", record.timestamp.to_string());
         replacements.insert("qos", format!("{:?}", msg.qos));
         replacements.insert("retain", msg.retain.to_string());
-        replacements.insert("key", record.key.clone());
+        replacements.insert("key", record.key.clone().unwrap_or_default());
 
         for (placeholder, value) in replacements.iter() {
             let pattern = format!("${{{}}}", placeholder);

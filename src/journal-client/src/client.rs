@@ -188,10 +188,18 @@ impl JournalClient {
         for raw in data_list {
             let record = Record {
                 offset: Some(raw.offset),
-                key: raw.key,
-                data: raw.value.clone(),
-                tags: raw.tags,
-                header: Vec::new(),
+                key: if raw.key.is_empty() {
+                    None
+                } else {
+                    Some(raw.key)
+                },
+                data: raw.value.clone().into(),
+                tags: if raw.tags.is_empty() {
+                    None
+                } else {
+                    Some(raw.tags)
+                },
+                header: None,
                 timestamp: raw.timestamp,
                 crc_num: calc_crc32(&raw.value),
             };
@@ -244,10 +252,18 @@ impl JournalClient {
         for raw in data_list {
             let record = Record {
                 offset: Some(raw.offset),
-                key: raw.key,
-                data: raw.value.clone(),
-                tags: raw.tags,
-                header: Vec::new(),
+                key: if raw.key.is_empty() {
+                    None
+                } else {
+                    Some(raw.key)
+                },
+                data: raw.value.clone().into(),
+                tags: if raw.tags.is_empty() {
+                    None
+                } else {
+                    Some(raw.tags)
+                },
+                header: None,
                 timestamp: raw.timestamp,
                 crc_num: calc_crc32(&raw.value),
             };
@@ -282,10 +298,18 @@ impl JournalClient {
         for raw in data_list {
             let record = Record {
                 offset: Some(raw.offset),
-                key: raw.key,
-                data: raw.value.clone(),
-                tags: raw.tags,
-                header: Vec::new(),
+                key: if raw.key.is_empty() {
+                    None
+                } else {
+                    Some(raw.key)
+                },
+                data: raw.value.clone().into(),
+                tags: if raw.tags.is_empty() {
+                    None
+                } else {
+                    Some(raw.tags)
+                },
+                header: None,
                 timestamp: raw.timestamp,
                 crc_num: calc_crc32(&raw.value),
             };
