@@ -4171,12 +4171,6 @@ dependencies = [
 [[package]]
 name = "mmap-file"
 version = "0.2.4"
-dependencies = [
- "chrono",
- "common-base",
- "memmap2",
- "thiserror 1.0.69",
-]
 
 [[package]]
 name = "mobc"

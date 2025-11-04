@@ -124,7 +124,7 @@ pub async fn build_publish_message(
         qos: context.qos,
         p_kid: pkid,
         retain,
-        topic: Bytes::from(context.subscriber.topic_name.as_str()),
+        topic: Bytes::copy_from_slice(context.subscriber.topic_name.as_bytes()),
         payload: msg.payload,
     };
 

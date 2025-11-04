@@ -219,7 +219,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 qos,
                 p_kid: pkid,
                 retain,
-                topic: Bytes::from(topic_name.as_str()),
+                topic: Bytes::copy_from_slice(topic_name.as_bytes()),
                 payload: msg.payload,
             };
 
