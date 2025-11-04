@@ -110,7 +110,7 @@ impl TopicStorage {
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
-            retain_message: retain_message.encode_str(),
+            retain_message: retain_message.encode_str().unwrap_or_default(),
             retain_message_expired_at,
         };
         placement_set_topic_retain_message(

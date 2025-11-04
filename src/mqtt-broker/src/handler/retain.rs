@@ -191,7 +191,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 filter.qos,
             );
 
-            let mut user_properties = msg.user_properties;
+            let mut user_properties = msg.user_properties.unwrap_or_default();
             user_properties.push((
                 SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
                 SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
@@ -219,8 +219,8 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 qos,
                 p_kid: pkid,
                 retain,
-                topic: Bytes::from(topic_name.clone()),
-                payload: Bytes::from(msg.payload),
+                topic: Bytes::from(topic_name.as_str()),
+                payload: msg.payload,
             };
 
             let packet = MqttPacket::Publish(publish.clone(), Some(properties));

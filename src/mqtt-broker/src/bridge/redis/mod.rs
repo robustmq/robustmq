@@ -125,8 +125,8 @@ impl RedisBridgePlugin {
 
         let mut replacements = HashMap::new();
         replacements.insert("client_id", msg.client_id.clone());
-        replacements.insert("topic", msg.topic.clone());
-        replacements.insert("payload", msg.payload.clone());
+        replacements.insert("topic", String::from_utf8_lossy(&msg.topic).to_string());
+        replacements.insert("payload", String::from_utf8_lossy(&msg.payload).to_string());
         replacements.insert("timestamp", record.timestamp.to_string());
         replacements.insert("qos", format!("{:?}", msg.qos));
         replacements.insert("retain", msg.retain.to_string());

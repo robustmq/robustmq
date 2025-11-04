@@ -14,4 +14,4 @@
 
 pub mod read_config;
 pub mod record;
-mod serde_bytes_wrapper;
+pub mod serde_bytes_wrapper;
