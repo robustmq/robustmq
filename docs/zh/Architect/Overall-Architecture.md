@@ -37,7 +37,7 @@ RobustMQ 内置的持久化存储引擎，采用类似 Apache BookKeeper 的本�
 
 RobustMQ 详细架构如下图所示：
 
-![image](../../images/robustmq-architecture.png)
+![image](../../images/robustmq-architecture.jpg)
 
 如上图所示，这是一个由三个 RobustMQ Node 组成的集群。当选择使用内置的持久化存储引擎 Journal Server 时，无需依赖任何外部组件，可通过 `./bin/robust-server start` 命令一键启动节点。
 

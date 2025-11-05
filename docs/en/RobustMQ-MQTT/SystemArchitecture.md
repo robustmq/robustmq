@@ -1,6 +1,6 @@
 # System Architecture
 
-![image](../../images/doc-image5.png)
+![image](../../images/mqtt-broker-arch.png)
 
 As shown in the figure above: RobustMQ MQTT is composed of three parts: MQTT Broker, Meta Service, and Storage Engine.
 

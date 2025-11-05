@@ -13,7 +13,7 @@ RobustMQ 采用分布式分层架构，主要由以下四个层次组成：
 - **存储适配层 (Storage Adapter Layer)**：提供可插拔的存储抽象
 - **存储层 (Storage Layer)**：具体的存储引擎实现
 
-![RobustMQ Architecture](../../../images/robustmq-architecture.png)
+![RobustMQ Architecture](../../../images/robustmq-architecture.jpg)
 
 ## 源码目录结构
 

@@ -1,6 +1,6 @@
 # 系统架构
 
-![image](../../images/doc-image5.png)
+![image](../../images/mqtt-broker-arch.png)
 
 如上图所示： RobustMQ MQTT 由 MQTT Broker、Meta Service、Storage Engine 三部分组成。
 
