@@ -69,6 +69,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     let config = {
         let mut c = prost_build::Config::new();
         c.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
+        c.protoc_arg("--experimental_allow_proto3_optional");
         c.service_generator(tonic_build::configure().service_generator());
         c
     };

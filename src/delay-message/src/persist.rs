@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use metadata_struct::{
     adapter::{read_config::ReadConfig, record::Record},
     delay_info::DelayMessageInfo,
@@ -31,7 +31,7 @@ pub async fn persist_delay_info(
     namespace: &str,
     delay_info: DelayMessageInfo,
 ) -> Result<(), CommonError> {
-    let data = Record::build_byte(serde_json::to_vec(&delay_info)?);
+    let data = Record::from_bytes(serialize::serialize(&delay_info)?);
     message_storage_adapter
         .write(namespace, DELAY_QUEUE_INFO_SHARD_NAME, &data)
         .await?;
@@ -67,7 +67,7 @@ pub async fn recover_delay_queue(
         for record in data {
             offset = record.offset.unwrap();
 
-            let delay_info = match serde_json::from_slice::<DelayMessageInfo>(&record.data) {
+            let delay_info = match serialize::deserialize::<DelayMessageInfo>(&record.data) {
                 Ok(delay_info) => delay_info,
                 Err(e) => {
                     error!("While building the deferred message index, parsing the message failed with error message :{:?}", e);
@@ -94,7 +94,7 @@ pub async fn recover_delay_queue(
 mod test {
     use std::{sync::Arc, time::Duration};
 
-    use common_base::tools::unique_id;
+    use common_base::{tools::unique_id, utils::serialize};
     use metadata_struct::{
         adapter::{read_config::ReadConfig, record::Record},
         delay_info::DelayMessageInfo,
@@ -139,7 +139,7 @@ mod test {
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
 
-            let d = serde_json::from_slice::<DelayMessageInfo>(&raw.data).unwrap();
+            let d = serialize::deserialize::<DelayMessageInfo>(&raw.data).unwrap();
             assert_eq!(d.target_shard_name, target_shard_name);
             assert_eq!(d.delay_shard_name, delay_shard_name);
             assert_eq!(d.offset, i);
@@ -161,7 +161,7 @@ mod test {
 
         let target_topic = unique_id();
         for i in 0..10 {
-            let data = Record::build_str(format!("data{i}"));
+            let data = Record::from_string(format!("data{i}"));
             let res: Result<(), common_base::error::common::CommonError> =
                 delay_message_manager.send(&target_topic, i + 1, data).await;
 
@@ -207,7 +207,7 @@ mod test {
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
 
-            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            let d = String::from_utf8(raw.data.to_vec()).unwrap();
             assert_eq!(d, format!("data{i}"));
         }
     }

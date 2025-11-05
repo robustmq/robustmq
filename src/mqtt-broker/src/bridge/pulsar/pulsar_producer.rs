@@ -88,7 +88,7 @@ mod tests {
         let producer = Producer::new(&config);
         let p = producer.build_producer().await;
         if let Ok(mut p) = p {
-            let mut record = Record::build_str("test".to_string());
+            let mut record = Record::from_string("test".to_string());
             record.set_key("test".to_string());
             record.set_header(vec![Header {
                 name: "h1".to_string(),

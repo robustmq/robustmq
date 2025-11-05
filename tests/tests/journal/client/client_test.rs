@@ -68,7 +68,7 @@ mod tests {
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 1);
-        assert_eq!(list.first().unwrap().key, "k1".to_string());
+        assert_eq!(list.first().unwrap().key, Some("k1".to_string()));
 
         // read by key
         let read_config = ReadConfig::new();
@@ -89,7 +89,13 @@ mod tests {
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 1);
-        assert!(list.first().unwrap().tags.contains(&("tag1".to_string())));
+        assert!(list
+            .first()
+            .unwrap()
+            .tags
+            .as_ref()
+            .unwrap()
+            .contains(&("tag1".to_string())));
 
         // read by tag
         let read_config = ReadConfig::new();

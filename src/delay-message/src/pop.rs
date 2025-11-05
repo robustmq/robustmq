@@ -141,7 +141,7 @@ mod test {
         let namespace = unique_id();
         let shard_name = "s1".to_string();
         for i in 0..100 {
-            let data = Record::build_str(format!("data{i}"));
+            let data = Record::from_string(format!("data{i}"));
             let res = message_storage_adapter
                 .write(&namespace, &shard_name, &data)
                 .await;
@@ -154,7 +154,7 @@ mod test {
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
 
-            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            let d = String::from_utf8(raw.data.to_vec()).unwrap();
             assert_eq!(d, format!("data{i}"));
         }
     }
@@ -165,7 +165,7 @@ mod test {
         let namespace = unique_id();
         let shard_name = "s1".to_string();
         for i in 0..100 {
-            let data = Record::build_str(format!("data{i}"));
+            let data = Record::from_string(format!("data{i}"));
             let res = message_storage_adapter
                 .write(&namespace, &shard_name, &data)
                 .await;
@@ -190,7 +190,7 @@ mod test {
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
 
-            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            let d = String::from_utf8(raw.data.to_vec()).unwrap();
             assert_eq!(d, format!("data{i}"));
         }
     }
@@ -216,7 +216,7 @@ mod test {
 
         let target_topic = unique_id();
         for i in 0..10 {
-            let data = Record::build_str(format!("data{i}"));
+            let data = Record::from_string(format!("data{i}"));
             let res = delay_message_manager.send(&target_topic, i + 1, data).await;
 
             assert!(res.is_ok());
@@ -230,7 +230,7 @@ mod test {
             assert!(res.is_ok());
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
-            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            let d = String::from_utf8(raw.data.to_vec()).unwrap();
             println!("i:{i},res:{d:?}")
 
             // assert_eq!(d, format!("data{}", i));

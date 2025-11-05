@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rocksdb::key::*;
+use crate::file::key::*;
 use crate::storage::ShardInfo;
-use crate::{expire::MessageExpireConfig, rocksdb::parse_offset_bytes};
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
+use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use metadata_struct::adapter::record::Record;
 use rocksdb::WriteBatch;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -63,7 +62,7 @@ pub async fn expire_messages_by_timestamp(
     let mut total_scanned = 0_usize;
 
     for (shard_key, shard_data) in shard_entries {
-        let shard_info: ShardInfo = match bincode::deserialize(&shard_data) {
+        let shard_info: ShardInfo = match serialize::deserialize(&shard_data) {
             Ok(info) => info,
             Err(e) => {
                 warn!(
@@ -114,7 +113,7 @@ pub async fn expire_messages_by_timestamp(
             shard_scanned += 1;
             total_scanned += 1;
 
-            let record: Record = match bincode::deserialize(record_data) {
+            let record: Record = match serialize::deserialize(record_data) {
                 Ok(r) => r,
                 Err(e) => {
                     warn!("Failed to deserialize record {}: {}", record_key, e);
@@ -131,8 +130,8 @@ pub async fn expire_messages_by_timestamp(
                 // Delete key index (only if it points to this offset)
                 // Key index is a key -> latest_offset mapping
                 // We should only delete it if it still points to this expired record
-                if !record.key.is_empty() {
-                    let key_index_key = key_offset_key(namespace, shard_name, &record.key);
+                if let Some(key) = &record.key {
+                    let key_index_key = key_offset_key(namespace, shard_name, key);
 
                     if let Ok(Some(indexed_offset_bytes)) = db.db.get_cf(&cf, &key_index_key) {
                         if let Ok(indexed_offset) = parse_offset_bytes(&indexed_offset_bytes) {
@@ -145,9 +144,11 @@ pub async fn expire_messages_by_timestamp(
                 }
 
                 // Delete tag indexes (always safe to delete as tags are many-to-many)
-                for tag in &record.tags {
-                    let tag_index = tag_offsets_key(namespace, shard_name, tag, offset);
-                    batch.delete_cf(&cf, tag_index.as_bytes());
+                if let Some(tags) = &record.tags {
+                    for tag in tags {
+                        let tag_index = tag_offsets_key(namespace, shard_name, tag, offset);
+                        batch.delete_cf(&cf, tag_index.as_bytes());
+                    }
                 }
 
                 if record.timestamp > 0 && offset.is_multiple_of(5000) {
@@ -182,7 +183,7 @@ pub async fn expire_messages_by_timestamp(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rocksdb::RocksDBStorageAdapter;
+    use crate::file::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
@@ -209,28 +210,28 @@ mod tests {
         let messages = vec![
             Record {
                 offset: None,
-                header: vec![],
-                key: "key1".to_string(),
-                data: b"data1".to_vec(),
-                tags: vec!["tag1".to_string()],
+                header: None,
+                key: Some("key1".to_string()),
+                data: b"data1".to_vec().into(),
+                tags: Some(vec!["tag1".to_string()]),
                 timestamp: now - 3600, // 1 hour ago (should be expired with 30min retention)
                 crc_num: 0,
             },
             Record {
                 offset: None,
-                header: vec![],
-                key: "key2".to_string(),
-                data: b"data2".to_vec(),
-                tags: vec!["tag2".to_string()],
+                header: None,
+                key: Some("key2".to_string()),
+                data: b"data2".to_vec().into(),
+                tags: Some(vec!["tag2".to_string()]),
                 timestamp: now - 100, // Recent (should be kept)
                 crc_num: 0,
             },
             Record {
                 offset: None,
-                header: vec![],
-                key: "key3".to_string(),
-                data: b"data3".to_vec(),
-                tags: vec!["tag3".to_string()],
+                header: None,
+                key: Some("key3".to_string()),
+                data: b"data3".to_vec().into(),
+                tags: Some(vec!["tag3".to_string()]),
                 timestamp: now - 50, // Recent (should be kept)
                 crc_num: 0,
             },
@@ -270,12 +271,12 @@ mod tests {
         let key1 = shard_record_key(&namespace, &shard_name, 1);
         let record1 = adapter.db.read::<Record>(cf.clone(), &key1).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
-        assert_eq!(record1.unwrap().key, "key2");
+        assert_eq!(record1.unwrap().key, Some("key2".to_string()));
 
         let key2 = shard_record_key(&namespace, &shard_name, 2);
         let record2 = adapter.db.read::<Record>(cf.clone(), &key2).unwrap();
         assert!(record2.is_some(), "Offset 2 should exist");
-        assert_eq!(record2.unwrap().key, "key3");
+        assert_eq!(record2.unwrap().key, Some("key3".to_string()));
     }
 
     /// Test that key index is NOT deleted when the same key has newer messages
@@ -299,19 +300,19 @@ mod tests {
         let messages = vec![
             Record {
                 offset: None,
-                header: vec![],
-                key: "same_key".to_string(),
-                data: b"old_data".to_vec(),
-                tags: vec!["tag1".to_string()],
+                header: None,
+                key: Some("same_key".to_string()),
+                data: b"old_data".to_vec().into(),
+                tags: Some(vec!["tag1".to_string()]),
                 timestamp: now - 3600, // 1 hour ago (will be expired)
                 crc_num: 0,
             },
             Record {
                 offset: None,
-                header: vec![],
-                key: "same_key".to_string(), // Same key!
-                data: b"new_data".to_vec(),
-                tags: vec!["tag2".to_string()],
+                header: None,
+                key: Some("same_key".to_string()), // Same key!
+                data: b"new_data".to_vec().into(),
+                tags: Some(vec!["tag2".to_string()]),
                 timestamp: now - 100, // Recent (will be kept)
                 crc_num: 0,
             },
@@ -345,7 +346,7 @@ mod tests {
         let record1_key = shard_record_key(&namespace, &shard_name, 1);
         let record1 = adapter.db.read::<Record>(cf.clone(), &record1_key).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
-        assert_eq!(record1.unwrap().data, b"new_data");
+        assert_eq!(record1.unwrap().data.as_ref(), b"new_data");
 
         // CRITICAL: Verify key index still exists and points to offset 1
         let key_index_bytes_after = adapter.db.db.get_cf(&cf, &key_index_key).unwrap().unwrap();
@@ -365,7 +366,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(key_records.len(), 1);
-        assert_eq!(key_records[0].data, b"new_data");
+        assert_eq!(key_records[0].data.as_ref(), b"new_data");
     }
 
     /// Test batch commit logic with large number of deletions
@@ -389,10 +390,10 @@ mod tests {
         let messages: Vec<Record> = (0..2500)
             .map(|i| Record {
                 offset: None,
-                header: vec![],
-                key: format!("key_{}", i),
-                data: format!("data_{}", i).into_bytes(),
-                tags: vec![format!("tag_{}", i % 10)],
+                header: None,
+                key: Some(format!("key_{}", i)),
+                data: format!("data_{}", i).into_bytes().into(),
+                tags: Some(vec![format!("tag_{}", i % 10)]),
                 timestamp: now - 7200, // 2 hours ago (will be expired)
                 crc_num: 0,
             })

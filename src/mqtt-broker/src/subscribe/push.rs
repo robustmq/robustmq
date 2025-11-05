@@ -124,8 +124,8 @@ pub async fn build_publish_message(
         qos: context.qos,
         p_kid: pkid,
         retain,
-        topic: Bytes::from(context.subscriber.topic_name.clone()),
-        payload: Bytes::from(msg.payload),
+        topic: Bytes::copy_from_slice(context.subscriber.topic_name.as_bytes()),
+        payload: msg.payload,
     };
 
     let properties = if contain_properties {
@@ -135,7 +135,7 @@ pub async fn build_publish_message(
             topic_alias: None,
             response_topic: msg.response_topic,
             correlation_data: msg.correlation_data,
-            user_properties: msg.user_properties,
+            user_properties: msg.user_properties.unwrap_or_default(),
             subscription_identifiers: context.sub_ids,
             content_type: msg.content_type,
         })

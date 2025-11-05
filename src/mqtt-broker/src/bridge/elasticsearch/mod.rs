@@ -93,13 +93,14 @@ impl ElasticsearchBridgePlugin {
             "data": record.data,
         });
 
-        if !record.header.is_empty() {
-            let headers: Vec<Value> = record
-                .header
-                .iter()
-                .map(|h| json!({"name": h.name, "value": h.value}))
-                .collect();
-            doc["headers"] = json!(headers);
+        if let Some(headers) = &record.header {
+            if !headers.is_empty() {
+                let headers_vec: Vec<Value> = headers
+                    .iter()
+                    .map(|h| json!({"name": h.name, "value": h.value}))
+                    .collect();
+                doc["headers"] = json!(headers_vec);
+            }
         }
 
         Ok(doc)

@@ -17,7 +17,7 @@
 
 [build]
 # Parallel jobs - use all CPU cores for maximum speed
-jobs = 14              # Your CPU core count (adjust if different)
+jobs = 12              # Reduced from 14 to leave resources for system (adjust if needed)
 incremental = true     # Enable incremental compilation
 
 # Optimize for faster compilation during development

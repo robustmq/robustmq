@@ -401,7 +401,7 @@ message SetTopicRetainMessageRequest {
   string topic_name = 2;
 
   //The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
-  string retain_message = 3;
+  optional bytes retain_message = 3;
 
   //The parameter is the expiration time of the retain message. The unit is seconds.
   uint64 retain_message_expired_at = 4;
@@ -419,7 +419,7 @@ message GetTopicRetainMessageRequest {
 
 message GetTopicRetainMessageReply {
   //The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
-  string retain_message = 1;
+  optional bytes retain_message = 1;
 
   //The parameter is the expiration time of the retain message. The unit is seconds.
   uint64 retain_message_expired_at = 2;

@@ -110,7 +110,7 @@ impl TopicStorage {
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
-            retain_message: retain_message.encode_str(),
+            retain_message: Some(retain_message.encode()?.to_vec()),
             retain_message_expired_at,
         };
         placement_set_topic_retain_message(
@@ -127,7 +127,7 @@ impl TopicStorage {
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
-            retain_message: "".to_string(),
+            retain_message: None,
             retain_message_expired_at: 0,
         };
         placement_set_topic_retain_message(
@@ -156,14 +156,14 @@ impl TopicStorage {
         )
         .await?;
 
-        if reply.retain_message.is_empty() {
-            return Ok((None, None));
+        if let Some(data) = reply.retain_message {
+            Ok((
+                Some(MqttMessage::decode(data)?),
+                Some(reply.retain_message_expired_at),
+            ))
+        } else {
+            Ok((None, None))
         }
-
-        Ok((
-            Some(serde_json::from_str::<MqttMessage>(&reply.retain_message)?),
-            Some(reply.retain_message_expired_at),
-        ))
     }
 
     pub async fn all_topic_rewrite_rule(

@@ -17,8 +17,7 @@ use crate::storage::keys::{
 };
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -77,7 +76,7 @@ impl MessageExpire {
             }
 
             let result_value = value.unwrap().to_vec();
-            let data = bincode::deserialize::<StorageDataWrap>(&result_value).unwrap();
+            let data = serialize::deserialize::<StorageDataWrap>(&result_value).unwrap();
             let value = serde_json::from_str::<MQTTRetainMessage>(&data.data).unwrap();
             let delete = now_second() >= (value.create_time + value.retain_message_expired_at);
             if delete {
@@ -131,7 +130,7 @@ impl MessageExpire {
             }
 
             let result_value = value.unwrap().to_vec();
-            let data = bincode::deserialize::<StorageDataWrap>(&result_value).unwrap();
+            let data = serialize::deserialize::<StorageDataWrap>(&result_value).unwrap();
             let value = serde_json::from_str::<MqttLastWillData>(&data.data).unwrap();
             if let Some(properties) = value.last_will_properties {
                 let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
@@ -154,6 +153,7 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
+    use axum::body::Bytes;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::lastwill::MqttLastWillData;
@@ -187,7 +187,7 @@ mod tests {
         let retain_message = MQTTRetainMessage {
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
-            retain_message: "message1".to_string(),
+            retain_message: Bytes::from("message1"),
             retain_message_expired_at: expired,
             create_time: now_second(),
         };

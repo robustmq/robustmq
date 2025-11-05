@@ -317,13 +317,17 @@ impl MinIoStorageAdapter {
                 .await?;
 
             // write key
-            let key_path = Self::key_path(&namespace, &shard_name, &message.key);
-            op.write(&key_path, serde_json::to_vec(&message)?).await?;
+            if let Some(key) = &message.key {
+                let key_path = Self::key_path(&namespace, &shard_name, key);
+                op.write(&key_path, serde_json::to_vec(&message)?).await?;
+            }
 
             // write tags
-            for tag in message.tags.iter() {
-                let tag_path = Self::tags_path(&namespace, &shard_name, tag, start_offset);
-                op.write(&tag_path, serde_json::to_vec(&message)?).await?;
+            if let Some(tags) = &message.tags {
+                for tag in tags.iter() {
+                    let tag_path = Self::tags_path(&namespace, &shard_name, tag, start_offset);
+                    op.write(&tag_path, serde_json::to_vec(&message)?).await?;
+                }
             }
 
             offsets.push(start_offset);
@@ -619,8 +623,8 @@ mod tests {
         let ms1 = "test1".to_string();
         let ms2 = "test2".to_string();
         let data = vec![
-            Record::build_byte(ms1.clone().as_bytes().to_vec()),
-            Record::build_byte(ms2.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms1.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms2.clone().as_bytes().to_vec()),
         ];
 
         let result = storage_adapter
@@ -653,8 +657,8 @@ mod tests {
         let ms3 = "test3".to_string();
         let ms4 = "test4".to_string();
         let data = vec![
-            Record::build_byte(ms3.clone().as_bytes().to_vec()),
-            Record::build_byte(ms4.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms3.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms4.clone().as_bytes().to_vec()),
         ];
 
         let result = storage_adapter
@@ -695,7 +699,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms1
         );
 
@@ -727,7 +731,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms2
         );
 
@@ -757,7 +761,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms3
         );
 
@@ -787,7 +791,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms4
         );
 
@@ -850,10 +854,10 @@ mod tests {
                     let value = format!("data-{tid}-{idx}").as_bytes().to_vec();
                     let data = Record {
                         offset: None,
-                        header: header.clone(),
-                        key: format!("key-{tid}-{idx}"),
-                        data: value.clone(),
-                        tags: vec![format!("task-{}", tid)],
+                        header: Some(header.clone()),
+                        key: Some(format!("key-{tid}-{idx}")),
+                        data: value.clone().into(),
+                        tags: Some(vec![format!("task-{}", tid)]),
                         timestamp: 0,
                         crc_num: calc_crc32(&value),
                     };

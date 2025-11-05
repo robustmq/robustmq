@@ -16,7 +16,7 @@ MetaService is designed with the following core principles:
 
 ## Architecture Overview
 
-![MetaService Architecture](../../images/robustmq-architecture.png)
+![MetaService Architecture](../../images/robustmq-architecture.jpg)
 
 MetaService follows a layered architecture with clear separation of concerns:
 

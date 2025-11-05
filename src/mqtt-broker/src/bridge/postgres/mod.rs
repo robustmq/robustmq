@@ -56,8 +56,8 @@ impl PostgresBridgePlugin {
             let timestamp = record.timestamp as i64;
             let topic = record
                 .header
-                .iter()
-                .find(|h| h.name == "topic")
+                .as_ref()
+                .and_then(|headers| headers.iter().find(|h| h.name == "topic"))
                 .map(|h| h.value.clone())
                 .unwrap_or_else(|| "unknown".to_string());
             let payload_str = String::from_utf8_lossy(&record.data).to_string();
@@ -100,7 +100,7 @@ impl PostgresBridgePlugin {
                 .bind(&topic)
                 .bind(timestamp)
                 .bind(&payload_str)
-                .bind(&record.data)
+                .bind(record.data.as_ref())
                 .execute(pool)
                 .await?;
         }
@@ -127,8 +127,8 @@ impl PostgresBridgePlugin {
             let timestamp = record.timestamp as i64;
             let topic = record
                 .header
-                .iter()
-                .find(|h| h.name == "topic")
+                .as_ref()
+                .and_then(|headers| headers.iter().find(|h| h.name == "topic"))
                 .map(|h| h.value.clone())
                 .unwrap_or_else(|| "unknown".to_string());
             let payload_str = String::from_utf8_lossy(&record.data).to_string();
@@ -179,7 +179,7 @@ impl PostgresBridgePlugin {
                 .bind(&topics[i])
                 .bind(timestamps[i])
                 .bind(&payloads[i])
-                .bind(&data_vec[i]);
+                .bind(data_vec[i].as_ref());
         }
 
         query.execute(pool).await?;

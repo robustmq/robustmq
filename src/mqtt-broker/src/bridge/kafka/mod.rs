@@ -97,11 +97,7 @@ impl ConnectorSink for KafkaBridgePlugin {
             serialized_data.push(data);
 
             let key = if self.config.key.is_empty() {
-                if record.key.is_empty() {
-                    String::new()
-                } else {
-                    record.key.clone()
-                }
+                record.key.clone().unwrap_or_default()
             } else {
                 self.config.key.clone()
             };

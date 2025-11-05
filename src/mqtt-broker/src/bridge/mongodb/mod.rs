@@ -95,7 +95,7 @@ impl MongoDBBridgePlugin {
     fn record_to_document(&self, record: &Record) -> Result<Document, MqttBrokerError> {
         bson::to_document(record).map_err(|e| {
             MqttBrokerError::BsonSerializationError(format!(
-                "Failed to serialize record with key '{}' at timestamp {}: {}",
+                "Failed to serialize record with key '{:?}' at timestamp {}: {}",
                 record.key, record.timestamp, e
             ))
         })
@@ -171,7 +171,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
                 Ok(doc) => documents.push(doc),
                 Err(e) => {
                     warn!(
-                        "Failed to serialize record {}/{} (key: '{}', timestamp: {}): {}",
+                        "Failed to serialize record {}/{} (key: '{:?}', timestamp: {}): {}",
                         idx + 1,
                         records.len(),
                         record.key,

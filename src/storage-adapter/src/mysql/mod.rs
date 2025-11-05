@@ -151,8 +151,8 @@ impl MySQLStorageAdapter {
                 insert_record_sql,
                 params! {
                     "offset" => offset - 1,   // offset is 1-based in the mysql AUTO_INCREMENT column
-                    "key" => message.key,
-                    "data" => message.data,
+                    "key" => message.key.clone().unwrap_or_default(),
+                    "data" => message.data.to_vec(),
                     "header" => serde_json::to_vec(&message.header)?,
                     "tags" => serde_json::to_vec(&message.tags)?,
                     "ts" => message.timestamp,
@@ -167,17 +167,19 @@ impl MySQLStorageAdapter {
                 Self::tags_table_name()
             );
 
-            conn.exec_batch(
-                insert_tags_sql.as_str(),
-                message.tags.into_iter().map(|tag| {
-                    params! {
-                        "namespace" => namespace.clone(),
-                        "shard" => shard_name.clone(),
-                        "m_offset" => offset - 1, // offset is 1-based in the mysql AUTO_INCREMENT column
-                        "tag" => tag,
-                    }
-                }),
-            )?;
+            if let Some(tags) = &message.tags {
+                conn.exec_batch(
+                    insert_tags_sql.as_str(),
+                    tags.iter().map(|tag| {
+                        params! {
+                            "namespace" => namespace.clone(),
+                            "shard" => shard_name.clone(),
+                            "m_offset" => offset - 1, // offset is 1-based in the mysql AUTO_INCREMENT column
+                            "tag" => tag,
+                        }
+                    }),
+                )?;
+            }
         }
 
         Ok(offsets)
@@ -435,8 +437,8 @@ impl StorageAdapter for MySQLStorageAdapter {
             )| {
                 Record {
                     offset: Some(offset), // offset is 1-based in the database
-                    key,
-                    data: data.clone(),
+                    key: if key.is_empty() { None } else { Some(key) },
+                    data: data.clone().into(),
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
@@ -488,8 +490,8 @@ impl StorageAdapter for MySQLStorageAdapter {
             )| {
                 Record {
                     offset: Some(offset), // offset is 1-based in the database
-                    key,
-                    data: data.clone(),
+                    key: if key.is_empty() { None } else { Some(key) },
+                    data: data.clone().into(),
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
@@ -539,8 +541,8 @@ impl StorageAdapter for MySQLStorageAdapter {
                     u64,
                 )| Record {
                     offset: Some(offset),
-                    key,
-                    data: data.clone(),
+                    key: if key.is_empty() { None } else { Some(key) },
+                    data: data.clone().into(),
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
@@ -705,23 +707,23 @@ mod tests {
 
         let value = "test1".to_string().as_bytes().to_vec();
         data.push(Record {
-            data: value.clone(),
-            key: "k1".to_string(),
-            header: header.clone(),
+            data: value.clone().into(),
+            key: Some("k1".to_string()),
+            header: Some(header.clone()),
             offset: None,
             timestamp: 1737600096,
-            tags: vec![],
+            tags: None,
             crc_num: calc_crc32(&value),
         });
 
         let value = "test2".to_string().as_bytes().to_vec();
         data.push(Record {
-            data: value.clone(),
-            key: "k2".to_string(),
-            header: header.clone(),
+            data: value.clone().into(),
+            key: Some("k2".to_string()),
+            header: Some(header.clone()),
             offset: None,
             timestamp: 1737600097,
-            tags: vec![],
+            tags: None,
             crc_num: calc_crc32(&value),
         });
 
@@ -751,8 +753,8 @@ mod tests {
         assert_eq!(records[0].data, "test1".to_string().as_bytes().to_vec());
         assert_eq!(records[1].data, "test2".to_string().as_bytes().to_vec());
 
-        assert_eq!(records[0].key, "k1");
-        assert_eq!(records[1].key, "k2");
+        assert_eq!(records[0].key, Some("k1".to_string()));
+        assert_eq!(records[1].key, Some("k2".to_string()));
 
         assert_eq!(records[0].offset, Some(0));
         assert_eq!(records[1].offset, Some(1));
@@ -790,8 +792,8 @@ mod tests {
         let ms1 = "test1".to_string();
         let ms2 = "test2".to_string();
         let data = vec![
-            Record::build_byte(ms1.clone().as_bytes().to_vec()),
-            Record::build_byte(ms2.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms1.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms2.clone().as_bytes().to_vec()),
         ];
 
         let result = mysql_adapter
@@ -824,8 +826,8 @@ mod tests {
         let ms3 = "test3".to_string();
         let ms4 = "test4".to_string();
         let data = vec![
-            Record::build_byte(ms3.clone().as_bytes().to_vec()),
-            Record::build_byte(ms4.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms3.clone().as_bytes().to_vec()),
+            Record::from_bytes(ms4.clone().as_bytes().to_vec()),
         ];
 
         let result = mysql_adapter
@@ -866,7 +868,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms1
         );
 
@@ -895,7 +897,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms2
         );
 
@@ -923,7 +925,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms3
         );
 
@@ -950,7 +952,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data.to_vec()).unwrap(),
             ms4
         );
 
@@ -1019,12 +1021,12 @@ mod tests {
                 for i in 0..100 {
                     let value = format!("test-{tid}-{i}").as_bytes().to_vec();
                     data.push(Record {
-                        data: value.clone(),
-                        key: format!("k-{tid}-{i}"),
-                        header: header.clone(),
+                        data: value.clone().into(),
+                        key: Some(format!("k-{tid}-{i}")),
+                        header: Some(header.clone()),
                         offset: None,
                         timestamp: 1737600096,
-                        tags: vec![],
+                        tags: None,
                         crc_num: calc_crc32(&value),
                     });
                 }
@@ -1055,7 +1057,7 @@ mod tests {
                         .unwrap();
 
                     assert_eq!(record.data, format!("test-{tid}-{idx}").as_bytes());
-                    assert_eq!(record.key, format!("k-{tid}-{idx}"));
+                    assert_eq!(record.key, Some(format!("k-{tid}-{idx}")));
                     assert_eq!(record.offset, Some(offset));
                 }
             });

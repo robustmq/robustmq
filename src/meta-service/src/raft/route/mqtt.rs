@@ -22,6 +22,7 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
+use axum::body::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_mills, now_second};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -114,15 +115,18 @@ impl DataRouteMqtt {
             return Ok(());
         };
 
-        let message = MQTTRetainMessage {
-            cluster_name: req.cluster_name.clone(),
-            topic_name: topic.topic_name,
-            retain_message: req.retain_message,
-            retain_message_expired_at: req.retain_message_expired_at,
-            create_time: now_second(),
-        };
+        if let Some(retain) = req.retain_message {
+            let message = MQTTRetainMessage {
+                cluster_name: req.cluster_name.clone(),
+                topic_name: topic.topic_name,
+                retain_message: Bytes::copy_from_slice(&retain),
+                retain_message_expired_at: req.retain_message_expired_at,
+                create_time: now_second(),
+            };
 
-        storage.save_retain_message(message)?;
+            storage.save_retain_message(message)?;
+        }
+
         Ok(())
     }
 

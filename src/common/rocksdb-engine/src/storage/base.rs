@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::{rocksdb::RocksDBEngine, warp::StorageDataWrap};
-use common_base::error::common::CommonError;
-use common_base::tools::now_mills;
+use common_base::{error::common::CommonError, tools::now_mills, utils::serialize};
 use common_metrics::rocksdb::{
     metrics_rocksdb_delete_ms, metrics_rocksdb_exist_ms, metrics_rocksdb_get_ms,
     metrics_rocksdb_list_ms, metrics_rocksdb_save_ms,
@@ -140,7 +139,7 @@ pub fn engine_prefix_list(
         let mut results = Vec::with_capacity(raw.len().min(64));
 
         for (_key, v) in raw {
-            match bincode::deserialize::<StorageDataWrap>(v.as_ref()) {
+            match serialize::deserialize::<StorageDataWrap>(v.as_ref()) {
                 Ok(v) => results.push(v),
                 Err(_e) => {
                     // Silently skip deserialization errors
@@ -165,7 +164,7 @@ pub fn engine_list_by_model(
         let results = DashMap::with_capacity(raw.len().min(32));
 
         for (key, v) in raw {
-            match bincode::deserialize::<StorageDataWrap>(v.as_ref()) {
+            match serialize::deserialize::<StorageDataWrap>(v.as_ref()) {
                 Ok(v) => {
                     results.insert(key.clone(), v);
                 }

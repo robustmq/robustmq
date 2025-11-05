@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use bytes::Bytes;
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -28,14 +27,16 @@ pub struct MqttMessage {
     pub qos: QoS,
     pub pkid: u16,
     pub retain: bool,
-    pub topic: String,
-    pub payload: String,
+
+    pub topic: Bytes,
+    pub payload: Bytes,
+
     pub format_indicator: Option<u8>,
     pub expiry_interval: u64,
     pub response_topic: Option<String>,
     pub correlation_data: Option<Bytes>,
-    pub user_properties: Vec<(String, String)>,
-    pub subscription_identifiers: Vec<usize>,
+    pub user_properties: Option<Vec<(String, String)>>,
+    pub subscription_identifiers: Option<Vec<usize>>,
     pub content_type: Option<String>,
     pub create_time: u64,
 }
@@ -48,17 +49,22 @@ impl MqttMessage {
             qos: QoS::AtMostOnce,
             pkid: 0,
             retain: false,
-            topic: topic_name,
-            payload,
+            topic: Bytes::from(topic_name),
+            payload: Bytes::from(payload),
+            format_indicator: None,
+            expiry_interval: 0,
+            response_topic: None,
+            correlation_data: None,
+            user_properties: None,
+            subscription_identifiers: None,
+            content_type: None,
             create_time: now_second(),
-            ..Default::default()
         };
 
-        match serde_json::to_vec(&message) {
-            Ok(data) => Some(Record::build_byte(data)),
-
+        match message.encode() {
+            Ok(data) => Some(Record::from_bytes(data)),
             Err(e) => {
-                error!("Message encoding failed, error message :{}", e.to_string());
+                error!("Message encoding failed, error message: {}", e);
                 None
             }
         }
@@ -76,28 +82,28 @@ impl MqttMessage {
             qos: publish.qos,
             pkid: publish.p_kid,
             retain: publish.retain,
-            topic: String::from_utf8(publish.topic.to_vec()).unwrap_or("".to_string()),
-            payload: String::from_utf8(publish.payload.to_vec()).unwrap_or("".to_string()),
+            topic: publish.topic.clone(),
+            payload: publish.payload.clone(),
+            expiry_interval,
+            create_time: now_second(),
             ..Default::default()
         };
+
         if let Some(properties) = publish_properties {
             message.format_indicator = properties.payload_format_indicator;
-            message.expiry_interval = expiry_interval;
             message.response_topic = properties.response_topic.clone();
             message.correlation_data = properties.correlation_data.clone();
-            message.user_properties = properties.user_properties.clone();
-            message.subscription_identifiers = properties.subscription_identifiers.clone();
             message.content_type = properties.content_type.clone();
-        } else {
-            message.format_indicator = None;
-            message.expiry_interval = expiry_interval;
-            message.response_topic = None;
-            message.correlation_data = None;
-            message.user_properties = Vec::new();
-            message.subscription_identifiers = Vec::new();
-            message.content_type = None;
+
+            if !properties.user_properties.is_empty() {
+                message.user_properties = Some(properties.user_properties.clone());
+            }
+            if !properties.subscription_identifiers.is_empty() {
+                message.subscription_identifiers =
+                    Some(properties.subscription_identifiers.clone());
+            }
         }
-        message.create_time = now_second();
+
         message
     }
 
@@ -109,32 +115,25 @@ impl MqttMessage {
     ) -> Option<Record> {
         let msg =
             MqttMessage::build_message(client_id, publish, publish_properties, expiry_interval);
-        match serde_json::to_vec(&msg) {
-            Ok(data) => Some(Record::build_byte(data)),
-
+        match msg.encode() {
+            Ok(data) => Some(Record::from_bytes(data)),
             Err(e) => {
-                error!("Message encoding failed, error message :{}", e.to_string());
+                error!("Message encoding failed, error message: {}", e);
                 None
             }
         }
     }
 
     pub fn decode_record(record: Record) -> Result<MqttMessage, CommonError> {
-        let data: MqttMessage = match serde_json::from_slice(record.data.as_slice()) {
-            Ok(da) => da,
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        };
-        Ok(data)
+        serialize::deserialize(&record.data)
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
     }
 
-    pub fn encode_str(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+    pub fn decode(data: Vec<u8>) -> Result<MqttMessage, CommonError> {
+        serialize::deserialize(&data)
     }
 }
 
@@ -143,6 +142,36 @@ mod tests {
     use super::*;
     use bytes::Bytes;
     use protocol::mqtt::common::{Publish, PublishProperties, QoS};
+
+    #[test]
+    fn test_simple_serialize() {
+        // Try with AtLeastOnce instead
+        let msg = MqttMessage {
+            client_id: "-".to_string(),
+            dup: true,
+            qos: QoS::AtLeastOnce,
+            pkid: 42,
+            retain: false,
+            topic: Bytes::from("topic"),
+            payload: Bytes::from("payload"),
+            format_indicator: Some(1),
+            expiry_interval: 3600,
+            response_topic: Some("response".to_string()),
+            correlation_data: Some(Bytes::from("corr")),
+            user_properties: Some(vec![("k".to_string(), "v".to_string())]),
+            subscription_identifiers: Some(vec![1]),
+            content_type: Some("text".to_string()),
+            create_time: 12345,
+        };
+
+        // Direct serialize/deserialize
+        let data = serialize::serialize(&msg).unwrap();
+        println!("Serialized {} bytes", data.len());
+
+        let decoded: MqttMessage = serialize::deserialize(&data).unwrap();
+        assert_eq!(decoded.client_id, msg.client_id);
+        assert_eq!(decoded.topic, msg.topic);
+    }
 
     #[test]
     fn test_build_system_topic_message() {
@@ -162,7 +191,7 @@ mod tests {
         assert_eq!(msg.topic, Bytes::from(topic));
         assert_eq!(msg.payload, Bytes::from(payload));
         assert_eq!(msg.format_indicator, None);
-        assert_eq!(msg.user_properties.len(), 0);
+        assert!(msg.user_properties.is_none());
         assert!(msg.create_time > 0);
     }
 
@@ -203,10 +232,12 @@ mod tests {
         assert_eq!(msg.expiry_interval, expiry_interval);
         assert_eq!(msg.response_topic, Some("response/topic".to_string()));
         assert_eq!(msg.correlation_data, Some(Bytes::from("correlation-data")));
-        assert_eq!(msg.user_properties.len(), 1);
-        assert_eq!(msg.user_properties[0].0, "key1");
-        assert_eq!(msg.user_properties[0].1, "value1");
-        assert_eq!(msg.subscription_identifiers, vec![1, 2, 3]);
+        assert!(msg.user_properties.is_some());
+        let user_props = msg.user_properties.as_ref().unwrap();
+        assert_eq!(user_props.len(), 1);
+        assert_eq!(user_props[0].0, "key1");
+        assert_eq!(user_props[0].1, "value1");
+        assert_eq!(msg.subscription_identifiers, Some(vec![1, 2, 3]));
         assert_eq!(msg.content_type, Some("application/json".to_string()));
         assert!(msg.create_time > 0);
     }
@@ -237,8 +268,8 @@ mod tests {
         assert_eq!(msg.expiry_interval, expiry_interval);
         assert_eq!(msg.response_topic, None);
         assert_eq!(msg.correlation_data, None);
-        assert_eq!(msg.user_properties.len(), 0);
-        assert_eq!(msg.subscription_identifiers.len(), 0);
+        assert!(msg.user_properties.is_none());
+        assert!(msg.subscription_identifiers.is_none());
         assert_eq!(msg.content_type, None);
         assert!(msg.create_time > 0);
     }
@@ -272,20 +303,20 @@ mod tests {
             qos: QoS::AtLeastOnce,
             pkid: 42,
             retain: true,
-            topic: "test/topic".to_string(),
-            payload: "test message".to_string(),
+            topic: Bytes::from("test/topic"),
+            payload: Bytes::from("test message"),
             format_indicator: Some(1),
             expiry_interval: 3600,
             response_topic: Some("response/topic".to_string()),
             correlation_data: Some(Bytes::from("correlation-data")),
-            user_properties: vec![("key1".to_string(), "value1".to_string())],
-            subscription_identifiers: vec![1, 2, 3],
+            user_properties: Some(vec![("key1".to_string(), "value1".to_string())]),
+            subscription_identifiers: Some(vec![1, 2, 3]),
             content_type: Some("application/json".to_string()),
             create_time: now_second(),
         };
 
-        let encoded = msg.encode();
-        let record = Record::build_byte(encoded);
+        let encoded = msg.encode().unwrap();
+        let record = Record::from_bytes(encoded);
         let decoded = MqttMessage::decode_record(record).unwrap();
 
         assert_eq!(decoded.client_id, msg.client_id);

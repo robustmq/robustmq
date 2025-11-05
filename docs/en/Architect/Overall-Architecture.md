@@ -38,7 +38,7 @@ Refers to the actual data storage medium, which can be local memory or remote st
 
 The detailed architecture of RobustMQ is shown in the following diagram:
 
-![image](../../images/robustmq-architecture.png)
+![image](../../images/robustmq-architecture.jpg)
 
 As shown above, this is a cluster composed of three RobustMQ Nodes. When choosing to use the built-in persistent storage engine Journal Server, no external components are required, and nodes can be started with a single command: `./bin/robust-server start`.
 

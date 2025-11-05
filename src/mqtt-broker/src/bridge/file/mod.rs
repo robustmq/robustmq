@@ -198,7 +198,7 @@ impl ConnectorSink for FileBridgePlugin {
         writer: &mut FileWriter,
     ) -> ResultMqttBrokerError {
         for record in records {
-            let msg = serde_json::from_slice::<MqttMessage>(&record.data)?;
+            let msg = MqttMessage::decode(record.data.to_vec())?;
             let data = serde_json::to_string(&msg)?;
             writer.write(data.as_ref()).await?;
             writer.write(b"\n").await?;
@@ -314,13 +314,13 @@ mod tests {
         for i in 0..1000 {
             let record = Record {
                 offset: Some(i),
-                header: vec![Header {
+                header: Some(vec![Header {
                     name: "test_name".to_string(),
                     value: "test_value".to_string(),
-                }],
-                key: format!("test_key_{i}"),
-                data: format!("test_data_{i}").as_bytes().to_vec(),
-                tags: vec![],
+                }]),
+                key: Some(format!("test_key_{i}")),
+                data: format!("test_data_{i}").as_bytes().to_vec().into(),
+                tags: Some(vec![]),
                 timestamp: now_second(),
                 crc_num: calc_crc32(format!("test_data_{i}").as_bytes()),
             };

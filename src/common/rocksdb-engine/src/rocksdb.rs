@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use common_base::error::common::CommonError;
+use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb::{
     BlockBasedOptions, BoundColumnFamily, Cache, ColumnFamilyDescriptor, DBCompactionStyle,
     DBCompressionType, Options, SliceTransform, DB,
@@ -84,8 +84,7 @@ impl RocksDBEngine {
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
-        let serialized = bincode::serialize(value)
-            .map_err(|e| CommonError::CommonError(format!("Failed to bincode serialize: {e:?}")))?;
+        let serialized = serialize::serialize(value)?;
 
         self.db
             .put_cf(&cf, key, serialized)
@@ -121,11 +120,7 @@ impl RocksDBEngine {
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
-            Ok(Some(data)) if !data.is_empty() => {
-                bincode::deserialize::<T>(&data).map(Some).map_err(|e| {
-                    CommonError::CommonError(format!("Failed to bincode deserialize: {e:?}"))
-                })
-            }
+            Ok(Some(data)) if !data.is_empty() => serialize::deserialize::<T>(&data).map(Some),
             Ok(_) => Ok(None),
             Err(e) => Err(CommonError::CommonError(format!(
                 "Failed to get from CF: {e:?}"
@@ -160,9 +155,7 @@ impl RocksDBEngine {
         for result in results {
             match result {
                 Ok(Some(data)) if !data.is_empty() => {
-                    let value = bincode::deserialize::<T>(&data).map_err(|e| {
-                        CommonError::CommonError(format!("Failed to bincode deserialize: {e:?}"))
-                    })?;
+                    let value = serialize::deserialize::<T>(&data)?;
                     output.push(Some(value));
                 }
                 Ok(_) => output.push(None),

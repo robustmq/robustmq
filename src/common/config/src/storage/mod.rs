@@ -46,7 +46,7 @@ pub enum StorageAdapterType {
     #[default]
     Memory,
     Mysql,
-    RocksDB,
+    File,
     MinIO,
     S3,
 }
@@ -59,7 +59,7 @@ impl FromStr for StorageAdapterType {
             "journal" => Ok(StorageAdapterType::Journal),
             "memory" => Ok(StorageAdapterType::Memory),
             "mysql" => Ok(StorageAdapterType::Mysql),
-            "rocksdb" => Ok(StorageAdapterType::RocksDB),
+            "file" | "rocksdb" => Ok(StorageAdapterType::File), // "rocksdb" is an alias for backward compatibility
             "minio" => Ok(StorageAdapterType::MinIO),
             "s3" => Ok(StorageAdapterType::S3),
             _ => Err(()),
@@ -89,7 +89,7 @@ mod tests {
         );
         assert_eq!(
             StorageAdapterType::from_str("rocksdb").unwrap(),
-            StorageAdapterType::RocksDB
+            StorageAdapterType::File
         );
         assert_eq!(
             StorageAdapterType::from_str("minio").unwrap(),

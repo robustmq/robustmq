@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    journal::JournalStorageAdapter, memory::MemoryStorageAdapter, minio::MinIoStorageAdapter,
-    mysql::MySQLStorageAdapter, rocksdb::RocksDBStorageAdapter, s3::S3StorageAdapter,
+    file::RocksDBStorageAdapter, journal::JournalStorageAdapter, memory::MemoryStorageAdapter,
+    minio::MinIoStorageAdapter, mysql::MySQLStorageAdapter, s3::S3StorageAdapter,
     storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
@@ -40,7 +40,7 @@ pub async fn build_message_storage_driver(
             config.mysql_config.unwrap_or_default(),
         )?),
 
-        StorageAdapterType::RocksDB => Arc::new(RocksDBStorageAdapter::new(
+        StorageAdapterType::File => Arc::new(RocksDBStorageAdapter::new(
             config.rocksdb_config.unwrap_or_default(),
         )),
 
