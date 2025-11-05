@@ -275,5 +275,4 @@ fi
 echo "Running integration tests..."
 cargo nextest run --fail-fast \
   --package grpc-clients \
-  --package robustmq-test \
-  --filter-expr '!test(meta::journal)'
+  --package robustmq-test

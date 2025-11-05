@@ -20,7 +20,7 @@ use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::error::not_record_error;
 use common_base::tools::now_mills;
 use common_metrics::network::metrics_request_queue_size;
-use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use metadata_struct::connection::NetworkConnectionType;
 use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
 use tokio::select;
@@ -79,7 +79,7 @@ pub fn handler_process(
                                         resp.receive_ms = packet.receive_ms;
                                         resp.end_handler_ms = now_mills();
                                         // permit_request_channel.send_response_packet_to_handler(&permit_raw_network_type, resp).await;
-                                        process_response(&connect, &permit_raw_connect_manager, &permit_raw_network_type, &resp).await;
+                                        process_response(&permit_raw_connect_manager, &permit_raw_network_type, &resp).await;
                                     } else {
                                         debug!("{}","No backpacking is required for this request");
                                     }
@@ -105,13 +105,13 @@ fn record_request_channel_metrics(
 }
 
 async fn process_response(
-    connect: &NetworkConnection,
     connection_manager: &Arc<ConnectionManager>,
     network_type: &NetworkConnectionType,
     response_package: &ResponsePackage,
 ) {
     let out_response_queue_ms = now_mills();
-    if let Some(protocol) = connect.protocol.clone() {
+    if let Some(protocol) = connection_manager.get_connect_protocol(response_package.connection_id)
+    {
         let packet_wrapper = match response_package.packet.clone() {
             RobustMQPacket::MQTT(packet) => build_mqtt_packet_wrapper(protocol, packet),
             RobustMQPacket::KAFKA(_packet) => {

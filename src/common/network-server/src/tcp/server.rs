@@ -145,13 +145,13 @@ impl TcpServer {
             }
 
             // response child channel
-            for (index, send) in self.request_channel.response_channels.clone() {
-                let cap = send.capacity();
-                if self.proc_config.channel_size > send.capacity() {
-                    info!("Response child queue {} is not empty, current length {}, waiting for response packet processing to complete....", index, self.proc_config.channel_size - cap);
-                    flag = true;
-                }
-            }
+            // for (index, send) in self.request_channel.response_channels.clone() {
+            //     let cap = send.capacity();
+            //     if self.proc_config.channel_size > send.capacity() {
+            //         info!("Response child queue {} is not empty, current length {}, waiting for response packet processing to complete....", index, self.proc_config.channel_size - cap);
+            //         flag = true;
+            //     }
+            // }
 
             if !flag {
                 info!("[{}] All the request packets have been processed. Start to stop the request processing thread.", self.network_type);
