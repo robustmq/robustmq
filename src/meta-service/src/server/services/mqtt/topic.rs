@@ -130,7 +130,7 @@ pub async fn set_topic_retain_message_by_req(
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     // Update retain message fields
-    if req.retain_message.is_empty() {
+    if req.retain_message.is_none() {
         let data = StorageData::new(
             StorageDataType::MqttDeleteRetainMessage,
             SetTopicRetainMessageRequest::encode_to_vec(req),
@@ -156,13 +156,13 @@ pub async fn get_topic_retain_message_by_req(
 
     if let Some(message) = topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
         return Ok(GetTopicRetainMessageReply {
-            retain_message: message.retain_message,
+            retain_message: Some(message.retain_message.to_vec()),
             retain_message_expired_at: message.retain_message_expired_at,
         });
     }
 
     Ok(GetTopicRetainMessageReply {
-        retain_message: String::new(),
+        retain_message: None,
         retain_message_expired_at: 0,
     })
 }

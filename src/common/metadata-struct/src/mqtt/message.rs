@@ -61,7 +61,7 @@ impl MqttMessage {
             create_time: now_second(),
         };
 
-        match serialize::serialize(&message) {
+        match message.encode() {
             Ok(data) => Some(Record::from_bytes(data)),
             Err(e) => {
                 error!("Message encoding failed, error message: {}", e);
@@ -115,7 +115,7 @@ impl MqttMessage {
     ) -> Option<Record> {
         let msg =
             MqttMessage::build_message(client_id, publish, publish_properties, expiry_interval);
-        match serialize::serialize(&msg) {
+        match msg.encode() {
             Ok(data) => Some(Record::from_bytes(data)),
             Err(e) => {
                 error!("Message encoding failed, error message: {}", e);
@@ -132,10 +132,8 @@ impl MqttMessage {
         serialize::serialize(self)
     }
 
-    pub fn encode_str(&self) -> Result<String, CommonError> {
-        let bytes = serialize::serialize(self)?;
-        String::from_utf8(bytes)
-            .map_err(|e| CommonError::CommonError(format!("Failed to convert to UTF-8: {}", e)))
+    pub fn decode(data: Vec<u8>) -> Result<MqttMessage, CommonError> {
+        serialize::deserialize(&data)
     }
 }
 

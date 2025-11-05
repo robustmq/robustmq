@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MQTTRetainMessage {
     pub cluster_name: String,
     pub topic_name: String,
-    pub retain_message: String,
+    pub retain_message: Bytes,
     pub retain_message_expired_at: u64,
     pub create_time: u64,
 }

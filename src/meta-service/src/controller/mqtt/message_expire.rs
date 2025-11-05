@@ -153,6 +153,7 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
+    use axum::body::Bytes;
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::lastwill::MqttLastWillData;
@@ -186,7 +187,7 @@ mod tests {
         let retain_message = MQTTRetainMessage {
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
-            retain_message: "message1".to_string(),
+            retain_message: Bytes::from("message1"),
             retain_message_expired_at: expired,
             create_time: now_second(),
         };

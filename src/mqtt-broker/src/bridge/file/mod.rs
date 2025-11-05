@@ -198,7 +198,7 @@ impl ConnectorSink for FileBridgePlugin {
         writer: &mut FileWriter,
     ) -> ResultMqttBrokerError {
         for record in records {
-            let msg = serde_json::from_slice::<MqttMessage>(&record.data)?;
+            let msg = MqttMessage::decode(record.data.to_vec())?;
             let data = serde_json::to_string(&msg)?;
             writer.write(data.as_ref()).await?;
             writer.write(b"\n").await?;
