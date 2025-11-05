@@ -173,7 +173,7 @@ async fn handle_socket(
                 if let Some(msg) = val{
                     match msg {
                         Ok(Message::Binary(data)) => {
-                            if let Err(e) = process_socket_packet_by_binary(tcp_connection.connection_id(), &connection_manager,&mut codec, command.clone(), addr,data).await{
+                            if let Err(e) = process_socket_packet_by_binary(tcp_connection.connection_id(), &connection_manager,&mut codec, command.clone(), &addr,&data).await{
                                 error!("Websocket failed to process protocol packet with error message :{e:?}");
                             }
                         }
@@ -221,8 +221,8 @@ async fn process_socket_packet_by_binary(
     connection_manager: &Arc<ConnectionManager>,
     codec: &mut RobustMQCodec,
     command: ArcCommandAdapter,
-    addr: SocketAddr,
-    data: Vec<u8>,
+    addr: &SocketAddr,
+    data: &Vec<u8>,
 ) -> ResultCommonError {
     let receive_ms = now_mills();
     let mut buf = BytesMut::with_capacity(data.len());
@@ -241,10 +241,7 @@ async fn process_socket_packet_by_binary(
             RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
         };
 
-        if let Some(resp_pkg) = command
-            .apply(tcp_connection.clone(), addr, robust_packet)
-            .await
-        {
+        if let Some(resp_pkg) = command.apply(&tcp_connection, addr, &robust_packet).await {
             // encode resp packet
             let mut response_buff = BytesMut::new();
             let resp_codec_wrapper = match resp_pkg.packet.clone() {

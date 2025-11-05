@@ -22,9 +22,9 @@ use std::{net::SocketAddr, sync::Arc};
 pub trait Command {
     async fn apply(
         &self,
-        tcp_connection: NetworkConnection,
-        addr: SocketAddr,
-        packet: RobustMQPacket,
+        tcp_connection: &NetworkConnection,
+        addr: &SocketAddr,
+        packet: &RobustMQPacket,
     ) -> Option<ResponsePackage>;
 }
 pub type ArcCommandAdapter = Arc<Box<dyn Command + Send + Sync>>;

@@ -15,12 +15,8 @@
 use crate::{
     command::ArcCommandAdapter,
     common::{
-        channel::RequestChannel,
-        connection_manager::ConnectionManager,
-        handler::handler_process,
-        response::{response_process, ResponseChildProcessContext},
-        tcp_acceptor::acceptor_process,
-        tls_acceptor::acceptor_tls_process,
+        channel::RequestChannel, connection_manager::ConnectionManager, handler::handler_process,
+        tcp_acceptor::acceptor_process, tls_acceptor::acceptor_tls_process,
     },
     context::{ProcessorConfig, ServerContext},
 };
@@ -108,13 +104,13 @@ impl TcpServer {
             self.stop_sx.clone(),
         );
 
-        response_process(ResponseChildProcessContext {
-            response_process_num: self.proc_config.response_process_num,
-            connection_manager: self.connection_manager.clone(),
-            request_channel: self.request_channel.clone(),
-            network_type: self.network_type.clone(),
-            stop_sx: self.stop_sx.clone(),
-        });
+        // response_process(ResponseChildProcessContext {
+        //     response_process_num: self.proc_config.response_process_num,
+        //     connection_manager: self.connection_manager.clone(),
+        //     request_channel: self.request_channel.clone(),
+        //     network_type: self.network_type.clone(),
+        //     stop_sx: self.stop_sx.clone(),
+        // });
 
         self.record_pre_server_metrics();
         info!(

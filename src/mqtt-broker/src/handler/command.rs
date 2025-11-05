@@ -81,9 +81,9 @@ pub struct CommandContext {
 impl Command for MQTTHandlerCommand {
     async fn apply(
         &self,
-        tcp_connection: NetworkConnection,
-        addr: SocketAddr,
-        robust_packet: RobustMQPacket,
+        tcp_connection: &NetworkConnection,
+        addr: &SocketAddr,
+        robust_packet: &RobustMQPacket,
     ) -> Option<ResponsePackage> {
         let start = now_mills();
         let packet = robust_packet.get_mqtt_packet().unwrap();
@@ -112,8 +112,8 @@ impl Command for MQTTHandlerCommand {
                 login,
             ) => {
                 self.process_connect(
-                    &tcp_connection,
-                    &addr,
+                    tcp_connection,
+                    addr,
                     protocol_version,
                     connect,
                     properties,
@@ -125,44 +125,44 @@ impl Command for MQTTHandlerCommand {
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
-                self.process_publish(&tcp_connection, publish, publish_properties)
+                self.process_publish(tcp_connection, publish, publish_properties)
                     .await
             }
 
             MqttPacket::PubRec(pub_rec, pub_rec_properties) => {
-                self.process_pubrec(&tcp_connection, &pub_rec, &pub_rec_properties)
+                self.process_pubrec(tcp_connection, &pub_rec, &pub_rec_properties)
                     .await
             }
 
             MqttPacket::PubComp(pub_comp, pub_comp_properties) => {
-                self.process_pubcomp(&tcp_connection, &pub_comp, &pub_comp_properties)
+                self.process_pubcomp(tcp_connection, &pub_comp, &pub_comp_properties)
                     .await
             }
 
             MqttPacket::PubRel(pub_rel, pub_rel_properties) => {
-                self.process_pubrel(&tcp_connection, &pub_rel, &pub_rel_properties)
+                self.process_pubrel(tcp_connection, &pub_rel, &pub_rel_properties)
                     .await
             }
 
             MqttPacket::PubAck(pub_ack, pub_ack_properties) => {
-                self.process_puback(&tcp_connection, &pub_ack, &pub_ack_properties)
+                self.process_puback(tcp_connection, &pub_ack, &pub_ack_properties)
                     .await
             }
 
             MqttPacket::Subscribe(subscribe, subscribe_properties) => {
-                self.process_subscribe(&tcp_connection, &subscribe, &subscribe_properties)
+                self.process_subscribe(tcp_connection, &subscribe, &subscribe_properties)
                     .await
             }
 
-            MqttPacket::PingReq(ping) => self.process_ping(&tcp_connection, &ping).await,
+            MqttPacket::PingReq(ping) => self.process_ping(tcp_connection, &ping).await,
 
             MqttPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                self.process_unsubscribe(&tcp_connection, &unsubscribe, &unsubscribe_properties)
+                self.process_unsubscribe(tcp_connection, &unsubscribe, &unsubscribe_properties)
                     .await
             }
 
             MqttPacket::Disconnect(disconnect, disconnect_properties) => {
-                self.process_disconnect(&tcp_connection, &disconnect, &disconnect_properties)
+                self.process_disconnect(tcp_connection, &disconnect, &disconnect_properties)
                     .await
             }
 
@@ -207,8 +207,8 @@ impl Command for MQTTHandlerCommand {
         }
 
         record_packet_process_duration(
-            tcp_connection.connection_type,
-            mqtt_packet_to_string(&packet),
+            &tcp_connection.connection_type,
+            &mqtt_packet_to_string(&packet),
             (now_mills() - start) as f64,
         );
         resp_package
