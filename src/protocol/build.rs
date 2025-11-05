@@ -82,7 +82,6 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
             proto_root.join("src/meta/inner.proto").to_str().unwrap(),
             proto_root.join("src/meta/validate.proto").to_str().unwrap(),
             proto_root.join("src/meta/openraft.proto").to_str().unwrap(),
-            proto_root.join("src/meta/cluster.proto").to_str().unwrap(),
         ],
         &[proto_root.join("src/").to_str().unwrap()],
     )?;

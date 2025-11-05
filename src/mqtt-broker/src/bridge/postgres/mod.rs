@@ -237,12 +237,10 @@ pub fn start_postgres_connector(
     thread: BridgePluginThread,
 ) {
     tokio::spawn(async move {
-        let postgres_config = match serde_json::from_str::<PostgresConnectorConfig>(
-            &connector.config,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse PostgresConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+        let postgres_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::Postgres(config) => config.clone(),
+            _ => {
+                error!("Invalid connector config type, expected Postgres config");
                 return;
             }
         };

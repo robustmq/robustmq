@@ -16,7 +16,7 @@ use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct GreptimeDBConnectorConfig {
     pub server_addr: String,
     pub database: String,
@@ -81,7 +81,7 @@ impl GreptimeDBConnectorConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub enum TimePrecision {
     #[default]
     Second,

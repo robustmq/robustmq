@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::{
-    error::ResultCommonError,
+    error::{common::CommonError, ResultCommonError},
     http_response::{error_response, success_response},
     tools::now_second,
     utils::time_util::timestamp_to_local_datetime,
@@ -183,7 +183,7 @@ pub async fn connector_list(
         results.push(ConnectorListRow {
             connector_name: connector.connector_name.clone(),
             connector_type: connector.connector_type.to_string(),
-            config: connector.config.clone(),
+            config: serde_json::to_string(&connector.config).unwrap_or_else(|_| "{}".to_string()),
             topic_name: connector.topic_name.clone(),
             status: connector.status.to_string(),
             broker_id: if let Some(id) = connector.broker_id {
@@ -248,14 +248,14 @@ async fn connector_create_inner(
     params: CreateConnectorReq,
 ) -> ResultCommonError {
     let connector_type = ConnectorType::from_str(&params.connector_type)?;
-    connector_config_validator(&connector_type, &params.config)?;
+    let connector_config = parse_connector_config(&connector_type, &params.config)?;
 
     let storage = ConnectorStorage::new(state.client_pool.clone());
     let connector = MQTTConnector {
         cluster_name: state.broker_cache.cluster_name.clone(),
         connector_name: params.connector_name.clone(),
         connector_type,
-        config: params.config.clone(),
+        config: connector_config,
         failure_strategy: parse_failure_strategy(params.failure_strategy),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
@@ -267,50 +267,65 @@ async fn connector_create_inner(
     storage.create_connector(connector).await
 }
 
-fn connector_config_validator(connector_type: &ConnectorType, config: &str) -> ResultCommonError {
-    match connector_type {
+fn parse_connector_config(
+    connector_type: &ConnectorType,
+    config: &str,
+) -> Result<metadata_struct::mqtt::bridge::ConnectorConfig, CommonError> {
+    use metadata_struct::mqtt::bridge::ConnectorConfig;
+
+    let connector_config = match connector_type {
         ConnectorType::LocalFile => {
             let file_config: LocalFileConnectorConfig = serde_json::from_str(config)?;
             file_config.validate()?;
+            ConnectorConfig::LocalFile(file_config)
         }
         ConnectorType::Kafka => {
             let kafka_config: KafkaConnectorConfig = serde_json::from_str(config)?;
             kafka_config.validate()?;
+            ConnectorConfig::Kafka(kafka_config)
         }
         ConnectorType::GreptimeDB => {
             let greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
             greptime_config.validate()?;
+            ConnectorConfig::GreptimeDB(greptime_config)
         }
         ConnectorType::Pulsar => {
             let pulsar_config: PulsarConnectorConfig = serde_json::from_str(config)?;
             pulsar_config.validate()?;
+            ConnectorConfig::Pulsar(pulsar_config)
         }
         ConnectorType::Postgres => {
             let postgres_config: PostgresConnectorConfig = serde_json::from_str(config)?;
             postgres_config.validate()?;
+            ConnectorConfig::Postgres(postgres_config)
         }
         ConnectorType::MongoDB => {
             let mongo_config: MongoDBConnectorConfig = serde_json::from_str(config)?;
             mongo_config.validate()?;
+            ConnectorConfig::MongoDB(mongo_config)
         }
         ConnectorType::RabbitMQ => {
             let rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
             rabbitmq_config.validate()?;
+            ConnectorConfig::RabbitMQ(rabbitmq_config)
         }
         ConnectorType::MySQL => {
             let mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
             mysql_config.validate()?;
+            ConnectorConfig::MySQL(mysql_config)
         }
         ConnectorType::Elasticsearch => {
             let es_config: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
             es_config.validate()?;
+            ConnectorConfig::Elasticsearch(es_config)
         }
         ConnectorType::Redis => {
             let redis_config: RedisConnectorConfig = serde_json::from_str(config)?;
             redis_config.validate()?;
+            ConnectorConfig::Redis(redis_config)
         }
-    }
-    Ok(())
+    };
+    Ok(connector_config)
 }
 
 fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy {

@@ -76,11 +76,14 @@ pub fn list_connectors_by_req(
 
     if !req.connector_name.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.connector_name)? {
-            connectors.push(data.encode());
+            connectors.push(data.encode()?);
         }
     } else {
         let data = storage.list(&req.cluster_name)?;
-        connectors = data.into_iter().map(|raw| raw.encode()).collect();
+        connectors = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     Ok(ListConnectorReply { connectors })

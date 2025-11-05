@@ -398,7 +398,9 @@ mod tests {
                         connector_name: format!("conn_b{}_n{}", broker_id, j),
                         connector_type: ConnectorType::LocalFile,
                         topic_name: "test_topic".to_string(),
-                        config: "{}".to_string(),
+                        config: metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(
+                            metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig::default(),
+                        ),
                         failure_strategy: FailureHandlingStrategy::Discard,
                         status: MQTTStatus::Idle,
                         broker_id: Some(broker_id),
@@ -487,7 +489,9 @@ mod tests {
                     connector_name: format!("unassigned_{}", i),
                     connector_type: ConnectorType::LocalFile,
                     topic_name: "test_topic".to_string(),
-                    config: "{}".to_string(),
+                    config: metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(
+                        metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig::default(),
+                    ),
                     failure_strategy: FailureHandlingStrategy::Discard,
                     status: MQTTStatus::Idle,
                     broker_id: None, // Unassigned - should be ignored

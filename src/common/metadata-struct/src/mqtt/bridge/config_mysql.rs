@@ -63,7 +63,7 @@ impl Default for MySQLConnectorConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct MySQLConnectorConfig {
     pub host: String,
     pub port: u16,

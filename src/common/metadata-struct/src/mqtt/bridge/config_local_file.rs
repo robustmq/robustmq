@@ -26,7 +26,7 @@ pub enum RotationStrategy {
     Daily,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct LocalFileConnectorConfig {
     pub local_file_path: String,
     #[serde(default)]

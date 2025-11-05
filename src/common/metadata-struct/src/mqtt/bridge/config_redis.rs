@@ -26,7 +26,7 @@ pub enum RedisMode {
     Sentinel,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct RedisConnectorConfig {
     pub server: String,
     #[serde(default)]

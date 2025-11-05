@@ -43,9 +43,26 @@ pub const CONNECTOR_TYPE_MYSQL: &str = "mysql";
 pub const CONNECTOR_TYPE_ELASTICSEARCH: &str = "elasticsearch";
 pub const CONNECTOR_TYPE_REDIS: &str = "redis";
 
+impl ConnectorType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConnectorType::Kafka => CONNECTOR_TYPE_KAFKA,
+            ConnectorType::LocalFile => CONNECTOR_TYPE_FILE,
+            ConnectorType::GreptimeDB => CONNECTOR_TYPE_GREPTIMEDB,
+            ConnectorType::Pulsar => CONNECTOR_TYPE_PULSAR,
+            ConnectorType::Postgres => CONNECTOR_TYPE_POSTGRES,
+            ConnectorType::MongoDB => CONNECTOR_TYPE_MONGODB,
+            ConnectorType::RabbitMQ => CONNECTOR_TYPE_RABBITMQ,
+            ConnectorType::MySQL => CONNECTOR_TYPE_MYSQL,
+            ConnectorType::Elasticsearch => CONNECTOR_TYPE_ELASTICSEARCH,
+            ConnectorType::Redis => CONNECTOR_TYPE_REDIS,
+        }
+    }
+}
+
 impl Display for ConnectorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -53,18 +70,28 @@ impl FromStr for ConnectorType {
     type Err = CommonError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            CONNECTOR_TYPE_FILE => Ok(ConnectorType::LocalFile),
-            CONNECTOR_TYPE_KAFKA => Ok(ConnectorType::Kafka),
-            CONNECTOR_TYPE_GREPTIMEDB => Ok(ConnectorType::GreptimeDB),
-            CONNECTOR_TYPE_PULSAR => Ok(ConnectorType::Pulsar),
-            CONNECTOR_TYPE_POSTGRES => Ok(ConnectorType::Postgres),
-            CONNECTOR_TYPE_MONGODB => Ok(ConnectorType::MongoDB),
-            CONNECTOR_TYPE_RABBITMQ => Ok(ConnectorType::RabbitMQ),
-            CONNECTOR_TYPE_MYSQL => Ok(ConnectorType::MySQL),
-            CONNECTOR_TYPE_ELASTICSEARCH => Ok(ConnectorType::Elasticsearch),
-            CONNECTOR_TYPE_REDIS => Ok(ConnectorType::Redis),
-            _ => Err(CommonError::IneligibleConnectorType(s.to_string())),
+        if s.eq_ignore_ascii_case(CONNECTOR_TYPE_FILE) {
+            Ok(ConnectorType::LocalFile)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_KAFKA) {
+            Ok(ConnectorType::Kafka)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_GREPTIMEDB) {
+            Ok(ConnectorType::GreptimeDB)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_PULSAR) {
+            Ok(ConnectorType::Pulsar)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_POSTGRES) {
+            Ok(ConnectorType::Postgres)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_MONGODB) {
+            Ok(ConnectorType::MongoDB)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_RABBITMQ) {
+            Ok(ConnectorType::RabbitMQ)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_MYSQL) {
+            Ok(ConnectorType::MySQL)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_ELASTICSEARCH) {
+            Ok(ConnectorType::Elasticsearch)
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_REDIS) {
+            Ok(ConnectorType::Redis)
+        } else {
+            Err(CommonError::IneligibleConnectorType(s.to_string()))
         }
     }
 }

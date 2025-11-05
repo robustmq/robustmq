@@ -18,7 +18,7 @@ use std::time::Duration;
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct KafkaConnectorConfig {
     pub bootstrap_servers: String,
     pub topic: String,

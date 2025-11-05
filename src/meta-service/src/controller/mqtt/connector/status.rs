@@ -132,7 +132,7 @@ impl ConnectorContext {
         let req = CreateConnectorRequest {
             cluster_name: connector.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
-            connector: connector.encode(),
+            connector: connector.encode()?,
         };
 
         // Write to Raft for persistence

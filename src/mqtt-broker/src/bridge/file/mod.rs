@@ -220,12 +220,10 @@ pub fn start_local_file_connector(
     thread: BridgePluginThread,
 ) {
     tokio::spawn(async move {
-        let local_file_config = match serde_json::from_str::<LocalFileConnectorConfig>(
-            &connector.config,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse LocalFileConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
+        let local_file_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(config) => config.clone(),
+            _ => {
+                error!("Invalid connector config type, expected LocalFile config");
                 return;
             }
         };

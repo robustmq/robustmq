@@ -23,7 +23,7 @@ pub enum ElasticsearchAuthType {
     ApiKey,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct ElasticsearchConnectorConfig {
     pub url: String,
     pub index: String,

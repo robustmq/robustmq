@@ -63,7 +63,7 @@ impl Default for PostgresConnectorConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct PostgresConnectorConfig {
     pub host: String,
     pub port: u16,
