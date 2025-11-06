@@ -17,7 +17,7 @@ use crate::controller::mqtt::call_broker::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -40,7 +40,7 @@ use std::sync::Arc;
 use tracing::debug;
 
 pub async fn cluster_status_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
     let mut reply = ClusterStatusReply::default();
     let status: openraft::RaftMetrics<crate::raft::type_config::TypeConfig> =
@@ -60,11 +60,11 @@ pub async fn node_list_by_req(
     cluster_cache: &Arc<CacheManager>,
     req: &NodeListRequest,
 ) -> Result<NodeListReply, MetaServiceError> {
-    let mut nodes = Vec::new();
-
-    for broker_node in cluster_cache.get_broker_node_by_cluster(&req.cluster_name) {
-        nodes.push(broker_node.encode());
-    }
+    let nodes = cluster_cache
+        .get_broker_node_by_cluster(&req.cluster_name)
+        .into_iter()
+        .map(|broker_node| broker_node.encode())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(NodeListReply { nodes })
 }
@@ -90,7 +90,7 @@ pub async fn heartbeat_by_req(
 }
 
 pub async fn set_resource_config_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
@@ -128,7 +128,7 @@ pub async fn get_resource_config_by_req(
 }
 
 pub async fn delete_resource_config_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteResourceConfigRequest,
 ) -> Result<DeleteResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(
@@ -143,7 +143,7 @@ pub async fn delete_resource_config_by_req(
 }
 
 pub async fn set_idempotent_data_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &SetIdempotentDataRequest,
 ) -> Result<SetIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
@@ -170,7 +170,7 @@ pub async fn exists_idempotent_data_by_req(
 }
 
 pub async fn delete_idempotent_data_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteIdempotentDataRequest,
 ) -> Result<DeleteIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
@@ -185,7 +185,7 @@ pub async fn delete_idempotent_data_by_req(
 }
 
 pub async fn save_offset_data_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &SaveOffsetDataRequest,
 ) -> Result<SaveOffsetDataReply, MetaServiceError> {
     let data = StorageData::new(

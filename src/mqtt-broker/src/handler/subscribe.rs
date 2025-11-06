@@ -96,7 +96,7 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
             cluster_name: conf.cluster_name.to_owned(),
             client_id: context.client_id.to_owned(),
             path: filter.path.clone(),
-            subscribe: subscribe_data.encode(),
+            subscribe: subscribe_data.encode()?,
         };
 
         if let Err(e) =

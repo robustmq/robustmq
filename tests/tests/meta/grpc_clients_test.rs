@@ -45,7 +45,7 @@ mod tests {
             start_time: now_second(),
         };
         let valid_request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         let response = client
             .register_node(tonic::Request::new(valid_request.clone()))
@@ -70,7 +70,7 @@ mod tests {
             register_time: now_second(),
         };
         let valid_request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         let valid_ip = [

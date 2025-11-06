@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
@@ -66,7 +66,11 @@ impl MqttSession {
         self.distinct_time = Some(now_second());
     }
 
-    pub fn encode(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -53,7 +54,7 @@ impl ShardStorage {
     ) -> Result<Option<JournalShard>, CommonError> {
         let shard_key: String = key_shard(cluster_name, namespace, shard_name);
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &shard_key)? {
-            return Ok(Some(serde_json::from_str::<JournalShard>(&data.data)?));
+            return Ok(Some(serialize::deserialize(&data.data)?));
         }
         Ok(None)
     }
@@ -74,7 +75,7 @@ impl ShardStorage {
 
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalShard>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }
@@ -89,7 +90,7 @@ impl ShardStorage {
 
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalShard>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }
@@ -100,7 +101,7 @@ impl ShardStorage {
 
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalShard>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }

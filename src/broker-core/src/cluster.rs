@@ -87,13 +87,13 @@ impl ClusterStorage {
             node_ip: local_ip.clone(),
             node_id: config.broker_id,
             node_inner_addr: format!("{}:{}", local_ip, config.grpc_port),
-            extend: extend.encode(),
+            extend: extend.encode()?,
             start_time: cache_manager.get_start_time(),
             register_time: now_second(),
         };
 
         let req = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode()?,
         };
         register_node(
             &self.client_pool,

@@ -21,7 +21,7 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
 use common_base::tools::{now_mills, unique_id};
@@ -69,7 +69,7 @@ pub async fn list_shard_by_req(
 
 pub async fn create_shard_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
@@ -172,7 +172,7 @@ pub async fn create_shard_by_req(
 }
 
 pub async fn delete_shard_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -205,7 +205,7 @@ pub async fn delete_shard_by_req(
 }
 
 pub async fn update_start_segment_by_shard(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
@@ -217,7 +217,7 @@ pub async fn update_start_segment_by_shard(
 }
 
 pub async fn update_last_segment_by_shard(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
@@ -229,7 +229,7 @@ pub async fn update_last_segment_by_shard(
 }
 
 async fn sync_save_shard_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
@@ -243,7 +243,7 @@ async fn sync_save_shard_info(
 }
 
 pub async fn sync_delete_shard_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
@@ -257,7 +257,7 @@ pub async fn sync_delete_shard_info(
 }
 
 pub async fn update_shard_status(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &JournalShard,
     status: JournalShardStatus,

@@ -16,7 +16,7 @@ use super::heartbeat::BrokerHeartbeat;
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
@@ -26,7 +26,7 @@ use tokio::sync::broadcast;
 
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
-    meta_service_storage: Arc<StorageDriver>,
+    meta_service_storage: Arc<RaftMachineManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
@@ -36,7 +36,7 @@ pub struct ClusterController {
 impl ClusterController {
     pub fn new(
         cluster_cache: Arc<CacheManager>,
-        meta_service_storage: Arc<StorageDriver>,
+        meta_service_storage: Arc<RaftMachineManager>,
         stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,
         journal_call_manager: Arc<JournalInnerCallManager>,

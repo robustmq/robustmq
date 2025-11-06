@@ -39,7 +39,7 @@ impl UserStorage {
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name: user_info.username.clone(),
-            content: user_info.encode(),
+            content: user_info.encode()?,
         };
         placement_create_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())

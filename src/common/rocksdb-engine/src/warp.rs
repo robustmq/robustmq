@@ -17,12 +17,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StorageDataWrap {
-    pub data: String,
+    pub data: Vec<u8>,
     pub create_time: u64,
 }
 
 impl StorageDataWrap {
-    pub fn new(data: String) -> Self {
+    pub fn new(data: Vec<u8>) -> Self {
         StorageDataWrap {
             data,
             create_time: now_second(),

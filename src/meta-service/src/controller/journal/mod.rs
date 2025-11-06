@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use gc::{gc_segment_thread, gc_shard_thread};
@@ -26,7 +26,7 @@ pub mod call_node;
 pub mod gc;
 
 pub struct StorageEngineController {
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
@@ -34,7 +34,7 @@ pub struct StorageEngineController {
 
 impl StorageEngineController {
     pub fn new(
-        raft_machine_apply: Arc<StorageDriver>,
+        raft_machine_apply: Arc<RaftMachineManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
         stop_sx: broadcast::Sender<bool>,

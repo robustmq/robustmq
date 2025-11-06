@@ -39,7 +39,7 @@ mod tests {
             register_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         client
             .register_node(tonic::Request::new(request))

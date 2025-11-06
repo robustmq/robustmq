@@ -57,8 +57,7 @@ where
 {
     with_metrics!(source, metrics_rocksdb_save_ms, {
         let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
-        let content =
-            serde_json::to_string(&value).map_err(|e| CommonError::CommonError(e.to_string()))?;
+        let content = serialize::serialize(&value)?;
         let data = StorageDataWrap::new(content);
         rocksdb_engine_handler.write(cf, key_name, &data)?;
         Ok(())

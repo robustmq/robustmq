@@ -31,6 +31,7 @@ use crate::subscribe::push::{
 };
 use common_base::network::{broker_not_available, is_port_open};
 use common_base::tools::{get_local_ip, now_mills, now_second, unique_id};
+use common_base::utils::serialize;
 use common_config::broker::broker_config;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
@@ -176,8 +177,8 @@ impl ShareFollowerResub {
             }
 
             // Add follower resub thread
-            let extend_info: MqttNodeExtend =
-                serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
+
+            let extend_info: MqttNodeExtend = serialize::deserialize(&reply.extend_info)?;
 
             if self
                 .subscribe_manager

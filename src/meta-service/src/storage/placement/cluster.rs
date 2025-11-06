@@ -14,6 +14,7 @@
 
 use crate::storage::keys::{key_cluster, key_cluster_prefix};
 use common_base::error::common::CommonError;
+use common_base::utils::serialize;
 use metadata_struct::meta::cluster::ClusterInfo;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{engine_prefix_list_by_meta, engine_save_by_meta};
@@ -44,7 +45,7 @@ impl ClusterStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<ClusterInfo>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }

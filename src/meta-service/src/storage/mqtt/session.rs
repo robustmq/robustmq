@@ -28,7 +28,6 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
-use rocksdb_engine::warp::StorageDataWrap;
 
 use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -56,9 +55,15 @@ impl MqttSessionStorage {
         engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, session)
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<StorageDataWrap>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttSession>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
-        engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)
+        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            let session = MqttSession::decode(&raw.data)?;
+            results.push(session);
+        }
+        Ok(results)
     }
 
     pub fn get(
@@ -68,7 +73,7 @@ impl MqttSessionStorage {
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(serde_json::from_str::<MqttSession>(&data.data)?));
+            return Ok(Some(MqttSession::decode(&data.data)?));
         }
         Ok(None)
     }

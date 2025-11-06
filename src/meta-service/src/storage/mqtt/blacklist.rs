@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -48,7 +49,7 @@ impl MqttBlackListStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let blacklist = serde_json::from_str::<MqttAclBlackList>(&raw.data)?;
+            let blacklist = serialize::deserialize(&raw.data)?;
             results.push(blacklist);
         }
         Ok(results)

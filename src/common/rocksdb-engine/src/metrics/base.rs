@@ -54,7 +54,7 @@ pub(crate) fn get_metric_data(
     let prefix = format!("{}/{}/", DB_COLUMN_FAMILY_METRICS, key_prefix);
     let results = DashMap::new();
     for row in engine_prefix_list_by_broker(rocksdb_engine.clone(), &prefix)? {
-        let data = serde_json::from_str::<MetricsValue>(&row.data)?;
+        let data: MetricsValue = serialize::deserialize(&row.data)?;
         results.insert(data.timestamp, data.value);
     }
 
@@ -79,7 +79,7 @@ pub(crate) async fn get_pre_num(
         Some(data) => data,
         None => return Ok(0),
     };
-    Ok(serde_json::from_str::<u64>(&res.data)?)
+    serialize::deserialize(&res.data)
 }
 pub fn delete_by_prefix(
     rocksdb_engine: &Arc<RocksDBEngine>,

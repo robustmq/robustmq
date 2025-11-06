@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::error::ResultCommonError;
+use common_base::{error::ResultCommonError, utils::serialize};
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::broker::{engine_prefix_list_by_broker, engine_save_by_broker},
@@ -51,7 +51,7 @@ impl LocalStorage {
         let prefix_key = system_event_prefix_key();
         let mut results = Vec::new();
         for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), &prefix_key)? {
-            if let Ok(data) = serde_json::from_str::<SystemAlarmEventMessage>(&raw.data) {
+            if let Ok(data) = serialize::deserialize::<SystemAlarmEventMessage>(&raw.data) {
                 results.push(data);
             }
         }
@@ -67,7 +67,7 @@ impl LocalStorage {
         let prefix_key = ban_log_prefix_key();
         let mut results = Vec::new();
         for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), &prefix_key)? {
-            if let Ok(data) = serde_json::from_str::<BanLog>(&raw.data) {
+            if let Ok(data) = serialize::deserialize::<BanLog>(&raw.data) {
                 results.push(data);
             }
         }
@@ -83,7 +83,7 @@ impl LocalStorage {
         let prefix_key = slow_sub_log_prefix_key();
         let mut results = Vec::new();
         for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), &prefix_key)? {
-            if let Ok(data) = serde_json::from_str::<SlowSubscribeData>(&raw.data) {
+            if let Ok(data) = serialize::deserialize::<SlowSubscribeData>(&raw.data) {
                 results.push(data);
             }
         }

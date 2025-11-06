@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::server::services::journal::segment::{
     sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
 };
@@ -35,7 +35,7 @@ use std::sync::Arc;
 use tracing::{error, warn};
 
 pub async fn gc_shard_thread(
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
@@ -155,7 +155,7 @@ pub async fn gc_shard_thread(
 }
 
 pub async fn gc_segment_thread(
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 ) {

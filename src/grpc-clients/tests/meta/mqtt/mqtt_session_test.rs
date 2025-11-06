@@ -53,7 +53,7 @@ mod tests {
         let request = CreateSessionRequest {
             cluster_name: cluster_name.clone(),
             client_id: client_id.clone(),
-            session: MqttSession::encode(&mqtt_session),
+            session: mqtt_session.encode().unwrap(),
         };
 
         match placement_create_session(&client_pool, &addrs, request).await {
@@ -72,7 +72,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
-                    let session = serde_json::from_str::<MqttSession>(&raw).unwrap();
+                    let session = MqttSession::decode(&raw).unwrap();
                     if mqtt_session == session {
                         flag = true;
                     }
@@ -113,7 +113,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
-                    let session = serde_json::from_str::<MqttSession>(&raw).unwrap();
+                    let session = MqttSession::decode(&raw).unwrap();
                     if mqtt_session == session {
                         flag = true;
                     }
@@ -146,7 +146,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
-                    let session = serde_json::from_str::<MqttSession>(&raw).unwrap();
+                    let session = MqttSession::decode(&raw).unwrap();
                     if mqtt_session == session {
                         flag = true;
                     }

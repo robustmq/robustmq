@@ -19,7 +19,7 @@ use crate::{
         update_cache_by_delete_schema_bind, MQTTInnerCallManager,
     },
     raft::route::{
-        apply::StorageDriver,
+        apply::RaftMachineManager,
         data::{StorageData, StorageDataType},
     },
     storage::placement::schema::SchemaStorage,
@@ -54,15 +54,15 @@ pub fn list_schema_req(
         schema_storage.list(&req.cluster_name)?
     };
 
-    let mut results = Vec::new();
-    for data in list {
-        results.push(data.encode());
-    }
+    let results = list
+        .into_iter()
+        .map(|data| data.encode())
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(results)
 }
 
 pub async fn create_schema_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
@@ -105,7 +105,7 @@ pub async fn create_schema_req(
 
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
@@ -146,7 +146,7 @@ pub async fn update_schema_req(
 
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
@@ -193,7 +193,7 @@ pub async fn list_bind_schema_req(
         if let Some(res) =
             schema_storage.get_bind(&req.cluster_name, &req.schema_name, &req.resource_name)?
         {
-            return Ok(vec![res.encode()]);
+            return Ok(vec![res.encode()?]);
         } else {
             return Ok(Vec::new());
         }
@@ -201,19 +201,21 @@ pub async fn list_bind_schema_req(
 
     // get schema bind by cluster_name
     if !req.cluster_name.is_empty() && req.schema_name.is_empty() && req.resource_name.is_empty() {
-        let mut results = Vec::new();
-        for raw in schema_storage.list_bind_by_cluster(&req.cluster_name)? {
-            results.push(raw.encode());
-        }
+        let results = schema_storage
+            .list_bind_by_cluster(&req.cluster_name)?
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
         return Ok(results);
     }
 
     // get schema bind by resource
     if !req.cluster_name.is_empty() && req.schema_name.is_empty() && !req.resource_name.is_empty() {
-        let mut results = Vec::new();
-        for raw in schema_storage.list_bind_by_resource(&req.cluster_name, &req.resource_name)? {
-            results.push(raw.encode());
-        }
+        let results = schema_storage
+            .list_bind_by_resource(&req.cluster_name, &req.resource_name)?
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
         return Ok(results);
     }
 
@@ -221,7 +223,7 @@ pub async fn list_bind_schema_req(
 }
 
 pub async fn bind_schema_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
@@ -260,7 +262,7 @@ pub async fn bind_schema_req(
 }
 
 pub async fn un_bind_schema_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,

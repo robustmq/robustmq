@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use crate::core::error::MetaServiceError;
@@ -54,7 +55,7 @@ impl MqttTopicStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<MQTTTopic>(&raw.data)?;
+            let topic = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -68,7 +69,7 @@ impl MqttTopicStorage {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
 
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serde_json::from_str::<MQTTTopic>(&data.data)?;
+            let topic = serialize::deserialize(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)
@@ -115,7 +116,7 @@ impl MqttTopicStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<MqttTopicRewriteRule>(&raw.data)?;
+            let topic = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -150,7 +151,7 @@ impl MqttTopicStorage {
     ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
         let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serde_json::from_str::<MQTTRetainMessage>(&data.data)?;
+            let topic = serialize::deserialize(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)

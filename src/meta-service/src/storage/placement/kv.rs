@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -44,7 +45,7 @@ impl KvStorage {
 
     pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(serde_json::from_str::<String>(&data.data)?));
+            return Ok(Some(serialize::deserialize(&data.data)?));
         }
         Ok(None)
     }
@@ -58,7 +59,7 @@ impl KvStorage {
             Ok(data) => {
                 let mut result = Vec::new();
                 for item in data {
-                    result.push(serde_json::from_str(&item.data)?);
+                    result.push(serialize::deserialize(&item.data)?);
                 }
                 Ok(result)
             }

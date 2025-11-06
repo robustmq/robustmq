@@ -134,7 +134,7 @@ pub async fn save_last_will_message(
     };
 
     session_storage
-        .save_last_will_message(client_id, lastwill.encode())
+        .save_last_will_message(client_id, lastwill.encode()?)
         .await?;
 
     Ok(())

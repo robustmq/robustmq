@@ -43,7 +43,7 @@ mod tests {
         let request = CreateTopicRequest {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
-            content: mqtt_topic.encode(),
+            content: mqtt_topic.encode().unwrap(),
         };
 
         placement_create_topic(&client_pool, &addrs, request)
@@ -98,7 +98,7 @@ mod tests {
 
         let mut flag: bool = false;
         while let Some(data) = data_stream.message().await.unwrap() {
-            let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice()).unwrap();
+            let topic = MQTTTopic::decode(&data.topic).unwrap();
             if topic == mqtt_topic {
                 flag = true;
             }

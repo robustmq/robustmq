@@ -42,12 +42,12 @@ mod tests {
             node_ip: node_ip.clone(),
             node_id,
             node_inner_addr: node_ip.clone(),
-            extend: "".to_string(),
+            extend: Vec::new(),
             register_time: now_second(),
             start_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         match register_node(&client_pool, &addrs, request).await {
             Ok(_) => {}

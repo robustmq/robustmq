@@ -47,13 +47,13 @@ mod tests {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         register_node(&client_pool, &addrs, request).await.unwrap();

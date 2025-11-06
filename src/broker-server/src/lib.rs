@@ -38,7 +38,7 @@ use meta_service::{
     core::cache::CacheManager as PlacementCacheManager,
     raft::{
         raft_node::create_raft_node,
-        route::{apply::StorageDriver, DataRoute},
+        route::{apply::RaftMachineManager, DataRoute},
         type_config::TypeConfig,
     },
     MetaServiceServer, MetaServiceServerParams,
@@ -318,7 +318,8 @@ impl BrokerServer {
             cache_manager.clone(),
         ));
         let raf_node: Raft<TypeConfig> = create_raft_node(client_pool.clone(), data_route).await;
-        let storage_driver: Arc<StorageDriver> = Arc::new(StorageDriver::new(raf_node.clone()));
+        let storage_driver: Arc<RaftMachineManager> =
+            Arc::new(RaftMachineManager::new(raf_node.clone()));
         MetaServiceServerParams {
             cache_manager,
             rocksdb_engine_handler,

@@ -18,6 +18,7 @@ use crate::storage::keys::{
     storage_key_mqtt_schema_bind_prefix_by_cluster,
     storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
 };
+use common_base::utils::serialize;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta::{
@@ -52,7 +53,7 @@ impl SchemaStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<SchemaData>(&raw.data)?;
+            let topic: SchemaData = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -66,7 +67,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
 
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serde_json::from_str::<SchemaData>(&data.data)?;
+            let topic: SchemaData = serialize::deserialize(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)
@@ -102,7 +103,7 @@ impl SchemaStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<SchemaResourceBind>(&raw.data)?;
+            let topic: SchemaResourceBind = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -116,7 +117,7 @@ impl SchemaStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<SchemaResourceBind>(&raw.data)?;
+            let topic: SchemaResourceBind = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -131,7 +132,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
 
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serde_json::from_str::<SchemaResourceBind>(&data.data)?;
+            let topic: SchemaResourceBind = serialize::deserialize(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)

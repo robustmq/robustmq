@@ -63,7 +63,7 @@ impl TimestampIndexManager {
             DB_COLUMN_FAMILY_INDEX,
             &key,
         )? {
-            return Ok(serde_json::from_str::<i64>(&res.data)?);
+            return Ok(serialize::deserialize::<i64>(&res.data)?);
         }
 
         Ok(-1)
@@ -93,7 +93,7 @@ impl TimestampIndexManager {
             DB_COLUMN_FAMILY_INDEX,
             &key,
         )? {
-            return Ok(serde_json::from_str::<i64>(&res.data)?);
+            return Ok(serialize::deserialize::<i64>(&res.data)?);
         }
 
         Ok(-1)
@@ -145,7 +145,7 @@ impl TimestampIndexManager {
                     }
 
                     let data = serialize::deserialize::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_str::<IndexData>(&data.data)?;
+                    let index_data = serialize::deserialize::<IndexData>(&data.data)?;
 
                     if index_data.timestamp < start_timestamp {
                         iter.next();

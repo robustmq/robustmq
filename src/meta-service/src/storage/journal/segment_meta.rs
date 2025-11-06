@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -58,9 +59,7 @@ impl SegmentMetadataStorage {
             key_segment_metadata(cluster_name, namespace, shard_name, segment_seq);
 
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &shard_key)? {
-            return Ok(Some(serde_json::from_str::<JournalSegmentMetadata>(
-                &data.data,
-            )?));
+            return Ok(Some(serialize::deserialize(&data.data)?));
         }
 
         Ok(None)
@@ -71,7 +70,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }
@@ -84,7 +83,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }
@@ -98,7 +97,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }
@@ -113,7 +112,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }

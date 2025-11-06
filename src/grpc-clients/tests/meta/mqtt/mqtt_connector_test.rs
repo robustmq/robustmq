@@ -71,7 +71,7 @@ mod test {
         let create_request = CreateConnectorRequest {
             cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
-            connector: serde_json::to_vec(&connector).unwrap(),
+            connector: connector.encode().unwrap(),
         };
 
         match placement_create_connector(&client_pool, &addrs, create_request).await {
@@ -92,8 +92,7 @@ mod test {
                 assert_eq!(reply.connectors.len(), 1);
 
                 for connector_bytes in reply.connectors {
-                    let mqtt_connector =
-                        serde_json::from_slice::<MQTTConnector>(&connector_bytes).unwrap();
+                    let mqtt_connector = MQTTConnector::decode(&connector_bytes).unwrap();
 
                     check_connector_equal(&mqtt_connector, &connector);
                 }
@@ -116,7 +115,7 @@ mod test {
         let update_request = UpdateConnectorRequest {
             cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
-            connector: serde_json::to_vec(&connector).unwrap(),
+            connector: connector.encode().unwrap(),
         };
 
         match placement_update_connector(&client_pool, &addrs, update_request).await {
@@ -132,8 +131,7 @@ mod test {
                 assert_eq!(reply.connectors.len(), 1);
 
                 for connector_bytes in reply.connectors {
-                    let mqtt_connector =
-                        serde_json::from_slice::<MQTTConnector>(&connector_bytes).unwrap();
+                    let mqtt_connector = MQTTConnector::decode(&connector_bytes).unwrap();
 
                     check_connector_equal(&mqtt_connector, &connector);
                 }

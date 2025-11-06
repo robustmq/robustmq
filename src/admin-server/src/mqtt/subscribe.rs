@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use axum::{extract::State, Json};
+use common_base::utils::serialize;
 use mqtt_broker::subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -378,10 +379,19 @@ async fn share_sub_detail(
     // group info
     let (group, _) = decode_share_group_and_path(&params.path);
     let reply = get_share_sub_leader(&state.client_pool, &group).await?;
+    use metadata_struct::mqtt::node_extend::MqttNodeExtend;
+
+    let extend_info_str = if !reply.extend_info.is_empty() {
+        let extend: MqttNodeExtend = serialize::deserialize(&reply.extend_info)?;
+        serde_json::to_string(&extend).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
     let group_leader_info: SubGroupLeaderRaw = SubGroupLeaderRaw {
         broker_addr: reply.broker_addr.clone(),
         broker_id: reply.broker_id,
-        extend_info: reply.extend_info.clone(),
+        extend_info: extend_info_str,
     };
 
     Ok((topic_list, group_leader_info))

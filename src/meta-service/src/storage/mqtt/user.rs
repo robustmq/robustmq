@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -49,7 +50,7 @@ impl MqttUserStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<MqttUser>(&raw.data)?);
+            results.push(serialize::deserialize(&raw.data)?);
         }
         Ok(results)
     }
@@ -57,7 +58,7 @@ impl MqttUserStorage {
     pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(serde_json::from_str::<MqttUser>(&data.data)?));
+            return Ok(Some(serialize::deserialize(&data.data)?));
         }
         Ok(None)
     }

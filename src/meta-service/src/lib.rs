@@ -19,7 +19,7 @@ use crate::controller::mqtt::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::raft_node::start_raft_node;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::type_config::TypeConfig;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
@@ -38,7 +38,7 @@ pub mod storage;
 #[derive(Clone)]
 pub struct MetaServiceServerParams {
     pub raf_node: Raft<TypeConfig>,
-    pub storage_driver: Arc<StorageDriver>,
+    pub storage_driver: Arc<RaftMachineManager>,
     // Cache metadata information for the Storage Engine cluster
     pub cache_manager: Arc<CacheManager>,
     // Raft Global read and write pointer
@@ -52,7 +52,7 @@ pub struct MetaServiceServerParams {
 }
 pub struct MetaServiceServer {
     raf_node: Raft<TypeConfig>,
-    storage_driver: Arc<StorageDriver>,
+    storage_driver: Arc<RaftMachineManager>,
     // Cache metadata information for the Storage Engine cluster
     cache_manager: Arc<CacheManager>,
     // Raft Global read and write pointer

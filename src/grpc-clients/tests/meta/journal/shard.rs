@@ -61,13 +61,13 @@ mod tests {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -279,13 +279,13 @@ mod tests {
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -424,13 +424,13 @@ mod tests {
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend: serde_json::to_string(&extend).unwrap(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
@@ -539,12 +539,12 @@ mod tests {
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             register_time: now_second(),
             start_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{e}");

@@ -18,7 +18,7 @@ use crate::{
     },
     core::error::MetaServiceError,
     raft::route::{
-        apply::StorageDriver,
+        apply::RaftMachineManager,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::user::MqttUserStorage,
@@ -42,20 +42,23 @@ pub fn list_user_by_req(
 
     if !req.cluster_name.is_empty() && !req.user_name.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.user_name)? {
-            users.push(data.encode());
+            users.push(data.encode()?);
         }
     }
 
     if !req.cluster_name.is_empty() && req.user_name.is_empty() {
         let user_list = storage.list_by_cluster(&req.cluster_name)?;
-        users = user_list.into_iter().map(|user| user.encode()).collect();
+        users = user_list
+            .into_iter()
+            .map(|user| user.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     Ok(ListUserReply { users })
 }
 
 pub async fn create_user_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -79,7 +82,7 @@ pub async fn create_user_by_req(
 }
 
 pub async fn delete_user_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

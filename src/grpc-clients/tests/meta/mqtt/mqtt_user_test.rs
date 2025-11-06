@@ -48,7 +48,7 @@ mod tests {
         let request: CreateUserRequest = CreateUserRequest {
             cluster_name: cluster_name.clone(),
             user_name: mqtt_user.username.clone(),
-            content: mqtt_user.encode(),
+            content: mqtt_user.encode().unwrap(),
         };
         match placement_create_user(&client_pool, &addrs, request).await {
             Ok(_) => {}
@@ -66,7 +66,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {
-                    let user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
+                    let user = MqttUser::decode(&raw).unwrap();
                     if mqtt_user == user {
                         flag = true;
                     }

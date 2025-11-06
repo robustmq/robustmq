@@ -66,7 +66,7 @@ mod test {
         let create_request = CreateSchemaRequest {
             cluster_name: cluster_name.clone(),
             schema_name: schema_name.clone(),
-            schema: serde_json::to_vec(&schema_data).unwrap(),
+            schema: schema_data.encode().unwrap(),
         };
 
         match create_schema(&client_pool, &addrs, create_request).await {
@@ -84,8 +84,7 @@ mod test {
         match list_schema(&client_pool, &addrs, list_request.clone()).await {
             Ok(reply) => {
                 assert_eq!(reply.schemas.len(), 1);
-                let schema =
-                    serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
+                let schema = SchemaData::decode(reply.schemas.first().unwrap()).unwrap();
 
                 check_schema_equal(&schema, &schema_data);
             }
@@ -111,7 +110,7 @@ mod test {
         let update_request = UpdateSchemaRequest {
             cluster_name: cluster_name.clone(),
             schema_name: schema_name.clone(),
-            schema: serde_json::to_vec(&schema_data).unwrap(),
+            schema: schema_data.encode().unwrap(),
         };
 
         match update_schema(&client_pool, &addrs, update_request).await {
@@ -125,8 +124,7 @@ mod test {
         match list_schema(&client_pool, &addrs, list_request.clone()).await {
             Ok(reply) => {
                 assert_eq!(reply.schemas.len(), 1);
-                let schema =
-                    serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
+                let schema = SchemaData::decode(reply.schemas.first().unwrap()).unwrap();
 
                 check_schema_equal(&schema, &schema_data);
             }

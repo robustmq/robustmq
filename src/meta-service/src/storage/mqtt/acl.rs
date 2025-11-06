@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
+use common_base::{error::common::CommonError, utils::serialize};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 
 use crate::storage::keys::{storage_key_mqtt_acl, storage_key_mqtt_acl_prefix};
@@ -60,7 +60,7 @@ impl AclStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let acl_list = serde_json::from_str::<Vec<MqttAcl>>(&raw.data.to_string())?;
+            let acl_list: Vec<MqttAcl> = serialize::deserialize(&raw.data)?;
             results.extend(acl_list);
         }
         Ok(results)
@@ -103,7 +103,7 @@ impl AclStorage {
     ) -> Result<Vec<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(serde_json::from_str::<Vec<MqttAcl>>(&data.data)?);
+            return serialize::deserialize(&data.data);
         }
         Ok(Vec::new())
     }

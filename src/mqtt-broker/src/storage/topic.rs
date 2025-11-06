@@ -46,7 +46,7 @@ impl TopicStorage {
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name: topic.topic_name.clone(),
-            content: topic.encode(),
+            content: topic.encode()?,
         };
         placement_create_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())

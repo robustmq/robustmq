@@ -16,7 +16,7 @@ use super::status::ConnectorContext;
 use crate::{
     controller::mqtt::call_broker::MQTTInnerCallManager,
     core::{cache::CacheManager, error::MetaServiceError},
-    raft::route::apply::StorageDriver,
+    raft::route::apply::RaftMachineManager,
 };
 use common_base::{
     error::ResultCommonError,
@@ -38,7 +38,7 @@ pub struct ConnectorScheduler {
 
 impl ConnectorScheduler {
     pub fn new(
-        raft_machine_apply: Arc<StorageDriver>,
+        raft_machine_apply: Arc<RaftMachineManager>,
         call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
@@ -70,7 +70,7 @@ impl ConnectorScheduler {
 
 pub async fn start_connector_scheduler(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
@@ -380,7 +380,7 @@ mod tests {
                 node_id: i as u64,
                 node_ip: format!("127.0.0.{}", i),
                 node_inner_addr: format!("127.0.0.{}:9000", i),
-                extend: "{}".to_string(),
+                extend: Vec::new(),
                 roles: Vec::new(),
                 start_time: now_second(),
                 register_time: now_second(),

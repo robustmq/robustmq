@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::tools::now_second;
+use common_base::{tools::now_second, utils::serialize};
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::journal::{
@@ -307,7 +307,7 @@ fn get_last_offset_build_index(
     if let Some(res) =
         engine_get_by_journal(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
     {
-        return Ok(Some(serde_json::from_str::<u64>(&res.data)?));
+        return Ok(Some(serialize::deserialize::<u64>(&res.data)?));
     }
 
     Ok(None)
@@ -332,7 +332,7 @@ pub fn delete_segment_index(
 
 #[cfg(test)]
 mod tests {
-
+    use common_base::utils::serialize;
     use std::time::Duration;
 
     use common_base::tools::now_second;
@@ -456,19 +456,19 @@ mod tests {
             }
 
             if key.contains("last/offset") {
-                let last_offset = serde_json::from_str::<i64>(&val.data).unwrap();
+                let last_offset = serialize::deserialize::<i64>(&val.data).unwrap();
                 assert_eq!(last_offset, 10000);
             }
 
             if key.contains("offset/position") {
-                let last_offset = serde_json::from_str::<IndexData>(&val.data).unwrap();
+                let last_offset = serialize::deserialize::<IndexData>(&val.data).unwrap();
                 println!("key: {key},val={last_offset:?}");
                 assert_eq!(last_offset.offset, 9999);
                 offset_num += 1;
             }
 
             if key.contains("timestamp/time-") {
-                let last_offset = serde_json::from_str::<IndexData>(&val.data).unwrap();
+                let last_offset = serialize::deserialize::<IndexData>(&val.data).unwrap();
                 println!("key: {key},val={last_offset:?}");
                 assert_eq!(last_offset.offset, 9999);
                 timestamp_num += 1;

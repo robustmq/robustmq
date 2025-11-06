@@ -59,7 +59,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MqttAclBlackList>(raw.as_slice()).unwrap();
+                    let tmp = MqttAclBlackList::decode(&raw).unwrap();
                     if tmp.blacklist_type == blacklist.blacklist_type
                         && tmp.resource_name == blacklist.resource_name
                         && tmp.end_time == blacklist.end_time
@@ -95,7 +95,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MqttAclBlackList>(raw.as_slice()).unwrap();
+                    let tmp = MqttAclBlackList::decode(&raw).unwrap();
                     if tmp.blacklist_type == blacklist.blacklist_type
                         && tmp.resource_name == blacklist.resource_name
                         && tmp.end_time == blacklist.end_time

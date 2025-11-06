@@ -24,6 +24,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -67,7 +68,7 @@ impl MqttSubscribeStorage {
         let resp = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in resp {
-            let topic = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
+            let topic = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -82,7 +83,7 @@ impl MqttSubscribeStorage {
         let resp = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in resp {
-            let topic = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
+            let topic = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -96,7 +97,7 @@ impl MqttSubscribeStorage {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
         let list = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         for raw in list {
-            let sub = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
+            let sub: MqttSubscribe = serialize::deserialize(&raw.data)?;
             self.delete_by_path(&sub.cluster_name, &sub.client_id, &sub.filter.path)?;
         }
         Ok(())
@@ -111,7 +112,7 @@ impl MqttSubscribeStorage {
         let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, path);
 
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let subscribe = serde_json::from_str::<MqttSubscribe>(&data.data)?;
+            let subscribe = serialize::deserialize(&data.data)?;
             return Ok(Some(subscribe));
         }
         Ok(None)
@@ -160,7 +161,7 @@ impl MqttSubscribeStorage {
         let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<MqttAutoSubscribeRule>(&raw.data)?;
+            let topic = serialize::deserialize(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
