@@ -31,7 +31,7 @@ pub async fn parse_notification(
     segment_file_manager: &Arc<SegmentFileManager>,
     action_type: JournalUpdateCacheActionType,
     resource_type: JournalUpdateCacheResourceType,
-    data: &str,
+    data: &[u8],
 ) {
     match resource_type {
         JournalUpdateCacheResourceType::JournalNode => parse_node(cache_manager, action_type, data),
@@ -48,31 +48,31 @@ pub async fn parse_notification(
 fn parse_node(
     cache_manager: &Arc<CacheManager>,
     action_type: JournalUpdateCacheActionType,
-    data: &str,
+    data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => match serde_json::from_str::<BrokerNode>(data) {
+        JournalUpdateCacheActionType::Set => match BrokerNode::decode(data) {
             Ok(node) => {
                 info!("Update the cache, Set node, node: {:?}", node.node_id);
                 cache_manager.add_node(node);
             }
             Err(e) => {
                 error!(
-                    "Set node information failed to parse with error message :{},body:{}",
-                    e, data,
+                    "Set node information failed to parse with error message :{}",
+                    e
                 );
             }
         },
 
-        JournalUpdateCacheActionType::Delete => match serde_json::from_str::<BrokerNode>(data) {
+        JournalUpdateCacheActionType::Delete => match BrokerNode::decode(data) {
             Ok(node) => {
                 info!("Update the cache, remove node, node id: {}", node.node_id);
                 cache_manager.delete_node(node.node_id);
             }
             Err(e) => {
                 error!(
-                    "Remove node information failed to parse with error message :{},body:{}",
-                    e, data,
+                    "Remove node information failed to parse with error message :{}",
+                    e
                 );
             }
         },
@@ -82,18 +82,18 @@ fn parse_node(
 fn parse_shard(
     cache_manager: &Arc<CacheManager>,
     action_type: JournalUpdateCacheActionType,
-    data: &str,
+    data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalShard>(data) {
+        JournalUpdateCacheActionType::Set => match JournalShard::decode(data) {
             Ok(shard) => {
                 info!("Update the cache, set shard, shard name: {:?}", shard);
                 cache_manager.set_shard(shard);
             }
             Err(e) => {
                 error!(
-                    "set shard information failed to parse with error message :{},body:{}",
-                    e, data,
+                    "set shard information failed to parse with error message :{}",
+                    e
                 );
             }
         },
@@ -111,10 +111,10 @@ async fn parse_segment(
     cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     action_type: JournalUpdateCacheActionType,
-    data: &str,
+    data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalSegment>(data) {
+        JournalUpdateCacheActionType::Set => match JournalSegment::decode(data) {
             Ok(segment) => {
                 info!("Segment cache update, action: set, segment:{:?}", segment);
 
@@ -126,8 +126,8 @@ async fn parse_segment(
             }
             Err(e) => {
                 error!(
-                    "Set segment information failed to parse with error message :{},body:{}",
-                    e, data,
+                    "Set segment information failed to parse with error message :{}",
+                    e
                 );
             }
         },
@@ -143,27 +143,25 @@ async fn parse_segment(
 async fn parse_segment_meta(
     cache_manager: &Arc<CacheManager>,
     action_type: JournalUpdateCacheActionType,
-    data: &str,
+    data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => {
-            match serde_json::from_str::<JournalSegmentMetadata>(data) {
-                Ok(segment_meta) => {
-                    info!(
-                        "Update the cache, set segment meta, segment meta:{:?}",
-                        segment_meta
-                    );
+        JournalUpdateCacheActionType::Set => match JournalSegmentMetadata::decode(data) {
+            Ok(segment_meta) => {
+                info!(
+                    "Update the cache, set segment meta, segment meta:{:?}",
+                    segment_meta
+                );
 
-                    cache_manager.set_segment_meta(segment_meta);
-                }
-                Err(e) => {
-                    error!(
-                        "Set segment meta information failed to parse with error message :{},body:{}",
-                        e, data,
-                    );
-                }
+                cache_manager.set_segment_meta(segment_meta);
             }
-        }
+            Err(e) => {
+                error!(
+                    "Set segment meta information failed to parse with error message :{}",
+                    e
+                );
+            }
+        },
         _ => {
             error!(
                 "UpdateCache updates SegmentMeta information, only supports Set operations, not {:?}",

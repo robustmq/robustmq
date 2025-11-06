@@ -65,7 +65,10 @@ pub async fn list_segment_by_req(
             }
         };
 
-    let segments_data = serialize::serialize(&binary_segments)?;
+    let segments_data = binary_segments
+        .into_iter()
+        .map(|segment| segment.encode())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ListSegmentReply {
         segments: segments_data,
@@ -301,7 +304,10 @@ pub async fn list_segment_meta_by_req(
             }
         };
 
-    let segments_data = serialize::serialize(&binary_segments)?;
+    let segments_data = binary_segments
+        .into_iter()
+        .map(|segment| segment.encode())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ListSegmentMetaReply {
         segments: segments_data,

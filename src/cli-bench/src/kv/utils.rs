@@ -39,7 +39,7 @@ where
         .await
         .map_err(Box::new)?;
 
-    let ret = serde_json::from_str(reply.value.as_str())?;
+    let ret = serde_json::from_str(&reply.value)?;
 
     Ok(ret)
 }
