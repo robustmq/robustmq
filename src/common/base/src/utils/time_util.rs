@@ -121,7 +121,21 @@ mod tests {
             timestamp_to_timezone_datetime(timestamp, "+0").unwrap()
         );
 
-        // assert_eq!(formatted_date, "2025-07-01 16:46:17");
-        // assert_eq!(formatted_date_two, "2025-07-01 16:46:17");
+
+        let result = timestamp_to_timezone_datetime(timestamp, "Asia/Shanghai");
+        assert!(result.is_ok());
+        println!("Asia/Shanghai time: {}", result.unwrap());
+
+        let result2 = timestamp_to_timezone_datetime(timestamp, "UTC");
+        assert!(result2.is_ok());
+        println!("UTC time: {}", result2.unwrap());
+
+        let result3 = timestamp_to_timezone_datetime(timestamp, "America/New_York");
+        assert!(result3.is_ok());
+        println!("America/New_York time: {}", result3.unwrap());
+
+        let result4 = timestamp_to_timezone_datetime(timestamp, "invalid_timezone");
+        assert!(result4.is_err());
+
     }
 }
