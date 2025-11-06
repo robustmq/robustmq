@@ -75,7 +75,7 @@ pub async fn create_user_by_req(
     );
 
     raft_machine_apply.client_write(data).await?;
-    let user = serde_json::from_slice::<MqttUser>(&req.content)?;
+    let user = MqttUser::decode(&req.content)?;
     update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
     Ok(CreateUserReply {})

@@ -120,7 +120,7 @@ pub async fn create_shard_to_place(
         cluster_name: conf.cluster_name.to_string(),
         namespace: namespace.to_string(),
         shard_name: shard_name.to_string(),
-        shard_config: serde_json::to_vec(&config)?,
+        shard_config: config.encode()?,
     };
     grpc_clients::meta::journal::call::create_shard(
         client_pool,

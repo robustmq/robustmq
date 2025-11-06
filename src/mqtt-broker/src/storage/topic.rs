@@ -74,7 +74,7 @@ impl TopicStorage {
         let results = DashMap::with_capacity(2);
 
         while let Some(data) = data_stream.message().await? {
-            let topic = serde_json::from_slice::<MQTTTopic>(&data.topic)?;
+            let topic = MQTTTopic::decode(&data.topic)?;
             results.insert(topic.topic_name.clone(), topic);
         }
 
@@ -92,7 +92,7 @@ impl TopicStorage {
             placement_list_topic(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
         if let Some(data) = data_stream.message().await? {
-            let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice())?;
+            let topic = MQTTTopic::decode(&data.topic)?;
             return Ok(Some(topic));
         }
 
@@ -158,7 +158,7 @@ impl TopicStorage {
 
         if let Some(data) = reply.retain_message {
             Ok((
-                Some(MqttMessage::decode(data)?),
+                Some(MqttMessage::decode(&data)?),
                 Some(reply.retain_message_expired_at),
             ))
         } else {
@@ -181,7 +181,7 @@ impl TopicStorage {
         .await?;
         let mut results = Vec::with_capacity(8);
         for raw in reply.topic_rewrite_rules {
-            let data = serde_json::from_slice::<MqttTopicRewriteRule>(&raw)?;
+            let data = MqttTopicRewriteRule::decode(&raw)?;
             results.push(data);
         }
         Ok(results)

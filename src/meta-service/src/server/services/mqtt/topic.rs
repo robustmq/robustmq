@@ -91,7 +91,7 @@ pub async fn create_topic_by_req(
 
     raft_machine_apply.client_write(data).await?;
 
-    let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
+    let topic = MQTTTopic::decode(&req.content)?;
     update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})

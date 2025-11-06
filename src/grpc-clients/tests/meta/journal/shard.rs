@@ -84,7 +84,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -300,7 +300,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -447,7 +447,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -560,7 +560,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");

@@ -171,7 +171,7 @@ impl SessionStorage {
             return Ok(None);
         }
 
-        let data = serde_json::from_slice::<MqttLastWillData>(&reply.message)?;
+        let data = MqttLastWillData::decode(&reply.message)?;
         Ok(Some(data))
     }
 }

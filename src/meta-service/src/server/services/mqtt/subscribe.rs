@@ -98,7 +98,7 @@ pub async fn set_subscribe_by_req(
     );
     raft_machine_apply.client_write(data).await?;
 
-    let subscribe = match serde_json::from_slice::<MqttSubscribe>(&req.subscribe) {
+    let subscribe = match MqttSubscribe::decode(&req.subscribe) {
         Ok(subscribe) => subscribe,
         Err(e) => {
             warn!("set subscribe error:{}", e);

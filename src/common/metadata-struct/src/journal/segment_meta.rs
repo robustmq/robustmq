@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 /// Segment metadata in the meta service.
@@ -33,5 +34,13 @@ impl JournalSegmentMetadata {
             "{},{},{},{}",
             self.cluster_name, self.namespace, self.shard_name, self.segment_seq
         )
+    }
+
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }

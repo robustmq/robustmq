@@ -43,7 +43,7 @@ impl BlackListStorage {
             list_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
         for raw in reply.blacklists {
-            list.push(serde_json::from_slice::<MqttAclBlackList>(raw.as_slice())?);
+            list.push(MqttAclBlackList::decode(&raw)?);
         }
         Ok(list)
     }

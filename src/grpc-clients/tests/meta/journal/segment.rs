@@ -67,7 +67,7 @@ mod tests {
             cluster_name: cluster.clone(),
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         let res = create_shard(&client_pool, &addrs, request).await.unwrap();
         assert_eq!(res.replica.len(), 1);

@@ -97,7 +97,7 @@ pub async fn create_schema_req(
         );
         raft_machine_apply.client_write(data).await?;
 
-        let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
+        let schema = SchemaData::decode(&req.schema)?;
         update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
         Ok(())
     }
@@ -139,7 +139,7 @@ pub async fn update_schema_req(
     );
     raft_machine_apply.client_write(data).await?;
 
-    let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
+    let schema = SchemaData::decode(&req.schema)?;
     update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
     Ok(())
 }

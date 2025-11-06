@@ -38,7 +38,7 @@ pub async fn register_node_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
-    let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
+    let node = BrokerNode::decode(&req.node)?;
     cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     sync_save_node(raft_machine_apply, &node).await?;
 

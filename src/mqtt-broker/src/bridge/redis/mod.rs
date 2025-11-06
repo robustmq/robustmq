@@ -207,7 +207,7 @@ impl ConnectorSink for RedisBridgePlugin {
         let mut error_count = 0;
 
         for record in records {
-            let msg = match serde_json::from_slice::<MqttMessage>(&record.data) {
+            let msg = match MqttMessage::decode_record(record.clone()) {
                 Ok(m) => m,
                 Err(e) => {
                     error!("Failed to parse MQTT message: {}", e);

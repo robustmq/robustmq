@@ -127,7 +127,7 @@ impl DataRouteCluster {
     pub fn set_schema(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
+        let schema = SchemaData::decode(&req.schema)?;
         schema_storage.save(&req.cluster_name, &req.schema_name, &schema)?;
         Ok(())
     }

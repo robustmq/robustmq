@@ -55,7 +55,7 @@ impl ConnectorStorage {
                 .await?;
         let mut list = Vec::new();
         for raw in reply.connectors {
-            list.push(serde_json::from_slice::<MQTTConnector>(raw.as_slice())?);
+            list.push(MQTTConnector::decode(&raw)?);
         }
         Ok(list)
     }

@@ -82,8 +82,7 @@ pub async fn create_shard_by_req(
 
     // Check that the number of available nodes in the cluster is sufficient
     let num = cache_manager.get_broker_num(&req.cluster_name) as u32;
-    let shard_config: JournalShardConfig =
-        serde_json::from_slice::<JournalShardConfig>(&req.shard_config)?;
+    let shard_config: JournalShardConfig = JournalShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
         return Err(MetaServiceError::NotEnoughNodes(
             shard_config.replica_num,

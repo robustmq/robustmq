@@ -22,6 +22,7 @@ use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,
@@ -106,7 +107,7 @@ pub async fn create_connector_by_req(
         ));
     }
 
-    let connector = serde_json::from_slice(&req.connector)?;
+    let connector = MQTTConnector::decode(&req.connector)?;
     let ctx = ConnectorContext::new(
         raft_machine_apply.clone(),
         mqtt_call_manager.clone(),
@@ -135,7 +136,7 @@ pub async fn update_connector_by_req(
         ));
     }
 
-    let connector = serde_json::from_slice(&req.connector)?;
+    let connector = MQTTConnector::decode(&req.connector)?;
     let ctx = ConnectorContext::new(
         raft_machine_apply.clone(),
         mqtt_call_manager.clone(),

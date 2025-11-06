@@ -29,6 +29,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -69,7 +70,7 @@ impl DataRouteMqtt {
     pub fn create_user(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
-        let user = serde_json::from_slice::<MqttUser>(&req.content)?;
+        let user = MqttUser::decode(&req.content)?;
         storage.save(&req.cluster_name, &req.user_name, user.clone())?;
         self.cache_manager.add_user(&req.cluster_name, user);
         Ok(())
@@ -87,7 +88,7 @@ impl DataRouteMqtt {
     // Topic
     pub fn create_topic(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
-        let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
+        let topic = MQTTTopic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.cluster_name, &topic.topic_name, topic.clone())?;
         self.cache_manager
@@ -147,7 +148,7 @@ impl DataRouteMqtt {
     pub fn save_last_will_message(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = SaveLastWillMessageRequest::decode(value.as_ref())?;
         let storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
-        let last_will_message = serde_json::from_slice(&req.last_will_message)?;
+        let last_will_message = MqttLastWillData::decode(&req.last_will_message)?;
         storage.save(&req.cluster_name, &req.client_id, last_will_message)?;
         Ok(())
     }
@@ -231,7 +232,7 @@ impl DataRouteMqtt {
     pub fn set_subscribe(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = SetSubscribeRequest::decode(value.as_ref())?;
-        let subscribe = serde_json::from_slice::<MqttSubscribe>(&req.subscribe)?;
+        let subscribe = MqttSubscribe::decode(&req.subscribe)?;
         storage.save(&req.cluster_name, &req.client_id, &req.path, subscribe)?;
         Ok(())
     }
@@ -251,7 +252,7 @@ impl DataRouteMqtt {
     pub fn set_connector(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
         let req = CreateConnectorRequest::decode(value.as_ref())?;
-        let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
+        let connector = MQTTConnector::decode(&req.connector)?;
         storage.save(&req.cluster_name, &req.connector_name, &connector)?;
         self.cache_manager
             .add_connector(&req.cluster_name, &connector);
@@ -271,7 +272,7 @@ impl DataRouteMqtt {
     pub fn create_acl(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
+        let acl = MqttAcl::decode(&req.acl)?;
         acl_storage.save(&req.cluster_name, acl)?;
         Ok(())
     }
@@ -279,7 +280,7 @@ impl DataRouteMqtt {
     pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
+        let acl = MqttAcl::decode(&req.acl)?;
         acl_storage.delete(&req.cluster_name, &acl)?;
         Ok(())
     }
@@ -288,7 +289,7 @@ impl DataRouteMqtt {
     pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        let blacklist = serde_json::from_slice::<MqttAclBlackList>(&req.blacklist)?;
+        let blacklist = MqttAclBlackList::decode(&req.blacklist)?;
         blacklist_storage.save(&req.cluster_name, blacklist)?;
         Ok(())
     }

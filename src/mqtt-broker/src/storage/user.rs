@@ -68,7 +68,7 @@ impl UserStorage {
                 .await?;
 
         if let Some(raw) = reply.users.first() {
-            return Ok(Some(serde_json::from_slice::<MqttUser>(raw)?));
+            return Ok(Some(MqttUser::decode(raw)?));
         }
 
         Ok(None)
@@ -87,7 +87,7 @@ impl UserStorage {
 
         let results = DashMap::with_capacity(2);
         for raw in reply.users {
-            let data = serde_json::from_slice::<MqttUser>(&raw)?;
+            let data = MqttUser::decode(&raw)?;
             results.insert(data.username.clone(), data);
         }
         Ok(results)

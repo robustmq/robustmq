@@ -57,7 +57,7 @@ impl ClusterStorage {
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
-            let data = serde_json::from_slice::<BrokerNode>(&node)?;
+            let data = BrokerNode::decode(&node)?;
             node_list.push(data);
         }
 

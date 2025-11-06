@@ -52,9 +52,7 @@ impl AutoSubscribeStorage {
         .await?;
         let mut list = Vec::new();
         for raw in reply.auto_subscribe_rules {
-            list.push(serde_json::from_slice::<MqttAutoSubscribeRule>(
-                raw.as_slice(),
-            )?);
+            list.push(MqttAutoSubscribeRule::decode(&raw)?);
         }
         Ok(list)
     }

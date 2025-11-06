@@ -102,7 +102,7 @@ impl DataRouteJournal {
     }
 
     pub async fn set_segment_meta(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
-        let meta = serde_json::from_slice::<JournalSegmentMetadata>(&value)?;
+        let meta = JournalSegmentMetadata::decode(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(meta.clone())?;
@@ -113,7 +113,7 @@ impl DataRouteJournal {
     }
 
     pub async fn delete_segment_meta(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
-        let meta = serde_json::from_slice::<JournalSegmentMetadata>(&value)?;
+        let meta = JournalSegmentMetadata::decode(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(
