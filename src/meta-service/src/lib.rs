@@ -183,17 +183,30 @@ impl MetaServiceServer {
         let mut recv = main_stop.subscribe();
         match recv.recv().await {
             Ok(_) => {
-                info!("Meta service has stopped.");
-                if let Err(e) = raw_raf_node.shutdown().await {
-                    error!("{}", e);
+                info!("Meta service shutdown initiated...");
+                
+                // Step 1: Stop all background threads (GC, heartbeat, controllers)
+                info!("Stopping background threads...");
+                if let Err(e) = inner_stop.send(true) {
+                    error!("Failed to send stop signal to background threads: {}", e);
                 }
 
-                if let Err(e) = inner_stop.send(true) {
-                    error!("{}", e);
+                // Step 2: Wait for background threads to finish gracefully
+                info!("Waiting for background threads to complete...");
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+                // Step 3: Shutdown Raft node
+                info!("Shutting down Raft node...");
+                if let Err(e) = raw_raf_node.shutdown().await {
+                    error!("Failed to shutdown Raft node: {}", e);
+                } else {
+                    info!("Raft node shutdown successfully.");
                 }
+                
+                info!("Meta service stopped gracefully.");
             }
             Err(e) => {
-                error!("{}", e);
+                error!("Failed to receive stop signal: {}", e);
             }
         }
     }

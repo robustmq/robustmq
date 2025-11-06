@@ -32,7 +32,7 @@ use protocol::journal::journal_inner::{
     GetShardDeleteStatusRequest,
 };
 use std::sync::Arc;
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 pub async fn gc_shard_thread(
     raft_machine_apply: Arc<RaftMachineManager>,
@@ -58,6 +58,11 @@ pub async fn gc_shard_thread(
         )
         .await
         {
+            // If Raft is stopped, it means system is shutting down, skip gracefully
+            if e.to_string().contains("raft stopped") {
+                info!("Raft stopped during shutdown, skipping Shard {} GC operation", shard.name());
+                return;
+            }
             error!(
                 "Failed to convert Shard to deleting state with error message: {}",
                 e
@@ -115,6 +120,10 @@ pub async fn gc_shard_thread(
                 if let Err(e) =
                     sync_delete_segment_info(&raft_machine_apply, &segment.clone()).await
                 {
+                    if e.to_string().contains("raft stopped") {
+                        info!("Raft stopped during shutdown, skipping remaining GC operations");
+                        return;
+                    }
                     error!(
                         "Failed to delete data from Segment {} with error message {}",
                         segment.name(),
@@ -132,6 +141,10 @@ pub async fn gc_shard_thread(
                 if let Err(e) =
                     sync_delete_segment_metadata_info(&raft_machine_apply, &segment.clone()).await
                 {
+                    if e.to_string().contains("raft stopped") {
+                        info!("Raft stopped during shutdown, skipping remaining GC operations");
+                        return;
+                    }
                     error!(
                         "Failed to delete data from Segment {} with error message {}",
                         segment.name(),
@@ -142,6 +155,10 @@ pub async fn gc_shard_thread(
 
             // delete shard
             if let Err(e) = sync_delete_shard_info(&raft_machine_apply, &shard).await {
+                if e.to_string().contains("raft stopped") {
+                    info!("Raft stopped during shutdown, skipping remaining GC operations");
+                    return;
+                }
                 error!(
                     "Failed to delete Shard {} data with error message :{}",
                     shard.name(),
@@ -189,6 +206,11 @@ pub async fn gc_segment_thread(
         )
         .await
         {
+            // If Raft is stopped, it means system is shutting down, skip gracefully
+            if e.to_string().contains("raft stopped") {
+                info!("Raft stopped during shutdown, skipping Segment {} GC operation", segment.name());
+                return;
+            }
             error!(
                 "Failed to convert Segment to deleting state with error message: {}",
                 e
@@ -246,6 +268,10 @@ pub async fn gc_segment_thread(
         if !flag {
             // delete segment
             if let Err(e) = sync_delete_segment_info(&raft_machine_apply, &segment).await {
+                if e.to_string().contains("raft stopped") {
+                    info!("Raft stopped during shutdown, skipping remaining GC operations");
+                    return;
+                }
                 error!(
                     "Failed to delete Segment {} data with error message :{}",
                     segment.name(),
@@ -262,6 +288,10 @@ pub async fn gc_segment_thread(
             ) {
                 if let Err(e) = sync_delete_segment_metadata_info(&raft_machine_apply, &meta).await
                 {
+                    if e.to_string().contains("raft stopped") {
+                        info!("Raft stopped during shutdown, skipping remaining GC operations");
+                        return;
+                    }
                     error!(
                         "Failed to delete Segment metadata {} data with error message :{}",
                         segment.name(),
@@ -279,6 +309,10 @@ pub async fn gc_segment_thread(
             )
             .await
             {
+                if e.to_string().contains("raft stopped") {
+                    info!("Raft stopped during shutdown, skipping remaining GC operations");
+                    return;
+                }
                 error!(
                     "Updating the Shard {} start segment information failed with error message {}",
                     shard.name(),
