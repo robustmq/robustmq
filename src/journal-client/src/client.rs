@@ -126,7 +126,8 @@ impl JournalClient {
         let mut res = Vec::new();
 
         for raw in resp.shards {
-            let shard = serde_json::from_slice::<JournalShard>(&raw)?;
+            let shard = JournalShard::decode(&raw)
+                .map_err(|e| JournalClientError::DecodeError(e.to_string()))?;
             res.push(shard);
         }
 

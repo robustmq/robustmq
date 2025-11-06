@@ -99,7 +99,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {
-                    let user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
+                    let user = MqttUser::decode(&raw).unwrap();
                     if mqtt_user == user {
                         flag = true;
                     }

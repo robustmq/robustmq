@@ -93,7 +93,7 @@ pub async fn send_last_will_message_by_req(
     message_storage_adapter: &ArcStorageAdapter,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
-    let data = match serde_json::from_slice::<MqttLastWillData>(req.last_will_message.as_slice()) {
+    let data = match MqttLastWillData::decode(&req.last_will_message) {
         Ok(data) => data,
         Err(e) => {
             return Err(MqttBrokerError::CommonError(e.to_string()));

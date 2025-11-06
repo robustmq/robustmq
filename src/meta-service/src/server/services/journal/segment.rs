@@ -65,7 +65,7 @@ pub async fn list_segment_by_req(
             }
         };
 
-    let segments_data = serde_json::to_vec(&binary_segments)?;
+    let segments_data = serialize::serialize(&binary_segments)?;
 
     Ok(ListSegmentReply {
         segments: segments_data,
@@ -301,7 +301,7 @@ pub async fn list_segment_meta_by_req(
             }
         };
 
-    let segments_data = serde_json::to_vec(&binary_segments)?;
+    let segments_data = serialize::serialize(&binary_segments)?;
 
     Ok(ListSegmentMetaReply {
         segments: segments_data,
@@ -481,7 +481,7 @@ pub async fn sync_save_segment_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegment,
-        serde_json::to_vec(&segment)?,
+        segment.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -495,7 +495,7 @@ pub async fn sync_delete_segment_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegment,
-        serde_json::to_vec(&segment)?,
+        segment.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -509,7 +509,7 @@ pub async fn sync_save_segment_metadata_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegmentMetadata,
-        serde_json::to_vec(&segment)?,
+        segment.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -523,7 +523,7 @@ pub async fn sync_delete_segment_metadata_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegmentMetadata,
-        serde_json::to_vec(&segment)?,
+        segment.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());

@@ -43,7 +43,7 @@ impl DataRouteJournal {
     pub async fn set_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
 
-        let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
+        let shard_info = JournalShard::decode(&value)?;
         shard_storage.save(&shard_info)?;
 
         self.cache_manager.set_shard(&shard_info);
@@ -52,7 +52,7 @@ impl DataRouteJournal {
     }
 
     pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
-        let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
+        let shard_info = JournalShard::decode(&value)?;
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
         shard_storage.delete(
@@ -71,7 +71,7 @@ impl DataRouteJournal {
     }
 
     pub async fn set_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
-        let segment = serde_json::from_slice::<JournalSegment>(&value)?;
+        let segment = JournalSegment::decode(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(segment.clone())?;
@@ -82,7 +82,7 @@ impl DataRouteJournal {
     }
 
     pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
-        let segment = serde_json::from_slice::<JournalSegment>(&value)?;
+        let segment = JournalSegment::decode(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(

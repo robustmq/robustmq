@@ -86,4 +86,7 @@ pub enum JournalClientError {
 
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("{0}")]
+    DecodeError(String),
 }

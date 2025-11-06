@@ -34,6 +34,14 @@ impl JournalShard {
     pub fn name(&self) -> String {
         shard_name_iden(&self.namespace, &self.shard_name)
     }
+
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
 }
 
 pub fn shard_name_iden(namespace: &str, shard_name: &str) -> String {

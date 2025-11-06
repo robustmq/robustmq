@@ -18,7 +18,7 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message as _;
 use protocol::meta::meta_service_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteIdempotentDataRequest,
-    DeleteResourceConfigRequest, DeleteSchemaRequest, SaveOffsetDataRequest,
+    DeleteResourceConfigRequest, DeleteSchemaRequest, RegisterNodeRequest, SaveOffsetDataRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -52,7 +52,7 @@ impl DataRouteCluster {
 
     // Cluster
     pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
-        let cluster = serde_json::from_slice::<ClusterInfo>(&value)?;
+        let cluster = ClusterInfo::decode(&value)?;
         let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
         cluster_storage.save(&cluster)?;
         self.cluster_cache.add_broker_cluster(&cluster);
@@ -61,7 +61,8 @@ impl DataRouteCluster {
 
     // Node
     pub async fn add_node(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
-        let node = serde_json::from_slice::<BrokerNode>(&value)?;
+        let req = RegisterNodeRequest::decode(value.as_ref())?;
+        let node = BrokerNode::decode(&req.node)?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         node_storage.save(&node)?;
         self.cluster_cache.add_broker_node(node);
@@ -178,6 +179,8 @@ mod tests {
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
     use crate::storage::placement::node::NodeStorage;
+    use protocol::meta::meta_service_inner::RegisterNodeRequest;
+    use prost::Message;
 
     #[tokio::test]
     async fn register_unregister_node() {
@@ -194,7 +197,10 @@ mod tests {
             roles: Vec::new(),
             ..Default::default()
         };
-        let data = serde_json::to_vec(&node).unwrap();
+        let request = RegisterNodeRequest {
+            node: node.encode().unwrap(),
+        };
+        let data = RegisterNodeRequest::encode_to_vec(&request);
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
             config.rocksdb.max_open_files,

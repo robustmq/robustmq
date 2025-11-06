@@ -24,7 +24,7 @@ use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
-use common_base::tools::{now_mills, unique_id};
+use common_base::{tools::{now_mills, unique_id}, utils::serialize};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
@@ -60,7 +60,7 @@ pub async fn list_shard_by_req(
 
     let shards: Vec<JournalShard> = binary_shards.into_iter().collect();
 
-    let shards_data = serde_json::to_vec(&shards)?;
+    let shards_data = serialize::serialize(&shards)?;
 
     Ok(ListShardReply {
         shards: shards_data,
@@ -233,7 +233,7 @@ async fn sync_save_shard_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetShard,
-        serde_json::to_vec(&shard)?,
+        shard.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -247,7 +247,7 @@ pub async fn sync_delete_shard_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteShard,
-        serde_json::to_vec(&shard)?,
+        shard.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
