@@ -17,6 +17,7 @@ use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
+use common_base::utils::serialize;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -46,7 +47,7 @@ pub struct MQTTInnerCallMessage {
     action_type: MqttBrokerUpdateCacheActionType,
     resource_type: MqttBrokerUpdateCacheResourceType,
     cluster_name: String,
-    data: String,
+    data: Vec<u8>,
 }
 
 #[derive(Clone)]
@@ -151,7 +152,7 @@ pub async fn update_cache_by_add_session(
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Session,
@@ -168,7 +169,7 @@ pub async fn update_cache_by_delete_session(
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Session,
@@ -185,7 +186,7 @@ pub async fn update_cache_by_add_schema(
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&schema)?;
+    let data = serialize::serialize(&schema)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Schema,
@@ -202,7 +203,7 @@ pub async fn update_cache_by_delete_schema(
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&schema)?;
+    let data = serialize::serialize(&schema)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Schema,
@@ -219,7 +220,7 @@ pub async fn update_cache_by_add_schema_bind(
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&bind_data)?;
+    let data = serialize::serialize(&bind_data)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
@@ -236,7 +237,7 @@ pub async fn update_cache_by_delete_schema_bind(
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&bind_data)?;
+    let data = serialize::serialize(&bind_data)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
@@ -253,7 +254,7 @@ pub async fn update_cache_by_add_connector(
     client_pool: &Arc<ClientPool>,
     session: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Connector,
@@ -270,7 +271,7 @@ pub async fn update_cache_by_delete_connector(
     client_pool: &Arc<ClientPool>,
     session: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Connector,
@@ -287,7 +288,7 @@ pub async fn update_cache_by_add_user(
     client_pool: &Arc<ClientPool>,
     session: MqttUser,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::User,
@@ -304,7 +305,7 @@ pub async fn update_cache_by_delete_user(
     client_pool: &Arc<ClientPool>,
     session: MqttUser,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::User,
@@ -321,7 +322,7 @@ pub async fn update_cache_by_add_subscribe(
     client_pool: &Arc<ClientPool>,
     session: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
@@ -338,7 +339,7 @@ pub async fn update_cache_by_delete_subscribe(
     client_pool: &Arc<ClientPool>,
     session: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&session)?;
+    let data = serialize::serialize(&session)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
@@ -355,7 +356,7 @@ pub async fn update_cache_by_add_topic(
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&topic)?;
+    let data = serialize::serialize(&topic)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Topic,
@@ -372,7 +373,7 @@ pub async fn update_cache_by_delete_topic(
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&topic)?;
+    let data = serialize::serialize(&topic)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Topic,
@@ -389,7 +390,7 @@ pub async fn update_cache_by_add_node(
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&node)?;
+    let data = serialize::serialize(&node)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Node,
@@ -406,7 +407,7 @@ pub async fn update_cache_by_delete_node(
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&node)?;
+    let data = serialize::serialize(&node)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Node,
@@ -423,7 +424,7 @@ pub async fn update_cache_by_set_resource_config(
     client_pool: &Arc<ClientPool>,
     config: ClusterResourceConfig,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&config)?;
+    let data = serialize::serialize(&config)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::ClusterResourceConfig,
@@ -475,7 +476,7 @@ async fn start_call_thread(
 
 fn is_ignore_push(node: &BrokerNode, data: &MQTTInnerCallMessage) -> bool {
     if data.resource_type == MqttBrokerUpdateCacheResourceType::Node {
-        let broker_node = match serde_json::from_str::<BrokerNode>(&data.data) {
+        let broker_node = match serialize::deserialize::<BrokerNode>(&data.data) {
             Ok(node) => node,
             Err(_) => {
                 return true;

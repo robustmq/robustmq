@@ -20,7 +20,7 @@ use crate::core::schema::{
     bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
     un_bind_schema_req, update_schema_req,
 };
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::server::services::inner::{
     cluster_status_by_req, delete_idempotent_data_by_req, delete_resource_config_by_req,
     exists_idempotent_data_by_req, get_offset_data_by_req, get_resource_config_by_req,
@@ -48,7 +48,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     cluster_cache: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
@@ -58,7 +58,7 @@ pub struct GrpcPlacementService {
 
 impl GrpcPlacementService {
     pub fn new(
-        raft_machine_apply: Arc<StorageDriver>,
+        raft_machine_apply: Arc<RaftMachineManager>,
         cluster_cache: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,

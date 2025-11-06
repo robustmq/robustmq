@@ -50,8 +50,8 @@ pub fn node_ip() -> String {
 }
 
 #[allow(dead_code)]
-pub fn extend_info() -> String {
-    "extend info".to_string()
+pub fn extend_info() -> Vec<u8> {
+    Vec::new()
 }
 
 #[allow(dead_code)]

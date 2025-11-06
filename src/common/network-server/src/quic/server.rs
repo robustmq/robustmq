@@ -14,7 +14,6 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::handler::handler_process;
-use crate::common::response::{response_process, ResponseChildProcessContext};
 use crate::common::tls_acceptor::{load_certs, load_key};
 use crate::context::ServerContext;
 use crate::quic::acceptor::acceptor_process;
@@ -67,13 +66,13 @@ impl QuicServer {
             self.context.stop_sx.clone(),
         );
 
-        response_process(ResponseChildProcessContext {
-            response_process_num: self.context.proc_config.response_process_num,
-            connection_manager: self.context.connection_manager.clone(),
-            request_channel: request_channel.clone(),
-            network_type: NetworkConnectionType::QUIC,
-            stop_sx: self.context.stop_sx.clone(),
-        });
+        // response_process(ResponseChildProcessContext {
+        //     response_process_num: self.context.proc_config.response_process_num,
+        //     connection_manager: self.context.connection_manager.clone(),
+        //     request_channel: request_channel.clone(),
+        //     network_type: NetworkConnectionType::QUIC,
+        //     stop_sx: self.context.stop_sx.clone(),
+        // });
 
         info!("MQTT Quic Server started successfully, addr: {}", addr);
         Ok(())

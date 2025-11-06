@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::tools::now_second;
+use common_base::{tools::now_second, utils::serialize};
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::inner::call::node_list;
@@ -399,7 +399,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                 list.nodes.len()
             );
             for raw in list.nodes {
-                let node = match serde_json::from_slice::<BrokerNode>(&raw) {
+                let node = match BrokerNode::decode(&raw) {
                     Ok(data) => data,
                     Err(e) => {
                         panic!("Failed to decode the BrokerNode information, {e}");
@@ -419,7 +419,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         ..Default::default()
     };
     match list_shard(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => match serde_json::from_slice::<Vec<JournalShard>>(&list.shards) {
+        Ok(list) => match serialize::deserialize::<Vec<JournalShard>>(&list.shards) {
             Ok(data) => {
                 info!(
                     "Load the shard cache, the number of shards is {}",
@@ -445,7 +445,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         ..Default::default()
     };
     match list_segment(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => match serde_json::from_slice::<Vec<JournalSegment>>(&list.segments) {
+        Ok(list) => match serialize::deserialize::<Vec<JournalSegment>>(&list.segments) {
             Ok(data) => {
                 info!(
                     "Load the segment cache, the number of segments is {}",
@@ -470,7 +470,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         ..Default::default()
     };
     match list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => match serde_json::from_slice::<Vec<JournalSegmentMetadata>>(&list.segments) {
+        Ok(list) => match serialize::deserialize::<Vec<JournalSegmentMetadata>>(&list.segments) {
             Ok(data) => {
                 info!(
                     "Load the segment metadata cache, the number of segments is {}",

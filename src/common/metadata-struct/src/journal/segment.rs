@@ -52,6 +52,14 @@ impl JournalSegment {
             self.cluster_name, self.namespace, self.shard_name, self.segment_seq
         )
     }
+
+    pub fn encode(&self) -> Result<Vec<u8>, common_base::error::common::CommonError> {
+        common_base::utils::serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, common_base::error::common::CommonError> {
+        common_base::utils::serialize::deserialize(data)
+    }
 }
 
 pub fn segment_name(namespace: &str, shard_name: &str, segment_no: u32) -> String {

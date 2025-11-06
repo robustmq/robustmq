@@ -64,11 +64,13 @@ impl MqttSubscribeStorage {
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_cluster_prefix(cluster_name);
-        let resp = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let resp = engine_prefix_list_by_meta::<MqttSubscribe>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in resp {
-            let topic = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
-            results.push(topic);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -79,11 +81,13 @@ impl MqttSubscribeStorage {
         client_id: &str,
     ) -> Result<Vec<MqttSubscribe>, CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
-        let resp = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let resp = engine_prefix_list_by_meta::<MqttSubscribe>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in resp {
-            let topic = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
-            results.push(topic);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -94,9 +98,12 @@ impl MqttSubscribeStorage {
         client_id: &str,
     ) -> Result<(), CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
-        let list = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let list = engine_prefix_list_by_meta::<MqttSubscribe>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         for raw in list {
-            let sub = serde_json::from_str::<MqttSubscribe>(&raw.data)?;
+            let sub: MqttSubscribe = raw.data;
             self.delete_by_path(&sub.cluster_name, &sub.client_id, &sub.filter.path)?;
         }
         Ok(())
@@ -110,8 +117,10 @@ impl MqttSubscribeStorage {
     ) -> Result<Option<MqttSubscribe>, MetaServiceError> {
         let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, path);
 
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let subscribe = serde_json::from_str::<MqttSubscribe>(&data.data)?;
+        if let Some(data) =
+            engine_get_by_meta::<MqttSubscribe>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            let subscribe = data.data;
             return Ok(Some(subscribe));
         }
         Ok(None)
@@ -157,11 +166,13 @@ impl MqttSubscribeStorage {
         cluster_name: &str,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<MqttAutoSubscribeRule>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<MqttAutoSubscribeRule>(&raw.data)?;
-            results.push(topic);
+            results.push(raw.data);
         }
         Ok(results)
     }

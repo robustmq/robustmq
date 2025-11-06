@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
-pub mod broker_mqtt_inner {
-    tonic::include_proto!("broker.mqtt.inner");
+syntax = "proto3";
+
+package broker.cluster;
+
+service ClusterService {
+  rpc ClusterStatus(ClusterStatusRequest) returns (ClusterStatusReply) {}
 }
 
-pub mod broker_cluster {
-    tonic::include_proto!("broker.cluster");
+message ClusterStatusRequest {
 }
+
+message ClusterStatusReply {
+}
+
+

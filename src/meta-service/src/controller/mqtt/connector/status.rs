@@ -16,7 +16,7 @@ use crate::{
     controller::mqtt::call_broker::{update_cache_by_add_connector, MQTTInnerCallManager},
     core::{cache::CacheManager, error::MetaServiceError},
     raft::route::{
-        apply::StorageDriver,
+        apply::RaftMachineManager,
         data::{StorageData, StorageDataType},
     },
 };
@@ -29,7 +29,7 @@ use tracing::{info, warn};
 
 /// Connector status management context - encapsulates shared dependencies
 pub struct ConnectorContext {
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     call_manager: Arc<MQTTInnerCallManager>,
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
@@ -37,7 +37,7 @@ pub struct ConnectorContext {
 
 impl ConnectorContext {
     pub fn new(
-        raft_machine_apply: Arc<StorageDriver>,
+        raft_machine_apply: Arc<RaftMachineManager>,
         call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
@@ -132,7 +132,7 @@ impl ConnectorContext {
         let req = CreateConnectorRequest {
             cluster_name: connector.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
-            connector: connector.encode(),
+            connector: connector.encode()?,
         };
 
         // Write to Raft for persistence

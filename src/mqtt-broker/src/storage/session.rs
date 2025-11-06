@@ -47,7 +47,7 @@ impl SessionStorage {
         let request = CreateSessionRequest {
             cluster_name: config.cluster_name.clone(),
             client_id,
-            session: session.encode(),
+            session: session.encode()?,
         };
 
         placement_create_session(&self.client_pool, &config.get_meta_service_addr(), request)
@@ -105,7 +105,7 @@ impl SessionStorage {
         }
 
         let raw = reply.sessions.first().unwrap();
-        let data = serde_json::from_str::<MqttSession>(raw)?;
+        let data = MqttSession::decode(raw)?;
         Ok(Some(data))
     }
 
@@ -122,7 +122,7 @@ impl SessionStorage {
         let results = DashMap::with_capacity(2);
 
         for raw in reply.sessions {
-            let data = serde_json::from_str::<MqttSession>(&raw)?;
+            let data = MqttSession::decode(&raw)?;
             results.insert(data.client_id.clone(), data);
         }
 
@@ -171,7 +171,7 @@ impl SessionStorage {
             return Ok(None);
         }
 
-        let data = serde_json::from_slice::<MqttLastWillData>(&reply.message)?;
+        let data = MqttLastWillData::decode(&reply.message)?;
         Ok(Some(data))
     }
 }

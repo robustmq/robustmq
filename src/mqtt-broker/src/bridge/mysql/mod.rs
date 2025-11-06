@@ -170,10 +170,10 @@ pub fn start_mysql_connector(
     thread: BridgePluginThread,
 ) {
     tokio::spawn(async move {
-        let mysql_config = match serde_json::from_str::<MySQLConnectorConfig>(&connector.config) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse MySQLConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+        let mysql_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::MySQL(config) => config.clone(),
+            _ => {
+                error!("Invalid connector config type, expected MySQL config");
                 return;
             }
         };

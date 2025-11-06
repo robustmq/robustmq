@@ -28,7 +28,7 @@ use tonic::{Request, Response, Status};
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::server::services::journal::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
     update_segment_meta_by_req, update_segment_status_req,
@@ -38,7 +38,7 @@ use crate::server::services::journal::shard::{
 };
 
 pub struct GrpcEngineService {
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<JournalInnerCallManager>,
@@ -47,7 +47,7 @@ pub struct GrpcEngineService {
 
 impl GrpcEngineService {
     pub fn new(
-        raft_machine_apply: Arc<StorageDriver>,
+        raft_machine_apply: Arc<RaftMachineManager>,
         cache_manager: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<JournalInnerCallManager>,

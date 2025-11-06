@@ -54,7 +54,7 @@ impl Default for PulsarConnectorConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct PulsarConnectorConfig {
     pub server: String,
     pub topic: String,

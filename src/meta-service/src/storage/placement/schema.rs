@@ -49,13 +49,11 @@ impl SchemaStorage {
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<SchemaData>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
-        let mut results = Vec::new();
-        for raw in data {
-            let topic = serde_json::from_str::<SchemaData>(&raw.data)?;
-            results.push(topic);
-        }
-        Ok(results)
+        let data = engine_prefix_list_by_meta::<SchemaData>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn get(
@@ -65,8 +63,10 @@ impl SchemaStorage {
     ) -> Result<Option<SchemaData>, MetaServiceError> {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
 
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serde_json::from_str::<SchemaData>(&data.data)?;
+        if let Some(data) =
+            engine_get_by_meta::<SchemaData>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            let topic: SchemaData = data.data;
             return Ok(Some(topic));
         }
         Ok(None)
@@ -99,11 +99,13 @@ impl SchemaStorage {
     ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key =
             storage_key_mqtt_schema_bind_prefix_by_resource(cluster_name, resource_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<SchemaResourceBind>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<SchemaResourceBind>(&raw.data)?;
-            results.push(topic);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -113,11 +115,13 @@ impl SchemaStorage {
         cluster_name: &str,
     ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_bind_prefix_by_cluster(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<SchemaResourceBind>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<SchemaResourceBind>(&raw.data)?;
-            results.push(topic);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -130,9 +134,10 @@ impl SchemaStorage {
     ) -> Result<Option<SchemaResourceBind>, MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
 
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serde_json::from_str::<SchemaResourceBind>(&data.data)?;
-            return Ok(Some(topic));
+        if let Some(data) =
+            engine_get_by_meta::<SchemaResourceBind>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }

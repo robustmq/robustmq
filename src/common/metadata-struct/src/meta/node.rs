@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct BrokerNode {
     pub cluster_name: String,
     pub roles: Vec<String>,
-    pub extend: String,
+    pub extend: Vec<u8>,
     pub node_id: u64,
     pub node_ip: String,
     pub node_inner_addr: String,
@@ -27,7 +28,11 @@ pub struct BrokerNode {
 }
 
 impl BrokerNode {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }

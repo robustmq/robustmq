@@ -55,7 +55,7 @@ impl ConnectorStorage {
                 .await?;
         let mut list = Vec::new();
         for raw in reply.connectors {
-            list.push(serde_json::from_slice::<MQTTConnector>(raw.as_slice())?);
+            list.push(MQTTConnector::decode(&raw)?);
         }
         Ok(list)
     }
@@ -69,7 +69,7 @@ impl ConnectorStorage {
         let request = CreateConnectorRequest {
             cluster_name: config.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
-            connector: connector.encode(),
+            connector: connector.encode()?,
         };
         placement_create_connector(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
@@ -81,7 +81,7 @@ impl ConnectorStorage {
         let request = UpdateConnectorRequest {
             cluster_name: config.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
-            connector: connector.encode(),
+            connector: connector.encode()?,
         };
         placement_update_connector(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;

@@ -55,7 +55,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
+                    let tmp = MqttAcl::decode(&raw).unwrap();
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic
@@ -92,7 +92,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
+                    let tmp = MqttAcl::decode(&raw).unwrap();
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic

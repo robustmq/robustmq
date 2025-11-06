@@ -77,7 +77,7 @@ impl Default for RabbitMQConnectorConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct RabbitMQConnectorConfig {
     pub server: String,
     #[serde(default = "default_port")]

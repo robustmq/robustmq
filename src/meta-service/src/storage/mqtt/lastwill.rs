@@ -51,9 +51,10 @@ impl MqttLastWillStorage {
         client_id: &str,
     ) -> Result<Option<MqttLastWillData>, MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        let result = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)?;
+        let result =
+            engine_get_by_meta::<MqttLastWillData>(self.rocksdb_engine_handler.clone(), &key)?;
         if let Some(data) = result {
-            return Ok(Some(serde_json::from_str::<MqttLastWillData>(&data.data)?));
+            return Ok(Some(data.data));
         }
         Ok(None)
     }

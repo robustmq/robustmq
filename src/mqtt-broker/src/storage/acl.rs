@@ -40,7 +40,7 @@ impl AclStorage {
         let reply = list_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
         for raw in reply.acls {
-            list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
+            list.push(MqttAcl::decode(&raw)?);
         }
         Ok(list)
     }

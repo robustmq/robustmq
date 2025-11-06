@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use prost::Message;
@@ -25,7 +25,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn set_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &SetRequest,
 ) -> Result<SetReply, MetaServiceError> {
     if req.key.is_empty() || req.value.is_empty() {
@@ -63,7 +63,7 @@ pub async fn get_by_req(
 }
 
 pub async fn delete_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteRequest,
 ) -> Result<DeleteReply, MetaServiceError> {
     if req.key.is_empty() {

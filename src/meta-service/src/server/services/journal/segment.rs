@@ -19,12 +19,12 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::node_extend::JournalNodeExtend;
 use metadata_struct::journal::segment::{
     str_to_segment_status, JournalSegment, Replica, SegmentConfig, SegmentStatus,
 };
@@ -65,7 +65,7 @@ pub async fn list_segment_by_req(
             }
         };
 
-    let segments_data = serde_json::to_vec(&binary_segments)?;
+    let segments_data = serialize::serialize(&binary_segments)?;
 
     Ok(ListSegmentReply {
         segments: segments_data,
@@ -74,7 +74,7 @@ pub async fn list_segment_by_req(
 
 pub async fn create_segment_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
@@ -177,7 +177,7 @@ pub async fn create_segment_by_req(
 
 pub async fn delete_segment_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
@@ -236,7 +236,7 @@ pub async fn delete_segment_by_req(
 
 pub async fn update_segment_status_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentStatusRequest,
@@ -301,7 +301,7 @@ pub async fn list_segment_meta_by_req(
             }
         };
 
-    let segments_data = serde_json::to_vec(&binary_segments)?;
+    let segments_data = serialize::serialize(&binary_segments)?;
 
     Ok(ListSegmentMetaReply {
         segments: segments_data,
@@ -310,7 +310,7 @@ pub async fn list_segment_meta_by_req(
 
 pub async fn update_segment_meta_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentMetaRequest,
@@ -450,9 +450,9 @@ fn calc_node_fold(
     } else {
         return Err(MetaServiceError::NodeDoesNotExist(node_id));
     };
+    use metadata_struct::journal::node_extend::JournalNodeExtend;
 
-    //todo
-    let data = serde_json::from_str::<JournalNodeExtend>(&node.extend)?;
+    let data: JournalNodeExtend = serialize::deserialize(&node.extend)?;
     let fold_list = data.data_fold;
     let mut rng = thread_rng();
     let index = rng.gen_range(0..fold_list.len());
@@ -462,7 +462,7 @@ fn calc_node_fold(
 
 pub async fn update_segment_status(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
     status: SegmentStatus,
 ) -> Result<(), MetaServiceError> {
@@ -476,13 +476,10 @@ pub async fn update_segment_status(
 }
 
 pub async fn sync_save_segment_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalSetSegment,
-        serde_json::to_vec(&segment)?,
-    );
+    let data = StorageData::new(StorageDataType::JournalSetSegment, segment.encode()?);
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -490,13 +487,10 @@ pub async fn sync_save_segment_info(
 }
 
 pub async fn sync_delete_segment_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalDeleteSegment,
-        serde_json::to_vec(&segment)?,
-    );
+    let data = StorageData::new(StorageDataType::JournalDeleteSegment, segment.encode()?);
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -504,12 +498,12 @@ pub async fn sync_delete_segment_info(
 }
 
 pub async fn sync_save_segment_metadata_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegmentMetadata,
-        serde_json::to_vec(&segment)?,
+        segment.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -518,12 +512,12 @@ pub async fn sync_save_segment_metadata_info(
 }
 
 pub async fn sync_delete_segment_metadata_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegmentMetadata,
-        serde_json::to_vec(&segment)?,
+        segment.encode()?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -536,6 +530,7 @@ mod tests {
     use super::calc_node_fold;
     use crate::core::cache::CacheManager;
     use common_base::tools::now_second;
+    use common_base::utils::serialize;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::meta::node::BrokerNode;
@@ -563,7 +558,7 @@ mod tests {
             roles: Vec::new(),
             register_time: now_second(),
             start_time: now_second(),
-            extend: serde_json::to_string(&extend_info).unwrap(),
+            extend: serialize::serialize(&extend_info).unwrap(),
             node_id: 1,
             node_inner_addr: "".to_string(),
             node_ip: "".to_string(),

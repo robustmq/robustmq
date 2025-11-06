@@ -16,7 +16,7 @@ use crate::controller::mqtt::call_broker::{
     update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
 };
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -47,11 +47,14 @@ pub async fn list_topic_by_req(
 
     if !req.topic_name.is_empty() {
         if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
-            topics.push(topic.encode());
+            topics.push(topic.encode()?);
         }
     } else {
         let data = storage.list(&req.cluster_name)?;
-        topics = data.into_iter().map(|raw| raw.encode()).collect();
+        topics = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     let output = async_stream::try_stream! {
@@ -66,7 +69,7 @@ pub async fn list_topic_by_req(
 }
 
 pub async fn create_topic_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -88,7 +91,7 @@ pub async fn create_topic_by_req(
 
     raft_machine_apply.client_write(data).await?;
 
-    let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
+    let topic = MQTTTopic::decode(&req.content)?;
     update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})
@@ -96,7 +99,7 @@ pub async fn create_topic_by_req(
 
 pub async fn delete_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteTopicRequest,
@@ -119,7 +122,7 @@ pub async fn delete_topic_by_req(
 }
 
 pub async fn set_topic_retain_message_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &SetTopicRetainMessageRequest,
 ) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
@@ -168,7 +171,7 @@ pub async fn get_topic_retain_message_by_req(
 }
 
 pub async fn save_last_will_message_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &SaveLastWillMessageRequest,
 ) -> Result<SaveLastWillMessageReply, MetaServiceError> {
     let data = StorageData::new(
@@ -187,7 +190,7 @@ pub async fn get_last_will_message_by_req(
     let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
     if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
         return Ok(GetLastWillMessageReply {
-            message: will.encode(),
+            message: will.encode()?,
         });
     }
 
@@ -197,7 +200,7 @@ pub async fn get_last_will_message_by_req(
 }
 
 pub async fn create_topic_rewrite_rule_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -210,7 +213,7 @@ pub async fn create_topic_rewrite_rule_by_req(
 }
 
 pub async fn delete_topic_rewrite_rule_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteTopicRewriteRuleRequest,
 ) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -229,7 +232,10 @@ pub fn list_topic_rewrite_rule_by_req(
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_topic_rewrite_rule(&req.cluster_name)?;
 
-    let rules = data.into_iter().map(|raw| raw.encode()).collect();
+    let rules = data
+        .into_iter()
+        .map(|raw| raw.encode())
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(ListTopicRewriteRuleReply {
         topic_rewrite_rules: rules,
     })

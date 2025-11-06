@@ -24,17 +24,17 @@ use protocol::meta::meta_service_kv::{
 };
 use tonic::{Request, Response, Status};
 
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
 pub struct GrpcKvService {
-    raft_machine_apply: Arc<StorageDriver>,
+    raft_machine_apply: Arc<RaftMachineManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcKvService {
     pub fn new(
-        raft_machine_apply: Arc<StorageDriver>,
+        raft_machine_apply: Arc<RaftMachineManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcKvService {

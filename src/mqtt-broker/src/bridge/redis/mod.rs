@@ -207,7 +207,7 @@ impl ConnectorSink for RedisBridgePlugin {
         let mut error_count = 0;
 
         for record in records {
-            let msg = match serde_json::from_slice::<MqttMessage>(&record.data) {
+            let msg = match MqttMessage::decode_record(record.clone()) {
                 Ok(m) => m,
                 Err(e) => {
                     error!("Failed to parse MQTT message: {}", e);
@@ -291,13 +291,10 @@ pub fn start_redis_connector(
     thread: BridgePluginThread,
 ) {
     tokio::spawn(async move {
-        let redis_config = match serde_json::from_str::<RedisConnectorConfig>(&connector.config) {
-            Ok(config) => config,
-            Err(e) => {
-                error!(
-                    "Failed to parse RedisConnectorConfig with error message: {}, configuration contents: {}",
-                    e, connector.config
-                );
+        let redis_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::Redis(config) => config.clone(),
+            _ => {
+                error!("Invalid connector config type, expected Redis config");
                 return;
             }
         };

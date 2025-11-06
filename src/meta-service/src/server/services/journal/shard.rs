@@ -21,10 +21,13 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
-use common_base::tools::{now_mills, unique_id};
+use common_base::{
+    tools::{now_mills, unique_id},
+    utils::serialize,
+};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
@@ -60,7 +63,7 @@ pub async fn list_shard_by_req(
 
     let shards: Vec<JournalShard> = binary_shards.into_iter().collect();
 
-    let shards_data = serde_json::to_vec(&shards)?;
+    let shards_data = serialize::serialize(&shards)?;
 
     Ok(ListShardReply {
         shards: shards_data,
@@ -69,7 +72,7 @@ pub async fn list_shard_by_req(
 
 pub async fn create_shard_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
@@ -82,8 +85,7 @@ pub async fn create_shard_by_req(
 
     // Check that the number of available nodes in the cluster is sufficient
     let num = cache_manager.get_broker_num(&req.cluster_name) as u32;
-    let shard_config: JournalShardConfig =
-        serde_json::from_slice::<JournalShardConfig>(&req.shard_config)?;
+    let shard_config: JournalShardConfig = JournalShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
         return Err(MetaServiceError::NotEnoughNodes(
             shard_config.replica_num,
@@ -172,7 +174,7 @@ pub async fn create_shard_by_req(
 }
 
 pub async fn delete_shard_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -205,7 +207,7 @@ pub async fn delete_shard_by_req(
 }
 
 pub async fn update_start_segment_by_shard(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
@@ -217,7 +219,7 @@ pub async fn update_start_segment_by_shard(
 }
 
 pub async fn update_last_segment_by_shard(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
@@ -229,13 +231,10 @@ pub async fn update_last_segment_by_shard(
 }
 
 async fn sync_save_shard_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalSetShard,
-        serde_json::to_vec(&shard)?,
-    );
+    let data = StorageData::new(StorageDataType::JournalSetShard, shard.encode()?);
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -243,13 +242,10 @@ async fn sync_save_shard_info(
 }
 
 pub async fn sync_delete_shard_info(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalDeleteShard,
-        serde_json::to_vec(&shard)?,
-    );
+    let data = StorageData::new(StorageDataType::JournalDeleteShard, shard.encode()?);
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -257,7 +253,7 @@ pub async fn sync_delete_shard_info(
 }
 
 pub async fn update_shard_status(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &JournalShard,
     status: JournalShardStatus,

@@ -58,12 +58,12 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_start(segment_iden);
-        if let Some(res) = engine_get_by_journal(
+        if let Some(res) = engine_get_by_journal::<i64>(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,
         )? {
-            return Ok(serde_json::from_str::<i64>(&res.data)?);
+            return Ok(res.data);
         }
 
         Ok(-1)
@@ -88,12 +88,12 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_end(segment_iden);
-        if let Some(res) = engine_get_by_journal(
+        if let Some(res) = engine_get_by_journal::<i64>(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             &key,
         )? {
-            return Ok(serde_json::from_str::<i64>(&res.data)?);
+            return Ok(res.data);
         }
 
         Ok(-1)
@@ -144,8 +144,8 @@ impl TimestampIndexManager {
                         break;
                     }
 
-                    let data = serialize::deserialize::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_str::<IndexData>(&data.data)?;
+                    let data = serialize::deserialize::<StorageDataWrap<IndexData>>(val)?;
+                    let index_data = data.data;
 
                     if index_data.timestamp < start_timestamp {
                         iter.next();

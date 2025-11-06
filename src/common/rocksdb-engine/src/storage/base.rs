@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{rocksdb::RocksDBEngine, warp::StorageDataWrap};
-use common_base::{error::common::CommonError, tools::now_mills, utils::serialize};
+use common_base::{error::common::CommonError, tools::now_mills};
 use common_metrics::rocksdb::{
     metrics_rocksdb_delete_ms, metrics_rocksdb_exist_ms, metrics_rocksdb_get_ms,
     metrics_rocksdb_list_ms, metrics_rocksdb_save_ms,
@@ -57,23 +57,24 @@ where
 {
     with_metrics!(source, metrics_rocksdb_save_ms, {
         let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
-        let content =
-            serde_json::to_string(&value).map_err(|e| CommonError::CommonError(e.to_string()))?;
-        let data = StorageDataWrap::new(content);
-        rocksdb_engine_handler.write(cf, key_name, &data)?;
+        let wrap = StorageDataWrap::new(value);
+        rocksdb_engine_handler.write(cf, key_name, &wrap)?;
         Ok(())
     })
 }
 
-pub fn engine_get(
+pub fn engine_get<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
-) -> Result<Option<StorageDataWrap>, CommonError> {
+) -> Result<Option<StorageDataWrap<T>>, CommonError>
+where
+    T: serde::de::DeserializeOwned,
+{
     with_metrics!(source, metrics_rocksdb_get_ms, {
         let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
-        rocksdb_engine_handler.read::<StorageDataWrap>(cf, key_name)
+        rocksdb_engine_handler.read::<StorageDataWrap<T>>(cf, key_name)
     })
 }
 
@@ -126,12 +127,17 @@ pub fn engine_delete_prefix(
     })
 }
 
-pub fn engine_prefix_list(
+pub fn engine_prefix_list<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     prefix_key_name: &str,
-) -> Result<Vec<StorageDataWrap>, CommonError> {
+) -> Result<Vec<StorageDataWrap<T>>, CommonError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    use common_base::utils::serialize;
+
     with_metrics!(source, metrics_rocksdb_list_ms, {
         let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
 
@@ -139,7 +145,7 @@ pub fn engine_prefix_list(
         let mut results = Vec::with_capacity(raw.len().min(64));
 
         for (_key, v) in raw {
-            match serialize::deserialize::<StorageDataWrap>(v.as_ref()) {
+            match serialize::deserialize::<StorageDataWrap<T>>(v.as_ref()) {
                 Ok(v) => results.push(v),
                 Err(_e) => {
                     // Silently skip deserialization errors
@@ -151,12 +157,17 @@ pub fn engine_prefix_list(
     })
 }
 
-pub fn engine_list_by_model(
+pub fn engine_list_by_model<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     mode: &rocksdb::IteratorMode,
-) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
+) -> Result<DashMap<String, StorageDataWrap<T>>, CommonError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    use common_base::utils::serialize;
+
     with_metrics!(source, metrics_rocksdb_list_ms, {
         let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
 
@@ -164,7 +175,7 @@ pub fn engine_list_by_model(
         let results = DashMap::with_capacity(raw.len().min(32));
 
         for (key, v) in raw {
-            match serialize::deserialize::<StorageDataWrap>(v.as_ref()) {
+            match serialize::deserialize::<StorageDataWrap<T>>(v.as_ref()) {
                 Ok(v) => {
                     results.insert(key.clone(), v);
                 }

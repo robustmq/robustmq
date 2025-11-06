@@ -17,6 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::{get_local_ip, now_second, unique_id};
+    use common_base::utils::serialize;
     use grpc_clients::meta::inner::call::register_node;
     use grpc_clients::meta::journal::call::{
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
@@ -61,13 +62,13 @@ mod tests {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -84,7 +85,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -98,7 +99,7 @@ mod tests {
             namespace: namespace.clone(),
         };
         let reply = list_shard(&client_pool, &addrs, request).await.unwrap();
-        let data: Vec<JournalShard> = serde_json::from_slice(&reply.shards).unwrap();
+        let data: Vec<JournalShard> = serialize::deserialize(&reply.shards).unwrap();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();
         assert_eq!(shard_raw.cluster_name, cluster_name);
@@ -119,7 +120,7 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.namespace, namespace);
@@ -144,7 +145,7 @@ mod tests {
         let reply = list_segment_meta(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let data: Vec<JournalSegmentMetadata> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegmentMetadata> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
         let meta = data.first().unwrap();
         assert_eq!(meta.namespace, namespace);
@@ -174,7 +175,7 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 2);
         let segment = data.first().unwrap();
         assert_eq!(segment.namespace, namespace);
@@ -212,7 +213,7 @@ mod tests {
         let reply = list_segment_meta(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let data: Vec<JournalSegmentMetadata> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegmentMetadata> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 2);
         let meta = data.first().unwrap();
         assert_eq!(meta.namespace, namespace);
@@ -249,7 +250,7 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 2);
 
         // list segment meta
@@ -279,13 +280,13 @@ mod tests {
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -300,7 +301,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -329,7 +330,7 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.status, SegmentStatus::PreSealUp);
@@ -357,7 +358,7 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.status, SegmentStatus::SealUp);
@@ -388,7 +389,7 @@ mod tests {
         let reply = list_segment_meta(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let data: Vec<JournalSegmentMetadata> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegmentMetadata> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
         let meta = data.first().unwrap();
         assert_eq!(meta.namespace, namespace);
@@ -424,13 +425,13 @@ mod tests {
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend: serde_json::to_string(&extend).unwrap(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
@@ -447,7 +448,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -509,7 +510,7 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.status, SegmentStatus::PreDelete);
@@ -539,12 +540,12 @@ mod tests {
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             register_time: now_second(),
             start_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -560,7 +561,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{e}");
@@ -592,7 +593,7 @@ mod tests {
             namespace: namespace.clone(),
         };
         let reply = list_shard(&client_pool, &addrs, request).await.unwrap();
-        let data: Vec<JournalShard> = serde_json::from_slice(&reply.shards).unwrap();
+        let data: Vec<JournalShard> = serialize::deserialize(&reply.shards).unwrap();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();
         assert_eq!(shard_raw.status, JournalShardStatus::PrepareDelete);

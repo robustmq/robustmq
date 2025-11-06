@@ -61,7 +61,13 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
 
     // MQTT Broker
     tonic_build::configure().build_server(true).compile_protos(
-        &[proto_root.join("src/broker/inner.proto").to_str().unwrap()],
+        &[
+            proto_root.join("src/broker/inner.proto").to_str().unwrap(),
+            proto_root
+                .join("src/broker/cluster.proto")
+                .to_str()
+                .unwrap(),
+        ],
         &[proto_root.join("src/").to_str().unwrap()],
     )?;
 
@@ -82,7 +88,6 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
             proto_root.join("src/meta/inner.proto").to_str().unwrap(),
             proto_root.join("src/meta/validate.proto").to_str().unwrap(),
             proto_root.join("src/meta/openraft.proto").to_str().unwrap(),
-            proto_root.join("src/meta/cluster.proto").to_str().unwrap(),
         ],
         &[proto_root.join("src/").to_str().unwrap()],
     )?;

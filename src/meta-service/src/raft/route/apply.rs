@@ -20,13 +20,13 @@ use openraft::Raft;
 use std::time::Duration;
 use tokio::time::timeout;
 
-pub struct StorageDriver {
+pub struct RaftMachineManager {
     pub raft_node: Raft<TypeConfig>,
 }
 
-impl StorageDriver {
+impl RaftMachineManager {
     pub fn new(raft_node: Raft<TypeConfig>) -> Self {
-        StorageDriver { raft_node }
+        RaftMachineManager { raft_node }
     }
 
     pub async fn client_write(

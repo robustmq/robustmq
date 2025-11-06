@@ -39,7 +39,7 @@ impl UserStorage {
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name: user_info.username.clone(),
-            content: user_info.encode(),
+            content: user_info.encode()?,
         };
         placement_create_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
@@ -68,7 +68,7 @@ impl UserStorage {
                 .await?;
 
         if let Some(raw) = reply.users.first() {
-            return Ok(Some(serde_json::from_slice::<MqttUser>(raw)?));
+            return Ok(Some(MqttUser::decode(raw)?));
         }
 
         Ok(None)
@@ -87,7 +87,7 @@ impl UserStorage {
 
         let results = DashMap::with_capacity(2);
         for raw in reply.users {
-            let data = serde_json::from_slice::<MqttUser>(&raw)?;
+            let data = MqttUser::decode(&raw)?;
             results.insert(data.username.clone(), data);
         }
         Ok(results)

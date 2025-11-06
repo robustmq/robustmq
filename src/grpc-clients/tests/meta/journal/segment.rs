@@ -47,13 +47,13 @@ mod tests {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
-            extend: extend.encode(),
+            extend: extend.encode().unwrap(),
             start_time: now_second(),
             register_time: now_second(),
         };
 
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         register_node(&client_pool, &addrs, request).await.unwrap();
@@ -67,7 +67,7 @@ mod tests {
             cluster_name: cluster.clone(),
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
         let res = create_shard(&client_pool, &addrs, request).await.unwrap();
         assert_eq!(res.replica.len(), 1);

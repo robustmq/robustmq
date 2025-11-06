@@ -83,10 +83,13 @@ impl OffsetStorage {
     ) -> Result<Vec<OffsetData>, CommonError> {
         let prefix_key = key_offset_by_group(cluster_name, group);
 
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<OffsetData>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<OffsetData>(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }

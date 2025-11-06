@@ -134,11 +134,15 @@ mod tests {
     use tokio::sync::broadcast;
 
     fn create_test_connector() -> MQTTConnector {
+        use metadata_struct::mqtt::bridge::{
+            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
+        };
+
         MQTTConnector {
             connector_name: "test_connector".to_string(),
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
-            config: "{}".to_string(),
+            config: ConnectorConfig::LocalFile(LocalFileConnectorConfig::default()),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),

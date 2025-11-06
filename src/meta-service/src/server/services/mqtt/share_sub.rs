@@ -298,7 +298,7 @@ mod tests {
             node_id: 1,
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
-            extend: "".to_string(),
+            extend: Vec::new(),
             start_time: now_second(),
             register_time: now_second(),
         });
@@ -308,7 +308,7 @@ mod tests {
             node_id: 2,
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
-            extend: "".to_string(),
+            extend: Vec::new(),
             start_time: now_second(),
             register_time: now_second(),
         });
@@ -318,7 +318,7 @@ mod tests {
             node_id: 3,
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
-            extend: "".to_string(),
+            extend: Vec::new(),
             start_time: now_second(),
             register_time: now_second(),
         });

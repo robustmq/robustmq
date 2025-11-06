@@ -14,6 +14,7 @@
 
 use std::fmt::Display;
 
+use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -26,8 +27,12 @@ pub struct SchemaData {
 }
 
 impl SchemaData {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }
 
@@ -39,8 +44,12 @@ pub struct SchemaResourceBind {
 }
 
 impl SchemaResourceBind {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }
 

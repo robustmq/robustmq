@@ -49,7 +49,7 @@ mod tests {
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
-        let extend_info = "".to_string();
+        let extend_info = Vec::new();
 
         let node = BrokerNode {
             roles: Vec::new(),
@@ -62,7 +62,7 @@ mod tests {
             start_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         match register_node(&client_pool, &addrs, request).await {
@@ -91,7 +91,7 @@ mod tests {
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
-        let extend_info = "".to_string();
+        let extend_info = Vec::new();
 
         let node = BrokerNode {
             roles: Vec::new(),
@@ -105,7 +105,7 @@ mod tests {
         };
 
         let request_cluster_name_empty = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         match register_node(&client_pool, &addrs, request_cluster_name_empty).await {
@@ -135,7 +135,7 @@ mod tests {
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
-        let extend_info = "".to_string();
+        let extend_info = Vec::new();
 
         let node = BrokerNode {
             roles: Vec::new(),
@@ -148,7 +148,7 @@ mod tests {
             start_time: now_second(),
         };
         let request_node_ip_empty = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         match register_node(&client_pool, &addrs, request_node_ip_empty).await {
             Ok(_) => {

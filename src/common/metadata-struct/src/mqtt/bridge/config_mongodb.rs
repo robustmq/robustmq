@@ -23,7 +23,7 @@ pub enum MongoDBDeploymentMode {
     Sharded,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct MongoDBConnectorConfig {
     pub host: String,
     #[serde(default = "default_port")]

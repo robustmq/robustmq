@@ -25,3 +25,5 @@ pub mod config_redis;
 pub mod connector;
 pub mod connector_type;
 pub mod status;
+
+pub use connector::ConnectorConfig;

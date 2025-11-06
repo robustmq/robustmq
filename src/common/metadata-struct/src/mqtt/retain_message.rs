@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use bytes::Bytes;
+use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
@@ -25,7 +26,11 @@ pub struct MQTTRetainMessage {
 }
 
 impl MQTTRetainMessage {
-    pub fn encode(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }

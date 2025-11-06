@@ -41,7 +41,7 @@ mod tests {
         let request = SaveLastWillMessageRequest {
             cluster_name: cluster_name.clone(),
             client_id: client_id.clone(),
-            last_will_message: last_will_message.encode(),
+            last_will_message: last_will_message.encode().unwrap(),
         };
         match placement_save_last_will_message(&client_pool, &addrs, request).await {
             Ok(_) => {}

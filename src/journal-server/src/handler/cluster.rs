@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use metadata_struct::journal::node_extend::JournalNodeExtend;
-use protocol::journal::journal_engine::GetClusterMetadataNode;
-
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
+use common_base::utils::serialize;
+use protocol::journal::journal_engine::GetClusterMetadataNode;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ClusterHandler {
@@ -31,9 +29,11 @@ impl ClusterHandler {
     }
 
     pub fn get_cluster_metadata(&self) -> Result<Vec<GetClusterMetadataNode>, JournalServerError> {
+        use metadata_struct::journal::node_extend::JournalNodeExtend;
+
         let mut result = Vec::new();
         for node in self.cache_manager.all_node() {
-            let journal_extend = serde_json::from_str::<JournalNodeExtend>(&node.extend)?;
+            let journal_extend: JournalNodeExtend = serialize::deserialize(&node.extend)?;
             result.push(GetClusterMetadataNode {
                 node_id: node.node_id,
                 tcp_addr: journal_extend.tcp_addr,

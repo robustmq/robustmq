@@ -445,11 +445,15 @@ mod tests {
     }
 
     fn create_test_connector() -> MQTTConnector {
+        use metadata_struct::mqtt::bridge::{
+            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
+        };
+
         MQTTConnector {
             connector_name: "test_connector".to_string(),
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
-            config: "{}".to_string(),
+            config: ConnectorConfig::LocalFile(LocalFileConnectorConfig::default()),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
@@ -505,11 +509,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_connector() {
+        use metadata_struct::mqtt::bridge::{
+            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
+        };
+
         let (storage_adapter, connector_manager) = setup();
 
         let mut connector = create_test_connector();
         connector.broker_id = Some(1);
-        connector.config = r#"{"local_file_path": "/tmp/test.txt"}"#.to_string();
+        connector.config = ConnectorConfig::LocalFile(LocalFileConnectorConfig {
+            local_file_path: "/tmp/test.txt".to_string(),
+            ..Default::default()
+        });
         connector_manager.add_connector(&connector);
 
         let shard_name = connector.topic_name.clone();

@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct JournalNodeExtend {
     pub data_fold: Vec<String>,
     pub tcp_addr: String,
 }
 
 impl JournalNodeExtend {
-    pub fn encode(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }

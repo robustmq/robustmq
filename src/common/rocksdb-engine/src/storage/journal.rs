@@ -25,7 +25,7 @@ use crate::{
 };
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 pub fn engine_save_by_journal<T>(
@@ -46,11 +46,14 @@ where
     )
 }
 
-pub fn engine_get_by_journal(
+pub fn engine_get_by_journal<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     key_name: &str,
-) -> Result<Option<StorageDataWrap>, CommonError> {
+) -> Result<Option<StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_get(
         rocksdb_engine_handler,
         column_family,
@@ -98,11 +101,14 @@ pub fn engine_exists_by_journal(
     )
 }
 
-pub fn engine_list_by_prefix_by_journal(
+pub fn engine_list_by_prefix_by_journal<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     prefix_key_name: &str,
-) -> Result<Vec<StorageDataWrap>, CommonError> {
+) -> Result<Vec<StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_prefix_list(
         rocksdb_engine_handler,
         column_family,
@@ -111,11 +117,14 @@ pub fn engine_list_by_prefix_by_journal(
     )
 }
 
-pub fn engine_list_by_mode_by_journal(
+pub fn engine_list_by_mode_by_journal<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     mode: &rocksdb::IteratorMode,
-) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
+) -> Result<DashMap<String, StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_list_by_model(
         rocksdb_engine_handler,
         column_family,
@@ -124,11 +133,14 @@ pub fn engine_list_by_mode_by_journal(
     )
 }
 
-pub fn engine_list_by_prefix_to_map_by_journal(
+pub fn engine_list_by_prefix_to_map_by_journal<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     column_family: &str,
     prefix_key_name: &str,
-) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
+) -> Result<DashMap<String, StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     use common_base::tools::now_mills;
     use common_metrics::rocksdb::metrics_rocksdb_list_ms;
 
@@ -142,7 +154,7 @@ pub fn engine_list_by_prefix_to_map_by_journal(
     let results = DashMap::with_capacity(raw.len().min(64));
 
     for (key, v) in raw {
-        match serialize::deserialize::<StorageDataWrap>(v.as_ref()) {
+        match serialize::deserialize::<StorageDataWrap<T>>(v.as_ref()) {
             Ok(v) => {
                 results.insert(key.clone(), v);
             }

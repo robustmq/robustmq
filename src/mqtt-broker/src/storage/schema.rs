@@ -47,7 +47,7 @@ impl SchemaStorage {
             list_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut results = Vec::new();
         for raw in reply.schemas {
-            results.push(serde_json::from_slice::<SchemaData>(raw.as_slice())?);
+            results.push(SchemaData::decode(&raw)?);
         }
         Ok(results)
     }
@@ -57,7 +57,7 @@ impl SchemaStorage {
         let request = CreateSchemaRequest {
             cluster_name: config.cluster_name.clone(),
             schema_name: schema_data.name.clone(),
-            schema: schema_data.encode(),
+            schema: schema_data.encode()?,
         };
 
         create_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -114,9 +114,7 @@ impl SchemaStorage {
             list_bind_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut results = Vec::new();
         for raw in reply.schema_binds {
-            results.push(serde_json::from_slice::<SchemaResourceBind>(
-                raw.as_slice(),
-            )?);
+            results.push(SchemaResourceBind::decode(&raw)?);
         }
         Ok(results)
     }

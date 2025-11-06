@@ -39,7 +39,7 @@ mod tests {
             register_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         client
             .register_node(tonic::Request::new(request))
@@ -54,7 +54,7 @@ mod tests {
                 let mut flag = false;
                 let nodes = rep.into_inner().nodes;
                 for raw in nodes {
-                    let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
+                    let node = BrokerNode::decode(&raw).unwrap();
                     if node.node_id == node_id {
                         flag = true;
                     }
@@ -82,7 +82,7 @@ mod tests {
                 let mut flag = false;
                 let nodes = rep.into_inner().nodes;
                 for raw in nodes {
-                    let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
+                    let node = BrokerNode::decode(&raw).unwrap();
                     if node.node_id == node_id {
                         flag = true;
                     }

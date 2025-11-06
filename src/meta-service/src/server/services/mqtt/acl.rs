@@ -26,7 +26,7 @@ use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::{
     raft::route::{
-        apply::StorageDriver,
+        apply::RaftMachineManager,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::acl::AclStorage,
@@ -46,7 +46,7 @@ pub fn list_acl_by_req(
 }
 
 pub async fn create_acl_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &CreateAclRequest,
 ) -> Result<CreateAclReply, MetaServiceError> {
     let data = StorageData::new(
@@ -59,7 +59,7 @@ pub async fn create_acl_by_req(
 }
 
 pub async fn delete_acl_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteAclRequest,
 ) -> Result<DeleteAclReply, MetaServiceError> {
     let data = StorageData::new(
@@ -85,7 +85,7 @@ pub fn list_blacklist_by_req(
 }
 
 pub async fn delete_blacklist_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
@@ -98,7 +98,7 @@ pub async fn delete_blacklist_by_req(
 }
 
 pub async fn create_blacklist_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, MetaServiceError> {
     let data = StorageData::new(

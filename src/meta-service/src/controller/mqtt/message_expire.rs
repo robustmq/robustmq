@@ -76,8 +76,9 @@ impl MessageExpire {
             }
 
             let result_value = value.unwrap().to_vec();
-            let data = serialize::deserialize::<StorageDataWrap>(&result_value).unwrap();
-            let value = serde_json::from_str::<MQTTRetainMessage>(&data.data).unwrap();
+            let data = serialize::deserialize::<StorageDataWrap<MQTTRetainMessage>>(&result_value)
+                .unwrap();
+            let value = data.data;
             let delete = now_second() >= (value.create_time + value.retain_message_expired_at);
             if delete {
                 if let Err(e) =
@@ -130,8 +131,9 @@ impl MessageExpire {
             }
 
             let result_value = value.unwrap().to_vec();
-            let data = serialize::deserialize::<StorageDataWrap>(&result_value).unwrap();
-            let value = serde_json::from_str::<MqttLastWillData>(&data.data).unwrap();
+            let data =
+                serialize::deserialize::<StorageDataWrap<MqttLastWillData>>(&result_value).unwrap();
+            let value = data.data;
             if let Some(properties) = value.last_will_properties {
                 let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
                     now_second() >= ((expiry_interval as u64) + data.create_time)

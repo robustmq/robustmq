@@ -18,10 +18,11 @@ use crate::controller::mqtt::call_broker::{
 use crate::controller::mqtt::connector::status::ConnectorContext;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,
@@ -76,11 +77,14 @@ pub fn list_connectors_by_req(
 
     if !req.connector_name.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.connector_name)? {
-            connectors.push(data.encode());
+            connectors.push(data.encode()?);
         }
     } else {
         let data = storage.list(&req.cluster_name)?;
-        connectors = data.into_iter().map(|raw| raw.encode()).collect();
+        connectors = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     Ok(ListConnectorReply { connectors })
@@ -88,7 +92,7 @@ pub fn list_connectors_by_req(
 
 pub async fn create_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -103,7 +107,7 @@ pub async fn create_connector_by_req(
         ));
     }
 
-    let connector = serde_json::from_slice(&req.connector)?;
+    let connector = MQTTConnector::decode(&req.connector)?;
     let ctx = ConnectorContext::new(
         raft_machine_apply.clone(),
         mqtt_call_manager.clone(),
@@ -117,7 +121,7 @@ pub async fn create_connector_by_req(
 
 pub async fn update_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -132,7 +136,7 @@ pub async fn update_connector_by_req(
         ));
     }
 
-    let connector = serde_json::from_slice(&req.connector)?;
+    let connector = MQTTConnector::decode(&req.connector)?;
     let ctx = ConnectorContext::new(
         raft_machine_apply.clone(),
         mqtt_call_manager.clone(),
@@ -146,7 +150,7 @@ pub async fn update_connector_by_req(
 
 pub async fn delete_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteConnectorRequest,

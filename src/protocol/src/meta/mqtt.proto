@@ -318,7 +318,7 @@ message GetShareSubLeaderReply {
   string broker_addr = 2;
 
   //The parameter for the extended information of the broker node.
-  string extend_info = 3;
+  bytes extend_info = 3;
 }
 
 message ListUserRequest {
@@ -435,7 +435,7 @@ message ListSessionRequest {
 
 message ListSessionReply {
   //The parameter contains a list of sessions, encoded from a `Vec<MQTTSession>` into a binary format.
-  repeated string sessions = 1;
+  repeated bytes sessions = 1;
 }
 
 message CreateSessionRequest {
@@ -446,7 +446,7 @@ message CreateSessionRequest {
   string client_id = 2;
 
   //The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
-  string session = 3;
+  bytes session = 3;
 }
 
 message CreateSessionReply {}

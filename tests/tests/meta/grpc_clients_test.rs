@@ -45,7 +45,7 @@ mod tests {
             start_time: now_second(),
         };
         let valid_request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
         let response = client
             .register_node(tonic::Request::new(valid_request.clone()))
@@ -70,7 +70,7 @@ mod tests {
             register_time: now_second(),
         };
         let valid_request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         let valid_ip = [
@@ -191,7 +191,7 @@ mod tests {
             cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
 
         match client.create_shard(tonic::Request::new(request)).await {

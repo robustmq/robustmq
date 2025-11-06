@@ -52,8 +52,10 @@ impl ShardStorage {
         shard_name: &str,
     ) -> Result<Option<JournalShard>, CommonError> {
         let shard_key: String = key_shard(cluster_name, namespace, shard_name);
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &shard_key)? {
-            return Ok(Some(serde_json::from_str::<JournalShard>(&data.data)?));
+        if let Some(data) =
+            engine_get_by_meta::<JournalShard>(self.rocksdb_engine_handler.clone(), &shard_key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }
@@ -70,11 +72,14 @@ impl ShardStorage {
 
     pub fn all_shard(&self) -> Result<Vec<JournalShard>, CommonError> {
         let prefix_key = key_all_shard();
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalShard>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
 
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalShard>(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -85,22 +90,28 @@ impl ShardStorage {
         namespace: &str,
     ) -> Result<Vec<JournalShard>, CommonError> {
         let prefix_key = key_shard_namespace_prefix(cluster_name, namespace);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalShard>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
 
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalShard>(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<JournalShard>, CommonError> {
         let prefix_key = key_shard_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalShard>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
 
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<JournalShard>(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }

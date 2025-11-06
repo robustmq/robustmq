@@ -183,12 +183,10 @@ pub fn start_elasticsearch_connector(
     thread: BridgePluginThread,
 ) {
     tokio::spawn(async move {
-        let es_config = match serde_json::from_str::<ElasticsearchConnectorConfig>(
-            &connector.config,
-        ) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse ElasticsearchConnectorConfig with error message: {}, configuration contents: {}", e, connector.config);
+        let es_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::Elasticsearch(config) => config.clone(),
+            _ => {
+                error!("Invalid connector config type, expected Elasticsearch config");
                 return;
             }
         };

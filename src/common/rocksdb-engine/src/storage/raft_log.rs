@@ -25,7 +25,7 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 pub fn engine_save_by_raft_log<T>(
@@ -45,10 +45,13 @@ where
     )
 }
 
-pub fn engine_get_by_raft_log(
+pub fn engine_get_by_raft_log<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: &str,
-) -> Result<Option<StorageDataWrap>, CommonError> {
+) -> Result<Option<StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_get(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_RAFT_LOG,
@@ -95,10 +98,13 @@ pub fn engine_delete_range_by_raft_log(
     )
 }
 
-pub fn engine_list_prefix_by_raft_log(
+pub fn engine_list_prefix_by_raft_log<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: &str,
-) -> Result<Vec<StorageDataWrap>, CommonError> {
+) -> Result<Vec<StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_prefix_list(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_RAFT_LOG,
@@ -107,10 +113,13 @@ pub fn engine_list_prefix_by_raft_log(
     )
 }
 
-pub fn engine_list_mode_by_raft_log(
+pub fn engine_list_mode_by_raft_log<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     mode: &rocksdb::IteratorMode,
-) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
+) -> Result<DashMap<String, StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_list_by_model(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_RAFT_LOG,

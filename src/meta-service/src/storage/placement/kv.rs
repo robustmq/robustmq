@@ -43,8 +43,9 @@ impl KvStorage {
     }
 
     pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(serde_json::from_str::<String>(&data.data)?));
+        if let Some(data) = engine_get_by_meta::<String>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }
@@ -54,11 +55,11 @@ impl KvStorage {
     }
 
     pub fn get_prefix(&self, prefix: String) -> Result<Vec<String>, CommonError> {
-        match engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix) {
+        match engine_prefix_list_by_meta::<String>(self.rocksdb_engine_handler.clone(), &prefix) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for item in data {
-                    result.push(serde_json::from_str(&item.data)?);
+                    result.push(item.data);
                 }
                 Ok(result)
             }

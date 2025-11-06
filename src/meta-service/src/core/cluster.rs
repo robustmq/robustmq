@@ -18,7 +18,7 @@ use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::{
     update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
 };
-use crate::raft::route::apply::StorageDriver;
+use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
@@ -32,13 +32,13 @@ use std::sync::Arc;
 
 pub async fn register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     client_pool: &Arc<ClientPool>,
     _journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
-    let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
+    let node = BrokerNode::decode(&req.node)?;
     cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     sync_save_node(raft_machine_apply, &node).await?;
 
@@ -63,7 +63,7 @@ pub async fn register_node_by_req(
 
 pub async fn un_register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     client_pool: &Arc<ClientPool>,
     _journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
@@ -85,10 +85,16 @@ pub async fn un_register_node_by_req(
 }
 
 async fn sync_save_node(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     node: &BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::ClusterAddNode, serde_json::to_vec(&node)?);
+    let request = RegisterNodeRequest {
+        node: node.encode()?,
+    };
+    let data = StorageData::new(
+        StorageDataType::ClusterAddNode,
+        RegisterNodeRequest::encode_to_vec(&request),
+    );
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
@@ -96,7 +102,7 @@ async fn sync_save_node(
 }
 
 pub async fn sync_delete_node(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &UnRegisterNodeRequest,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
@@ -110,13 +116,10 @@ pub async fn sync_delete_node(
 }
 
 async fn sync_save_cluster(
-    raft_machine_apply: &Arc<StorageDriver>,
-    node: &ClusterInfo,
+    raft_machine_apply: &Arc<RaftMachineManager>,
+    cluster: &ClusterInfo,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::ClusterAddCluster,
-        serde_json::to_vec(&node)?,
-    );
+    let data = StorageData::new(StorageDataType::ClusterAddCluster, cluster.encode()?);
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }

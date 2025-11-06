@@ -76,10 +76,10 @@ pub fn start_pulsar_connector(
     thread: BridgePluginThread,
 ) {
     tokio::spawn(async move {
-        let pulsar_config = match serde_json::from_str::<PulsarConnectorConfig>(&connector.config) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to parse PulsarConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
+        let pulsar_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::Pulsar(config) => config.clone(),
+            _ => {
+                error!("Invalid connector config type, expected Pulsar config");
                 return;
             }
         };

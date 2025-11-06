@@ -37,13 +37,13 @@ register_histogram_metric_ms_with_default_buckets!(
 );
 
 pub fn record_packet_process_duration(
-    network_type: NetworkConnectionType,
-    packet: String,
+    network_type: &NetworkConnectionType,
+    packet: &str,
     duration_ms: f64,
 ) {
     let label = NetworkLabel {
         network: network_type.to_string(),
-        packet,
+        packet: packet.to_string(),
     };
     histogram_metric_observe!(MQTT_PACKET_PROCESS_DURATION_MS, duration_ms, label);
 }

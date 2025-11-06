@@ -113,18 +113,9 @@ impl SessionExpire {
             }
 
             let result_value = value.unwrap();
-            let session = match serialize::deserialize::<StorageDataWrap>(result_value) {
-                Ok(data) => match serde_json::from_str::<MqttSession>(&data.data) {
-                    Ok(da) => da,
-                    Err(e) => {
-                        error!(
-                            "Session expired, failed to parse Session data, error message :{}",
-                            e.to_string()
-                        );
-                        iter.next();
-                        continue;
-                    }
-                },
+            let session = match serialize::deserialize::<StorageDataWrap<MqttSession>>(result_value)
+            {
+                Ok(data) => data.data,
                 Err(e) => {
                     error!(
                         "Session expired, failed to parse Session data, error message :{},key:{}",
@@ -265,9 +256,20 @@ pub async fn send_last_will(
     client_id: String,
     lastwill: MqttLastWillData,
 ) {
+    let last_will_message = match lastwill.encode() {
+        Ok(data) => data,
+        Err(e) => {
+            error!(
+                "Failed to encode last will message for client {}: {}",
+                client_id, e
+            );
+            return;
+        }
+    };
+
     let request = SendLastWillMessageRequest {
         client_id: client_id.clone(),
-        last_will_message: lastwill.encode(),
+        last_will_message,
     };
 
     let node_addr = cache_manager.get_broker_node_addr_by_cluster(&cluster_name);

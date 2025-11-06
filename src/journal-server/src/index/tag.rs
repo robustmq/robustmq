@@ -83,8 +83,8 @@ impl TagIndexManager {
                         break;
                     }
 
-                    let data = serialize::deserialize::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_str::<IndexData>(&data.data)?;
+                    let data = serialize::deserialize::<StorageDataWrap<IndexData>>(val)?;
+                    let index_data = data.data;
 
                     if index_data.offset < start_offset {
                         iter.next();
@@ -150,8 +150,8 @@ impl TagIndexManager {
                         break;
                     }
 
-                    let data = serialize::deserialize::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_str::<IndexData>(&data.data)?;
+                    let data = serialize::deserialize::<StorageDataWrap<IndexData>>(val)?;
+                    let index_data = data.data;
 
                     if index_data.offset < start_offset {
                         iter.next();

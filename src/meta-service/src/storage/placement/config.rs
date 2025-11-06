@@ -59,7 +59,7 @@ impl ResourceConfigStorage {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
 
         if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(serde_json::from_str::<Vec<u8>>(&data.data)?));
+            return Ok(Some(data.data));
         }
         Ok(None)
     }

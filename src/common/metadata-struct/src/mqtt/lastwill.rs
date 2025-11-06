@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::{error::common::CommonError, utils::serialize};
 use protocol::mqtt::common::{LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +24,11 @@ pub struct MqttLastWillData {
 }
 
 impl MqttLastWillData {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
     }
 }

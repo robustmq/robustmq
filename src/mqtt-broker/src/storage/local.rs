@@ -49,13 +49,11 @@ impl LocalStorage {
 
     pub async fn list_system_event(&self) -> Result<Vec<SystemAlarmEventMessage>, MqttBrokerError> {
         let prefix_key = system_event_prefix_key();
-        let mut results = Vec::new();
-        for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), &prefix_key)? {
-            if let Ok(data) = serde_json::from_str::<SystemAlarmEventMessage>(&raw.data) {
-                results.push(data);
-            }
-        }
-        Ok(results)
+        let data = engine_prefix_list_by_broker::<SystemAlarmEventMessage>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub async fn save_ban_log(&self, log: BanLog) -> ResultCommonError {
@@ -65,13 +63,11 @@ impl LocalStorage {
 
     pub async fn list_ban_log(&self) -> Result<Vec<BanLog>, MqttBrokerError> {
         let prefix_key = ban_log_prefix_key();
-        let mut results = Vec::new();
-        for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), &prefix_key)? {
-            if let Ok(data) = serde_json::from_str::<BanLog>(&raw.data) {
-                results.push(data);
-            }
-        }
-        Ok(results)
+        let data = engine_prefix_list_by_broker::<BanLog>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub async fn save_slow_sub_log(&self, log: SlowSubscribeData) -> ResultCommonError {
@@ -81,12 +77,10 @@ impl LocalStorage {
 
     pub async fn list_slow_sub_log(&self) -> Result<Vec<SlowSubscribeData>, MqttBrokerError> {
         let prefix_key = slow_sub_log_prefix_key();
-        let mut results = Vec::new();
-        for raw in engine_prefix_list_by_broker(self.rocksdb_engine_handler.clone(), &prefix_key)? {
-            if let Ok(data) = serde_json::from_str::<SlowSubscribeData>(&raw.data) {
-                results.push(data);
-            }
-        }
-        Ok(results)
+        let data = engine_prefix_list_by_broker::<SlowSubscribeData>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 }

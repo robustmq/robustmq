@@ -21,7 +21,7 @@ use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::{
     raft::route::{
-        apply::StorageDriver,
+        apply::RaftMachineManager,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::session::MqttSessionStorage,
@@ -46,18 +46,21 @@ pub fn list_session_by_req(
 
     if !req.client_id.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.client_id)? {
-            sessions.push(data.encode());
+            sessions.push(data.encode()?);
         }
     } else {
         let data = storage.list(&req.cluster_name)?;
-        sessions = data.into_iter().map(|raw| raw.data).collect();
+        sessions = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     Ok(ListSessionReply { sessions })
 }
 
 pub async fn create_session_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
@@ -69,7 +72,7 @@ pub async fn create_session_by_req(
 
     raft_machine_apply.client_write(data).await?;
 
-    let session = serde_json::from_str::<MqttSession>(&req.session)?;
+    let session = MqttSession::decode(&req.session)?;
 
     update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
 
@@ -77,7 +80,7 @@ pub async fn create_session_by_req(
 }
 
 pub async fn update_session_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -97,7 +100,7 @@ pub async fn update_session_by_req(
 }
 
 pub async fn delete_session_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

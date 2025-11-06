@@ -132,8 +132,8 @@ impl MqttMessage {
         serialize::serialize(self)
     }
 
-    pub fn decode(data: Vec<u8>) -> Result<MqttMessage, CommonError> {
-        serialize::deserialize(&data)
+    pub fn decode(data: &[u8]) -> Result<MqttMessage, CommonError> {
+        serialize::deserialize(data)
     }
 }
 

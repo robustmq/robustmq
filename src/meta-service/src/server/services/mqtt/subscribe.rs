@@ -18,7 +18,7 @@ use crate::{
     },
     core::error::MetaServiceError,
     raft::route::{
-        apply::StorageDriver,
+        apply::RaftMachineManager,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::subscribe::MqttSubscribeStorage,
@@ -37,7 +37,7 @@ use std::sync::Arc;
 use tracing::warn;
 
 pub async fn delete_subscribe_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -78,13 +78,16 @@ pub fn list_subscribe_by_req(
 ) -> Result<ListSubscribeReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_by_cluster(&req.cluster_name)?;
-    let subscribes = data.into_iter().map(|raw| raw.encode()).collect();
+    let subscribes = data
+        .into_iter()
+        .map(|raw| raw.encode())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ListSubscribeReply { subscribes })
 }
 
 pub async fn set_subscribe_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
@@ -95,7 +98,7 @@ pub async fn set_subscribe_by_req(
     );
     raft_machine_apply.client_write(data).await?;
 
-    let subscribe = match serde_json::from_slice::<MqttSubscribe>(&req.subscribe) {
+    let subscribe = match MqttSubscribe::decode(&req.subscribe) {
         Ok(subscribe) => subscribe,
         Err(e) => {
             warn!("set subscribe error:{}", e);
@@ -110,7 +113,7 @@ pub async fn set_subscribe_by_req(
 }
 
 pub async fn set_auto_subscribe_rule_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &SetAutoSubscribeRuleRequest,
 ) -> Result<SetAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -123,7 +126,7 @@ pub async fn set_auto_subscribe_rule_by_req(
 }
 
 pub async fn delete_auto_subscribe_rule_by_req(
-    raft_machine_apply: &Arc<StorageDriver>,
+    raft_machine_apply: &Arc<RaftMachineManager>,
     req: &DeleteAutoSubscribeRuleRequest,
 ) -> Result<DeleteAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -142,7 +145,10 @@ pub fn list_auto_subscribe_rule_by_req(
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_auto_subscribe_rule(&req.cluster_name)?;
 
-    let auto_subscribe_rules: Vec<Vec<u8>> = data.into_iter().map(|raw| raw.encode()).collect();
+    let auto_subscribe_rules = data
+        .into_iter()
+        .map(|raw| raw.encode())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ListAutoSubscribeRuleReply {
         auto_subscribe_rules,

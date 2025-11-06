@@ -41,10 +41,13 @@ impl ClusterStorage {
 
     pub fn list(&self) -> Result<Vec<ClusterInfo>, CommonError> {
         let prefix_key = key_cluster_prefix();
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<ClusterInfo>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_str::<ClusterInfo>(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }

@@ -35,19 +35,19 @@ mod tests {
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();
-        let extend_info = "".to_string();
+        let extend_info = Vec::new();
         let node = BrokerNode {
             roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_ip,
             node_id,
             node_inner_addr,
-            extend: extend_info,
+            extend: extend_info.clone(),
             register_time: now_second(),
             start_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         sleep(Duration::from_secs(2));
@@ -78,19 +78,19 @@ mod tests {
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();
-        let extend_info = "".to_string();
+        let extend_info = Vec::new();
         let node = BrokerNode {
             roles: Vec::new(),
             cluster_name: cluster_name.clone(),
             node_ip,
             node_id,
             node_inner_addr,
-            extend: extend_info,
+            extend: extend_info.clone(),
             register_time: now_second(),
             start_time: now_second(),
         };
         let request = RegisterNodeRequest {
-            node: node.encode(),
+            node: node.encode().unwrap(),
         };
 
         sleep(Duration::from_secs(2));
