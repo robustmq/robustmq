@@ -121,7 +121,6 @@ mod tests {
             timestamp_to_timezone_datetime(timestamp, "+0").unwrap()
         );
 
-
         let result = timestamp_to_timezone_datetime(timestamp, "Asia/Shanghai");
         assert!(result.is_ok());
         println!("Asia/Shanghai time: {}", result.unwrap());
@@ -136,6 +135,5 @@ mod tests {
 
         let result4 = timestamp_to_timezone_datetime(timestamp, "invalid_timezone");
         assert!(result4.is_err());
-
     }
 }
