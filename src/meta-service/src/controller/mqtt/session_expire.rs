@@ -113,18 +113,9 @@ impl SessionExpire {
             }
 
             let result_value = value.unwrap();
-            let session = match serialize::deserialize::<StorageDataWrap<Vec<u8>>>(result_value) {
-                Ok(data) => match serialize::deserialize::<MqttSession>(&data.data) {
-                    Ok(da) => da,
-                    Err(e) => {
-                        error!(
-                            "Session expired, failed to parse Session data, error message :{}",
-                            e.to_string()
-                        );
-                        iter.next();
-                        continue;
-                    }
-                },
+            let session = match serialize::deserialize::<StorageDataWrap<MqttSession>>(result_value)
+            {
+                Ok(data) => data.data,
                 Err(e) => {
                     error!(
                         "Session expired, failed to parse Session data, error message :{},key:{}",
