@@ -16,7 +16,7 @@ use broker_server::{
     common::{init_broker_log, print_conf},
     BrokerServer,
 };
-use clap::{command, Parser};
+use clap::Parser;
 use common_base::version::logo::banner_info;
 use common_config::{broker::init_broker_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG};
 
