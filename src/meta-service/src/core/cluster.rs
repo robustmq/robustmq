@@ -88,7 +88,13 @@ async fn sync_save_node(
     raft_machine_apply: &Arc<RaftMachineManager>,
     node: &BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::ClusterAddNode, serde_json::to_vec(&node)?);
+    let request = RegisterNodeRequest {
+        node: node.encode()?,
+    };
+    let data = StorageData::new(
+        StorageDataType::ClusterAddNode,
+        RegisterNodeRequest::encode_to_vec(&request),
+    );
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
@@ -111,12 +117,9 @@ pub async fn sync_delete_node(
 
 async fn sync_save_cluster(
     raft_machine_apply: &Arc<RaftMachineManager>,
-    node: &ClusterInfo,
+    cluster: &ClusterInfo,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::ClusterAddCluster,
-        serde_json::to_vec(&node)?,
-    );
+    let data = StorageData::new(StorageDataType::ClusterAddCluster, cluster.encode()?);
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }

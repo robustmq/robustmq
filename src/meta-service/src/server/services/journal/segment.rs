@@ -479,10 +479,7 @@ pub async fn sync_save_segment_info(
     raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalSetSegment,
-        segment.encode()?,
-    );
+    let data = StorageData::new(StorageDataType::JournalSetSegment, segment.encode()?);
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -493,10 +490,7 @@ pub async fn sync_delete_segment_info(
     raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalDeleteSegment,
-        segment.encode()?,
-    );
+    let data = StorageData::new(StorageDataType::JournalDeleteSegment, segment.encode()?);
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }

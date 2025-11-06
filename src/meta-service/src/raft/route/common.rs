@@ -179,8 +179,8 @@ mod tests {
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
     use crate::storage::placement::node::NodeStorage;
-    use protocol::meta::meta_service_inner::RegisterNodeRequest;
     use prost::Message;
+    use protocol::meta::meta_service_inner::RegisterNodeRequest;
 
     #[tokio::test]
     async fn register_unregister_node() {
