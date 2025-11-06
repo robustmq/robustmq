@@ -39,6 +39,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_broker_id")]
     pub broker_id: u64,
 
+    #[serde(default)]
+    pub broker_ip: Option<String>,
+
     #[serde(default = "default_roles")]
     pub roles: Vec<String>,
 
