@@ -336,12 +336,10 @@ pub fn delete_segment_index(
 #[cfg(test)]
 mod tests {
     use common_base::utils::serialize;
-    use dashmap::DashMap;
     use rocksdb_engine::warp::StorageDataWrap;
     use std::time::Duration;
 
     use common_base::tools::now_second;
-    use rocksdb_engine::storage::journal::engine_list_by_prefix_to_map_by_journal;
     use tokio::time::sleep;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
@@ -395,34 +393,54 @@ mod tests {
             assert!(res.is_ok());
         }
 
-        // check data
+        // check data - use raw iterator to count entries
         let prefix_key_name = segment_index_prefix(&segment_iden);
-        let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data: DashMap<String, StorageDataWrap<Vec<u8>>> =
-            engine_list_by_prefix_to_map_by_journal(
-                rocksdb_engine_handler.clone(),
-                comlumn_family,
-                &prefix_key_name,
-            )
+        let cf = rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_INDEX)
             .unwrap();
-        assert!(!data.is_empty());
+
+        let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(&prefix_key_name);
+
+        let mut count = 0;
+        while iter.valid() {
+            if let Some(k) = iter.key() {
+                let key_str = String::from_utf8(k.to_vec()).unwrap();
+                if !key_str.starts_with(&prefix_key_name) {
+                    break;
+                }
+                count += 1;
+            }
+            iter.next();
+        }
+        assert!(count > 0);
 
         // delete segment_index
         let res = delete_segment_index(&rocksdb_engine_handler, &segment_iden);
         assert!(res.is_ok());
 
-        // check data
+        // check data - use raw iterator to count entries
         let prefix_key_name = segment_index_prefix(&segment_iden);
-        let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data: DashMap<String, StorageDataWrap<Vec<u8>>> =
-            engine_list_by_prefix_to_map_by_journal(
-                rocksdb_engine_handler.clone(),
-                comlumn_family,
-                &prefix_key_name,
-            )
+        let cf = rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_INDEX)
             .unwrap();
 
-        assert!(data.is_empty());
+        let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(&prefix_key_name);
+
+        let mut count = 0;
+        while iter.valid() {
+            if let Some(k) = iter.key() {
+                let key_str = String::from_utf8(k.to_vec()).unwrap();
+                if !key_str.starts_with(&prefix_key_name) {
+                    break;
+                }
+                count += 1;
+            }
+            iter.next();
+        }
+
+        assert_eq!(count, 0);
     }
 
     #[tokio::test]
@@ -440,13 +458,8 @@ mod tests {
 
         sleep(Duration::from_secs(120)).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
-        let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data: DashMap<String, StorageDataWrap<Vec<u8>>> =
-            engine_list_by_prefix_to_map_by_journal(
-                rocksdb_engine_handler.clone(),
-                comlumn_family,
-                &prefix_key_name,
-            )
+        let cf = rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_INDEX)
             .unwrap();
 
         let mut tag_num = 0;
@@ -454,33 +467,44 @@ mod tests {
         let mut offset_num = 0;
         let mut timestamp_num = 0;
 
-        for (key, val) in data {
-            if key.contains("tag") {
-                tag_num += 1;
-            }
+        let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(&prefix_key_name);
 
-            if key.contains("key") {
-                key_num += 1;
-            }
+        while iter.valid() {
+            if let (Some(k), Some(v)) = (iter.key(), iter.value()) {
+                let key_str = String::from_utf8(k.to_vec()).unwrap();
+                if !key_str.starts_with(&prefix_key_name) {
+                    break;
+                }
 
-            if key.contains("last/offset") {
-                let last_offset = serialize::deserialize::<i64>(&val.data).unwrap();
-                assert_eq!(last_offset, 10000);
-            }
+                if key_str.contains("tag") {
+                    tag_num += 1;
+                }
 
-            if key.contains("offset/position") {
-                let last_offset = serialize::deserialize::<IndexData>(&val.data).unwrap();
-                println!("key: {key},val={last_offset:?}");
-                assert_eq!(last_offset.offset, 9999);
-                offset_num += 1;
-            }
+                if key_str.contains("key") {
+                    key_num += 1;
+                }
 
-            if key.contains("timestamp/time-") {
-                let last_offset = serialize::deserialize::<IndexData>(&val.data).unwrap();
-                println!("key: {key},val={last_offset:?}");
-                assert_eq!(last_offset.offset, 9999);
-                timestamp_num += 1;
+                if key_str.contains("last/offset") {
+                    let wrap = serialize::deserialize::<StorageDataWrap<i64>>(v).unwrap();
+                    assert_eq!(wrap.data, 10000);
+                }
+
+                if key_str.contains("offset/position") {
+                    let wrap = serialize::deserialize::<StorageDataWrap<IndexData>>(v).unwrap();
+                    println!("key: {key_str},val={:?}", wrap.data);
+                    assert_eq!(wrap.data.offset, 9999);
+                    offset_num += 1;
+                }
+
+                if key_str.contains("timestamp/time-") {
+                    let wrap = serialize::deserialize::<StorageDataWrap<IndexData>>(v).unwrap();
+                    println!("key: {key_str},val={:?}", wrap.data);
+                    assert_eq!(wrap.data.offset, 9999);
+                    timestamp_num += 1;
+                }
             }
+            iter.next();
         }
 
         assert_eq!(tag_num, 10001);
