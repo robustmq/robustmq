@@ -69,7 +69,7 @@ impl ClusterStorage {
         cache_manager: &Arc<BrokerCacheManager>,
         config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
-        let local_ip = get_local_ip();
+        let local_ip = config.broker_ip.clone().unwrap_or_else(get_local_ip);
         let extend = NodeExtend {
             mqtt: MqttNodeExtend {
                 grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
