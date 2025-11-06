@@ -55,7 +55,7 @@ mod tests {
             let mut flag = false;
             let nodes = resp.into_inner().nodes;
             for raw in nodes {
-                let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
+                let node = BrokerNode::decode(&raw).unwrap();
                 if node.node_id == node_id {
                     flag = true;
                 }

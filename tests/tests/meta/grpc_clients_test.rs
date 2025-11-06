@@ -191,7 +191,7 @@ mod tests {
             cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
-            shard_config: serde_json::to_vec(&config).unwrap(),
+            shard_config: config.encode().unwrap(),
         };
 
         match client.create_shard(tonic::Request::new(request)).await {
