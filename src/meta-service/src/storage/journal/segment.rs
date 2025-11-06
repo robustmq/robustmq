@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -61,28 +60,36 @@ impl SegmentStorage {
         segment_seq: u32,
     ) -> Result<Option<JournalSegment>, CommonError> {
         let shard_key: String = key_segment(cluster_name, namespace, shard_name, segment_seq);
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &shard_key)? {
-            return Ok(Some(serialize::deserialize(&data.data)?));
+        if let Some(data) =
+            engine_get_by_meta::<JournalSegment>(self.rocksdb_engine_handler.clone(), &shard_key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }
 
     pub fn all_segment(&self) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_all_segment();
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalSegment>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalSegment>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -93,10 +100,13 @@ impl SegmentStorage {
         namespace: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_namespace_prefix(cluster_name, namespace);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalSegment>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -108,10 +118,13 @@ impl SegmentStorage {
         shard_name: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_shard_prefix(cluster_name, namespace, shard_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<JournalSegment>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }

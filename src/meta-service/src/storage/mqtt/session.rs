@@ -57,13 +57,11 @@ impl MqttSessionStorage {
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttSession>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
-        let mut results = Vec::new();
-        for raw in data {
-            let session = MqttSession::decode(&raw.data)?;
-            results.push(session);
-        }
-        Ok(results)
+        let data = engine_prefix_list_by_meta::<MqttSession>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn get(
@@ -72,8 +70,10 @@ impl MqttSessionStorage {
         client_id: &str,
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(MqttSession::decode(&data.data)?));
+        if let Some(data) =
+            engine_get_by_meta::<MqttSession>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }

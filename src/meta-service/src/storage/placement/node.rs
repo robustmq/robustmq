@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -48,8 +47,10 @@ impl NodeStorage {
     #[allow(dead_code)]
     pub fn get(&self, cluster_name: &str, node_id: u64) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(cluster_name, node_id);
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &node_key)? {
-            return Ok(Some(serialize::deserialize(&data.data)?));
+        if let Some(data) =
+            engine_get_by_meta::<BrokerNode>(self.rocksdb_engine_handler.clone(), &node_key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }
@@ -61,10 +62,13 @@ impl NodeStorage {
             key_node_prefix_all()
         };
 
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<BrokerNode>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::serialize;
 use std::sync::Arc;
 
 use crate::core::error::MetaServiceError;
@@ -52,11 +51,13 @@ impl MqttTopicStorage {
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTTopic>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<MQTTTopic>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serialize::deserialize(&raw.data)?;
-            results.push(topic);
+            results.push(raw.data);
         }
         Ok(results)
     }
@@ -68,8 +69,10 @@ impl MqttTopicStorage {
     ) -> Result<Option<MQTTTopic>, MetaServiceError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
 
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serialize::deserialize(&data.data)?;
+        if let Some(data) =
+            engine_get_by_meta::<MQTTTopic>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            let topic = data.data;
             return Ok(Some(topic));
         }
         Ok(None)
@@ -113,13 +116,11 @@ impl MqttTopicStorage {
         cluster_name: &str,
     ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_rewrite_rule_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
-        let mut results = Vec::new();
-        for raw in data {
-            let topic = serialize::deserialize(&raw.data)?;
-            results.push(topic);
-        }
-        Ok(results)
+        let data = engine_prefix_list_by_meta::<MqttTopicRewriteRule>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn save_retain_message(
@@ -150,8 +151,10 @@ impl MqttTopicStorage {
         topic_name: &str,
     ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
         let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            let topic = serialize::deserialize(&data.data)?;
+        if let Some(data) =
+            engine_get_by_meta::<MQTTRetainMessage>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            let topic = data.data;
             return Ok(Some(topic));
         }
         Ok(None)

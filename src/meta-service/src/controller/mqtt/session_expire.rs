@@ -113,7 +113,7 @@ impl SessionExpire {
             }
 
             let result_value = value.unwrap();
-            let session = match serialize::deserialize::<StorageDataWrap>(result_value) {
+            let session = match serialize::deserialize::<StorageDataWrap<Vec<u8>>>(result_value) {
                 Ok(data) => match serialize::deserialize::<MqttSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {

@@ -21,7 +21,7 @@ use crate::{
     warp::StorageDataWrap,
 };
 use common_base::error::common::CommonError;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 pub fn engine_save_by_meta<T>(
@@ -41,10 +41,13 @@ where
     )
 }
 
-pub fn engine_get_by_meta(
+pub fn engine_get_by_meta<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: &str,
-) -> Result<Option<StorageDataWrap>, CommonError> {
+) -> Result<Option<StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_get(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META,
@@ -77,10 +80,13 @@ pub fn engine_delete_by_meta(
     )
 }
 
-pub fn engine_prefix_list_by_meta(
+pub fn engine_prefix_list_by_meta<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: &str,
-) -> Result<Vec<StorageDataWrap>, CommonError> {
+) -> Result<Vec<StorageDataWrap<T>>, CommonError>
+where
+    T: DeserializeOwned,
+{
     engine_prefix_list(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META,

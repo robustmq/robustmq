@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -84,10 +83,13 @@ impl OffsetStorage {
     ) -> Result<Vec<OffsetData>, CommonError> {
         let prefix_key = key_offset_by_group(cluster_name, group);
 
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<OffsetData>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }

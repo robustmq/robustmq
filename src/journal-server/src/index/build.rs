@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::{tools::now_second, utils::serialize};
+use common_base::tools::now_second;
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::journal::{
@@ -281,7 +281,8 @@ fn is_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, JournalServerError> {
     let key = finish_build_index(segment_iden);
-    let res = engine_get_by_journal(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
+    let res =
+        engine_get_by_journal::<u8>(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
     Ok(res.is_some())
 }
 
@@ -305,9 +306,9 @@ fn get_last_offset_build_index(
 ) -> Result<Option<u64>, JournalServerError> {
     let key = last_offset_build_index(segment_iden);
     if let Some(res) =
-        engine_get_by_journal(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
+        engine_get_by_journal::<u64>(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
     {
-        return Ok(Some(serialize::deserialize::<u64>(&res.data)?));
+        return Ok(Some(res.data));
     }
 
     Ok(None)
@@ -317,9 +318,11 @@ pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
+    use super::IndexData;
+
     let prefix_key_name = segment_index_prefix(segment_iden);
     let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-    let data = engine_list_by_prefix_to_map_by_journal(
+    let data = engine_list_by_prefix_to_map_by_journal::<IndexData>(
         rocksdb_engine_handler.clone(),
         comlumn_family,
         &prefix_key_name,
@@ -333,6 +336,8 @@ pub fn delete_segment_index(
 #[cfg(test)]
 mod tests {
     use common_base::utils::serialize;
+    use dashmap::DashMap;
+    use rocksdb_engine::warp::StorageDataWrap;
     use std::time::Duration;
 
     use common_base::tools::now_second;
@@ -393,12 +398,13 @@ mod tests {
         // check data
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = engine_list_by_prefix_to_map_by_journal(
-            rocksdb_engine_handler.clone(),
-            comlumn_family,
-            &prefix_key_name,
-        )
-        .unwrap();
+        let data: DashMap<String, StorageDataWrap<Vec<u8>>> =
+            engine_list_by_prefix_to_map_by_journal(
+                rocksdb_engine_handler.clone(),
+                comlumn_family,
+                &prefix_key_name,
+            )
+            .unwrap();
         assert!(!data.is_empty());
 
         // delete segment_index
@@ -408,12 +414,13 @@ mod tests {
         // check data
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = engine_list_by_prefix_to_map_by_journal(
-            rocksdb_engine_handler.clone(),
-            comlumn_family,
-            &prefix_key_name,
-        )
-        .unwrap();
+        let data: DashMap<String, StorageDataWrap<Vec<u8>>> =
+            engine_list_by_prefix_to_map_by_journal(
+                rocksdb_engine_handler.clone(),
+                comlumn_family,
+                &prefix_key_name,
+            )
+            .unwrap();
 
         assert!(data.is_empty());
     }
@@ -434,12 +441,13 @@ mod tests {
         sleep(Duration::from_secs(120)).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-        let data = engine_list_by_prefix_to_map_by_journal(
-            rocksdb_engine_handler.clone(),
-            comlumn_family,
-            &prefix_key_name,
-        )
-        .unwrap();
+        let data: DashMap<String, StorageDataWrap<Vec<u8>>> =
+            engine_list_by_prefix_to_map_by_journal(
+                rocksdb_engine_handler.clone(),
+                comlumn_family,
+                &prefix_key_name,
+            )
+            .unwrap();
 
         let mut tag_num = 0;
         let mut key_num = 0;

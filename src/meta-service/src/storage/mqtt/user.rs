@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::serialize;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -47,18 +46,23 @@ impl MqttUserStorage {
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta(self.rocksdb_engine_handler.clone(), &prefix_key)?;
+        let data = engine_prefix_list_by_meta::<MqttUser>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix_key,
+        )?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serialize::deserialize(&raw.data)?);
+            results.push(raw.data);
         }
         Ok(results)
     }
 
     pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
-            return Ok(Some(serialize::deserialize(&data.data)?));
+        if let Some(data) =
+            engine_get_by_meta::<MqttUser>(self.rocksdb_engine_handler.clone(), &key)?
+        {
+            return Ok(Some(data.data));
         }
         Ok(None)
     }

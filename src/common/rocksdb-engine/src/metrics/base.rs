@@ -53,9 +53,8 @@ pub(crate) fn get_metric_data(
 ) -> Result<DashMap<u64, u64>, CommonError> {
     let prefix = format!("{}/{}/", DB_COLUMN_FAMILY_METRICS, key_prefix);
     let results = DashMap::new();
-    for row in engine_prefix_list_by_broker(rocksdb_engine.clone(), &prefix)? {
-        let data: MetricsValue = serialize::deserialize(&row.data)?;
-        results.insert(data.timestamp, data.value);
+    for row in engine_prefix_list_by_broker::<MetricsValue>(rocksdb_engine.clone(), &prefix)? {
+        results.insert(row.data.timestamp, row.data.value);
     }
 
     Ok(results)
@@ -75,11 +74,11 @@ pub(crate) async fn get_pre_num(
     key: &str,
 ) -> Result<u64, CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    let res = match engine_get_by_broker(rocksdb_engine.clone(), &db_key)? {
+    let res = match engine_get_by_broker::<u64>(rocksdb_engine.clone(), &db_key)? {
         Some(data) => data,
         None => return Ok(0),
     };
-    serialize::deserialize(&res.data)
+    Ok(res.data)
 }
 pub fn delete_by_prefix(
     rocksdb_engine: &Arc<RocksDBEngine>,
@@ -114,7 +113,7 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
                     break;
                 }
                 let value = val.to_vec();
-                match serialize::deserialize::<StorageDataWrap>(value.as_ref()) {
+                match serialize::deserialize::<StorageDataWrap<MetricsValue>>(value.as_ref()) {
                     Ok(v) => {
                         if now_time > (v.create_time + save_time) {
                             engine_delete_by_broker(rocksdb_engine.clone(), &key)?;
