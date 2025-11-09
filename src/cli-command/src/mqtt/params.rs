@@ -382,13 +382,13 @@ pub enum ConnectorActionType {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct CreateConnectorArgs {
-    #[arg(short, long, required = true)]
+    #[arg(short = 'n', long, required = true)]
     pub connector_name: String,
-    #[arg(short, long, required = true)]
+    #[arg(short = 't', long, required = true)]
     pub connector_type: String,
-    #[arg(short, long, required = true)]
+    #[arg(short = 'c', long, required = true)]
     pub config: String,
-    #[arg(short, long, required = true)]
+    #[arg(short = 'p', long, required = true)]
     pub topic_name: String,
 }
 
