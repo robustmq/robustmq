@@ -81,7 +81,7 @@ axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 hyper = { version = "1.6.0", features = ["server", "http1"] }
 tower = "0.5.2"
-tower-http = { version = "0.5.2", features = ["fs", "cors"] }
+tower-http = { version = "0.6.6", features = ["fs", "cors"] }
 
 # ====================
 # gRPC & Protocol Buffers
