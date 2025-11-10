@@ -2227,15 +2227,16 @@ dependencies = [
 
 [[package]]
 name = "elasticsearch"
-version = "8.19.0-alpha.1"
+version = "9.1.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8b65fab4532c837038a5cc305508006a8cd54660b2b8b0cda7d3bac5ffdaf9"
+checksum = "12bb303aa6e1d28c0c86b6fbfe484fd0fd3f512629aeed1ac4f6b85f81d9834a"
 dependencies = [
  "base64 0.22.1",
  "bytes",
  "dyn-clone",
  "flate2",
  "lazy_static",
+ "parking_lot",
  "percent-encoding",
  "reqwest",
  "rustc_version 0.4.1",
