@@ -208,7 +208,7 @@ uuid = { version = "1.7.0", features = ["v4"] }
 dashmap = { version = "6.1.0", features = ["serde"] }
 rand = "0.8.5"
 regex = "1.10.4"
-grep = "0.3.2"
+grep = "0.4.1"
 byteorder = "1.5.0"
 crc32fast = "1.4.2"
 ipnet = "2.3.0"
