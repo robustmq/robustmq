@@ -170,7 +170,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
 tracing-appender = "0.2.0"
 prometheus = "0.14.0"
-prometheus-client = "0.23.1"
+prometheus-client = "0.24.0"
 console-subscriber = "0.4.1"
 opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "trace",
