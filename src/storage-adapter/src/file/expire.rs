@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::file::key::*;
+use crate::key::*;
 use crate::storage::ShardInfo;
 use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
 use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
