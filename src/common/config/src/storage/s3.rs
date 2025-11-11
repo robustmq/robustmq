@@ -16,5 +16,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StorageDriverS3Config {
+    pub endpoint: String,
     pub bucket: String,
+    pub region: String,
+    pub access_key: String,
+    pub secret_key: String,
+    pub enable_virtual_host_style: bool,
 }
