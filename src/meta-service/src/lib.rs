@@ -184,7 +184,7 @@ impl MetaServiceServer {
         match recv.recv().await {
             Ok(_) => {
                 info!("Meta service shutdown initiated...");
-                
+
                 // Step 1: Stop all background threads (GC, heartbeat, controllers)
                 info!("Stopping background threads...");
                 if let Err(e) = inner_stop.send(true) {
@@ -202,7 +202,7 @@ impl MetaServiceServer {
                 } else {
                     info!("Raft node shutdown successfully.");
                 }
-                
+
                 info!("Meta service stopped gracefully.");
             }
             Err(e) => {

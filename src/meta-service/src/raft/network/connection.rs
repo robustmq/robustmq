@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::raft::error::to_error;
+use crate::raft::type_config::TypeConfig;
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
 use grpc_clients::meta::openraft::OpenRaftServiceManager;
@@ -27,9 +27,7 @@ use openraft::raft::{
 };
 use openraft::RaftNetwork;
 use protocol::meta::meta_service_openraft::{AppendRequest, SnapshotRequest};
-
-use crate::raft::error::to_error;
-use crate::raft::type_config::TypeConfig;
+use std::sync::Arc;
 
 pub struct NetworkConnection {
     addr: String,

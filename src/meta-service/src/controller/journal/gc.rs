@@ -60,7 +60,10 @@ pub async fn gc_shard_thread(
         {
             // If Raft is stopped, it means system is shutting down, skip gracefully
             if e.to_string().contains("raft stopped") {
-                info!("Raft stopped during shutdown, skipping Shard {} GC operation", shard.name());
+                info!(
+                    "Raft stopped during shutdown, skipping Shard {} GC operation",
+                    shard.name()
+                );
                 return;
             }
             error!(
@@ -208,7 +211,10 @@ pub async fn gc_segment_thread(
         {
             // If Raft is stopped, it means system is shutting down, skip gracefully
             if e.to_string().contains("raft stopped") {
-                info!("Raft stopped during shutdown, skipping Segment {} GC operation", segment.name());
+                info!(
+                    "Raft stopped during shutdown, skipping Segment {} GC operation",
+                    segment.name()
+                );
                 return;
             }
             error!(

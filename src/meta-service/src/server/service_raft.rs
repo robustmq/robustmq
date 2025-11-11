@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::raft::services::{
+    add_learner_by_req, append_by_req, change_membership_by_req, snapshot_by_req, vote_by_req,
+};
+use crate::raft::type_config::TypeConfig;
 use openraft::Raft;
 use protocol::meta::meta_service_openraft::open_raft_service_server::OpenRaftService;
 use protocol::meta::meta_service_openraft::{
@@ -19,11 +23,6 @@ use protocol::meta::meta_service_openraft::{
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::{Request, Response, Status};
-
-use crate::raft::services::{
-    add_learner_by_req, append_by_req, change_membership_by_req, snapshot_by_req, vote_by_req,
-};
-use crate::raft::type_config::TypeConfig;
 
 pub struct GrpcOpenRaftServices {
     raft_node: Raft<TypeConfig>,
