@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::expire::MessageExpireConfig;
+use crate::key::*;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -84,97 +85,6 @@ impl MinIoStorageAdapter {
             op: Operator::new(builder)?.finish(),
             write_handles: DashMap::with_capacity(2),
         })
-    }
-
-    #[inline(always)]
-    pub fn records_path(
-        namespace: impl AsRef<str>,
-        shard_name: impl AsRef<str>,
-        offset: u64,
-    ) -> String {
-        format!(
-            "records/{}/{}/record-{:020}",
-            namespace.as_ref(),
-            shard_name.as_ref(),
-            offset
-        )
-    }
-
-    #[inline(always)]
-    pub fn offsets_path(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
-        format!(
-            "offsets/{}-{}-offset",
-            namespace.as_ref(),
-            shard_name.as_ref()
-        )
-    }
-
-    #[inline(always)]
-    pub fn shard_info(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
-        format!("shard/{}-{}", namespace.as_ref(), shard_name.as_ref())
-    }
-
-    #[inline(always)]
-    pub fn tags_path(
-        namespace: impl AsRef<str>,
-        shard_name: impl AsRef<str>,
-        tag: impl AsRef<str>,
-        offset: u64,
-    ) -> String {
-        format!(
-            "tags/{}/{}/{}/record-{:020}",
-            namespace.as_ref(),
-            shard_name.as_ref(),
-            tag.as_ref(),
-            offset
-        )
-    }
-
-    #[inline(always)]
-    pub fn tags_path_prefix(
-        namespace: impl AsRef<str>,
-        shard_name: impl AsRef<str>,
-        tag: impl AsRef<str>,
-    ) -> String {
-        format!(
-            "tags/{}/{}/{}/",
-            namespace.as_ref(),
-            shard_name.as_ref(),
-            tag.as_ref()
-        )
-    }
-
-    #[inline(always)]
-    pub fn key_path(
-        namespace: impl AsRef<str>,
-        shard_name: impl AsRef<str>,
-        key: impl AsRef<str>,
-    ) -> String {
-        format!(
-            "keys/{}/{}/key-{}",
-            namespace.as_ref(),
-            shard_name.as_ref(),
-            key.as_ref()
-        )
-    }
-
-    #[inline(always)]
-    pub fn group_path(
-        group_name: impl AsRef<str>,
-        namespace: impl AsRef<str>,
-        shard_name: impl AsRef<str>,
-    ) -> String {
-        format!(
-            "groups/{}/{}-{}",
-            group_name.as_ref(),
-            namespace.as_ref(),
-            shard_name.as_ref()
-        )
-    }
-
-    #[inline(always)]
-    pub fn group_path_prefix(group_name: impl AsRef<str>) -> String {
-        format!("groups/{}/", group_name.as_ref())
     }
 }
 
@@ -303,7 +213,7 @@ impl MinIoStorageAdapter {
         let mut offsets = Vec::new();
 
         let start_offset_bytes = op
-            .read(&Self::offsets_path(&namespace, &shard_name))
+            .read(&shard_offset_key(&namespace, &shard_name))
             .await?
             .to_vec();
 
@@ -312,20 +222,20 @@ impl MinIoStorageAdapter {
         for mut message in messages {
             message.offset = Some(start_offset);
             // write records
-            let record_path = Self::records_path(&namespace, &shard_name, start_offset);
+            let record_path = shard_record_key(&namespace, &shard_name, start_offset);
             op.write(&record_path, serde_json::to_vec(&message)?)
                 .await?;
 
             // write key
             if let Some(key) = &message.key {
-                let key_path = Self::key_path(&namespace, &shard_name, key);
+                let key_path = key_offset_key(&namespace, &shard_name, key);
                 op.write(&key_path, serde_json::to_vec(&message)?).await?;
             }
 
             // write tags
             if let Some(tags) = &message.tags {
                 for tag in tags.iter() {
-                    let tag_path = Self::tags_path(&namespace, &shard_name, tag, start_offset);
+                    let tag_path = tag_offsets_key(&namespace, &shard_name, tag, start_offset);
                     op.write(&tag_path, serde_json::to_vec(&message)?).await?;
                 }
             }
@@ -335,7 +245,7 @@ impl MinIoStorageAdapter {
         }
 
         op.write(
-            &Self::offsets_path(&namespace, &shard_name),
+            &shard_offset_key(&namespace, &shard_name),
             serde_json::to_vec(&start_offset)?,
         )
         .await?;
@@ -349,14 +259,14 @@ impl StorageAdapter for MinIoStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         self.op
             .write(
-                &Self::offsets_path(&shard.namespace, &shard.shard_name),
+                &shard_offset_key(&shard.namespace, &shard.shard_name),
                 serde_json::to_vec(&0)?,
             )
             .await?;
 
         self.op
             .write(
-                &Self::shard_info(&shard.namespace, &shard.shard_name),
+                &shard_info_key(&shard.namespace, &shard.shard_name),
                 serde_json::to_vec(shard)?,
             )
             .await?;
@@ -374,7 +284,7 @@ impl StorageAdapter for MinIoStorageAdapter {
 
     async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
         self.op
-            .remove_all(&Self::offsets_path(namespace, shard_name))
+            .remove_all(&shard_offset_key(namespace, shard_name))
             .await?;
         Ok(())
     }
@@ -417,7 +327,7 @@ impl StorageAdapter for MinIoStorageAdapter {
         let mut total_bytes = 0;
 
         for i in offset..offset + read_config.max_record_num {
-            let path = Self::records_path(namespace, shard_name, i);
+            let path = shard_record_key(namespace, shard_name, i);
             if !self.op.exists(&path).await? {
                 break;
             }
@@ -441,7 +351,7 @@ impl StorageAdapter for MinIoStorageAdapter {
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let tags_path_prefix = Self::tags_path_prefix(namespace, shard_name, tag);
+        let tags_path_prefix = tag_offsets_key_prefix(namespace, shard_name, tag);
 
         let mut lister = self.op.lister_with(&tags_path_prefix).await?;
 
@@ -492,7 +402,7 @@ impl StorageAdapter for MinIoStorageAdapter {
 
         let record_bytes = self
             .op
-            .read(&Self::key_path(namespace, shard_name, key))
+            .read(&key_offset_key(namespace, shard_name, key))
             .await?
             .to_vec();
 
@@ -519,11 +429,15 @@ impl StorageAdapter for MinIoStorageAdapter {
     }
 
     async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
-        if self.op.exists(&Self::group_path_prefix(group_name)).await? {
+        if self
+            .op
+            .exists(&group_record_offsets_key_prefix(group_name))
+            .await?
+        {
             let mut offsets = Vec::new();
             let mut lister = self
                 .op
-                .lister_with(&Self::group_path_prefix(group_name))
+                .lister_with(&group_record_offsets_key_prefix(group_name))
                 .await?;
 
             while let Some(entry) = lister.try_next().await? {
@@ -557,7 +471,7 @@ impl StorageAdapter for MinIoStorageAdapter {
         for (shard_name, offset) in offset {
             self.op
                 .write(
-                    &Self::group_path(group_name, namespace, shard_name),
+                    &group_record_offsets_key(group_name, namespace, shard_name),
                     serde_json::to_vec(&offset)?,
                 )
                 .await?;

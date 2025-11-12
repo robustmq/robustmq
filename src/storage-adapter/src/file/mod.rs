@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::expire::MessageExpireConfig;
+use crate::key::*;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::serialize};
 use common_config::storage::rocksdb::StorageDriverRocksDBConfig;
-use key::*;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use rocksdb::WriteBatch;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -25,7 +25,6 @@ use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
 use std::{collections::HashMap, sync::Arc};
 
 mod expire;
-mod key;
 
 /// Parse u64 offset from bytes with validation
 ///
