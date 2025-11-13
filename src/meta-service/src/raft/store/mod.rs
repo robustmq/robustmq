@@ -35,6 +35,7 @@ pub struct StoredSnapshot {
 type StorageResult<T> = Result<T, StorageError<TypeConfig>>;
 
 pub mod log;
+pub mod snapshot;
 pub mod state;
 
 /// converts an id to a byte vector for storing in the database.
