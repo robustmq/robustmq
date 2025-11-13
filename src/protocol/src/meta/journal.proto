@@ -44,7 +44,7 @@ message ListShardRequest {
 }
 
 message ListShardReply {
-  bytes shards = 1;
+  repeated bytes shards = 1;
 }
 
 message CreateShardRequest {
@@ -75,7 +75,7 @@ message ListSegmentRequest {
 }
 
 message ListSegmentReply {
-  bytes segments = 1;
+  repeated bytes segments = 1;
 }
 
 message CreateNextSegmentRequest {
@@ -114,7 +114,7 @@ message ListSegmentMetaRequest {
 }
 
 message ListSegmentMetaReply {
-  bytes segments = 1;
+  repeated bytes segments = 1;
 }
 
 message UpdateSegmentMetaRequest {

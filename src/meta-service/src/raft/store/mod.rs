@@ -16,11 +16,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use log_store::LogStore;
+use log::LogStore;
 use openraft::{SnapshotMeta, StorageError};
 use rocksdb::{ColumnFamilyDescriptor, Options, DB};
 use serde::{Deserialize, Serialize};
-use state_machine_store::StateMachineStore;
+use state::StateMachineStore;
 
 use super::type_config::TypeConfig;
 use crate::raft::route::DataRoute;
@@ -34,8 +34,8 @@ pub struct StoredSnapshot {
 
 type StorageResult<T> = Result<T, StorageError<TypeConfig>>;
 
-pub mod log_store;
-pub mod state_machine_store;
+pub mod log;
+pub mod state;
 
 /// converts an id to a byte vector for storing in the database.
 /// Note that we're using big endian encoding to ensure correct sorting of keys

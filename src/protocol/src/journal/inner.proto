@@ -29,7 +29,7 @@ message UpdateJournalCacheRequest {
   string cluster_name = 1;
   JournalUpdateCacheActionType action_type = 2;
   JournalUpdateCacheResourceType resource_type = 3;
-  string data = 4;
+  bytes data = 4;
 }
 
 message UpdateJournalCacheReply {}

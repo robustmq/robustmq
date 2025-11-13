@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use broker_core::cache::BrokerCacheManager;
+use common_base::tools::now_second;
+use common_config::broker::broker_config;
 use protocol::cluster::cluster_status::{
     cluster_service_server::ClusterService, ClusterStatusReply, ClusterStatusRequest,
 };
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
-pub struct ClusterInnerService {}
+pub struct ClusterInnerService {
+    cache_manager: Arc<BrokerCacheManager>,
+}
 
 impl ClusterInnerService {
-    pub fn new() -> Self {
-        ClusterInnerService {}
+    pub fn new(cache_manager: Arc<BrokerCacheManager>) -> Self {
+        ClusterInnerService { cache_manager }
     }
 }
 
@@ -29,8 +35,20 @@ impl ClusterInnerService {
 impl ClusterService for ClusterInnerService {
     async fn cluster_status(
         &self,
-        _: Request<ClusterStatusRequest>,
+        _request: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        Ok(Response::new(ClusterStatusReply::default()))
+        let config = broker_config();
+        let node_list = self.cache_manager.node_list();
+        let uptime = now_second() - self.cache_manager.get_start_time();
+
+        let reply = ClusterStatusReply {
+            node_count: node_list.len() as u32,
+            cluster_name: config.cluster_name.clone(),
+            uptime,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            active_nodes: node_list.iter().map(|n| n.node_id).collect(),
+        };
+
+        Ok(Response::new(reply))
     }
 }

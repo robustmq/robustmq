@@ -24,10 +24,7 @@ use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
-use common_base::{
-    tools::{now_mills, unique_id},
-    utils::serialize,
-};
+use common_base::tools::{now_mills, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
@@ -63,7 +60,10 @@ pub async fn list_shard_by_req(
 
     let shards: Vec<JournalShard> = binary_shards.into_iter().collect();
 
-    let shards_data = serialize::serialize(&shards)?;
+    let shards_data = shards
+        .into_iter()
+        .map(|shard| shard.encode())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ListShardReply {
         shards: shards_data,

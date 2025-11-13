@@ -17,7 +17,6 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::{get_local_ip, now_second, unique_id};
-    use common_base::utils::serialize;
     use grpc_clients::meta::inner::call::register_node;
     use grpc_clients::meta::journal::call::{
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
@@ -99,7 +98,11 @@ mod tests {
             namespace: namespace.clone(),
         };
         let reply = list_shard(&client_pool, &addrs, request).await.unwrap();
-        let data: Vec<JournalShard> = serialize::deserialize(&reply.shards).unwrap();
+        let data: Vec<JournalShard> = reply
+            .shards
+            .iter()
+            .map(|s| JournalShard::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();
         assert_eq!(shard_raw.cluster_name, cluster_name);
@@ -120,7 +123,11 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegment::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.namespace, namespace);
@@ -145,7 +152,11 @@ mod tests {
         let reply = list_segment_meta(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let data: Vec<JournalSegmentMetadata> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegmentMetadata> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegmentMetadata::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let meta = data.first().unwrap();
         assert_eq!(meta.namespace, namespace);
@@ -175,7 +186,11 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegment::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 2);
         let segment = data.first().unwrap();
         assert_eq!(segment.namespace, namespace);
@@ -213,7 +228,11 @@ mod tests {
         let reply = list_segment_meta(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let data: Vec<JournalSegmentMetadata> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegmentMetadata> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegmentMetadata::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 2);
         let meta = data.first().unwrap();
         assert_eq!(meta.namespace, namespace);
@@ -250,7 +269,11 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegment::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 2);
 
         // list segment meta
@@ -330,7 +353,11 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegment::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.status, SegmentStatus::PreSealUp);
@@ -358,7 +385,11 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegment::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.status, SegmentStatus::SealUp);
@@ -389,7 +420,11 @@ mod tests {
         let reply = list_segment_meta(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let data: Vec<JournalSegmentMetadata> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegmentMetadata> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegmentMetadata::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let meta = data.first().unwrap();
         assert_eq!(meta.namespace, namespace);
@@ -510,7 +545,11 @@ mod tests {
         };
         let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
-        let data: Vec<JournalSegment> = serialize::deserialize(&reply.segments).unwrap();
+        let data: Vec<JournalSegment> = reply
+            .segments
+            .iter()
+            .map(|s| JournalSegment::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let segment = data.first().unwrap();
         assert_eq!(segment.status, SegmentStatus::PreDelete);
@@ -593,7 +632,11 @@ mod tests {
             namespace: namespace.clone(),
         };
         let reply = list_shard(&client_pool, &addrs, request).await.unwrap();
-        let data: Vec<JournalShard> = serialize::deserialize(&reply.shards).unwrap();
+        let data: Vec<JournalShard> = reply
+            .shards
+            .iter()
+            .map(|s| JournalShard::decode(s).unwrap())
+            .collect();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();
         assert_eq!(shard_raw.status, JournalShardStatus::PrepareDelete);

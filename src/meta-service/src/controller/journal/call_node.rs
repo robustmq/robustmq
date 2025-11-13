@@ -38,7 +38,7 @@ pub struct JournalInnerCallMessage {
     action_type: JournalUpdateCacheActionType,
     resource_type: JournalUpdateCacheResourceType,
     cluster_name: String,
-    data: String,
+    data: Vec<u8>,
 }
 
 #[derive(Clone)]
@@ -145,7 +145,7 @@ pub async fn update_cache_by_set_shard(
     client_pool: &Arc<ClientPool>,
     shard_info: JournalShard,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&shard_info)?;
+    let data = shard_info.encode()?;
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Shard,
@@ -162,7 +162,7 @@ pub async fn update_cache_by_set_segment(
     client_pool: &Arc<ClientPool>,
     segment_info: JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&segment_info)?;
+    let data = segment_info.encode()?;
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Segment,
@@ -179,7 +179,7 @@ pub async fn update_cache_by_set_segment_meta(
     client_pool: &Arc<ClientPool>,
     segment_info: JournalSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
-    let data = serde_json::to_string(&segment_info)?;
+    let data = segment_info.encode()?;
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::SegmentMeta,

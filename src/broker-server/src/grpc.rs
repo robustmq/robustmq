@@ -64,7 +64,7 @@ pub async fn start_grpc_server(
         .layer(tonic_web::GrpcWebLayer::new())
         .layer(layer)
         .add_service(
-            ClusterServiceServer::new(ClusterInnerService::new())
+            ClusterServiceServer::new(ClusterInnerService::new(mqtt_params.broker_cache.clone()))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
 

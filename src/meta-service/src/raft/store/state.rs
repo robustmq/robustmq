@@ -102,13 +102,13 @@ impl StateMachineStore {
 
         let snapshot = sm.get_current_snapshot_()?;
         if let Some(snap) = snapshot {
-            sm.update_state_machine_(snap).await?;
+            sm.recover_snapshot_(snap).await?;
         }
 
         Ok(sm)
     }
 
-    async fn update_state_machine_(
+    async fn recover_snapshot_(
         &mut self,
         snapshot: StoredSnapshot,
     ) -> Result<(), StorageError<TypeConfig>> {
@@ -233,7 +233,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             data: snapshot.into_inner(),
         };
 
-        self.update_state_machine_(new_snapshot.clone()).await?;
+        self.recover_snapshot_(new_snapshot.clone()).await?;
 
         self.set_current_snapshot_(new_snapshot)?;
 

@@ -124,9 +124,8 @@ impl JournalClient {
         let resp = list_shard(&self.connection_manager, body).await?;
 
         let mut res = Vec::new();
-
-        for raw in resp.shards {
-            let shard = JournalShard::decode(&raw)
+        for shard_bytes in resp.shards {
+            let shard = JournalShard::decode(&shard_bytes)
                 .map_err(|e| JournalClientError::DecodeError(e.to_string()))?;
             res.push(shard);
         }
