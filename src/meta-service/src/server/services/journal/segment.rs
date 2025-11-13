@@ -23,6 +23,7 @@ use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+use bytes::Bytes;
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{
@@ -485,7 +486,10 @@ pub async fn sync_save_segment_info(
     raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::JournalSetSegment, segment.encode()?);
+    let data = StorageData::new(
+        StorageDataType::JournalSetSegment,
+        Bytes::copy_from_slice(&Bytes::copy_from_slice(&segment.encode()?)),
+    );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -496,7 +500,10 @@ pub async fn sync_delete_segment_info(
     raft_machine_apply: &Arc<RaftMachineManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::JournalDeleteSegment, segment.encode()?);
+    let data = StorageData::new(
+        StorageDataType::JournalDeleteSegment,
+        Bytes::copy_from_slice(&segment.encode()?),
+    );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -509,7 +516,7 @@ pub async fn sync_save_segment_metadata_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegmentMetadata,
-        segment.encode()?,
+        Bytes::copy_from_slice(&segment.encode()?),
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
@@ -523,7 +530,7 @@ pub async fn sync_delete_segment_metadata_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegmentMetadata,
-        segment.encode()?,
+        Bytes::copy_from_slice(&segment.encode()?),
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());

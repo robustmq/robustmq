@@ -20,8 +20,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::keys::{key_offset, key_offset_by_group};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_prefix_list_by_meta_metadata,
+    engine_save_by_meta_metadata,
 };
 
 #[derive(Default, Serialize, Deserialize)]
@@ -61,7 +62,7 @@ impl OffsetStorage {
             offset,
             timestamp: now_second(),
         };
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, offset_data)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, offset_data)
     }
 
     #[allow(dead_code)]
@@ -73,7 +74,7 @@ impl OffsetStorage {
         shard_name: &str,
     ) -> Result<(), CommonError> {
         let key = key_offset(cluster_name, group, namespace, shard_name);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn group_offset(
@@ -83,7 +84,7 @@ impl OffsetStorage {
     ) -> Result<Vec<OffsetData>, CommonError> {
         let prefix_key = key_offset_by_group(cluster_name, group);
 
-        let data = engine_prefix_list_by_meta::<OffsetData>(
+        let data = engine_prefix_list_by_meta_metadata::<OffsetData>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;

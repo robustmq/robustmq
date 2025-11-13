@@ -12,24 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub const DB_COLUMN_FAMILY_META: &str = "meta";
-pub const DB_COLUMN_FAMILY_META_RAFT_LOG: &str = "meta_raft_log";
-pub const DB_COLUMN_FAMILY_META_RAFT_STORE: &str = "meta_raft_store";
+// metadata service
+pub const DB_COLUMN_FAMILY_META_RAFT: &str = "meta_raft";
+pub const DB_COLUMN_FAMILY_META_DATA: &str = "meta_data";
+pub const DB_COLUMN_FAMILY_META_METADATA: &str = "meta_metadata";
+
+// broker service
 pub const DB_COLUMN_FAMILY_BROKER: &str = "broker";
+
+// journal engine
 pub const DB_COLUMN_FAMILY_JOURNAL: &str = "journal";
 
 pub fn column_family_list() -> Vec<String> {
     vec![
-        DB_COLUMN_FAMILY_META.to_string(),
+        DB_COLUMN_FAMILY_META_RAFT.to_string(),
+        DB_COLUMN_FAMILY_META_DATA.to_string(),
+        DB_COLUMN_FAMILY_META_METADATA.to_string(),
         DB_COLUMN_FAMILY_BROKER.to_string(),
         DB_COLUMN_FAMILY_JOURNAL.to_string(),
-    ]
-}
-
-pub fn raft_column_family_list() -> Vec<String> {
-    vec![
-        DB_COLUMN_FAMILY_META_RAFT_LOG.to_string(),
-        DB_COLUMN_FAMILY_META_RAFT_STORE.to_string(),
     ]
 }
 

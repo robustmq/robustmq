@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub fn build_snapshot() {
-    //todo
+use bytes::Bytes;
+use common_base::error::common::CommonError;
+
+pub fn build_snapshot() -> Bytes {
+    Bytes::new()
 }
 
-pub fn recover_snapshot() {
-    //todo
+pub fn recover_snapshot(_data: Bytes) -> Result<(), CommonError> {
+    Ok(())
 }

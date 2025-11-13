@@ -21,7 +21,7 @@ use common_base::{error::common::CommonError, tools::now_second, utils::serializ
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;
 use rocksdb_engine::warp::StorageDataWrap;
 use std::sync::Arc;
 use tracing::error;
@@ -43,12 +43,15 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_retain_message_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_META_DATA)
+        {
             cf
         } else {
             error!(
                 "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string())
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META_DATA.to_string())
             );
             return;
         };
@@ -96,16 +99,18 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> =
-            if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
-                cf
-            } else {
-                error!(
-                    "{}",
-                    CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string())
-                );
-                return;
-            };
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_META_DATA)
+        {
+            cf
+        } else {
+            error!(
+                "{}",
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META_DATA.to_string())
+            );
+            return;
+        };
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());

@@ -16,7 +16,9 @@ use crate::storage::keys::{key_cluster, key_cluster_prefix};
 use common_base::error::common::CommonError;
 use metadata_struct::meta::cluster::ClusterInfo;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{engine_prefix_list_by_meta, engine_save_by_meta};
+use rocksdb_engine::storage::meta_metadata::{
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
+};
 use std::sync::Arc;
 
 pub struct ClusterStorage {
@@ -32,7 +34,7 @@ impl ClusterStorage {
 
     pub fn save(&self, cluster_info: &ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_name);
-        engine_save_by_meta(
+        engine_save_by_meta_metadata(
             self.rocksdb_engine_handler.clone(),
             &key,
             cluster_info.clone(),
@@ -41,7 +43,7 @@ impl ClusterStorage {
 
     pub fn list(&self) -> Result<Vec<ClusterInfo>, CommonError> {
         let prefix_key = key_cluster_prefix();
-        let data = engine_prefix_list_by_meta::<ClusterInfo>(
+        let data = engine_prefix_list_by_meta_metadata::<ClusterInfo>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;

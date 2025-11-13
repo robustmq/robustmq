@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use bytes::Bytes;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, DeleteAclReply,
@@ -51,7 +52,7 @@ pub async fn create_acl_by_req(
 ) -> Result<CreateAclReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAcl,
-        CreateAclRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateAclRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -64,7 +65,7 @@ pub async fn delete_acl_by_req(
 ) -> Result<DeleteAclReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAcl,
-        DeleteAclRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteAclRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -90,7 +91,7 @@ pub async fn delete_blacklist_by_req(
 ) -> Result<DeleteBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteBlacklist,
-        DeleteBlacklistRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteBlacklistRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -103,7 +104,7 @@ pub async fn create_blacklist_by_req(
 ) -> Result<CreateBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetBlacklist,
-        CreateBlacklistRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateBlacklistRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;

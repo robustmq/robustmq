@@ -19,8 +19,9 @@ use metadata_struct::mqtt::user::MqttUser;
 
 use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 pub struct MqttUserStorage {
@@ -41,12 +42,12 @@ impl MqttUserStorage {
         user: MqttUser,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, user)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, user)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta::<MqttUser>(
+        let data = engine_prefix_list_by_meta_metadata::<MqttUser>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -60,7 +61,7 @@ impl MqttUserStorage {
     pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         if let Some(data) =
-            engine_get_by_meta::<MqttUser>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_metadata::<MqttUser>(self.rocksdb_engine_handler.clone(), &key)?
         {
             return Ok(Some(data.data));
         }
@@ -69,7 +70,7 @@ impl MqttUserStorage {
 
     pub fn delete(&self, cluster_name: &str, user_name: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, user_name);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 }
 

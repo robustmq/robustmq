@@ -20,8 +20,9 @@ use crate::storage::keys::{
 };
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 use std::sync::Arc;
 
@@ -43,13 +44,13 @@ impl SchemaStorage {
         schema: &SchemaData,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema(cluster_name, schema_name);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, schema)?;
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, schema)?;
         Ok(())
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<SchemaData>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta::<SchemaData>(
+        let data = engine_prefix_list_by_meta_metadata::<SchemaData>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -64,7 +65,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
 
         if let Some(data) =
-            engine_get_by_meta::<SchemaData>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_metadata::<SchemaData>(self.rocksdb_engine_handler.clone(), &key)?
         {
             let topic: SchemaData = data.data;
             return Ok(Some(topic));
@@ -74,7 +75,7 @@ impl SchemaStorage {
 
     pub fn delete(&self, cluster_name: &str, schema_name: &str) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 
@@ -88,7 +89,7 @@ impl SchemaStorage {
             &bind_data.resource_name,
             &bind_data.schema_name,
         );
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, bind_data)?;
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, bind_data)?;
         Ok(())
     }
 
@@ -99,7 +100,7 @@ impl SchemaStorage {
     ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key =
             storage_key_mqtt_schema_bind_prefix_by_resource(cluster_name, resource_name);
-        let data = engine_prefix_list_by_meta::<SchemaResourceBind>(
+        let data = engine_prefix_list_by_meta_metadata::<SchemaResourceBind>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -115,7 +116,7 @@ impl SchemaStorage {
         cluster_name: &str,
     ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_bind_prefix_by_cluster(cluster_name);
-        let data = engine_prefix_list_by_meta::<SchemaResourceBind>(
+        let data = engine_prefix_list_by_meta_metadata::<SchemaResourceBind>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -134,9 +135,10 @@ impl SchemaStorage {
     ) -> Result<Option<SchemaResourceBind>, MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
 
-        if let Some(data) =
-            engine_get_by_meta::<SchemaResourceBind>(self.rocksdb_engine_handler.clone(), &key)?
-        {
+        if let Some(data) = engine_get_by_meta_metadata::<SchemaResourceBind>(
+            self.rocksdb_engine_handler.clone(),
+            &key,
+        )? {
             return Ok(Some(data.data));
         }
         Ok(None)
@@ -149,7 +151,7 @@ impl SchemaStorage {
         schema_name: &str,
     ) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 }

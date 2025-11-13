@@ -20,6 +20,7 @@ use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use prost::Message;
@@ -86,7 +87,7 @@ pub async fn create_topic_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttSetTopic,
-        CreateTopicRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateTopicRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -112,7 +113,7 @@ pub async fn delete_topic_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopic,
-        DeleteTopicRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteTopicRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -136,7 +137,7 @@ pub async fn set_topic_retain_message_by_req(
     if req.retain_message.is_none() {
         let data = StorageData::new(
             StorageDataType::MqttDeleteRetainMessage,
-            SetTopicRetainMessageRequest::encode_to_vec(req),
+            Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
         );
         raft_machine_apply.client_write(data).await?;
         return Ok(SetTopicRetainMessageReply {});
@@ -144,7 +145,7 @@ pub async fn set_topic_retain_message_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttSetRetainMessage,
-        SetTopicRetainMessageRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -176,7 +177,7 @@ pub async fn save_last_will_message_by_req(
 ) -> Result<SaveLastWillMessageReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSaveLastWillMessage,
-        SaveLastWillMessageRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SaveLastWillMessageRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -205,7 +206,7 @@ pub async fn create_topic_rewrite_rule_by_req(
 ) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttCreateTopicRewriteRule,
-        CreateTopicRewriteRuleRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateTopicRewriteRuleRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -218,7 +219,7 @@ pub async fn delete_topic_rewrite_rule_by_req(
 ) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopicRewriteRule,
-        DeleteTopicRewriteRuleRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteTopicRewriteRuleRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;

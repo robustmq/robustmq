@@ -16,7 +16,10 @@ use super::{cf_raft_store, StorageResult, StoredSnapshot};
 use crate::raft::raft_node::types;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
+use crate::raft::store::snapshot::build_snapshot;
+use crate::raft::store::snapshot::recover_snapshot;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
+use bytes::Bytes;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
@@ -56,8 +59,7 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
         let last_applied_log = self.data.last_applied_log_id;
         let last_membership = self.data.last_membership.clone();
 
-        // todo
-        let kv_json = self.data.route.build_snapshot();
+        let kv_json = build_snapshot();
 
         let snapshot_id = if let Some(last) = last_applied_log {
             format!("{}-{}-{}", last.leader_id, last.index, self.snapshot_idx)
@@ -80,7 +82,7 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
 
         Ok(Snapshot {
             meta,
-            snapshot: Cursor::new(kv_json),
+            snapshot: Cursor::new(kv_json.to_vec()),
         })
     }
 }
@@ -115,10 +117,11 @@ impl StateMachineStore {
         self.data.last_applied_log_id = snapshot.meta.last_log_id;
         self.data.last_membership = snapshot.meta.last_membership.clone();
 
-        match self.data.route.recover_snapshot(snapshot.data) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(StorageError::read(&e)),
+        if let Err(e) = recover_snapshot(snapshot.data) {
+            return Err(StorageError::read(&e));
         }
+
+        Ok(())
     }
 
     fn get_current_snapshot_(&self) -> StorageResult<Option<StoredSnapshot>> {
@@ -230,7 +233,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     ) -> Result<(), StorageError<TypeConfig>> {
         let new_snapshot = StoredSnapshot {
             meta: meta.clone(),
-            data: snapshot.into_inner(),
+            data: Bytes::copy_from_slice(&snapshot.into_inner()),
         };
 
         self.recover_snapshot_(new_snapshot.clone()).await?;
@@ -246,7 +249,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let x = self.get_current_snapshot_()?;
         Ok(x.map(|s| Snapshot {
             meta: s.meta.clone(),
-            snapshot: Cursor::new(s.data.clone()),
+            snapshot: Cursor::new(s.data.to_vec()),
         }))
     }
 }

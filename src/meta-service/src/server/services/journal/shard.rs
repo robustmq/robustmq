@@ -24,6 +24,7 @@ use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
+use bytes::Bytes;
 use common_base::tools::{now_mills, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
@@ -234,7 +235,10 @@ async fn sync_save_shard_info(
     raft_machine_apply: &Arc<RaftMachineManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::JournalSetShard, shard.encode()?);
+    let data = StorageData::new(
+        StorageDataType::JournalSetShard,
+        Bytes::copy_from_slice(&shard.encode()?),
+    );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }
@@ -245,7 +249,10 @@ pub async fn sync_delete_shard_info(
     raft_machine_apply: &Arc<RaftMachineManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::JournalDeleteShard, shard.encode()?);
+    let data = StorageData::new(
+        StorageDataType::JournalDeleteShard,
+        Bytes::copy_from_slice(&shard.encode()?),
+    );
     if (raft_machine_apply.client_write(data).await?).is_some() {
         return Ok(());
     }

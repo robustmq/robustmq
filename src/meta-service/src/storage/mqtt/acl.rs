@@ -19,8 +19,8 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 
 use crate::storage::keys::{storage_key_mqtt_acl, storage_key_mqtt_acl_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_get_by_meta_metadata, engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 pub struct AclStorage {
@@ -52,12 +52,12 @@ impl AclStorage {
             &acl.resource_type.to_string(),
             &acl.resource_name,
         );
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, acl_list)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, acl_list)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAcl>, CommonError> {
         let prefix_key = storage_key_mqtt_acl_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta::<Vec<MqttAcl>>(
+        let data = engine_prefix_list_by_meta_metadata::<Vec<MqttAcl>>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -94,7 +94,7 @@ impl AclStorage {
             &delete_acl.resource_type.to_string(),
             &delete_acl.resource_name,
         );
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, new_acl_list)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, new_acl_list)
     }
 
     pub fn get(
@@ -105,7 +105,7 @@ impl AclStorage {
     ) -> Result<Vec<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
         if let Some(data) =
-            engine_get_by_meta::<Vec<MqttAcl>>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_metadata::<Vec<MqttAcl>>(self.rocksdb_engine_handler.clone(), &key)?
         {
             return Ok(data.data);
         }

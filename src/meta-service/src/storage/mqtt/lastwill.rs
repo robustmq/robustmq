@@ -19,8 +19,8 @@ use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use crate::core::error::MetaServiceError;
 use crate::storage::keys::storage_key_mqtt_last_will;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_get_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 pub struct MqttLastWillStorage {
@@ -41,7 +41,7 @@ impl MqttLastWillStorage {
         last_will_message: MqttLastWillData,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, last_will_message)?;
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, last_will_message)?;
         Ok(())
     }
 
@@ -51,8 +51,10 @@ impl MqttLastWillStorage {
         client_id: &str,
     ) -> Result<Option<MqttLastWillData>, MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        let result =
-            engine_get_by_meta::<MqttLastWillData>(self.rocksdb_engine_handler.clone(), &key)?;
+        let result = engine_get_by_meta_metadata::<MqttLastWillData>(
+            self.rocksdb_engine_handler.clone(),
+            &key,
+        )?;
         if let Some(data) = result {
             return Ok(Some(data.data));
         }
@@ -61,7 +63,7 @@ impl MqttLastWillStorage {
 
     pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 }

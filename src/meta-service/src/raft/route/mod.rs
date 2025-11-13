@@ -18,13 +18,11 @@ use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::journal::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
-use bincode::{deserialize, serialize};
+use bytes::Bytes;
 use data::{StorageData, StorageDataType};
-use rocksdb_engine::{rocksdb::RocksDBEngine, storage::family::DB_COLUMN_FAMILY_META};
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::Instant;
-use tracing::{error, info};
 
 pub mod apply;
 pub mod common;
@@ -35,7 +33,7 @@ pub mod mqtt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppResponseData {
-    pub value: Option<Vec<u8>>,
+    pub value: Option<Bytes>,
 }
 
 #[derive(Clone)]
@@ -44,7 +42,6 @@ pub struct DataRoute {
     route_mqtt: DataRouteMqtt,
     route_journal: DataRouteJournal,
     route_cluster: DataRouteCluster,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl DataRoute {
@@ -63,7 +60,6 @@ impl DataRoute {
             route_mqtt,
             route_journal,
             route_cluster,
-            rocksdb_engine_handler,
         }
     }
 
@@ -71,7 +67,7 @@ impl DataRoute {
     pub async fn route(
         &self,
         storage_data: StorageData,
-    ) -> Result<Option<Vec<u8>>, MetaServiceError> {
+    ) -> Result<Option<Bytes>, MetaServiceError> {
         match storage_data.data_type {
             // Meta Service
             StorageDataType::KvSet => {
@@ -266,121 +262,6 @@ impl DataRoute {
                     .delete_auto_subscribe_rule(storage_data.value)?;
                 Ok(None)
             }
-        }
-    }
-
-    pub fn build_snapshot(&self) -> Vec<u8> {
-        info!("Start building snapshots");
-        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
-            cf
-        } else {
-            error!(
-                "{}",
-                MetaServiceError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string(),)
-            );
-            return Vec::new();
-        };
-
-        let res = match self.rocksdb_engine_handler.read_all_by_cf(cf) {
-            Ok(data) => data,
-            Err(e) => {
-                error!("{}", e.to_string());
-                return Vec::new();
-            }
-        };
-
-        let res = match serialize(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                error!("{}", e.to_string());
-                return Vec::new();
-            }
-        };
-        info!("Snapshot built successfully, snapshot size :{}", res.len());
-        res
-    }
-
-    pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), MetaServiceError> {
-        info!("Start restoring snapshot, snapshot length :{}", data.len());
-        let now = Instant::now();
-        let records = match deserialize::<Vec<(String, Vec<u8>)>>(&data) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(MetaServiceError::CommonError(e.to_string()));
-            }
-        };
-
-        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
-            cf
-        } else {
-            return Err(MetaServiceError::RocksDBFamilyNotAvailable(
-                DB_COLUMN_FAMILY_META.to_string(),
-            ));
-        };
-
-        for raw in records {
-            self.rocksdb_engine_handler
-                .write_raw(cf.clone(), &raw.0, &raw.1)?;
-        }
-
-        info!(
-            "Snapshot recovery was successful, snapshot size {}, time: {}",
-            data.len(),
-            now.elapsed().as_millis()
-        );
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::core::cache::CacheManager;
-
-    use super::DataRoute;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META;
-    use std::sync::Arc;
-    use tempfile::tempdir;
-
-    #[test]
-    pub fn snapshot_test() {
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            vec![DB_COLUMN_FAMILY_META.to_string()],
-        ));
-
-        let cf = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
-
-        for i in 0..10 {
-            rocksdb_engine
-                .write(cf.clone(), format!("key-{i}").as_str(), &i)
-                .unwrap();
-        }
-
-        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine.clone()));
-        let data_route = DataRoute::new(rocksdb_engine.clone(), cache_manager.clone());
-        let snapshot = data_route.build_snapshot();
-
-        // GET A NEW ONE
-        let new_rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            vec![DB_COLUMN_FAMILY_META.to_string()],
-        ));
-
-        let new_data_route = DataRoute::new(new_rocksdb_engine.clone(), cache_manager);
-        new_data_route.recover_snapshot(snapshot).unwrap();
-
-        let cf = new_rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
-        // check value again
-        for i in 0..10 {
-            let value = new_rocksdb_engine
-                .read::<i32>(cf.clone(), format!("key-{i}").as_str())
-                .unwrap()
-                .unwrap();
-
-            assert_eq!(i, value);
         }
     }
 }

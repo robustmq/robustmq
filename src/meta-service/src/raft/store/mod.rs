@@ -16,6 +16,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use bytes::Bytes;
 use log::LogStore;
 use openraft::{SnapshotMeta, StorageError};
 use rocksdb::{ColumnFamilyDescriptor, Options, DB};
@@ -29,7 +30,7 @@ pub struct StoredSnapshot {
     pub meta: SnapshotMeta<TypeConfig>,
 
     /// The data of the state machine at the time of this snapshot.
-    pub data: Vec<u8>,
+    pub data: Bytes,
 }
 
 type StorageResult<T> = Result<T, StorageError<TypeConfig>>;

@@ -24,6 +24,7 @@ use crate::{
     },
     storage::placement::schema::SchemaStorage,
 };
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message;
@@ -93,7 +94,7 @@ pub async fn create_schema_req(
     } else {
         let data = StorageData::new(
             StorageDataType::SchemaSet,
-            CreateSchemaRequest::encode_to_vec(req),
+            Bytes::copy_from_slice(&CreateSchemaRequest::encode_to_vec(req)),
         );
         raft_machine_apply.client_write(data).await?;
 
@@ -135,7 +136,7 @@ pub async fn update_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaSet,
-        UpdateSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&UpdateSchemaRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -173,7 +174,7 @@ pub async fn delete_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaDelete,
-        DeleteSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteSchemaRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -246,7 +247,7 @@ pub async fn bind_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaBindSet,
-        BindSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&BindSchemaRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -285,7 +286,7 @@ pub async fn un_bind_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaBindDelete,
-        UnBindSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&UnBindSchemaRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 

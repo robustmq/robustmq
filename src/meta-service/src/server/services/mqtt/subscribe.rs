@@ -23,6 +23,7 @@ use crate::{
     },
     storage::mqtt::subscribe::MqttSubscribeStorage,
 };
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use prost::Message;
@@ -61,7 +62,7 @@ pub async fn delete_subscribe_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteSubscribe,
-        DeleteSubscribeRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteSubscribeRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -94,7 +95,7 @@ pub async fn set_subscribe_by_req(
 ) -> Result<SetSubscribeReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetSubscribe,
-        SetSubscribeRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SetSubscribeRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -118,7 +119,7 @@ pub async fn set_auto_subscribe_rule_by_req(
 ) -> Result<SetAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAutoSubscribeRule,
-        SetAutoSubscribeRuleRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SetAutoSubscribeRuleRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -131,7 +132,7 @@ pub async fn delete_auto_subscribe_rule_by_req(
 ) -> Result<DeleteAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAutoSubscribeRule,
-        DeleteAutoSubscribeRuleRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteAutoSubscribeRuleRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;

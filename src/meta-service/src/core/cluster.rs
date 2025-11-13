@@ -20,6 +20,7 @@ use crate::controller::mqtt::call_broker::{
 };
 use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
+use bytes::Bytes;
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::cluster::ClusterInfo;
@@ -93,7 +94,7 @@ async fn sync_save_node(
     };
     let data = StorageData::new(
         StorageDataType::ClusterAddNode,
-        RegisterNodeRequest::encode_to_vec(&request),
+        Bytes::copy_from_slice(&RegisterNodeRequest::encode_to_vec(&request)),
     );
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
@@ -107,7 +108,7 @@ pub async fn sync_delete_node(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ClusterDeleteNode,
-        UnRegisterNodeRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&UnRegisterNodeRequest::encode_to_vec(req)),
     );
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
@@ -119,7 +120,10 @@ async fn sync_save_cluster(
     raft_machine_apply: &Arc<RaftMachineManager>,
     cluster: &ClusterInfo,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::ClusterAddCluster, cluster.encode()?);
+    let data = StorageData::new(
+        StorageDataType::ClusterAddCluster,
+        Bytes::copy_from_slice(&cluster.encode()?),
+    );
     if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }

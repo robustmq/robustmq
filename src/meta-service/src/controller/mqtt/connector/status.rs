@@ -20,6 +20,7 @@ use crate::{
         data::{StorageData, StorageDataType},
     },
 };
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 use prost::Message;
@@ -138,7 +139,7 @@ impl ConnectorContext {
         // Write to Raft for persistence
         let data = StorageData::new(
             StorageDataType::MqttSetConnector,
-            CreateConnectorRequest::encode_to_vec(&req),
+            Bytes::copy_from_slice(&CreateConnectorRequest::encode_to_vec(&req)),
         );
         self.raft_machine_apply.client_write(data).await?;
 

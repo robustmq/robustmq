@@ -23,6 +23,7 @@ use crate::{
     },
     storage::mqtt::user::MqttUserStorage,
 };
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message;
@@ -71,7 +72,7 @@ pub async fn create_user_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttSetUser,
-        CreateUserRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateUserRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -97,7 +98,7 @@ pub async fn delete_user_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteUser,
-        DeleteUserRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteUserRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
     update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await?;

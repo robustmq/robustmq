@@ -26,6 +26,7 @@ use crate::{
     },
     storage::mqtt::session::MqttSessionStorage,
 };
+use bytes::Bytes;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
@@ -67,7 +68,7 @@ pub async fn create_session_by_req(
 ) -> Result<CreateSessionReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetSession,
-        CreateSessionRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateSessionRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -88,7 +89,7 @@ pub async fn update_session_by_req(
 ) -> Result<UpdateSessionReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttUpdateSession,
-        UpdateSessionRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&UpdateSessionRequest::encode_to_vec(req)),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -136,7 +137,7 @@ pub async fn delete_session_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteSession,
-        DeleteSessionRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteSessionRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;

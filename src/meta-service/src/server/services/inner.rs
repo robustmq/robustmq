@@ -22,6 +22,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::offset::OffsetStorage;
+use bytes::Bytes;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ClusterResourceConfig;
@@ -97,7 +98,7 @@ pub async fn set_resource_config_by_req(
 ) -> Result<SetResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ResourceConfigSet,
-        SetResourceConfigRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SetResourceConfigRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -133,7 +134,7 @@ pub async fn delete_resource_config_by_req(
 ) -> Result<DeleteResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::ResourceConfigDelete,
-        DeleteResourceConfigRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteResourceConfigRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply
@@ -148,7 +149,7 @@ pub async fn set_idempotent_data_by_req(
 ) -> Result<SetIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::IdempotentDataSet,
-        SetIdempotentDataRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SetIdempotentDataRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply
@@ -175,7 +176,7 @@ pub async fn delete_idempotent_data_by_req(
 ) -> Result<DeleteIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::IdempotentDataDelete,
-        DeleteIdempotentDataRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteIdempotentDataRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply
@@ -190,7 +191,7 @@ pub async fn save_offset_data_by_req(
 ) -> Result<SaveOffsetDataReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::OffsetSet,
-        SaveOffsetDataRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&SaveOffsetDataRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply

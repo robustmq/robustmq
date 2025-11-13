@@ -21,6 +21,7 @@ use crate::core::error::MetaServiceError;
 use crate::raft::route::apply::RaftMachineManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use prost::Message;
@@ -166,7 +167,7 @@ pub async fn delete_connector_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteConnector,
-        DeleteConnectorRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteConnectorRequest::encode_to_vec(req)),
     );
 
     raft_machine_apply.client_write(data).await?;

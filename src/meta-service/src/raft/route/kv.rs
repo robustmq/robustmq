@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use bytes::Bytes;
 use prost::Message as _;
 use protocol::meta::meta_service_kv::{DeleteRequest, SetRequest};
 
@@ -31,12 +32,12 @@ impl DataRouteKv {
         let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
         DataRouteKv { kv_storage }
     }
-    pub fn set(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn set(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req: SetRequest = SetRequest::decode(value.as_ref())?;
         Ok(self.kv_storage.set(req.key, req.value)?)
     }
 
-    pub fn delete(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn delete(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req: DeleteRequest = DeleteRequest::decode(value.as_ref())?;
         Ok(self.kv_storage.delete(req.key)?)
     }
