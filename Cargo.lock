@@ -4067,6 +4067,7 @@ dependencies = [
  "bincode",
  "broker-core",
  "byteorder",
+ "bytes",
  "common-base",
  "common-config",
  "common-metrics",

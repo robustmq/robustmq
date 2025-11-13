@@ -20,7 +20,7 @@ use openraft::{
     AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
     StorageError, Vote,
 };
-use rocksdb::{BoundColumnFamily, Direction, DB, WriteBatch};
+use rocksdb::{BoundColumnFamily, Direction, WriteBatch, DB};
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::sync::Arc;
@@ -208,10 +208,10 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         for entry in entries {
             let id = id_to_bin(entry.log_id.index);
             assert_eq!(bin_to_id(&id), entry.log_id.index);
-            
-            let serialized = serde_json::to_vec(&entry)
-                .map_err(|e| StorageError::write_logs(&e))?;
-            
+
+            let serialized =
+                serde_json::to_vec(&entry).map_err(|e| StorageError::write_logs(&e))?;
+
             batch.put_cf(&logs_cf, id, serialized);
             entry_count += 1;
         }
