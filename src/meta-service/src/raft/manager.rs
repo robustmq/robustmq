@@ -207,12 +207,10 @@ impl MultiRaftManager {
         )
         .await
         {
-            Ok(data) => return Ok(data),
-            Err(e) => {
-                return Err(CommonError::CommonError(format!(
-                    "[{machine}],Failed to initialize raft node with error message :{e}"
-                )));
-            }
+            Ok(data) => Ok(data),
+            Err(e) => Err(CommonError::CommonError(format!(
+                "[{machine}],Failed to initialize raft node with error message :{e}"
+            ))),
         }
     }
 }

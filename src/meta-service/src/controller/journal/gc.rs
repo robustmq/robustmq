@@ -51,7 +51,7 @@ pub async fn gc_shard_thread(
 
         // to deleting
         if let Err(e) = update_shard_status(
-            &raft_manager,
+            raft_manager,
             cache_manager,
             &shard.clone(),
             JournalShardStatus::Deleting,
@@ -100,7 +100,7 @@ pub async fn gc_shard_thread(
                 namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
-            match journal_inner_get_shard_delete_status(&client_pool, &addrs, request).await {
+            match journal_inner_get_shard_delete_status(client_pool, &addrs, request).await {
                 Ok(reply) => {
                     if !reply.status {
                         flag = false;
@@ -140,7 +140,7 @@ pub async fn gc_shard_thread(
                 &shard.shard_name,
             ) {
                 if let Err(e) =
-                    sync_delete_segment_metadata_info(&raft_manager, &segment.clone()).await
+                    sync_delete_segment_metadata_info(raft_manager, &segment.clone()).await
                 {
                     if e.to_string().contains("raft stopped") {
                         info!("Raft stopped during shutdown, skipping remaining GC operations");
@@ -155,7 +155,7 @@ pub async fn gc_shard_thread(
             }
 
             // delete shard
-            if let Err(e) = sync_delete_shard_info(&raft_manager, &shard).await {
+            if let Err(e) = sync_delete_shard_info(raft_manager, &shard).await {
                 if e.to_string().contains("raft stopped") {
                     info!("Raft stopped during shutdown, skipping remaining GC operations");
                     return;
@@ -200,8 +200,8 @@ pub async fn gc_segment_thread(
 
         // to deleting
         if let Err(e) = update_segment_status(
-            &cache_manager,
-            &raft_manager,
+            cache_manager,
+            raft_manager,
             &segment.clone(),
             SegmentStatus::Deleting,
         )
@@ -234,7 +234,7 @@ pub async fn gc_segment_thread(
                     segment: segment.segment_seq,
                 };
                 if let Err(e) =
-                    journal_inner_delete_segment_file(&client_pool, &addrs, request).await
+                    journal_inner_delete_segment_file(client_pool, &addrs, request).await
                 {
                     error!(
                         "Calling node {} to delete the Segment file failed with error message :{}",
@@ -255,7 +255,7 @@ pub async fn gc_segment_thread(
                     shard_name: segment.shard_name.clone(),
                     segment: segment.segment_seq,
                 };
-                match journal_inner_get_segment_delete_status(&client_pool, &addrs, request).await {
+                match journal_inner_get_segment_delete_status(client_pool, &addrs, request).await {
                     Ok(reply) => {
                         if !reply.status {
                             flag = false;
@@ -271,7 +271,7 @@ pub async fn gc_segment_thread(
         // update info
         if !flag {
             // delete segment
-            if let Err(e) = sync_delete_segment_info(&raft_manager, &segment).await {
+            if let Err(e) = sync_delete_segment_info(raft_manager, &segment).await {
                 if e.to_string().contains("raft stopped") {
                     info!("Raft stopped during shutdown, skipping remaining GC operations");
                     return;
@@ -290,7 +290,7 @@ pub async fn gc_segment_thread(
                 &segment.shard_name,
                 segment.segment_seq,
             ) {
-                if let Err(e) = sync_delete_segment_metadata_info(&raft_manager, &meta).await {
+                if let Err(e) = sync_delete_segment_metadata_info(raft_manager, &meta).await {
                     if e.to_string().contains("raft stopped") {
                         info!("Raft stopped during shutdown, skipping remaining GC operations");
                         return;
@@ -305,8 +305,8 @@ pub async fn gc_segment_thread(
 
             // update start segment by shard
             if let Err(e) = update_start_segment_by_shard(
-                &raft_manager,
-                &cache_manager,
+                raft_manager,
+                cache_manager,
                 &mut shard,
                 segment.segment_seq,
             )
