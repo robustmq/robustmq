@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cluster::index;
 use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{cluster_config_get, cluster_config_set, cluster_info},
@@ -41,6 +42,7 @@ use crate::{
 };
 use axum::response::Html;
 use axum::response::IntoResponse;
+use axum::routing::get;
 use axum::{
     extract::{ConnectInfo, Request},
     http::{HeaderMap, Method, Uri},
@@ -53,11 +55,9 @@ use common_metrics::http::record_http_request;
 use reqwest::StatusCode;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
-use axum::routing::get;
 use tokio::fs;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::{debug, info, warn};
-use crate::cluster::index;
 
 pub struct AdminServer {}
 
