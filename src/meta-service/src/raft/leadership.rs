@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::type_config::TypeConfig;
 use crate::{
     controller::{journal::StorageEngineController, mqtt::MqttController},
     core::cache::CacheManager,
-    raft::route::apply::RaftMachineManager,
+    raft::manager::MultiRaftManager,
 };
 use grpc_clients::pool::ClientPool;
-use openraft::Raft;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -30,14 +28,13 @@ use tokio::{
 use tracing::{error, info};
 
 pub fn monitoring_leader_transition(
-    raft: &Raft<TypeConfig>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let mut metrics_rx = raft.metrics();
+    let mut metrics_rx = raft_manager.metadata_raft_node.metrics();
     let mut controller_running = false;
     tokio::spawn(async move {
         let mut last_leader: Option<u64> = None;
@@ -65,7 +62,7 @@ pub fn monitoring_leader_transition(
                                         &rocksdb_engine_handler,
                                         &cache_manager,
                                         &client_pool,
-                                        &raft_machine_apply,
+                                        &raft_manager,
                                         controller_stop_recv.clone(),
                                     );
                                     controller_running = true;
@@ -93,7 +90,7 @@ pub fn start_controller(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = MqttController::new(
@@ -107,7 +104,7 @@ pub fn start_controller(
     });
 
     let journal_controller = StorageEngineController::new(
-        raft_machine_apply.clone(),
+        raft_manager.clone(),
         cache_manager.clone(),
         client_pool.clone(),
         stop_send.clone(),

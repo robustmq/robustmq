@@ -14,7 +14,7 @@
 
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::server::services::mqtt::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
@@ -72,7 +72,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
     cache_manager: Arc<CacheManager>,
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -81,14 +81,14 @@ pub struct GrpcMqttService {
 impl GrpcMqttService {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         mqtt_call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
             cache_manager,
-            raft_machine_apply,
+            raft_manager,
             rocksdb_engine_handler,
             mqtt_call_manager,
             client_pool,
@@ -117,7 +117,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         create_user_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
@@ -135,7 +135,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         delete_user_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
@@ -164,7 +164,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         create_session_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -181,7 +181,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         update_session_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
@@ -199,7 +199,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         delete_session_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
@@ -236,7 +236,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         create_topic_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
@@ -255,7 +255,7 @@ impl MqttService for GrpcMqttService {
 
         delete_topic_by_req(
             &self.rocksdb_engine_handler,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -271,14 +271,10 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<SetTopicRetainMessageReply>, Status> {
         let req = request.into_inner();
 
-        set_topic_retain_message_by_req(
-            &self.raft_machine_apply,
-            &self.rocksdb_engine_handler,
-            &req,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
+        set_topic_retain_message_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_topic_retain_message(
@@ -312,7 +308,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<SaveLastWillMessageReply>, Status> {
         let req = request.into_inner();
 
-        save_last_will_message_by_req(&self.raft_machine_apply, &req)
+        save_last_will_message_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -348,7 +344,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteAclReply>, Status> {
         let req = request.into_inner();
 
-        delete_acl_by_req(&self.raft_machine_apply, &req)
+        delete_acl_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -360,7 +356,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateAclReply>, Status> {
         let req = request.into_inner();
 
-        create_acl_by_req(&self.raft_machine_apply, &req)
+        create_acl_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -383,7 +379,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
         let req = request.into_inner();
 
-        delete_blacklist_by_req(&self.raft_machine_apply, &req)
+        delete_blacklist_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -395,7 +391,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateBlacklistReply>, Status> {
         let req = request.into_inner();
 
-        create_blacklist_by_req(&self.raft_machine_apply, &req)
+        create_blacklist_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -408,7 +404,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
         let req = request.into_inner();
 
-        create_topic_rewrite_rule_by_req(&self.raft_machine_apply, &req)
+        create_topic_rewrite_rule_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -420,7 +416,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
         let req = request.into_inner();
 
-        delete_topic_rewrite_rule_by_req(&self.raft_machine_apply, &req)
+        delete_topic_rewrite_rule_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -456,7 +452,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         set_subscribe_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -473,7 +469,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         delete_subscribe_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.rocksdb_engine_handler,
             &self.mqtt_call_manager,
             &self.client_pool,
@@ -504,7 +500,7 @@ impl MqttService for GrpcMqttService {
 
         create_connector_by_req(
             &self.rocksdb_engine_handler,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.cache_manager,
@@ -523,7 +519,7 @@ impl MqttService for GrpcMqttService {
 
         update_connector_by_req(
             &self.rocksdb_engine_handler,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.cache_manager,
@@ -542,7 +538,7 @@ impl MqttService for GrpcMqttService {
 
         delete_connector_by_req(
             &self.rocksdb_engine_handler,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -570,7 +566,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
         let req = request.into_inner();
 
-        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, &req)
+        set_auto_subscribe_rule_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -582,7 +578,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
         let req = request.into_inner();
 
-        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, &req)
+        delete_auto_subscribe_rule_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

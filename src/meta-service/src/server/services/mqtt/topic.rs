@@ -16,7 +16,7 @@ use crate::controller::mqtt::call_broker::{
     update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
 };
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -70,7 +70,7 @@ pub async fn list_topic_by_req(
 }
 
 pub async fn create_topic_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -90,7 +90,7 @@ pub async fn create_topic_by_req(
         Bytes::copy_from_slice(&CreateTopicRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     let topic = MQTTTopic::decode(&req.content)?;
     update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
@@ -100,7 +100,7 @@ pub async fn create_topic_by_req(
 
 pub async fn delete_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteTopicRequest,
@@ -116,14 +116,14 @@ pub async fn delete_topic_by_req(
         Bytes::copy_from_slice(&DeleteTopicRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     update_cache_by_delete_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
     Ok(DeleteTopicReply {})
 }
 
 pub async fn set_topic_retain_message_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &SetTopicRetainMessageRequest,
 ) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
@@ -139,7 +139,7 @@ pub async fn set_topic_retain_message_by_req(
             StorageDataType::MqttDeleteRetainMessage,
             Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
         );
-        raft_machine_apply.client_write(data).await?;
+        raft_manager.write_metadata(data).await?;
         return Ok(SetTopicRetainMessageReply {});
     }
 
@@ -148,7 +148,7 @@ pub async fn set_topic_retain_message_by_req(
         Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(SetTopicRetainMessageReply {})
 }
 
@@ -172,7 +172,7 @@ pub async fn get_topic_retain_message_by_req(
 }
 
 pub async fn save_last_will_message_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &SaveLastWillMessageRequest,
 ) -> Result<SaveLastWillMessageReply, MetaServiceError> {
     let data = StorageData::new(
@@ -180,7 +180,7 @@ pub async fn save_last_will_message_by_req(
         Bytes::copy_from_slice(&SaveLastWillMessageRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(SaveLastWillMessageReply {})
 }
 
@@ -201,7 +201,7 @@ pub async fn get_last_will_message_by_req(
 }
 
 pub async fn create_topic_rewrite_rule_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -209,12 +209,12 @@ pub async fn create_topic_rewrite_rule_by_req(
         Bytes::copy_from_slice(&CreateTopicRewriteRuleRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(CreateTopicRewriteRuleReply {})
 }
 
 pub async fn delete_topic_rewrite_rule_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteTopicRewriteRuleRequest,
 ) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -222,7 +222,7 @@ pub async fn delete_topic_rewrite_rule_by_req(
         Bytes::copy_from_slice(&DeleteTopicRewriteRuleRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(DeleteTopicRewriteRuleReply {})
 }
 

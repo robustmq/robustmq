@@ -30,7 +30,8 @@ service OpenRaftService {
 }
 
 message VoteRequest {
-  bytes value = 1;
+  string machine = 1;
+  bytes value = 2;
 }
 
 message VoteReply {
@@ -38,7 +39,8 @@ message VoteReply {
 }
 
 message AppendRequest {
-  bytes value = 1;
+  string machine = 1;
+  bytes value = 2;
 }
 
 message AppendReply {
@@ -46,7 +48,8 @@ message AppendReply {
 }
 
 message SnapshotRequest {
-  bytes value = 1;
+  string machine = 1;
+  bytes value = 2;
 }
 
 message SnapshotReply {
@@ -69,8 +72,9 @@ message AddLearnerReply {
 }
 
 message ChangeMembershipRequest {
-  repeated uint64 members = 1;
-  bool retain = 2;
+  string machine = 1;
+  repeated uint64 members = 2;
+  bool retain = 3;
 }
 
 message ChangeMembershipReply {

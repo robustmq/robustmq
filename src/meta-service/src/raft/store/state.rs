@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
-use crate::raft::raft_node::types;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::store::snapshot::build_snapshot;
 use crate::raft::store::snapshot::recover_snapshot;
+use crate::raft::type_config::Entry;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
 use bytes::Bytes;
 use openraft::storage::RaftStateMachine;
@@ -181,7 +181,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         entries: I,
     ) -> Result<Vec<AppResponseData>, StorageError<TypeConfig>>
     where
-        I: IntoIterator<Item = types::Entry> + OptionalSend,
+        I: IntoIterator<Item = Entry> + OptionalSend,
         I::IntoIter: OptionalSend,
     {
         let entries = entries.into_iter();

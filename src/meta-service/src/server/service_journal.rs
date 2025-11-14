@@ -28,7 +28,7 @@ use tonic::{Request, Response, Status};
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::server::services::journal::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
     update_segment_meta_by_req, update_segment_status_req,
@@ -38,7 +38,7 @@ use crate::server::services::journal::shard::{
 };
 
 pub struct GrpcEngineService {
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<JournalInnerCallManager>,
@@ -47,14 +47,14 @@ pub struct GrpcEngineService {
 
 impl GrpcEngineService {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         cache_manager: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<JournalInnerCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
-            raft_machine_apply,
+            raft_manager,
             cache_manager,
             rocksdb_engine_handler,
             call_manager,
@@ -84,7 +84,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         create_shard_by_req(
             &self.cache_manager,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
             &req,
@@ -107,7 +107,7 @@ impl EngineService for GrpcEngineService {
         }
 
         delete_shard_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.cache_manager,
             &self.call_manager,
             &self.client_pool,
@@ -149,7 +149,7 @@ impl EngineService for GrpcEngineService {
 
         match create_segment_by_req(
             &self.cache_manager,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
             &req,
@@ -179,7 +179,7 @@ impl EngineService for GrpcEngineService {
 
         delete_segment_by_req(
             &self.cache_manager,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
             &req,
@@ -202,7 +202,7 @@ impl EngineService for GrpcEngineService {
 
         update_segment_status_req(
             &self.cache_manager,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
             &req,
@@ -237,7 +237,7 @@ impl EngineService for GrpcEngineService {
 
         update_segment_meta_by_req(
             &self.cache_manager,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
             &req,

@@ -32,16 +32,18 @@ use std::sync::Arc;
 
 pub struct NetworkConnection {
     addr: String,
+    machine: String,
     client_pool: Arc<ClientPool>,
     // Reusable serialization buffer to avoid per-call allocations
     serialize_buf: Vec<u8>,
 }
 
 impl NetworkConnection {
-    pub fn new(addr: String, client_pool: Arc<ClientPool>) -> Self {
+    pub fn new(machine: String, addr: String, client_pool: Arc<ClientPool>) -> Self {
         NetworkConnection {
             addr,
             client_pool,
+            machine,
             serialize_buf: Vec::with_capacity(4096),
         }
     }
@@ -88,7 +90,10 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             }
         };
 
-        let request = AppendRequest { value };
+        let request = AppendRequest {
+            machine: self.machine.clone(),
+            value,
+        };
 
         let reply = match c.append(request).await {
             Ok(reply) => reply.into_inner(),
@@ -131,7 +136,10 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             }
         };
 
-        let request = SnapshotRequest { value };
+        let request = SnapshotRequest {
+            machine: self.machine.clone(),
+            value,
+        };
 
         let reply = match c.snapshot(request).await {
             Ok(reply) => reply.into_inner(),
@@ -166,7 +174,10 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_bincode_error(e, "Failed to serialize VoteRequest")),
         };
 
-        let request = protocol::meta::meta_service_openraft::VoteRequest { value };
+        let request = protocol::meta::meta_service_openraft::VoteRequest {
+            machine: self.machine.clone(),
+            value,
+        };
 
         let reply = match c.vote(request).await {
             Ok(reply) => reply.into_inner(),

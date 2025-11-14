@@ -14,9 +14,9 @@
 
 pub mod error;
 pub mod leadership;
+pub mod manager;
 #[allow(clippy::module_inception)]
 pub mod network;
-pub mod raft_node;
 pub mod route;
 pub mod services;
 pub mod store;

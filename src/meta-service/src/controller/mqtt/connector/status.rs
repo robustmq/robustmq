@@ -15,9 +15,9 @@
 use crate::{
     controller::mqtt::call_broker::{update_cache_by_add_connector, MQTTInnerCallManager},
     core::{cache::CacheManager, error::MetaServiceError},
-    raft::route::{
-        apply::RaftMachineManager,
-        data::{StorageData, StorageDataType},
+    raft::{
+        manager::MultiRaftManager,
+        route::data::{StorageData, StorageDataType},
     },
 };
 use bytes::Bytes;
@@ -30,7 +30,7 @@ use tracing::{info, warn};
 
 /// Connector status management context - encapsulates shared dependencies
 pub struct ConnectorContext {
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     call_manager: Arc<MQTTInnerCallManager>,
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
@@ -38,13 +38,13 @@ pub struct ConnectorContext {
 
 impl ConnectorContext {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {
         Self {
-            raft_machine_apply,
+            raft_manager,
             call_manager,
             client_pool,
             cache_manager,
@@ -141,7 +141,7 @@ impl ConnectorContext {
             StorageDataType::MqttSetConnector,
             Bytes::copy_from_slice(&CreateConnectorRequest::encode_to_vec(&req)),
         );
-        self.raft_machine_apply.client_write(data).await?;
+        self.raft_manager.write_metadata(data).await?;
 
         // Update cache across all brokers
         update_cache_by_add_connector(

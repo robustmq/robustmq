@@ -17,7 +17,7 @@ use crate::controller::mqtt::call_broker::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -41,11 +41,11 @@ use std::sync::Arc;
 use tracing::debug;
 
 pub async fn cluster_status_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
     let mut reply = ClusterStatusReply::default();
     let status: openraft::RaftMetrics<crate::raft::type_config::TypeConfig> =
-        raft_machine_apply.raft_node.metrics().borrow().clone();
+        raft_manager.metadata_raft_node.metrics().borrow().clone();
 
     reply.content = match serde_json::to_string(&status) {
         Ok(data) => data,
@@ -91,7 +91,7 @@ pub async fn heartbeat_by_req(
 }
 
 pub async fn set_resource_config_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
@@ -101,7 +101,7 @@ pub async fn set_resource_config_by_req(
         Bytes::copy_from_slice(&SetResourceConfigRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     let config = ClusterResourceConfig {
         cluster_name: req.cluster_name.to_owned(),
         resource: req.resources.to_owned().join("/"),
@@ -129,7 +129,7 @@ pub async fn get_resource_config_by_req(
 }
 
 pub async fn delete_resource_config_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteResourceConfigRequest,
 ) -> Result<DeleteResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(
@@ -137,14 +137,14 @@ pub async fn delete_resource_config_by_req(
         Bytes::copy_from_slice(&DeleteResourceConfigRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply
-        .client_write(data)
+    raft_manager
+        .write_metadata(data)
         .await
         .map(|_| DeleteResourceConfigReply::default())
 }
 
 pub async fn set_idempotent_data_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &SetIdempotentDataRequest,
 ) -> Result<SetIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
@@ -152,8 +152,8 @@ pub async fn set_idempotent_data_by_req(
         Bytes::copy_from_slice(&SetIdempotentDataRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply
-        .client_write(data)
+    raft_manager
+        .write_metadata(data)
         .await
         .map(|_| SetIdempotentDataReply::default())
 }
@@ -171,7 +171,7 @@ pub async fn exists_idempotent_data_by_req(
 }
 
 pub async fn delete_idempotent_data_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteIdempotentDataRequest,
 ) -> Result<DeleteIdempotentDataReply, MetaServiceError> {
     let data = StorageData::new(
@@ -179,14 +179,14 @@ pub async fn delete_idempotent_data_by_req(
         Bytes::copy_from_slice(&DeleteIdempotentDataRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply
-        .client_write(data)
+    raft_manager
+        .write_metadata(data)
         .await
         .map(|_| DeleteIdempotentDataReply::default())
 }
 
 pub async fn save_offset_data_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &SaveOffsetDataRequest,
 ) -> Result<SaveOffsetDataReply, MetaServiceError> {
     let data = StorageData::new(
@@ -194,8 +194,8 @@ pub async fn save_offset_data_by_req(
         Bytes::copy_from_slice(&SaveOffsetDataRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply
-        .client_write(data)
+    raft_manager
+        .write_metadata(data)
         .await
         .map(|_| SaveOffsetDataReply::default())
 }

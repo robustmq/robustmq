@@ -21,7 +21,7 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
 use bytes::Bytes;
@@ -73,7 +73,7 @@ pub async fn list_shard_by_req(
 
 pub async fn create_shard_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
@@ -112,7 +112,7 @@ pub async fn create_shard_by_req(
             create_time: now_mills(),
         };
 
-        sync_save_shard_info(raft_machine_apply, &shard).await?;
+        sync_save_shard_info(raft_manager, &shard).await?;
 
         shard
     };
@@ -127,7 +127,7 @@ pub async fn create_shard_by_req(
     } else {
         let segment = build_segment(&shard, cache_manager, 0).await?;
 
-        sync_save_segment_info(raft_machine_apply, &segment).await?;
+        sync_save_segment_info(raft_manager, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
             cluster_name: segment.cluster_name.clone(),
@@ -140,20 +140,14 @@ pub async fn create_shard_by_req(
             end_timestamp: -1,
         };
 
-        sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
+        sync_save_segment_metadata_info(raft_manager, &metadata).await?;
         update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
             .await?;
 
         segment
     };
 
-    update_segment_status(
-        cache_manager,
-        raft_machine_apply,
-        &segment,
-        SegmentStatus::Write,
-    )
-    .await?;
+    update_segment_status(cache_manager, raft_manager, &segment, SegmentStatus::Write).await?;
     segment.status = SegmentStatus::Write;
 
     // update segment cache
@@ -175,7 +169,7 @@ pub async fn create_shard_by_req(
 }
 
 pub async fn delete_shard_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -192,7 +186,7 @@ pub async fn delete_shard_by_req(
     };
 
     update_shard_status(
-        raft_machine_apply,
+        raft_manager,
         cache_manager,
         &shard,
         JournalShardStatus::PrepareDelete,
@@ -208,66 +202,66 @@ pub async fn delete_shard_by_req(
 }
 
 pub async fn update_start_segment_by_shard(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
     shard.start_segment_seq = segment_no;
-    sync_save_shard_info(raft_machine_apply, shard).await?;
+    sync_save_shard_info(raft_manager, shard).await?;
     cache_manager.set_shard(shard);
     Ok(())
 }
 
 pub async fn update_last_segment_by_shard(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &mut JournalShard,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
     shard.last_segment_seq = segment_no;
-    sync_save_shard_info(raft_machine_apply, shard).await?;
+    sync_save_shard_info(raft_manager, shard).await?;
     cache_manager.set_shard(shard);
     Ok(())
 }
 
 async fn sync_save_shard_info(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetShard,
         Bytes::copy_from_slice(&shard.encode()?),
     );
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if (raft_manager.write_metadata(data).await?).is_some() {
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn sync_delete_shard_info(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     shard: &JournalShard,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteShard,
         Bytes::copy_from_slice(&shard.encode()?),
     );
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if (raft_manager.write_metadata(data).await?).is_some() {
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn update_shard_status(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     shard: &JournalShard,
     status: JournalShardStatus,
 ) -> Result<(), MetaServiceError> {
     let mut new_shard = shard.clone();
     new_shard.status = status;
-    sync_save_shard_info(raft_machine_apply, &new_shard).await?;
+    sync_save_shard_info(raft_manager, &new_shard).await?;
     cache_manager.set_shard(&new_shard);
     Ok(())
 }

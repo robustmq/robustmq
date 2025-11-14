@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raft::raft_node::Node;
 use crate::raft::route::data::StorageData;
 use crate::raft::route::AppResponseData;
+use std::fmt::Display;
 use std::io::Cursor;
 
 pub type SnapshotData = Cursor<Vec<u8>>;
+
+pub type Entry = openraft::Entry<TypeConfig>;
 
 openraft::declare_raft_types!(
     pub TypeConfig:
@@ -25,3 +27,21 @@ openraft::declare_raft_types!(
         R = AppResponseData,
         Node = Node,
 );
+
+pub type NodeId = u64;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
+pub struct Node {
+    pub node_id: u64,
+    pub rpc_addr: String,
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Node {{ rpc_addr: {}, node_id: {} }}",
+            self.rpc_addr, self.node_id
+        )
+    }
+}

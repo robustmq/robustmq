@@ -24,7 +24,6 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-pub mod apply;
 pub mod common;
 pub mod data;
 pub mod journal;

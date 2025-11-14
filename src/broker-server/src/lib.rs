@@ -36,11 +36,7 @@ use meta_service::{
         journal::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
     },
     core::cache::CacheManager as PlacementCacheManager,
-    raft::{
-        raft_node::create_raft_node,
-        route::{apply::RaftMachineManager, DataRoute},
-        type_config::TypeConfig,
-    },
+    raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
 use mqtt_broker::{
@@ -51,7 +47,6 @@ use mqtt_broker::{
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
-use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{
@@ -317,17 +312,22 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
         ));
-        let raf_node: Raft<TypeConfig> = create_raft_node(client_pool.clone(), data_route).await;
-        let storage_driver: Arc<RaftMachineManager> =
-            Arc::new(RaftMachineManager::new(raf_node.clone()));
+        let raft_manager = Arc::new(
+            match MultiRaftManager::new(client_pool.clone(), data_route).await {
+                Ok(data) => data,
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            },
+        );
+
         MetaServiceServerParams {
             cache_manager,
             rocksdb_engine_handler,
             client_pool,
             journal_call_manager,
             mqtt_call_manager,
-            raf_node,
-            storage_driver,
+            raft_manager,
         }
     }
 

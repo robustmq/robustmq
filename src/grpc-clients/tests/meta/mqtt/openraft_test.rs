@@ -59,7 +59,11 @@ mod tests {
         let members = vec![1];
         let retain = false;
 
-        let request = ChangeMembershipRequest { members, retain };
+        let request = ChangeMembershipRequest {
+            machine: "t1".to_string(),
+            members,
+            retain,
+        };
         match placement_openraft_change_membership(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {

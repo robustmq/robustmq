@@ -18,12 +18,10 @@ use crate::controller::mqtt::call_broker::{
 use crate::controller::mqtt::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use crate::raft::manager::MultiRaftManager;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::{
-    raft::route::{
-        apply::RaftMachineManager,
-        data::{StorageData, StorageDataType},
-    },
+    raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::session::MqttSessionStorage,
 };
 use bytes::Bytes;
@@ -61,7 +59,7 @@ pub fn list_session_by_req(
 }
 
 pub async fn create_session_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
@@ -71,7 +69,7 @@ pub async fn create_session_by_req(
         Bytes::copy_from_slice(&CreateSessionRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     let session = MqttSession::decode(&req.session)?;
 
@@ -81,7 +79,7 @@ pub async fn create_session_by_req(
 }
 
 pub async fn update_session_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -91,7 +89,7 @@ pub async fn update_session_by_req(
         StorageDataType::MqttUpdateSession,
         Bytes::copy_from_slice(&UpdateSessionRequest::encode_to_vec(req)),
     );
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
@@ -101,7 +99,7 @@ pub async fn update_session_by_req(
 }
 
 pub async fn delete_session_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -140,7 +138,7 @@ pub async fn delete_session_by_req(
         Bytes::copy_from_slice(&DeleteSessionRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     Ok(DeleteSessionReply {})
 }

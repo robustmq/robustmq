@@ -118,7 +118,7 @@ pub async fn start_grpc_server(
 
 fn get_place_inner_handler(place_params: &MetaServiceServerParams) -> GrpcPlacementService {
     GrpcPlacementService::new(
-        place_params.storage_driver.clone(),
+        place_params.raft_manager.clone(),
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.client_pool.clone(),
@@ -129,7 +129,7 @@ fn get_place_inner_handler(place_params: &MetaServiceServerParams) -> GrpcPlacem
 
 fn get_place_kv_handler(place_params: &MetaServiceServerParams) -> GrpcKvService {
     GrpcKvService::new(
-        place_params.storage_driver.clone(),
+        place_params.raft_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
     )
 }
@@ -137,7 +137,7 @@ fn get_place_kv_handler(place_params: &MetaServiceServerParams) -> GrpcKvService
 fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttService {
     GrpcMqttService::new(
         place_params.cache_manager.clone(),
-        place_params.storage_driver.clone(),
+        place_params.raft_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.mqtt_call_manager.clone(),
         place_params.client_pool.clone(),
@@ -146,7 +146,7 @@ fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttSer
 
 fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngineService {
     GrpcEngineService::new(
-        place_params.storage_driver.clone(),
+        place_params.raft_manager.clone(),
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.journal_call_manager.clone(),
@@ -155,7 +155,7 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
 }
 
 fn get_place_raft_handler(place_params: &MetaServiceServerParams) -> GrpcOpenRaftServices {
-    GrpcOpenRaftServices::new(place_params.storage_driver.raft_node.clone())
+    GrpcOpenRaftServices::new(place_params.raft_manager.metadata_raft_node.clone())
 }
 
 fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServices {

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MetaServiceError;
-use crate::raft::raft_node::Node;
 use crate::raft::type_config::TypeConfig;
+use crate::{core::error::MetaServiceError, raft::type_config::Node};
 use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::meta::meta_service_openraft::{
