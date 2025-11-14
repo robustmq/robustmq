@@ -53,9 +53,11 @@ use common_metrics::http::record_http_request;
 use reqwest::StatusCode;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
+use axum::routing::get;
 use tokio::fs;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::{debug, info, warn};
+use crate::cluster::index;
 
 pub struct AdminServer {}
 
@@ -112,6 +114,7 @@ impl AdminServer {
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
+            .route("/", get(index))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
