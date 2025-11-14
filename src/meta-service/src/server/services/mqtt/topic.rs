@@ -18,7 +18,6 @@ use crate::controller::mqtt::call_broker::{
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
@@ -27,11 +26,9 @@ use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetLastWillMessageReply,
-    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
-    ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,
+    GetTopicRetainMessageRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -39,6 +36,7 @@ use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;
 use tonic::Status;
 
+// Topic
 pub async fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListTopicRequest,
@@ -122,6 +120,7 @@ pub async fn delete_topic_by_req(
     Ok(DeleteTopicReply {})
 }
 
+// Retain Message
 pub async fn set_topic_retain_message_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -133,13 +132,12 @@ pub async fn set_topic_retain_message_by_req(
         .get(&req.cluster_name, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
-    // Update retain message fields
     if req.retain_message.is_none() {
         let data = StorageData::new(
             StorageDataType::MqttDeleteRetainMessage,
             Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
         );
-        raft_manager.write_metadata(data).await?;
+        raft_manager.write_mqtt(data).await?;
         return Ok(SetTopicRetainMessageReply {});
     }
 
@@ -148,7 +146,7 @@ pub async fn set_topic_retain_message_by_req(
         Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
     );
 
-    raft_manager.write_metadata(data).await?;
+    raft_manager.write_mqtt(data).await?;
     Ok(SetTopicRetainMessageReply {})
 }
 
@@ -171,35 +169,7 @@ pub async fn get_topic_retain_message_by_req(
     })
 }
 
-pub async fn save_last_will_message_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
-    req: &SaveLastWillMessageRequest,
-) -> Result<SaveLastWillMessageReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSaveLastWillMessage,
-        Bytes::copy_from_slice(&SaveLastWillMessageRequest::encode_to_vec(req)),
-    );
-
-    raft_manager.write_metadata(data).await?;
-    Ok(SaveLastWillMessageReply {})
-}
-
-pub async fn get_last_will_message_by_req(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &GetLastWillMessageRequest,
-) -> Result<GetLastWillMessageReply, MetaServiceError> {
-    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
-    if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
-        return Ok(GetLastWillMessageReply {
-            message: will.encode()?,
-        });
-    }
-
-    Ok(GetLastWillMessageReply {
-        message: Vec::new(),
-    })
-}
-
+// Rewrite Rule
 pub async fn create_topic_rewrite_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &CreateTopicRewriteRuleRequest,

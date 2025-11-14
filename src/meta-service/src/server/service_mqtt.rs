@@ -24,7 +24,8 @@ use crate::server::services::mqtt::connector::{
     list_connectors_by_req, update_connector_by_req,
 };
 use crate::server::services::mqtt::session::{
-    create_session_by_req, delete_session_by_req, list_session_by_req, update_session_by_req,
+    create_session_by_req, delete_session_by_req, get_last_will_message_by_req,
+    list_session_by_req, save_last_will_message_by_req, update_session_by_req,
 };
 use crate::server::services::mqtt::share_sub::get_share_sub_leader_by_req;
 use crate::server::services::mqtt::subscribe::{
@@ -33,9 +34,8 @@ use crate::server::services::mqtt::subscribe::{
 };
 use crate::server::services::mqtt::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
-    delete_topic_rewrite_rule_by_req, get_last_will_message_by_req,
-    get_topic_retain_message_by_req, list_topic_by_req, list_topic_rewrite_rule_by_req,
-    save_last_will_message_by_req, set_topic_retain_message_by_req,
+    delete_topic_rewrite_rule_by_req, get_topic_retain_message_by_req, list_topic_by_req,
+    list_topic_rewrite_rule_by_req, set_topic_retain_message_by_req,
 };
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,

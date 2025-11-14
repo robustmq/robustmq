@@ -31,11 +31,13 @@ use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
-    ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
+    GetLastWillMessageReply, GetLastWillMessageRequest, ListSessionReply, ListSessionRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
+// Session
 pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
@@ -69,7 +71,7 @@ pub async fn create_session_by_req(
         Bytes::copy_from_slice(&CreateSessionRequest::encode_to_vec(req)),
     );
 
-    raft_manager.write_metadata(data).await?;
+    raft_manager.write_mqtt(data).await?;
 
     let session = MqttSession::decode(&req.session)?;
 
@@ -89,7 +91,7 @@ pub async fn update_session_by_req(
         StorageDataType::MqttUpdateSession,
         Bytes::copy_from_slice(&UpdateSessionRequest::encode_to_vec(req)),
     );
-    raft_manager.write_metadata(data).await?;
+    raft_manager.write_mqtt(data).await?;
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
@@ -111,14 +113,6 @@ pub async fn delete_session_by_req(
         .get(&req.cluster_name, &req.client_id)?
         .ok_or_else(|| MetaServiceError::SessionDoesNotExist(req.client_id.clone()))?;
 
-    update_cache_by_delete_session(
-        &req.cluster_name,
-        call_manager,
-        client_pool,
-        session.clone(),
-    )
-    .await?;
-
     let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
     match storage.get(&req.cluster_name, &req.client_id) {
         Ok(Some(will_message)) => {
@@ -138,7 +132,44 @@ pub async fn delete_session_by_req(
         Bytes::copy_from_slice(&DeleteSessionRequest::encode_to_vec(req)),
     );
 
-    raft_manager.write_metadata(data).await?;
+    raft_manager.write_mqtt(data).await?;
 
+    update_cache_by_delete_session(
+        &req.cluster_name,
+        call_manager,
+        client_pool,
+        session.clone(),
+    )
+    .await?;
     Ok(DeleteSessionReply {})
+}
+
+// Will Message
+pub async fn save_last_will_message_by_req(
+    raft_manager: &Arc<MultiRaftManager>,
+    req: &SaveLastWillMessageRequest,
+) -> Result<SaveLastWillMessageReply, MetaServiceError> {
+    let data = StorageData::new(
+        StorageDataType::MqttSaveLastWillMessage,
+        Bytes::copy_from_slice(&SaveLastWillMessageRequest::encode_to_vec(req)),
+    );
+
+    raft_manager.write_mqtt(data).await?;
+    Ok(SaveLastWillMessageReply {})
+}
+
+pub async fn get_last_will_message_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &GetLastWillMessageRequest,
+) -> Result<GetLastWillMessageReply, MetaServiceError> {
+    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
+    if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
+        return Ok(GetLastWillMessageReply {
+            message: will.encode()?,
+        });
+    }
+
+    Ok(GetLastWillMessageReply {
+        message: Vec::new(),
+    })
 }
