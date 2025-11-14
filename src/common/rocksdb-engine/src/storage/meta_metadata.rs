@@ -35,7 +35,7 @@ where
     engine_save(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        "meta_metadata",
         key_name,
         value,
     )
@@ -51,7 +51,7 @@ where
     engine_get(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        "meta_metadata",
         key_name,
     )
 }
@@ -63,7 +63,7 @@ pub fn engine_exists_by_meta_metadata(
     engine_exists(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        "meta_metadata",
         key_name,
     )
 }
@@ -75,7 +75,7 @@ pub fn engine_delete_by_meta_metadata(
     engine_delete(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        "meta_metadata",
         key_name,
     )
 }
@@ -90,7 +90,7 @@ where
     engine_prefix_list(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        "meta_metadata",
         prefix_key_name,
     )
 }

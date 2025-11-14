@@ -33,6 +33,10 @@ pub fn column_family_list() -> Vec<String> {
     ]
 }
 
+pub fn test_default_column_family() -> String {
+    DB_COLUMN_FAMILY_META_METADATA.to_string()
+}
+
 pub fn storage_data_fold(path: &str) -> String {
     let mut result = String::with_capacity(path.len() + 6);
     result.push_str(path);
@@ -54,8 +58,8 @@ mod tests {
     #[tokio::test]
     async fn column_family_list_test() {
         let list = column_family_list();
-        assert_eq!(list.len(), 3);
-        assert_eq!(list[0], "meta");
+        assert_eq!(list.len(), 5);
+        assert_eq!(list[0], "meta_raft");
     }
 
     #[tokio::test]

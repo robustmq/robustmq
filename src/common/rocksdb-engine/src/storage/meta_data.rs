@@ -16,7 +16,7 @@ use crate::{
     rocksdb::RocksDBEngine,
     storage::{
         base::{engine_delete, engine_exists, engine_get, engine_prefix_list, engine_save},
-        family::DB_COLUMN_FAMILY_META_METADATA,
+        family::DB_COLUMN_FAMILY_META_DATA,
     },
     warp::StorageDataWrap,
 };
@@ -34,8 +34,8 @@ where
 {
     engine_save(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        DB_COLUMN_FAMILY_META_DATA,
+        "meta_data",
         key_name,
         value,
     )
@@ -50,8 +50,8 @@ where
 {
     engine_get(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        DB_COLUMN_FAMILY_META_DATA,
+        "meta_data",
         key_name,
     )
 }
@@ -62,8 +62,8 @@ pub fn engine_exists_by_meta_data(
 ) -> Result<bool, CommonError> {
     engine_exists(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        DB_COLUMN_FAMILY_META_DATA,
+        "meta_data",
         key_name,
     )
 }
@@ -74,8 +74,8 @@ pub fn engine_delete_by_meta_data(
 ) -> Result<(), CommonError> {
     engine_delete(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        DB_COLUMN_FAMILY_META_DATA,
+        "meta_data",
         key_name,
     )
 }
@@ -89,8 +89,8 @@ where
 {
     engine_prefix_list(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_META_METADATA,
-        "meta",
+        DB_COLUMN_FAMILY_META_DATA,
+        "meta_data",
         prefix_key_name,
     )
 }

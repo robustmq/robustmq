@@ -452,7 +452,7 @@ mod tests {
                 }
             }
 
-            sleep(Duration::from_millis(1000)).await;
+            sleep(Duration::from_millis(10)).await;
         }
 
         assert_eq!((now_second() - start), 3);

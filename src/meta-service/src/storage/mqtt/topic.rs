@@ -23,9 +23,13 @@ use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta_data::{
+    engine_delete_by_meta_data, engine_get_by_meta_data, engine_prefix_list_by_meta_data,
+    engine_save_by_meta_data,
+};
 use rocksdb_engine::storage::meta_metadata::{
-    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
-    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
+    engine_delete_by_meta_metadata, engine_prefix_list_by_meta_metadata,
+    engine_save_by_meta_metadata,
 };
 
 pub struct MqttTopicStorage {
@@ -39,6 +43,7 @@ impl MqttTopicStorage {
         }
     }
 
+    // Topic
     pub fn save(
         &self,
         cluster_name: &str,
@@ -46,13 +51,13 @@ impl MqttTopicStorage {
         topic: MQTTTopic,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, topic)?;
+        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, topic)?;
         Ok(())
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTTopic>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta_metadata::<MQTTTopic>(
+        let data = engine_prefix_list_by_meta_data::<MQTTTopic>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -71,7 +76,7 @@ impl MqttTopicStorage {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
 
         if let Some(data) =
-            engine_get_by_meta_metadata::<MQTTTopic>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_data::<MQTTTopic>(self.rocksdb_engine_handler.clone(), &key)?
         {
             let topic = data.data;
             return Ok(Some(topic));
@@ -81,10 +86,11 @@ impl MqttTopicStorage {
 
     pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 
+    // Rewrite Rule
     pub fn save_topic_rewrite_rule(
         &self,
         cluster_name: &str,
@@ -124,6 +130,7 @@ impl MqttTopicStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
+    // Retain Message
     pub fn save_retain_message(
         &self,
         retain_message: MQTTRetainMessage,
@@ -132,7 +139,7 @@ impl MqttTopicStorage {
             &retain_message.cluster_name,
             &retain_message.topic_name,
         );
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, retain_message)?;
+        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, retain_message)?;
         Ok(())
     }
 
@@ -142,7 +149,7 @@ impl MqttTopicStorage {
         topic_name: &str,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 
@@ -152,10 +159,9 @@ impl MqttTopicStorage {
         topic_name: &str,
     ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
         let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
-        if let Some(data) = engine_get_by_meta_metadata::<MQTTRetainMessage>(
-            self.rocksdb_engine_handler.clone(),
-            &key,
-        )? {
+        if let Some(data) =
+            engine_get_by_meta_data::<MQTTRetainMessage>(self.rocksdb_engine_handler.clone(), &key)?
+        {
             let topic = data.data;
             return Ok(Some(topic));
         }

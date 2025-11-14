@@ -148,7 +148,7 @@ impl SegmentMetadataStorage {
 mod test {
     use super::*;
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::{rocksdb::RocksDBEngine, storage::family::test_default_column_family};
     use std::sync::Arc;
     use tempfile::tempdir;
 
@@ -156,7 +156,7 @@ mod test {
         // Create a temporary directory for the database
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().to_str().unwrap();
-        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec!["meta".to_string()]);
+        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec![test_default_column_family()]);
         let rocksdb_engine_handler = Arc::new(rocksdb_engine);
         SegmentMetadataStorage::new(rocksdb_engine_handler)
     }

@@ -28,13 +28,13 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
+use rocksdb_engine::storage::meta_data::{
+    engine_delete_by_meta_data, engine_get_by_meta_data, engine_prefix_list_by_meta_data,
+    engine_save_by_meta_data,
+};
 
 use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta_metadata::{
-    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
-    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
-};
 
 pub struct MqttSessionStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -53,12 +53,12 @@ impl MqttSessionStorage {
         session: MqttSession,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, session)
+        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, session)
     }
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttSession>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta_metadata::<MqttSession>(
+        let data = engine_prefix_list_by_meta_data::<MqttSession>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -72,7 +72,7 @@ impl MqttSessionStorage {
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         if let Some(data) =
-            engine_get_by_meta_metadata::<MqttSession>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_data::<MqttSession>(self.rocksdb_engine_handler.clone(), &key)?
         {
             return Ok(Some(data.data));
         }
@@ -81,7 +81,7 @@ impl MqttSessionStorage {
 
     pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)
     }
 }
 
