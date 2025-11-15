@@ -16,9 +16,10 @@ use crate::raft::store::keys::{
     key_committed, key_last_purged_log_id, key_raft_log, key_vote, raft_log_key_to_id,
 };
 use crate::raft::type_config::{StorageResult, TypeConfig};
+use bincode::{deserialize, serialize};
 use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{
-    AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
+    Entry, LogId, LogState, OptionalSend, RaftLogReader,
     StorageError, Vote,
 };
 use rocksdb::{BoundColumnFamily, Direction, WriteBatch, DB};
@@ -34,19 +35,9 @@ pub struct LogStore {
 }
 
 impl LogStore {
+    #[inline]
     fn store(&self) -> Arc<BoundColumnFamily<'_>> {
         self.db.cf_handle(DB_COLUMN_FAMILY_META_RAFT).unwrap()
-    }
-
-    fn flush(
-        &self,
-        subject: ErrorSubject<TypeConfig>,
-        verb: ErrorVerb,
-    ) -> Result<(), StorageError<TypeConfig>> {
-        self.db
-            .flush_wal(true)
-            .map_err(|e| StorageError::new(subject, verb, AnyError::new(&e)))?;
-        Ok(())
     }
 
     fn get_last_purged_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
@@ -54,34 +45,21 @@ impl LogStore {
             .db
             .get_cf(&self.store(), key_last_purged_log_id(&self.machine))
             .map_err(|e| StorageError::read(&e))?
-            .and_then(|v| serde_json::from_slice(&v).ok()))
+            .and_then(|v| deserialize(&v).ok()))
     }
 
     fn set_last_purged_(&self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
+        let data = serialize(&log_id).map_err(|e| StorageError::write(&e))?;
         self.db
-            .put_cf(
-                &self.store(),
-                key_last_purged_log_id(&self.machine),
-                serde_json::to_vec(&log_id).unwrap().as_slice(),
-            )
-            .map_err(|e| StorageError::write(&e))?;
-
-        self.flush(ErrorSubject::Store, ErrorVerb::Write)?;
-        Ok(())
+            .put_cf(&self.store(), key_last_purged_log_id(&self.machine), data)
+            .map_err(|e| StorageError::write(&e))
     }
 
-    fn set_committed_(
-        &self,
-        committed: &Option<LogId<TypeConfig>>,
-    ) -> Result<(), StorageError<TypeConfig>> {
-        let json = serde_json::to_vec(committed).unwrap();
-
+    fn set_committed_(&self, committed: &Option<LogId<TypeConfig>>) -> StorageResult<()> {
+        let data = serialize(committed).map_err(|e| StorageError::write(&e))?;
         self.db
-            .put_cf(&self.store(), key_committed(&self.machine), json)
-            .map_err(|e| StorageError::write(&e))?;
-
-        self.flush(ErrorSubject::Store, ErrorVerb::Write)?;
-        Ok(())
+            .put_cf(&self.store(), key_committed(&self.machine), data)
+            .map_err(|e| StorageError::write(&e))
     }
 
     fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
@@ -89,20 +67,14 @@ impl LogStore {
             .db
             .get_cf(&self.store(), key_committed(&self.machine))
             .map_err(|e| StorageError::read(&e))?
-            .and_then(|v| serde_json::from_slice(&v).ok()))
+            .and_then(|v| deserialize(&v).ok()))
     }
 
     fn set_vote_(&self, vote: &Vote<TypeConfig>) -> StorageResult<()> {
+        let data = serialize(vote).map_err(|e| StorageError::write_vote(&e))?;
         self.db
-            .put_cf(
-                &self.store(),
-                key_vote(&self.machine),
-                serde_json::to_vec(vote).unwrap(),
-            )
-            .map_err(|e| StorageError::write_vote(&e))?;
-
-        self.flush(ErrorSubject::Vote, ErrorVerb::Write)?;
-        Ok(())
+            .put_cf(&self.store(), key_vote(&self.machine), data)
+            .map_err(|e| StorageError::write_vote(&e))
     }
 
     fn get_vote_(&self) -> StorageResult<Option<Vote<TypeConfig>>> {
@@ -110,7 +82,7 @@ impl LogStore {
             .db
             .get_cf(&self.store(), key_vote(&self.machine))
             .map_err(|e| StorageError::write_vote(&e))?
-            .and_then(|v| serde_json::from_slice(&v).ok()))
+            .and_then(|v| deserialize(&v).ok()))
     }
 }
 
@@ -142,7 +114,7 @@ impl RaftLogReader<TypeConfig> for LogStore {
                 break;
             }
             
-            let entry: Entry<TypeConfig> = serde_json::from_slice(&val)
+            let entry: Entry<TypeConfig> = deserialize(&val)
                 .map_err(|e| StorageError::read_logs(&e))?;
             
             entries.push(entry);
@@ -165,20 +137,15 @@ impl RaftLogStorage<TypeConfig> for LogStore {
             .iterator_cf(&self.store(), rocksdb::IteratorMode::End)
             .next()
             .and_then(|res| {
-                let (_, ent) = res.unwrap();
-                Some(
-                    serde_json::from_slice::<Entry<TypeConfig>>(&ent)
-                        .ok()?
-                        .log_id,
-                )
+                let (_, ent) = res.ok()?;
+                deserialize::<Entry<TypeConfig>>(&ent)
+                    .ok()
+                    .map(|e| e.log_id)
             });
 
         let last_purged_log_id = self.get_last_purged_()?;
-
-        let last_log_id = match last {
-            None => last_purged_log_id,
-            Some(x) => Some(x),
-        };
+        let last_log_id = last.or(last_purged_log_id);
+        
         Ok(LogState {
             last_purged_log_id,
             last_log_id,
@@ -187,17 +154,13 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
     async fn save_committed(
         &mut self,
-        _committed: Option<LogId<TypeConfig>>,
+        committed: Option<LogId<TypeConfig>>,
     ) -> Result<(), StorageError<TypeConfig>> {
-        self.set_committed_(&_committed)?;
-        Ok(())
+        self.set_committed_(&committed)
     }
 
-    async fn read_committed(
-        &mut self,
-    ) -> Result<Option<LogId<TypeConfig>>, StorageError<TypeConfig>> {
-        let c = self.get_committed_()?;
-        Ok(c)
+    async fn read_committed(&mut self) -> Result<Option<LogId<TypeConfig>>, StorageError<TypeConfig>> {
+        self.get_committed_()
     }
 
     async fn save_vote(&mut self, vote: &Vote<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
@@ -214,8 +177,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
         for entry in entries {
             let id = key_raft_log(&self.machine, entry.log_id.index);
-            let serialized =
-                serde_json::to_vec(&entry).map_err(|e| StorageError::write_logs(&e))?;
+            let serialized = serialize(&entry).map_err(|e| StorageError::write_logs(&e))?;
 
             batch.put_cf(&self.store(), id, serialized);
             entry_count += 1;
@@ -305,8 +267,7 @@ mod tests {
         let mut batch = WriteBatch::default();
         for entry in entries {
             let id = key_raft_log(&log_store.machine, entry.log_id.index);
-            let serialized = serde_json::to_vec(&entry)
-                .map_err(|e| StorageError::write_logs(&e))?;
+            let serialized = serialize(&entry).map_err(|e| StorageError::write_logs(&e))?;
             batch.put_cf(&log_store.store(), id, serialized);
         }
         log_store.db.write(batch).map_err(|e| StorageError::write_logs(&e))
@@ -376,9 +337,26 @@ mod tests {
         assert!(log_store.get_committed_().unwrap().is_none());
 
         let log_id = create_log_id(1, 1, 100);
+        
+        // Debug: test bincode serialization
+        let serialized = serialize(&Some(log_id.clone())).unwrap();
+        println!("Serialized bytes: {:?}", serialized);
+        let deserialized: Option<LogId<TypeConfig>> = deserialize(&serialized).unwrap();
+        println!("Original: {:?}", log_id);
+        println!("Deserialized: {:?}", deserialized);
+        
         log_store.set_committed_(&Some(log_id.clone())).unwrap();
         
+        // Debug: check what's actually stored in DB
+        let raw_bytes = log_store.db
+            .get_cf(&log_store.store(), key_committed(&log_store.machine))
+            .unwrap()
+            .unwrap();
+        println!("Stored bytes: {:?}", raw_bytes);
+        println!("Stored bytes len: {}", raw_bytes.len());
+        
         let retrieved = log_store.get_committed_().unwrap().unwrap();
+        println!("Retrieved: {:?}", retrieved);
         assert_eq!(retrieved.leader_id.term, log_id.leader_id.term);
         assert_eq!(retrieved.leader_id.node_id, log_id.leader_id.node_id);
         assert_eq!(retrieved.index, log_id.index);
@@ -423,8 +401,14 @@ mod tests {
         opts.create_missing_column_families(true);
         let db = Arc::new(DB::open_cf(&opts, temp_dir.path(), vec![DB_COLUMN_FAMILY_META_RAFT]).unwrap());
 
-        let log_store1 = LogStore { machine: "machine1".to_string(), db: db.clone() };
-        let log_store2 = LogStore { machine: "machine2".to_string(), db: db.clone() };
+        let log_store1 = LogStore {
+            machine: "machine1".to_string(),
+            db: db.clone(),
+        };
+        let log_store2 = LogStore {
+            machine: "machine2".to_string(),
+            db: db.clone(),
+        };
 
         let log_id1 = create_log_id(1, 1, 100);
         let log_id2 = create_log_id(2, 2, 200);

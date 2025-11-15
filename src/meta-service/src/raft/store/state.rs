@@ -21,6 +21,7 @@ use crate::raft::type_config::Entry;
 use crate::raft::type_config::StorageResult;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
 use bytes::Bytes;
+use common_base::tools::now_nanos;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
@@ -35,12 +36,6 @@ use tracing::warn;
 #[derive(Clone)]
 pub struct StateMachineStore {
     pub data: StateMachineData,
-
-    /// snapshot index is not persisted in this example.
-    ///
-    /// It is only used as a suffix of snapshot id, and should be globally unique.
-    /// In practice, using a timestamp in micro-second would be good enough.
-    snapshot_idx: u64,
 
     /// State machine stores snapshot in db.
     db: Arc<DB>,
@@ -64,9 +59,9 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
         let kv_json = build_snapshot();
 
         let snapshot_id = if let Some(last) = last_applied_log {
-            format!("{}-{}-{}", last.leader_id, last.index, self.snapshot_idx)
+            format!("{}-{}-{}", last.leader_id, last.index, now_nanos())
         } else {
-            format!("--{}", self.snapshot_idx)
+            format!("--{}", now_nanos())
         };
 
         let meta = SnapshotMeta {
@@ -100,7 +95,6 @@ impl StateMachineStore {
                 last_membership: Default::default(),
                 route,
             },
-            snapshot_idx: 0,
             db,
         };
 
@@ -218,7 +212,6 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     }
 
     async fn get_snapshot_builder(&mut self) -> Self::SnapshotBuilder {
-        self.snapshot_idx += 1;
         self.clone()
     }
 
