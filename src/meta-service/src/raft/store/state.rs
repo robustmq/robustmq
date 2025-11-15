@@ -127,7 +127,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
             match ent.payload {
                 EntryPayload::Blank => {}
-                EntryPayload::Normal(req) => match self.data.route.route(req.clone()).await {
+                EntryPayload::Normal(req) => match self.data.route.route(&req).await {
                     Ok(data) => {
                         resp_value = data;
                     }
@@ -136,6 +136,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                             "Raft route failed to process message with error message: {},req:{:?}",
                             e, req.data_type
                         );
+                        return Err(StorageError::write(&e));
                     }
                 },
                 EntryPayload::Membership(mem) => {
