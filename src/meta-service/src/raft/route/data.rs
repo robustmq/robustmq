@@ -14,16 +14,17 @@
 
 use core::fmt;
 
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StorageData {
     pub data_type: StorageDataType,
-    pub value: Vec<u8>,
+    pub value: Bytes,
 }
 
 impl StorageData {
-    pub fn new(data_type: StorageDataType, value: Vec<u8>) -> StorageData {
+    pub fn new(data_type: StorageDataType, value: Bytes) -> StorageData {
         StorageData { data_type, value }
     }
 }

@@ -18,8 +18,8 @@ use common_base::error::common::CommonError;
 
 use crate::storage::keys::key_resource_config;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_get_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 pub struct ResourceConfigStorage {
@@ -39,7 +39,7 @@ impl ResourceConfigStorage {
         config: Vec<u8>,
     ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, config)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, config)
     }
 
     pub fn delete(
@@ -48,7 +48,7 @@ impl ResourceConfigStorage {
         resource_key: Vec<String>,
     ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn get(
@@ -58,7 +58,8 @@ impl ResourceConfigStorage {
     ) -> Result<Option<Vec<u8>>, CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
 
-        if let Some(data) = engine_get_by_meta(self.rocksdb_engine_handler.clone(), &key)? {
+        if let Some(data) = engine_get_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?
+        {
             return Ok(Some(data.data));
         }
         Ok(None)

@@ -16,7 +16,7 @@ use super::status::ConnectorContext;
 use crate::{
     controller::mqtt::call_broker::MQTTInnerCallManager,
     core::{cache::CacheManager, error::MetaServiceError},
-    raft::route::apply::RaftMachineManager,
+    raft::manager::MultiRaftManager,
 };
 use common_base::{
     error::ResultCommonError,
@@ -38,14 +38,14 @@ pub struct ConnectorScheduler {
 
 impl ConnectorScheduler {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {
         let config = broker_config();
         let connector_context = ConnectorContext::new(
-            raft_machine_apply,
+            raft_manager,
             call_manager,
             client_pool,
             cache_manager.clone(),
@@ -70,13 +70,13 @@ impl ConnectorScheduler {
 
 pub async fn start_connector_scheduler(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let scheduler = ConnectorScheduler::new(
-        raft_machine_apply.clone(),
+        raft_manager.clone(),
         call_manager.clone(),
         client_pool.clone(),
         cache_manager.clone(),

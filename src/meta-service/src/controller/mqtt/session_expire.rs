@@ -23,7 +23,7 @@ use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::broker::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;
 use rocksdb_engine::warp::StorageDataWrap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -78,12 +78,15 @@ impl SessionExpire {
 
     async fn get_expire_session_list(&self) -> Vec<MqttSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
-        let cf = if let Some(cf) = self.rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_META) {
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_META_DATA)
+        {
             cf
         } else {
             error!(
                 "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META.to_string())
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META_DATA.to_string())
             );
             return Vec::new();
         };
@@ -449,7 +452,7 @@ mod tests {
                 }
             }
 
-            sleep(Duration::from_millis(1000)).await;
+            sleep(Duration::from_millis(10)).await;
         }
 
         assert_eq!((now_second() - start), 3);

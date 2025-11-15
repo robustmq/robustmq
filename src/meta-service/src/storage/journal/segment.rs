@@ -22,8 +22,9 @@ use crate::storage::keys::{
     key_segment_shard_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 #[allow(dead_code)]
@@ -49,7 +50,7 @@ impl SegmentStorage {
             &segment.shard_name,
             segment.segment_seq,
         );
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &shard_key, segment)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, segment)
     }
 
     pub fn get(
@@ -60,9 +61,10 @@ impl SegmentStorage {
         segment_seq: u32,
     ) -> Result<Option<JournalSegment>, CommonError> {
         let shard_key: String = key_segment(cluster_name, namespace, shard_name, segment_seq);
-        if let Some(data) =
-            engine_get_by_meta::<JournalSegment>(self.rocksdb_engine_handler.clone(), &shard_key)?
-        {
+        if let Some(data) = engine_get_by_meta_metadata::<JournalSegment>(
+            self.rocksdb_engine_handler.clone(),
+            &shard_key,
+        )? {
             return Ok(Some(data.data));
         }
         Ok(None)
@@ -70,7 +72,7 @@ impl SegmentStorage {
 
     pub fn all_segment(&self) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_all_segment();
-        let data = engine_prefix_list_by_meta::<JournalSegment>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -83,7 +85,7 @@ impl SegmentStorage {
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta::<JournalSegment>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -100,7 +102,7 @@ impl SegmentStorage {
         namespace: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_namespace_prefix(cluster_name, namespace);
-        let data = engine_prefix_list_by_meta::<JournalSegment>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -118,7 +120,7 @@ impl SegmentStorage {
         shard_name: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_shard_prefix(cluster_name, namespace, shard_name);
-        let data = engine_prefix_list_by_meta::<JournalSegment>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -137,7 +139,7 @@ impl SegmentStorage {
         segment_seq: u32,
     ) -> Result<(), CommonError> {
         let shard_key = key_segment(cluster_name, namespace, shard_name, segment_seq);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &shard_key)
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
     }
 }
 

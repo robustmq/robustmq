@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::core::error::MetaServiceError;
+use crate::raft::manager::MultiRaftManager;
+use crate::storage::mqtt::blacklist::MqttBlackListStorage;
+use crate::{
+    raft::route::data::{StorageData, StorageDataType},
+    storage::mqtt::acl::AclStorage,
+};
+use bytes::Bytes;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, DeleteAclReply,
@@ -21,16 +27,7 @@ use protocol::meta::meta_service_mqtt::{
     ListBlacklistReply, ListBlacklistRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
-
-use crate::core::error::MetaServiceError;
-use crate::storage::mqtt::blacklist::MqttBlackListStorage;
-use crate::{
-    raft::route::{
-        apply::RaftMachineManager,
-        data::{StorageData, StorageDataType},
-    },
-    storage::mqtt::acl::AclStorage,
-};
+use std::sync::Arc;
 
 pub fn list_acl_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -46,28 +43,28 @@ pub fn list_acl_by_req(
 }
 
 pub async fn create_acl_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &CreateAclRequest,
 ) -> Result<CreateAclReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAcl,
-        CreateAclRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateAclRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(CreateAclReply {})
 }
 
 pub async fn delete_acl_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteAclRequest,
 ) -> Result<DeleteAclReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAcl,
-        DeleteAclRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteAclRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(DeleteAclReply {})
 }
 
@@ -85,27 +82,27 @@ pub fn list_blacklist_by_req(
 }
 
 pub async fn delete_blacklist_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteBlacklist,
-        DeleteBlacklistRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteBlacklistRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(DeleteBlacklistReply {})
 }
 
 pub async fn create_blacklist_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetBlacklist,
-        CreateBlacklistRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateBlacklistRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     Ok(CreateBlacklistReply {})
 }

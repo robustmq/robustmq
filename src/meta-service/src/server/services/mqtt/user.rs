@@ -17,12 +17,13 @@ use crate::{
         update_cache_by_add_user, update_cache_by_delete_user, MQTTInnerCallManager,
     },
     core::error::MetaServiceError,
-    raft::route::{
-        apply::RaftMachineManager,
-        data::{StorageData, StorageDataType},
+    raft::{
+        manager::MultiRaftManager,
+        route::data::{StorageData, StorageDataType},
     },
     storage::mqtt::user::MqttUserStorage,
 };
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message;
@@ -58,7 +59,7 @@ pub fn list_user_by_req(
 }
 
 pub async fn create_user_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -71,10 +72,10 @@ pub async fn create_user_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttSetUser,
-        CreateUserRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&CreateUserRequest::encode_to_vec(req)),
     );
 
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     let user = MqttUser::decode(&req.content)?;
     update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
@@ -82,7 +83,7 @@ pub async fn create_user_by_req(
 }
 
 pub async fn delete_user_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -97,9 +98,9 @@ pub async fn delete_user_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteUser,
-        DeleteUserRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteUserRequest::encode_to_vec(req)),
     );
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
     update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
     Ok(DeleteUserReply {})

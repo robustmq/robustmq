@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MetaServiceError;
-use crate::raft::raft_node::Node;
 use crate::raft::type_config::TypeConfig;
+use crate::{core::error::MetaServiceError, raft::type_config::Node};
 use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::meta::meta_service_openraft::{
@@ -22,11 +21,18 @@ use protocol::meta::meta_service_openraft::{
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 
+// Deserialize directly from slice to avoid unnecessary copies
+fn deserialize_from_slice<T: serde::de::DeserializeOwned>(
+    bytes: &[u8],
+) -> Result<T, MetaServiceError> {
+    deserialize(bytes).map_err(|e| MetaServiceError::CommonError(e.to_string()))
+}
+
 pub async fn vote_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &VoteRequest,
 ) -> Result<VoteReply, MetaServiceError> {
-    let vote_data = deserialize(&req.value)?;
+    let vote_data = deserialize_from_slice(&req.value)?;
     raft_node
         .vote(vote_data)
         .await
@@ -42,7 +48,7 @@ pub async fn append_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &AppendRequest,
 ) -> Result<AppendReply, MetaServiceError> {
-    let append_data = deserialize(&req.value)?;
+    let append_data = deserialize_from_slice(&req.value)?;
     raft_node
         .append_entries(append_data)
         .await
@@ -58,7 +64,7 @@ pub async fn snapshot_by_req(
     raft_node: &Raft<TypeConfig>,
     req: &SnapshotRequest,
 ) -> Result<SnapshotReply, MetaServiceError> {
-    let snapshot_data = deserialize(&req.value)?;
+    let snapshot_data = deserialize_from_slice(&req.value)?;
     raft_node
         .install_snapshot(snapshot_data)
         .await

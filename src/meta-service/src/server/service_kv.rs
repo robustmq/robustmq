@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use crate::raft::manager::MultiRaftManager;
 use crate::server::services::kv::{
     delete_by_req, exists_by_req, get_by_req, get_prefix_by_req, list_shard_by_req, set_by_req,
 };
@@ -22,23 +23,21 @@ use protocol::meta::meta_service_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
-use crate::raft::route::apply::RaftMachineManager;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-
 pub struct GrpcKvService {
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcKvService {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcKvService {
-            raft_machine_apply,
+            raft_manager,
             rocksdb_engine_handler,
         }
     }
@@ -49,7 +48,7 @@ impl KvService for GrpcKvService {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
         let req = request.into_inner();
 
-        set_by_req(&self.raft_machine_apply, &req)
+        set_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -61,7 +60,7 @@ impl KvService for GrpcKvService {
     ) -> Result<Response<DeleteReply>, Status> {
         let req = request.into_inner();
 
-        delete_by_req(&self.raft_machine_apply, &req)
+        delete_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

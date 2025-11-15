@@ -14,7 +14,7 @@
 
 use super::cluster::un_register_node_by_req;
 use crate::controller::journal::call_node::JournalInnerCallManager;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
@@ -33,7 +33,7 @@ pub struct NodeHeartbeatData {
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
     cluster_cache: Arc<CacheManager>,
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
@@ -43,7 +43,7 @@ impl BrokerHeartbeat {
     pub fn new(
         timeout_ms: u64,
         cluster_cache: Arc<CacheManager>,
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         client_pool: Arc<ClientPool>,
         journal_call_manager: Arc<JournalInnerCallManager>,
         mqtt_call_manager: Arc<MQTTInnerCallManager>,
@@ -51,7 +51,7 @@ impl BrokerHeartbeat {
         BrokerHeartbeat {
             timeout_ms,
             cluster_cache,
-            raft_machine_apply,
+            raft_manager,
             client_pool,
             journal_call_manager,
             mqtt_call_manager,
@@ -76,7 +76,7 @@ impl BrokerHeartbeat {
 
                         if let Err(e) = un_register_node_by_req(
                             &self.cluster_cache,
-                            &self.raft_machine_apply,
+                            &self.raft_manager,
                             &self.client_pool,
                             &self.journal_call_manager,
                             &self.mqtt_call_manager,

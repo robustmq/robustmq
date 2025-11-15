@@ -18,11 +18,8 @@ use crate::controller::mqtt::call_broker::{mqtt_call_thread_manager, MQTTInnerCa
 use crate::controller::mqtt::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
-use crate::raft::raft_node::start_raft_node;
-use crate::raft::route::apply::RaftMachineManager;
-use crate::raft::type_config::TypeConfig;
+use crate::raft::manager::MultiRaftManager;
 use grpc_clients::pool::ClientPool;
-use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -37,8 +34,7 @@ pub mod storage;
 
 #[derive(Clone)]
 pub struct MetaServiceServerParams {
-    pub raf_node: Raft<TypeConfig>,
-    pub storage_driver: Arc<RaftMachineManager>,
+    pub raft_manager: Arc<MultiRaftManager>,
     // Cache metadata information for the Storage Engine cluster
     pub cache_manager: Arc<CacheManager>,
     // Raft Global read and write pointer
@@ -51,8 +47,7 @@ pub struct MetaServiceServerParams {
     pub mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 pub struct MetaServiceServer {
-    raf_node: Raft<TypeConfig>,
-    storage_driver: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     // Cache metadata information for the Storage Engine cluster
     cache_manager: Arc<CacheManager>,
     // Raft Global read and write pointer
@@ -79,8 +74,7 @@ impl MetaServiceServer {
             client_pool: params.client_pool,
             journal_call_manager: params.journal_call_manager,
             mqtt_call_manager: params.mqtt_call_manager,
-            raf_node: params.raf_node,
-            storage_driver: params.storage_driver,
+            raft_manager: params.raft_manager,
             main_stop,
             inner_stop,
         }
@@ -103,7 +97,7 @@ impl MetaServiceServer {
     pub fn start_heartbeat(&self) {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
-            self.storage_driver.clone(),
+            self.raft_manager.clone(),
             self.inner_stop.clone(),
             self.client_pool.clone(),
             self.journal_call_manager.clone(),
@@ -117,19 +111,20 @@ impl MetaServiceServer {
 
     fn start_raft_machine(&self) {
         // create raft node
-        let raft_node = self.raf_node.clone();
+        let raft_manager = self.raft_manager.clone();
 
         tokio::spawn(async move {
-            start_raft_node(raft_node).await;
+            if let Err(e) = raft_manager.start().await {
+                panic!("{}", e);
+            }
         });
 
         // monitor leader switch
         monitoring_leader_transition(
-            &self.raf_node,
             self.rocksdb_engine_handler.clone(),
             self.cache_manager.clone(),
             self.client_pool.clone(),
-            self.storage_driver.clone(),
+            self.raft_manager.clone(),
             self.main_stop.clone(),
         );
     }
@@ -146,12 +141,12 @@ impl MetaServiceServer {
         let call_manager = self.mqtt_call_manager.clone();
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
-        let raft_machine_apply = self.storage_driver.clone();
+        let raft_manager = self.raft_manager.clone();
         let stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
             start_connector_scheduler(
                 &cache_manager,
-                &raft_machine_apply,
+                &raft_manager,
                 &call_manager,
                 &client_pool,
                 stop_send,
@@ -177,7 +172,7 @@ impl MetaServiceServer {
 
     pub async fn awaiting_stop(&self) {
         let main_stop = self.main_stop.clone();
-        let raw_raf_node = self.raf_node.clone();
+        let raft_manager = self.raft_manager.clone();
         let inner_stop = self.inner_stop.clone();
         // Stop the Server first, indicating that it will no longer receive request packets.
         let mut recv = main_stop.subscribe();
@@ -197,7 +192,7 @@ impl MetaServiceServer {
 
                 // Step 3: Shutdown Raft node
                 info!("Shutting down Raft node...");
-                if let Err(e) = raw_raf_node.shutdown().await {
+                if let Err(e) = raft_manager.shutdown().await {
                     error!("Failed to shutdown Raft node: {}", e);
                 } else {
                     info!("Raft node shutdown successfully.");

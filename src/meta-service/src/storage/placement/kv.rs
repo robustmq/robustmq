@@ -17,9 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_exists_by_meta, engine_get_by_meta, engine_prefix_list_by_meta,
-    engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_exists_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 #[derive(Debug, Clone)]
@@ -35,15 +35,16 @@ impl KvStorage {
     }
 
     pub fn set(&self, key: String, value: String) -> Result<(), CommonError> {
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &key, value)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, value)
     }
 
     pub fn delete(&self, key: String) -> Result<(), CommonError> {
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
-        if let Some(data) = engine_get_by_meta::<String>(self.rocksdb_engine_handler.clone(), &key)?
+        if let Some(data) =
+            engine_get_by_meta_metadata::<String>(self.rocksdb_engine_handler.clone(), &key)?
         {
             return Ok(Some(data.data));
         }
@@ -51,11 +52,14 @@ impl KvStorage {
     }
 
     pub fn exists(&self, key: String) -> Result<bool, CommonError> {
-        engine_exists_by_meta(self.rocksdb_engine_handler.clone(), &key)
+        engine_exists_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn get_prefix(&self, prefix: String) -> Result<Vec<String>, CommonError> {
-        match engine_prefix_list_by_meta::<String>(self.rocksdb_engine_handler.clone(), &prefix) {
+        match engine_prefix_list_by_meta_metadata::<String>(
+            self.rocksdb_engine_handler.clone(),
+            &prefix,
+        ) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for item in data {

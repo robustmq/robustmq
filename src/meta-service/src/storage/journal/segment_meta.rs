@@ -17,8 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta::{
-    engine_delete_by_meta, engine_get_by_meta, engine_prefix_list_by_meta, engine_save_by_meta,
+use rocksdb_engine::storage::meta_metadata::{
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 use crate::storage::keys::{
@@ -44,7 +45,7 @@ impl SegmentMetadataStorage {
             &segment.shard_name,
             segment.segment_seq,
         );
-        engine_save_by_meta(self.rocksdb_engine_handler.clone(), &shard_key, segment)
+        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, segment)
     }
 
     pub fn get(
@@ -57,7 +58,7 @@ impl SegmentMetadataStorage {
         let shard_key: String =
             key_segment_metadata(cluster_name, namespace, shard_name, segment_seq);
 
-        if let Some(data) = engine_get_by_meta::<JournalSegmentMetadata>(
+        if let Some(data) = engine_get_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
             &shard_key,
         )? {
@@ -69,7 +70,7 @@ impl SegmentMetadataStorage {
 
     pub fn all_segment(&self) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_all_segment_metadata();
-        let data = engine_prefix_list_by_meta::<JournalSegmentMetadata>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -85,7 +86,7 @@ impl SegmentMetadataStorage {
         cluster_name: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta::<JournalSegmentMetadata>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -102,7 +103,7 @@ impl SegmentMetadataStorage {
         namespace: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_namespace_prefix(cluster_name, namespace);
-        let data = engine_prefix_list_by_meta::<JournalSegmentMetadata>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -120,7 +121,7 @@ impl SegmentMetadataStorage {
         shard_name: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_shard_prefix(cluster_name, namespace, shard_name);
-        let data = engine_prefix_list_by_meta::<JournalSegmentMetadata>(
+        let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
@@ -139,7 +140,7 @@ impl SegmentMetadataStorage {
         segment_seq: u32,
     ) -> Result<(), CommonError> {
         let shard_key = key_segment_metadata(cluster_name, namespace, shard_name, segment_seq);
-        engine_delete_by_meta(self.rocksdb_engine_handler.clone(), &shard_key)
+        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
     }
 }
 
@@ -147,7 +148,7 @@ impl SegmentMetadataStorage {
 mod test {
     use super::*;
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use rocksdb_engine::{rocksdb::RocksDBEngine, storage::family::test_default_column_family};
     use std::sync::Arc;
     use tempfile::tempdir;
 
@@ -155,7 +156,7 @@ mod test {
         // Create a temporary directory for the database
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().to_str().unwrap();
-        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec!["meta".to_string()]);
+        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec![test_default_column_family()]);
         let rocksdb_engine_handler = Arc::new(rocksdb_engine);
         SegmentMetadataStorage::new(rocksdb_engine_handler)
     }

@@ -18,16 +18,19 @@ use grpc_clients::pool::ClientPool;
 use openraft::RaftNetworkFactory;
 
 use super::connection::NetworkConnection;
-use crate::raft::raft_node::{Node, NodeId};
-use crate::raft::type_config::TypeConfig;
+use crate::raft::type_config::{Node, NodeId, TypeConfig};
 
 pub struct Network {
     client_pool: Arc<ClientPool>,
+    machine: String,
 }
 
 impl Network {
-    pub fn new(client_pool: Arc<ClientPool>) -> Network {
-        Network { client_pool }
+    pub fn new(machine: String, client_pool: Arc<ClientPool>) -> Network {
+        Network {
+            client_pool,
+            machine,
+        }
     }
 }
 
@@ -39,6 +42,6 @@ impl RaftNetworkFactory<TypeConfig> for Network {
     #[tracing::instrument(level = "debug", skip_all)]
     async fn new_client(&mut self, _: NodeId, node: &Node) -> Self::Network {
         let addr = node.rpc_addr.to_string();
-        NetworkConnection::new(addr, self.client_pool.clone())
+        NetworkConnection::new(self.machine.clone(), addr, self.client_pool.clone())
     }
 }

@@ -31,6 +31,7 @@ serde.workspace = true
 serde_json.workspace = true
 rocksdb-engine.workspace = true
 bincode.workspace = true
+bytes.workspace = true
 dashmap.workspace = true
 byteorder.workspace = true
 axum.workspace = true

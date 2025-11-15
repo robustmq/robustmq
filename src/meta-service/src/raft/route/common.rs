@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Bytes;
 use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
@@ -51,7 +52,7 @@ impl DataRouteCluster {
     }
 
     // Cluster
-    pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub async fn add_cluster(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let cluster = ClusterInfo::decode(&value)?;
         let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
         cluster_storage.save(&cluster)?;
@@ -60,7 +61,7 @@ impl DataRouteCluster {
     }
 
     // Node
-    pub async fn add_node(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub async fn add_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = RegisterNodeRequest::decode(value.as_ref())?;
         let node = BrokerNode::decode(&req.node)?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
@@ -69,7 +70,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub async fn delete_node(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub async fn delete_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         node_storage.delete(&req.cluster_name, req.node_id)?;
@@ -79,14 +80,14 @@ impl DataRouteCluster {
     }
 
     // ResourceConfig
-    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn set_resource_config(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         config_storage.save(req.cluster_name, req.resources, req.config)?;
         Ok(())
     }
 
-    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn delete_resource_config(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         config_storage.delete(req.cluster_name, req.resources)?;
@@ -94,14 +95,14 @@ impl DataRouteCluster {
     }
 
     // IdempotentData
-    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn set_idempotent_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num)?;
         Ok(())
     }
 
-    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn delete_idempotent_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num)?;
@@ -109,7 +110,7 @@ impl DataRouteCluster {
     }
 
     // OffsetData
-    pub fn save_offset_data(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn save_offset_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = SaveOffsetDataRequest::decode(value.as_ref())?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
         for raw in req.offsets {
@@ -125,7 +126,7 @@ impl DataRouteCluster {
     }
 
     // Schema
-    pub fn set_schema(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn set_schema(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let schema = SchemaData::decode(&req.schema)?;
@@ -133,7 +134,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub fn delete_schema(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn delete_schema(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         schema_storage.delete(&req.cluster_name, &req.schema_name)?;
@@ -141,7 +142,7 @@ impl DataRouteCluster {
     }
 
     // Schema Bind
-    pub fn set_schema_bind(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn set_schema_bind(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = BindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let bind_data = SchemaResourceBind {
@@ -153,14 +154,14 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub fn delete_schema_bind(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn delete_schema_bind(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = UnBindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         schema_storage.delete_bind(&req.cluster_name, &req.resource_name, &req.schema_name)?;
         Ok(())
     }
 
-    pub fn delete_offset_data(&self, _: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub fn delete_offset_data(&self, _: Bytes) -> Result<(), MetaServiceError> {
         Ok(())
     }
 }
@@ -169,6 +170,7 @@ impl DataRouteCluster {
 mod tests {
     use std::sync::Arc;
 
+    use bytes::Bytes;
     use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
@@ -200,7 +202,7 @@ mod tests {
         let request = RegisterNodeRequest {
             node: node.encode().unwrap(),
         };
-        let data = RegisterNodeRequest::encode_to_vec(&request);
+        let data = Bytes::copy_from_slice(&RegisterNodeRequest::encode_to_vec(&request));
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
             config.rocksdb.max_open_files,

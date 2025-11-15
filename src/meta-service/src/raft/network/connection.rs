@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raft::error::to_error;
+use crate::raft::error::{to_bincode_error, to_error, to_grpc_error};
 use crate::raft::type_config::TypeConfig;
-use bincode::{deserialize, serialize};
+use bincode::{deserialize, serialize_into};
 use common_base::error::common::CommonError;
 use grpc_clients::meta::openraft::OpenRaftServiceManager;
 use grpc_clients::pool::ClientPool;
@@ -27,21 +27,43 @@ use openraft::raft::{
 };
 use openraft::RaftNetwork;
 use protocol::meta::meta_service_openraft::{AppendRequest, SnapshotRequest};
+use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 pub struct NetworkConnection {
     addr: String,
+    machine: String,
     client_pool: Arc<ClientPool>,
+    // Reusable serialization buffer to avoid per-call allocations
+    serialize_buf: Vec<u8>,
 }
+
 impl NetworkConnection {
-    pub fn new(addr: String, client_pool: Arc<ClientPool>) -> Self {
-        NetworkConnection { addr, client_pool }
+    pub fn new(machine: String, addr: String, client_pool: Arc<ClientPool>) -> Self {
+        NetworkConnection {
+            addr,
+            client_pool,
+            machine,
+            serialize_buf: Vec::with_capacity(4096),
+        }
     }
 
     async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
         self.client_pool
             .meta_service_openraft_services_client(&self.addr)
             .await
+    }
+
+    // Serialize to reusable buffer to reduce allocations
+    fn serialize_to_bytes<T: Serialize>(&mut self, value: &T) -> Result<Vec<u8>, bincode::Error> {
+        self.serialize_buf.clear();
+        serialize_into(&mut self.serialize_buf, value)?;
+        Ok(self.serialize_buf.clone())
+    }
+
+    // Deserialize directly from slice to avoid unnecessary copies
+    fn deserialize_from_bytes<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, bincode::Error> {
+        deserialize(bytes)
     }
 }
 
@@ -58,21 +80,34 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(e)),
         };
 
-        let value = match serialize(&req) {
+        let value = match self.serialize_to_bytes(&req) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => {
+                return Err(to_bincode_error(
+                    e,
+                    "Failed to serialize AppendEntriesRequest",
+                ))
+            }
         };
 
-        let request = AppendRequest { value };
+        let request = AppendRequest {
+            machine: self.machine.clone(),
+            value,
+        };
 
         let reply = match c.append(request).await {
             Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => return Err(to_grpc_error(e, "Failed to send AppendEntries RPC")),
         };
 
-        let result = match deserialize(&reply.value) {
+        let result = match Self::deserialize_from_bytes(&reply.value) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => {
+                return Err(to_bincode_error(
+                    e,
+                    "Failed to deserialize AppendEntriesResponse",
+                ))
+            }
         };
 
         Ok(result)
@@ -91,20 +126,34 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(e)),
         };
 
-        let value = match serialize(&req) {
+        let value = match self.serialize_to_bytes(&req) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => {
+                return Err(to_bincode_error(
+                    e,
+                    "Failed to serialize InstallSnapshotRequest",
+                ))
+            }
         };
 
-        let request = SnapshotRequest { value };
+        let request = SnapshotRequest {
+            machine: self.machine.clone(),
+            value,
+        };
 
         let reply = match c.snapshot(request).await {
             Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => return Err(to_grpc_error(e, "Failed to send InstallSnapshot RPC")),
         };
-        let result = match deserialize(&reply.value) {
+
+        let result = match Self::deserialize_from_bytes(&reply.value) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => {
+                return Err(to_bincode_error(
+                    e,
+                    "Failed to deserialize InstallSnapshotResponse",
+                ))
+            }
         };
 
         Ok(result)
@@ -120,20 +169,24 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(e)),
         };
 
-        let value = match serialize(&req) {
+        let value = match self.serialize_to_bytes(&req) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => return Err(to_bincode_error(e, "Failed to serialize VoteRequest")),
         };
 
-        let request = protocol::meta::meta_service_openraft::VoteRequest { value };
+        let request = protocol::meta::meta_service_openraft::VoteRequest {
+            machine: self.machine.clone(),
+            value,
+        };
 
         let reply = match c.vote(request).await {
             Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => return Err(to_grpc_error(e, "Failed to send Vote RPC")),
         };
-        let result = match deserialize(&reply.value) {
+
+        let result = match Self::deserialize_from_bytes(&reply.value) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
+            Err(e) => return Err(to_bincode_error(e, "Failed to deserialize VoteResponse")),
         };
 
         Ok(result)

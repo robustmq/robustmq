@@ -60,7 +60,6 @@ impl RocksDBEngine {
 
         let opts = Self::open_db_opts_with_config(max_open_files, cfg);
         let shared_cache = Cache::new_lru_cache(cfg.block_cache_size);
-
         let cf_column_family: Vec<_> = cf_list
             .into_iter()
             .map(|cf| {

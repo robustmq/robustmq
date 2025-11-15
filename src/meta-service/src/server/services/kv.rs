@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
+use bytes::Bytes;
 use prost::Message;
 use protocol::meta::meta_service_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
@@ -25,7 +26,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn set_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &SetRequest,
 ) -> Result<SetReply, MetaServiceError> {
     if req.key.is_empty() || req.value.is_empty() {
@@ -34,8 +35,11 @@ pub async fn set_by_req(
         ));
     }
 
-    let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(req));
-    raft_machine_apply.client_write(data).await?;
+    let data = StorageData::new(
+        StorageDataType::KvSet,
+        Bytes::copy_from_slice(&SetRequest::encode_to_vec(req)),
+    );
+    raft_manager.write_metadata(data).await?;
 
     Ok(SetReply::default())
 }
@@ -63,7 +67,7 @@ pub async fn get_by_req(
 }
 
 pub async fn delete_by_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteRequest,
 ) -> Result<DeleteReply, MetaServiceError> {
     if req.key.is_empty() {
@@ -71,8 +75,11 @@ pub async fn delete_by_req(
     }
 
     // Raft状态机用于存储节点数据
-    let data = StorageData::new(StorageDataType::KvDelete, DeleteRequest::encode_to_vec(req));
-    raft_machine_apply.client_write(data).await?;
+    let data = StorageData::new(
+        StorageDataType::KvDelete,
+        Bytes::copy_from_slice(&DeleteRequest::encode_to_vec(req)),
+    );
+    raft_manager.write_metadata(data).await?;
 
     Ok(DeleteReply::default())
 }

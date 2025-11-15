@@ -16,7 +16,8 @@ use super::heartbeat::BrokerHeartbeat;
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
+
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
@@ -26,7 +27,7 @@ use tokio::sync::broadcast;
 
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
-    meta_service_storage: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
@@ -36,7 +37,7 @@ pub struct ClusterController {
 impl ClusterController {
     pub fn new(
         cluster_cache: Arc<CacheManager>,
-        meta_service_storage: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,
         journal_call_manager: Arc<JournalInnerCallManager>,
@@ -44,7 +45,7 @@ impl ClusterController {
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
-            meta_service_storage,
+            raft_manager,
             stop_send,
             client_pool,
             journal_call_manager,
@@ -58,7 +59,7 @@ impl ClusterController {
         let heartbeat = BrokerHeartbeat::new(
             config.meta_runtime.heartbeat_timeout_ms,
             self.cluster_cache.clone(),
-            self.meta_service_storage.clone(),
+            self.raft_manager.clone(),
             self.client_pool.clone(),
             self.journal_call_manager.clone(),
             self.mqtt_call_manager.clone(),

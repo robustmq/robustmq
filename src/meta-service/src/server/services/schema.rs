@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::error::MetaServiceError;
 use crate::{
     controller::mqtt::call_broker::{
         update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
         update_cache_by_delete_schema_bind, MQTTInnerCallManager,
     },
-    raft::route::{
-        apply::RaftMachineManager,
-        data::{StorageData, StorageDataType},
+    core::error::MetaServiceError,
+    raft::{
+        manager::MultiRaftManager,
+        route::data::{StorageData, StorageDataType},
     },
     storage::placement::schema::SchemaStorage,
 };
+use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message;
@@ -62,7 +63,7 @@ pub fn list_schema_req(
 }
 
 pub async fn create_schema_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
@@ -93,9 +94,9 @@ pub async fn create_schema_req(
     } else {
         let data = StorageData::new(
             StorageDataType::SchemaSet,
-            CreateSchemaRequest::encode_to_vec(req),
+            Bytes::copy_from_slice(&CreateSchemaRequest::encode_to_vec(req)),
         );
-        raft_machine_apply.client_write(data).await?;
+        raft_manager.write_metadata(data).await?;
 
         let schema = SchemaData::decode(&req.schema)?;
         update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
@@ -105,7 +106,7 @@ pub async fn create_schema_req(
 
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
@@ -135,9 +136,9 @@ pub async fn update_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaSet,
-        UpdateSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&UpdateSchemaRequest::encode_to_vec(req)),
     );
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     let schema = SchemaData::decode(&req.schema)?;
     update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
@@ -146,7 +147,7 @@ pub async fn update_schema_req(
 
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
@@ -173,9 +174,9 @@ pub async fn delete_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaDelete,
-        DeleteSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&DeleteSchemaRequest::encode_to_vec(req)),
     );
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     update_cache_by_delete_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
     Ok(())
@@ -223,7 +224,7 @@ pub async fn list_bind_schema_req(
 }
 
 pub async fn bind_schema_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
@@ -246,9 +247,9 @@ pub async fn bind_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaBindSet,
-        BindSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&BindSchemaRequest::encode_to_vec(req)),
     );
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     let schema_data = SchemaResourceBind {
         cluster_name: req.cluster_name.clone(),
@@ -262,7 +263,7 @@ pub async fn bind_schema_req(
 }
 
 pub async fn un_bind_schema_req(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
@@ -285,9 +286,9 @@ pub async fn un_bind_schema_req(
 
     let data = StorageData::new(
         StorageDataType::SchemaBindDelete,
-        UnBindSchemaRequest::encode_to_vec(req),
+        Bytes::copy_from_slice(&UnBindSchemaRequest::encode_to_vec(req)),
     );
-    raft_machine_apply.client_write(data).await?;
+    raft_manager.write_metadata(data).await?;
 
     let schema_data = SchemaResourceBind {
         cluster_name: req.cluster_name.clone(),

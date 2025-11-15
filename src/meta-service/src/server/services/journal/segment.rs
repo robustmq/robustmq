@@ -19,10 +19,11 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+use bytes::Bytes;
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{
@@ -77,7 +78,7 @@ pub async fn list_segment_by_req(
 
 pub async fn create_segment_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
@@ -117,7 +118,7 @@ pub async fn create_segment_by_req(
         .is_none()
     {
         let segment = build_segment(&shard, cache_manager, next_segment_no).await?;
-        sync_save_segment_info(raft_machine_apply, &segment).await?;
+        sync_save_segment_info(raft_manager, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
             cluster_name: segment.cluster_name.clone(),
@@ -129,15 +130,10 @@ pub async fn create_segment_by_req(
             start_timestamp: -1,
             end_timestamp: -1,
         };
-        sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
+        sync_save_segment_metadata_info(raft_manager, &metadata).await?;
 
-        update_last_segment_by_shard(
-            raft_machine_apply,
-            cache_manager,
-            &mut shard,
-            next_segment_no,
-        )
-        .await?;
+        update_last_segment_by_shard(raft_manager, cache_manager, &mut shard, next_segment_no)
+            .await?;
 
         update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
             .await?;
@@ -180,7 +176,7 @@ pub async fn create_segment_by_req(
 
 pub async fn delete_segment_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
@@ -217,7 +213,7 @@ pub async fn delete_segment_by_req(
 
     update_segment_status(
         cache_manager,
-        raft_machine_apply,
+        raft_manager,
         &segment,
         SegmentStatus::PreDelete,
     )
@@ -239,7 +235,7 @@ pub async fn delete_segment_by_req(
 
 pub async fn update_segment_status_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentStatusRequest,
@@ -269,7 +265,7 @@ pub async fn update_segment_status_req(
     let new_status = str_to_segment_status(&req.next_status)?;
     segment.status = new_status;
 
-    sync_save_segment_info(raft_machine_apply, &segment).await?;
+    sync_save_segment_info(raft_manager, &segment).await?;
     update_cache_by_set_segment(
         &req.cluster_name,
         call_manager,
@@ -316,7 +312,7 @@ pub async fn list_segment_meta_by_req(
 
 pub async fn update_segment_meta_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentMetaRequest,
@@ -372,7 +368,7 @@ pub async fn update_segment_meta_by_req(
         segment_meta.end_timestamp = req.end_timestamp;
     }
 
-    sync_save_segment_metadata_info(raft_machine_apply, &segment_meta).await?;
+    sync_save_segment_metadata_info(raft_manager, &segment_meta).await?;
 
     update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, segment_meta)
         .await?;
@@ -468,13 +464,13 @@ fn calc_node_fold(
 
 pub async fn update_segment_status(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     segment: &JournalSegment,
     status: SegmentStatus,
 ) -> Result<(), MetaServiceError> {
     let mut new_segment = segment.clone();
     new_segment.status = status;
-    sync_save_segment_info(raft_machine_apply, &new_segment).await?;
+    sync_save_segment_info(raft_manager, &new_segment).await?;
 
     cache_manager.set_segment(&new_segment);
 
@@ -482,50 +478,56 @@ pub async fn update_segment_status(
 }
 
 pub async fn sync_save_segment_info(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::JournalSetSegment, segment.encode()?);
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    let data = StorageData::new(
+        StorageDataType::JournalSetSegment,
+        Bytes::copy_from_slice(&Bytes::copy_from_slice(&segment.encode()?)),
+    );
+    if (raft_manager.write_metadata(data).await?).is_some() {
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn sync_delete_segment_info(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     segment: &JournalSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(StorageDataType::JournalDeleteSegment, segment.encode()?);
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    let data = StorageData::new(
+        StorageDataType::JournalDeleteSegment,
+        Bytes::copy_from_slice(&segment.encode()?),
+    );
+    if (raft_manager.write_metadata(data).await?).is_some() {
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn sync_save_segment_metadata_info(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     segment: &JournalSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegmentMetadata,
-        segment.encode()?,
+        Bytes::copy_from_slice(&segment.encode()?),
     );
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if (raft_manager.write_metadata(data).await?).is_some() {
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 pub async fn sync_delete_segment_metadata_info(
-    raft_machine_apply: &Arc<RaftMachineManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     segment: &JournalSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegmentMetadata,
-        segment.encode()?,
+        Bytes::copy_from_slice(&segment.encode()?),
     );
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if (raft_manager.write_metadata(data).await?).is_some() {
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)

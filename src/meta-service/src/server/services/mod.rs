@@ -16,3 +16,4 @@ pub mod inner;
 pub mod journal;
 pub mod kv;
 pub mod mqtt;
+pub mod schema;

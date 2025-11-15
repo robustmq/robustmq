@@ -47,6 +47,8 @@ VERSION="${VERSION:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_REPO="${GITHUB_REPO:-robustmq/robustmq}"
 UPLOAD_ONLY="${UPLOAD_ONLY:-false}"
+UPLOAD_MAX_RETRIES="${UPLOAD_MAX_RETRIES:-3}"
+UPLOAD_RETRY_DELAY="${UPLOAD_RETRY_DELAY:-5}"
 
 # GitHub API base URL
 GITHUB_API_URL="https://api.github.com"
@@ -88,6 +90,8 @@ show_help() {
     echo "    GITHUB_TOKEN              GitHub personal access token"
     echo "    VERSION                   Release version"
     echo "    UPLOAD_ONLY               Upload to existing release only (true/false)"
+    echo "    UPLOAD_MAX_RETRIES         Maximum retry attempts for upload (default: 3)"
+    echo "    UPLOAD_RETRY_DELAY         Initial delay in seconds between retries (default: 5)"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
     echo "    # Create release for current platform"
@@ -458,20 +462,73 @@ upload_package() {
     local filename="$(basename "$tarball")"
     local upload_url="https://uploads.github.com/repos/$GITHUB_REPO/releases/$release_id/assets?name=$filename"
 
-    log_info "Uploading $filename..."
+    local max_retries="${UPLOAD_MAX_RETRIES:-3}"
+    local retry_delay="${UPLOAD_RETRY_DELAY:-5}"
+    local attempt=1
+    local response
+    local http_code
+    local last_error=""
 
-    local response=$(curl -s \
-        -H "Authorization: token $GITHUB_TOKEN" \
-        -H "Content-Type: application/gzip" \
-        --data-binary "@$tarball" \
-        "$upload_url")
+    while [ $attempt -le $max_retries ]; do
+        if [ $attempt -gt 1 ]; then
+            log_info "Retry attempt $attempt/$max_retries (waiting ${retry_delay}s before retry)..."
+            sleep $retry_delay
+            # Exponential backoff: double the delay for next retry
+            retry_delay=$((retry_delay * 2))
+        else
+            log_info "Uploading $filename..."
+        fi
 
-    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-        log_success "Successfully uploaded $filename"
-    else
-        log_error "Failed to upload $filename"
-        return 1
+        # Use curl with HTTP status code capture
+        response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/gzip" \
+            --data-binary "@$tarball" \
+            "$upload_url")
+
+        http_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        response_body=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
+
+        # Check if upload was successful (HTTP 201 Created or 200 OK)
+        if [ "$http_code" -eq 201 ] || [ "$http_code" -eq 200 ]; then
+            if echo "$response_body" | jq -e '.id' >/dev/null 2>&1; then
+                log_success "Successfully uploaded $filename (HTTP $http_code)"
+                return 0
+            else
+                last_error="Upload returned HTTP $http_code but response body is invalid"
+                log_warning "$last_error"
+            fi
+        elif [ "$http_code" -ge 500 ]; then
+            # Server errors (5xx) are retryable
+            last_error="Server error (HTTP $http_code)"
+            log_warning "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
+        elif [ "$http_code" -eq 429 ]; then
+            # Rate limit (429) is retryable, but use longer delay
+            last_error="Rate limit exceeded (HTTP 429)"
+            log_warning "$last_error: Rate limit exceeded, will retry with longer delay"
+            retry_delay=$((retry_delay * 2))
+        elif [ "$http_code" -ge 400 ] && [ "$http_code" -lt 500 ]; then
+            # Client errors (4xx except 429) are usually not retryable
+            last_error="Client error (HTTP $http_code)"
+            log_error "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
+            log_error "Client errors are usually not retryable. Aborting."
+            return 1
+        else
+            # Other errors (network issues, etc.)
+            last_error="Upload failed (HTTP $http_code)"
+            log_warning "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    # All retries exhausted
+    log_error "Failed to upload $filename after $max_retries attempts"
+    log_error "Last error: $last_error"
+    if [ -n "$response_body" ]; then
+        log_error "Response: $response_body"
     fi
+    return 1
 }
 
 main() {

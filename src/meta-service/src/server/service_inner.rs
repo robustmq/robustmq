@@ -16,16 +16,16 @@ use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
-use crate::core::schema::{
-    bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
-    un_bind_schema_req, update_schema_req,
-};
-use crate::raft::route::apply::RaftMachineManager;
+use crate::raft::manager::MultiRaftManager;
 use crate::server::services::inner::{
     cluster_status_by_req, delete_idempotent_data_by_req, delete_resource_config_by_req,
     exists_idempotent_data_by_req, get_offset_data_by_req, get_resource_config_by_req,
     heartbeat_by_req, node_list_by_req, save_offset_data_by_req, set_idempotent_data_by_req,
     set_resource_config_by_req,
+};
+use crate::server::services::schema::{
+    bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
+    un_bind_schema_req, update_schema_req,
 };
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
@@ -48,7 +48,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
-    raft_machine_apply: Arc<RaftMachineManager>,
+    raft_manager: Arc<MultiRaftManager>,
     cluster_cache: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
@@ -58,7 +58,7 @@ pub struct GrpcPlacementService {
 
 impl GrpcPlacementService {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineManager>,
+        raft_manager: Arc<MultiRaftManager>,
         cluster_cache: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
@@ -66,7 +66,7 @@ impl GrpcPlacementService {
         mqtt_call_manager: Arc<MQTTInnerCallManager>,
     ) -> Self {
         GrpcPlacementService {
-            raft_machine_apply,
+            raft_manager,
             cluster_cache,
             rocksdb_engine_handler,
             client_pool,
@@ -82,7 +82,7 @@ impl MetaServiceService for GrpcPlacementService {
         &self,
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        cluster_status_by_req(&self.raft_machine_apply)
+        cluster_status_by_req(&self.raft_manager)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -112,7 +112,7 @@ impl MetaServiceService for GrpcPlacementService {
 
         register_node_by_req(
             &self.cluster_cache,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.client_pool,
             &self.journal_call_manager,
             &self.mqtt_call_manager,
@@ -133,7 +133,7 @@ impl MetaServiceService for GrpcPlacementService {
 
         un_register_node_by_req(
             &self.cluster_cache,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.client_pool,
             &self.journal_call_manager,
             &self.mqtt_call_manager,
@@ -174,7 +174,7 @@ impl MetaServiceService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         set_resource_config_by_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -206,7 +206,7 @@ impl MetaServiceService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        delete_resource_config_by_req(&self.raft_machine_apply, &req)
+        delete_resource_config_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::cancelled(e.to_string()))
             .map(Response::new)
@@ -220,7 +220,7 @@ impl MetaServiceService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        set_idempotent_data_by_req(&self.raft_machine_apply, &req)
+        set_idempotent_data_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::cancelled(e.to_string()))
             .map(Response::new)
@@ -248,7 +248,7 @@ impl MetaServiceService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        delete_idempotent_data_by_req(&self.raft_machine_apply, &req)
+        delete_idempotent_data_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::cancelled(e.to_string()))
             .map(Response::new)
@@ -262,7 +262,7 @@ impl MetaServiceService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        save_offset_data_by_req(&self.raft_machine_apply, &req)
+        save_offset_data_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::cancelled(e.to_string()))
             .map(Response::new)
@@ -305,7 +305,7 @@ impl MetaServiceService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         create_schema_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -326,7 +326,7 @@ impl MetaServiceService for GrpcPlacementService {
 
         update_schema_req(
             &self.rocksdb_engine_handler,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -346,7 +346,7 @@ impl MetaServiceService for GrpcPlacementService {
 
         delete_schema_req(
             &self.rocksdb_engine_handler,
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -380,7 +380,7 @@ impl MetaServiceService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         bind_schema_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
@@ -399,7 +399,7 @@ impl MetaServiceService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         un_bind_schema_req(
-            &self.raft_machine_apply,
+            &self.raft_manager,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,

@@ -17,6 +17,7 @@ use crate::core::error::MetaServiceError;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
+use bytes::Bytes;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
@@ -40,7 +41,7 @@ impl DataRouteJournal {
         }
     }
 
-    pub async fn set_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
+    pub async fn set_shard(&self, value: Bytes) -> Result<Bytes, MetaServiceError> {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
 
         let shard_info = JournalShard::decode(&value)?;
@@ -51,7 +52,7 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub async fn delete_shard(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let shard_info = JournalShard::decode(&value)?;
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
@@ -70,7 +71,7 @@ impl DataRouteJournal {
         Ok(())
     }
 
-    pub async fn set_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
+    pub async fn set_segment(&self, value: Bytes) -> Result<Bytes, MetaServiceError> {
         let segment = JournalSegment::decode(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
@@ -81,7 +82,7 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub async fn delete_segment(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let segment = JournalSegment::decode(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
@@ -101,7 +102,7 @@ impl DataRouteJournal {
         Ok(())
     }
 
-    pub async fn set_segment_meta(&self, value: Vec<u8>) -> Result<Vec<u8>, MetaServiceError> {
+    pub async fn set_segment_meta(&self, value: Bytes) -> Result<Bytes, MetaServiceError> {
         let meta = JournalSegmentMetadata::decode(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
@@ -112,7 +113,7 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    pub async fn delete_segment_meta(&self, value: Vec<u8>) -> Result<(), MetaServiceError> {
+    pub async fn delete_segment_meta(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let meta = JournalSegmentMetadata::decode(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
