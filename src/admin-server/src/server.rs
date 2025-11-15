@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cluster::index;
 use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{cluster_config_get, cluster_config_set, cluster_info},
@@ -41,6 +42,7 @@ use crate::{
 };
 use axum::response::Html;
 use axum::response::IntoResponse;
+use axum::routing::get;
 use axum::{
     extract::{ConnectInfo, Request},
     http::{HeaderMap, Method, Uri},
@@ -112,6 +114,7 @@ impl AdminServer {
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
+            .route("/", get(index))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
