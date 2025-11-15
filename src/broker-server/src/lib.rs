@@ -313,7 +313,13 @@ impl BrokerServer {
             cache_manager.clone(),
         ));
         let raft_manager = Arc::new(
-            match MultiRaftManager::new(client_pool.clone(), data_route).await {
+            match MultiRaftManager::new(
+                client_pool.clone(),
+                rocksdb_engine_handler.clone(),
+                data_route,
+            )
+            .await
+            {
                 Ok(data) => data,
                 Err(e) => {
                     panic!("{}", e);

@@ -14,10 +14,8 @@
 
 use crate::raft::route::DataRoute;
 use log::LogStore;
-use rocksdb::{ColumnFamilyDescriptor, Options, DB};
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use state::StateMachineStore;
-use std::path::Path;
 use std::sync::Arc;
 
 pub mod keys;
@@ -25,21 +23,14 @@ pub mod log;
 pub mod snapshot;
 pub mod state;
 
-pub(crate) async fn new_storage<P: AsRef<Path>>(
+pub(crate) async fn new_storage(
     machine: &str,
-    db_path: P,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     route: Arc<DataRoute>,
 ) -> (LogStore, StateMachineStore) {
-    let mut db_opts = Options::default();
-    db_opts.create_missing_column_families(true);
-    db_opts.create_if_missing(true);
-
-    let store = ColumnFamilyDescriptor::new(DB_COLUMN_FAMILY_META_RAFT, Options::default());
-    let db = DB::open_cf_descriptors(&db_opts, db_path, vec![store]).unwrap();
-    let db = Arc::new(db);
     let log_store = LogStore {
         machine: machine.to_string(),
-        db: db.clone(),
+        db: rocksdb_engine_handler.db.clone(),
     };
     let sm_store = StateMachineStore::new(machine.to_string(), route)
         .await

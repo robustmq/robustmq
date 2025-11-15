@@ -19,7 +19,7 @@ use crate::raft::type_config::{StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
 use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, Vote};
-use rocksdb::{BoundColumnFamily, Direction, WriteBatch, DB};
+use rocksdb::{BoundColumnFamily, Direction, IteratorMode, WriteBatch, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
@@ -106,7 +106,7 @@ impl RaftLogReader<TypeConfig> for LogStore {
 
         for item in self.db.iterator_cf(
             &self.store(),
-            rocksdb::IteratorMode::From(&start, Direction::Forward),
+            IteratorMode::From(&start, Direction::Forward),
         ) {
             let (key, val) = item.map_err(|e| StorageError::read_logs(&e))?;
 
@@ -137,13 +137,21 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     type LogReader = Self;
 
     async fn get_log_state(&mut self) -> StorageResult<LogState<TypeConfig>> {
+        // Get the last log entry for this specific machine
+        // Need to iterate backwards from the machine's max key and find the first valid entry
+        let start_key = key_raft_log(&self.machine, u64::MAX);
+
         let last = self
             .db
-            .iterator_cf(&self.store(), rocksdb::IteratorMode::End)
-            .next()
-            .and_then(|res| {
-                let (_, ent) = res.ok()?;
-                deserialize::<Entry<TypeConfig>>(&ent)
+            .iterator_cf(
+                &self.store(),
+                IteratorMode::From(&start_key, Direction::Reverse),
+            )
+            .find_map(|res| {
+                let (key, val) = res.ok()?;
+                // Verify the key belongs to this machine
+                let _ = raft_log_key_to_id(&self.machine, &key).ok()?;
+                deserialize::<Entry<TypeConfig>>(&val)
                     .ok()
                     .map(|e| e.log_id)
             });

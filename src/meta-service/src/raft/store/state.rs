@@ -68,7 +68,7 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
         let last_applied_log = self.data.last_applied_log_id;
         let last_membership = self.data.last_membership.clone();
 
-        let kv_json = build_snapshot();
+        let kv_json = build_snapshot(&self.machine);
 
         let snapshot_id = if let Some(last) = last_applied_log {
             format!("{}-{}-{}", last.leader_id, last.index, now_nanos())

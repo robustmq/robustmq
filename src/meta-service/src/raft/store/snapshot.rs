@@ -26,7 +26,7 @@ pub struct StoredSnapshot {
     pub data: Bytes,
 }
 
-pub fn build_snapshot() -> Bytes {
+pub fn build_snapshot(_machine: &str) -> Bytes {
     Bytes::new()
 }
 
@@ -41,3 +41,5 @@ pub fn get_current_snapshot_() -> StorageResult<Option<StoredSnapshot>> {
 pub fn set_current_snapshot_(_snap: StoredSnapshot) -> StorageResult<()> {
     Ok(())
 }
+
+pub fn build_snapshot_by_metadata() {}
