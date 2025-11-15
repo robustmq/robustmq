@@ -13,11 +13,10 @@
 // limitations under the License.
 
 use bytes::Bytes;
-use common_base::error::common::CommonError;
 use openraft::SnapshotMeta;
 use serde::{Deserialize, Serialize};
 
-use crate::raft::type_config::TypeConfig;
+use crate::raft::type_config::{StorageResult, TypeConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoredSnapshot {
@@ -31,6 +30,14 @@ pub fn build_snapshot() -> Bytes {
     Bytes::new()
 }
 
-pub fn recover_snapshot(_data: Bytes) -> Result<(), CommonError> {
+pub fn recover_snapshot(_data: StoredSnapshot) -> StorageResult<()> {
+    Ok(())
+}
+
+pub fn get_current_snapshot_() -> StorageResult<Option<StoredSnapshot>> {
+    Ok(None)
+}
+
+pub fn set_current_snapshot_(_snap: StoredSnapshot) -> StorageResult<()> {
     Ok(())
 }

@@ -15,20 +15,19 @@
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::store::snapshot::build_snapshot;
+use crate::raft::store::snapshot::get_current_snapshot_;
 use crate::raft::store::snapshot::recover_snapshot;
+use crate::raft::store::snapshot::set_current_snapshot_;
 use crate::raft::store::snapshot::StoredSnapshot;
 use crate::raft::type_config::Entry;
-use crate::raft::type_config::StorageResult;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
 use bytes::Bytes;
 use common_base::tools::now_nanos;
 use openraft::storage::RaftStateMachine;
 use openraft::{
-    AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
-    Snapshot, SnapshotMeta, StorageError, StoredMembership,
+    EntryPayload, LogId, OptionalSend, RaftSnapshotBuilder, Snapshot, SnapshotMeta, StorageError,
+    StoredMembership,
 };
-use rocksdb::{BoundColumnFamily, DB};
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::io::Cursor;
 use std::sync::Arc;
 use tracing::warn;
@@ -36,9 +35,7 @@ use tracing::warn;
 #[derive(Clone)]
 pub struct StateMachineStore {
     pub data: StateMachineData,
-
-    /// State machine stores snapshot in db.
-    db: Arc<DB>,
+    pub machine: String,
 }
 
 #[derive(Clone)]
@@ -47,8 +44,23 @@ pub struct StateMachineData {
 
     pub last_membership: StoredMembership<TypeConfig>,
 
-    /// State built from applying the raft logs
     pub route: Arc<DataRoute>,
+}
+
+impl StateMachineStore {
+    pub async fn new(
+        machine: String,
+        route: Arc<DataRoute>,
+    ) -> Result<StateMachineStore, StorageError<TypeConfig>> {
+        Ok(Self {
+            machine,
+            data: StateMachineData {
+                last_applied_log_id: None,
+                last_membership: Default::default(),
+                route,
+            },
+        })
+    }
 }
 
 impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
@@ -75,87 +87,12 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
             data: kv_json.clone(),
         };
 
-        self.set_current_snapshot_(snapshot)?;
+        set_current_snapshot_(snapshot)?;
 
         Ok(Snapshot {
             meta,
             snapshot: Cursor::new(kv_json.to_vec()),
         })
-    }
-}
-
-impl StateMachineStore {
-    pub async fn new(
-        db: Arc<DB>,
-        route: Arc<DataRoute>,
-    ) -> Result<StateMachineStore, StorageError<TypeConfig>> {
-        let mut sm = Self {
-            data: StateMachineData {
-                last_applied_log_id: None,
-                last_membership: Default::default(),
-                route,
-            },
-            db,
-        };
-
-        let snapshot = sm.get_current_snapshot_()?;
-        if let Some(snap) = snapshot {
-            sm.recover_snapshot_(snap).await?;
-        }
-
-        Ok(sm)
-    }
-
-    async fn recover_snapshot_(
-        &mut self,
-        snapshot: StoredSnapshot,
-    ) -> Result<(), StorageError<TypeConfig>> {
-        self.data.last_applied_log_id = snapshot.meta.last_log_id;
-        self.data.last_membership = snapshot.meta.last_membership.clone();
-
-        if let Err(e) = recover_snapshot(snapshot.data) {
-            return Err(StorageError::read(&e));
-        }
-
-        Ok(())
-    }
-
-    fn get_current_snapshot_(&self) -> StorageResult<Option<StoredSnapshot>> {
-        Ok(self
-            .db
-            .get_cf(&self.store(), b"snapshot")
-            .map_err(|e| StorageError::read(&e))?
-            .and_then(|v| serde_json::from_slice(&v).ok()))
-    }
-
-    fn set_current_snapshot_(&self, snap: StoredSnapshot) -> StorageResult<()> {
-        self.db
-            .put_cf(
-                &self.store(),
-                b"snapshot",
-                serde_json::to_vec(&snap).unwrap().as_slice(),
-            )
-            .map_err(|e| StorageError::write_snapshot(Some(snap.meta.signature()), &e))?;
-        self.flush(
-            ErrorSubject::Snapshot(Some(snap.meta.signature())),
-            ErrorVerb::Write,
-        )?;
-        Ok(())
-    }
-
-    fn flush(
-        &self,
-        subject: ErrorSubject<TypeConfig>,
-        verb: ErrorVerb,
-    ) -> Result<(), StorageError<TypeConfig>> {
-        self.db
-            .flush_wal(true)
-            .map_err(|e| StorageError::new(subject, verb, AnyError::new(&e)))?;
-        Ok(())
-    }
-
-    fn store(&self) -> Arc<BoundColumnFamily<'_>> {
-        self.db.cf_handle(DB_COLUMN_FAMILY_META_RAFT).unwrap()
     }
 }
 
@@ -231,9 +168,9 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             data: Bytes::copy_from_slice(&snapshot.into_inner()),
         };
 
-        self.recover_snapshot_(new_snapshot.clone()).await?;
+        recover_snapshot(new_snapshot.clone())?;
 
-        self.set_current_snapshot_(new_snapshot)?;
+        set_current_snapshot_(new_snapshot)?;
 
         Ok(())
     }
@@ -241,7 +178,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     async fn get_current_snapshot(
         &mut self,
     ) -> Result<Option<Snapshot<TypeConfig>>, StorageError<TypeConfig>> {
-        let x = self.get_current_snapshot_()?;
+        let x = get_current_snapshot_()?;
         Ok(x.map(|s| Snapshot {
             meta: s.meta.clone(),
             snapshot: Cursor::new(s.data.to_vec()),

@@ -60,11 +60,10 @@ impl LogStore {
                     .put_cf(&self.store(), key_committed(&self.machine), data)
                     .map_err(|e| StorageError::write(&e))
             }
-            None => {
-                self.db
-                    .delete_cf(&self.store(), key_committed(&self.machine))
-                    .map_err(|e| StorageError::write(&e))
-            }
+            None => self
+                .db
+                .delete_cf(&self.store(), key_committed(&self.machine))
+                .map_err(|e| StorageError::write(&e)),
         }
     }
 
@@ -337,7 +336,7 @@ mod tests {
 
         let log_id = create_log_id(1, 1, 100);
         log_store.set_last_purged_(log_id).unwrap();
-        
+
         let retrieved = log_store.get_last_purged_().unwrap().unwrap();
         assert_eq!(retrieved.leader_id.term, log_id.leader_id.term);
         assert_eq!(retrieved.leader_id.node_id, log_id.leader_id.node_id);
@@ -345,7 +344,7 @@ mod tests {
 
         let new_log_id = create_log_id(2, 2, 200);
         log_store.set_last_purged_(new_log_id).unwrap();
-        
+
         let updated = log_store.get_last_purged_().unwrap().unwrap();
         assert_eq!(updated.index, new_log_id.index);
     }

@@ -41,7 +41,9 @@ pub(crate) async fn new_storage<P: AsRef<Path>>(
         machine: machine.to_string(),
         db: db.clone(),
     };
-    let sm_store = StateMachineStore::new(db, route).await.unwrap();
+    let sm_store = StateMachineStore::new(machine.to_string(), route)
+        .await
+        .unwrap();
 
     (log_store, sm_store)
 }
