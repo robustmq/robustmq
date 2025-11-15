@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use openraft::StorageError;
+
 use crate::raft::route::data::StorageData;
 use crate::raft::route::AppResponseData;
 use std::fmt::Display;
@@ -45,3 +47,5 @@ impl Display for Node {
         )
     }
 }
+
+pub type StorageResult<T> = Result<T, StorageError<TypeConfig>>;

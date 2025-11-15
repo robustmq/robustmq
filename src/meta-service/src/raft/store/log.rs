@@ -12,31 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
-use crate::raft::store::bin_to_id;
-use crate::raft::type_config::TypeConfig;
+use crate::raft::store::keys::{
+    key_committed, key_last_purged_log_id, key_raft_log, key_vote, raft_log_key_to_id,
+};
+use crate::raft::type_config::{StorageResult, TypeConfig};
 use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{
     AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
     StorageError, Vote,
 };
 use rocksdb::{BoundColumnFamily, Direction, WriteBatch, DB};
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct LogStore {
+    pub machine: String,
     pub db: Arc<DB>,
 }
 
 impl LogStore {
     fn store(&self) -> Arc<BoundColumnFamily<'_>> {
-        self.db.cf_handle(&cf_raft_store()).unwrap()
-    }
-
-    fn logs(&self) -> Arc<BoundColumnFamily<'_>> {
-        self.db.cf_handle(&cf_raft_logs()).unwrap()
+        self.db.cf_handle(DB_COLUMN_FAMILY_META_RAFT).unwrap()
     }
 
     fn flush(
@@ -50,10 +49,11 @@ impl LogStore {
         Ok(())
     }
 
+    // Last Purged Log Id
     fn get_last_purged_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
         Ok(self
             .db
-            .get_cf(&self.store(), b"last_purged_log_id")
+            .get_cf(&self.store(), key_last_purged_log_id(&self.machine))
             .map_err(|e| StorageError::read(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
@@ -62,7 +62,7 @@ impl LogStore {
         self.db
             .put_cf(
                 &self.store(),
-                b"last_purged_log_id",
+                key_last_purged_log_id(&self.machine),
                 serde_json::to_vec(&log_id).unwrap().as_slice(),
             )
             .map_err(|e| StorageError::write(&e))?;
@@ -71,6 +71,7 @@ impl LogStore {
         Ok(())
     }
 
+    // Committed
     fn set_committed_(
         &self,
         committed: &Option<LogId<TypeConfig>>,
@@ -78,7 +79,7 @@ impl LogStore {
         let json = serde_json::to_vec(committed).unwrap();
 
         self.db
-            .put_cf(&self.store(), b"committed", json)
+            .put_cf(&self.store(), key_committed(&self.machine), json)
             .map_err(|e| StorageError::write(&e))?;
 
         self.flush(ErrorSubject::Store, ErrorVerb::Write)?;
@@ -88,14 +89,19 @@ impl LogStore {
     fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
         Ok(self
             .db
-            .get_cf(&self.store(), b"committed")
+            .get_cf(&self.store(), key_committed(&self.machine))
             .map_err(|e| StorageError::read(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
+    // Vote
     fn set_vote_(&self, vote: &Vote<TypeConfig>) -> StorageResult<()> {
         self.db
-            .put_cf(&self.store(), b"vote", serde_json::to_vec(vote).unwrap())
+            .put_cf(
+                &self.store(),
+                key_vote(&self.machine),
+                serde_json::to_vec(vote).unwrap(),
+            )
             .map_err(|e| StorageError::write_vote(&e))?;
 
         self.flush(ErrorSubject::Vote, ErrorVerb::Write)?;
@@ -105,7 +111,7 @@ impl LogStore {
     fn get_vote_(&self) -> StorageResult<Option<Vote<TypeConfig>>> {
         Ok(self
             .db
-            .get_cf(&self.store(), b"vote")
+            .get_cf(&self.store(), key_vote(&self.machine))
             .map_err(|e| StorageError::write_vote(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
@@ -117,22 +123,27 @@ impl RaftLogReader<TypeConfig> for LogStore {
         range: RB,
     ) -> StorageResult<Vec<Entry<TypeConfig>>> {
         let start = match range.start_bound() {
-            std::ops::Bound::Included(x) => id_to_bin(*x),
-            std::ops::Bound::Excluded(x) => id_to_bin(*x + 1),
-            std::ops::Bound::Unbounded => id_to_bin(0),
+            std::ops::Bound::Included(x) => {
+                key_raft_log(&self.machine, *x).map_err(|e| StorageError::read_logs(&e))?
+            }
+            std::ops::Bound::Excluded(x) => {
+                key_raft_log(&self.machine, *x + 1).map_err(|e| StorageError::read_logs(&e))?
+            }
+            std::ops::Bound::Unbounded => {
+                key_raft_log(&self.machine, 0).map_err(|e| StorageError::read_logs(&e))?
+            }
         };
+
         self.db
             .iterator_cf(
-                &self.logs(),
+                &self.store(),
                 rocksdb::IteratorMode::From(&start, Direction::Forward),
             )
             .map(|res| {
-                let (id, val) = res.unwrap();
+                let (key, val) = res.unwrap();
                 let entry: StorageResult<Entry<_>> =
                     serde_json::from_slice(&val).map_err(|e| StorageError::read_logs(&e));
-                let id = bin_to_id(&id);
-
-                assert_eq!(Ok(id), entry.as_ref().map(|e| e.log_id.index));
+                let id = raft_log_key_to_id(&self.machine, &key).unwrap();
                 (id, entry)
             })
             .take_while(|(id, _)| range.contains(id))
@@ -151,7 +162,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     async fn get_log_state(&mut self) -> StorageResult<LogState<TypeConfig>> {
         let last = self
             .db
-            .iterator_cf(&self.logs(), rocksdb::IteratorMode::End)
+            .iterator_cf(&self.store(), rocksdb::IteratorMode::End)
             .next()
             .and_then(|res| {
                 let (_, ent) = res.unwrap();
@@ -189,30 +200,26 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         Ok(c)
     }
 
-    #[tracing::instrument(level = "trace", skip(self))]
     async fn save_vote(&mut self, vote: &Vote<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
         self.set_vote_(vote)
     }
 
-    #[tracing::instrument(level = "trace", skip_all)]
     async fn append<I>(&mut self, entries: I, callback: IOFlushed<TypeConfig>) -> StorageResult<()>
     where
         I: IntoIterator<Item = Entry<TypeConfig>> + Send,
         I::IntoIter: Send,
     {
-        let logs_cf = self.logs();
         let mut batch = WriteBatch::default();
         let mut entry_count = 0;
 
         // Collect all entries into WriteBatch for batch write
         for entry in entries {
-            let id = id_to_bin(entry.log_id.index);
-            assert_eq!(bin_to_id(&id), entry.log_id.index);
-
+            let id = key_raft_log(&self.machine, entry.log_id.index)
+                .map_err(|e| StorageError::read_logs(&e))?;
             let serialized =
                 serde_json::to_vec(&entry).map_err(|e| StorageError::write_logs(&e))?;
 
-            batch.put_cf(&logs_cf, id, serialized);
+            batch.put_cf(&self.store(), id, serialized);
             entry_count += 1;
         }
 
@@ -224,29 +231,26 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         }
 
         callback.io_completed(Ok(()));
-
         Ok(())
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
     async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
-        tracing::debug!("delete_log: [{:?}, +oo)", log_id);
-
-        let from = id_to_bin(log_id.index);
-        let to = id_to_bin(0xff_ff_ff_ff_ff_ff_ff_ff);
+        let from =
+            key_raft_log(&self.machine, log_id.index).map_err(|e| StorageError::read_logs(&e))?;
+        let to = key_raft_log(&self.machine, 0xff_ff_ff_ff_ff_ff_ff_ff)
+            .map_err(|e| StorageError::read_logs(&e))?;
         self.db
-            .delete_range_cf(&self.logs(), &from, &to)
+            .delete_range_cf(&self.store(), &from, &to)
             .map_err(|e| StorageError::write_logs(&e))
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
     async fn purge(&mut self, log_id: LogId<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
-        tracing::debug!("delete_log: [0, {:?}]", log_id);
         self.set_last_purged_(log_id)?;
-        let from = id_to_bin(0);
-        let to = id_to_bin(log_id.index + 1);
+        let from = key_raft_log(&self.machine, 0).map_err(|e| StorageError::read_logs(&e))?;
+        let to = key_raft_log(&self.machine, log_id.index + 1)
+            .map_err(|e| StorageError::read_logs(&e))?;
         self.db
-            .delete_range_cf(&self.logs(), &from, &to)
+            .delete_range_cf(&self.store(), &from, &to)
             .map_err(|e| StorageError::write_logs(&e))
     }
 

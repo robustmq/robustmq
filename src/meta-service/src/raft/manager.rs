@@ -32,6 +32,10 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::info;
 
+pub const RAFT_STATE_MACHINE_NAME_METADATA: &str = "metadata";
+pub const RAFT_STATE_MACHINE_NAME_OFFSET: &str = "offset";
+pub const RAFT_STATE_MACHINE_NAME_MQTT: &str = "mqtt";
+
 pub struct MultiRaftManager {
     pub metadata_raft_node: Raft<TypeConfig>,
     offset_raft_node: Raft<TypeConfig>,
@@ -43,14 +47,23 @@ impl MultiRaftManager {
         client_pool: Arc<ClientPool>,
         route: Arc<DataRoute>,
     ) -> Result<Self, CommonError> {
-        let metadata_raft_node =
-            MultiRaftManager::create_raft_node("metadata", &client_pool, &route).await?;
+        let metadata_raft_node = MultiRaftManager::create_raft_node(
+            RAFT_STATE_MACHINE_NAME_METADATA,
+            &client_pool,
+            &route,
+        )
+        .await?;
 
-        let offset_raft_node =
-            MultiRaftManager::create_raft_node("offset", &client_pool, &route).await?;
+        let offset_raft_node = MultiRaftManager::create_raft_node(
+            RAFT_STATE_MACHINE_NAME_OFFSET,
+            &client_pool,
+            &route,
+        )
+        .await?;
 
         let mqtt_raft_node =
-            MultiRaftManager::create_raft_node("mqtt", &client_pool, &route).await?;
+            MultiRaftManager::create_raft_node(RAFT_STATE_MACHINE_NAME_MQTT, &client_pool, &route)
+                .await?;
         Ok(MultiRaftManager {
             metadata_raft_node,
             offset_raft_node,
@@ -59,9 +72,15 @@ impl MultiRaftManager {
     }
 
     pub async fn start(&self) -> Result<(), CommonError> {
-        MultiRaftManager::start_raft_node("metadata", &self.metadata_raft_node).await?;
-        MultiRaftManager::start_raft_node("offset", &self.offset_raft_node).await?;
-        MultiRaftManager::start_raft_node("mqtt", &self.mqtt_raft_node).await?;
+        MultiRaftManager::start_raft_node(
+            RAFT_STATE_MACHINE_NAME_METADATA,
+            &self.metadata_raft_node,
+        )
+        .await?;
+        MultiRaftManager::start_raft_node(RAFT_STATE_MACHINE_NAME_OFFSET, &self.offset_raft_node)
+            .await?;
+        MultiRaftManager::start_raft_node(RAFT_STATE_MACHINE_NAME_MQTT, &self.mqtt_raft_node)
+            .await?;
         Ok(())
     }
 
@@ -194,7 +213,7 @@ impl MultiRaftManager {
         let conf = broker_config();
         let path = storage_raft_fold(&conf.rocksdb.data_path);
         let dir = Path::new(&path);
-        let (log_store, state_machine_store) = new_storage(&dir, route.clone()).await;
+        let (log_store, state_machine_store) = new_storage(machine, &dir, route.clone()).await;
 
         let network = Network::new(machine.to_string(), client_pool.clone());
 

@@ -14,6 +14,18 @@
 
 use bytes::Bytes;
 use common_base::error::common::CommonError;
+use openraft::SnapshotMeta;
+use serde::{Deserialize, Serialize};
+
+use crate::raft::type_config::TypeConfig;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct StoredSnapshot {
+    pub meta: SnapshotMeta<TypeConfig>,
+
+    /// The data of the state machine at the time of this snapshot.
+    pub data: Bytes,
+}
 
 pub fn build_snapshot() -> Bytes {
     Bytes::new()

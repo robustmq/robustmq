@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cf_raft_store, StorageResult, StoredSnapshot};
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::store::snapshot::build_snapshot;
 use crate::raft::store::snapshot::recover_snapshot;
+use crate::raft::store::snapshot::StoredSnapshot;
 use crate::raft::type_config::Entry;
+use crate::raft::type_config::StorageResult;
 use crate::raft::type_config::{SnapshotData, TypeConfig};
 use bytes::Bytes;
 use openraft::storage::RaftStateMachine;
@@ -26,6 +27,7 @@ use openraft::{
     Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
 use rocksdb::{BoundColumnFamily, DB};
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::io::Cursor;
 use std::sync::Arc;
 use tracing::warn;
@@ -159,7 +161,7 @@ impl StateMachineStore {
     }
 
     fn store(&self) -> Arc<BoundColumnFamily<'_>> {
-        self.db.cf_handle(&cf_raft_store()).unwrap()
+        self.db.cf_handle(DB_COLUMN_FAMILY_META_RAFT).unwrap()
     }
 }
 
