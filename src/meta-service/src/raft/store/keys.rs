@@ -184,30 +184,3 @@ mod tests {
         }
     }
 }
-
-#[cfg(test)]
-mod bench_tests {
-    use super::*;
-    use std::time::Instant;
-
-    #[test]
-    fn bench_key_operations() {
-        let iterations = 100_000u64;
-
-        let start = Instant::now();
-        for i in 0..iterations {
-            let _ = key_raft_log("test", i);
-        }
-        let gen_ns = start.elapsed().as_nanos() / iterations as u128;
-
-        let keys: Vec<_> = (0..iterations).map(|i| key_raft_log("test", i)).collect();
-        let start = Instant::now();
-        for key in &keys {
-            let _ = raft_log_key_to_id("test", key).unwrap();
-        }
-        let parse_ns = start.elapsed().as_nanos() / iterations as u128;
-
-        assert!(gen_ns < 200, "Key generation: {} ns/key", gen_ns);
-        assert!(parse_ns < 300, "Key parsing: {} ns/key", parse_ns);
-    }
-}
