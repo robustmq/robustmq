@@ -18,10 +18,7 @@ use crate::raft::store::keys::{
 use crate::raft::type_config::{StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
 use openraft::storage::{IOFlushed, RaftLogStorage};
-use openraft::{
-    Entry, LogId, LogState, OptionalSend, RaftLogReader,
-    StorageError, Vote,
-};
+use openraft::{Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, Vote};
 use rocksdb::{BoundColumnFamily, Direction, WriteBatch, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
@@ -56,10 +53,19 @@ impl LogStore {
     }
 
     fn set_committed_(&self, committed: &Option<LogId<TypeConfig>>) -> StorageResult<()> {
-        let data = serialize(committed).map_err(|e| StorageError::write(&e))?;
-        self.db
-            .put_cf(&self.store(), key_committed(&self.machine), data)
-            .map_err(|e| StorageError::write(&e))
+        match committed {
+            Some(log_id) => {
+                let data = serialize(log_id).map_err(|e| StorageError::write(&e))?;
+                self.db
+                    .put_cf(&self.store(), key_committed(&self.machine), data)
+                    .map_err(|e| StorageError::write(&e))
+            }
+            None => {
+                self.db
+                    .delete_cf(&self.store(), key_committed(&self.machine))
+                    .map_err(|e| StorageError::write(&e))
+            }
+        }
     }
 
     fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
@@ -98,28 +104,28 @@ impl RaftLogReader<TypeConfig> for LogStore {
         };
 
         let mut entries = Vec::new();
-        
+
         for item in self.db.iterator_cf(
             &self.store(),
             rocksdb::IteratorMode::From(&start, Direction::Forward),
         ) {
             let (key, val) = item.map_err(|e| StorageError::read_logs(&e))?;
-            
+
             let id = match raft_log_key_to_id(&self.machine, &key) {
                 Ok(id) => id,
                 Err(_) => continue,
             };
-            
+
             if !range.contains(&id) {
                 break;
             }
-            
-            let entry: Entry<TypeConfig> = deserialize(&val)
-                .map_err(|e| StorageError::read_logs(&e))?;
-            
+
+            let entry: Entry<TypeConfig> =
+                deserialize(&val).map_err(|e| StorageError::read_logs(&e))?;
+
             entries.push(entry);
         }
-        
+
         Ok(entries)
     }
 
@@ -145,7 +151,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
         let last_purged_log_id = self.get_last_purged_()?;
         let last_log_id = last.or(last_purged_log_id);
-        
+
         Ok(LogState {
             last_purged_log_id,
             last_log_id,
@@ -159,7 +165,9 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         self.set_committed_(&committed)
     }
 
-    async fn read_committed(&mut self) -> Result<Option<LogId<TypeConfig>>, StorageError<TypeConfig>> {
+    async fn read_committed(
+        &mut self,
+    ) -> Result<Option<LogId<TypeConfig>>, StorageError<TypeConfig>> {
         self.get_committed_()
     }
 
@@ -196,7 +204,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
         let from = key_raft_log(&self.machine, log_id.index);
         let to = key_raft_log(&self.machine, u64::MAX);
-        
+
         self.db
             .delete_range_cf(&self.store(), &from, &to)
             .map_err(|e| StorageError::write_logs(&e))
@@ -258,7 +266,7 @@ mod tests {
             )),
         }
     }
-    
+
     // Helper for testing: simplified append without callback complexity
     async fn append_entries(
         log_store: &mut LogStore,
@@ -270,7 +278,10 @@ mod tests {
             let serialized = serialize(&entry).map_err(|e| StorageError::write_logs(&e))?;
             batch.put_cf(&log_store.store(), id, serialized);
         }
-        log_store.db.write(batch).map_err(|e| StorageError::write_logs(&e))
+        log_store
+            .db
+            .write(batch)
+            .map_err(|e| StorageError::write_logs(&e))
     }
 
     #[tokio::test]
@@ -289,11 +300,20 @@ mod tests {
 
         let more: Vec<_> = (11..=15).map(|i| create_entry(1, 1, i)).collect();
         append_entries(&mut log_store, more).await.unwrap();
-        assert_eq!(log_store.try_get_log_entries(1..=15).await.unwrap().len(), 15);
+        assert_eq!(
+            log_store.try_get_log_entries(1..=15).await.unwrap().len(),
+            15
+        );
 
         log_store.truncate(create_log_id(1, 1, 11)).await.unwrap();
-        assert_eq!(log_store.try_get_log_entries(1..=15).await.unwrap().len(), 10);
-        assert_eq!(log_store.try_get_log_entries(11..=15).await.unwrap().len(), 0);
+        assert_eq!(
+            log_store.try_get_log_entries(1..=15).await.unwrap().len(),
+            10
+        );
+        assert_eq!(
+            log_store.try_get_log_entries(11..=15).await.unwrap().len(),
+            0
+        );
 
         log_store.purge(create_log_id(1, 1, 5)).await.unwrap();
         assert_eq!(log_store.get_last_purged_().unwrap().unwrap().index, 5);
@@ -316,7 +336,7 @@ mod tests {
         assert!(log_store.get_last_purged_().unwrap().is_none());
 
         let log_id = create_log_id(1, 1, 100);
-        log_store.set_last_purged_(log_id.clone()).unwrap();
+        log_store.set_last_purged_(log_id).unwrap();
         
         let retrieved = log_store.get_last_purged_().unwrap().unwrap();
         assert_eq!(retrieved.leader_id.term, log_id.leader_id.term);
@@ -324,7 +344,7 @@ mod tests {
         assert_eq!(retrieved.index, log_id.index);
 
         let new_log_id = create_log_id(2, 2, 200);
-        log_store.set_last_purged_(new_log_id.clone()).unwrap();
+        log_store.set_last_purged_(new_log_id).unwrap();
         
         let updated = log_store.get_last_purged_().unwrap().unwrap();
         assert_eq!(updated.index, new_log_id.index);
@@ -337,24 +357,25 @@ mod tests {
         assert!(log_store.get_committed_().unwrap().is_none());
 
         let log_id = create_log_id(1, 1, 100);
-        
+
         // Debug: test bincode serialization
-        let serialized = serialize(&Some(log_id.clone())).unwrap();
+        let serialized = serialize(&Some(log_id)).unwrap();
         println!("Serialized bytes: {:?}", serialized);
         let deserialized: Option<LogId<TypeConfig>> = deserialize(&serialized).unwrap();
         println!("Original: {:?}", log_id);
         println!("Deserialized: {:?}", deserialized);
-        
-        log_store.set_committed_(&Some(log_id.clone())).unwrap();
-        
+
+        log_store.set_committed_(&Some(log_id)).unwrap();
+
         // Debug: check what's actually stored in DB
-        let raw_bytes = log_store.db
+        let raw_bytes = log_store
+            .db
             .get_cf(&log_store.store(), key_committed(&log_store.machine))
             .unwrap()
             .unwrap();
         println!("Stored bytes: {:?}", raw_bytes);
         println!("Stored bytes len: {}", raw_bytes.len());
-        
+
         let retrieved = log_store.get_committed_().unwrap().unwrap();
         println!("Retrieved: {:?}", retrieved);
         assert_eq!(retrieved.leader_id.term, log_id.leader_id.term);
@@ -362,8 +383,8 @@ mod tests {
         assert_eq!(retrieved.index, log_id.index);
 
         let new_log_id = create_log_id(2, 2, 200);
-        log_store.set_committed_(&Some(new_log_id.clone())).unwrap();
-        
+        log_store.set_committed_(&Some(new_log_id)).unwrap();
+
         let updated = log_store.get_committed_().unwrap().unwrap();
         assert_eq!(updated.index, new_log_id.index);
 
@@ -380,14 +401,14 @@ mod tests {
 
         let vote = Vote::new(1, 1);
         log_store.set_vote_(&vote).unwrap();
-        
+
         let retrieved = log_store.get_vote_().unwrap().unwrap();
         assert_eq!(retrieved.leader_id().term, vote.leader_id().term);
         assert_eq!(retrieved.leader_id().node_id, vote.leader_id().node_id);
 
         let new_vote = Vote::new(2, 2);
         log_store.set_vote_(&new_vote).unwrap();
-        
+
         let updated = log_store.get_vote_().unwrap().unwrap();
         assert_eq!(updated.leader_id().term, 2);
         assert_eq!(updated.leader_id().node_id, 2);
@@ -399,7 +420,9 @@ mod tests {
         let mut opts = Options::default();
         opts.create_if_missing(true);
         opts.create_missing_column_families(true);
-        let db = Arc::new(DB::open_cf(&opts, temp_dir.path(), vec![DB_COLUMN_FAMILY_META_RAFT]).unwrap());
+        let db = Arc::new(
+            DB::open_cf(&opts, temp_dir.path(), vec![DB_COLUMN_FAMILY_META_RAFT]).unwrap(),
+        );
 
         let log_store1 = LogStore {
             machine: "machine1".to_string(),
@@ -413,8 +436,8 @@ mod tests {
         let log_id1 = create_log_id(1, 1, 100);
         let log_id2 = create_log_id(2, 2, 200);
 
-        log_store1.set_last_purged_(log_id1.clone()).unwrap();
-        log_store2.set_last_purged_(log_id2.clone()).unwrap();
+        log_store1.set_last_purged_(log_id1).unwrap();
+        log_store2.set_last_purged_(log_id2).unwrap();
 
         let result1 = log_store1.get_last_purged_().unwrap().unwrap();
         let result2 = log_store2.get_last_purged_().unwrap().unwrap();
