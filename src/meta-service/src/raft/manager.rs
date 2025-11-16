@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::network::network::Network;
+use super::network::client::Network;
 use super::store::new_storage;
 use super::type_config::TypeConfig;
 use crate::core::error::MetaServiceError;
