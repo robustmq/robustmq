@@ -17,13 +17,13 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
-    use grpc_clients::meta::inner::call::{
+    use grpc_clients::meta::common::call::{
         cluster_status, delete_resource_config, get_resource_config, node_list, register_node,
         set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_inner::{
+    use protocol::meta::meta_service_common::{
         ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest,
         NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     };

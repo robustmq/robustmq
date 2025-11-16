@@ -77,12 +77,9 @@ pub enum MetaServiceInterface {
     ChangeMembership,
 }
 
-#[allow(clippy::module_inception)]
-pub mod inner;
+pub mod common;
 pub mod journal;
-pub mod kv;
 pub mod mqtt;
-pub mod openraft;
 
 #[cfg(test)]
 mod test {

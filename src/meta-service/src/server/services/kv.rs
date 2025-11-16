@@ -18,9 +18,9 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use bytes::Bytes;
 use prost::Message;
-use protocol::meta::meta_service_kv::{
+use protocol::meta::meta_service_common::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
-    GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
+    GetReply, GetRequest, SetReply, SetRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -96,22 +96,6 @@ pub async fn exists_by_req(
     let flag = kv_storage.exists(req.key.clone())?;
 
     Ok(ExistsReply { flag })
-}
-
-pub async fn list_shard_by_req(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &ListShardRequest,
-) -> Result<ListShardReply, MetaServiceError> {
-    if req.namespace.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "namespace".to_string(),
-        ));
-    }
-
-    let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
-    let shards_info = kv_storage.get_prefix(format!("/shard/{}/", req.namespace))?;
-
-    Ok(ListShardReply { shards_info })
 }
 
 pub async fn get_prefix_by_req(

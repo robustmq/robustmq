@@ -17,8 +17,8 @@ mod tests {
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
-    use protocol::meta::meta_service_inner::{
+    use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
+    use protocol::meta::meta_service_common::{
         HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
     use protocol::meta::meta_service_journal::engine_service_client::EngineServiceClient;

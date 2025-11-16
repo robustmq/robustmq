@@ -17,8 +17,8 @@ use crate::raft::services::{
 };
 use crate::raft::type_config::TypeConfig;
 use openraft::Raft;
-use protocol::meta::meta_service_openraft::open_raft_service_server::OpenRaftService;
-use protocol::meta::meta_service_openraft::{
+use protocol::meta::meta_service_common::open_raft_service_server::OpenRaftService;
+use protocol::meta::meta_service_common::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
@@ -36,55 +36,7 @@ impl GrpcOpenRaftServices {
 
 #[tonic::async_trait]
 impl OpenRaftService for GrpcOpenRaftServices {
-    async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
-        let req = request.into_inner();
-        vote_by_req(&self.raft_node, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
 
-    async fn append(
-        &self,
-        request: Request<AppendRequest>,
-    ) -> Result<Response<AppendReply>, Status> {
-        let req = request.into_inner();
-        append_by_req(&self.raft_node, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
 
-    async fn snapshot(
-        &self,
-        request: Request<SnapshotRequest>,
-    ) -> Result<Response<SnapshotReply>, Status> {
-        let req = request.into_inner();
-        snapshot_by_req(&self.raft_node, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
 
-    async fn add_learner(
-        &self,
-        request: Request<AddLearnerRequest>,
-    ) -> Result<Response<AddLearnerReply>, Status> {
-        let req = request.into_inner();
-        add_learner_by_req(&self.raft_node, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn change_membership(
-        &self,
-        request: Request<ChangeMembershipRequest>,
-    ) -> Result<Response<ChangeMembershipReply>, Status> {
-        let req = request.into_inner();
-        change_membership_by_req(&self.raft_node, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
 }

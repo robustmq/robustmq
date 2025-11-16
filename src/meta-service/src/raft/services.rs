@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raft::type_config::TypeConfig;
+use std::sync::Arc;
+
+use crate::raft::manager::MultiRaftManager;
 use crate::{core::error::MetaServiceError, raft::type_config::Node};
 use bincode::{deserialize, serialize};
-use openraft::Raft;
-use protocol::meta::meta_service_openraft::{
+use protocol::meta::meta_service_common::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
@@ -29,10 +30,11 @@ fn deserialize_from_slice<T: serde::de::DeserializeOwned>(
 }
 
 pub async fn vote_by_req(
-    raft_node: &Raft<TypeConfig>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &VoteRequest,
 ) -> Result<VoteReply, MetaServiceError> {
     let vote_data = deserialize_from_slice(&req.value)?;
+    let raft_node = raft_manager.metadata_raft_node.clone();
     raft_node
         .vote(vote_data)
         .await
@@ -45,10 +47,11 @@ pub async fn vote_by_req(
 }
 
 pub async fn append_by_req(
-    raft_node: &Raft<TypeConfig>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &AppendRequest,
 ) -> Result<AppendReply, MetaServiceError> {
     let append_data = deserialize_from_slice(&req.value)?;
+    let raft_node = raft_manager.metadata_raft_node.clone();
     raft_node
         .append_entries(append_data)
         .await
@@ -61,10 +64,11 @@ pub async fn append_by_req(
 }
 
 pub async fn snapshot_by_req(
-    raft_node: &Raft<TypeConfig>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &SnapshotRequest,
 ) -> Result<SnapshotReply, MetaServiceError> {
     let snapshot_data = deserialize_from_slice(&req.value)?;
+    let raft_node = raft_manager.metadata_raft_node.clone();
     raft_node
         .install_snapshot(snapshot_data)
         .await
@@ -77,7 +81,7 @@ pub async fn snapshot_by_req(
 }
 
 pub async fn add_learner_by_req(
-    raft_node: &Raft<TypeConfig>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &AddLearnerRequest,
 ) -> Result<AddLearnerReply, MetaServiceError> {
     let node_id = req.node_id;
@@ -92,6 +96,7 @@ pub async fn add_learner_by_req(
     };
 
     let blocking = req.blocking;
+    let raft_node = raft_manager.metadata_raft_node.clone();
     let res = raft_node
         .add_learner(node_id, raft_node_data, blocking)
         .await?;
@@ -101,12 +106,12 @@ pub async fn add_learner_by_req(
 }
 
 pub async fn change_membership_by_req(
-    raft_node: &Raft<TypeConfig>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &ChangeMembershipRequest,
 ) -> Result<ChangeMembershipReply, MetaServiceError> {
     let members = req.members.clone();
     let retain = req.retain;
-
+    let raft_node = raft_manager.metadata_raft_node.clone();
     let res = raft_node.change_membership(members, retain).await?;
     let value = serialize(&res)?;
 

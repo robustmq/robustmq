@@ -29,7 +29,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message;
 use prost_validate::Result;
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
     ListSchemaRequest, UnBindSchemaRequest, UpdateSchemaRequest,
 };

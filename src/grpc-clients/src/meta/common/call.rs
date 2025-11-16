@@ -13,16 +13,19 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::meta::meta_service_inner::{
-    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
-    CreateSchemaReply, CreateSchemaRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    DeleteSchemaReply, DeleteSchemaRequest, GetOffsetDataReply, GetOffsetDataRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
-    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply,
-    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
-    SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply,
+use protocol::meta::meta_service_common::{
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
+    BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
+    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, DeleteReply, DeleteRequest,
+    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
+    ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply,
+    GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply, GetResourceConfigRequest,
+    HeartbeatReply, HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
+    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply,
+    SetResourceConfigRequest, SnapshotReply, SnapshotRequest, UnBindSchemaReply,
     UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
-    UpdateSchemaRequest,
+    UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 
 use crate::pool::ClientPool;
@@ -130,4 +133,36 @@ generate_meta_service_call!(
     GetOffsetDataRequest,
     GetOffsetDataReply,
     GetOffsetData
+);
+
+generate_meta_service_call!(kv_set, SetRequest, SetReply, Set);
+generate_meta_service_call!(kv_get, GetRequest, GetReply, Get);
+generate_meta_service_call!(kv_delete, DeleteRequest, DeleteReply, Delete);
+generate_meta_service_call!(kv_exists, ExistsRequest, ExistsReply, Exists);
+generate_meta_service_call!(kv_get_prefix, GetPrefixRequest, GetPrefixReply, GetPrefix);
+
+generate_meta_service_call!(placement_openraft_vote, VoteRequest, VoteReply, Vote);
+generate_meta_service_call!(
+    placement_openraft_append,
+    AppendRequest,
+    AppendReply,
+    Append
+);
+generate_meta_service_call!(
+    placement_openraft_snapshot,
+    SnapshotRequest,
+    SnapshotReply,
+    Snapshot
+);
+generate_meta_service_call!(
+    placement_openraft_add_learner,
+    AddLearnerRequest,
+    AddLearnerReply,
+    AddLearner
+);
+generate_meta_service_call!(
+    placement_openraft_change_membership,
+    ChangeMembershipRequest,
+    ChangeMembershipReply,
+    ChangeMembership
 );

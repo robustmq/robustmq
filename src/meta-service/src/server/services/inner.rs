@@ -26,7 +26,7 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use prost::Message;
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     ClusterStatusReply, DeleteResourceConfigReply, DeleteResourceConfigRequest, GetOffsetDataReply,
     GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
     GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,

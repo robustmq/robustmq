@@ -14,17 +14,20 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
-use protocol::meta::meta_service_inner::{
-    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
-    CreateSchemaReply, CreateSchemaRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    DeleteSchemaReply, DeleteSchemaRequest, GetOffsetDataReply, GetOffsetDataRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
-    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply,
-    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
-    SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply,
+use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
+use protocol::meta::meta_service_common::{
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
+    BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
+    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, DeleteReply, DeleteRequest,
+    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
+    ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply,
+    GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply, GetResourceConfigRequest,
+    HeartbeatReply, HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
+    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply,
+    SetResourceConfigRequest, SnapshotReply, SnapshotRequest, UnBindSchemaReply,
     UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
-    UpdateSchemaRequest,
+    UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 use tonic::transport::Channel;
 
@@ -217,5 +220,95 @@ impl_retriable_request!(
     UnBindSchemaReply,
     meta_service_inner_services_client,
     un_bind_schema,
+    true
+);
+
+impl_retriable_request!(
+    SetRequest,
+    MetaServiceServiceClient<Channel>,
+    SetReply,
+    meta_service_inner_services_client,
+    set,
+    true
+);
+
+impl_retriable_request!(
+    GetRequest,
+    MetaServiceServiceClient<Channel>,
+    GetReply,
+    meta_service_inner_services_client,
+    get,
+    true
+);
+
+impl_retriable_request!(
+    DeleteRequest,
+    MetaServiceServiceClient<Channel>,
+    DeleteReply,
+    meta_service_inner_services_client,
+    delete,
+    true
+);
+
+impl_retriable_request!(
+    ExistsRequest,
+    MetaServiceServiceClient<Channel>,
+    ExistsReply,
+    meta_service_inner_services_client,
+    exists,
+    true
+);
+
+impl_retriable_request!(
+    GetPrefixRequest,
+    MetaServiceServiceClient<Channel>,
+    GetPrefixReply,
+    meta_service_inner_services_client,
+    get_prefix,
+    true
+);
+
+impl_retriable_request!(
+    VoteRequest,
+    MetaServiceServiceClient<Channel>,
+    VoteReply,
+    meta_service_inner_services_client,
+    vote,
+    true
+);
+
+impl_retriable_request!(
+    AppendRequest,
+    MetaServiceServiceClient<Channel>,
+    AppendReply,
+    meta_service_inner_services_client,
+    append,
+    true
+);
+
+impl_retriable_request!(
+    SnapshotRequest,
+    MetaServiceServiceClient<Channel>,
+    SnapshotReply,
+    meta_service_inner_services_client,
+    snapshot,
+    true
+);
+
+impl_retriable_request!(
+    AddLearnerRequest,
+    MetaServiceServiceClient<Channel>,
+    AddLearnerReply,
+    meta_service_inner_services_client,
+    add_learner,
+    true
+);
+
+impl_retriable_request!(
+    ChangeMembershipRequest,
+    MetaServiceServiceClient<Channel>,
+    ChangeMembershipReply,
+    meta_service_inner_services_client,
+    change_membership,
     true
 );

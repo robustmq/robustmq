@@ -17,10 +17,16 @@ use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::raft::manager::MultiRaftManager;
+use crate::raft::services::{
+    add_learner_by_req, append_by_req, change_membership_by_req, snapshot_by_req, vote_by_req,
+};
 use crate::server::services::inner::{
     cluster_status_by_req, delete_resource_config_by_req, get_offset_data_by_req,
     get_resource_config_by_req, heartbeat_by_req, node_list_by_req, save_offset_data_by_req,
     set_resource_config_by_req,
+};
+use crate::server::services::kv::{
+    delete_by_req, exists_by_req, get_by_req, get_prefix_by_req, set_by_req,
 };
 use crate::server::services::schema::{
     bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
@@ -28,17 +34,20 @@ use crate::server::services::schema::{
 };
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
-use protocol::meta::meta_service_inner::meta_service_service_server::MetaServiceService;
-use protocol::meta::meta_service_inner::{
-    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
-    CreateSchemaReply, CreateSchemaRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    DeleteSchemaReply, DeleteSchemaRequest, GetOffsetDataReply, GetOffsetDataRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
-    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply,
-    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
-    ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply,
-    SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
-    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
+use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceService;
+use protocol::meta::meta_service_common::{
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
+    BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
+    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, DeleteReply, DeleteRequest,
+    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
+    ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply,
+    GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply, GetResourceConfigRequest,
+    HeartbeatReply, HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
+    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    ReportMonitorReply, ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply,
+    SetRequest, SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
+    UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -362,5 +371,110 @@ impl MetaServiceService for GrpcPlacementService {
         .await
         .map_err(|e| Status::cancelled(e.to_string()))?;
         Ok(Response::new(UnBindSchemaReply {}))
+    }
+    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
+        let req = request.into_inner();
+
+        set_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn delete(
+        &self,
+        request: Request<DeleteRequest>,
+    ) -> Result<Response<DeleteReply>, Status> {
+        let req = request.into_inner();
+
+        delete_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
+        let req = request.into_inner();
+
+        get_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn exists(
+        &self,
+        request: Request<ExistsRequest>,
+    ) -> Result<Response<ExistsReply>, Status> {
+        let req = request.into_inner();
+
+        exists_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn get_prefix(
+        &self,
+        request: Request<GetPrefixRequest>,
+    ) -> Result<Response<GetPrefixReply>, Status> {
+        let req = request.into_inner();
+
+        get_prefix_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn append(
+        &self,
+        request: Request<AppendRequest>,
+    ) -> Result<Response<AppendReply>, Status> {
+        let req = request.into_inner();
+        append_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn snapshot(
+        &self,
+        request: Request<SnapshotRequest>,
+    ) -> Result<Response<SnapshotReply>, Status> {
+        let req = request.into_inner();
+        snapshot_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn add_learner(
+        &self,
+        request: Request<AddLearnerRequest>,
+    ) -> Result<Response<AddLearnerReply>, Status> {
+        let req = request.into_inner();
+        add_learner_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn change_membership(
+        &self,
+        request: Request<ChangeMembershipRequest>,
+    ) -> Result<Response<ChangeMembershipReply>, Status> {
+        let req = request.into_inner();
+        change_membership_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
+        let req = request.into_inner();
+        vote_by_req(&self.raft_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }

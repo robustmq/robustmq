@@ -23,9 +23,7 @@ use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
 use meta_service::server::service_inner::GrpcPlacementService;
 use meta_service::server::service_journal::GrpcEngineService;
-use meta_service::server::service_kv::GrpcKvService;
 use meta_service::server::service_mqtt::GrpcMqttService;
-use meta_service::server::service_raft::GrpcOpenRaftServices;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::inner::GrpcInnerServices;
@@ -33,11 +31,9 @@ use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttB
 use protocol::cluster::cluster_status::cluster_service_server::ClusterServiceServer;
 use protocol::journal::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
-use protocol::meta::meta_service_inner::meta_service_service_server::MetaServiceServiceServer;
+use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceServiceServer;
 use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
-use protocol::meta::meta_service_kv::kv_service_server::KvServiceServer;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
-use protocol::meta::meta_service_openraft::open_raft_service_server::OpenRaftServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tonic::transport::Server;
@@ -76,19 +72,11 @@ pub async fn start_grpc_server(
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
-                KvServiceServer::new(get_place_kv_handler(&place_params))
-                    .max_decoding_message_size(grpc_max_decoding_message_size),
-            )
-            .add_service(
                 MqttServiceServer::new(get_place_mqtt_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             )
             .add_service(
                 EngineServiceServer::new(get_place_engine_handler(&place_params))
-                    .max_decoding_message_size(grpc_max_decoding_message_size),
-            )
-            .add_service(
-                OpenRaftServiceServer::new(get_place_raft_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             );
     }
@@ -127,13 +115,6 @@ fn get_place_inner_handler(place_params: &MetaServiceServerParams) -> GrpcPlacem
     )
 }
 
-fn get_place_kv_handler(place_params: &MetaServiceServerParams) -> GrpcKvService {
-    GrpcKvService::new(
-        place_params.raft_manager.clone(),
-        place_params.rocksdb_engine_handler.clone(),
-    )
-}
-
 fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttService {
     GrpcMqttService::new(
         place_params.cache_manager.clone(),
@@ -152,10 +133,6 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
         place_params.journal_call_manager.clone(),
         place_params.client_pool.clone(),
     )
-}
-
-fn get_place_raft_handler(place_params: &MetaServiceServerParams) -> GrpcOpenRaftServices {
-    GrpcOpenRaftServices::new(place_params.raft_manager.metadata_raft_node.clone())
 }
 
 fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServices {
