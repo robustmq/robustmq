@@ -30,7 +30,6 @@ use openraft::{
 };
 use std::io::Cursor;
 use std::sync::Arc;
-use tracing::warn;
 
 #[derive(Clone)]
 pub struct StateMachineStore {
@@ -121,10 +120,9 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let mut replies = Vec::with_capacity(entries.size_hint().0);
 
         for ent in entries {
-            self.data.last_applied_log_id = Some(ent.log_id);
-
             let mut resp_value = None;
 
+            // Process the entry BEFORE updating last_applied_log_id
             match ent.payload {
                 EntryPayload::Blank => {}
                 EntryPayload::Normal(req) => match self.data.route.route(&req).await {
@@ -132,9 +130,10 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                         resp_value = data;
                     }
                     Err(e) => {
-                        warn!(
-                            "Raft route failed to process message with error message: {},req:{:?}",
-                            e, req.data_type
+                        use tracing::error;
+                        error!(
+                            "[{}] Failed to apply log {}: {}, req type: {:?}",
+                            self.machine, ent.log_id.index, e, req.data_type
                         );
                         return Err(StorageError::write(&e));
                     }
@@ -143,6 +142,9 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                     self.data.last_membership = StoredMembership::new(Some(ent.log_id), mem);
                 }
             }
+
+            // Only update last_applied_log_id AFTER successful processing
+            self.data.last_applied_log_id = Some(ent.log_id);
 
             replies.push(AppResponseData { value: resp_value });
         }

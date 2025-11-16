@@ -16,13 +16,13 @@
 mod tests {
 
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::meta::inner::call::register_node;
+    use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::journal::call::{create_next_segment, create_shard};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_inner::RegisterNodeRequest;
+    use protocol::meta::meta_service_common::RegisterNodeRequest;
     use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, CreateShardRequest};
 
     use crate::common::get_placement_addr;

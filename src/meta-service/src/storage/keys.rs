@@ -37,10 +37,6 @@ pub fn key_resource_config(cluster_name: String, resource_key: String) -> String
     prefix_key(format!("/config/{cluster_name}/{resource_key}"))
 }
 
-pub fn key_resource_idempotent(cluster_name: &str, produce_id: &str, seq_num: u64) -> String {
-    prefix_key(format!("/idempotent/{cluster_name}/{produce_id}/{seq_num}"))
-}
-
 pub fn key_offset(cluster_name: &str, group: &str, namespace: &str, shard_name: &str) -> String {
     prefix_key(format!(
         "/offset/{cluster_name}/{group}/{namespace}/{shard_name}"

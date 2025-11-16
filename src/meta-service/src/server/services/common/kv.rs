@@ -16,29 +16,33 @@ use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
-use bytes::Bytes;
-use prost::Message;
-use protocol::meta::meta_service_kv::{
+use common_base::utils::serialize::encode_to_bytes;
+use protocol::meta::meta_service_common::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
-    GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
+    GetReply, GetRequest, SetReply, SetRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
+// Helper: Validate non-empty field
+fn validate_non_empty(value: &str, field_name: &str) -> Result<(), MetaServiceError> {
+    if value.is_empty() {
+        return Err(MetaServiceError::RequestParamsNotEmpty(
+            field_name.to_string(),
+        ));
+    }
+    Ok(())
+}
+
+// KV Operations
 pub async fn set_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SetRequest,
 ) -> Result<SetReply, MetaServiceError> {
-    if req.key.is_empty() || req.value.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "key or value".to_string(),
-        ));
-    }
+    validate_non_empty(&req.key, "key")?;
+    validate_non_empty(&req.value, "value")?;
 
-    let data = StorageData::new(
-        StorageDataType::KvSet,
-        Bytes::copy_from_slice(&SetRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::KvSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     Ok(SetReply::default())
@@ -48,37 +52,24 @@ pub async fn get_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetRequest,
 ) -> Result<GetReply, MetaServiceError> {
-    if req.key.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty("key".to_string()));
-    }
+    validate_non_empty(&req.key, "key")?;
 
     let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
-    let mut reply = GetReply::default();
+    let value = kv_storage
+        .get(req.key.clone())
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
+        .unwrap_or_default();
 
-    match kv_storage.get(req.key.clone()) {
-        Ok(Some(data)) => {
-            reply.value = data;
-        }
-        Ok(None) => {}
-        Err(e) => return Err(MetaServiceError::CommonError(e.to_string())),
-    }
-
-    Ok(reply)
+    Ok(GetReply { value })
 }
 
 pub async fn delete_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteRequest,
 ) -> Result<DeleteReply, MetaServiceError> {
-    if req.key.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty("key".to_string()));
-    }
+    validate_non_empty(&req.key, "key")?;
 
-    // Raft状态机用于存储节点数据
-    let data = StorageData::new(
-        StorageDataType::KvDelete,
-        Bytes::copy_from_slice(&DeleteRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::KvDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     Ok(DeleteReply::default())
@@ -88,9 +79,7 @@ pub async fn exists_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ExistsRequest,
 ) -> Result<ExistsReply, MetaServiceError> {
-    if req.key.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty("key".to_string()));
-    }
+    validate_non_empty(&req.key, "key")?;
 
     let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
     let flag = kv_storage.exists(req.key.clone())?;
@@ -98,31 +87,11 @@ pub async fn exists_by_req(
     Ok(ExistsReply { flag })
 }
 
-pub async fn list_shard_by_req(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &ListShardRequest,
-) -> Result<ListShardReply, MetaServiceError> {
-    if req.namespace.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "namespace".to_string(),
-        ));
-    }
-
-    let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
-    let shards_info = kv_storage.get_prefix(format!("/shard/{}/", req.namespace))?;
-
-    Ok(ListShardReply { shards_info })
-}
-
 pub async fn get_prefix_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetPrefixRequest,
 ) -> Result<GetPrefixReply, MetaServiceError> {
-    if req.prefix.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "prefix".to_string(),
-        ));
-    }
+    validate_non_empty(&req.prefix, "prefix")?;
 
     let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
     let values = kv_storage.get_prefix(req.prefix.clone())?;

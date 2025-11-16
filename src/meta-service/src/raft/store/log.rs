@@ -38,11 +38,23 @@ impl LogStore {
     }
 
     fn get_last_purged_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
-        Ok(self
+        match self
             .db
             .get_cf(&self.store(), key_last_purged_log_id(&self.machine))
-            .map_err(|e| StorageError::read(&e))?
-            .and_then(|v| deserialize(&v).ok()))
+        {
+            Ok(Some(v)) => {
+                let log_id = deserialize(&v).map_err(|e| {
+                    use openraft::AnyError;
+                    StorageError::read(AnyError::error(format!(
+                        "Failed to deserialize last_purged: {}",
+                        e
+                    )))
+                })?;
+                Ok(Some(log_id))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(StorageError::read(&e)),
+        }
     }
 
     fn set_last_purged_(&self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
@@ -68,11 +80,20 @@ impl LogStore {
     }
 
     fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
-        Ok(self
-            .db
-            .get_cf(&self.store(), key_committed(&self.machine))
-            .map_err(|e| StorageError::read(&e))?
-            .and_then(|v| deserialize(&v).ok()))
+        match self.db.get_cf(&self.store(), key_committed(&self.machine)) {
+            Ok(Some(v)) => {
+                let log_id = deserialize(&v).map_err(|e| {
+                    use openraft::AnyError;
+                    StorageError::read(AnyError::error(format!(
+                        "Failed to deserialize committed: {}",
+                        e
+                    )))
+                })?;
+                Ok(Some(log_id))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(StorageError::read(&e)),
+        }
     }
 
     fn set_vote_(&self, vote: &Vote<TypeConfig>) -> StorageResult<()> {
@@ -83,11 +104,20 @@ impl LogStore {
     }
 
     fn get_vote_(&self) -> StorageResult<Option<Vote<TypeConfig>>> {
-        Ok(self
-            .db
-            .get_cf(&self.store(), key_vote(&self.machine))
-            .map_err(|e| StorageError::write_vote(&e))?
-            .and_then(|v| deserialize(&v).ok()))
+        match self.db.get_cf(&self.store(), key_vote(&self.machine)) {
+            Ok(Some(v)) => {
+                let vote = deserialize(&v).map_err(|e| {
+                    use openraft::AnyError;
+                    StorageError::read_vote(AnyError::error(format!(
+                        "Failed to deserialize vote: {}",
+                        e
+                    )))
+                })?;
+                Ok(Some(vote))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(StorageError::read_vote(&e)),
+        }
     }
 }
 
@@ -159,6 +189,24 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         let last_purged_log_id = self.get_last_purged_()?;
         let last_log_id = last.or(last_purged_log_id);
 
+        // Consistency check: committed should not exceed last_log_id
+        if let Some(committed) = self.get_committed_()? {
+            if let Some(last_id) = last_log_id {
+                if committed.index > last_id.index {
+                    use openraft::AnyError;
+                    use tracing::error;
+                    error!(
+                        "[{}] Inconsistent state detected: committed={} > last_log_id={}. \
+                         Data corruption! Please delete data directory and restart.",
+                        self.machine, committed.index, last_id.index
+                    );
+                    return Err(StorageError::read(AnyError::error(
+                        "Raft state corrupted: committed > last_log_id",
+                    )));
+                }
+            }
+        }
+
         Ok(LogState {
             last_purged_log_id,
             last_log_id,
@@ -218,14 +266,19 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     }
 
     async fn purge(&mut self, log_id: LogId<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
-        self.set_last_purged_(log_id)?;
-
+        // Delete logs first, then update last_purged marker
+        // This ensures consistency: if delete fails, last_purged is not updated
         let from = key_raft_log(&self.machine, 0);
         let to = key_raft_log(&self.machine, log_id.index + 1);
 
         self.db
             .delete_range_cf(&self.store(), &from, &to)
-            .map_err(|e| StorageError::write_logs(&e))
+            .map_err(|e| StorageError::write_logs(&e))?;
+
+        // Update last_purged marker after successful deletion
+        self.set_last_purged_(log_id)?;
+
+        Ok(())
     }
 
     async fn get_log_reader(&mut self) -> Self::LogReader {

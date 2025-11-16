@@ -23,10 +23,9 @@ use crate::{
     },
     storage::mqtt::user::MqttUserStorage,
 };
-use bytes::Bytes;
+use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
-use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
     ListUserRequest,
@@ -34,6 +33,7 @@ use protocol::meta::meta_service_mqtt::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
+// User Operations
 pub fn list_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListUserRequest,
@@ -66,16 +66,15 @@ pub async fn create_user_by_req(
     req: &CreateUserRequest,
 ) -> Result<CreateUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
+
+    // Check if user already exists
     if storage.get(&req.cluster_name, &req.user_name)?.is_some() {
         return Err(MetaServiceError::UserAlreadyExist(req.user_name.clone()));
     }
 
-    let data = StorageData::new(
-        StorageDataType::MqttSetUser,
-        Bytes::copy_from_slice(&CreateUserRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttSetUser, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+
     let user = MqttUser::decode(&req.content)?;
     update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
@@ -90,17 +89,15 @@ pub async fn delete_user_by_req(
     req: &DeleteUserRequest,
 ) -> Result<DeleteUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
-    let user = if let Some(user) = storage.get(&req.cluster_name, &req.user_name)? {
-        user
-    } else {
-        return Err(MetaServiceError::UserDoesNotExist(req.user_name.clone()));
-    };
 
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteUser,
-        Bytes::copy_from_slice(&DeleteUserRequest::encode_to_vec(req)),
-    );
+    // Get user to delete (must exist)
+    let user = storage
+        .get(&req.cluster_name, &req.user_name)?
+        .ok_or_else(|| MetaServiceError::UserDoesNotExist(req.user_name.clone()))?;
+
+    let data = StorageData::new(StorageDataType::MqttDeleteUser, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+
     update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
     Ok(DeleteUserReply {})

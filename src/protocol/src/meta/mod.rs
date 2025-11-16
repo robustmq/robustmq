@@ -19,18 +19,10 @@ pub mod meta_service_journal {
     tonic::include_proto!("meta.service.journal");
 }
 
-pub mod meta_service_inner {
-    tonic::include_proto!("meta.service.inner");
-}
-
-pub mod meta_service_kv {
-    tonic::include_proto!("meta.service.kv");
+pub mod meta_service_common {
+    tonic::include_proto!("meta.service.common");
 }
 
 pub mod meta_service_mqtt {
     tonic::include_proto!("meta.service.mqtt");
-}
-
-pub mod meta_service_openraft {
-    tonic::include_proto!("meta.service.openraft");
 }

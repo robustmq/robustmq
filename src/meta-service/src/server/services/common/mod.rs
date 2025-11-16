@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod client;
-pub mod connection;
+pub mod inner;
+pub mod kv;
+pub mod schema;

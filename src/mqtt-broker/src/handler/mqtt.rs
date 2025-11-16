@@ -12,28 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
-use common_base::tools::{now_mills, now_second};
-use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
-use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
-use delay_message::DelayMessageManager;
-use grpc_clients::pool::ClientPool;
-use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::common::{
-    qos, Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
-    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
-    PubRecProperties, PubRecReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
-    Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
-    UnsubscribeProperties,
-};
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::ArcStorageAdapter;
-use tracing::{debug, warn};
-
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
 use super::offline_message::{save_message, SaveMessageContext};
@@ -42,7 +20,6 @@ use super::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageCon
 use super::sub_auto::try_auto_subscribe;
 use super::subscribe::{save_subscribe, SaveSubscribeContext};
 use super::unsubscribe::remove_subscribe;
-use crate::common::pkid_storage::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::cache::{
     ConnectionLiveTime, MQTTCacheManager, QosAckPackageData, QosAckPackageType,
 };
@@ -70,6 +47,26 @@ use crate::system_topic::event::{
     st_report_unsubscribed_event, StReportConnectedEventContext, StReportDisconnectedEventContext,
     StReportSubscribedEventContext, StReportUnsubscribedEventContext,
 };
+use common_base::tools::{now_mills, now_second};
+use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
+use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
+use delay_message::DelayMessageManager;
+use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
+use protocol::mqtt::common::{
+    qos, Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
+    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
+    PubRecProperties, PubRecReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
+    Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
+    UnsubscribeProperties,
+};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use schema_register::schema::SchemaRegisterManager;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
+use tracing::{debug, warn};
 
 #[derive(Clone)]
 pub struct MqttService {
@@ -339,7 +336,6 @@ impl MqttService {
         if let Some(pkg) = publish_validator(
             &self.protocol,
             &self.cache_manager,
-            &self.client_pool,
             &connection,
             publish,
             publish_properties,
@@ -514,22 +510,9 @@ impl MqttService {
                 user_properties,
             )),
             QoS::ExactlyOnce => {
-                if let Err(e) = pkid_save(
-                    &self.cache_manager,
-                    &self.client_pool,
-                    &client_id,
-                    publish.p_kid,
-                )
-                .await
-                {
-                    return Some(build_pub_ack_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.p_kid,
-                        Some(e.to_string()),
-                        is_pub_ack,
-                    ));
-                }
+                self.cache_manager
+                    .pkid_metadata
+                    .add_client_pkid(&client_id, publish.p_kid);
 
                 Some(build_pubrec(
                     &self.protocol,
@@ -643,61 +626,25 @@ impl MqttService {
         };
 
         let client_id = connection.client_id.clone();
-
-        match pkid_exists(
-            &self.cache_manager,
-            &self.client_pool,
-            &client_id,
-            pub_rel.pkid,
-        )
-        .await
+        if self
+            .cache_manager
+            .pkid_metadata
+            .get_client_pkid(&client_id, pub_rel.pkid)
+            .is_none()
         {
-            Ok(res) => {
-                if !res {
-                    return response_packet_mqtt_pubcomp_fail(
-                        &self.protocol,
-                        &connection,
-                        pub_rel.pkid,
-                        PubCompReason::PacketIdentifierNotFound,
-                        None,
-                    );
-                }
-            }
-            Err(e) => {
-                return response_packet_mqtt_pubcomp_fail(
-                    &self.protocol,
-                    &connection,
-                    pub_rel.pkid,
-                    PubCompReason::PacketIdentifierNotFound,
-                    Some(e.to_string()),
-                );
-            }
-        };
-
-        match pkid_delete(
-            &self.cache_manager,
-            &self.client_pool,
-            &client_id,
-            pub_rel.pkid,
-        )
-        .await
-        {
-            Ok(()) => {
-                connection.recv_qos_message_decr();
-            }
-            Err(e) => {
-                return response_packet_mqtt_pubcomp_fail(
-                    &self.protocol,
-                    &connection,
-                    pub_rel.pkid,
-                    PubCompReason::PacketIdentifierNotFound,
-                    Some(e.to_string()),
-                );
-            }
+            return response_packet_mqtt_pubcomp_fail(
+                &self.protocol,
+                &connection,
+                pub_rel.pkid,
+                PubCompReason::PacketIdentifierNotFound,
+                None,
+            );
         }
 
+        self.cache_manager
+            .pkid_metadata
+            .delete_client_pkid(&client_id, pub_rel.pkid);
         connection.recv_qos_message_decr();
-
         response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid)
     }
 

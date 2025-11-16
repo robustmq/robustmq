@@ -15,13 +15,13 @@
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_config::broker::broker_config;
 use grpc_clients::{
-    meta::inner::call::{
+    meta::common::call::{
         bind_schema, create_schema, delete_schema, list_bind_schema, list_schema, un_bind_schema,
     },
     pool::ClientPool,
 };
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
     ListSchemaRequest, UnBindSchemaRequest,
 };

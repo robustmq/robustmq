@@ -16,9 +16,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use grpc_clients::meta::inner::call::{get_offset_data, save_offset_data};
+use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     GetOffsetDataRequest, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
 

@@ -18,8 +18,8 @@ mod tests {
 
     use common_base::tools::now_second;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
-    use protocol::meta::meta_service_inner::{NodeListRequest, RegisterNodeRequest};
+    use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
+    use protocol::meta::meta_service_common::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;
 
     use crate::meta::common::{cluster_name, extend_info, node_id, node_ip, pc_addr};

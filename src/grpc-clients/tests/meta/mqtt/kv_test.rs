@@ -16,11 +16,13 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::meta::kv::call::{
-        placement_delete, placement_exists, placement_get, placement_set,
+    use grpc_clients::{
+        meta::common::call::{kv_delete, kv_exists, kv_get, kv_set},
+        pool::ClientPool,
     };
-    use grpc_clients::pool::ClientPool;
-    use protocol::meta::meta_service_kv::{DeleteRequest, ExistsRequest, GetRequest, SetRequest};
+    use protocol::meta::meta_service_common::{
+        DeleteRequest, ExistsRequest, GetRequest, SetRequest,
+    };
 
     use crate::common::get_placement_addr;
 
@@ -35,7 +37,7 @@ mod tests {
             key: key.clone(),
             value: value.clone(),
         };
-        match placement_set(&client_pool, &addrs, request).await {
+        match kv_set(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{e:?}");
@@ -46,22 +48,27 @@ mod tests {
             key: "".to_string(),
             value: value.clone(),
         };
-        let err = placement_set(&client_pool, &addrs, request_key_empty)
+        let err = kv_set(&client_pool, &addrs, request_key_empty)
             .await
             .unwrap_err();
-        assert!(err.to_string().contains("key or value"));
+        println!("{:?}", err);
+        assert!(err
+            .to_string()
+            .contains("characters length must be greater than or equal to 1"));
 
         let request_value_empty = SetRequest {
             key: key.clone(),
             value: "".to_string(),
         };
-        let err = placement_set(&client_pool, &addrs, request_value_empty)
+        let err = kv_set(&client_pool, &addrs, request_value_empty)
             .await
             .unwrap_err();
-        assert!(err.to_string().contains("key or value"));
+        assert!(err
+            .to_string()
+            .contains("characters length must be greater than or equal to 1"));
 
         let exist_req = ExistsRequest { key: key.clone() };
-        match placement_exists(&client_pool, &addrs, exist_req).await {
+        match kv_exists(&client_pool, &addrs, exist_req).await {
             Ok(da) => {
                 assert!(da.flag)
             }
@@ -71,7 +78,7 @@ mod tests {
         }
 
         let get_req = GetRequest { key: key.clone() };
-        match placement_get(&client_pool, &addrs, get_req).await {
+        match kv_get(&client_pool, &addrs, get_req).await {
             Ok(da) => {
                 assert_eq!(da.value, value);
             }
@@ -81,15 +88,15 @@ mod tests {
         }
 
         let exist_req = DeleteRequest { key: key.clone() };
-        match placement_delete(&client_pool, &addrs, exist_req).await {
+        match kv_delete(&client_pool, &addrs, exist_req).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{e:?}");
             }
         }
 
-        let exist_req = ExistsRequest { key: key.clone() };
-        match placement_exists(&client_pool, &addrs, exist_req).await {
+        let exist_req: ExistsRequest = ExistsRequest { key: key.clone() };
+        match kv_exists(&client_pool, &addrs, exist_req).await {
             Ok(da) => {
                 assert!(!da.flag)
             }

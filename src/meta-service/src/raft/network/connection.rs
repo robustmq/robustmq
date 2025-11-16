@@ -16,7 +16,7 @@ use crate::raft::error::{to_bincode_error, to_error, to_grpc_error};
 use crate::raft::type_config::TypeConfig;
 use bincode::{deserialize, serialize_into};
 use common_base::error::common::CommonError;
-use grpc_clients::meta::openraft::OpenRaftServiceManager;
+use grpc_clients::meta::common::PlacementServiceManager;
 use grpc_clients::pool::ClientPool;
 use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
@@ -26,7 +26,7 @@ use openraft::raft::{
     VoteRequest, VoteResponse,
 };
 use openraft::RaftNetwork;
-use protocol::meta::meta_service_openraft::{AppendRequest, SnapshotRequest};
+use protocol::meta::meta_service_common::{AppendRequest, SnapshotRequest};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
@@ -48,9 +48,9 @@ impl NetworkConnection {
         }
     }
 
-    async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
+    async fn c(&mut self) -> Result<Connection<PlacementServiceManager>, CommonError> {
         self.client_pool
-            .meta_service_openraft_services_client(&self.addr)
+            .meta_service_inner_services_client(&self.addr)
             .await
     }
 
@@ -174,7 +174,7 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_bincode_error(e, "Failed to serialize VoteRequest")),
         };
 
-        let request = protocol::meta::meta_service_openraft::VoteRequest {
+        let request = protocol::meta::meta_service_common::VoteRequest {
             machine: self.machine.clone(),
             value,
         };
