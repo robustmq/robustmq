@@ -21,7 +21,7 @@ use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grp
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
 use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
 use journal_server::JournalServerParams;
-use meta_service::server::service_inner::GrpcPlacementService;
+use meta_service::server::service_common::GrpcPlacementService;
 use meta_service::server::service_journal::GrpcEngineService;
 use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::MetaServiceServerParams;
