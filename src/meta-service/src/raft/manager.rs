@@ -36,8 +36,8 @@ pub const RAFT_STATE_MACHINE_NAME_MQTT: &str = "mqtt";
 
 pub struct MultiRaftManager {
     pub metadata_raft_node: Raft<TypeConfig>,
-    offset_raft_node: Raft<TypeConfig>,
-    mqtt_raft_node: Raft<TypeConfig>,
+    pub offset_raft_node: Raft<TypeConfig>,
+    pub mqtt_raft_node: Raft<TypeConfig>,
 }
 
 impl MultiRaftManager {
@@ -108,7 +108,7 @@ impl MultiRaftManager {
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
         Ok(Some(
             timeout(
-                Duration::from_secs(10),
+                Duration::from_secs(5),
                 self.metadata_raft_node.client_write(data),
             )
             .await??,
@@ -121,7 +121,7 @@ impl MultiRaftManager {
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
         Ok(Some(
             timeout(
-                Duration::from_secs(10),
+                Duration::from_secs(5),
                 self.offset_raft_node.client_write(data),
             )
             .await??,
@@ -134,7 +134,7 @@ impl MultiRaftManager {
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
         Ok(Some(
             timeout(
-                Duration::from_secs(10),
+                Duration::from_secs(5),
                 self.mqtt_raft_node.client_write(data),
             )
             .await??,

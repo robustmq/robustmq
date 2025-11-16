@@ -13,4 +13,6 @@
 // limitations under the License.
 
 pub mod connection;
+
+#[allow(clippy::module_inception)]
 pub mod network;
