@@ -19,8 +19,7 @@ use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::acl::AclStorage,
 };
-use bytes::Bytes;
-use prost::Message;
+use common_base::utils::serialize::encode_to_bytes;
 use protocol::meta::meta_service_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, ListAclReply, ListAclRequest,
@@ -29,16 +28,18 @@ use protocol::meta::meta_service_mqtt::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
+// ACL Operations
 pub fn list_acl_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListAclRequest,
 ) -> Result<ListAclReply, MetaServiceError> {
     let acl_storage = AclStorage::new(rocksdb_engine_handler.clone());
-    let list = acl_storage.list(&req.cluster_name)?;
-    let mut acls = Vec::new();
-    for acl in list {
-        acls.push(acl.encode()?);
-    }
+    let acls = acl_storage
+        .list(&req.cluster_name)?
+        .into_iter()
+        .map(|acl| acl.encode())
+        .collect::<Result<Vec<_>, _>>()?;
+
     Ok(ListAclReply { acls })
 }
 
@@ -46,12 +47,9 @@ pub async fn create_acl_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &CreateAclRequest,
 ) -> Result<CreateAclReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSetAcl,
-        Bytes::copy_from_slice(&CreateAclRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttSetAcl, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+
     Ok(CreateAclReply {})
 }
 
@@ -59,50 +57,43 @@ pub async fn delete_acl_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteAclRequest,
 ) -> Result<DeleteAclReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteAcl,
-        Bytes::copy_from_slice(&DeleteAclRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttDeleteAcl, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+
     Ok(DeleteAclReply {})
 }
 
+// Blacklist Operations
 pub fn list_blacklist_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, MetaServiceError> {
     let blacklist_storage = MqttBlackListStorage::new(rocksdb_engine_handler.clone());
-    let list = blacklist_storage.list(&req.cluster_name)?;
-    let mut blacklists = Vec::new();
-    for acl in list {
-        blacklists.push(acl.encode()?);
-    }
+    let blacklists = blacklist_storage
+        .list(&req.cluster_name)?
+        .into_iter()
+        .map(|item| item.encode())
+        .collect::<Result<Vec<_>, _>>()?;
+
     Ok(ListBlacklistReply { blacklists })
-}
-
-pub async fn delete_blacklist_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
-    req: &DeleteBlacklistRequest,
-) -> Result<DeleteBlacklistReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteBlacklist,
-        Bytes::copy_from_slice(&DeleteBlacklistRequest::encode_to_vec(req)),
-    );
-
-    raft_manager.write_metadata(data).await?;
-    Ok(DeleteBlacklistReply {})
 }
 
 pub async fn create_blacklist_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSetBlacklist,
-        Bytes::copy_from_slice(&CreateBlacklistRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttSetBlacklist, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+
     Ok(CreateBlacklistReply {})
+}
+
+pub async fn delete_blacklist_by_req(
+    raft_manager: &Arc<MultiRaftManager>,
+    req: &DeleteBlacklistRequest,
+) -> Result<DeleteBlacklistReply, MetaServiceError> {
+    let data = StorageData::new(StorageDataType::MqttDeleteBlacklist, encode_to_bytes(req));
+    raft_manager.write_metadata(data).await?;
+
+    Ok(DeleteBlacklistReply {})
 }

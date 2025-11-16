@@ -24,11 +24,10 @@ use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::session::MqttSessionStorage,
 };
-use bytes::Bytes;
 use common_base::tools::now_second;
+use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
-use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
     GetLastWillMessageReply, GetLastWillMessageRequest, ListSessionReply, ListSessionRequest,
@@ -37,7 +36,7 @@ use protocol::meta::meta_service_mqtt::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-// Session
+// Session Operations
 pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
@@ -66,15 +65,10 @@ pub async fn create_session_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSetSession,
-        Bytes::copy_from_slice(&CreateSessionRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttSetSession, encode_to_bytes(req));
     raft_manager.write_mqtt(data).await?;
 
     let session = MqttSession::decode(&req.session)?;
-
     update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
 
     Ok(CreateSessionReply {})
@@ -87,16 +81,14 @@ pub async fn update_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &UpdateSessionRequest,
 ) -> Result<UpdateSessionReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttUpdateSession,
-        Bytes::copy_from_slice(&UpdateSessionRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::MqttUpdateSession, encode_to_bytes(req));
     raft_manager.write_mqtt(data).await?;
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
         update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
     }
+
     Ok(UpdateSessionReply {})
 }
 
@@ -108,30 +100,23 @@ pub async fn delete_session_by_req(
     cache_manager: &Arc<CacheManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MetaServiceError> {
-    let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
-    let session = storage
+    let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
+    let session = session_storage
         .get(&req.cluster_name, &req.client_id)?
         .ok_or_else(|| MetaServiceError::SessionDoesNotExist(req.client_id.clone()))?;
 
-    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
-    match storage.get(&req.cluster_name, &req.client_id) {
-        Ok(Some(will_message)) => {
-            let delay = session.last_will_delay_interval.unwrap_or_default();
-            cache_manager.add_expire_last_will(ExpireLastWill {
-                client_id: will_message.client_id.clone(),
-                delay_sec: now_second() + delay,
-                cluster_name: req.cluster_name.to_owned(),
-            });
-        }
-        Ok(None) => {}
-        Err(e) => return Err(e),
+    // Check for last will message and schedule expiration
+    let will_storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
+    if let Some(will_message) = will_storage.get(&req.cluster_name, &req.client_id)? {
+        let delay = session.last_will_delay_interval.unwrap_or_default();
+        cache_manager.add_expire_last_will(ExpireLastWill {
+            client_id: will_message.client_id.clone(),
+            delay_sec: now_second() + delay,
+            cluster_name: req.cluster_name.clone(),
+        });
     }
 
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteSession,
-        Bytes::copy_from_slice(&DeleteSessionRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttDeleteSession, encode_to_bytes(req));
     raft_manager.write_mqtt(data).await?;
 
     update_cache_by_delete_session(
@@ -141,20 +126,21 @@ pub async fn delete_session_by_req(
         session.clone(),
     )
     .await?;
+
     Ok(DeleteSessionReply {})
 }
 
-// Will Message
+// Last Will Message Operations
 pub async fn save_last_will_message_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SaveLastWillMessageRequest,
 ) -> Result<SaveLastWillMessageReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSaveLastWillMessage,
-        Bytes::copy_from_slice(&SaveLastWillMessageRequest::encode_to_vec(req)),
+        encode_to_bytes(req),
     );
-
     raft_manager.write_mqtt(data).await?;
+
     Ok(SaveLastWillMessageReply {})
 }
 
@@ -163,13 +149,12 @@ pub async fn get_last_will_message_by_req(
     req: &GetLastWillMessageRequest,
 ) -> Result<GetLastWillMessageReply, MetaServiceError> {
     let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
-    if let Some(will) = storage.get(&req.cluster_name, &req.client_id)? {
-        return Ok(GetLastWillMessageReply {
-            message: will.encode()?,
-        });
-    }
 
-    Ok(GetLastWillMessageReply {
-        message: Vec::new(),
-    })
+    let message = storage
+        .get(&req.cluster_name, &req.client_id)?
+        .map(|will| will.encode())
+        .transpose()?
+        .unwrap_or_default();
+
+    Ok(GetLastWillMessageReply { message })
 }

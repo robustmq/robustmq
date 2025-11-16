@@ -21,11 +21,10 @@ use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::offset::OffsetStorage;
-use bytes::Bytes;
 use common_base::tools::now_second;
+use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ClusterResourceConfig;
-use prost::Message;
 use protocol::meta::meta_service_common::{
     ClusterStatusReply, DeleteResourceConfigReply, DeleteResourceConfigRequest, GetOffsetDataReply,
     GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
@@ -36,23 +35,19 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::debug;
 
+// Cluster Status
 pub async fn cluster_status_by_req(
     raft_manager: &Arc<MultiRaftManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
-    let mut reply = ClusterStatusReply::default();
     let status: openraft::RaftMetrics<crate::raft::type_config::TypeConfig> =
         raft_manager.metadata_raft_node.metrics().borrow().clone();
 
-    reply.content = match serde_json::to_string(&status) {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(MetaServiceError::SerdeJsonError(e));
-        }
-    };
+    let content = serde_json::to_string(&status).map_err(MetaServiceError::SerdeJsonError)?;
 
-    Ok(reply)
+    Ok(ClusterStatusReply { content })
 }
 
+// Node Management
 pub async fn node_list_by_req(
     cluster_cache: &Arc<CacheManager>,
     req: &NodeListRequest,
@@ -66,24 +61,28 @@ pub async fn node_list_by_req(
     Ok(NodeListReply { nodes })
 }
 
+// Heartbeat
 pub async fn heartbeat_by_req(
     cluster_cache: &Arc<CacheManager>,
     req: &HeartbeatRequest,
 ) -> Result<HeartbeatReply, MetaServiceError> {
-    match cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
-        Some(_) => {
-            debug!(
-                "receive heartbeat from node:{:?},time:{}",
-                req.node_id,
-                now_second()
-            );
-
-            cluster_cache.report_broker_heart(&req.cluster_name, req.node_id);
-
-            Ok(HeartbeatReply::default())
-        }
-        None => Err(MetaServiceError::NodeDoesNotExist(req.node_id)),
+    // Check if node exists
+    if cluster_cache
+        .get_broker_node(&req.cluster_name, req.node_id)
+        .is_none()
+    {
+        return Err(MetaServiceError::NodeDoesNotExist(req.node_id));
     }
+
+    debug!(
+        "Received heartbeat from node {} at {}",
+        req.node_id,
+        now_second()
+    );
+
+    cluster_cache.report_broker_heart(&req.cluster_name, req.node_id);
+
+    Ok(HeartbeatReply::default())
 }
 
 // Resource Config
@@ -93,20 +92,19 @@ pub async fn set_resource_config_by_req(
     client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
 ) -> Result<SetResourceConfigReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::ResourceConfigSet,
-        Bytes::copy_from_slice(&SetResourceConfigRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::ResourceConfigSet, encode_to_bytes(req));
 
     raft_manager.write_metadata(data).await?;
+
     let config = ClusterResourceConfig {
-        cluster_name: req.cluster_name.to_owned(),
-        resource: req.resources.to_owned().join("/"),
+        cluster_name: req.cluster_name.clone(),
+        resource: req.resources.join("/"),
         config: req.config.clone(),
     };
 
     update_cache_by_set_resource_config(&req.cluster_name, call_manager, client_pool, config)
         .await?;
+
     Ok(SetResourceConfigReply::default())
 }
 
@@ -116,23 +114,19 @@ pub async fn get_resource_config_by_req(
 ) -> Result<GetResourceConfigReply, MetaServiceError> {
     let storage = ResourceConfigStorage::new(rocksdb_engine_handler.clone());
 
-    match storage.get(req.cluster_name, req.resources) {
-        Ok(data) => match data {
-            Some(res) => Ok(GetResourceConfigReply { config: res }),
-            None => Ok(GetResourceConfigReply { config: Vec::new() }),
-        },
-        Err(e) => Err(MetaServiceError::CommonError(e.to_string())),
-    }
+    let config = storage
+        .get(req.cluster_name, req.resources)
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
+        .unwrap_or_default();
+
+    Ok(GetResourceConfigReply { config })
 }
 
 pub async fn delete_resource_config_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &DeleteResourceConfigRequest,
 ) -> Result<DeleteResourceConfigReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::ResourceConfigDelete,
-        Bytes::copy_from_slice(&DeleteResourceConfigRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::ResourceConfigDelete, encode_to_bytes(req));
 
     raft_manager
         .write_metadata(data)
@@ -145,10 +139,7 @@ pub async fn save_offset_data_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SaveOffsetDataRequest,
 ) -> Result<SaveOffsetDataReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::OffsetSet,
-        Bytes::copy_from_slice(&SaveOffsetDataRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::OffsetSet, encode_to_bytes(req));
 
     raft_manager
         .write_offset(data)
@@ -161,17 +152,19 @@ pub async fn get_offset_data_by_req(
     req: &GetOffsetDataRequest,
 ) -> Result<GetOffsetDataReply, MetaServiceError> {
     let offset_storage = OffsetStorage::new(rocksdb_engine_handler.clone());
-    offset_storage
+
+    let offset_data = offset_storage
         .group_offset(&req.cluster_name, &req.group)
-        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
-        .map(|offset_data| GetOffsetDataReply {
-            offsets: offset_data
-                .into_iter()
-                .map(|offset| GetOffsetDataReplyOffset {
-                    namespace: offset.namespace,
-                    shard_name: offset.shard_name,
-                    offset: offset.offset,
-                })
-                .collect(),
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
+
+    let offsets = offset_data
+        .into_iter()
+        .map(|offset| GetOffsetDataReplyOffset {
+            namespace: offset.namespace,
+            shard_name: offset.shard_name,
+            offset: offset.offset,
         })
+        .collect();
+
+    Ok(GetOffsetDataReply { offsets })
 }

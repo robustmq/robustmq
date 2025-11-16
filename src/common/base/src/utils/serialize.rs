@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
 use crate::error::common::CommonError;
+use bytes::Bytes;
+use prost::Message;
+use serde::{Deserialize, Serialize};
 
 /// Serialize data to bytes using bincode
 ///
@@ -46,6 +47,14 @@ where
 {
     bincode::deserialize(bytes)
         .map_err(|e| CommonError::CommonError(format!("Failed to deserialize: {}", e)))
+}
+
+/// Helper function to encode a protobuf message to Bytes
+///
+/// This is a common pattern used across all service handlers to convert
+/// protobuf requests into bytes for storage in Raft.
+pub fn encode_to_bytes<T: Message>(msg: &T) -> Bytes {
+    Bytes::copy_from_slice(&T::encode_to_vec(msg))
 }
 
 #[cfg(test)]

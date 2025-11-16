@@ -1413,6 +1413,7 @@ dependencies = [
  "apache-avro",
  "axum",
  "bincode",
+ "bytes",
  "chrono",
  "chrono-tz",
  "clap",
