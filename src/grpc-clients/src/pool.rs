@@ -16,11 +16,9 @@ use std::time::Duration;
 
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
-use crate::meta::inner::PlacementServiceManager;
+use crate::meta::common::PlacementServiceManager;
 use crate::meta::journal::JournalServiceManager;
-use crate::meta::kv::KvServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
-use crate::meta::openraft::OpenRaftServiceManager;
 use crate::mqtt::inner::MqttBrokerPlacementServiceManager;
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
@@ -99,9 +97,7 @@ pub struct ClientPool {
     // modules: meta service
     meta_service_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
     meta_service_journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
-    meta_service_kv_service_pools: DashMap<String, Pool<KvServiceManager>>,
     meta_service_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
-    meta_service_openraft_service_pools: DashMap<String, Pool<OpenRaftServiceManager>>,
     // modules: meta service service: leader cache
     meta_service_leader_addr_caches: DashMap<String, String>,
 
@@ -128,9 +124,7 @@ impl ClientPool {
             // modules: meta_service
             meta_service_inner_pools: DashMap::with_capacity(2),
             meta_service_journal_service_pools: DashMap::with_capacity(2),
-            meta_service_kv_service_pools: DashMap::with_capacity(2),
             meta_service_mqtt_service_pools: DashMap::with_capacity(2),
-            meta_service_openraft_service_pools: DashMap::with_capacity(2),
             meta_service_leader_addr_caches: DashMap::with_capacity(2),
             // modules: mqtt_broker
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
@@ -156,24 +150,10 @@ impl ClientPool {
     );
 
     define_client_method!(
-        meta_service_kv_services_client,
-        meta_service_kv_service_pools,
-        KvServiceManager,
-        "KvService"
-    );
-
-    define_client_method!(
         meta_service_mqtt_services_client,
         meta_service_mqtt_service_pools,
         MqttServiceManager,
         "MqttService"
-    );
-
-    define_client_method!(
-        meta_service_openraft_services_client,
-        meta_service_openraft_service_pools,
-        OpenRaftServiceManager,
-        "OpenRaftService"
     );
 
     // ----------modules: mqtt broker -------------
@@ -221,9 +201,7 @@ impl ClientPool {
     pub fn get_pool_count(&self) -> usize {
         self.meta_service_inner_pools.len()
             + self.meta_service_journal_service_pools.len()
-            + self.meta_service_kv_service_pools.len()
             + self.meta_service_mqtt_service_pools.len()
-            + self.meta_service_openraft_service_pools.len()
             + self.mqtt_broker_placement_service_pools.len()
             + self.journal_admin_service_pools.len()
             + self.journal_inner_service_pools.len()

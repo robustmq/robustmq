@@ -26,7 +26,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use prost::Message as _;
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use std::sync::Arc;

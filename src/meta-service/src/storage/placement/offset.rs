@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::storage::keys::{key_offset, key_offset_by_group};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use serde::{Deserialize, Serialize};
-
-use crate::storage::keys::{key_offset, key_offset_by_group};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::meta_metadata::{
-    engine_delete_by_meta_metadata, engine_prefix_list_by_meta_metadata,
-    engine_save_by_meta_metadata,
+use rocksdb_engine::storage::meta_data::{
+    engine_delete_by_meta_data, engine_prefix_list_by_meta_data, engine_save_by_meta_data,
 };
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct OffsetData {
     pub cluster_name: String,
     pub group: String,
@@ -62,10 +59,9 @@ impl OffsetStorage {
             offset,
             timestamp: now_second(),
         };
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, offset_data)
+        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, offset_data)
     }
 
-    #[allow(dead_code)]
     pub fn delete(
         &self,
         cluster_name: &str,
@@ -74,7 +70,7 @@ impl OffsetStorage {
         shard_name: &str,
     ) -> Result<(), CommonError> {
         let key = key_offset(cluster_name, group, namespace, shard_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn group_offset(
@@ -84,15 +80,12 @@ impl OffsetStorage {
     ) -> Result<Vec<OffsetData>, CommonError> {
         let prefix_key = key_offset_by_group(cluster_name, group);
 
-        let data = engine_prefix_list_by_meta_metadata::<OffsetData>(
+        let data = engine_prefix_list_by_meta_data::<OffsetData>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
+
+        Ok(data.iter().map(|row| row.data.clone()).collect())
     }
 }
 

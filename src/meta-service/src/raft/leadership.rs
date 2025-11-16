@@ -34,7 +34,7 @@ pub fn monitoring_leader_transition(
     raft_manager: Arc<MultiRaftManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let mut metrics_rx = raft_manager.metadata_raft_node.metrics();
+    let mut metrics_rx = raft_manager.mqtt_raft_node.metrics();
     let mut controller_running = false;
     tokio::spawn(async move {
         let mut last_leader: Option<u64> = None;
@@ -57,7 +57,7 @@ pub fn monitoring_leader_transition(
                         if let Some(current_leader) = mm.current_leader {
                             if last_leader != Some(current_leader)  {
                                 if mm.id == current_leader{
-                                    info!("Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
+                                    info!("[mqtt] Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
                                     start_controller(
                                         &rocksdb_engine_handler,
                                         &cache_manager,

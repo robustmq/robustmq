@@ -12,17 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_config::config::BrokerConfig;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::connection::MQTTConnection;
-use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, LastWill, LastWillProperties, Login, MqttPacket,
-    MqttProtocol, PubAckReason, PubRecReason, Publish, PublishProperties, QoS, Subscribe,
-    SubscribeReasonCode, UnsubAckReason, Unsubscribe,
-};
-use std::cmp::min;
-use std::sync::Arc;
-
 use super::cache::MQTTCacheManager;
 use super::content_type::{
     payload_format_indicator_check_by_lastwill, payload_format_indicator_check_by_publish,
@@ -34,11 +23,19 @@ use super::response::{
 };
 use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
-use crate::common::pkid_storage::pkid_exists;
 use crate::handler::response::{build_puback, build_pubrec};
 use crate::security::AuthDriver;
 use crate::subscribe::common::sub_path_validator;
 use crate::subscribe::manager::SubscribeManager;
+use common_config::config::BrokerConfig;
+use metadata_struct::mqtt::connection::MQTTConnection;
+use protocol::mqtt::common::{
+    Connect, ConnectProperties, ConnectReturnCode, LastWill, LastWillProperties, Login, MqttPacket,
+    MqttProtocol, PubAckReason, PubRecReason, Publish, PublishProperties, QoS, Subscribe,
+    SubscribeReasonCode, UnsubAckReason, Unsubscribe,
+};
+use std::cmp::min;
+use std::sync::Arc;
 
 pub fn connect_validator(
     protocol: &MqttProtocol,
@@ -161,45 +158,26 @@ pub fn connect_validator(
 pub async fn publish_validator(
     protocol: &MqttProtocol,
     cache_manager: &Arc<MQTTCacheManager>,
-    client_pool: &Arc<ClientPool>,
     connection: &MQTTConnection,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Option<MqttPacket> {
     let is_puback = publish.qos != QoS::ExactlyOnce;
 
-    if publish.qos == QoS::ExactlyOnce {
-        match pkid_exists(
-            cache_manager,
-            client_pool,
-            &connection.client_id,
+    if publish.qos == QoS::ExactlyOnce
+        && cache_manager
+            .pkid_metadata
+            .get_client_pkid(&connection.client_id, publish.p_kid)
+            .is_some()
+    {
+        return Some(build_pubrec(
+            protocol,
+            connection,
             publish.p_kid,
-        )
-        .await
-        {
-            Ok(res) => {
-                if res {
-                    return Some(build_pubrec(
-                        protocol,
-                        connection,
-                        publish.p_kid,
-                        PubRecReason::PacketIdentifierInUse,
-                        None,
-                        Vec::new(),
-                    ));
-                }
-            }
-            Err(e) => {
-                return Some(build_pubrec(
-                    protocol,
-                    connection,
-                    publish.p_kid,
-                    PubRecReason::UnspecifiedError,
-                    Some(e.to_string()),
-                    Vec::new(),
-                ));
-            }
-        };
+            PubRecReason::PacketIdentifierInUse,
+            None,
+            Vec::new(),
+        ));
     }
 
     let cluster = cache_manager.broker_cache.get_cluster_config().await;

@@ -83,7 +83,7 @@ impl MetaServiceServer {
     pub async fn start(&mut self) {
         self.start_init();
 
-        self.start_raft_machine();
+        self.start_raft_machine().await;
 
         self.start_heartbeat();
 
@@ -109,15 +109,11 @@ impl MetaServiceServer {
         });
     }
 
-    fn start_raft_machine(&self) {
+    async fn start_raft_machine(&self) {
         // create raft node
-        let raft_manager = self.raft_manager.clone();
-
-        tokio::spawn(async move {
-            if let Err(e) = raft_manager.start().await {
-                panic!("{}", e);
-            }
-        });
+        if let Err(e) = self.raft_manager.start().await {
+            panic!("{}", e);
+        }
 
         // monitor leader switch
         monitoring_leader_transition(

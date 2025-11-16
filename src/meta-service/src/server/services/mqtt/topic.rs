@@ -19,10 +19,9 @@ use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
-use bytes::Bytes;
+use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
-use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
@@ -36,7 +35,7 @@ use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;
 use tonic::Status;
 
-// Topic
+// Topic Operations
 pub async fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListTopicRequest,
@@ -76,6 +75,7 @@ pub async fn create_topic_by_req(
 ) -> Result<CreateTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
+    // Check if topic already exists
     if topic_storage
         .get(&req.cluster_name, &req.topic_name)?
         .is_some()
@@ -83,11 +83,7 @@ pub async fn create_topic_by_req(
         return Err(MetaServiceError::TopicAlreadyExist(req.topic_name.clone()));
     }
 
-    let data = StorageData::new(
-        StorageDataType::MqttSetTopic,
-        Bytes::copy_from_slice(&CreateTopicRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttSetTopic, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     let topic = MQTTTopic::decode(&req.content)?;
@@ -105,22 +101,20 @@ pub async fn delete_topic_by_req(
 ) -> Result<DeleteTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
+    // Get topic to delete (must exist)
     let topic = topic_storage
         .get(&req.cluster_name, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteTopic,
-        Bytes::copy_from_slice(&DeleteTopicRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+
     update_cache_by_delete_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
     Ok(DeleteTopicReply {})
 }
 
-// Retain Message
+// Retain Message Operations
 pub async fn set_topic_retain_message_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -128,25 +122,23 @@ pub async fn set_topic_retain_message_by_req(
 ) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
+    // Verify topic exists
     topic_storage
         .get(&req.cluster_name, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
-    if req.retain_message.is_none() {
-        let data = StorageData::new(
+    let (data_type, data) = if req.retain_message.is_none() {
+        (
             StorageDataType::MqttDeleteRetainMessage,
-            Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
-        );
-        raft_manager.write_mqtt(data).await?;
-        return Ok(SetTopicRetainMessageReply {});
-    }
+            encode_to_bytes(req),
+        )
+    } else {
+        (StorageDataType::MqttSetRetainMessage, encode_to_bytes(req))
+    };
 
-    let data = StorageData::new(
-        StorageDataType::MqttSetRetainMessage,
-        Bytes::copy_from_slice(&SetTopicRetainMessageRequest::encode_to_vec(req)),
-    );
-
+    let data = StorageData::new(data_type, data);
     raft_manager.write_mqtt(data).await?;
+
     Ok(SetTopicRetainMessageReply {})
 }
 
@@ -156,30 +148,32 @@ pub async fn get_topic_retain_message_by_req(
 ) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    if let Some(message) = topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
-        return Ok(GetTopicRetainMessageReply {
-            retain_message: Some(message.retain_message.to_vec()),
-            retain_message_expired_at: message.retain_message_expired_at,
-        });
-    }
+    let (retain_message, retain_message_expired_at) =
+        match topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
+            Some(message) => (
+                Some(message.retain_message.to_vec()),
+                message.retain_message_expired_at,
+            ),
+            None => (None, 0),
+        };
 
     Ok(GetTopicRetainMessageReply {
-        retain_message: None,
-        retain_message_expired_at: 0,
+        retain_message,
+        retain_message_expired_at,
     })
 }
 
-// Rewrite Rule
+// Topic Rewrite Rule Operations
 pub async fn create_topic_rewrite_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttCreateTopicRewriteRule,
-        Bytes::copy_from_slice(&CreateTopicRewriteRuleRequest::encode_to_vec(req)),
+        encode_to_bytes(req),
     );
-
     raft_manager.write_metadata(data).await?;
+
     Ok(CreateTopicRewriteRuleReply {})
 }
 
@@ -189,10 +183,10 @@ pub async fn delete_topic_rewrite_rule_by_req(
 ) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopicRewriteRule,
-        Bytes::copy_from_slice(&DeleteTopicRewriteRuleRequest::encode_to_vec(req)),
+        encode_to_bytes(req),
     );
-
     raft_manager.write_metadata(data).await?;
+
     Ok(DeleteTopicRewriteRuleReply {})
 }
 

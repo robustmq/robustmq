@@ -16,11 +16,11 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use grpc_clients::{
-    meta::kv::call::{placement_get, placement_set},
+    meta::common::call::{kv_get, kv_set},
     pool::ClientPool,
 };
 use prettytable::{row, Table};
-use protocol::meta::meta_service_kv::{GetRequest, SetRequest};
+use protocol::meta::meta_service_common::{GetRequest, SetRequest};
 use rand::{thread_rng, Rng};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -35,9 +35,7 @@ where
     T: DeserializeOwned,
 {
     let req = GetRequest { key };
-    let reply = placement_get(client_pool, addrs, req)
-        .await
-        .map_err(Box::new)?;
+    let reply = kv_get(client_pool, addrs, req).await.map_err(Box::new)?;
 
     let ret = serde_json::from_str(&reply.value)?;
 
@@ -58,9 +56,7 @@ where
         value: serde_json::to_string(&value)?,
     };
 
-    placement_set(client_pool, addrs, req)
-        .await
-        .map_err(Box::new)?;
+    kv_set(client_pool, addrs, req).await.map_err(Box::new)?;
 
     Ok(())
 }

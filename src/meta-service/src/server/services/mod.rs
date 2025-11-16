@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod inner;
+pub mod common;
 pub mod journal;
-pub mod kv;
 pub mod mqtt;
-pub mod schema;

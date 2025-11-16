@@ -16,8 +16,8 @@
 mod tests {
     use common_base::tools::now_second;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
-    use protocol::meta::meta_service_inner::{
+    use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
+    use protocol::meta::meta_service_common::{
         NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 

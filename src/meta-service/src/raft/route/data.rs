@@ -54,8 +54,6 @@ pub enum StorageDataType {
     SchemaBindDelete,
     ResourceConfigSet,
     ResourceConfigDelete,
-    IdempotentDataSet,
-    IdempotentDataDelete,
     OffsetSet,
     OffsetDelete,
 
@@ -109,8 +107,6 @@ impl fmt::Display for StorageDataType {
             StorageDataType::SchemaBindDelete => write!(f, "SchemaBindDelete"),
             StorageDataType::ResourceConfigSet => write!(f, "ResourceConfigSet"),
             StorageDataType::ResourceConfigDelete => write!(f, "ResourceConfigDelete"),
-            StorageDataType::IdempotentDataSet => write!(f, "IdempotentDataSet"),
-            StorageDataType::IdempotentDataDelete => write!(f, "IdempotentDataDelete"),
             StorageDataType::OffsetSet => write!(f, "OffsetSet"),
             StorageDataType::OffsetDelete => write!(f, "OffsetDelete"),
 

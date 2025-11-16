@@ -17,7 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::{get_local_ip, now_second, unique_id};
-    use grpc_clients::meta::inner::call::register_node;
+    use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::journal::call::{
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
         list_segment_meta, list_shard, update_segment_meta, update_segment_status,
@@ -28,7 +28,7 @@ mod tests {
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
     use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_inner::RegisterNodeRequest;
+    use protocol::meta::meta_service_common::RegisterNodeRequest;
     use protocol::meta::meta_service_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
         ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest, UpdateSegmentMetaRequest,

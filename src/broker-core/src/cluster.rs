@@ -17,14 +17,14 @@ use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
-use grpc_clients::meta::inner::call::{
+use grpc_clients::meta::common::call::{
     cluster_status, delete_resource_config, get_resource_config, heartbeat, node_list,
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
     NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };

@@ -41,7 +41,7 @@ impl ShareSubLeader {
     pub fn get_leader_node(
         &self,
         cluster_name: &str,
-        group_name: &String,
+        group_name: &str,
     ) -> Result<u64, CommonError> {
         let mut broker_ids = self
             .cache_manager
@@ -52,7 +52,7 @@ impl ShareSubLeader {
         let node_sub_info = self.read_node_sub_info(cluster_name)?;
 
         for (broker_id, group_list) in node_sub_info.clone() {
-            if group_list.contains(group_name) && broker_ids.contains(&broker_id) {
+            if group_list.iter().any(|g| g == group_name) && broker_ids.contains(&broker_id) {
                 return Ok(broker_id);
             }
         }
@@ -90,53 +90,50 @@ impl ShareSubLeader {
     pub fn remove_group_by_node(
         &self,
         cluster_name: &str,
-        group_name: &String,
+        group_name: &str,
     ) -> Result<(), CommonError> {
         let mut node_sub_info = self.read_node_sub_info(cluster_name)?;
-        for (broker_id, mut group_list) in node_sub_info.clone() {
-            if group_list.contains(group_name) {
-                group_list.retain(|x| x != group_name);
-                node_sub_info.insert(broker_id, group_list);
+        let mut modified = false;
 
-                let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-                let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
-                match serde_json::to_string(&node_sub_info) {
-                    Ok(value) => match kv_storage.set(key, value) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            return Err(e);
-                        }
-                    },
-                    Err(e) => {
-                        return Err(CommonError::CommonError(e.to_string()));
-                    }
-                }
+        for (broker_id, group_list) in node_sub_info.clone() {
+            if group_list.iter().any(|g| g == group_name) {
+                let updated_list: Vec<String> = group_list
+                    .into_iter()
+                    .filter(|x| x.as_str() != group_name)
+                    .collect();
+                node_sub_info.insert(broker_id, updated_list);
+                modified = true;
                 break;
             }
         }
+
+        if modified {
+            let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+            let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
+            let value = serde_json::to_string(&node_sub_info)
+                .map_err(|e| CommonError::CommonError(e.to_string()))?;
+            kv_storage.set(key, value)?;
+        }
+
         Ok(())
     }
 
     #[allow(dead_code)]
     pub fn delete_node(&self, cluster_name: &str, broker_id: u64) -> Result<(), CommonError> {
         let mut node_sub_info = self.read_node_sub_info(cluster_name)?;
-        if node_sub_info.contains_key(&broker_id) {
-            node_sub_info.remove(&broker_id);
-            let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-            let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
 
-            match serde_json::to_string(&node_sub_info) {
-                Ok(value) => match kv_storage.set(key, value) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        return Err(e);
-                    }
-                },
-                Err(e) => {
-                    return Err(CommonError::CommonError(e.to_string()));
-                }
-            }
+        if !node_sub_info.contains_key(&broker_id) {
+            return Ok(());
         }
+
+        node_sub_info.remove(&broker_id);
+
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+        let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
+        let value = serde_json::to_string(&node_sub_info)
+            .map_err(|e| CommonError::CommonError(e.to_string()))?;
+        kv_storage.set(key, value)?;
+
         Ok(())
     }
 
@@ -144,31 +141,23 @@ impl ShareSubLeader {
         &self,
         cluster_name: &str,
         broker_id: u64,
-        group_name: &String,
+        group_name: &str,
     ) -> Result<(), CommonError> {
         let mut node_sub_info = self.read_node_sub_info(cluster_name)?;
-        if let Some(data) = node_sub_info.get_mut(&broker_id) {
-            if !data.contains(group_name) {
-                data.push(group_name.clone());
-            }
-        } else {
-            node_sub_info.insert(broker_id, vec![group_name.clone()]);
-        }
+
+        // Add group to broker's list
+        node_sub_info
+            .entry(broker_id)
+            .or_insert_with(Vec::new)
+            .push(group_name.to_owned());
 
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
         let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
+        let value = serde_json::to_string(&node_sub_info)
+            .map_err(|e| CommonError::CommonError(e.to_string()))?;
 
-        match serde_json::to_string(&node_sub_info) {
-            Ok(value) => match kv_storage.set(key, value) {
-                Ok(()) => {}
-                Err(e) => {
-                    return Err(e);
-                }
-            },
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
+        kv_storage.set(key, value)?;
+
         Ok(())
     }
 
@@ -178,20 +167,13 @@ impl ShareSubLeader {
     ) -> Result<HashMap<u64, Vec<String>>, CommonError> {
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
         let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
-        match kv_storage.get(key) {
-            Ok(Some(data)) => match serde_json::from_str::<HashMap<u64, Vec<String>>>(&data) {
-                Ok(data) => {
-                    return Ok(data);
-                }
-                Err(e) => return Err(CommonError::CommonError(e.to_string())),
-            },
-            Ok(None) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
 
-        Ok(HashMap::new())
+        let data = match kv_storage.get(key)? {
+            Some(data) => data,
+            None => return Ok(HashMap::new()),
+        };
+
+        serde_json::from_str(&data).map_err(|e| CommonError::CommonError(e.to_string()))
     }
 }
 

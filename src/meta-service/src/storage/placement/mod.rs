@@ -14,7 +14,6 @@
 
 pub mod cluster;
 pub mod config;
-pub mod idempotent;
 pub mod kv;
 pub mod node;
 pub mod offset;

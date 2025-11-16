@@ -23,10 +23,9 @@ use crate::{
     },
     storage::mqtt::subscribe::MqttSubscribeStorage,
 };
-use bytes::Bytes;
+use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use prost::Message;
 use protocol::meta::meta_service_mqtt::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteSubscribeReply,
     DeleteSubscribeRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
@@ -35,8 +34,8 @@ use protocol::meta::meta_service_mqtt::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use tracing::warn;
 
+// Subscribe Operations
 pub async fn delete_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -60,16 +59,14 @@ pub async fn delete_subscribe_by_req(
         return Ok(DeleteSubscribeReply {});
     }
 
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteSubscribe,
-        Bytes::copy_from_slice(&DeleteSubscribeRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::MqttDeleteSubscribe, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     for raw in subscribes {
         update_cache_by_delete_subscribe(&req.cluster_name, mqtt_call_manager, client_pool, raw)
             .await?;
     }
+
     Ok(DeleteSubscribeReply {})
 }
 
@@ -78,8 +75,8 @@ pub fn list_subscribe_by_req(
     req: &ListSubscribeRequest,
 ) -> Result<ListSubscribeReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
-    let data = storage.list_by_cluster(&req.cluster_name)?;
-    let subscribes = data
+    let subscribes = storage
+        .list_by_cluster(&req.cluster_name)?
         .into_iter()
         .map(|raw| raw.encode())
         .collect::<Result<Vec<_>, _>>()?;
@@ -93,19 +90,11 @@ pub async fn set_subscribe_by_req(
     client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
 ) -> Result<SetSubscribeReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSetSubscribe,
-        Bytes::copy_from_slice(&SetSubscribeRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::MqttSetSubscribe, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let subscribe = match MqttSubscribe::decode(&req.subscribe) {
-        Ok(subscribe) => subscribe,
-        Err(e) => {
-            warn!("set subscribe error:{}", e);
-            return Err(MetaServiceError::CommonError(e.to_string()));
-        }
-    };
+    let subscribe = MqttSubscribe::decode(&req.subscribe)
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
 
     update_cache_by_add_subscribe(&req.cluster_name, mqtt_call_manager, client_pool, subscribe)
         .await?;
@@ -113,16 +102,17 @@ pub async fn set_subscribe_by_req(
     Ok(SetSubscribeReply {})
 }
 
+// Auto Subscribe Rule Operations
 pub async fn set_auto_subscribe_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SetAutoSubscribeRuleRequest,
 ) -> Result<SetAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAutoSubscribeRule,
-        Bytes::copy_from_slice(&SetAutoSubscribeRuleRequest::encode_to_vec(req)),
+        encode_to_bytes(req),
     );
-
     raft_manager.write_metadata(data).await?;
+
     Ok(SetAutoSubscribeRuleReply {})
 }
 
@@ -132,10 +122,10 @@ pub async fn delete_auto_subscribe_rule_by_req(
 ) -> Result<DeleteAutoSubscribeRuleReply, MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAutoSubscribeRule,
-        Bytes::copy_from_slice(&DeleteAutoSubscribeRuleRequest::encode_to_vec(req)),
+        encode_to_bytes(req),
     );
-
     raft_manager.write_metadata(data).await?;
+
     Ok(DeleteAutoSubscribeRuleReply {})
 }
 

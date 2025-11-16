@@ -18,7 +18,7 @@ use crate::raft::manager::MultiRaftManager;
 use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use protocol::meta::meta_service_inner::UnRegisterNodeRequest;
+use protocol::meta::meta_service_common::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info};

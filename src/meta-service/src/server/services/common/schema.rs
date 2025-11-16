@@ -24,18 +24,56 @@ use crate::{
     },
     storage::placement::schema::SchemaStorage,
 };
-use bytes::Bytes;
+use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use prost::Message;
 use prost_validate::Result;
-use protocol::meta::meta_service_inner::{
+use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
     ListSchemaRequest, UnBindSchemaRequest, UpdateSchemaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
+// Helper: Validate non-empty field
+fn validate_non_empty(value: &str, field_name: &str) -> Result<(), MetaServiceError> {
+    if value.is_empty() {
+        return Err(MetaServiceError::RequestParamsNotEmpty(
+            field_name.to_string(),
+        ));
+    }
+    Ok(())
+}
+
+// Helper: Validate required fields for schema operations
+fn validate_schema_fields(
+    cluster_name: &str,
+    schema_name: &str,
+    schema: &[u8],
+) -> Result<(), MetaServiceError> {
+    validate_non_empty(cluster_name, "cluster_name")?;
+    validate_non_empty(schema_name, "schema_name")?;
+    if schema.is_empty() {
+        return Err(MetaServiceError::RequestParamsNotEmpty(
+            "schema".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+// Helper: Validate required fields for schema bind operations
+fn validate_bind_fields(
+    cluster_name: &str,
+    schema_name: &str,
+    resource_name: &str,
+) -> Result<(), MetaServiceError> {
+    validate_non_empty(cluster_name, "cluster_name")?;
+    validate_non_empty(schema_name, "schema_name")?;
+    validate_non_empty(resource_name, "resource_name")?;
+    Ok(())
+}
+
+// Schema Operations
 pub fn list_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSchemaRequest,
@@ -69,39 +107,27 @@ pub async fn create_schema_req(
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), MetaServiceError> {
-    if req.cluster_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "cluster_name".to_string(),
-        ));
-    }
+    validate_schema_fields(&req.cluster_name, &req.schema_name, &req.schema)?;
 
-    if req.schema_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema_name".to_string(),
-        ));
-    }
-
-    if req.schema.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema".to_string(),
-        ));
-    }
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
-    if let Some(_data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
-        Err(MetaServiceError::SchemaAlreadyExist(
-            "schema_name".to_string(),
-        ))
-    } else {
-        let data = StorageData::new(
-            StorageDataType::SchemaSet,
-            Bytes::copy_from_slice(&CreateSchemaRequest::encode_to_vec(req)),
-        );
-        raft_manager.write_metadata(data).await?;
 
-        let schema = SchemaData::decode(&req.schema)?;
-        update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
-        Ok(())
+    // Check if schema already exists
+    if schema_storage
+        .get(&req.cluster_name, &req.schema_name)?
+        .is_some()
+    {
+        return Err(MetaServiceError::SchemaAlreadyExist(
+            req.schema_name.clone(),
+        ));
     }
+
+    let data = StorageData::new(StorageDataType::SchemaSet, encode_to_bytes(req));
+    raft_manager.write_metadata(data).await?;
+
+    let schema = SchemaData::decode(&req.schema)?;
+    update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+
+    Ok(())
 }
 
 pub async fn update_schema_req(
@@ -111,37 +137,21 @@ pub async fn update_schema_req(
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
+    validate_schema_fields(&req.cluster_name, &req.schema_name, &req.schema)?;
+
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
+
+    // Check if schema exists
     if storage.get(&req.cluster_name, &req.schema_name)?.is_none() {
         return Err(MetaServiceError::SchemaNotFound(req.schema_name.clone()));
-    };
-
-    if req.cluster_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "cluster_name".to_string(),
-        ));
     }
 
-    if req.schema_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema_name".to_string(),
-        ));
-    }
-
-    if req.schema.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema".to_string(),
-        ));
-    }
-
-    let data = StorageData::new(
-        StorageDataType::SchemaSet,
-        Bytes::copy_from_slice(&UpdateSchemaRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::SchemaSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     let schema = SchemaData::decode(&req.schema)?;
     update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+
     Ok(())
 }
 
@@ -152,56 +162,49 @@ pub async fn delete_schema_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
+    validate_non_empty(&req.cluster_name, "cluster_name")?;
+    validate_non_empty(&req.schema_name, "schema_name")?;
+
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
-    let schema = if let Some(schema) = storage.get(&req.cluster_name, &req.schema_name)? {
-        schema
-    } else {
-        return Err(MetaServiceError::SchemaDoesNotExist(
-            req.schema_name.clone(),
-        ));
-    };
-    if req.cluster_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "cluster_name".to_string(),
-        ));
-    }
 
-    if req.schema_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema_name".to_string(),
-        ));
-    }
+    // Get schema to delete (must exist)
+    let schema = storage
+        .get(&req.cluster_name, &req.schema_name)?
+        .ok_or_else(|| MetaServiceError::SchemaDoesNotExist(req.schema_name.clone()))?;
 
-    let data = StorageData::new(
-        StorageDataType::SchemaDelete,
-        Bytes::copy_from_slice(&DeleteSchemaRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::SchemaDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     update_cache_by_delete_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+
     Ok(())
 }
 
+// Schema Bind Operations
 pub async fn list_bind_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListBindSchemaRequest,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
-    // get schema bind
-    if !req.cluster_name.is_empty() && !req.schema_name.is_empty() && !req.resource_name.is_empty()
-    {
-        if let Some(res) =
-            schema_storage.get_bind(&req.cluster_name, &req.schema_name, &req.resource_name)?
-        {
-            return Ok(vec![res.encode()?]);
-        } else {
-            return Ok(Vec::new());
-        }
+    let has_cluster = !req.cluster_name.is_empty();
+    let has_schema = !req.schema_name.is_empty();
+    let has_resource = !req.resource_name.is_empty();
+
+    // Get specific schema bind (all three fields provided)
+    if has_cluster && has_schema && has_resource {
+        return match schema_storage.get_bind(
+            &req.cluster_name,
+            &req.schema_name,
+            &req.resource_name,
+        )? {
+            Some(bind) => Ok(vec![bind.encode()?]),
+            None => Ok(Vec::new()),
+        };
     }
 
-    // get schema bind by cluster_name
-    if !req.cluster_name.is_empty() && req.schema_name.is_empty() && req.resource_name.is_empty() {
+    // List by cluster only
+    if has_cluster && !has_schema && !has_resource {
         let results = schema_storage
             .list_bind_by_cluster(&req.cluster_name)?
             .into_iter()
@@ -210,8 +213,8 @@ pub async fn list_bind_schema_req(
         return Ok(results);
     }
 
-    // get schema bind by resource
-    if !req.cluster_name.is_empty() && req.schema_name.is_empty() && !req.resource_name.is_empty() {
+    // List by cluster and resource
+    if has_cluster && !has_schema && has_resource {
         let results = schema_storage
             .list_bind_by_resource(&req.cluster_name, &req.resource_name)?
             .into_iter()
@@ -229,26 +232,9 @@ pub async fn bind_schema_req(
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
-    if req.cluster_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "cluster_name".to_string(),
-        ));
-    }
-    if req.schema_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema_name".to_string(),
-        ));
-    }
-    if req.resource_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "resource_name".to_string(),
-        ));
-    }
+    validate_bind_fields(&req.cluster_name, &req.schema_name, &req.resource_name)?;
 
-    let data = StorageData::new(
-        StorageDataType::SchemaBindSet,
-        Bytes::copy_from_slice(&BindSchemaRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::SchemaBindSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     let schema_data = SchemaResourceBind {
@@ -259,6 +245,7 @@ pub async fn bind_schema_req(
 
     update_cache_by_add_schema_bind(&req.cluster_name, call_manager, client_pool, schema_data)
         .await?;
+
     Ok(())
 }
 
@@ -268,26 +255,9 @@ pub async fn un_bind_schema_req(
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
-    if req.cluster_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "cluster_name".to_string(),
-        ));
-    }
-    if req.schema_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "schema_name".to_string(),
-        ));
-    }
-    if req.resource_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            "resource_name".to_string(),
-        ));
-    }
+    validate_bind_fields(&req.cluster_name, &req.schema_name, &req.resource_name)?;
 
-    let data = StorageData::new(
-        StorageDataType::SchemaBindDelete,
-        Bytes::copy_from_slice(&UnBindSchemaRequest::encode_to_vec(req)),
-    );
+    let data = StorageData::new(StorageDataType::SchemaBindDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     let schema_data = SchemaResourceBind {
@@ -298,5 +268,6 @@ pub async fn un_bind_schema_req(
 
     update_cache_by_delete_schema_bind(&req.cluster_name, call_manager, client_pool, schema_data)
         .await?;
+
     Ok(())
 }

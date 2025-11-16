@@ -17,11 +17,11 @@ mod test {
     use std::sync::Arc;
 
     use grpc_clients::{
-        meta::inner::call::{create_schema, delete_schema, list_schema, update_schema},
+        meta::common::call::{create_schema, delete_schema, list_schema, update_schema},
         pool::ClientPool,
     };
     use metadata_struct::schema::{SchemaData, SchemaType};
-    use protocol::meta::meta_service_inner::{
+    use protocol::meta::meta_service_common::{
         CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest, UpdateSchemaRequest,
     };
 

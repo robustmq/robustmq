@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use grpc_clients::pool::ClientPool;
+use prost_validate::Validator;
 use protocol::meta::meta_service_journal::engine_service_server::EngineService;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
@@ -61,19 +62,52 @@ impl GrpcEngineService {
             client_pool,
         }
     }
+
+    // Helper: Validate request and convert errors
+    fn validate_request<T: Validator>(&self, req: &T) -> Result<(), Status> {
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+    }
+
+    // Helper: Convert MetaServiceError to Status
+    fn to_status<E: ToString>(e: E) -> Status {
+        Status::internal(e.to_string())
+    }
+
+    // Helper: Check if cluster exists
+    fn validate_cluster_exists(&self, cluster_name: &str) -> Result<(), Status> {
+        if self.cache_manager.get_cluster(cluster_name).is_none() {
+            return Err(Self::to_status(MetaServiceError::ClusterDoesNotExist(
+                cluster_name.to_string(),
+            )));
+        }
+        Ok(())
+    }
+
+    // Helper: Validate non-empty string
+    fn validate_non_empty(&self, value: &str, field_name: &str) -> Result<(), Status> {
+        if value.is_empty() {
+            return Err(Self::to_status(MetaServiceError::RequestParamsNotEmpty(
+                field_name.to_string(),
+            )));
+        }
+        Ok(())
+    }
 }
-impl GrpcEngineService {}
 
 #[tonic::async_trait]
 impl EngineService for GrpcEngineService {
+    // Shard
     async fn list_shard(
         &self,
         request: Request<ListShardRequest>,
     ) -> Result<Response<ListShardReply>, Status> {
         let req = request.into_inner();
+        self.validate_request(&req)?;
+
         list_shard_by_req(&self.rocksdb_engine_handler, &req)
             .await
-            .map_err(|e| Status::cancelled(e.to_string()))
+            .map_err(Self::to_status)
             .map(Response::new)
     }
 
@@ -82,6 +116,8 @@ impl EngineService for GrpcEngineService {
         request: Request<CreateShardRequest>,
     ) -> Result<Response<CreateShardReply>, Status> {
         let req = request.into_inner();
+        self.validate_request(&req)?;
+
         create_shard_by_req(
             &self.cache_manager,
             &self.raft_manager,
@@ -90,7 +126,7 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        .map_err(|e| Status::cancelled(e.to_string()))
+        .map_err(Self::to_status)
         .map(Response::new)
     }
 
@@ -99,12 +135,8 @@ impl EngineService for GrpcEngineService {
         request: Request<DeleteShardRequest>,
     ) -> Result<Response<DeleteShardReply>, Status> {
         let req = request.into_inner();
-
-        if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
-            return Err(Status::cancelled(
-                MetaServiceError::ClusterDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
+        self.validate_request(&req)?;
+        self.validate_cluster_exists(&req.cluster_name)?;
 
         delete_shard_by_req(
             &self.raft_manager,
@@ -114,24 +146,22 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        .map_err(|e| Status::cancelled(e.to_string()))
+        .map_err(Self::to_status)
         .map(Response::new)
     }
 
+    // Segment
     async fn list_segment(
         &self,
         request: Request<ListSegmentRequest>,
     ) -> Result<Response<ListSegmentReply>, Status> {
         let req = request.into_inner();
-        if req.cluster_name.is_empty() {
-            return Err(Status::cancelled(
-                MetaServiceError::RequestParamsNotEmpty(req.cluster_name).to_string(),
-            ));
-        }
+        self.validate_request(&req)?;
+        self.validate_non_empty(&req.cluster_name, "cluster_name")?;
 
         list_segment_by_req(&self.rocksdb_engine_handler, &req)
             .await
-            .map_err(|e| Status::cancelled(e.to_string()))
+            .map_err(Self::to_status)
             .map(Response::new)
     }
 
@@ -140,14 +170,10 @@ impl EngineService for GrpcEngineService {
         request: Request<CreateNextSegmentRequest>,
     ) -> Result<Response<CreateNextSegmentReply>, Status> {
         let req = request.into_inner();
+        self.validate_request(&req)?;
+        self.validate_cluster_exists(&req.cluster_name)?;
 
-        if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
-            return Err(Status::cancelled(
-                MetaServiceError::ClusterDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
-
-        match create_segment_by_req(
+        create_segment_by_req(
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,
@@ -155,14 +181,8 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        {
-            Ok(data) => {
-                return Ok(Response::new(data));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_segment(
@@ -170,12 +190,8 @@ impl EngineService for GrpcEngineService {
         request: Request<DeleteSegmentRequest>,
     ) -> Result<Response<DeleteSegmentReply>, Status> {
         let req = request.into_inner();
-
-        if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
-            return Err(Status::cancelled(
-                MetaServiceError::ClusterDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
+        self.validate_request(&req)?;
+        self.validate_cluster_exists(&req.cluster_name)?;
 
         delete_segment_by_req(
             &self.cache_manager,
@@ -185,7 +201,7 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))
+        .map_err(Self::to_status)
         .map(Response::new)
     }
 
@@ -194,11 +210,8 @@ impl EngineService for GrpcEngineService {
         request: Request<UpdateSegmentStatusRequest>,
     ) -> Result<Response<UpdateSegmentStatusReply>, Status> {
         let req = request.into_inner();
-        if req.cluster_name.is_empty() {
-            return Err(Status::cancelled(
-                MetaServiceError::RequestParamsNotEmpty(req.cluster_name).to_string(),
-            ));
-        }
+        self.validate_request(&req)?;
+        self.validate_non_empty(&req.cluster_name, "cluster_name")?;
 
         update_segment_status_req(
             &self.cache_manager,
@@ -208,24 +221,22 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))
+        .map_err(Self::to_status)
         .map(Response::new)
     }
 
+    // Segment Metadata
     async fn list_segment_meta(
         &self,
         request: Request<ListSegmentMetaRequest>,
     ) -> Result<Response<ListSegmentMetaReply>, Status> {
         let req = request.into_inner();
-        if req.cluster_name.is_empty() {
-            return Err(Status::cancelled(
-                MetaServiceError::RequestParamsNotEmpty(req.cluster_name).to_string(),
-            ));
-        }
+        self.validate_request(&req)?;
+        self.validate_non_empty(&req.cluster_name, "cluster_name")?;
 
         list_segment_meta_by_req(&self.rocksdb_engine_handler, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))
+            .map_err(Self::to_status)
             .map(Response::new)
     }
 
@@ -234,6 +245,7 @@ impl EngineService for GrpcEngineService {
         request: Request<UpdateSegmentMetaRequest>,
     ) -> Result<Response<UpdateSegmentMetaReply>, Status> {
         let req = request.into_inner();
+        self.validate_request(&req)?;
 
         update_segment_meta_by_req(
             &self.cache_manager,
@@ -243,7 +255,7 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))
+        .map_err(Self::to_status)
         .map(Response::new)
     }
 }

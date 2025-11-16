@@ -108,16 +108,6 @@ impl DataRoute {
                     .delete_resource_config(storage_data.value.clone())?;
                 Ok(None)
             }
-            StorageDataType::IdempotentDataSet => {
-                self.route_cluster
-                    .set_idempotent_data(storage_data.value.clone())?;
-                Ok(None)
-            }
-            StorageDataType::IdempotentDataDelete => {
-                self.route_cluster
-                    .delete_idempotent_data(storage_data.value.clone())?;
-                Ok(None)
-            }
             StorageDataType::OffsetSet => {
                 self.route_cluster
                     .save_offset_data(storage_data.value.clone())?;
