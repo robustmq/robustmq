@@ -17,15 +17,14 @@ use mobc::Manager;
 use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
 use protocol::meta::meta_service_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
-    CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
-    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
-    HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
-    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
-    SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest,
-    UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    CreateSchemaReply, CreateSchemaRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, GetOffsetDataReply, GetOffsetDataRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply,
+    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
+    SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply,
+    UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
+    UpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -137,33 +136,6 @@ impl_retriable_request!(
     DeleteResourceConfigReply,
     meta_service_inner_services_client,
     delete_resource_config,
-    true
-);
-
-impl_retriable_request!(
-    SetIdempotentDataRequest,
-    MetaServiceServiceClient<Channel>,
-    SetIdempotentDataReply,
-    meta_service_inner_services_client,
-    set_idempotent_data,
-    true
-);
-
-impl_retriable_request!(
-    ExistsIdempotentDataRequest,
-    MetaServiceServiceClient<Channel>,
-    ExistsIdempotentDataReply,
-    meta_service_inner_services_client,
-    exists_idempotent_data,
-    true
-);
-
-impl_retriable_request!(
-    DeleteIdempotentDataRequest,
-    MetaServiceServiceClient<Channel>,
-    DeleteIdempotentDataReply,
-    meta_service_inner_services_client,
-    delete_idempotent_data,
     true
 );
 

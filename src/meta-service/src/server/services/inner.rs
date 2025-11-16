@@ -20,7 +20,6 @@ use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::offset::OffsetStorage;
 use bytes::Bytes;
 use common_base::tools::now_second;
@@ -28,13 +27,10 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use prost::Message;
 use protocol::meta::meta_service_inner::{
-    ClusterStatusReply, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
-    ExistsIdempotentDataRequest, GetOffsetDataReply, GetOffsetDataReplyOffset,
-    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
-    HeartbeatRequest, NodeListReply, NodeListRequest, SaveOffsetDataReply, SaveOffsetDataRequest,
-    SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
-    SetResourceConfigRequest,
+    ClusterStatusReply, DeleteResourceConfigReply, DeleteResourceConfigRequest, GetOffsetDataReply,
+    GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -90,6 +86,7 @@ pub async fn heartbeat_by_req(
     }
 }
 
+// Resource Config
 pub async fn set_resource_config_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<MQTTInnerCallManager>,
@@ -143,48 +140,7 @@ pub async fn delete_resource_config_by_req(
         .map(|_| DeleteResourceConfigReply::default())
 }
 
-pub async fn set_idempotent_data_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
-    req: &SetIdempotentDataRequest,
-) -> Result<SetIdempotentDataReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::IdempotentDataSet,
-        Bytes::copy_from_slice(&SetIdempotentDataRequest::encode_to_vec(req)),
-    );
-
-    raft_manager
-        .write_metadata(data)
-        .await
-        .map(|_| SetIdempotentDataReply::default())
-}
-
-pub async fn exists_idempotent_data_by_req(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &ExistsIdempotentDataRequest,
-) -> Result<ExistsIdempotentDataReply, MetaServiceError> {
-    let storage = IdempotentStorage::new(rocksdb_engine_handler.clone());
-
-    storage
-        .exists(&req.cluster_name, &req.producer_id, req.seq_num)
-        .map_err(|e| MetaServiceError::CommonError(e.to_string()))
-        .map(|flag| ExistsIdempotentDataReply { exists: flag })
-}
-
-pub async fn delete_idempotent_data_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
-    req: &DeleteIdempotentDataRequest,
-) -> Result<DeleteIdempotentDataReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::IdempotentDataDelete,
-        Bytes::copy_from_slice(&DeleteIdempotentDataRequest::encode_to_vec(req)),
-    );
-
-    raft_manager
-        .write_metadata(data)
-        .await
-        .map(|_| DeleteIdempotentDataReply::default())
-}
-
+// Offset
 pub async fn save_offset_data_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SaveOffsetDataRequest,
@@ -195,7 +151,7 @@ pub async fn save_offset_data_by_req(
     );
 
     raft_manager
-        .write_metadata(data)
+        .write_offset(data)
         .await
         .map(|_| SaveOffsetDataReply::default())
 }

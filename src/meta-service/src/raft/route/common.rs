@@ -18,9 +18,9 @@ use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message as _;
 use protocol::meta::meta_service_inner::{
-    BindSchemaRequest, CreateSchemaRequest, DeleteIdempotentDataRequest,
-    DeleteResourceConfigRequest, DeleteSchemaRequest, RegisterNodeRequest, SaveOffsetDataRequest,
-    SetIdempotentDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
+    BindSchemaRequest, CreateSchemaRequest, DeleteResourceConfigRequest, DeleteSchemaRequest,
+    RegisterNodeRequest, SaveOffsetDataRequest, SetResourceConfigRequest, UnBindSchemaRequest,
+    UnRegisterNodeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -29,7 +29,6 @@ use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::node::NodeStorage;
 use crate::storage::placement::offset::OffsetStorage;
 use crate::storage::placement::schema::SchemaStorage;
@@ -91,21 +90,6 @@ impl DataRouteCluster {
         let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         config_storage.delete(req.cluster_name, req.resources)?;
-        Ok(())
-    }
-
-    // IdempotentData
-    pub fn set_idempotent_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = SetIdempotentDataRequest::decode(value.as_ref())?;
-        let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num)?;
-        Ok(())
-    }
-
-    pub fn delete_idempotent_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
-        let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num)?;
         Ok(())
     }
 

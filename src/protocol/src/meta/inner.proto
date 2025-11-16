@@ -38,12 +38,6 @@ service MetaServiceService {
 
   rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns (DeleteResourceConfigReply) {}
 
-  rpc SetIdempotentData(SetIdempotentDataRequest) returns (SetIdempotentDataReply) {}
-
-  rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns (ExistsIdempotentDataReply) {}
-
-  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns (DeleteIdempotentDataReply) {}
-
   rpc SaveOffsetData(SaveOffsetDataRequest) returns (SaveOffsetDataReply) {}
 
   rpc GetOffsetData(GetOffsetDataRequest) returns (GetOffsetDataReply) {}
@@ -143,32 +137,6 @@ message DeleteResourceConfigRequest {
 }
 
 message DeleteResourceConfigReply {}
-
-message SetIdempotentDataRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  string producer_id = 2 [(validate.rules).string.min_len = 1];
-  uint64 seq_num = 3;
-}
-
-message SetIdempotentDataReply {}
-
-message ExistsIdempotentDataRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  string producer_id = 2 [(validate.rules).string.min_len = 1];
-  uint64 seq_num = 3;
-}
-
-message ExistsIdempotentDataReply {
-  bool exists = 1;
-}
-
-message DeleteIdempotentDataRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  string producer_id = 2 [(validate.rules).string.min_len = 1];
-  uint64 seq_num = 3;
-}
-
-message DeleteIdempotentDataReply {}
 
 message SaveOffsetDataRequest {
   string cluster_name = 1 [(validate.rules).string.min_len = 1];

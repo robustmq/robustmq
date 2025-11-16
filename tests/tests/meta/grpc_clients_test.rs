@@ -19,7 +19,7 @@ mod tests {
     use metadata_struct::meta::node::BrokerNode;
     use protocol::meta::meta_service_inner::meta_service_service_client::MetaServiceServiceClient;
     use protocol::meta::meta_service_inner::{
-        HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
+        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
     use protocol::meta::meta_service_journal::engine_service_client::EngineServiceClient;
     use protocol::meta::meta_service_journal::{
@@ -27,8 +27,7 @@ mod tests {
     };
 
     use crate::meta::common::{
-        cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, producer_id, seq_num,
-        shard_name,
+        cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
     };
 
     #[tokio::test]
@@ -139,43 +138,6 @@ mod tests {
             .un_register_node(tonic::Request::new(request))
             .await
             .unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_set_idempotent_data() {
-        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
-
-        let valid_request = SetIdempotentDataRequest {
-            cluster_name: cluster_name(),
-            producer_id: producer_id(),
-            seq_num: seq_num(),
-        };
-
-        let response = client
-            .set_idempotent_data(tonic::Request::new(valid_request.clone()))
-            .await;
-
-        assert!(response.is_ok());
-
-        let invalid_fields = vec![
-            ("cluster_name", String::new()),
-            ("producer_id", String::new()),
-        ];
-
-        for (field, value) in invalid_fields {
-            let mut invalid_request = valid_request.clone();
-            match field {
-                "cluster_name" => invalid_request.cluster_name = value,
-                "producer_id" => invalid_request.producer_id = value,
-                _ => unreachable!(),
-            }
-
-            let response = client
-                .set_idempotent_data(tonic::Request::new(invalid_request))
-                .await;
-
-            assert!(response.is_err());
-        }
     }
 
     #[tokio::test]

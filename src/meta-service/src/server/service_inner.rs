@@ -18,9 +18,8 @@ use crate::core::cache::CacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::inner::{
-    cluster_status_by_req, delete_idempotent_data_by_req, delete_resource_config_by_req,
-    exists_idempotent_data_by_req, get_offset_data_by_req, get_resource_config_by_req,
-    heartbeat_by_req, node_list_by_req, save_offset_data_by_req, set_idempotent_data_by_req,
+    cluster_status_by_req, delete_resource_config_by_req, get_offset_data_by_req,
+    get_resource_config_by_req, heartbeat_by_req, node_list_by_req, save_offset_data_by_req,
     set_resource_config_by_req,
 };
 use crate::server::services::schema::{
@@ -32,14 +31,12 @@ use prost_validate::Validator;
 use protocol::meta::meta_service_inner::meta_service_service_server::MetaServiceService;
 use protocol::meta::meta_service_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
-    CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
-    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
-    HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
-    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
-    ReportMonitorReply, ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest,
-    SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
+    CreateSchemaReply, CreateSchemaRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, GetOffsetDataReply, GetOffsetDataRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply,
+    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
+    ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply,
     SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
     UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
@@ -207,48 +204,6 @@ impl MetaServiceService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         delete_resource_config_by_req(&self.raft_manager, &req)
-            .await
-            .map_err(|e| Status::cancelled(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn set_idempotent_data(
-        &self,
-        request: Request<SetIdempotentDataRequest>,
-    ) -> Result<Response<SetIdempotentDataReply>, Status> {
-        let req = request.into_inner();
-        req.validate()
-            .map_err(|e| Status::invalid_argument(e.to_string()))?;
-
-        set_idempotent_data_by_req(&self.raft_manager, &req)
-            .await
-            .map_err(|e| Status::cancelled(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn exists_idempotent_data(
-        &self,
-        request: Request<ExistsIdempotentDataRequest>,
-    ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
-        let req = request.into_inner();
-        req.validate()
-            .map_err(|e| Status::invalid_argument(e.to_string()))?;
-
-        exists_idempotent_data_by_req(&self.rocksdb_engine_handler, &req)
-            .await
-            .map_err(|e| Status::cancelled(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn delete_idempotent_data(
-        &self,
-        request: Request<DeleteIdempotentDataRequest>,
-    ) -> Result<Response<DeleteIdempotentDataReply>, Status> {
-        let req = request.into_inner();
-        req.validate()
-            .map_err(|e| Status::invalid_argument(e.to_string()))?;
-
-        delete_idempotent_data_by_req(&self.raft_manager, &req)
             .await
             .map_err(|e| Status::cancelled(e.to_string()))
             .map(Response::new)

@@ -15,15 +15,14 @@
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
-    CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
-    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
-    HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
-    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
-    SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest,
-    UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    CreateSchemaReply, CreateSchemaRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, GetOffsetDataReply, GetOffsetDataRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply,
+    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
+    SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply,
+    UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
+    UpdateSchemaRequest,
 };
 
 use crate::pool::ClientPool;
@@ -78,24 +77,6 @@ generate_meta_service_call!(
     GetResourceConfigRequest,
     GetResourceConfigReply,
     GetResourceConfig
-);
-generate_meta_service_call!(
-    set_idempotent_data,
-    SetIdempotentDataRequest,
-    SetIdempotentDataReply,
-    SetIdempotentData
-);
-generate_meta_service_call!(
-    delete_idempotent_data,
-    DeleteIdempotentDataRequest,
-    DeleteIdempotentDataReply,
-    DeleteIdempotentData
-);
-generate_meta_service_call!(
-    exists_idempotent_data,
-    ExistsIdempotentDataRequest,
-    ExistsIdempotentDataReply,
-    ExistsIdempotentData
 );
 
 generate_meta_service_call!(
