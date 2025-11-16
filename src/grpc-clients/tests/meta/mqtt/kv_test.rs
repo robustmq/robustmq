@@ -51,7 +51,10 @@ mod tests {
         let err = kv_set(&client_pool, &addrs, request_key_empty)
             .await
             .unwrap_err();
-        assert!(err.to_string().contains("key or value"));
+        println!("{:?}", err);
+        assert!(err
+            .to_string()
+            .contains("characters length must be greater than or equal to 1"));
 
         let request_value_empty = SetRequest {
             key: key.clone(),
@@ -60,7 +63,9 @@ mod tests {
         let err = kv_set(&client_pool, &addrs, request_value_empty)
             .await
             .unwrap_err();
-        assert!(err.to_string().contains("key or value"));
+        assert!(err
+            .to_string()
+            .contains("characters length must be greater than or equal to 1"));
 
         let exist_req = ExistsRequest { key: key.clone() };
         match kv_exists(&client_pool, &addrs, exist_req).await {
