@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod codec;
-pub mod common;
-pub mod mqttv4;
-pub mod mqttv5;
-mod v2;
+pub(crate) mod byte_adapter;
+pub(crate) mod mqttv4;
+pub(crate) mod protocol_error;
+pub(crate) mod utils;
