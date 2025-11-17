@@ -139,10 +139,10 @@ impl StateMachineStore {
 
 impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
     async fn build_snapshot(&mut self) -> Result<Snapshot<TypeConfig>, StorageError<TypeConfig>> {
-        let machine_name = RaftStateMachineName::from_str(&self.machine).ok_or_else(|| {
+        let machine_name = self.machine.parse::<RaftStateMachineName>().map_err(|e| {
             StorageError::read(&CommonError::CommonError(format!(
-                "Invalid machine name: {}",
-                self.machine
+                "Invalid machine name {}: {}",
+                self.machine, e
             )))
         })?;
 
@@ -241,10 +241,10 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         meta: &SnapshotMeta<TypeConfig>,
         snapshot: SnapshotData,
     ) -> Result<(), StorageError<TypeConfig>> {
-        let machine_name = RaftStateMachineName::from_str(&self.machine).ok_or_else(|| {
+        let machine_name = self.machine.parse::<RaftStateMachineName>().map_err(|e| {
             StorageError::read(&CommonError::CommonError(format!(
-                "Invalid machine name: {}",
-                self.machine
+                "Invalid machine name {}: {}",
+                self.machine, e
             )))
         })?;
 

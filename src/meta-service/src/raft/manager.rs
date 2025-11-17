@@ -45,13 +45,17 @@ impl RaftStateMachineName {
             RaftStateMachineName::MQTT => "mqtt",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for RaftStateMachineName {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "metadata" => Some(RaftStateMachineName::METADATA),
-            "offset" => Some(RaftStateMachineName::OFFSET),
-            "mqtt" => Some(RaftStateMachineName::MQTT),
-            _ => None,
+            "metadata" => Ok(RaftStateMachineName::METADATA),
+            "offset" => Ok(RaftStateMachineName::OFFSET),
+            "mqtt" => Ok(RaftStateMachineName::MQTT),
+            _ => Err(format!("Invalid RaftStateMachineName: {}", s)),
         }
     }
 }

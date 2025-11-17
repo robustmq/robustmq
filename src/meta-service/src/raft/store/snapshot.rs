@@ -176,6 +176,7 @@ pub async fn build_snapshot(
 }
 
 async fn build_snapshot_by_metadata() -> Result<(), MetaServiceError> {
+    
     Ok(())
 }
 
