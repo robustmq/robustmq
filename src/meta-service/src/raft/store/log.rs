@@ -191,18 +191,26 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
         // Consistency check: committed should not exceed last_log_id
         if let Some(committed) = self.get_committed_()? {
-            if let Some(last_id) = last_log_id {
-                if committed.index > last_id.index {
-                    use openraft::AnyError;
-                    use tracing::error;
-                    error!(
-                        "[{}] Inconsistent state detected: committed={} > last_log_id={}. \
-                         Data corruption! Please delete data directory and restart.",
-                        self.machine, committed.index, last_id.index
+            match last_log_id {
+                Some(last_id) => {
+                    if committed.index > last_id.index {
+                        use tracing::warn;
+                        warn!(
+                            "[{}] Inconsistent state detected: committed={} > last_log_id={}. \
+                             Auto-fixing by resetting committed to last_log_id.",
+                            self.machine, committed.index, last_id.index
+                        );
+                        self.set_committed_(&Some(last_id))?;
+                    }
+                }
+                None => {
+                    use tracing::warn;
+                    warn!(
+                        "[{}] Committed exists ({}) but no logs found. \
+                         Auto-fixing by clearing committed.",
+                        self.machine, committed.index
                     );
-                    return Err(StorageError::read(AnyError::error(
-                        "Raft state corrupted: committed > last_log_id",
-                    )));
+                    self.set_committed_(&None)?;
                 }
             }
         }
