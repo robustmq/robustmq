@@ -24,6 +24,8 @@ const STATE_PREFIX: u8 = b'S';
 const STATE_LAST_PURGED: u8 = 1;
 const STATE_COMMITTED: u8 = 2;
 const STATE_VOTE: u8 = 3;
+const STATE_LAST_APPLIED: u8 = 4;
+const STATE_LAST_MEMBERSHIP: u8 = 5;
 const LOG_PREFIX: u8 = b'L';
 
 /// Hash machine name using FNV-1a algorithm
@@ -58,6 +60,14 @@ pub fn key_committed(machine: &str) -> Vec<u8> {
 
 pub fn key_vote(machine: &str) -> Vec<u8> {
     make_state_key(machine, STATE_VOTE)
+}
+
+pub fn key_last_applied(machine: &str) -> Vec<u8> {
+    make_state_key(machine, STATE_LAST_APPLIED)
+}
+
+pub fn key_last_membership(machine: &str) -> Vec<u8> {
+    make_state_key(machine, STATE_LAST_MEMBERSHIP)
 }
 
 /// Generate Raft log key: [L:1][machine_hash:8][log_index:8 Big Endian]
