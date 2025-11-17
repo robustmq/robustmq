@@ -51,3 +51,4 @@ tracing-appender.workspace = true
 async-stream.workspace = true
 broker-core.workspace = true
 common-metrics.workspace = true
+zstd.workspace = true

@@ -250,11 +250,13 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
         recover_snapshot(
             &machine_name,
+            &self.db,
             Snapshot {
                 meta: meta.clone(),
                 snapshot,
             },
-        )?;
+        )
+        .await?;
         Ok(())
     }
 
