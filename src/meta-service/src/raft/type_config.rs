@@ -17,9 +17,8 @@ use openraft::StorageError;
 use crate::raft::route::data::StorageData;
 use crate::raft::route::AppResponseData;
 use std::fmt::Display;
-use std::io::Cursor;
 
-pub type SnapshotData = Cursor<Vec<u8>>;
+pub type SnapshotData = tokio::fs::File;
 
 pub type Entry = openraft::Entry<TypeConfig>;
 
@@ -28,6 +27,7 @@ openraft::declare_raft_types!(
         D = StorageData,
         R = AppResponseData,
         Node = Node,
+        SnapshotData = SnapshotData
 );
 
 pub type NodeId = u64;

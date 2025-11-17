@@ -18,13 +18,10 @@ use crate::raft::store::keys::{key_last_applied, key_last_membership};
 use crate::raft::store::snapshot::build_snapshot;
 use crate::raft::store::snapshot::get_current_snapshot_;
 use crate::raft::store::snapshot::recover_snapshot;
-use crate::raft::store::snapshot::set_current_snapshot_;
-use crate::raft::store::snapshot::StoredSnapshot;
 use crate::raft::type_config::Entry;
 use crate::raft::type_config::{SnapshotData, StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
-use bytes::Bytes;
-use common_base::tools::now_nanos;
+use common_base::error::common::CommonError;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, LogId, OptionalSend, RaftSnapshotBuilder, Snapshot, SnapshotMeta,
@@ -32,7 +29,6 @@ use openraft::{
 };
 use rocksdb::{BoundColumnFamily, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
-use std::io::Cursor;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -142,34 +138,13 @@ impl StateMachineStore {
 
 impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
     async fn build_snapshot(&mut self) -> Result<Snapshot<TypeConfig>, StorageError<TypeConfig>> {
-        let last_applied_log = self.data.last_applied_log_id;
-        let last_membership = self.data.last_membership.clone();
-
-        let kv_json = build_snapshot(&self.machine);
-
-        let snapshot_id = if let Some(last) = last_applied_log {
-            format!("{}-{}-{}", last.leader_id, last.index, now_nanos())
-        } else {
-            format!("--{}", now_nanos())
-        };
-
-        let meta = SnapshotMeta {
-            last_log_id: last_applied_log,
-            last_membership,
-            snapshot_id,
-        };
-
-        let snapshot = StoredSnapshot {
-            meta: meta.clone(),
-            data: kv_json.clone(),
-        };
-
-        set_current_snapshot_(snapshot)?;
-
-        Ok(Snapshot {
-            meta,
-            snapshot: Cursor::new(kv_json.to_vec()),
-        })
+        build_snapshot(
+            &self.machine,
+            &self.db,
+            &self.data.last_applied_log_id,
+            &self.data.last_membership,
+        )
+        .await
     }
 }
 
@@ -241,10 +216,16 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         self.clone()
     }
 
-    async fn begin_receiving_snapshot(
-        &mut self,
-    ) -> Result<Cursor<Vec<u8>>, StorageError<TypeConfig>> {
-        Ok(Cursor::new(Vec::new()))
+    async fn begin_receiving_snapshot(&mut self) -> Result<SnapshotData, StorageError<TypeConfig>> {
+        let data = get_current_snapshot_(&self.machine)
+            .await
+            .map_err(|e| StorageError::read(&e))?;
+        match data {
+            Some(da) => Ok(da.snapshot),
+            None => Err(StorageError::read(&CommonError::CommonError(
+                "".to_string(),
+            ))),
+        }
     }
 
     async fn install_snapshot(
@@ -252,26 +233,20 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         meta: &SnapshotMeta<TypeConfig>,
         snapshot: SnapshotData,
     ) -> Result<(), StorageError<TypeConfig>> {
-        let new_snapshot = StoredSnapshot {
+        recover_snapshot(Snapshot {
             meta: meta.clone(),
-            data: Bytes::copy_from_slice(&snapshot.into_inner()),
-        };
-
-        recover_snapshot(new_snapshot.clone())?;
-
-        set_current_snapshot_(new_snapshot)?;
-
+            snapshot,
+        })?;
         Ok(())
     }
 
     async fn get_current_snapshot(
         &mut self,
     ) -> Result<Option<Snapshot<TypeConfig>>, StorageError<TypeConfig>> {
-        let x = get_current_snapshot_()?;
-        Ok(x.map(|s| Snapshot {
-            meta: s.meta.clone(),
-            snapshot: Cursor::new(s.data.to_vec()),
-        }))
+        let data = get_current_snapshot_(&self.machine)
+            .await
+            .map_err(|e| StorageError::read(&e))?;
+        Ok(data)
     }
 }
 

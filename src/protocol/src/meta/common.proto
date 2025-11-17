@@ -74,7 +74,7 @@ service MetaServiceService {
 
   rpc GetPrefix(GetPrefixRequest) returns (GetPrefixReply) {}
 
-  // Raft
+  // Raft Internal
   rpc Vote(VoteRequest) returns (VoteReply) {}
 
   rpc Append(AppendRequest) returns (AppendReply) {}
