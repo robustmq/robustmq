@@ -31,6 +31,7 @@ use openraft::{
 use rocksdb::{BoundColumnFamily, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::sync::Arc;
+use tracing::info;
 
 #[derive(Clone)]
 pub struct StateMachineStore {
@@ -257,6 +258,20 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             },
         )
         .await?;
+
+        self.data.last_applied_log_id = meta.last_log_id;
+        self.data.last_membership = meta.last_membership.clone();
+
+        if let Some(log_id) = meta.last_log_id {
+            self.set_last_applied_(Some(log_id))?;
+        }
+        self.set_last_membership_(&meta.last_membership)?;
+
+        info!(
+            "[{}] Snapshot installed, updated last_applied_log_id to {:?}",
+            self.machine, meta.last_log_id
+        );
+
         Ok(())
     }
 

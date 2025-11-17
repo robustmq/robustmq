@@ -29,11 +29,11 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tracing::{error, info};
 
-pub async fn save_last_snapshot_id(machine: &str, last_snapshot_id: &str) -> std::io::Result<()> {
+async fn save_last_snapshot_id(machine: &str, last_snapshot_id: &str) -> std::io::Result<()> {
     save_last_snapshot_id_to_path(machine, last_snapshot_id, None).await
 }
 
-pub async fn get_last_snapshot_id(machine: &str) -> std::io::Result<String> {
+async fn get_last_snapshot_id(machine: &str) -> std::io::Result<String> {
     get_last_snapshot_id_from_path(machine, None).await
 }
 
@@ -47,6 +47,10 @@ async fn save_last_snapshot_id_to_path(
     } else {
         machine_last_snapshot_id(machine)
     };
+
+    if let Some(parent) = std::path::Path::new(&file_path).parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
 
     let mut file = File::create(&file_path).await?;
     file.write_all(last_snapshot_id.as_bytes()).await?;
@@ -70,11 +74,11 @@ async fn get_last_snapshot_id_from_path(
     Ok(content)
 }
 
-pub async fn save_snapshot_meta(meta: SnapshotMeta<TypeConfig>) -> std::io::Result<()> {
+async fn save_snapshot_meta(meta: SnapshotMeta<TypeConfig>) -> std::io::Result<()> {
     save_snapshot_meta_to_path(meta, None).await
 }
 
-pub async fn get_snapshot_meta(snapshot_id: &str) -> std::io::Result<SnapshotMeta<TypeConfig>> {
+async fn get_snapshot_meta(snapshot_id: &str) -> std::io::Result<SnapshotMeta<TypeConfig>> {
     get_snapshot_meta_from_path(snapshot_id, None).await
 }
 
@@ -87,6 +91,10 @@ async fn save_snapshot_meta_to_path(
     } else {
         snapshot_meta(&meta.snapshot_id)
     };
+
+    if let Some(parent) = std::path::Path::new(&file_path).parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
 
     let data = serialize(&meta).map_err(|e| {
         std::io::Error::new(ErrorKind::InvalidData, format!("Serialize error: {}", e))
@@ -124,62 +132,66 @@ pub async fn build_snapshot(
     last_membership: &StoredMembership<TypeConfig>,
 ) -> StorageResult<Snapshot<TypeConfig>> {
     let snapshot_id = format!("{}-{}", machine, now_nanos());
+    info!("[{}] Starting to build snapshot, snapshot_id={}", machine, snapshot_id);
+    
     let meta = SnapshotMeta {
         last_log_id: *last_applied_log_id,
         last_membership: last_membership.clone(),
         snapshot_id: snapshot_id.clone(),
     };
-    let row_db = db.clone();
-    let row_meta = meta.clone();
-    let row_snapshot_id = snapshot_id.clone();
-    let row_machine = machine.as_str().to_string();
-    let row_machine_enum = machine.clone();
-    tokio::spawn(async move {
-        let snapshot_db = row_db.snapshot();
-        let snapshot_name = snapshot_name(&row_snapshot_id);
-        let res = match row_machine_enum {
-            RaftStateMachineName::METADATA => {
-                build_snapshot_by_metadata(&row_db, &snapshot_db, &snapshot_name).await
-            }
-            RaftStateMachineName::OFFSET => {
-                build_snapshot_by_offset(&row_db, &snapshot_db, &snapshot_name).await
-            }
-            RaftStateMachineName::MQTT => {
-                build_snapshot_by_mqtt(&row_db, &snapshot_db, &snapshot_name).await
-            }
-        };
-
-        if let Err(e) = res {
-            error!(
-                "[{}] Failed to build snapshot data for snapshot_id={}: {}",
-                row_machine, row_snapshot_id, e
-            );
+    let snapshot_db = db.snapshot();
+    let snapshot_name_path = snapshot_name(&snapshot_id);
+    
+    let res = match machine {
+        RaftStateMachineName::METADATA => {
+            build_snapshot_by_metadata(db, &snapshot_db, &snapshot_name_path).await
         }
-
-        if let Err(e) = save_snapshot_meta(row_meta).await {
-            error!(
-                "[{}] Failed to save snapshot metadata for snapshot_id={}: {}",
-                row_machine, row_snapshot_id, e
-            );
+        RaftStateMachineName::OFFSET => {
+            build_snapshot_by_offset(db, &snapshot_db, &snapshot_name_path).await
         }
-
-        if let Err(e) = save_last_snapshot_id(&row_machine, &row_snapshot_id).await {
-            error!(
-                "[{}] Failed to save last snapshot id for snapshot_id={}: {}",
-                row_machine, row_snapshot_id, e
-            );
+        RaftStateMachineName::MQTT => {
+            build_snapshot_by_mqtt(db, &snapshot_db, &snapshot_name_path).await
         }
+    };
 
-        if let Err(e) = cleanup_old_snapshots(&row_machine) {
-            error!("[{}] Failed to cleanup old snapshots: {}", row_machine, e);
-        }
+    if let Err(e) = res {
+        error!(
+            "[{}] Failed to build snapshot data for snapshot_id={}: {}",
+            machine, snapshot_id, e
+        );
+        return Err(StorageError::read(&std::io::Error::other(
+            format!("Failed to build snapshot data: {}", e),
+        )));
+    }
 
-        drop(snapshot_db);
-    });
+    if let Err(e) = save_snapshot_meta(meta.clone()).await {
+        error!(
+            "[{}] Failed to save snapshot metadata for snapshot_id={}: {}",
+            machine, snapshot_id, e
+        );
+        return Err(StorageError::read(&e));
+    }
+
+    if let Err(e) = save_last_snapshot_id(machine.as_str(), &snapshot_id).await {
+        error!(
+            "[{}] Failed to save last snapshot id for snapshot_id={}: {}",
+            machine, snapshot_id, e
+        );
+        return Err(StorageError::read(&e));
+    }
 
     let res = File::open(&snapshot_name(&snapshot_id))
         .await
         .map_err(|e| StorageError::read(&e))?;
+
+    let row_machine = machine.as_str().to_string();
+    tokio::spawn(async move {
+        if let Err(e) = cleanup_old_snapshots(&row_machine) {
+            error!("[{}] Failed to cleanup old snapshots: {}", row_machine, e);
+        }
+    });
+
+    info!("[{}] Snapshot build completed successfully for snapshot_id={}", machine, snapshot_id);
 
     Ok(Snapshot {
         meta,
@@ -193,6 +205,10 @@ async fn build_snapshot_by_metadata(
     snapshot_name: &str,
 ) -> Result<(), MetaServiceError> {
     let dumping_path = format!("{}.dumping", snapshot_name);
+    
+    if let Some(parent) = std::path::Path::new(&dumping_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
 
     let cf_handle = db
         .cf_handle(DB_COLUMN_FAMILY_META_METADATA)
@@ -228,6 +244,10 @@ async fn build_snapshot_by_mqtt(
 ) -> Result<(), MetaServiceError> {
     let dumping_path = format!("{}.dumping", snapshot_name);
     let prefix = b"/mqtt/";
+    
+    if let Some(parent) = std::path::Path::new(&dumping_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
 
     let cf_handle = db.cf_handle(DB_COLUMN_FAMILY_META_DATA).ok_or_else(|| {
         MetaServiceError::CommonError(format!(
@@ -267,6 +287,10 @@ async fn build_snapshot_by_offset(
 ) -> Result<(), MetaServiceError> {
     let dumping_path = format!("{}.dumping", snapshot_name);
     let prefix = b"/offset/";
+    
+    if let Some(parent) = std::path::Path::new(&dumping_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
 
     let cf_handle = db.cf_handle(DB_COLUMN_FAMILY_META_DATA).ok_or_else(|| {
         MetaServiceError::CommonError(format!(
@@ -308,6 +332,8 @@ pub async fn recover_snapshot(
     let row_machine = machine.clone();
     let snapshot_id = snapshot.meta.snapshot_id.clone();
     
+    info!("[{}] Starting to recover snapshot, snapshot_id={}", machine, snapshot_id);
+
     tokio::spawn(async move {
         let res = match row_machine {
             RaftStateMachineName::METADATA => recover_snapshot_by_metadata(&row_db, snapshot).await,
@@ -320,7 +346,10 @@ pub async fn recover_snapshot(
                 row_machine, snapshot_id, e
             );
         } else {
-            info!("[{}] Successfully recovered snapshot_id={}", row_machine, snapshot_id);
+            info!(
+                "[{}] Snapshot recovery completed successfully for snapshot_id={}",
+                row_machine, snapshot_id
+            );
         }
     });
 
@@ -525,17 +554,38 @@ async fn recover_snapshot_by_offset(
 }
 
 pub async fn get_current_snapshot_(machine: &str) -> StorageResult<Option<Snapshot<TypeConfig>>> {
-    let snapshot_id = get_last_snapshot_id(machine)
-        .await
-        .map_err(|e| StorageError::read(&e))?;
+    let snapshot_id = match get_last_snapshot_id(machine).await {
+        Ok(id) => id,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            info!("[{}] No snapshot found, returning None", machine);
+            return Ok(None);
+        }
+        Err(e) => return Err(StorageError::read(&e)),
+    };
 
-    let snapshot_meta = get_snapshot_meta(&snapshot_id)
-        .await
-        .map_err(|e| StorageError::read(&e))?;
+    let snapshot_meta = match get_snapshot_meta(&snapshot_id).await {
+        Ok(meta) => meta,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            info!(
+                "[{}] Snapshot metadata not found for snapshot_id={}, returning None",
+                machine, snapshot_id
+            );
+            return Ok(None);
+        }
+        Err(e) => return Err(StorageError::read(&e)),
+    };
 
-    let res = File::open(&snapshot_name(&snapshot_id))
-        .await
-        .map_err(|e| StorageError::read(&e))?;
+    let res = match File::open(&snapshot_name(&snapshot_id)).await {
+        Ok(file) => file,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            info!(
+                "[{}] Snapshot file not found for snapshot_id={}, returning None",
+                machine, snapshot_id
+            );
+            return Ok(None);
+        }
+        Err(e) => return Err(StorageError::read(&e)),
+    };
 
     Ok(Some(Snapshot {
         meta: snapshot_meta,
@@ -590,7 +640,7 @@ pub fn cleanup_old_snapshots(machine: &str) -> std::io::Result<()> {
     let mut snapshots = Vec::new();
 
     for entry in entries.flatten() {
-        let path = entry.path();
+                let path = entry.path();
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
             if file_name.starts_with(&prefix) && file_name.ends_with(".bin") {
                 snapshots.push(file_name.to_string());
@@ -621,7 +671,7 @@ pub fn cleanup_old_snapshots(machine: &str) -> std::io::Result<()> {
                     "[{}] Failed to delete snapshot file {}: {}",
                     machine, bin_path, e
                 );
-            } else {
+                } else {
                 info!("[{}] Deleted snapshot file: {}", machine, bin_path);
             }
 
