@@ -30,9 +30,37 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::info;
 
-pub const RAFT_STATE_MACHINE_NAME_METADATA: &str = "metadata";
-pub const RAFT_STATE_MACHINE_NAME_OFFSET: &str = "offset";
-pub const RAFT_STATE_MACHINE_NAME_MQTT: &str = "mqtt";
+#[derive(Clone, Debug)]
+pub enum RaftStateMachineName {
+    METADATA,
+    OFFSET,
+    MQTT,
+}
+
+impl RaftStateMachineName {
+    pub fn as_str(&self) -> &str {
+        match self {
+            RaftStateMachineName::METADATA => "metadata",
+            RaftStateMachineName::OFFSET => "offset",
+            RaftStateMachineName::MQTT => "mqtt",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "metadata" => Some(RaftStateMachineName::METADATA),
+            "offset" => Some(RaftStateMachineName::OFFSET),
+            "mqtt" => Some(RaftStateMachineName::MQTT),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for RaftStateMachineName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
 
 pub struct MultiRaftManager {
     pub metadata_raft_node: Raft<TypeConfig>,
@@ -48,27 +76,27 @@ impl MultiRaftManager {
     ) -> Result<Self, CommonError> {
         info!("Initializing Multi-Raft Manager...");
 
-        info!("Creating Raft node: {}", RAFT_STATE_MACHINE_NAME_METADATA);
+        info!("Creating Raft node: {}", RaftStateMachineName::METADATA);
         let metadata_raft_node = MultiRaftManager::create_raft_node(
-            RAFT_STATE_MACHINE_NAME_METADATA,
+            &RaftStateMachineName::METADATA,
             &client_pool,
             &rocksdb_engine_handler,
             &route,
         )
         .await?;
 
-        info!("Creating Raft node: {}", RAFT_STATE_MACHINE_NAME_OFFSET);
+        info!("Creating Raft node: {}", RaftStateMachineName::OFFSET);
         let offset_raft_node = MultiRaftManager::create_raft_node(
-            RAFT_STATE_MACHINE_NAME_OFFSET,
+            &RaftStateMachineName::OFFSET,
             &client_pool,
             &rocksdb_engine_handler,
             &route,
         )
         .await?;
 
-        info!("Creating Raft node: {}", RAFT_STATE_MACHINE_NAME_MQTT);
+        info!("Creating Raft node: {}", RaftStateMachineName::MQTT);
         let mqtt_raft_node = MultiRaftManager::create_raft_node(
-            RAFT_STATE_MACHINE_NAME_MQTT,
+            &RaftStateMachineName::MQTT,
             &client_pool,
             &rocksdb_engine_handler,
             &route,
@@ -87,15 +115,15 @@ impl MultiRaftManager {
         info!("Starting Multi-Raft cluster...");
 
         MultiRaftManager::start_raft_node(
-            RAFT_STATE_MACHINE_NAME_METADATA,
+            &RaftStateMachineName::METADATA,
             &self.metadata_raft_node,
         )
         .await?;
 
-        MultiRaftManager::start_raft_node(RAFT_STATE_MACHINE_NAME_OFFSET, &self.offset_raft_node)
+        MultiRaftManager::start_raft_node(&RaftStateMachineName::OFFSET, &self.offset_raft_node)
             .await?;
 
-        MultiRaftManager::start_raft_node(RAFT_STATE_MACHINE_NAME_MQTT, &self.mqtt_raft_node)
+        MultiRaftManager::start_raft_node(&RaftStateMachineName::MQTT, &self.mqtt_raft_node)
             .await?;
 
         info!("Multi-Raft cluster started successfully");
@@ -160,7 +188,7 @@ impl MultiRaftManager {
     }
 
     async fn start_raft_node(
-        machine: &str,
+        machine: &RaftStateMachineName,
         raft_node: &Raft<TypeConfig>,
     ) -> Result<(), CommonError> {
         info!("[{}] Starting Raft node...", machine);
@@ -223,7 +251,7 @@ impl MultiRaftManager {
     }
 
     async fn create_raft_node(
-        machine: &str,
+        machine: &RaftStateMachineName,
         client_pool: &Arc<ClientPool>,
         rocksdb_engine_handler: &Arc<rocksdb_engine::rocksdb::RocksDBEngine>,
         route: &Arc<DataRoute>,
@@ -258,8 +286,12 @@ impl MultiRaftManager {
             "[{}] Initializing storage (log + state machine)...",
             machine
         );
-        let (log_store, state_machine_store) =
-            new_storage(machine, rocksdb_engine_handler.clone(), route.clone()).await;
+        let (log_store, state_machine_store) = new_storage(
+            machine.as_str(),
+            rocksdb_engine_handler.clone(),
+            route.clone(),
+        )
+        .await;
 
         // Create network layer
         let network = Network::new(machine.to_string(), client_pool.clone());

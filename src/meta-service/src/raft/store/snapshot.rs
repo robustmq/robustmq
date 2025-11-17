@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::MetaServiceError;
+use crate::raft::manager::RaftStateMachineName;
 use crate::raft::type_config::{StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
 use common_base::tools::now_nanos;
@@ -114,7 +116,7 @@ async fn get_snapshot_meta_from_path(
 }
 
 pub async fn build_snapshot(
-    machine: &str,
+    machine: &RaftStateMachineName,
     db: &Arc<DB>,
     last_applied_log_id: &Option<LogId<TypeConfig>>,
     last_membership: &StoredMembership<TypeConfig>,
@@ -128,19 +130,36 @@ pub async fn build_snapshot(
     let row_db = db.clone();
     let row_meta = meta.clone();
     let row_snapshot_id = snapshot_id.clone();
-    let row_machine = machine.to_string();
+    let row_machine = machine.as_str().to_string();
+    let row_machine_enum = machine.clone();
     tokio::spawn(async move {
         let snapshot_db = row_db.snapshot();
-        // build snapshot
 
-        // save snapshot meta
-        if let Err(e) = save_snapshot_meta(row_meta).await {
-            error!("{}", e);
+        let res = match row_machine_enum {
+            RaftStateMachineName::METADATA => build_snapshot_by_metadata().await,
+            RaftStateMachineName::OFFSET => build_snapshot_by_mqtt().await,
+            RaftStateMachineName::MQTT => build_snapshot_by_offset().await,
+        };
+
+        if let Err(e) = res {
+            error!(
+                "[{}] Failed to build snapshot data for snapshot_id={}: {}",
+                row_machine, row_snapshot_id, e
+            );
         }
 
-        // save last snapshot id
+        if let Err(e) = save_snapshot_meta(row_meta).await {
+            error!(
+                "[{}] Failed to save snapshot metadata for snapshot_id={}: {}",
+                row_machine, row_snapshot_id, e
+            );
+        }
+
         if let Err(e) = save_last_snapshot_id(&row_machine, &row_snapshot_id).await {
-            error!("{}", e);
+            error!(
+                "[{}] Failed to save last snapshot id for snapshot_id={}: {}",
+                row_machine, row_snapshot_id, e
+            );
         }
 
         drop(snapshot_db);
@@ -156,7 +175,28 @@ pub async fn build_snapshot(
     })
 }
 
-pub fn recover_snapshot(_snapshot: Snapshot<TypeConfig>) -> StorageResult<()> {
+async fn build_snapshot_by_metadata() -> Result<(), MetaServiceError> {
+    Ok(())
+}
+
+async fn build_snapshot_by_mqtt() -> Result<(), MetaServiceError> {
+    Ok(())
+}
+
+async fn build_snapshot_by_offset() -> Result<(), MetaServiceError> {
+    Ok(())
+}
+
+pub fn recover_snapshot(
+    machine: &RaftStateMachineName,
+    _snapshot: Snapshot<TypeConfig>,
+) -> StorageResult<()> {
+    match machine {
+        RaftStateMachineName::METADATA => {}
+        RaftStateMachineName::OFFSET => {}
+        RaftStateMachineName::MQTT => {}
+    };
+
     Ok(())
 }
 

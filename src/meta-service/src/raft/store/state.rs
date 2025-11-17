@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::raft::manager::RaftStateMachineName;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::store::keys::{key_last_applied, key_last_membership};
@@ -138,8 +139,15 @@ impl StateMachineStore {
 
 impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
     async fn build_snapshot(&mut self) -> Result<Snapshot<TypeConfig>, StorageError<TypeConfig>> {
+        let machine_name = RaftStateMachineName::from_str(&self.machine).ok_or_else(|| {
+            StorageError::read(&CommonError::CommonError(format!(
+                "Invalid machine name: {}",
+                self.machine
+            )))
+        })?;
+
         build_snapshot(
-            &self.machine,
+            &machine_name,
             &self.db,
             &self.data.last_applied_log_id,
             &self.data.last_membership,
@@ -233,10 +241,20 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         meta: &SnapshotMeta<TypeConfig>,
         snapshot: SnapshotData,
     ) -> Result<(), StorageError<TypeConfig>> {
-        recover_snapshot(Snapshot {
-            meta: meta.clone(),
-            snapshot,
+        let machine_name = RaftStateMachineName::from_str(&self.machine).ok_or_else(|| {
+            StorageError::read(&CommonError::CommonError(format!(
+                "Invalid machine name: {}",
+                self.machine
+            )))
         })?;
+
+        recover_snapshot(
+            &machine_name,
+            Snapshot {
+                meta: meta.clone(),
+                snapshot,
+            },
+        )?;
         Ok(())
     }
 
