@@ -63,7 +63,7 @@ RobustMQ provides a **unified messaging platform** with flexible architecture th
 
 ## 🏗️ Architecture
 
-![RobustMQ Architecture](docs/images/robustmq-architecture.png)
+![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
 
 ### Architecture Overview
 

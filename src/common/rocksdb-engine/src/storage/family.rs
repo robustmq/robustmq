@@ -51,6 +51,13 @@ pub fn storage_raft_fold(path: &str) -> String {
     result
 }
 
+pub fn storage_raft_snapshot_fold(path: &str) -> String {
+    let mut result = String::with_capacity(path.len() + 6);
+    result.push_str(path);
+    result.push_str("/_snapshot");
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use crate::storage::family::{column_family_list, storage_data_fold, storage_raft_fold};

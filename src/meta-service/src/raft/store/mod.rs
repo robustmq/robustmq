@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 pub mod keys;
 pub mod log;
-pub mod snapshot;
 pub mod state;
 
 pub(crate) async fn new_storage(
@@ -32,9 +31,13 @@ pub(crate) async fn new_storage(
         machine: machine.to_string(),
         db: rocksdb_engine_handler.db.clone(),
     };
-    let sm_store = StateMachineStore::new(machine.to_string(), route)
-        .await
-        .unwrap();
+    let sm_store = StateMachineStore::new(
+        machine.to_string(),
+        rocksdb_engine_handler.db.clone(),
+        route,
+    )
+    .await
+    .unwrap();
 
     (log_store, sm_store)
 }

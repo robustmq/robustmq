@@ -188,25 +188,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
         let last_purged_log_id = self.get_last_purged_()?;
         let last_log_id = last.or(last_purged_log_id);
-
-        // Consistency check: committed should not exceed last_log_id
-        if let Some(committed) = self.get_committed_()? {
-            if let Some(last_id) = last_log_id {
-                if committed.index > last_id.index {
-                    use openraft::AnyError;
-                    use tracing::error;
-                    error!(
-                        "[{}] Inconsistent state detected: committed={} > last_log_id={}. \
-                         Data corruption! Please delete data directory and restart.",
-                        self.machine, committed.index, last_id.index
-                    );
-                    return Err(StorageError::read(AnyError::error(
-                        "Raft state corrupted: committed > last_log_id",
-                    )));
-                }
-            }
-        }
-
         Ok(LogState {
             last_purged_log_id,
             last_log_id,
@@ -259,7 +240,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
         let from = key_raft_log(&self.machine, log_id.index);
         let to = key_raft_log(&self.machine, u64::MAX);
-
         self.db
             .delete_range_cf(&self.store(), &from, &to)
             .map_err(|e| StorageError::write_logs(&e))
