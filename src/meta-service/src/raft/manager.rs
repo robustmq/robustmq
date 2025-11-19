@@ -27,6 +27,7 @@ use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tracing::info;
 
@@ -70,6 +71,7 @@ pub struct MultiRaftManager {
     pub metadata_raft_node: Raft<TypeConfig>,
     pub offset_raft_node: Raft<TypeConfig>,
     pub mqtt_raft_node: Raft<TypeConfig>,
+    pub stop: Arc<RwLock<bool>>,
 }
 
 impl MultiRaftManager {
@@ -112,6 +114,7 @@ impl MultiRaftManager {
             metadata_raft_node,
             offset_raft_node,
             mqtt_raft_node,
+            stop: Arc::new(RwLock::new(false)),
         })
     }
 
@@ -138,6 +141,13 @@ impl MultiRaftManager {
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
+        let stop = self.stop.read().await;
+        if *stop {
+            return Err(MetaServiceError::RaftNodeHasStopped(
+                RaftStateMachineName::METADATA.to_string(),
+            ));
+        }
+
         Ok(Some(
             timeout(
                 Duration::from_secs(5),
@@ -151,6 +161,13 @@ impl MultiRaftManager {
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
+        let stop = self.stop.read().await;
+        if *stop {
+            return Err(MetaServiceError::RaftNodeHasStopped(
+                RaftStateMachineName::OFFSET.to_string(),
+            ));
+        }
+
         Ok(Some(
             timeout(
                 Duration::from_secs(5),
@@ -164,6 +181,13 @@ impl MultiRaftManager {
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
+        let stop = self.stop.read().await;
+        if *stop {
+            return Err(MetaServiceError::RaftNodeHasStopped(
+                RaftStateMachineName::MQTT.to_string(),
+            ));
+        }
+
         Ok(Some(
             timeout(
                 Duration::from_secs(5),
@@ -174,6 +198,9 @@ impl MultiRaftManager {
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {
+        let mut write = self.stop.write().await;
+        *write = true;
+
         self.mqtt_raft_node
             .shutdown()
             .await

@@ -155,4 +155,7 @@ pub enum MetaServiceError {
 
     #[error("Schema [{0}] already exist")]
     SchemaAlreadyExist(String),
+
+    #[error("{0} has raft stopped")]
+    RaftNodeHasStopped(String),
 }
