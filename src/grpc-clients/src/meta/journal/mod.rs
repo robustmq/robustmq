@@ -70,6 +70,8 @@ impl_retriable_request!(
     ListShardReply,
     meta_service_journal_services_client,
     list_shard,
+    "EngineService",
+    "ListShard",
     true
 );
 
@@ -79,6 +81,8 @@ impl_retriable_request!(
     CreateShardReply,
     meta_service_journal_services_client,
     create_shard,
+    "EngineService",
+    "CreateShard",
     true
 );
 
@@ -88,6 +92,8 @@ impl_retriable_request!(
     DeleteShardReply,
     meta_service_journal_services_client,
     delete_shard,
+    "EngineService",
+    "DeleteShard",
     true
 );
 
@@ -97,6 +103,8 @@ impl_retriable_request!(
     ListSegmentReply,
     meta_service_journal_services_client,
     list_segment,
+    "EngineService",
+    "ListSegment",
     true
 );
 
@@ -106,6 +114,8 @@ impl_retriable_request!(
     CreateNextSegmentReply,
     meta_service_journal_services_client,
     create_next_segment,
+    "EngineService",
+    "CreateNextSegment",
     true
 );
 
@@ -115,6 +125,8 @@ impl_retriable_request!(
     DeleteSegmentReply,
     meta_service_journal_services_client,
     delete_segment,
+    "EngineService",
+    "DeleteSegment",
     true
 );
 
@@ -124,6 +136,8 @@ impl_retriable_request!(
     UpdateSegmentStatusReply,
     meta_service_journal_services_client,
     update_segment_status,
+    "EngineService",
+    "UpdateSegmentStatus",
     true
 );
 
@@ -133,6 +147,8 @@ impl_retriable_request!(
     ListSegmentMetaReply,
     meta_service_journal_services_client,
     list_segment_meta,
+    "EngineService",
+    "ListSegmentMeta",
     true
 );
 
@@ -142,5 +158,7 @@ impl_retriable_request!(
     UpdateSegmentMetaReply,
     meta_service_journal_services_client,
     update_segment_meta,
+    "EngineService",
+    "UpdateSegmentMeta",
     true
 );

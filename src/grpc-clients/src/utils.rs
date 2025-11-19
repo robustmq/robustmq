@@ -30,6 +30,8 @@ pub(crate) trait RetriableRequest: Clone {
 
     const IS_WRITE_REQUEST: bool = false;
 
+    fn method_name() -> &'static str;
+
     async fn get_client<'a>(
         pool: &'a ClientPool,
         addr: &str,
@@ -56,6 +58,7 @@ where
         ));
     }
 
+    let method = Req::method_name();
     let mut times = 1;
     let mut tried_addrs = HashSet::new();
     loop {
@@ -63,7 +66,7 @@ where
         let addr = addrs[index].as_ref();
         let target_addr = if Req::IS_WRITE_REQUEST {
             client_pool
-                .get_leader_addr(addr)
+                .get_leader_addr(method)
                 .map(|leader| leader.value().to_string())
                 .unwrap_or_else(|| addr.to_string())
         } else {
@@ -90,7 +93,7 @@ where
                     tried_addrs.insert(target_addr);
 
                     if let Some(leader_addr) = get_forward_addr(&err) {
-                        client_pool.set_leader_addr(addr.to_string(), leader_addr.clone());
+                        client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
 
                         if !tried_addrs.contains(&leader_addr) {
                             let mut leader_client =

@@ -97,7 +97,7 @@ targets = [
     { path = "openraft::engine", level = "off" },
 ]
 rotation = "daily"
-directory = "./data/meta-service/logs"
+directory = "./data/broker/logs"
 prefix = "openraft-except-engine"
 suffix = "log"
 max_log_files = 10

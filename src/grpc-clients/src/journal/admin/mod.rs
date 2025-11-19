@@ -66,7 +66,9 @@ impl_retriable_request!(
     JournalServerAdminServiceClient<Channel>,
     ListShardReply,
     journal_admin_services_client,
-    list_shard
+    list_shard,
+    "JournalAdminService",
+    "ListShard"
 );
 
 impl_retriable_request!(
@@ -74,5 +76,7 @@ impl_retriable_request!(
     JournalServerAdminServiceClient<Channel>,
     ListSegmentReply,
     journal_admin_services_client,
-    list_segment
+    list_segment,
+    "JournalAdminService",
+    "ListSegment"
 );

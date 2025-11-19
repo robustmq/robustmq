@@ -85,6 +85,8 @@ impl_retriable_request!(
     GetShareSubLeaderReply,
     meta_service_mqtt_services_client,
     get_share_sub_leader,
+    "MqttService",
+    "GetShareSubLeader",
     true
 );
 
@@ -94,6 +96,8 @@ impl_retriable_request!(
     CreateUserReply,
     meta_service_mqtt_services_client,
     create_user,
+    "MqttService",
+    "CreateUser",
     true
 );
 
@@ -103,6 +107,8 @@ impl_retriable_request!(
     DeleteUserReply,
     meta_service_mqtt_services_client,
     delete_user,
+    "MqttService",
+    "DeleteUser",
     true
 );
 
@@ -112,6 +118,8 @@ impl_retriable_request!(
     ListUserReply,
     meta_service_mqtt_services_client,
     list_user,
+    "MqttService",
+    "ListUser",
     true
 );
 
@@ -121,6 +129,8 @@ impl_retriable_request!(
     CreateTopicReply,
     meta_service_mqtt_services_client,
     create_topic,
+    "MqttService",
+    "CreateTopic",
     true
 );
 
@@ -130,6 +140,8 @@ impl_retriable_request!(
     DeleteTopicReply,
     meta_service_mqtt_services_client,
     delete_topic,
+    "MqttService",
+    "DeleteTopic",
     true
 );
 
@@ -139,6 +151,8 @@ impl_retriable_request!(
     Streaming<ListTopicReply>,
     meta_service_mqtt_services_client,
     list_topic,
+    "MqttService",
+    "ListTopic",
     true
 );
 
@@ -148,6 +162,8 @@ impl_retriable_request!(
     SetTopicRetainMessageReply,
     meta_service_mqtt_services_client,
     set_topic_retain_message,
+    "MqttService",
+    "SetTopicRetainMessage",
     true
 );
 
@@ -157,6 +173,8 @@ impl_retriable_request!(
     GetTopicRetainMessageReply,
     meta_service_mqtt_services_client,
     get_topic_retain_message,
+    "MqttService",
+    "GetTopicRetainMessage",
     true
 );
 
@@ -166,6 +184,8 @@ impl_retriable_request!(
     CreateSessionReply,
     meta_service_mqtt_services_client,
     create_session,
+    "MqttService",
+    "CreateSession",
     true
 );
 
@@ -175,6 +195,8 @@ impl_retriable_request!(
     DeleteSessionReply,
     meta_service_mqtt_services_client,
     delete_session,
+    "MqttService",
+    "DeleteSession",
     true
 );
 
@@ -184,6 +206,8 @@ impl_retriable_request!(
     ListSessionReply,
     meta_service_mqtt_services_client,
     list_session,
+    "MqttService",
+    "ListSession",
     true
 );
 
@@ -193,6 +217,8 @@ impl_retriable_request!(
     UpdateSessionReply,
     meta_service_mqtt_services_client,
     update_session,
+    "MqttService",
+    "UpdateSession",
     true
 );
 
@@ -202,6 +228,8 @@ impl_retriable_request!(
     SaveLastWillMessageReply,
     meta_service_mqtt_services_client,
     save_last_will_message,
+    "MqttService",
+    "SaveLastWillMessage",
     true
 );
 
@@ -211,6 +239,8 @@ impl_retriable_request!(
     GetLastWillMessageReply,
     meta_service_mqtt_services_client,
     get_last_will_message,
+    "MqttService",
+    "GetLastWillMessage",
     true
 );
 
@@ -220,6 +250,8 @@ impl_retriable_request!(
     CreateAclReply,
     meta_service_mqtt_services_client,
     create_acl,
+    "MqttService",
+    "CreateAcl",
     true
 );
 
@@ -229,6 +261,8 @@ impl_retriable_request!(
     DeleteAclReply,
     meta_service_mqtt_services_client,
     delete_acl,
+    "MqttService",
+    "DeleteAcl",
     true
 );
 
@@ -238,6 +272,8 @@ impl_retriable_request!(
     ListAclReply,
     meta_service_mqtt_services_client,
     list_acl,
+    "MqttService",
+    "ListAcl",
     true
 );
 
@@ -247,6 +283,8 @@ impl_retriable_request!(
     CreateBlacklistReply,
     meta_service_mqtt_services_client,
     create_blacklist,
+    "MqttService",
+    "CreateBlacklist",
     true
 );
 
@@ -256,6 +294,8 @@ impl_retriable_request!(
     DeleteBlacklistReply,
     meta_service_mqtt_services_client,
     delete_blacklist,
+    "MqttService",
+    "DeleteBlacklist",
     true
 );
 
@@ -265,6 +305,8 @@ impl_retriable_request!(
     ListBlacklistReply,
     meta_service_mqtt_services_client,
     list_blacklist,
+    "MqttService",
+    "ListBlacklist",
     true
 );
 
@@ -274,6 +316,8 @@ impl_retriable_request!(
     ListTopicRewriteRuleReply,
     meta_service_mqtt_services_client,
     list_topic_rewrite_rule,
+    "MqttService",
+    "ListTopicRewriteRule",
     true
 );
 
@@ -283,6 +327,8 @@ impl_retriable_request!(
     CreateTopicRewriteRuleReply,
     meta_service_mqtt_services_client,
     create_topic_rewrite_rule,
+    "MqttService",
+    "CreateTopicRewriteRule",
     true
 );
 
@@ -292,6 +338,8 @@ impl_retriable_request!(
     DeleteTopicRewriteRuleReply,
     meta_service_mqtt_services_client,
     delete_topic_rewrite_rule,
+    "MqttService",
+    "DeleteTopicRewriteRule",
     true
 );
 
@@ -301,6 +349,8 @@ impl_retriable_request!(
     SetSubscribeReply,
     meta_service_mqtt_services_client,
     set_subscribe,
+    "MqttService",
+    "SetSubscribe",
     true
 );
 
@@ -310,6 +360,8 @@ impl_retriable_request!(
     DeleteSubscribeReply,
     meta_service_mqtt_services_client,
     delete_subscribe,
+    "MqttService",
+    "DeleteSubscribe",
     true
 );
 
@@ -319,6 +371,8 @@ impl_retriable_request!(
     ListSubscribeReply,
     meta_service_mqtt_services_client,
     list_subscribe,
+    "MqttService",
+    "ListSubscribe",
     true
 );
 
@@ -328,6 +382,8 @@ impl_retriable_request!(
     ListConnectorReply,
     meta_service_mqtt_services_client,
     list_connectors,
+    "MqttService",
+    "ListConnectors",
     true
 );
 
@@ -337,6 +393,8 @@ impl_retriable_request!(
     CreateConnectorReply,
     meta_service_mqtt_services_client,
     create_connector,
+    "MqttService",
+    "CreateConnector",
     true
 );
 
@@ -346,6 +404,8 @@ impl_retriable_request!(
     UpdateConnectorReply,
     meta_service_mqtt_services_client,
     update_connector,
+    "MqttService",
+    "UpdateConnector",
     true
 );
 
@@ -355,6 +415,8 @@ impl_retriable_request!(
     DeleteConnectorReply,
     meta_service_mqtt_services_client,
     delete_connector,
+    "MqttService",
+    "DeleteConnector",
     true
 );
 
@@ -364,6 +426,8 @@ impl_retriable_request!(
     ConnectorHeartbeatReply,
     meta_service_mqtt_services_client,
     connector_heartbeat,
+    "MqttService",
+    "ConnectorHeartbeat",
     true
 );
 
@@ -373,6 +437,8 @@ impl_retriable_request!(
     ListAutoSubscribeRuleReply,
     meta_service_mqtt_services_client,
     list_auto_subscribe_rule,
+    "MqttService",
+    "ListAutoSubscribeRule",
     true
 );
 
@@ -382,6 +448,8 @@ impl_retriable_request!(
     SetAutoSubscribeRuleReply,
     meta_service_mqtt_services_client,
     set_auto_subscribe_rule,
+    "MqttService",
+    "SetAutoSubscribeRule",
     true
 );
 
@@ -391,5 +459,7 @@ impl_retriable_request!(
     DeleteAutoSubscribeRuleReply,
     meta_service_mqtt_services_client,
     delete_auto_subscribe_rule,
+    "MqttService",
+    "DeleteAutoSubscribeRule",
     true
 );

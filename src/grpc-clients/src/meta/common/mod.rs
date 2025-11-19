@@ -76,6 +76,8 @@ impl_retriable_request!(
     ClusterStatusReply,
     meta_service_inner_services_client,
     cluster_status,
+    "PlacementService",
+    "ClusterStatus",
     true
 );
 
@@ -85,6 +87,8 @@ impl_retriable_request!(
     NodeListReply,
     meta_service_inner_services_client,
     node_list,
+    "PlacementService",
+    "NodeList",
     true
 );
 
@@ -94,6 +98,8 @@ impl_retriable_request!(
     RegisterNodeReply,
     meta_service_inner_services_client,
     register_node,
+    "PlacementService",
+    "RegisterNode",
     true
 );
 
@@ -103,6 +109,8 @@ impl_retriable_request!(
     UnRegisterNodeReply,
     meta_service_inner_services_client,
     un_register_node,
+    "PlacementService",
+    "UnRegisterNode",
     true
 );
 
@@ -112,6 +120,8 @@ impl_retriable_request!(
     HeartbeatReply,
     meta_service_inner_services_client,
     heartbeat,
+    "PlacementService",
+    "Heartbeat",
     true
 );
 
@@ -121,6 +131,8 @@ impl_retriable_request!(
     SetResourceConfigReply,
     meta_service_inner_services_client,
     set_resource_config,
+    "PlacementService",
+    "SetResourceConfig",
     true
 );
 
@@ -130,6 +142,8 @@ impl_retriable_request!(
     GetResourceConfigReply,
     meta_service_inner_services_client,
     get_resource_config,
+    "PlacementService",
+    "GetResourceConfig",
     true
 );
 
@@ -139,6 +153,8 @@ impl_retriable_request!(
     DeleteResourceConfigReply,
     meta_service_inner_services_client,
     delete_resource_config,
+    "PlacementService",
+    "DeleteResourceConfig",
     true
 );
 
@@ -148,6 +164,8 @@ impl_retriable_request!(
     SaveOffsetDataReply,
     meta_service_inner_services_client,
     save_offset_data,
+    "PlacementService",
+    "SaveOffsetData",
     true
 );
 
@@ -157,6 +175,8 @@ impl_retriable_request!(
     GetOffsetDataReply,
     meta_service_inner_services_client,
     get_offset_data,
+    "PlacementService",
+    "GetOffsetData",
     true
 );
 
@@ -166,6 +186,8 @@ impl_retriable_request!(
     ListSchemaReply,
     meta_service_inner_services_client,
     list_schema,
+    "PlacementService",
+    "ListSchema",
     true
 );
 
@@ -175,6 +197,8 @@ impl_retriable_request!(
     CreateSchemaReply,
     meta_service_inner_services_client,
     create_schema,
+    "PlacementService",
+    "CreateSchema",
     true
 );
 
@@ -184,6 +208,8 @@ impl_retriable_request!(
     UpdateSchemaReply,
     meta_service_inner_services_client,
     update_schema,
+    "PlacementService",
+    "UpdateSchema",
     true
 );
 
@@ -193,6 +219,8 @@ impl_retriable_request!(
     DeleteSchemaReply,
     meta_service_inner_services_client,
     delete_schema,
+    "PlacementService",
+    "DeleteSchema",
     true
 );
 
@@ -202,6 +230,8 @@ impl_retriable_request!(
     ListBindSchemaReply,
     meta_service_inner_services_client,
     list_bind_schema,
+    "PlacementService",
+    "ListBindSchema",
     true
 );
 
@@ -211,6 +241,8 @@ impl_retriable_request!(
     BindSchemaReply,
     meta_service_inner_services_client,
     bind_schema,
+    "PlacementService",
+    "BindSchema",
     true
 );
 
@@ -220,6 +252,8 @@ impl_retriable_request!(
     UnBindSchemaReply,
     meta_service_inner_services_client,
     un_bind_schema,
+    "PlacementService",
+    "UnBindSchema",
     true
 );
 
@@ -229,6 +263,8 @@ impl_retriable_request!(
     SetReply,
     meta_service_inner_services_client,
     set,
+    "PlacementService",
+    "Set",
     true
 );
 
@@ -238,6 +274,8 @@ impl_retriable_request!(
     GetReply,
     meta_service_inner_services_client,
     get,
+    "PlacementService",
+    "Get",
     true
 );
 
@@ -247,6 +285,8 @@ impl_retriable_request!(
     DeleteReply,
     meta_service_inner_services_client,
     delete,
+    "PlacementService",
+    "Delete",
     true
 );
 
@@ -256,6 +296,8 @@ impl_retriable_request!(
     ExistsReply,
     meta_service_inner_services_client,
     exists,
+    "PlacementService",
+    "Exists",
     true
 );
 
@@ -265,6 +307,8 @@ impl_retriable_request!(
     GetPrefixReply,
     meta_service_inner_services_client,
     get_prefix,
+    "PlacementService",
+    "GetPrefix",
     true
 );
 
@@ -274,6 +318,8 @@ impl_retriable_request!(
     VoteReply,
     meta_service_inner_services_client,
     vote,
+    "PlacementService",
+    "Vote",
     true
 );
 
@@ -283,6 +329,8 @@ impl_retriable_request!(
     AppendReply,
     meta_service_inner_services_client,
     append,
+    "PlacementService",
+    "Append",
     true
 );
 
@@ -292,6 +340,8 @@ impl_retriable_request!(
     SnapshotReply,
     meta_service_inner_services_client,
     snapshot,
+    "PlacementService",
+    "Snapshot",
     true
 );
 
@@ -301,6 +351,8 @@ impl_retriable_request!(
     AddLearnerReply,
     meta_service_inner_services_client,
     add_learner,
+    "PlacementService",
+    "AddLearner",
     true
 );
 
@@ -310,5 +362,7 @@ impl_retriable_request!(
     ChangeMembershipReply,
     meta_service_inner_services_client,
     change_membership,
+    "PlacementService",
+    "ChangeMembership",
     true
 );

@@ -94,7 +94,9 @@ impl_retriable_request!(
     MqttBrokerInnerServiceClient<Channel>,
     DeleteSessionReply,
     mqtt_broker_mqtt_services_client,
-    delete_session
+    delete_session,
+    "MqttBrokerInnerService",
+    "DeleteSession"
 );
 
 impl_retriable_request!(
@@ -102,7 +104,9 @@ impl_retriable_request!(
     MqttBrokerInnerServiceClient<Channel>,
     UpdateMqttCacheReply,
     mqtt_broker_mqtt_services_client,
-    update_cache
+    update_cache,
+    "MqttBrokerInnerService",
+    "UpdateCache"
 );
 
 impl_retriable_request!(
@@ -110,5 +114,7 @@ impl_retriable_request!(
     MqttBrokerInnerServiceClient<Channel>,
     SendLastWillMessageReply,
     mqtt_broker_mqtt_services_client,
-    send_last_will_message
+    send_last_will_message,
+    "MqttBrokerInnerService",
+    "SendLastWillMessage"
 );
