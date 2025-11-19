@@ -28,6 +28,7 @@ RobustMQ wants to invite you to sign your name for us, and this signature will a
 @yongruifang
 @ytharic
 @realonbebeto
+@cadeYDL
 
 ## How to sign your name for us
 
