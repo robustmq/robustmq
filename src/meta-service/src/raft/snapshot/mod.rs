@@ -24,7 +24,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 pub mod build;
 pub mod recover;
 
-pub(crate) async fn save_last_snapshot_id(machine: &str, last_snapshot_id: &str) -> std::io::Result<()> {
+pub(crate) async fn save_last_snapshot_id(
+    machine: &str,
+    last_snapshot_id: &str,
+) -> std::io::Result<()> {
     save_last_snapshot_id_to_path(machine, last_snapshot_id, None).await
 }
 
@@ -73,7 +76,9 @@ pub(crate) async fn save_snapshot_meta(meta: SnapshotMeta<TypeConfig>) -> std::i
     save_snapshot_meta_to_path(meta, None).await
 }
 
-pub(crate) async fn get_snapshot_meta(snapshot_id: &str) -> std::io::Result<SnapshotMeta<TypeConfig>> {
+pub(crate) async fn get_snapshot_meta(
+    snapshot_id: &str,
+) -> std::io::Result<SnapshotMeta<TypeConfig>> {
     get_snapshot_meta_from_path(snapshot_id, None).await
 }
 

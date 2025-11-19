@@ -31,8 +31,11 @@ pub async fn recover_snapshot(
     let row_db = db.clone();
     let row_machine = machine.clone();
     let snapshot_id = snapshot.meta.snapshot_id.clone();
-    
-    info!("[{}] Starting to recover snapshot, snapshot_id={}", machine, snapshot_id);
+
+    info!(
+        "[{}] Starting to recover snapshot, snapshot_id={}",
+        machine, snapshot_id
+    );
 
     tokio::spawn(async move {
         let res = match row_machine {
@@ -367,4 +370,3 @@ mod tests {
         std::fs::remove_dir_all(&test_dir).ok();
     }
 }
-

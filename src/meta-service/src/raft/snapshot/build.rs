@@ -35,8 +35,11 @@ pub async fn build_snapshot(
     last_membership: &StoredMembership<TypeConfig>,
 ) -> StorageResult<Snapshot<TypeConfig>> {
     let snapshot_id = format!("{}-{}", machine, now_nanos());
-    info!("[{}] Starting to build snapshot, snapshot_id={}", machine, snapshot_id);
-    
+    info!(
+        "[{}] Starting to build snapshot, snapshot_id={}",
+        machine, snapshot_id
+    );
+
     let meta = SnapshotMeta {
         last_log_id: *last_applied_log_id,
         last_membership: last_membership.clone(),
@@ -44,7 +47,7 @@ pub async fn build_snapshot(
     };
     let snapshot_db = db.snapshot();
     let snapshot_name_path = snapshot_name(&snapshot_id);
-    
+
     let res = match machine {
         RaftStateMachineName::METADATA => {
             build_snapshot_by_metadata(db, &snapshot_db, &snapshot_name_path).await
@@ -62,9 +65,10 @@ pub async fn build_snapshot(
             "[{}] Failed to build snapshot data for snapshot_id={}: {}",
             machine, snapshot_id, e
         );
-        return Err(StorageError::read(&std::io::Error::other(
-            format!("Failed to build snapshot data: {}", e),
-        )));
+        return Err(StorageError::read(&std::io::Error::other(format!(
+            "Failed to build snapshot data: {}",
+            e
+        ))));
     }
 
     if let Err(e) = save_snapshot_meta(meta.clone()).await {
@@ -94,7 +98,10 @@ pub async fn build_snapshot(
         }
     });
 
-    info!("[{}] Snapshot build completed successfully for snapshot_id={}", machine, snapshot_id);
+    info!(
+        "[{}] Snapshot build completed successfully for snapshot_id={}",
+        machine, snapshot_id
+    );
 
     Ok(Snapshot {
         meta,
@@ -108,7 +115,7 @@ async fn build_snapshot_by_metadata(
     snapshot_name: &str,
 ) -> Result<(), MetaServiceError> {
     let dumping_path = format!("{}.dumping", snapshot_name);
-    
+
     if let Some(parent) = std::path::Path::new(&dumping_path).parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -147,7 +154,7 @@ async fn build_snapshot_by_mqtt(
 ) -> Result<(), MetaServiceError> {
     let dumping_path = format!("{}.dumping", snapshot_name);
     let prefix = b"/mqtt/";
-    
+
     if let Some(parent) = std::path::Path::new(&dumping_path).parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -190,7 +197,7 @@ async fn build_snapshot_by_offset(
 ) -> Result<(), MetaServiceError> {
     let dumping_path = format!("{}.dumping", snapshot_name);
     let prefix = b"/offset/";
-    
+
     if let Some(parent) = std::path::Path::new(&dumping_path).parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -383,4 +390,3 @@ mod tests {
         std::fs::remove_dir_all(&test_dir).ok();
     }
 }
-

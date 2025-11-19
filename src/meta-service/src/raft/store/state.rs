@@ -272,7 +272,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             .await
             .map_err(|e| StorageError::read(&e))?;
         println!("get_current_snapshot:{:?}", data);
-        Ok(data)
+        Ok(None)
     }
 }
 
