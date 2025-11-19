@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 pub mod keys;
 pub mod log;
-pub mod snapshot;
 pub mod state;
 
 pub(crate) async fn new_storage(

@@ -18,5 +18,6 @@ pub mod manager;
 pub mod network;
 pub mod route;
 pub mod services;
+pub mod snapshot;
 pub mod store;
 pub mod type_config;

@@ -15,10 +15,9 @@
 use crate::raft::manager::RaftStateMachineName;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
+use crate::raft::snapshot::build::build_snapshot;
+use crate::raft::snapshot::recover::{get_current_snapshot, recover_snapshot};
 use crate::raft::store::keys::{key_last_applied, key_last_membership};
-use crate::raft::store::snapshot::build_snapshot;
-use crate::raft::store::snapshot::get_current_snapshot_;
-use crate::raft::store::snapshot::recover_snapshot;
 use crate::raft::type_config::Entry;
 use crate::raft::type_config::{SnapshotData, StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
@@ -31,7 +30,6 @@ use openraft::{
 use rocksdb::{BoundColumnFamily, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::sync::Arc;
-use tracing::info;
 
 #[derive(Clone)]
 pub struct StateMachineStore {
@@ -67,7 +65,9 @@ impl StateMachineStore {
 
         // Recover state from persistent storage
         sm.data.last_applied_log_id = sm.get_last_applied_()?;
+        println!("last_applied_log_id:{:?}", sm.data.last_applied_log_id);
         sm.data.last_membership = sm.get_last_membership_()?.unwrap_or_default();
+        println!("last_membership:{:?}", sm.data.last_membership);
 
         Ok(sm)
     }
@@ -226,9 +226,10 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     }
 
     async fn begin_receiving_snapshot(&mut self) -> Result<SnapshotData, StorageError<TypeConfig>> {
-        let data = get_current_snapshot_(&self.machine)
+        let data = get_current_snapshot(&self.machine)
             .await
             .map_err(|e| StorageError::read(&e))?;
+        println!("begin_receiving_snapshot:{:?}", data);
         match data {
             Some(da) => Ok(da.snapshot),
             None => Err(StorageError::read(&CommonError::CommonError(
@@ -248,7 +249,9 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                 self.machine, e
             )))
         })?;
-
+        println!("install_snapshot:{:?}", snapshot);
+        self.data.last_applied_log_id = meta.last_log_id;
+        self.data.last_membership = meta.last_membership.clone();
         recover_snapshot(
             &machine_name,
             &self.db,
@@ -259,28 +262,16 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         )
         .await?;
 
-        self.data.last_applied_log_id = meta.last_log_id;
-        self.data.last_membership = meta.last_membership.clone();
-
-        if let Some(log_id) = meta.last_log_id {
-            self.set_last_applied_(Some(log_id))?;
-        }
-        self.set_last_membership_(&meta.last_membership)?;
-
-        info!(
-            "[{}] Snapshot installed, updated last_applied_log_id to {:?}",
-            self.machine, meta.last_log_id
-        );
-
         Ok(())
     }
 
     async fn get_current_snapshot(
         &mut self,
     ) -> Result<Option<Snapshot<TypeConfig>>, StorageError<TypeConfig>> {
-        let data = get_current_snapshot_(&self.machine)
+        let data = get_current_snapshot(&self.machine)
             .await
             .map_err(|e| StorageError::read(&e))?;
+        println!("get_current_snapshot:{:?}", data);
         Ok(data)
     }
 }
