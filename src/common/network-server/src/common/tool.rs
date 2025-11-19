@@ -18,6 +18,7 @@ use crate::common::{
 };
 use common_metrics::mqtt::packets::record_packet_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use protocol::robust::RobustMQWrapperExtend;
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
 use tokio::sync::mpsc::Receiver;
 use tracing::debug;
@@ -37,6 +38,7 @@ pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
 
 pub async fn read_packet(
     pack: RobustMQPacket,
+    extend: RobustMQWrapperExtend,
     request_channel: &RequestChannel,
     connection: &NetworkConnection,
     network_type: &NetworkConnectionType,
@@ -54,7 +56,7 @@ pub async fn read_packet(
         }
     }
 
-    let package = RequestPackage::new(connection.connection_id, connection.addr, pack);
+    let package = RequestPackage::new(connection.connection_id, connection.addr, pack, extend);
     request_channel
         .send_request_packet_to_handler(network_type, package.clone())
         .await;

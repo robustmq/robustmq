@@ -19,8 +19,8 @@ use crate::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
 use broker_core::cache::BrokerCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
+use protocol::codec::RobustMQCodec;
+use protocol::robust::RobustMQWrapperExtend;
 use quinn::{ConnectionError, Endpoint};
 use std::sync::Arc;
 use tokio::select;
@@ -148,14 +148,8 @@ fn read_frame_process(
                             }
                             if let Some(pk) = pack{
                                 let connection = connection_manager.get_connect(connection_id).unwrap();
-                                match pk {
-                                    RobustMQCodecWrapper::MQTT(p) =>{
-                                        read_packet(RobustMQPacket::MQTT(p.packet), &request_channel, &connection, &network_type).await;
-                                    }
-                                    RobustMQCodecWrapper::KAFKA(p) => {
-                                        read_packet(RobustMQPacket::KAFKA(p.packet), &request_channel, &connection, &network_type).await;
-                                    }
-                                }
+                                let (robust_packet, robust_extend) = RobustMQWrapperExtend::get_packet_and_extend(pk);
+                                read_packet(robust_packet, robust_extend, &request_channel, &connection, &network_type).await;
                             }
                         }
                         Err(e) => {

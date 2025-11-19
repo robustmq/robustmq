@@ -14,10 +14,10 @@
 
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttFlappingDetect,
-    MqttKeepAlive, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity,
-    MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime,
-    SchemaFailedOperation, SchemaStrategy,
+    JournalRuntime, JournalServer, JournalStorage, KafkaConfig, MetaRuntime, MqttAuthConfig,
+    MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime,
+    MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
+    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
 use crate::storage::{StorageAdapterConfig, StorageAdapterType};
 use common_base::enum_type::delay_type::DelayType;
@@ -207,4 +207,8 @@ pub fn default_journal_storage() -> JournalStorage {
         data_path: vec!["./data/journal/".to_string()],
         rocksdb_max_open_files: 10000,
     }
+}
+
+pub fn default_kafka_config() -> KafkaConfig {
+    KafkaConfig { port: 9092 }
 }

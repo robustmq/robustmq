@@ -31,6 +31,7 @@ use journal_server::{
     server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
     JournalServerParams,
 };
+use kafka_broker::broker::{KafkaBrokerServer, KafkaBrokerServerParams};
 use meta_service::{
     controller::{
         journal::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
@@ -47,6 +48,7 @@ use mqtt_broker::{
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
+use network_server::context::ProcessorConfig;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{
@@ -80,6 +82,7 @@ pub struct BrokerServer {
     main_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
+    kafka_params: KafkaBrokerServerParams,
     journal_params: JournalServerParams,
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -144,6 +147,12 @@ impl BrokerServer {
             message_storage_adapter,
         );
 
+        let kafka_params = BrokerServer::build_kafka_server_params(
+            client_pool.clone(),
+            broker_cache.clone(),
+            connection_manager.clone(),
+        );
+
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
@@ -153,6 +162,7 @@ impl BrokerServer {
             journal_params,
             config: config.clone(),
             mqtt_params,
+            kafka_params,
             client_pool,
             rocksdb_engine_handler,
             rate_limiter_manager,
@@ -226,6 +236,7 @@ impl BrokerServer {
         let mut place_stop_send = None;
         let mut mqtt_stop_send = None;
         let mut journal_stop_send = None;
+        let mut kafka_stop_send = None;
 
         let config = broker_config();
         // start meta service
@@ -266,11 +277,19 @@ impl BrokerServer {
         let (stop_send, _) = broadcast::channel(2);
         let mqtt_runtime =
             create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
+        let kafka_runtime =
+            create_runtime("kafka-runtime", self.config.runtime.runtime_worker_threads);
         if config.is_start_broker() {
             mqtt_stop_send = Some(stop_send.clone());
             let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
             mqtt_runtime.spawn(async move {
                 server.start().await;
+            });
+
+            kafka_stop_send = Some(stop_send.clone());
+            let kafka_server = KafkaBrokerServer::new(self.kafka_params.clone(), stop_send.clone());
+            kafka_runtime.spawn(async move {
+                kafka_server.start().await;
             });
         }
 
@@ -293,7 +312,12 @@ impl BrokerServer {
         });
 
         // awaiting stop
-        self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
+        self.awaiting_stop(
+            place_stop_send,
+            mqtt_stop_send,
+            journal_stop_send,
+            kafka_stop_send,
+        );
     }
 
     async fn build_meta_service(
@@ -376,6 +400,26 @@ impl BrokerServer {
         }
     }
 
+    fn build_kafka_server_params(
+        client_pool: Arc<ClientPool>,
+        broker_cache: Arc<BrokerCacheManager>,
+        connection_manager: Arc<NetworkConnectionManager>,
+    ) -> KafkaBrokerServerParams {
+        let conf = broker_config();
+        let proc_config = ProcessorConfig {
+            accept_thread_num: conf.network.accept_thread_num,
+            handler_process_num: conf.network.handler_thread_num,
+            response_process_num: conf.network.response_thread_num,
+            channel_size: conf.network.queue_size,
+        };
+        KafkaBrokerServerParams {
+            connection_manager,
+            client_pool,
+            proc_config,
+            broker_cache,
+        }
+    }
+
     fn build_journal_server(client_pool: Arc<ClientPool>) -> JournalServerParams {
         let config = broker_config();
         let connection_manager = Arc::new(JournalConnectionManager::new());
@@ -403,6 +447,7 @@ impl BrokerServer {
         place_stop: Option<broadcast::Sender<bool>>,
         mqtt_stop: Option<broadcast::Sender<bool>>,
         journal_stop: Option<broadcast::Sender<bool>>,
+        kafka_stop: Option<broadcast::Sender<bool>>,
     ) {
         self.main_runtime.block_on(async {
             self.broker_cache
@@ -422,6 +467,13 @@ impl BrokerServer {
             if let Some(sx) = mqtt_stop {
                 if let Err(e) = sx.send(true) {
                     error!("mqtt stop signal, error message:{}", e);
+                }
+                sleep(Duration::from_secs(3));
+            }
+
+            if let Some(sx) = kafka_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("kafka stop signal, error message:{}", e);
                 }
                 sleep(Duration::from_secs(3));
             }

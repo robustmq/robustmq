@@ -1017,6 +1017,7 @@ dependencies = [
  "delay-message",
  "grpc-clients",
  "journal-server",
+ "kafka-broker",
  "meta-service",
  "mqtt-broker",
  "network-server",
@@ -3736,6 +3737,20 @@ dependencies = [
 [[package]]
 name = "kafka-broker"
 version = "0.2.5"
+dependencies = [
+ "axum",
+ "broker-core",
+ "common-config",
+ "grpc-clients",
+ "kafka-protocol",
+ "metadata-struct",
+ "network-server",
+ "protocol",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
 
 [[package]]
 name = "kafka-protocol"
@@ -5881,6 +5896,7 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tonic-build",
+ "tracing",
 ]
 
 [[package]]

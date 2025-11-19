@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::tools::now_mills;
+use protocol::kafka::packet::KafkaPacket;
 use protocol::{
     mqtt::common::MqttPacket,
     robust::{
@@ -27,15 +28,22 @@ pub struct RequestPackage {
     pub connection_id: u64,
     pub addr: SocketAddr,
     pub packet: RobustMQPacket,
+    pub extend: RobustMQWrapperExtend,
     pub receive_ms: u128,
 }
 
 impl RequestPackage {
-    pub fn new(connection_id: u64, addr: SocketAddr, packet: RobustMQPacket) -> Self {
+    pub fn new(
+        connection_id: u64,
+        addr: SocketAddr,
+        packet: RobustMQPacket,
+        extend: RobustMQWrapperExtend,
+    ) -> Self {
         Self {
             connection_id,
             addr,
             packet,
+            extend,
             receive_ms: now_mills(),
         }
     }
@@ -103,5 +111,16 @@ pub fn build_mqtt_packet_wrapper(
             protocol_version: protocol.to_u8(),
         }),
         packet: RobustMQPacket::MQTT(packet),
+    }
+}
+
+pub fn build_kafka_packet_wrapper(
+    packet: KafkaPacket,
+    extend: RobustMQWrapperExtend,
+) -> RobustMQPacketWrapper {
+    RobustMQPacketWrapper {
+        protocol: RobustMQProtocol::KAFKA,
+        extend,
+        packet: RobustMQPacket::KAFKA(packet),
     }
 }

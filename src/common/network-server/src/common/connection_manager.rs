@@ -21,8 +21,10 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
+use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::kafka::packet::{KafkaHeader, KafkaPacketWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
 use std::time::Duration;
@@ -219,10 +221,10 @@ impl ConnectionManager {
         };
 
         if packet_wrapper.protocol.is_mqtt() {
-            if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
+            if let RobustMQPacket::MQTT(pack) = &packet_wrapper.packet {
                 let mqtt_packet = MqttPacketWrapper {
                     protocol_version: packet_wrapper.protocol.to_u8(),
-                    packet: pack,
+                    packet: pack.clone(),
                 };
                 self.write_mqtt_tcp_frame(connection_id, mqtt_packet)
                     .await?;
@@ -230,7 +232,20 @@ impl ConnectionManager {
         }
 
         if packet_wrapper.protocol.is_kafka() {
-            // todo
+            if let RobustMQPacket::KAFKA(pack) = &packet_wrapper.packet {
+                let request_header = packet_wrapper.extend.get_kafka_header();
+                let kafka_packet = KafkaPacketWrapper {
+                    api_key: request_header.request_api_key,
+                    api_version: request_header.request_api_version,
+                    header: KafkaHeader::Response(
+                        ResponseHeader::default()
+                            .with_correlation_id(request_header.correlation_id),
+                    ),
+                    packet: pack.clone(),
+                };
+                self.write_kafka_tcp_frame(connection_id, kafka_packet)
+                    .await?;
+            }
         }
         Ok(())
     }
@@ -485,5 +500,48 @@ impl ConnectionManager {
                 _ => {}
             };
         }
+    }
+
+    pub async fn write_kafka_tcp_frame(
+        &self,
+        connection_id: u64,
+        pack: KafkaPacketWrapper,
+    ) -> ResultCommonError {
+        let mut times = 0;
+        loop {
+            match self.tcp_write_list.try_get_mut(&connection_id) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    match da.send(RobustMQCodecWrapper::KAFKA(pack.clone())).await {
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(e) => {
+                            if broker_not_available(&e.to_string()) {
+                                return Err(CommonError::CommonError(e.to_string()));
+                            }
+
+                            if times > self.lock_max_try_mut_times {
+                                return Err(CommonError::FailedToWriteClient(
+                                    "tcp".to_string(),
+                                    e.to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    if times > self.lock_max_try_mut_times {
+                        return Err(CommonError::NotObtainAvailableConnection(
+                            "tcp".to_string(),
+                            connection_id,
+                        ));
+                    }
+                }
+                dashmap::try_result::TryResult::Locked => {}
+            }
+            times += 1;
+            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
+        }
+        Ok(())
     }
 }

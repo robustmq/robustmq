@@ -20,3 +20,15 @@ license.workspace = true
 
 
 [dependencies]
+axum.workspace = true
+common-config.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+network-server.workspace = true
+metadata-struct.workspace = true
+broker-core.workspace = true
+grpc-clients.workspace = true
+tracing.workspace = true
+protocol.workspace = true
+kafka-protocol.workspace = true
+thiserror.workspace = true

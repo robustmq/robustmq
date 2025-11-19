@@ -14,14 +14,16 @@
 
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::metric::record_packet_handler_info_by_response;
-use crate::common::packet::{build_mqtt_packet_wrapper, RequestPackage, ResponsePackage};
+use crate::common::packet::{
+    build_kafka_packet_wrapper, build_mqtt_packet_wrapper, RequestPackage, ResponsePackage,
+};
 use crate::common::tool::calc_req_channel_len;
 use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::error::not_record_error;
 use common_base::tools::now_mills;
 use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
-use protocol::robust::RobustMQPacket;
+use protocol::robust::{RobustMQPacket, RobustMQWrapperExtend};
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
@@ -79,7 +81,7 @@ pub fn handler_process(
                                         resp.receive_ms = packet.receive_ms;
                                         resp.end_handler_ms = now_mills();
                                         // permit_request_channel.send_response_packet_to_handler(&permit_raw_network_type, resp).await;
-                                        process_response(&permit_raw_connect_manager, &permit_raw_network_type, &resp).await;
+                                        process_response(&permit_raw_connect_manager, &permit_raw_network_type, &resp, &packet.extend).await;
                                     } else {
                                         debug!("{}","No backpacking is required for this request");
                                     }
@@ -108,49 +110,41 @@ async fn process_response(
     connection_manager: &Arc<ConnectionManager>,
     network_type: &NetworkConnectionType,
     response_package: &ResponsePackage,
+    extend: &RobustMQWrapperExtend,
 ) {
     let out_response_queue_ms = now_mills();
-    if let Some(protocol) = connection_manager.get_connect_protocol(response_package.connection_id)
-    {
-        let packet_wrapper = match response_package.packet.clone() {
-            RobustMQPacket::MQTT(packet) => build_mqtt_packet_wrapper(protocol, packet),
-            RobustMQPacket::KAFKA(_packet) => {
-                // todo
-                return;
-            }
-        };
+    let protocol = connection_manager.get_connect_protocol(response_package.connection_id);
+    let packet_wrapper = match response_package.packet.clone() {
+        RobustMQPacket::MQTT(packet) => build_mqtt_packet_wrapper(protocol.unwrap(), packet),
+        RobustMQPacket::KAFKA(packet) => build_kafka_packet_wrapper(packet, extend.clone()),
+    };
 
-        match network_type.clone() {
-            NetworkConnectionType::Tcp
-            | NetworkConnectionType::Tls
-            | NetworkConnectionType::WebSocket
-            | NetworkConnectionType::WebSockets => {
-                if let Err(e) = connection_manager
-                    .write_tcp_frame(response_package.connection_id, packet_wrapper)
-                    .await
-                {
-                    if not_record_error(&e.to_string()) {
-                        return;
-                    }
-                    error!("{}", e);
-                };
-            }
-            NetworkConnectionType::QUIC => {
-                if let Err(e) = connection_manager
-                    .write_quic_frame(response_package.connection_id, packet_wrapper)
-                    .await
-                {
-                    if not_record_error(&e.to_string()) {
-                        return;
-                    }
-                    error!("{}", e);
-                };
-            }
+    match network_type.clone() {
+        NetworkConnectionType::Tcp
+        | NetworkConnectionType::Tls
+        | NetworkConnectionType::WebSocket
+        | NetworkConnectionType::WebSockets => {
+            if let Err(e) = connection_manager
+                .write_tcp_frame(response_package.connection_id, packet_wrapper)
+                .await
+            {
+                if not_record_error(&e.to_string()) {
+                    return;
+                }
+                error!("{}", e);
+            };
         }
-        record_packet_handler_info_by_response(
-            network_type,
-            response_package,
-            out_response_queue_ms,
-        );
+        NetworkConnectionType::QUIC => {
+            if let Err(e) = connection_manager
+                .write_quic_frame(response_package.connection_id, packet_wrapper)
+                .await
+            {
+                if not_record_error(&e.to_string()) {
+                    return;
+                }
+                error!("{}", e);
+            };
+        }
     }
+    record_packet_handler_info_by_response(network_type, response_package, out_response_queue_ms);
 }

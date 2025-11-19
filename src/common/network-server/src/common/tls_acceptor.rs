@@ -16,8 +16,8 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
-use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
+use protocol::codec::RobustMQCodec;
+use protocol::robust::RobustMQWrapperExtend;
 // Copyright 2023 RobustMQ Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -175,14 +175,8 @@ pub(crate) fn read_tls_frame_process(
                                     debug!("{} connection 【{}】 acceptor thread stopped successfully.",network_type, connection.connection_id);
                                     break;
                                 }
-                                 match pack{
-                                    RobustMQCodecWrapper::MQTT(pk) =>{
-                                        read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;
-                                    }
-                                    RobustMQCodecWrapper::KAFKA(pk) => {
-                                        read_packet(RobustMQPacket::KAFKA(pk.packet), &request_channel, &connection, &network_type).await;
-                                    }
-                                }
+                                let (robust_packet, robust_extend) = RobustMQWrapperExtend::get_packet_and_extend(pack);
+                                read_packet(robust_packet, robust_extend, &request_channel, &connection, &network_type).await;
                             }
                             Err(e) => {
                                 record_received_error_metrics(network_type.clone());

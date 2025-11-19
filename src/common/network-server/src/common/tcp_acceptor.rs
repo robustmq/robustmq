@@ -19,8 +19,8 @@ use broker_core::cache::BrokerCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
+use protocol::codec::RobustMQCodec;
+use protocol::robust::RobustMQWrapperExtend;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -157,15 +157,8 @@ fn read_frame_process(
                                 }else{
                                     continue;
                                 };
-                                match pack{
-                                    RobustMQCodecWrapper::MQTT(pk) =>{
-                                        read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;
-                                    }
-                                    RobustMQCodecWrapper::KAFKA(pk) => {
-                                        read_packet(RobustMQPacket::KAFKA(pk.packet), &request_channel, &connection, &network_type).await;
-                                    }
-                                }
-
+                                let (robust_packet, robust_extend) = RobustMQWrapperExtend::get_packet_and_extend(pack);
+                                read_packet(robust_packet, robust_extend, &request_channel, &connection, &network_type).await;
                             }
                             Err(e) => {
                                 record_received_error_metrics(network_type.clone());
