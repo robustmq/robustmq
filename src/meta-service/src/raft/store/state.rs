@@ -65,9 +65,7 @@ impl StateMachineStore {
 
         // Recover state from persistent storage
         sm.data.last_applied_log_id = sm.get_last_applied_()?;
-        println!("last_applied_log_id:{:?}", sm.data.last_applied_log_id);
         sm.data.last_membership = sm.get_last_membership_()?.unwrap_or_default();
-        println!("last_membership:{:?}", sm.data.last_membership);
 
         Ok(sm)
     }
@@ -209,7 +207,6 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
             // Only update last_applied_log_id AFTER successful processing
             self.data.last_applied_log_id = Some(ent.log_id);
-
             replies.push(AppResponseData { value: resp_value });
         }
 
@@ -229,7 +226,6 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let data = get_current_snapshot(&self.machine)
             .await
             .map_err(|e| StorageError::read(&e))?;
-        println!("begin_receiving_snapshot:{:?}", data);
         match data {
             Some(da) => Ok(da.snapshot),
             None => Err(StorageError::read(&CommonError::CommonError(
@@ -249,9 +245,6 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                 self.machine, e
             )))
         })?;
-        println!("install_snapshot:{:?}", snapshot);
-        self.data.last_applied_log_id = meta.last_log_id;
-        self.data.last_membership = meta.last_membership.clone();
         recover_snapshot(
             &machine_name,
             &self.db,
@@ -271,7 +264,17 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let data = get_current_snapshot(&self.machine)
             .await
             .map_err(|e| StorageError::read(&e))?;
-        println!("get_current_snapshot:{:?}", data);
+
+        if let Some(snapshot) = data {
+            if let Some(id) = self.data.last_applied_log_id {
+                if let Some(snapshot_id) = snapshot.meta.last_log_id {
+                    if snapshot_id >= id {
+                        return Ok(Some(snapshot));
+                    }
+                }
+            }
+        }
+
         Ok(None)
     }
 }

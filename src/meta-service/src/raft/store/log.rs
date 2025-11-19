@@ -187,9 +187,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
             });
 
         let last_purged_log_id = self.get_last_purged_()?;
-        println!("last_purged_log_id:{:?}", last_purged_log_id);
         let last_log_id = last.or(last_purged_log_id);
-
         Ok(LogState {
             last_purged_log_id,
             last_log_id,
@@ -242,7 +240,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
         let from = key_raft_log(&self.machine, log_id.index);
         let to = key_raft_log(&self.machine, u64::MAX);
-
         self.db
             .delete_range_cf(&self.store(), &from, &to)
             .map_err(|e| StorageError::write_logs(&e))
