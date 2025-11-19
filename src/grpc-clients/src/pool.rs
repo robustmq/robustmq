@@ -180,17 +180,17 @@ impl ClientPool {
     );
 
     // ----------leader cache management -------------
-    pub fn get_leader_addr(&self, addr: &str) -> Option<Ref<'_, String, String>> {
-        self.meta_service_leader_addr_caches.get(addr)
+    pub fn get_leader_addr(&self, method: &str) -> Option<Ref<'_, String, String>> {
+        self.meta_service_leader_addr_caches.get(method)
     }
 
-    pub fn set_leader_addr(&self, addr: String, leader_addr: String) {
+    pub fn set_leader_addr(&self, method: String, leader_addr: String) {
         info!(
-            "Update the Leader information in the client cache with the new Leader address: {}",
-            leader_addr
+            "Update Leader cache for method={}, leader={}",
+            method, leader_addr
         );
         self.meta_service_leader_addr_caches
-            .insert(addr, leader_addr);
+            .insert(method, leader_addr);
     }
 
     pub fn clear_leader_cache(&self) {

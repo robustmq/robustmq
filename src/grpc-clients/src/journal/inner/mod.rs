@@ -68,7 +68,9 @@ impl_retriable_request!(
     JournalServerInnerServiceClient<Channel>,
     UpdateJournalCacheReply,
     journal_inner_services_client,
-    update_cache
+    update_cache,
+    "JournalInnerService",
+    "UpdateCache"
 );
 
 impl_retriable_request!(
@@ -76,7 +78,9 @@ impl_retriable_request!(
     JournalServerInnerServiceClient<Channel>,
     DeleteShardFileReply,
     journal_inner_services_client,
-    delete_shard_file
+    delete_shard_file,
+    "JournalInnerService",
+    "DeleteShardFile"
 );
 
 impl_retriable_request!(
@@ -84,7 +88,9 @@ impl_retriable_request!(
     JournalServerInnerServiceClient<Channel>,
     GetShardDeleteStatusReply,
     journal_inner_services_client,
-    get_shard_delete_status
+    get_shard_delete_status,
+    "JournalInnerService",
+    "GetShardDeleteStatus"
 );
 
 impl_retriable_request!(
@@ -92,7 +98,9 @@ impl_retriable_request!(
     JournalServerInnerServiceClient<Channel>,
     DeleteSegmentFileReply,
     journal_inner_services_client,
-    delete_segment_file
+    delete_segment_file,
+    "JournalInnerService",
+    "DeleteSegmentFile"
 );
 
 impl_retriable_request!(
@@ -100,5 +108,7 @@ impl_retriable_request!(
     JournalServerInnerServiceClient<Channel>,
     GetSegmentDeleteStatusReply,
     journal_inner_services_client,
-    get_segment_delete_status
+    get_segment_delete_status,
+    "JournalInnerService",
+    "GetSegmentDeleteStatus"
 );

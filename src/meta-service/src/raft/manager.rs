@@ -21,12 +21,16 @@ use crate::raft::route::DataRoute;
 use crate::raft::type_config::Node;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
+use common_metrics::meta::raft::{
+    record_write_duration, record_write_failure, record_write_request, record_write_success,
+};
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
 use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tracing::info;
 
@@ -70,6 +74,7 @@ pub struct MultiRaftManager {
     pub metadata_raft_node: Raft<TypeConfig>,
     pub offset_raft_node: Raft<TypeConfig>,
     pub mqtt_raft_node: Raft<TypeConfig>,
+    pub stop: Arc<RwLock<bool>>,
 }
 
 impl MultiRaftManager {
@@ -112,6 +117,7 @@ impl MultiRaftManager {
             metadata_raft_node,
             offset_raft_node,
             mqtt_raft_node,
+            stop: Arc::new(RwLock::new(false)),
         })
     }
 
@@ -138,42 +144,132 @@ impl MultiRaftManager {
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
-        Ok(Some(
-            timeout(
-                Duration::from_secs(5),
-                self.metadata_raft_node.client_write(data),
-            )
-            .await??,
-        ))
+        let stop = self.stop.read().await;
+        if *stop {
+            return Err(MetaServiceError::RaftNodeHasStopped(
+                RaftStateMachineName::METADATA.to_string(),
+            ));
+        }
+
+        let machine = RaftStateMachineName::METADATA.as_str();
+        record_write_request(machine);
+        let start = Instant::now();
+
+        let result = timeout(
+            Duration::from_secs(5),
+            self.metadata_raft_node.client_write(data),
+        )
+        .await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_write_duration(machine, duration_ms);
+
+        match result {
+            Ok(Ok(response)) => {
+                record_write_success(machine);
+                Ok(Some(response))
+            }
+            Ok(Err(e)) => {
+                record_write_failure(machine);
+                Err(e.into())
+            }
+            Err(_) => {
+                record_write_failure(machine);
+                Err(MetaServiceError::CommonError(
+                    "Write metadata timeout".to_string(),
+                ))
+            }
+        }
     }
 
     pub async fn write_offset(
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
-        Ok(Some(
-            timeout(
-                Duration::from_secs(5),
-                self.offset_raft_node.client_write(data),
-            )
-            .await??,
-        ))
+        let stop = self.stop.read().await;
+        if *stop {
+            return Err(MetaServiceError::RaftNodeHasStopped(
+                RaftStateMachineName::OFFSET.to_string(),
+            ));
+        }
+
+        let machine = RaftStateMachineName::OFFSET.as_str();
+        record_write_request(machine);
+        let start = Instant::now();
+
+        let result = timeout(
+            Duration::from_secs(5),
+            self.offset_raft_node.client_write(data),
+        )
+        .await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_write_duration(machine, duration_ms);
+
+        match result {
+            Ok(Ok(response)) => {
+                record_write_success(machine);
+                Ok(Some(response))
+            }
+            Ok(Err(e)) => {
+                record_write_failure(machine);
+                Err(e.into())
+            }
+            Err(_) => {
+                record_write_failure(machine);
+                Err(MetaServiceError::CommonError(
+                    "Write offset timeout".to_string(),
+                ))
+            }
+        }
     }
 
     pub async fn write_mqtt(
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
-        Ok(Some(
-            timeout(
-                Duration::from_secs(5),
-                self.mqtt_raft_node.client_write(data),
-            )
-            .await??,
-        ))
+        let stop = self.stop.read().await;
+        if *stop {
+            return Err(MetaServiceError::RaftNodeHasStopped(
+                RaftStateMachineName::MQTT.to_string(),
+            ));
+        }
+
+        let machine = RaftStateMachineName::MQTT.as_str();
+        record_write_request(machine);
+        let start = Instant::now();
+
+        let result = timeout(
+            Duration::from_secs(5),
+            self.mqtt_raft_node.client_write(data),
+        )
+        .await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_write_duration(machine, duration_ms);
+
+        match result {
+            Ok(Ok(response)) => {
+                record_write_success(machine);
+                Ok(Some(response))
+            }
+            Ok(Err(e)) => {
+                record_write_failure(machine);
+                Err(e.into())
+            }
+            Err(_) => {
+                record_write_failure(machine);
+                Err(MetaServiceError::CommonError(
+                    "Write mqtt timeout".to_string(),
+                ))
+            }
+        }
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {
+        let mut write = self.stop.write().await;
+        *write = true;
+
         self.mqtt_raft_node
             .shutdown()
             .await

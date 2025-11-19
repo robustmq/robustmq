@@ -17,23 +17,27 @@
 ///
 /// # Example
 ///
-/// Generate the implementation with default `IS_WRITE_REQUEST` value (false):
+/// Generate the implementation with service/method names and default `IS_WRITE_REQUEST` value (false):
 ///
 /// ```rust,ignore
-/// impl_retriable_request!(Request, Client, Response, get_client, op);
+/// impl_retriable_request!(Request, Client, Response, get_client, op, "Service", "Method");
 /// ```
 ///
-/// Generate the implementation with custom `IS_WRITE_REQUEST` value:
+/// Generate the implementation with service/method names and custom `IS_WRITE_REQUEST` value:
 ///
 /// ```rust,ignore
-/// impl_retriable_request!(Request, Client, Response, get_client, op, true);
+/// impl_retriable_request!(Request, Client, Response, get_client, op, "Service", "Method", true);
 /// ```
 macro_rules! impl_retriable_request {
-    ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident) => {
+    ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident, $service:expr, $method:expr) => {
         impl $crate::utils::RetriableRequest for $req {
             type Client = $client;
             type Response = $res;
             type Error = common_base::error::common::CommonError;
+
+            fn method_name() -> &'static str {
+                concat!($service, "/", $method)
+            }
 
             async fn get_client<'a>(
                 pool: &'a $crate::pool::ClientPool,
@@ -55,13 +59,17 @@ macro_rules! impl_retriable_request {
         }
     };
 
-    ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident, $is_write_request:expr) => {
+    ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident, $service:expr, $method:expr, $is_write_request:expr) => {
         impl $crate::utils::RetriableRequest for $req {
             type Client = $client;
             type Response = $res;
             type Error = common_base::error::common::CommonError;
 
             const IS_WRITE_REQUEST: bool = $is_write_request;
+
+            fn method_name() -> &'static str {
+                concat!($service, "/", $method)
+            }
 
             async fn get_client<'a>(
                 pool: &'a $crate::pool::ClientPool,
