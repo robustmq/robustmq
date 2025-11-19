@@ -16,6 +16,9 @@ use crate::raft::error::{to_bincode_error, to_error, to_grpc_error};
 use crate::raft::type_config::TypeConfig;
 use bincode::{deserialize, serialize_into};
 use common_base::error::common::CommonError;
+use common_metrics::meta::raft::{
+    record_rpc_duration, record_rpc_failure, record_rpc_request, record_rpc_success,
+};
 use grpc_clients::meta::common::PlacementServiceManager;
 use grpc_clients::pool::ClientPool;
 use mobc::Connection;
@@ -29,6 +32,7 @@ use openraft::RaftNetwork;
 use protocol::meta::meta_service_common::{AppendRequest, SnapshotRequest};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 
 pub struct NetworkConnection {
     addr: String,
@@ -65,14 +69,10 @@ impl NetworkConnection {
     fn deserialize_from_bytes<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, bincode::Error> {
         deserialize(bytes)
     }
-}
 
-#[allow(clippy::blocks_in_conditions)]
-impl RaftNetwork<TypeConfig> for NetworkConnection {
-    async fn append_entries(
+    async fn append_entries_internal(
         &mut self,
         req: AppendEntriesRequest<TypeConfig>,
-        _option: RPCOption,
     ) -> Result<AppendEntriesResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>>
     {
         let mut c = match self.c().await {
@@ -113,10 +113,9 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
         Ok(result)
     }
 
-    async fn install_snapshot(
+    async fn install_snapshot_internal(
         &mut self,
         req: InstallSnapshotRequest<TypeConfig>,
-        _option: RPCOption,
     ) -> Result<
         InstallSnapshotResponse<TypeConfig>,
         RPCError<TypeConfig, RaftError<TypeConfig, InstallSnapshotError>>,
@@ -159,10 +158,9 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
         Ok(result)
     }
 
-    async fn vote(
+    async fn vote_internal(
         &mut self,
         req: VoteRequest<TypeConfig>,
-        _option: RPCOption,
     ) -> Result<VoteResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>> {
         let mut c = match self.c().await {
             Ok(conn) => conn,
@@ -190,5 +188,87 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
         };
 
         Ok(result)
+    }
+}
+
+#[allow(clippy::blocks_in_conditions)]
+impl RaftNetwork<TypeConfig> for NetworkConnection {
+    async fn append_entries(
+        &mut self,
+        req: AppendEntriesRequest<TypeConfig>,
+        _option: RPCOption,
+    ) -> Result<AppendEntriesResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>>
+    {
+        record_rpc_request(&self.machine, "append_entries");
+        let start = Instant::now();
+
+        let result = self.append_entries_internal(req).await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_rpc_duration(&self.machine, "append_entries", duration_ms);
+
+        match result {
+            Ok(response) => {
+                record_rpc_success(&self.machine, "append_entries");
+                Ok(response)
+            }
+            Err(e) => {
+                record_rpc_failure(&self.machine, "append_entries");
+                Err(e)
+            }
+        }
+    }
+
+    async fn install_snapshot(
+        &mut self,
+        req: InstallSnapshotRequest<TypeConfig>,
+        _option: RPCOption,
+    ) -> Result<
+        InstallSnapshotResponse<TypeConfig>,
+        RPCError<TypeConfig, RaftError<TypeConfig, InstallSnapshotError>>,
+    > {
+        record_rpc_request(&self.machine, "install_snapshot");
+        let start = Instant::now();
+
+        let result = self.install_snapshot_internal(req).await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_rpc_duration(&self.machine, "install_snapshot", duration_ms);
+
+        match result {
+            Ok(response) => {
+                record_rpc_success(&self.machine, "install_snapshot");
+                Ok(response)
+            }
+            Err(e) => {
+                record_rpc_failure(&self.machine, "install_snapshot");
+                Err(e)
+            }
+        }
+    }
+
+    async fn vote(
+        &mut self,
+        req: VoteRequest<TypeConfig>,
+        _option: RPCOption,
+    ) -> Result<VoteResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>> {
+        record_rpc_request(&self.machine, "vote");
+        let start = Instant::now();
+
+        let result = self.vote_internal(req).await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_rpc_duration(&self.machine, "vote", duration_ms);
+
+        match result {
+            Ok(response) => {
+                record_rpc_success(&self.machine, "vote");
+                Ok(response)
+            }
+            Err(e) => {
+                record_rpc_failure(&self.machine, "vote");
+                Err(e)
+            }
+        }
     }
 }

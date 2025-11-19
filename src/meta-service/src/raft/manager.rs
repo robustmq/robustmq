@@ -21,12 +21,15 @@ use crate::raft::route::DataRoute;
 use crate::raft::type_config::Node;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
+use common_metrics::meta::raft::{
+    record_write_duration, record_write_failure, record_write_request, record_write_success,
+};
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
 use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tracing::info;
@@ -148,13 +151,35 @@ impl MultiRaftManager {
             ));
         }
 
-        Ok(Some(
-            timeout(
-                Duration::from_secs(5),
-                self.metadata_raft_node.client_write(data),
-            )
-            .await??,
-        ))
+        let machine = RaftStateMachineName::METADATA.as_str();
+        record_write_request(machine);
+        let start = Instant::now();
+
+        let result = timeout(
+            Duration::from_secs(5),
+            self.metadata_raft_node.client_write(data),
+        )
+        .await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_write_duration(machine, duration_ms);
+
+        match result {
+            Ok(Ok(response)) => {
+                record_write_success(machine);
+                Ok(Some(response))
+            }
+            Ok(Err(e)) => {
+                record_write_failure(machine);
+                Err(e.into())
+            }
+            Err(_) => {
+                record_write_failure(machine);
+                Err(MetaServiceError::CommonError(
+                    "Write metadata timeout".to_string(),
+                ))
+            }
+        }
     }
 
     pub async fn write_offset(
@@ -168,13 +193,35 @@ impl MultiRaftManager {
             ));
         }
 
-        Ok(Some(
-            timeout(
-                Duration::from_secs(5),
-                self.offset_raft_node.client_write(data),
-            )
-            .await??,
-        ))
+        let machine = RaftStateMachineName::OFFSET.as_str();
+        record_write_request(machine);
+        let start = Instant::now();
+
+        let result = timeout(
+            Duration::from_secs(5),
+            self.offset_raft_node.client_write(data),
+        )
+        .await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_write_duration(machine, duration_ms);
+
+        match result {
+            Ok(Ok(response)) => {
+                record_write_success(machine);
+                Ok(Some(response))
+            }
+            Ok(Err(e)) => {
+                record_write_failure(machine);
+                Err(e.into())
+            }
+            Err(_) => {
+                record_write_failure(machine);
+                Err(MetaServiceError::CommonError(
+                    "Write offset timeout".to_string(),
+                ))
+            }
+        }
     }
 
     pub async fn write_mqtt(
@@ -188,13 +235,35 @@ impl MultiRaftManager {
             ));
         }
 
-        Ok(Some(
-            timeout(
-                Duration::from_secs(5),
-                self.mqtt_raft_node.client_write(data),
-            )
-            .await??,
-        ))
+        let machine = RaftStateMachineName::MQTT.as_str();
+        record_write_request(machine);
+        let start = Instant::now();
+
+        let result = timeout(
+            Duration::from_secs(5),
+            self.mqtt_raft_node.client_write(data),
+        )
+        .await;
+
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_write_duration(machine, duration_ms);
+
+        match result {
+            Ok(Ok(response)) => {
+                record_write_success(machine);
+                Ok(Some(response))
+            }
+            Ok(Err(e)) => {
+                record_write_failure(machine);
+                Err(e.into())
+            }
+            Err(_) => {
+                record_write_failure(machine);
+                Err(MetaServiceError::CommonError(
+                    "Write mqtt timeout".to_string(),
+                ))
+            }
+        }
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {
