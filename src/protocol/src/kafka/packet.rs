@@ -26,6 +26,7 @@ use kafka_protocol::messages::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct KafkaPacketWrapper {
+    pub api_key: i16,
     pub api_version: i16,
     pub header: KafkaHeader,
     pub packet: KafkaPacket,

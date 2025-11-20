@@ -43,8 +43,9 @@ impl MqttCodec {
     ) -> Result<Option<MqttPacket>, MQTTProtocolError> {
         let fixed_header = check(stream.iter(), 1000000)?;
         // Test with a stream with exactly the size to check border panics
-        let packet = stream.split_to(fixed_header.frame_length());
         let packet_type = fixed_header.packet_type()?;
+
+        let packet = stream.split_to(fixed_header.frame_length());
         let packet = packet.freeze();
 
         if packet_type == PacketType::Connect {

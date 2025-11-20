@@ -303,7 +303,7 @@ incremental = true           # Enable incremental compilation (auto-cleaned peri
 opt-level = 0                # No optimization (fastest compile time)
 split-debuginfo = "unpacked" # Reduce disk usage on macOS/Linux
 codegen-units = 16           # Balanced parallelism (was 256, reduced to prevent cache explosion)
-debug = 1                    # Reduced debug info (line tables only) - faster linking
+debug = 2
 
 # Optimize dependencies even in dev mode for better runtime performance
 [profile.dev.package."*"]

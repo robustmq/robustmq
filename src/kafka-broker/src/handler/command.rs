@@ -13,16 +13,37 @@
 // limitations under the License.
 
 use axum::async_trait;
+use kafka_protocol::messages::api_versions_response::ApiVersion;
+use kafka_protocol::messages::{ApiKey, ApiVersionsResponse};
 use metadata_struct::connection::NetworkConnection;
 use network_server::{command::Command, common::packet::ResponsePackage};
+use protocol::kafka::packet::KafkaPacket;
 use protocol::robust::RobustMQPacket;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
+#[derive(Clone, Default)]
 pub struct KafkaCommand {}
 
 impl KafkaCommand {
-    pub fn new() -> Self {
-        return KafkaCommand {};
+    fn handle_api_versions(tcp_connection: &NetworkConnection) -> ResponsePackage {
+        let api_versions: Vec<ApiVersion> = ApiKey::iter()
+            .map(|k| {
+                let range = ApiKey::valid_versions(&k);
+                ApiVersion::default()
+                    .with_api_key(k as i16)
+                    .with_min_version(range.min)
+                    .with_max_version(range.max)
+            })
+            .collect();
+        let res = ApiVersionsResponse::default()
+            .with_error_code(0)
+            .with_api_keys(api_versions)
+            .with_throttle_time_ms(0);
+        ResponsePackage::build(
+            tcp_connection.connection_id,
+            RobustMQPacket::KAFKA(KafkaPacket::ApiVersionResponse(res)),
+        )
     }
 }
 
@@ -30,10 +51,21 @@ impl KafkaCommand {
 impl Command for KafkaCommand {
     async fn apply(
         &self,
-        tcp_connection: NetworkConnection,
-        addr: SocketAddr,
-        robust_packet: RobustMQPacket,
+        tcp_connection: &NetworkConnection,
+        _addr: &SocketAddr,
+        robust_packet: &RobustMQPacket,
     ) -> Option<ResponsePackage> {
-        None
+        let packet = robust_packet.get_kafka_packet().unwrap();
+        match packet.clone() {
+            KafkaPacket::ApiVersionReq(_) => Some(Self::handle_api_versions(tcp_connection)),
+            KafkaPacket::ProduceReq(_) => None,
+            KafkaPacket::FetchReq(_) => None,
+            _ => None,
+        }
     }
+}
+
+pub fn create_command() -> Arc<Box<dyn Command + Send + Sync>> {
+    let storage: Box<dyn Command + Send + Sync> = Box::new(KafkaCommand::default());
+    Arc::new(storage)
 }

@@ -15,6 +15,7 @@
 use crate::kafka::packet::{KafkaHeader, KafkaPacket, KafkaPacketWrapper};
 use bytes::{Buf, BufMut, BytesMut};
 use common_base::error::common::CommonError;
+use kafka_protocol::messages::ApiKey;
 use kafka_protocol::{
     messages::{
         ApiVersionsRequest, CreateTopicsRequest, DeleteTopicsRequest, DescribeGroupsRequest,
@@ -155,8 +156,9 @@ impl KafkaCodec {
             }
         };
         Ok(Some(KafkaPacketWrapper {
+            api_key: header.request_api_key,
             api_version: header.request_api_version,
-            header: super::packet::KafkaHeader::Request(header),
+            header: KafkaHeader::Request(header),
             packet: req,
         }))
     }
@@ -224,7 +226,12 @@ impl KafkaCodec {
                 }
             }
             KafkaHeader::Response(header) => {
-                header.encode(&mut header_bytes, 2)?;
+                // Determine the header version based on the API key
+                let header_version = match ApiKey::try_from(wrapper.api_key) {
+                    Ok(api_key_enum) => api_key_enum.response_header_version(wrapper.api_version),
+                    Err(_) => 0, // Default to version 0 for unknown API keys
+                };
+                header.encode(&mut header_bytes, header_version)?;
                 match wrapper.packet {
                     KafkaPacket::ProduceResponse(rep) => {
                         rep.encode(&mut body_bytes, wrapper.api_version)?;
@@ -346,6 +353,7 @@ mod tests {
 
         let packet = ProduceRequest::default().with_acks(1).with_timeout_ms(3000);
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::Produce as i16,
             api_version: 2,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::ProduceReq(packet),
@@ -372,6 +380,7 @@ mod tests {
             .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::OffsetCommit as i16,
             api_version: 3,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::OffsetCommitReq(packet),
@@ -411,6 +420,7 @@ mod tests {
             .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::OffsetFetch as i16,
             api_version: 6,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::OffsetFetchReq(packet),
@@ -449,6 +459,7 @@ mod tests {
             FindCoordinatorRequest::default().with_key(StrBytes::from_static_str("test-group"));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::FindCoordinator as i16,
             api_version: 3,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::FindCoordinatorReq(packet),
@@ -485,6 +496,7 @@ mod tests {
             .with_member_id(StrBytes::from_static_str("test-member"));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::JoinGroup as i16,
             api_version: 7,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::JoinGroupReq(packet),
@@ -525,6 +537,7 @@ mod tests {
             .with_member_id(StrBytes::from_static_str("test-member"));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::Heartbeat as i16,
             api_version: 4,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::HeartbeatReq(packet),
@@ -564,6 +577,7 @@ mod tests {
             .with_group_id(GroupId(StrBytes::from_static_str("test-group")));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::LeaveGroup as i16,
             api_version: 0,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::LeaveGroupReq(packet),
@@ -603,6 +617,7 @@ mod tests {
             .with_member_id(StrBytes::from_static_str("test-member"));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::SyncGroup as i16,
             api_version: 5,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::SyncGroupReq(packet),
@@ -641,6 +656,7 @@ mod tests {
         let packet = ListGroupsRequest::default();
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::ListGroups as i16,
             api_version: 4,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::ListGroupsReq(packet),
@@ -676,6 +692,7 @@ mod tests {
             SaslHandshakeRequest::default().with_mechanism(StrBytes::from_static_str("PLAIN"));
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::SaslHandshake as i16,
             api_version: 1,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::SaslHandshakeReq(packet),
@@ -710,6 +727,7 @@ mod tests {
         let packet = CreateTopicsRequest::default();
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::CreateTopics as i16,
             api_version: 7,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::CreateTopicsReq(packet),
@@ -744,6 +762,7 @@ mod tests {
         let packet = DeleteTopicsRequest::default();
 
         let wrapper = KafkaPacketWrapper {
+            api_key: ApiKey::DeleteTopics as i16,
             api_version: 6,
             header: KafkaHeader::Request(header),
             packet: KafkaPacket::DeleteTopicsReq(packet),

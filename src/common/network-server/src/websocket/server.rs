@@ -250,6 +250,7 @@ async fn process_socket_packet_by_binary(
                     packet: pkg,
                 }),
                 RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(KafkaPacketWrapper {
+                    api_key: 0,
                     api_version: 1,
                     header: KafkaHeader::Response(ResponseHeader::default()),
                     packet: pkg,
@@ -266,7 +267,10 @@ async fn process_socket_packet_by_binary(
                 },
                 RobustMQPacket::KAFKA(pkg) => RobustMQPacketWrapper {
                     protocol: RobustMQProtocol::KAFKA,
-                    extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend::default()),
+                    extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend {
+                        api_version: 1,
+                        header: KafkaHeader::Response(ResponseHeader::default()),
+                    }),
                     packet: RobustMQPacket::KAFKA(pkg),
                 },
             };
