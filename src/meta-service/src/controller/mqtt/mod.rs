@@ -121,7 +121,6 @@ impl MqttController {
             // Periodically detects whether a will message is sent
             let message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
-
             let stop_send = self.stop_send.clone();
             tokio::spawn(async move {
                 let ac_fn = async || -> ResultCommonError {

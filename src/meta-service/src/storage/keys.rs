@@ -13,264 +13,292 @@
 // limitations under the License.
 
 /** ===========Cluster========== */
+#[inline]
 pub fn key_cluster(cluster_name: &str) -> String {
-    prefix_key(format!("/clusters/{cluster_name}"))
+    format!("/meta/clusters/{cluster_name}")
 }
 
-pub fn key_cluster_prefix() -> String {
-    prefix_key("/clusters/".to_string())
+#[inline]
+pub fn key_cluster_prefix() -> &'static str {
+    "/meta/clusters/"
 }
 
+#[inline]
 pub fn key_node(cluster_name: &str, node_id: u64) -> String {
-    prefix_key(format!("/clusters/node/{cluster_name}/{node_id}"))
+    format!("/meta/clusters/node/{cluster_name}/{node_id}")
 }
 
+#[inline]
 pub fn key_node_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/clusters/node/{cluster_name}/"))
+    format!("/meta/clusters/node/{cluster_name}/")
 }
 
-pub fn key_node_prefix_all() -> String {
-    prefix_key("/clusters/node/".to_string())
+#[inline]
+pub fn key_node_prefix_all() -> &'static str {
+    "/meta/clusters/node/"
 }
 
-pub fn key_resource_config(cluster_name: String, resource_key: String) -> String {
-    prefix_key(format!("/config/{cluster_name}/{resource_key}"))
+#[inline]
+pub fn key_resource_config(cluster_name: &str, resource_key: &str) -> String {
+    format!("/meta/config/{cluster_name}/{resource_key}")
 }
 
+#[inline]
 pub fn key_offset(cluster_name: &str, group: &str, namespace: &str, shard_name: &str) -> String {
-    prefix_key(format!(
-        "/offset/{cluster_name}/{group}/{namespace}/{shard_name}"
-    ))
+    format!("/meta/offset/{cluster_name}/{group}/{namespace}/{shard_name}")
 }
 
+#[inline]
 pub fn key_offset_by_group(cluster_name: &str, group: &str) -> String {
-    prefix_key(format!("/offset/{cluster_name}/{group}"))
+    format!("/meta/offset/{cluster_name}/{group}")
 }
 
 /** ===========Journal========== */
+#[inline]
 pub fn key_shard(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
-    prefix_key(format!(
-        "/journal/shard/{cluster_name}/{namespace}/{shard_name}"
-    ))
+    format!("/meta/journal/shard/{cluster_name}/{namespace}/{shard_name}")
 }
 
+#[inline]
 pub fn key_shard_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/journal/shard/{cluster_name}/"))
+    format!("/meta/journal/shard/{cluster_name}/")
 }
 
+#[inline]
 pub fn key_shard_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    prefix_key(format!("/journal/shard/{cluster_name}/{namespace}/"))
+    format!("/meta/journal/shard/{cluster_name}/{namespace}/")
 }
 
-pub fn key_all_shard() -> String {
-    prefix_key("/journal/shard/".to_string())
+#[inline]
+pub fn key_all_shard() -> &'static str {
+    "/meta/journal/shard/"
 }
 
+#[inline]
 pub fn key_segment(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
     segment_seq: u32,
 ) -> String {
-    prefix_key(format!(
-        "/journal/segment/{cluster_name}/{namespace}/{shard_name}/{segment_seq}"
-    ))
+    format!("/meta/journal/segment/{cluster_name}/{namespace}/{shard_name}/{segment_seq}")
 }
 
-pub fn key_all_segment() -> String {
-    prefix_key("/journal/segment/".to_string())
+#[inline]
+pub fn key_all_segment() -> &'static str {
+    "/meta/journal/segment/"
 }
 
+#[inline]
 pub fn key_segment_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/journal/segment/{cluster_name}/"))
+    format!("/meta/journal/segment/{cluster_name}/")
 }
 
+#[inline]
 pub fn key_segment_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    prefix_key(format!("/journal/segment/{cluster_name}/{namespace}/"))
+    format!("/meta/journal/segment/{cluster_name}/{namespace}/")
 }
 
+#[inline]
 pub fn key_segment_shard_prefix(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
-    prefix_key(format!(
-        "/journal/segment/{cluster_name}/{namespace}/{shard_name}/"
-    ))
+    format!("/meta/journal/segment/{cluster_name}/{namespace}/{shard_name}/")
 }
 
+#[inline]
 pub fn key_segment_metadata(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
     segment_seq: u32,
 ) -> String {
-    prefix_key(format!(
-        "/journal/segmentmeta/{cluster_name}/{namespace}/{shard_name}/{segment_seq}"
-    ))
+    format!("/meta/journal/segmentmeta/{cluster_name}/{namespace}/{shard_name}/{segment_seq}")
 }
 
-pub fn key_all_segment_metadata() -> String {
-    prefix_key("/journal/segmentmeta/".to_string())
+#[inline]
+pub fn key_all_segment_metadata() -> &'static str {
+    "/meta/journal/segmentmeta/"
 }
 
+#[inline]
 pub fn key_segment_metadata_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/journal/segmentmeta/{cluster_name}/"))
+    format!("/meta/journal/segmentmeta/{cluster_name}/")
 }
 
+#[inline]
 pub fn key_segment_metadata_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    prefix_key(format!("/journal/segmentmeta/{cluster_name}/{namespace}/"))
+    format!("/meta/journal/segmentmeta/{cluster_name}/{namespace}/")
 }
 
+#[inline]
 pub fn key_segment_metadata_shard_prefix(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
 ) -> String {
-    prefix_key(format!(
-        "/journal/segmentmeta/{cluster_name}/{namespace}/{shard_name}/"
-    ))
+    format!("/meta/journal/segmentmeta/{cluster_name}/{namespace}/{shard_name}/")
 }
 
 /** ===========MQTT========== */
+#[inline]
 pub fn storage_key_mqtt_user(cluster_name: &str, user_name: &str) -> String {
-    prefix_key(format!("/mqtt/user/{cluster_name}/{user_name}"))
+    format!("/meta/mqtt/user/{cluster_name}/{user_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_user_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/user/{cluster_name}/"))
+    format!("/meta/mqtt/user/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_topic(cluster_name: &str, topic_name: &str) -> String {
-    prefix_key(format!("/mqtt/topic/{cluster_name}/{topic_name}"))
+    format!("/meta/mqtt/topic/{cluster_name}/{topic_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/topic/{cluster_name}/"))
+    format!("/meta/mqtt/topic/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_session(cluster_name: &str, client_id: &str) -> String {
-    prefix_key(format!("/mqtt/session/{cluster_name}/{client_id}"))
+    format!("/meta/mqtt/session/{cluster_name}/{client_id}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_session_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/session/{cluster_name}/"))
+    format!("/meta/mqtt/session/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_last_will(cluster_name: &str, client_id: &str) -> String {
-    prefix_key(format!("/mqtt/lastwill/{cluster_name}/{client_id}"))
+    format!("/meta/mqtt/lastwill/{cluster_name}/{client_id}")
 }
+
+#[inline]
 pub fn storage_key_mqtt_last_will_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/lastwill/{cluster_name}/"))
+    format!("/meta/mqtt/lastwill/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/sub_group_leader/{cluster_name}"))
+    format!("/meta/mqtt/sub_group_leader/{cluster_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_subscribe(cluster_name: &str, client_id: &str, path: &str) -> String {
-    prefix_key(format!("/mqtt/subscribe/{cluster_name}/{client_id}/{path}"))
+    format!("/meta/mqtt/subscribe/{cluster_name}/{client_id}/{path}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_subscribe_client_id_prefix(cluster_name: &str, client_id: &str) -> String {
-    prefix_key(format!("/mqtt/subscribe/{cluster_name}/{client_id}/"))
+    format!("/meta/mqtt/subscribe/{cluster_name}/{client_id}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_subscribe_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/subscribe/{cluster_name}/"))
+    format!("/meta/mqtt/subscribe/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_connector(cluster_name: &str, connector_name: &str) -> String {
-    prefix_key(format!("/mqtt/connector/{cluster_name}/{connector_name}"))
+    format!("/meta/mqtt/connector/{cluster_name}/{connector_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_connector_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/connector/{cluster_name}"))
+    format!("/meta/mqtt/connector/{cluster_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_schema(cluster_name: &str, schema_name: &str) -> String {
-    prefix_key(format!("/mqtt/schema/{cluster_name}/{schema_name}"))
+    format!("/meta/mqtt/schema/{cluster_name}/{schema_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_schema_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/schema/{cluster_name}"))
+    format!("/meta/mqtt/schema/{cluster_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_schema_bind(
     cluster_name: &str,
     resource_name: &str,
     schema_name: &str,
 ) -> String {
-    prefix_key(format!(
-        "/mqtt/schema_bind/{cluster_name}/{resource_name}/{schema_name}"
-    ))
+    format!("/meta/mqtt/schema_bind/{cluster_name}/{resource_name}/{schema_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_schema_bind_prefix_by_resource(
     cluster_name: &str,
     resource_name: &str,
 ) -> String {
-    prefix_key(format!("/mqtt/schema_bind/{cluster_name}/{resource_name}"))
+    format!("/meta/mqtt/schema_bind/{cluster_name}/{resource_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_schema_bind_prefix_by_cluster(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/schema_bind/{cluster_name}"))
+    format!("/meta/mqtt/schema_bind/{cluster_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_acl(
     cluster_name: &str,
     resource_type: &str,
     resource_name: &str,
 ) -> String {
-    prefix_key(format!(
-        "/mqtt/acl/{cluster_name}/{resource_type}/{resource_name}"
-    ))
+    format!("/meta/mqtt/acl/{cluster_name}/{resource_type}/{resource_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_acl_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/acl/{cluster_name}/"))
+    format!("/meta/mqtt/acl/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_blacklist(
     cluster_name: &str,
     black_list_type: &str,
     resource_name: &str,
 ) -> String {
-    prefix_key(format!(
-        "/mqtt/blacklist/{cluster_name}/{black_list_type}/{resource_name}"
-    ))
+    format!("/meta/mqtt/blacklist/{cluster_name}/{black_list_type}/{resource_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_blacklist_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/blacklist/{cluster_name}/"))
+    format!("/meta/mqtt/blacklist/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_topic_rewrite_rule(
     cluster_name: &str,
     action: &str,
     source_topic: &str,
 ) -> String {
-    prefix_key(format!(
-        "/mqtt/topic_rewrite_rule/{cluster_name}/{action}/{source_topic}"
-    ))
+    format!("/meta/mqtt/topic_rewrite_rule/{cluster_name}/{action}/{source_topic}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_topic_rewrite_rule_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/topic_rewrite_rule/{cluster_name}/"))
+    format!("/meta/mqtt/topic_rewrite_rule/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule(cluster_name: &str, topic: &str) -> String {
-    prefix_key(format!("/mqtt/auto_subscribe_rule/{cluster_name}/{topic}"))
+    format!("/meta/mqtt/auto_subscribe_rule/{cluster_name}/{topic}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/auto_subscribe_rule/{cluster_name}/"))
+    format!("/meta/mqtt/auto_subscribe_rule/{cluster_name}/")
 }
 
+#[inline]
 pub fn storage_key_mqtt_retain_message(cluster_name: &str, topic_name: &str) -> String {
-    prefix_key(format!("/mqtt/retain_message/{cluster_name}/{topic_name}"))
+    format!("/meta/mqtt/retain_message/{cluster_name}/{topic_name}")
 }
 
+#[inline]
 pub fn storage_key_mqtt_retain_message_cluster_prefix(cluster_name: &str) -> String {
-    prefix_key(format!("/mqtt/retain_message/{cluster_name}/"))
-}
-
-fn prefix_key(key: String) -> String {
-    format!("/meta{key}")
+    format!("/meta/mqtt/retain_message/{cluster_name}/")
 }

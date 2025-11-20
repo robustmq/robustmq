@@ -50,12 +50,7 @@ impl MqttBlackListStorage {
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in data {
-            let blacklist = raw.data;
-            results.push(blacklist);
-        }
-        Ok(results)
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn delete(
@@ -71,74 +66,110 @@ impl MqttBlackListStorage {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
-    use common_base::utils::file_utils::test_temp_dir;
+    use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use std::sync::Arc;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    use crate::storage::mqtt::blacklist::MqttBlackListStorage;
-
-    #[tokio::test]
-    async fn blacklist_storage_test() {
+    fn setup_storage() -> MqttBlackListStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
-        let rs = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let blacklist_storage = MqttBlackListStorage::new(rs);
-        let cluster_name = "test_cluster".to_string();
+        MqttBlackListStorage::new(test_rocksdb_instance())
+    }
 
-        let blacklist1 = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::ClientId,
-            resource_name: "resource1".to_string(),
-            end_time: 171456001,
-            desc: "user1".to_string(),
-        };
-        let blacklist2 = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::User,
-            resource_name: "resource2".to_string(),
-            end_time: 171456002,
-            desc: "user2".to_string(),
-        };
+    fn create_blacklist(
+        blacklist_type: MqttAclBlackListType,
+        resource_name: &str,
+    ) -> MqttAclBlackList {
+        MqttAclBlackList {
+            blacklist_type,
+            resource_name: resource_name.to_string(),
+            end_time: now_second() + 3600,
+            desc: format!("blocked: {}", resource_name),
+        }
+    }
 
-        blacklist_storage
-            .save(&cluster_name, blacklist1.clone())
-            .unwrap();
-        blacklist_storage
-            .save(&cluster_name, blacklist2.clone())
-            .unwrap();
+    #[test]
+    fn test_blacklist_crud() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
 
-        let res = blacklist_storage.list(&cluster_name).unwrap();
-        assert_eq!(res.len(), 2);
+        // Save & List
+        let bl1 = create_blacklist(MqttAclBlackListType::ClientId, "client_blocked");
+        storage.save(cluster, bl1.clone()).unwrap();
 
-        let res = blacklist_storage
-            .list(&cluster_name)
-            .unwrap()
-            .into_iter()
-            .find(|b| {
-                b.blacklist_type == blacklist1.blacklist_type
-                    && b.resource_name == blacklist1.resource_name
-            });
-        assert!(res.is_some());
+        let list = storage.list(cluster).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].resource_name, "client_blocked");
 
-        blacklist_storage
-            .delete(
-                &cluster_name,
-                &blacklist1.blacklist_type.to_string(),
-                &blacklist1.resource_name,
-            )
+        // Save another
+        let bl2 = create_blacklist(MqttAclBlackListType::User, "user_blocked");
+        storage.save(cluster, bl2.clone()).unwrap();
+        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+
+        // Delete & Verify
+        storage
+            .delete(cluster, &bl1.blacklist_type.to_string(), &bl1.resource_name)
             .unwrap();
 
-        let res = blacklist_storage.list(&cluster_name).unwrap();
-        assert_eq!(res.len(), 1);
-        assert!(res
+        let remaining = storage.list(cluster).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].resource_name, "user_blocked");
+    }
+
+    #[test]
+    fn test_blacklist_types() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        // Test different blacklist types
+        let client_id_bl = create_blacklist(MqttAclBlackListType::ClientId, "client1");
+        let user_bl = create_blacklist(MqttAclBlackListType::User, "user1");
+        let ip_bl = create_blacklist(MqttAclBlackListType::Ip, "192.168.1.100");
+
+        storage.save(cluster, client_id_bl.clone()).unwrap();
+        storage.save(cluster, user_bl.clone()).unwrap();
+        storage.save(cluster, ip_bl.clone()).unwrap();
+
+        let list = storage.list(cluster).unwrap();
+        assert_eq!(list.len(), 3);
+
+        // Verify each type exists
+        assert!(list
             .iter()
-            .all(|b| b.blacklist_type != blacklist1.blacklist_type
-                || b.resource_name != blacklist1.resource_name));
+            .any(|b| b.blacklist_type == MqttAclBlackListType::ClientId));
+        assert!(list
+            .iter()
+            .any(|b| b.blacklist_type == MqttAclBlackListType::User));
+        assert!(list
+            .iter()
+            .any(|b| b.blacklist_type == MqttAclBlackListType::Ip));
+    }
+
+    #[test]
+    fn test_update_blacklist() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        // Save initial
+        let initial = create_blacklist(MqttAclBlackListType::ClientId, "client1");
+        storage.save(cluster, initial.clone()).unwrap();
+
+        // Update with different desc
+        let mut updated = initial.clone();
+        updated.desc = "updated description".to_string();
+        storage.save(cluster, updated).unwrap();
+
+        let list = storage.list(cluster).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].desc, "updated description");
+    }
+
+    #[test]
+    fn test_empty_list() {
+        let storage = setup_storage();
+        let list = storage.list("empty_cluster").unwrap();
+        assert!(list.is_empty());
     }
 }

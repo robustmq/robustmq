@@ -33,10 +33,6 @@ pub fn column_family_list() -> Vec<String> {
     ]
 }
 
-pub fn test_default_column_family() -> String {
-    DB_COLUMN_FAMILY_META_METADATA.to_string()
-}
-
 pub fn storage_data_fold(path: &str) -> String {
     let mut result = String::with_capacity(path.len() + 6);
     result.push_str(path);

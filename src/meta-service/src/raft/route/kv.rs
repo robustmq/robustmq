@@ -19,7 +19,7 @@ use prost::Message as _;
 use protocol::meta::meta_service_common::{DeleteRequest, SetRequest};
 
 use crate::core::error::MetaServiceError;
-use crate::storage::placement::kv::KvStorage;
+use crate::storage::common::kv::KvStorage;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use bytes::Bytes;
+use common_base::tools::now_second;
 use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
@@ -27,11 +28,11 @@ use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::storage::placement::cluster::ClusterStorage;
-use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::node::NodeStorage;
-use crate::storage::placement::offset::OffsetStorage;
-use crate::storage::placement::schema::SchemaStorage;
+use crate::storage::common::cluster::ClusterStorage;
+use crate::storage::common::config::ResourceConfigStorage;
+use crate::storage::common::node::NodeStorage;
+use crate::storage::common::offset::{OffsetData, OffsetStorage};
+use crate::storage::common::schema::SchemaStorage;
 
 #[derive(Clone)]
 pub struct DataRouteCluster {
@@ -97,15 +98,20 @@ impl DataRouteCluster {
     pub fn save_offset_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = SaveOffsetDataRequest::decode(value.as_ref())?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
-        for raw in req.offsets {
-            offset_storage.save(
-                &req.cluster_name,
-                &req.group,
-                &raw.namespace,
-                &raw.shard_name,
-                raw.offset,
-            )?;
-        }
+        let offsets = req
+            .offsets
+            .iter()
+            .map(|raw| OffsetData {
+                cluster_name: req.cluster_name.clone(),
+                namespace: raw.namespace.clone(),
+                group: req.group.clone(),
+                shard_name: raw.shard_name.clone(),
+                offset: raw.offset,
+                timestamp: now_second(),
+            })
+            .collect::<Vec<OffsetData>>();
+
+        offset_storage.save(&offsets)?;
         Ok(())
     }
 
@@ -164,7 +170,7 @@ mod tests {
 
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
-    use crate::storage::placement::node::NodeStorage;
+    use crate::storage::common::node::NodeStorage;
     use prost::Message;
     use protocol::meta::meta_service_common::RegisterNodeRequest;
 

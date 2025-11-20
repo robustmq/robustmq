@@ -152,12 +152,11 @@ We welcome contributions! Check out our [Contribution Guide](https://robustmq.co
     <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
   </div>
 
-- **微信公众号**: If the group QR code has expired, welcome to follow our official WeChat account!
+- **开发者微信**: If the group QR code has expired, welcome to follow our official WeChat account!
 
   <div align="center">
-    <img src="docs/images/WeChat-Official-Account.jpg" alt="WeChat Official Account QR Code" width="200" />
+    <img src="docs/images/wechat.jpg" alt="WeChat Official Account QR Code" width="200" />
   </div>
-
 ## 📄 License
 
 RobustMQ is licensed under the [Apache License 2.0](LICENSE), which  strikes a balance between open collaboration and allowing you to use the software in your projects, whether open source or proprietary.

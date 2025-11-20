@@ -15,13 +15,13 @@
 use super::heartbeat::NodeHeartbeatData;
 use crate::core::error::MetaServiceError;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
+use crate::storage::common::cluster::ClusterStorage;
+use crate::storage::common::node::NodeStorage;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use crate::storage::placement::cluster::ClusterStorage;
-use crate::storage::placement::node::NodeStorage;
 use crate::{
     controller::mqtt::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
 };

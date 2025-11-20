@@ -41,8 +41,11 @@ impl MqttLastWillStorage {
         last_will_message: MqttLastWillData,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, last_will_message)?;
-        Ok(())
+        Ok(engine_save_by_meta_data(
+            self.rocksdb_engine_handler.clone(),
+            &key,
+            last_will_message,
+        )?)
     }
 
     pub fn get(
@@ -51,71 +54,97 @@ impl MqttLastWillStorage {
         client_id: &str,
     ) -> Result<Option<MqttLastWillData>, MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        let result =
-            engine_get_by_meta_data::<MqttLastWillData>(self.rocksdb_engine_handler.clone(), &key)?;
-        if let Some(data) = result {
-            return Ok(Some(data.data));
-        }
-        Ok(None)
+        Ok(
+            engine_get_by_meta_data::<MqttLastWillData>(self.rocksdb_engine_handler.clone(), &key)?
+                .map(|data| data.data),
+        )
     }
 
     pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)?;
-        Ok(())
+        Ok(engine_delete_by_meta_data(
+            self.rocksdb_engine_handler.clone(),
+            &key,
+        )?)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_base::utils::file_utils::test_temp_dir;
+    use super::*;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::mqtt::lastwill::MqttLastWillData;
-    use metadata_struct::mqtt::session::MqttSession;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    use super::MqttLastWillStorage;
-    use crate::storage::mqtt::session::MqttSessionStorage;
-
-    #[tokio::test]
-    async fn lastwill_storage_test() {
+    fn setup_storage() -> MqttLastWillStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
+        MqttLastWillStorage::new(test_rocksdb_instance())
+    }
 
-        let rs = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let session_storage = MqttSessionStorage::new(rs.clone());
+    fn create_last_will(client_id: &str, topic: &str) -> MqttLastWillData {
+        use bytes::Bytes;
+        use protocol::mqtt::common::{LastWill, QoS};
 
-        let cluster_name = "test_cluster".to_string();
-        let client_id = "loboxu".to_string();
-        let session = MqttSession::default();
-
-        session_storage
-            .save(&cluster_name, &client_id, session)
-            .unwrap();
-
-        let lastwill_storage = MqttLastWillStorage::new(rs.clone());
-        let last_will_message = MqttLastWillData {
-            client_id: client_id.clone(),
-            last_will: None,
+        MqttLastWillData {
+            client_id: client_id.to_string(),
+            last_will: Some(LastWill {
+                topic: Bytes::from(topic.to_string()),
+                message: Bytes::from("goodbye"),
+                qos: QoS::AtLeastOnce,
+                retain: false,
+            }),
             last_will_properties: None,
-        };
-        lastwill_storage
-            .save(&cluster_name, &client_id, last_will_message)
+        }
+    }
+
+    #[test]
+    fn test_lastwill_crud() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        // Save & Get
+        let lastwill = create_last_will("client_a", "status/client_a");
+        storage.save(cluster, "client_a", lastwill).unwrap();
+
+        let retrieved = storage.get(cluster, "client_a").unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().client_id, "client_a");
+
+        // Delete & Verify
+        storage.delete(cluster, "client_a").unwrap();
+        assert!(storage.get(cluster, "client_a").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_update_lastwill() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+        let client = "client_a";
+
+        // Save initial
+        storage
+            .save(cluster, client, create_last_will(client, "topic1"))
             .unwrap();
+        let initial = storage.get(cluster, client).unwrap().unwrap();
+        assert_eq!(
+            initial.last_will.as_ref().unwrap().topic.as_ref(),
+            b"topic1"
+        );
 
-        let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
-        assert!(data.is_some());
+        // Update
+        storage
+            .save(cluster, client, create_last_will(client, "topic2"))
+            .unwrap();
+        let updated = storage.get(cluster, client).unwrap().unwrap();
+        assert_eq!(
+            updated.last_will.as_ref().unwrap().topic.as_ref(),
+            b"topic2"
+        );
+    }
 
-        lastwill_storage.delete(&cluster_name, &client_id).unwrap();
-
-        let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
-        assert!(data.is_none());
+    #[test]
+    fn test_get_nonexistent() {
+        let storage = setup_storage();
+        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
     }
 }

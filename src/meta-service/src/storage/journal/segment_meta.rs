@@ -72,7 +72,7 @@ impl SegmentMetadataStorage {
         let prefix_key = key_all_segment_metadata();
         let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
-            &prefix_key,
+            prefix_key,
         )?;
         let mut results = Vec::new();
         for raw in data {
@@ -148,16 +148,10 @@ impl SegmentMetadataStorage {
 mod test {
     use super::*;
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-    use rocksdb_engine::{rocksdb::RocksDBEngine, storage::family::test_default_column_family};
-    use std::sync::Arc;
-    use tempfile::tempdir;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     fn create_test_instance() -> SegmentMetadataStorage {
-        // Create a temporary directory for the database
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().to_str().unwrap();
-        let rocksdb_engine = RocksDBEngine::new(db_path, 0, vec![test_default_column_family()]);
-        let rocksdb_engine_handler = Arc::new(rocksdb_engine);
+        let rocksdb_engine_handler = test_rocksdb_instance();
         SegmentMetadataStorage::new(rocksdb_engine_handler)
     }
 

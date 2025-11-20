@@ -165,7 +165,7 @@ mod tests {
     use rocksdb_engine::storage::family::column_family_list;
     use tempfile::tempdir;
 
-    use crate::storage::placement::schema::SchemaStorage;
+    use crate::storage::common::schema::SchemaStorage;
     use rocksdb_engine::rocksdb::RocksDBEngine;
 
     #[tokio::test]
