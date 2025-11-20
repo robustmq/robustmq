@@ -16,8 +16,10 @@ use crate::storage::keys::{key_offset, key_offset_by_group};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::base::{batch_encode_data, get_cf_handle};
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;
 use rocksdb_engine::storage::meta_data::{
-    engine_delete_by_meta_data, engine_prefix_list_by_meta_data, engine_save_by_meta_data,
+    engine_delete_by_meta_data, engine_prefix_list_by_meta_data,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -42,24 +44,33 @@ impl OffsetStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn save(
-        &self,
-        cluster_name: &str,
-        group: &str,
-        namespace: &str,
-        shard_name: &str,
-        offset: u64,
-    ) -> Result<(), CommonError> {
-        let key = key_offset(cluster_name, group, namespace, shard_name);
-        let offset_data = OffsetData {
-            cluster_name: cluster_name.to_owned(),
-            group: group.to_owned(),
-            namespace: namespace.to_owned(),
-            shard_name: shard_name.to_owned(),
-            offset,
-            timestamp: now_second(),
-        };
-        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, offset_data)
+    pub fn save(&self, offsets: &[OffsetData]) -> Result<(), CommonError> {
+        if offsets.is_empty() {
+            return Ok(());
+        }
+
+        let mut batch = rocksdb::WriteBatch::default();
+        let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_META_DATA)?;
+        for offset in offsets {
+            let key = key_offset(
+                &offset.cluster_name,
+                &offset.group,
+                &offset.namespace,
+                &offset.shard_name,
+            );
+
+            let offset_data = OffsetData {
+                cluster_name: offset.cluster_name.clone(),
+                group: offset.group.clone(),
+                namespace: offset.namespace.clone(),
+                shard_name: offset.shard_name.clone(),
+                offset: offset.offset,
+                timestamp: now_second(),
+            };
+            batch.put_cf(&cf, key, &batch_encode_data(offset_data)?);
+        }
+        self.rocksdb_engine_handler.db.write(batch)?;
+        Ok(())
     }
 
     pub fn delete(
@@ -85,51 +96,87 @@ impl OffsetStorage {
             &prefix_key,
         )?;
 
-        Ok(data.iter().map(|row| row.data.clone()).collect())
+        Ok(data.into_iter().map(|row| row.data).collect())
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
+    use super::*;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    use crate::storage::common::offset::OffsetStorage;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use std::sync::Arc;
-    use tempfile::tempdir;
+    fn create_offset_data(
+        cluster: &str,
+        group: &str,
+        namespace: &str,
+        shard: &str,
+        offset: u64,
+    ) -> OffsetData {
+        OffsetData {
+            cluster_name: cluster.to_string(),
+            group: group.to_string(),
+            namespace: namespace.to_string(),
+            shard_name: shard.to_string(),
+            offset,
+            timestamp: now_second(),
+        }
+    }
 
     #[test]
-    fn offset_storage_test() {
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            column_family_list(),
-        ));
-        let offset_storage = OffsetStorage::new(rocksdb_engine);
+    fn test_offset_batch_save() {
+        let storage = OffsetStorage::new(test_rocksdb_instance());
+        let cluster = "cluster1";
+        let group = "group1";
 
-        let cluster_name = "cluster1".to_string();
-        let group = "group1".to_string();
-        let namespace1 = "namespace1".to_string();
-        let namespace2 = "namespace2".to_string();
-        let shard_name = "shard1".to_string();
+        // Batch save two offsets
+        let offsets = vec![
+            create_offset_data(cluster, group, "namespace1", "shard1", 100),
+            create_offset_data(cluster, group, "namespace2", "shard1", 200),
+        ];
+        storage.save(&offsets).unwrap();
 
-        offset_storage
-            .save(&cluster_name, &group, &namespace1, &shard_name, 100)
+        // Verify
+        let list = storage.group_offset(cluster, group).unwrap();
+        assert_eq!(list.len(), 2);
+        assert!(list.iter().any(|o| o.offset == 100));
+        assert!(list.iter().any(|o| o.offset == 200));
+    }
+
+    #[test]
+    fn test_offset_delete() {
+        let storage = OffsetStorage::new(test_rocksdb_instance());
+        let cluster = "cluster1";
+        let group = "group1";
+
+        // Save
+        let offsets = vec![
+            create_offset_data(cluster, group, "namespace1", "shard1", 100),
+            create_offset_data(cluster, group, "namespace2", "shard1", 200),
+        ];
+        storage.save(&offsets).unwrap();
+        assert_eq!(storage.group_offset(cluster, group).unwrap().len(), 2);
+
+        // Delete one
+        storage
+            .delete(cluster, group, "namespace2", "shard1")
             .unwrap();
-        offset_storage
-            .save(&cluster_name, &group, &namespace2, &shard_name, 200)
-            .unwrap();
 
-        let offset_list1 = offset_storage.group_offset(&cluster_name, &group).unwrap();
-        assert_eq!(offset_list1.len(), 2);
-        assert_eq!(offset_list1[1].offset, 200);
+        let remaining = storage.group_offset(cluster, group).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].offset, 100);
+    }
 
-        offset_storage
-            .delete(&cluster_name, &group, &namespace2, &shard_name)
-            .unwrap();
+    #[test]
+    fn test_empty_save() {
+        let storage = OffsetStorage::new(test_rocksdb_instance());
+        let empty: Vec<OffsetData> = vec![];
+        storage.save(&empty).unwrap();
+    }
 
-        let offset_list2 = offset_storage.group_offset(&cluster_name, &group).unwrap();
-        assert_eq!(offset_list2.len(), 1);
-        assert_eq!(offset_list2[0].offset, 100);
+    #[test]
+    fn test_group_offset_empty() {
+        let storage = OffsetStorage::new(test_rocksdb_instance());
+        let list = storage.group_offset("cluster1", "group1").unwrap();
+        assert!(list.is_empty());
     }
 }

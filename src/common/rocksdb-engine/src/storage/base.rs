@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{rocksdb::RocksDBEngine, warp::StorageDataWrap};
-use common_base::{error::common::CommonError, tools::now_mills};
+use common_base::{error::common::CommonError, tools::now_mills, utils};
 use common_metrics::rocksdb::{
     metrics_rocksdb_delete_ms, metrics_rocksdb_exist_ms, metrics_rocksdb_get_ms,
     metrics_rocksdb_list_ms, metrics_rocksdb_save_ms,
@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 /// Helper function to get column family handle
 #[inline]
-fn get_cf_handle<'a>(
+pub fn get_cf_handle<'a>(
     engine: &'a RocksDBEngine,
     column_family: &str,
 ) -> Result<Arc<BoundColumnFamily<'a>>, CommonError> {
@@ -61,6 +61,14 @@ where
         rocksdb_engine_handler.write(cf, key_name, &wrap)?;
         Ok(())
     })
+}
+
+pub fn batch_encode_data<T>(value: T) -> Result<Vec<u8>, CommonError>
+where
+    T: Serialize,
+{
+    let wrap = StorageDataWrap::new(value);
+    Ok(utils::serialize::serialize(&wrap)?)
 }
 
 pub fn engine_get<T>(
