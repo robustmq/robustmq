@@ -62,7 +62,7 @@ impl StorageEngineController {
                 gc_shard_thread(&raft_machine_apply, &cache_manager, &client_pool).await;
                 Ok(())
             };
-            loop_select_ticket(ac_fn, 1, &stop_sx).await;
+            loop_select_ticket(ac_fn, 1000, &stop_sx).await;
         });
     }
 
@@ -76,7 +76,7 @@ impl StorageEngineController {
                 gc_segment_thread(&raft_machine_apply, &cache_manager, &client_pool).await;
                 Ok(())
             };
-            loop_select_ticket(ac_fn, 1, &stop_sx).await;
+            loop_select_ticket(ac_fn, 1000, &stop_sx).await;
         });
     }
 }

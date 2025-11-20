@@ -170,7 +170,7 @@ impl SystemTopic {
             Ok(())
         };
 
-        loop_select_ticket(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1000, &stop_send).await;
     }
 
     pub async fn try_init_system_topic(&self) {

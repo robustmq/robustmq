@@ -85,7 +85,7 @@ impl ExclusivePush {
             self.try_thread_gc().await;
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1, &self.stop_sx).await;
+        loop_select_ticket(ac_fn, 1000, &self.stop_sx).await;
     }
 
     async fn try_thread_gc(&self) {

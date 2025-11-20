@@ -31,7 +31,7 @@ pub async fn start_connector_report_heartbeat_thread(
         report_heartbeat(&client_pool, &connector_manager).await;
         Ok(())
     };
-    loop_select_ticket(ac_fn, 1, &stop_send).await;
+    loop_select_ticket(ac_fn, 1000, &stop_send).await;
 }
 
 async fn report_heartbeat(

@@ -143,7 +143,7 @@ pub async fn mqtt_call_thread_manager(
         }
         Ok(())
     };
-    loop_select_ticket(ac_fn, 1, &stop).await;
+    loop_select_ticket(ac_fn, 1000, &stop).await;
 }
 
 pub async fn update_cache_by_add_session(

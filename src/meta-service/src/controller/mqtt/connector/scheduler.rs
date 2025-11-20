@@ -64,7 +64,7 @@ impl ConnectorScheduler {
             Ok(())
         };
 
-        loop_select_ticket(ac_fn, 1, &stop_send).await;
+        loop_select_ticket(ac_fn, 1000, &stop_send).await;
     }
 }
 

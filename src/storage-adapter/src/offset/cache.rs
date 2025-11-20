@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use common_base::{
-    error::common::CommonError,
+    error::{common::CommonError, ResultCommonError},
+    tools::loop_select_ticket,
     utils::serialize::{deserialize, serialize},
 };
 use dashmap::DashMap;
@@ -23,6 +24,7 @@ use rocksdb_engine::{
     storage::{base::get_cf_handle, family::DB_COLUMN_FAMILY_BROKER},
 };
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::broadcast;
 
 use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
 
@@ -103,6 +105,14 @@ impl OffsetCache {
     }
 }
 
-pub fn flush_commit_offset_thread(_offset_cache: Arc<OffsetCache>) {
-    tokio::spawn(async move {});
+pub fn flush_commit_offset_thread(
+    offset_cache: Arc<OffsetCache>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    tokio::spawn(async move {
+        let ac_fn =
+            async || -> ResultCommonError { offset_cache.async_commit_offset_to_storage().await };
+
+        loop_select_ticket(ac_fn, 100, &stop_send).await;
+    });
 }
