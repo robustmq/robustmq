@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-
 use std::{collections::HashMap, sync::Arc};
-
-use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
 
 pub mod cache;
 pub mod storage;

@@ -240,7 +240,7 @@ impl StorageAdapter for JournalStorageAdapter {
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(group_name, namespace, &offset)
+            .commit_offset(group_name, namespace, offset)
             .await
     }
 

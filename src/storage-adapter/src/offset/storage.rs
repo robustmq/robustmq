@@ -14,6 +14,7 @@
 
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
+use dashmap::DashMap;
 use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_common::{
@@ -81,6 +82,35 @@ impl OffsetStorageManager {
                 group: group_name.to_string(),
                 offsets,
             }],
+        };
+        save_offset_data(&self.client_pool, &self.addrs, request).await?;
+        Ok(())
+    }
+
+    pub async fn batch_commit_offset(
+        &self,
+        offset_datas: &DashMap<String, Vec<ShardOffset>>,
+    ) -> Result<(), CommonError> {
+        let mut offsets = Vec::new();
+        for data in offset_datas.iter() {
+            let val = data
+                .value()
+                .iter()
+                .map(|shard_offset| SaveOffsetDataRequestOffset {
+                    namespace: shard_offset.namespace.to_string(),
+                    shard_name: shard_offset.shard_name.to_string(),
+                    offset: shard_offset.offset,
+                })
+                .collect();
+            offsets.push(SaveOffsetData {
+                group: data.key().to_string(),
+                offsets: val,
+            });
+        }
+
+        let request = SaveOffsetDataRequest {
+            cluster_name: self.cluster_name.clone(),
+            offsets,
         };
         save_offset_data(&self.client_pool, &self.addrs, request).await?;
         Ok(())
