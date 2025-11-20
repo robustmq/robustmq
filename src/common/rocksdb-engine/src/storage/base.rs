@@ -68,7 +68,7 @@ where
     T: Serialize,
 {
     let wrap = StorageDataWrap::new(value);
-    Ok(utils::serialize::serialize(&wrap)?)
+    utils::serialize::serialize(&wrap)
 }
 
 pub fn engine_get<T>(
