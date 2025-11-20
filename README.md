@@ -152,11 +152,6 @@ We welcome contributions! Check out our [Contribution Guide](https://robustmq.co
     <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
   </div>
 
-- **微信公众号**: If the group QR code has expired, welcome to follow our official WeChat account!
-
-  <div align="center">
-    <img src="docs/images/WeChat-Official-Account.jpg" alt="WeChat Official Account QR Code" width="200" />
-  </div>
 - **开发者微信**: If the group QR code has expired, welcome to follow our official WeChat account!
 
   <div align="center">
