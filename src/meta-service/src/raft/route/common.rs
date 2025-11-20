@@ -98,20 +98,22 @@ impl DataRouteCluster {
     pub fn save_offset_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = SaveOffsetDataRequest::decode(value.as_ref())?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
-        let offsets = req
-            .offsets
-            .iter()
-            .map(|raw| OffsetData {
-                cluster_name: req.cluster_name.clone(),
-                namespace: raw.namespace.clone(),
-                group: req.group.clone(),
-                shard_name: raw.shard_name.clone(),
-                offset: raw.offset,
-                timestamp: now_second(),
-            })
-            .collect::<Vec<OffsetData>>();
+        for offset_data in req.offsets {
+            let offsets = offset_data
+                .offsets
+                .iter()
+                .map(|raw| OffsetData {
+                    cluster_name: req.cluster_name.clone(),
+                    namespace: raw.namespace.clone(),
+                    group: offset_data.group.clone(),
+                    shard_name: raw.shard_name.clone(),
+                    offset: raw.offset,
+                    timestamp: now_second(),
+                })
+                .collect::<Vec<OffsetData>>();
 
-        offset_storage.save(&offsets)?;
+            offset_storage.save(&offsets)?;
+        }
         Ok(())
     }
 

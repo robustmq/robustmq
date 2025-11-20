@@ -12,44 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_common::{
-    GetOffsetDataRequest, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
+    GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::storage::ShardOffset;
 
 #[derive(Clone)]
-pub(crate) struct PlaceOffsetManager {
+pub struct OffsetStorageManager {
     client_pool: Arc<ClientPool>,
+    cluster_name: String,
     addrs: Vec<String>,
 }
 
-impl PlaceOffsetManager {
-    pub fn new(client_pool: Arc<ClientPool>, addrs: Vec<String>) -> Self {
-        PlaceOffsetManager { client_pool, addrs }
+impl OffsetStorageManager {
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        let conf = broker_config();
+        OffsetStorageManager {
+            client_pool,
+            cluster_name: conf.cluster_name.to_string(),
+            addrs: conf.get_meta_service_addr(),
+        }
     }
 
-    pub async fn get_shard_offset(
-        &self,
-        cluster_name: &str,
-        group: &str,
-    ) -> Result<Vec<ShardOffset>, CommonError> {
+    pub async fn get_offset(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
         let request = GetOffsetDataRequest {
-            cluster_name: cluster_name.to_owned(),
+            cluster_name: self.cluster_name.to_owned(),
             group: group.to_owned(),
         };
         let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
+
         let mut results = Vec::new();
         for raw in reply.offsets {
             results.push(ShardOffset {
                 shard_name: raw.shard_name,
                 offset: raw.offset,
+                namespace: raw.namespace,
                 ..Default::default()
             });
         }
@@ -58,23 +62,25 @@ impl PlaceOffsetManager {
 
     pub async fn commit_offset(
         &self,
-        cluster_name: &str,
         group_name: &str,
         namespace: &str,
-        offset: HashMap<String, u64>,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        let mut offset_data = Vec::new();
-        for (shard_name, offset) in offset {
-            offset_data.push(SaveOffsetDataRequestOffset {
-                namespace: namespace.to_owned(),
-                shard_name,
-                offset,
-            });
-        }
+        let offsets = offset
+            .iter()
+            .map(|(key, value)| SaveOffsetDataRequestOffset {
+                namespace: namespace.to_string(),
+                shard_name: key.to_string(),
+                offset: *value,
+            })
+            .collect();
+
         let request = SaveOffsetDataRequest {
-            cluster_name: cluster_name.to_owned(),
-            group: group_name.to_owned(),
-            offsets: offset_data,
+            cluster_name: self.cluster_name.clone(),
+            offsets: vec![SaveOffsetData {
+                group: group_name.to_string(),
+                offsets,
+            }],
         };
         save_offset_data(&self.client_pool, &self.addrs, request).await?;
         Ok(())

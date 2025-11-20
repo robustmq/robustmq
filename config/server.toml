@@ -55,3 +55,6 @@ port = 9091
 enable = true
 expire_ms = 3600000
 max_messages_num = 100000
+
+[storage_offset]
+enable_cache = true

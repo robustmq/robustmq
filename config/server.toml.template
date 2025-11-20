@@ -86,14 +86,16 @@ max_messages_num = 1000
 [journal.server]
 tcp_port = 1771
 
-[journal.storage]
+[journal_storage]
 data_path = [
     "./robust-data/journal-server/storage/data1",
     "./robust-data/journal-server/storage/data2",
 ]
 rocksdb_max_open_files = 10000
 
-[journal.runtime]
+[journal_runtime]
 enable_auto_create_shard = false
 shard_replica_num = 1
 max_segment_size = 1048576
+
+[offset]

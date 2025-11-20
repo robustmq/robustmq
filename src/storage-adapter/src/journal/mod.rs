@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::expire::MessageExpireConfig;
+use crate::offset::OffsetManager;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -21,16 +22,12 @@ use grpc_clients::pool::ClientPool;
 use journal_client::client::{JournalClient, JournalClientWriteData};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use offset::PlaceOffsetManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub mod offset;
-
 pub struct JournalStorageAdapter {
-    cluster_name: String,
     client: JournalClient,
-    offset_manager: PlaceOffsetManager,
+    offset_manager: OffsetManager,
 }
 
 impl JournalStorageAdapter {
@@ -38,14 +35,13 @@ impl JournalStorageAdapter {
         client_pool: Arc<ClientPool>,
         config: StorageDriverJournalConfig,
     ) -> Result<JournalStorageAdapter, CommonError> {
-        let offset_manager = PlaceOffsetManager::new(client_pool, config.place_addrs.clone());
+        let offset_manager = OffsetManager::new(client_pool);
         let client = match JournalClient::new(config.journal_addrs.clone()).await {
             Ok(client) => client,
             Err(e) => return Err(CommonError::CommonError(e.to_string())),
         };
         let adapter = JournalStorageAdapter {
             offset_manager,
-            cluster_name: config.cluster_name,
             client,
         };
         Ok(adapter)
@@ -213,9 +209,7 @@ impl StorageAdapter for JournalStorageAdapter {
     }
 
     async fn get_offset_by_group(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
-        self.offset_manager
-            .get_shard_offset(&self.cluster_name, group)
-            .await
+        self.offset_manager.get_offset(group).await
     }
 
     async fn get_offset_by_timestamp(
@@ -246,7 +240,7 @@ impl StorageAdapter for JournalStorageAdapter {
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(&self.cluster_name, group_name, namespace, offset.clone())
+            .commit_offset(group_name, namespace, &offset)
             .await
     }
 
