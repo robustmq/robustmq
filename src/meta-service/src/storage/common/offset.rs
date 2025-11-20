@@ -92,7 +92,7 @@ impl OffsetStorage {
 #[cfg(test)]
 mod test {
 
-    use crate::storage::placement::offset::OffsetStorage;
+    use crate::storage::common::offset::OffsetStorage;
     use rocksdb_engine::rocksdb::RocksDBEngine;
     use rocksdb_engine::storage::family::column_family_list;
     use std::sync::Arc;

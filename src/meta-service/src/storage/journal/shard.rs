@@ -76,7 +76,7 @@ impl ShardStorage {
         let prefix_key = key_all_shard();
         let data = engine_prefix_list_by_meta_metadata::<JournalShard>(
             self.rocksdb_engine_handler.clone(),
-            &prefix_key,
+            prefix_key,
         )?;
 
         let mut results = Vec::new();

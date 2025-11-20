@@ -22,7 +22,7 @@ use crate::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
     },
-    storage::placement::schema::SchemaStorage,
+    storage::common::schema::SchemaStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;

@@ -27,11 +27,11 @@ use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::storage::placement::cluster::ClusterStorage;
-use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::node::NodeStorage;
-use crate::storage::placement::offset::OffsetStorage;
-use crate::storage::placement::schema::SchemaStorage;
+use crate::storage::common::cluster::ClusterStorage;
+use crate::storage::common::config::ResourceConfigStorage;
+use crate::storage::common::node::NodeStorage;
+use crate::storage::common::offset::OffsetStorage;
+use crate::storage::common::schema::SchemaStorage;
 
 #[derive(Clone)]
 pub struct DataRouteCluster {
@@ -164,7 +164,7 @@ mod tests {
 
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
-    use crate::storage::placement::node::NodeStorage;
+    use crate::storage::common::node::NodeStorage;
     use prost::Message;
     use protocol::meta::meta_service_common::RegisterNodeRequest;
 

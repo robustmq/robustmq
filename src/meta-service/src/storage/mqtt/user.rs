@@ -51,11 +51,7 @@ impl MqttUserStorage {
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
@@ -76,56 +72,61 @@ impl MqttUserStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::mqtt::user::MqttUserStorage;
-    use common_base::{tools::now_second, utils::file_utils::test_temp_dir};
+    use super::*;
+    use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::mqtt::user::MqttUser;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use std::sync::Arc;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    #[tokio::test]
-    async fn user_storage_test() {
+    fn setup_storage() -> MqttUserStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
+        let db = test_rocksdb_instance();
+        MqttUserStorage::new(db)
+    }
 
-        let rs = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let user_storage = MqttUserStorage::new(rs);
-        let cluster_name = "test_cluster".to_string();
-        let username = "loboxu".to_string();
-        let user = MqttUser {
-            username: username.clone(),
-            password: "pwd123".to_string(),
+    fn create_user(username: &str, password: &str, is_superuser: bool) -> MqttUser {
+        MqttUser {
+            username: username.to_string(),
+            password: password.to_string(),
             salt: None,
-            is_superuser: true,
+            is_superuser,
             create_time: now_second(),
-        };
-        user_storage.save(&cluster_name, &username, user).unwrap();
+        }
+    }
 
-        let username = "lobo1".to_string();
-        let user = MqttUser {
-            username: username.clone(),
-            password: "pwd1231".to_string(),
-            salt: None,
-            is_superuser: true,
-            create_time: now_second(),
-        };
-        user_storage.save(&cluster_name, &username, user).unwrap();
+    #[test]
+    fn test_user_crud_operations() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
 
-        let res = user_storage.list_by_cluster(&cluster_name).unwrap();
-        assert_eq!(res.len(), 2);
+        // Test: Save and Get
+        let user1 = create_user("alice", "pass123", true);
+        storage.save(cluster, "alice", user1).unwrap();
 
-        let res = user_storage.get(&cluster_name, "lobo1").unwrap();
-        assert!(res.is_some());
+        let retrieved = storage.get(cluster, "alice").unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().username, "alice");
 
-        let name = "lobo1".to_string();
-        user_storage.delete(&cluster_name, &name).unwrap();
+        // Test: List multiple users
+        let user2 = create_user("bob", "pass456", false);
+        storage.save(cluster, "bob", user2).unwrap();
 
-        let res = user_storage.get(&cluster_name, "lobo1").unwrap();
-        assert!(res.is_none());
+        let all_users = storage.list_by_cluster(cluster).unwrap();
+        assert_eq!(all_users.len(), 2);
+
+        // Test: Delete and verify
+        storage.delete(cluster, "bob").unwrap();
+        assert!(storage.get(cluster, "bob").unwrap().is_none());
+
+        let remaining = storage.list_by_cluster(cluster).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].username, "alice");
+    }
+
+    #[test]
+    fn test_get_nonexistent_user() {
+        let storage = setup_storage();
+        let result = storage.get("cluster1", "nonexistent").unwrap();
+        assert!(result.is_none());
     }
 }

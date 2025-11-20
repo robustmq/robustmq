@@ -15,7 +15,7 @@
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::storage::placement::kv::KvStorage;
+use crate::storage::common::kv::KvStorage;
 use common_base::utils::serialize::encode_to_bytes;
 use protocol::meta::meta_service_common::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,

@@ -71,12 +71,13 @@ impl MqttConnectorStorage {
         connector_name: &str,
     ) -> Result<Option<MQTTConnector>, CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
-        if let Some(data) =
-            engine_get_by_meta_metadata::<MQTTConnector>(self.rocksdb_engine_handler.clone(), &key)?
-        {
-            return Ok(Some(data.data));
-        }
-        Ok(None)
+        Ok(
+            engine_get_by_meta_metadata::<MQTTConnector>(
+                self.rocksdb_engine_handler.clone(),
+                &key,
+            )?
+            .map(|data| data.data),
+        )
     }
 
     pub fn delete(&self, cluster_name: &str, connector_name: &str) -> Result<(), CommonError> {
@@ -87,48 +88,41 @@ impl MqttConnectorStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_base::utils::file_utils::test_temp_dir;
+    use super::*;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    use crate::storage::mqtt::connector::MqttConnectorStorage;
-
-    #[tokio::test]
-    async fn connector_storage_test() {
+    fn setup_storage() -> MqttConnectorStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
-        let rs = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let connector_storage = MqttConnectorStorage::new(rs);
-        let cluster_name = "test_cluster".to_string();
-        let connector_id = "loboxu".to_string();
+        MqttConnectorStorage::new(test_rocksdb_instance())
+    }
+
+    #[test]
+    fn test_connector_crud() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        // Save & Get
         let connector = MQTTConnector::default();
-        connector_storage
-            .save(&cluster_name, &connector_id, &connector)
+        storage.save(cluster, "connector_a", &connector).unwrap();
+        assert!(storage.get(cluster, "connector_a").unwrap().is_some());
+
+        // List
+        storage
+            .save(cluster, "connector_b", &MQTTConnector::default())
             .unwrap();
+        assert_eq!(storage.list(cluster).unwrap().len(), 2);
 
-        let connector_id = "lobo1".to_string();
-        let connector = MQTTConnector::default();
-        connector_storage
-            .save(&cluster_name, &connector_id, &connector)
-            .unwrap();
+        // Delete & Verify
+        storage.delete(cluster, "connector_b").unwrap();
+        assert!(storage.get(cluster, "connector_b").unwrap().is_none());
+        assert_eq!(storage.list(cluster).unwrap().len(), 1);
+    }
 
-        let res = connector_storage.list(&cluster_name).unwrap();
-        assert_eq!(res.len(), 2);
-
-        let res = connector_storage.get(&cluster_name, "lobo1").unwrap();
-        assert!(res.is_some());
-
-        connector_storage.delete(&cluster_name, "lobo1").unwrap();
-
-        let res = connector_storage.get(&cluster_name, "lobo1").unwrap();
-        assert!(res.is_none());
+    #[test]
+    fn test_get_nonexistent() {
+        let storage = setup_storage();
+        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
     }
 }

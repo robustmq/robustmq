@@ -61,7 +61,7 @@ impl NodeStorage {
         let prefix_key = if let Some(cn) = cluster_name {
             key_node_prefix(&cn)
         } else {
-            key_node_prefix_all()
+            key_node_prefix_all().to_string()
         };
 
         let data = engine_prefix_list_by_meta_metadata::<BrokerNode>(

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use crate::core::error::MetaServiceError;
 use crate::storage::keys::{
     storage_key_mqtt_retain_message, storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
@@ -31,6 +29,7 @@ use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_prefix_list_by_meta_metadata,
     engine_save_by_meta_metadata,
 };
+use std::sync::Arc;
 
 pub struct MqttTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -61,11 +60,7 @@ impl MqttTopicStorage {
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn get(
@@ -73,15 +68,11 @@ impl MqttTopicStorage {
         cluster_name: &str,
         topic_name: &str,
     ) -> Result<Option<MQTTTopic>, MetaServiceError> {
-        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
-
-        if let Some(data) =
+        let key = storage_key_mqtt_topic(cluster_name, topic_name);
+        Ok(
             engine_get_by_meta_data::<MQTTTopic>(self.rocksdb_engine_handler.clone(), &key)?
-        {
-            let topic = data.data;
-            return Ok(Some(topic));
-        }
-        Ok(None)
+                .map(|data| data.data),
+        )
     }
 
     pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), MetaServiceError> {
@@ -159,73 +150,149 @@ impl MqttTopicStorage {
         topic_name: &str,
     ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
         let key = storage_key_mqtt_retain_message(cluster_name, topic_name);
-        if let Some(data) =
-            engine_get_by_meta_data::<MQTTRetainMessage>(self.rocksdb_engine_handler.clone(), &key)?
-        {
-            let topic = data.data;
-            return Ok(Some(topic));
-        }
-        Ok(None)
+        Ok(
+            engine_get_by_meta_data::<MQTTRetainMessage>(
+                self.rocksdb_engine_handler.clone(),
+                &key,
+            )?
+            .map(|data| data.data),
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use crate::storage::mqtt::topic::MqttTopicStorage;
+    use super::*;
     use common_base::tools::now_second;
-    use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::mqtt::topic::MQTTTopic;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
+    use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
+    use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    #[tokio::test]
-    async fn topic_storage_test() {
+    fn setup_storage() -> MqttTopicStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
-
-        let rs = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let topic_storage = MqttTopicStorage::new(rs);
-        let cluster_name = "test_cluster".to_string();
-        let topic_name = "loboxu".to_string();
-        let topic = MQTTTopic {
-            cluster_name: cluster_name.clone(),
-            topic_name: topic_name.clone(),
-            create_time: now_second(),
-        };
-        topic_storage
-            .save(&cluster_name, &topic_name, topic)
-            .unwrap();
-
-        let topic_name = "lobo1".to_string();
-        let topic = MQTTTopic {
-            cluster_name: cluster_name.to_string(),
-            topic_name: topic_name.clone(),
-            create_time: now_second(),
-        };
-        topic_storage
-            .save(&cluster_name, &topic_name, topic)
-            .unwrap();
-
-        let res = topic_storage.list(&cluster_name).unwrap();
-        assert_eq!(res.len(), 2);
-
-        let res = topic_storage.get(&cluster_name, "lobo1").unwrap();
-        assert!(res.is_some());
-
-        let name = "lobo1".to_string();
-        topic_storage.delete(&cluster_name, &name).unwrap();
-
-        let res = topic_storage.get(&cluster_name, "lobo1").unwrap();
-        assert!(res.is_none());
+        MqttTopicStorage::new(test_rocksdb_instance())
     }
 
-    #[tokio::test]
-    async fn retain_message_storage_test() {}
+    fn create_topic(cluster: &str, topic_name: &str) -> MQTTTopic {
+        MQTTTopic {
+            cluster_name: cluster.to_string(),
+            topic_name: topic_name.to_string(),
+            create_time: now_second(),
+        }
+    }
+
+    fn create_rewrite_rule(
+        cluster: &str,
+        action: &str,
+        source: &str,
+        dest: &str,
+    ) -> MqttTopicRewriteRule {
+        MqttTopicRewriteRule {
+            cluster: cluster.to_string(),
+            action: action.to_string(),
+            source_topic: source.to_string(),
+            dest_topic: dest.to_string(),
+            regex: String::new(),
+            timestamp: now_second() as u128,
+        }
+    }
+
+    fn create_retain_message(cluster: &str, topic: &str, message: &[u8]) -> MQTTRetainMessage {
+        use bytes::Bytes;
+        MQTTRetainMessage {
+            cluster_name: cluster.to_string(),
+            topic_name: topic.to_string(),
+            retain_message: Bytes::from(message.to_vec()),
+            retain_message_expired_at: now_second() + 3600,
+            create_time: now_second(),
+        }
+    }
+
+    #[test]
+    fn test_topic_crud() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        // Save & Get
+        storage
+            .save(cluster, "sensor/temp", create_topic(cluster, "sensor/temp"))
+            .unwrap();
+        assert!(storage.get(cluster, "sensor/temp").unwrap().is_some());
+
+        // List
+        storage
+            .save(
+                cluster,
+                "sensor/humidity",
+                create_topic(cluster, "sensor/humidity"),
+            )
+            .unwrap();
+        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+
+        // Delete & Verify
+        storage.delete(cluster, "sensor/humidity").unwrap();
+        assert!(storage.get(cluster, "sensor/humidity").unwrap().is_none());
+        assert_eq!(storage.list(cluster).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_topic_rewrite_rule() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        // Save rule
+        let rule = create_rewrite_rule(cluster, "subscribe", "old/+/topic", "new/+/topic");
+        storage
+            .save_topic_rewrite_rule(cluster, "subscribe", "old/+/topic", rule)
+            .unwrap();
+
+        // List rules
+        let rules = storage.list_topic_rewrite_rule(cluster).unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].source_topic, "old/+/topic");
+
+        // Delete rule
+        storage
+            .delete_topic_rewrite_rule(cluster, "subscribe", "old/+/topic")
+            .unwrap();
+        assert_eq!(storage.list_topic_rewrite_rule(cluster).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_retain_message() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+        let topic = "sensor/data";
+
+        // Save retain message
+        let msg = create_retain_message(cluster, topic, b"temperature:25");
+        storage.save_retain_message(msg).unwrap();
+
+        // Get message
+        let retrieved = storage.get_retain_message(cluster, topic).unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(
+            retrieved.unwrap().retain_message.as_ref(),
+            b"temperature:25"
+        );
+
+        // Delete message
+        storage.delete_retain_message(cluster, topic).unwrap();
+        assert!(storage
+            .get_retain_message(cluster, topic)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn test_get_nonexistent() {
+        let storage = setup_storage();
+        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
+        assert!(storage
+            .get_retain_message("cluster1", "nonexistent")
+            .unwrap()
+            .is_none());
+    }
 }

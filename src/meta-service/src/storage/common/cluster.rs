@@ -45,7 +45,7 @@ impl ClusterStorage {
         let prefix_key = key_cluster_prefix();
         let data = engine_prefix_list_by_meta_metadata::<ClusterInfo>(
             self.rocksdb_engine_handler.clone(),
-            &prefix_key,
+            prefix_key,
         )?;
         let mut results = Vec::new();
         for raw in data {

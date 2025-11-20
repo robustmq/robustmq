@@ -15,19 +15,16 @@
 use std::sync::Arc;
 
 use common_base::utils::file_utils::test_temp_dir;
-use common_config::{
-    broker::{default_broker_config, default_rocksdb_family},
-    storage::rocksdb::StorageDriverRocksDBConfig,
-};
+use common_config::{broker::default_broker_config, storage::rocksdb::StorageDriverRocksDBConfig};
 
-use crate::rocksdb::RocksDBEngine;
+use crate::{rocksdb::RocksDBEngine, storage::family::column_family_list};
 
 pub fn test_rocksdb_instance() -> Arc<RocksDBEngine> {
     let config = default_broker_config();
     Arc::new(RocksDBEngine::new(
         &test_temp_dir(),
         config.rocksdb.max_open_files,
-        vec![default_rocksdb_family()],
+        column_family_list(),
     ))
 }
 

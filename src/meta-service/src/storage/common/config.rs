@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::error::common::CommonError;
-
 use crate::storage::keys::key_resource_config;
+use common_base::error::common::CommonError;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata, engine_save_by_meta_metadata,
 };
+use std::sync::Arc;
 
 pub struct ResourceConfigStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -38,7 +36,7 @@ impl ResourceConfigStorage {
         resource_key: Vec<String>,
         config: Vec<u8>,
     ) -> Result<(), CommonError> {
-        let key = key_resource_config(cluster_name, resource_key.join("/"));
+        let key = key_resource_config(&cluster_name, &resource_key.join("/"));
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, config)
     }
 
@@ -47,7 +45,7 @@ impl ResourceConfigStorage {
         cluster_name: String,
         resource_key: Vec<String>,
     ) -> Result<(), CommonError> {
-        let key = key_resource_config(cluster_name, resource_key.join("/"));
+        let key = key_resource_config(&cluster_name, &resource_key.join("/"));
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
@@ -56,7 +54,7 @@ impl ResourceConfigStorage {
         cluster_name: String,
         resource_key: Vec<String>,
     ) -> Result<Option<Vec<u8>>, CommonError> {
-        let key = key_resource_config(cluster_name, resource_key.join("/"));
+        let key = key_resource_config(&cluster_name, &resource_key.join("/"));
 
         if let Some(data) = engine_get_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?
         {

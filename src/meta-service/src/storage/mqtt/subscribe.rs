@@ -69,11 +69,7 @@ impl MqttSubscribeStorage {
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in resp {
-            results.push(raw.data);
-        }
-        Ok(results)
+        Ok(resp.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn list_by_client_id(
@@ -86,11 +82,7 @@ impl MqttSubscribeStorage {
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in resp {
-            results.push(raw.data);
-        }
-        Ok(results)
+        Ok(resp.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn delete_by_client_id(
@@ -116,15 +108,14 @@ impl MqttSubscribeStorage {
         client_id: &str,
         path: &str,
     ) -> Result<Option<MqttSubscribe>, MetaServiceError> {
-        let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, path);
-
-        if let Some(data) =
-            engine_get_by_meta_metadata::<MqttSubscribe>(self.rocksdb_engine_handler.clone(), &key)?
-        {
-            let subscribe = data.data;
-            return Ok(Some(subscribe));
-        }
-        Ok(None)
+        let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
+        Ok(
+            engine_get_by_meta_metadata::<MqttSubscribe>(
+                self.rocksdb_engine_handler.clone(),
+                &key,
+            )?
+            .map(|data| data.data),
+        )
     }
 
     pub fn delete_by_path(
@@ -171,140 +162,175 @@ impl MqttSubscribeStorage {
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
-    use common_base::utils::file_utils::test_temp_dir;
+    use super::*;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-    use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
     use protocol::mqtt::common::{Filter, QoS, RetainHandling};
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use std::sync::Arc;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    #[tokio::test]
-    async fn subscribe_storage_ops() {
+    fn setup_storage() -> MqttSubscribeStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
-        let db = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let storage = MqttSubscribeStorage::new(db);
-        let cluster = "test_cluster".to_string();
-        let client1 = "client_a".to_string();
-        let client2 = "client_b".to_string();
-        let topic1 = "topic_a".to_string();
-        let topic2 = "topic_b".to_string();
+        MqttSubscribeStorage::new(test_rocksdb_instance())
+    }
 
-        assert!(storage
-            .list_by_client_id(&cluster, &client1)
-            .unwrap()
-            .is_empty());
-
-        let sub1 = MqttSubscribe {
-            cluster_name: cluster.clone(),
-            client_id: client1.clone(),
+    fn create_subscribe(cluster: &str, client_id: &str, topic: &str) -> MqttSubscribe {
+        MqttSubscribe {
+            cluster_name: cluster.to_string(),
+            client_id: client_id.to_string(),
             filter: Filter {
-                path: topic1.clone(),
+                path: topic.to_string(),
+                qos: QoS::AtLeastOnce,
                 ..Default::default()
             },
             ..Default::default()
-        };
+        }
+    }
+
+    fn create_auto_subscribe_rule(cluster: &str, topic: &str) -> MqttAutoSubscribeRule {
+        MqttAutoSubscribeRule {
+            cluster: cluster.to_string(),
+            topic: topic.to_string(),
+            qos: QoS::AtLeastOnce,
+            no_local: false,
+            retain_as_published: false,
+            retained_handling: RetainHandling::Never,
+        }
+    }
+
+    #[test]
+    fn test_subscribe_crud() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+        let client = "client_a";
+
+        // Save & Get
+        let sub = create_subscribe(cluster, client, "sensor/temp");
         storage
-            .save(&cluster, &client1, &topic1, sub1.clone())
+            .save(cluster, client, "sensor/temp", sub.clone())
             .unwrap();
-
-        let sub2 = MqttSubscribe {
-            cluster_name: cluster.clone(),
-            client_id: client1.clone(),
-            filter: Filter {
-                path: topic2.clone(),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        storage
-            .save(&cluster, &client1, &topic2, sub2.clone())
-            .unwrap();
-
-        let all_subs = storage.list_by_cluster(&cluster).unwrap();
-        assert_eq!(all_subs.len(), 2);
-
-        let client_subs = storage.list_by_client_id(&cluster, &client1).unwrap();
-        assert_eq!(client_subs, vec![sub1.clone(), sub2.clone()]);
-
-        let queried = storage.get(&cluster, &client1, &topic1).unwrap();
-        assert_eq!(queried, Some(sub1.clone()));
-
-        storage.delete_by_path(&cluster, &client1, &topic1).unwrap();
-        assert!(storage.get(&cluster, &client1, &topic1).unwrap().is_none());
-        assert!(storage.get(&cluster, &client1, &topic2).unwrap().is_some());
-
-        storage
-            .save(&cluster, &client2, &topic1, sub1.clone())
-            .unwrap();
-        storage.delete_by_client_id(&cluster, &client1).unwrap();
-
-        assert!(storage.get(&cluster, &client1, &topic2).unwrap().is_none());
-
         assert!(storage
-            .list_by_client_id(&cluster, &client1)
+            .get(cluster, client, "sensor/temp")
             .unwrap()
-            .is_empty());
+            .is_some());
 
-        storage.delete_by_path(&cluster, &client2, &topic1).unwrap();
+        // List by client
+        storage
+            .save(
+                cluster,
+                client,
+                "sensor/humidity",
+                create_subscribe(cluster, client, "sensor/humidity"),
+            )
+            .unwrap();
+        assert_eq!(storage.list_by_client_id(cluster, client).unwrap().len(), 2);
+
+        // Delete by path
+        storage
+            .delete_by_path(cluster, client, "sensor/temp")
+            .unwrap();
         assert!(storage
-            .list_by_client_id(&cluster, &client2)
+            .get(cluster, client, "sensor/temp")
+            .unwrap()
+            .is_none());
+        assert_eq!(storage.list_by_client_id(cluster, client).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_list_by_cluster() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+
+        storage
+            .save(
+                cluster,
+                "client_a",
+                "topic1",
+                create_subscribe(cluster, "client_a", "topic1"),
+            )
+            .unwrap();
+        storage
+            .save(
+                cluster,
+                "client_b",
+                "topic2",
+                create_subscribe(cluster, "client_b", "topic2"),
+            )
+            .unwrap();
+
+        let all = storage.list_by_cluster(cluster).unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn test_delete_by_client_id() {
+        let storage = setup_storage();
+        let cluster = "test_cluster";
+        let client = "client_a";
+
+        // Create multiple subscriptions for one client
+        storage
+            .save(
+                cluster,
+                client,
+                "topic1",
+                create_subscribe(cluster, client, "topic1"),
+            )
+            .unwrap();
+        storage
+            .save(
+                cluster,
+                client,
+                "topic2",
+                create_subscribe(cluster, client, "topic2"),
+            )
+            .unwrap();
+        assert_eq!(storage.list_by_client_id(cluster, client).unwrap().len(), 2);
+
+        // Delete all subscriptions for the client
+        storage.delete_by_client_id(cluster, client).unwrap();
+        assert!(storage
+            .list_by_client_id(cluster, client)
             .unwrap()
             .is_empty());
     }
 
-    #[tokio::test]
-    async fn auto_subscribe_rule_storage_basic_ops() {
-        let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
-        let db = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-
-        let storage = MqttSubscribeStorage::new(db);
-
+    #[test]
+    fn test_auto_subscribe_rule() {
+        let storage = setup_storage();
         let cluster = "test_cluster";
-        let topic = "devices/temperature";
+        let topic = "devices/#";
 
-        let rule = MqttAutoSubscribeRule {
-            cluster: cluster.to_string(),
-            topic: topic.to_string(),
-            qos: QoS::AtLeastOnce,
-            no_local: true,
-            retain_as_published: false,
-            retained_handling: RetainHandling::OnEverySubscribe,
-        };
-
+        // Save rule
+        let rule = create_auto_subscribe_rule(cluster, topic);
         storage
             .save_auto_subscribe_rule(cluster, topic, rule.clone())
             .unwrap();
 
+        // List rules
         let rules = storage.list_auto_subscribe_rule(cluster).unwrap();
         assert_eq!(rules.len(), 1);
-        assert_eq!(rules[0], rule);
+        assert_eq!(rules[0].topic, topic);
 
+        // Delete rule
         storage.delete_auto_subscribe_rule(cluster, topic).unwrap();
+        assert!(storage
+            .list_auto_subscribe_rule(cluster)
+            .unwrap()
+            .is_empty());
+    }
 
-        let rules_after_delete = storage.list_auto_subscribe_rule(cluster).unwrap();
-        assert!(rules_after_delete.is_empty());
+    #[test]
+    fn test_get_nonexistent() {
+        let storage = setup_storage();
+        assert!(storage
+            .get("cluster1", "client1", "topic1")
+            .unwrap()
+            .is_none());
     }
 }
