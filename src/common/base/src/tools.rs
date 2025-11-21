@@ -223,7 +223,10 @@ mod tests {
 
     #[test]
     fn get_local_ip_test() {
-        println!("{}", get_local_ip());
+        let ip_string = get_local_ip();
+        println!("{}", ip_string);
+        let parse_ip: std::net::IpAddr = ip_string.parse().unwrap();
+        assert!(parse_ip.is_ipv4() || parse_ip.is_ipv6());
     }
 
     #[test]

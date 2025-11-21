@@ -22,6 +22,7 @@ use crate::config::{
 use crate::storage::{StorageAdapterConfig, StorageAdapterType};
 use common_base::enum_type::delay_type::DelayType;
 use common_base::runtime::get_runtime_worker_threads;
+use common_base::tools::get_local_ip;
 use toml::Table;
 
 pub fn default_roles() -> Vec<String> {
@@ -38,6 +39,10 @@ pub fn default_broker_id() -> u64 {
 
 pub fn default_grpc_port() -> u32 {
     1228
+}
+
+pub fn default_broker_ip() -> Option<String> {
+    Some(get_local_ip())
 }
 
 pub fn default_http_port() -> u32 {
