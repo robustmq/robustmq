@@ -90,9 +90,37 @@ impl OffsetCacheManager {
             }
         }
 
+        let updates: DashMap<String, Vec<ShardOffset>> = DashMap::new();
+
         for group_raw in groups.iter() {
             let group = group_raw.key();
-            let _reply = self.offset_storage.get_offset(group).await?;
+            let local_offsets = group_raw.value();
+            let remote_offsets = self.offset_storage.get_offset(group).await?;
+
+            let mut remote_map = HashMap::new();
+            for remote_offset in remote_offsets {
+                let key = format!("{}:{}", remote_offset.namespace, remote_offset.shard_name);
+                remote_map.insert(key, remote_offset);
+            }
+
+            let mut group_updates = Vec::new();
+            for local_offset in local_offsets.iter() {
+                let key = format!("{}:{}", local_offset.namespace, local_offset.shard_name);
+
+                if let Some(remote_offset) = remote_map.get(&key) {
+                    if local_offset.offset > remote_offset.offset {
+                        group_updates.push(local_offset.clone());
+                    }
+                }
+            }
+
+            if !group_updates.is_empty() {
+                updates.insert(group.clone(), group_updates);
+            }
+        }
+
+        if !updates.is_empty() {
+            self.offset_storage.batch_commit_offset(&updates).await?;
         }
 
         Ok(())
