@@ -202,7 +202,7 @@ impl MqttBrokerServer {
         );
         tokio::spawn(async move {
             if let Err(e) = system_alarm.start().await {
-                error!("system alarm error:{}", e);
+                error!("Failed to start system alarm monitoring thread. System health alerts and notifications will not be sent. This is a non-critical error but monitoring capabilities are impaired. Error: {}", e);
             }
         });
     }
@@ -211,7 +211,7 @@ impl MqttBrokerServer {
         let server = self.server.clone();
         tokio::spawn(async move {
             if let Err(e) = server.start().await {
-                panic!("{}", e);
+                panic!("Failed to start MQTT broker server. This is a critical error that prevents the broker from accepting client connections. Error: {}", e);
             }
         });
     }
@@ -303,18 +303,18 @@ impl MqttBrokerServer {
             )
             .await
             {
-                panic!("{}", e.to_string());
+                panic!("Failed to start delay message manager for cluster '{}'. Delay message functionality will be unavailable. Check storage adapter connectivity and shard configuration. Error: {}", conf.cluster_name, e);
             }
         });
     }
 
     async fn start_init(&self) {
         if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
-            panic!("{}", e);
+            panic!("Failed to initialize system user during broker startup. This is required for internal system operations. Check meta service connectivity and authentication configuration. Error: {}", e);
         }
 
         if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
-            panic!("{}", e);
+            panic!("Failed to synchronize offset data between local cache and remote storage during startup. This may indicate storage adapter issues or data consistency problems. Error: {}", e);
         }
 
         if let Err(e) = load_metadata_cache(
@@ -326,7 +326,7 @@ impl MqttBrokerServer {
         )
         .await
         {
-            panic!("{}", e);
+            panic!("Failed to load metadata cache during broker initialization. This includes topics, users, ACLs, connectors, and schemas. Check meta service availability and network connectivity. Error: {}", e);
         }
     }
 
@@ -351,17 +351,17 @@ impl MqttBrokerServer {
                         )
                         .await
                         {
-                            error!("{}", e);
+                            error!("Failed to gracefully stop broker components (delay message manager or connection manager). Some resources may not be properly cleaned up. Error: {}", e);
                         }
                         info!("Service has been stopped successfully. Exiting the process.");
                     }
-                    Err(_) => {
-                        error!("Failed to send stop signal");
+                    Err(e) => {
+                        error!("Failed to broadcast internal stop signal to daemon threads. Some background tasks may not terminate properly. Error: {}", e);
                     }
                 }
             }
             Err(e) => {
-                error!("recv error {}", e);
+                error!("Failed to receive shutdown signal from main stop channel. The broker may not shutdown gracefully. Error: {}", e);
             }
         }
     }

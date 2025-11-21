@@ -16,11 +16,15 @@ use crate::{
     offset::{cache::OffsetCacheManager, storage::OffsetStorageManager},
     storage::ShardOffset,
 };
-use common_base::error::common::CommonError;
+use common_base::{
+    error::{common::CommonError, ResultCommonError},
+    tools::loop_select_ticket,
+};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::broadcast;
 
 pub mod cache;
 pub mod storage;
@@ -77,6 +81,18 @@ impl OffsetManager {
                 .await;
         }
         Ok(())
+    }
+
+    pub async fn offset_save_thread(&self, stop_sx: broadcast::Sender<bool>) {
+        if self.enable_cache {
+            let ac_fn = async || -> ResultCommonError {
+                self.offset_cache_storage
+                    .async_commit_offset_to_storage()
+                    .await
+            };
+
+            loop_select_ticket(ac_fn, 100, &stop_sx).await;
+        }
     }
 
     pub async fn get_offset(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {

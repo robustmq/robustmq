@@ -296,6 +296,13 @@ impl BrokerServer {
         server_runtime
             .spawn(async move { network_connection_gc(connection_manager, raw_stop_send).await });
 
+        // offset flush thread
+        let offset_cache = self.offset_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        server_runtime.spawn(async move {
+            offset_cache.offset_save_thread(raw_stop_send).await;
+        });
+
         // message expire
         let storage = self.mqtt_params.message_storage_adapter.clone();
         server_runtime.spawn(async move {

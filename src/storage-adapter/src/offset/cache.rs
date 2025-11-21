@@ -14,8 +14,7 @@
 
 use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
 use common_base::{
-    error::{common::CommonError, ResultCommonError},
-    tools::loop_select_ticket,
+    error::common::CommonError,
     utils::serialize::{deserialize, serialize},
 };
 use dashmap::DashMap;
@@ -25,7 +24,6 @@ use rocksdb_engine::{
     storage::{base::get_cf_handle, family::DB_COLUMN_FAMILY_BROKER},
 };
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::broadcast;
 
 #[derive(Clone)]
 pub struct OffsetCacheManager {
@@ -185,18 +183,6 @@ impl OffsetCacheManager {
     fn offset_key_prefix(&self) -> String {
         "/offset/".to_string()
     }
-}
-
-pub fn flush_commit_offset_thread(
-    offset_cache: Arc<OffsetCacheManager>,
-    stop_send: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        let ac_fn =
-            async || -> ResultCommonError { offset_cache.async_commit_offset_to_storage().await };
-
-        loop_select_ticket(ac_fn, 100, &stop_send).await;
-    });
 }
 
 #[cfg(test)]
