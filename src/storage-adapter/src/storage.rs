@@ -33,6 +33,7 @@ pub struct ShardInfo {
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct ShardOffset {
+    pub group: String,
     pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,

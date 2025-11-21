@@ -463,8 +463,8 @@ impl StorageAdapter for MemoryStorageAdapter {
                     return Ok(Some(ShardOffset {
                         namespace: namespace.to_string(),
                         shard_name: shard_name.to_string(),
-                        segment_no: 0,
                         offset,
+                        ..Default::default()
                     }));
                 }
             }
@@ -477,8 +477,8 @@ impl StorageAdapter for MemoryStorageAdapter {
                         return Ok(Some(ShardOffset {
                             namespace: namespace.to_string(),
                             shard_name: shard_name.to_string(),
-                            segment_no: 0,
                             offset,
+                            ..Default::default()
                         }));
                     }
                 }
