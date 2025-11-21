@@ -149,6 +149,7 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
             connection_manager.clone(),
             message_storage_adapter,
+            offset_manager.clone(),
         );
 
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
@@ -352,6 +353,7 @@ impl BrokerServer {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         connection_manager: Arc<NetworkConnectionManager>,
         message_storage_adapter: ArcStorageAdapter,
+        offset_manager: Arc<OffsetManager>,
     ) -> MqttBrokerServerParams {
         let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
@@ -382,6 +384,7 @@ impl BrokerServer {
             metrics_cache_manager,
             rocksdb_engine_handler,
             broker_cache,
+            offset_manager,
         }
     }
 

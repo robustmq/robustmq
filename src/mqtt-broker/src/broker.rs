@@ -42,6 +42,7 @@ use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
+use storage_adapter::offset::OffsetManager;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast::{self};
 use tracing::{error, info};
@@ -60,6 +61,7 @@ pub struct MqttBrokerServerParams {
     pub metrics_cache_manager: Arc<MQTTMetricsCache>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<BrokerCacheManager>,
+    pub offset_manager: Arc<OffsetManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -74,6 +76,7 @@ pub struct MqttBrokerServer {
     schema_manager: Arc<SchemaRegisterManager>,
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    offset_manager: Arc<OffsetManager>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
@@ -111,6 +114,7 @@ impl MqttBrokerServer {
             server,
             metrics_cache_manager: params.metrics_cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
+            offset_manager: params.offset_manager,
         }
     }
 
@@ -306,6 +310,10 @@ impl MqttBrokerServer {
 
     async fn start_init(&self) {
         if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
+            panic!("{}", e);
+        }
+
+        if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
             panic!("{}", e);
         }
 

@@ -69,6 +69,16 @@ impl OffsetManager {
         Ok(())
     }
 
+    pub async fn try_comparison_and_save_offset(&self) -> Result<(), CommonError> {
+        if self.enable_cache {
+            return self
+                .offset_cache_storage
+                .try_comparison_and_save_offset()
+                .await;
+        }
+        Ok(())
+    }
+
     pub async fn get_offset(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
         // Because the frequency of Get Offset is relatively low, to prevent inconsistent offset data
         // each time we obtain the offset, we need to retrieve it from the meta service.

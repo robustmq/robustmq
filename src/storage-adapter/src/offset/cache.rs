@@ -75,18 +75,21 @@ impl OffsetCacheManager {
 
     pub async fn try_comparison_and_save_offset(&self) -> Result<(), CommonError> {
         let key_prefix = self.offset_key_prefix();
-        let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
 
         let groups: DashMap<String, Vec<ShardOffset>> = DashMap::new();
-        for (_, val) in self
-            .rocksdb_engine_handler
-            .read_prefix(cf.clone(), &key_prefix)?
+
         {
-            let data = deserialize::<ShardOffset>(&val)?;
-            if let Some(mut raw) = groups.get_mut(&data.group) {
-                raw.push(data);
-            } else {
-                groups.insert(data.group.clone(), vec![data]);
+            let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
+            for (_, val) in self
+                .rocksdb_engine_handler
+                .read_prefix(cf.clone(), &key_prefix)?
+            {
+                let data = deserialize::<ShardOffset>(&val)?;
+                if let Some(mut raw) = groups.get_mut(&data.group) {
+                    raw.push(data);
+                } else {
+                    groups.insert(data.group.clone(), vec![data]);
+                }
             }
         }
 
