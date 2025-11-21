@@ -189,13 +189,16 @@ where
         .map_err(|e| Status::cancelled(CommonError::CommonError(e.to_string()).to_string()))
 }
 
-pub async fn loop_select_ticket<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
-where
+pub async fn loop_select_ticket<F, Fut>(
+    ac_fn: F,
+    tick_millis: u64,
+    stop_sx: &broadcast::Sender<bool>,
+) where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = ResultCommonError>,
 {
     let mut stop_recv = stop_sx.subscribe();
-    let mut internal = tokio::time::interval(Duration::from_secs(tick_secs));
+    let mut internal = tokio::time::interval(Duration::from_millis(tick_millis));
     loop {
         select! {
             val = stop_recv.recv() => {

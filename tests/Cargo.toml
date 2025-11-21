@@ -53,4 +53,6 @@ rustls.workspace = true
 quinn.workspace = true
 rustls-pemfile.workspace = true
 network-server.workspace = true
+storage-adapter.workspace = true
+rocksdb-engine.workspace = true
 futures-util = { workspace = true }

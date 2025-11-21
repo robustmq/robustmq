@@ -78,7 +78,7 @@ impl ShareLeaderPush {
             self.try_thread_gc();
             Ok(())
         };
-        loop_select_ticket(ac_fn, 3, &self.stop_sx).await;
+        loop_select_ticket(ac_fn, 3000, &self.stop_sx).await;
     }
 
     pub fn try_thread_gc(&self) {

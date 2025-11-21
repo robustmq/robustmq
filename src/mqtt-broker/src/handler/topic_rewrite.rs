@@ -35,7 +35,7 @@ pub async fn start_convert_thread(
         }
         Ok(())
     };
-    loop_select_ticket(ac_fn, 3, &stop_send).await;
+    loop_select_ticket(ac_fn, 3000, &stop_send).await;
 }
 
 pub async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {

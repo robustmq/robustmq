@@ -74,7 +74,7 @@ impl ClientKeepAlive {
 
     pub async fn start_heartbeat_check(&self) {
         let ac_fn = async || -> ResultCommonError { self.keep_alive().await };
-        loop_select_ticket(ac_fn, 1, &self.stop_send).await;
+        loop_select_ticket(ac_fn, 1000, &self.stop_send).await;
         info!("Heartbeat check thread stopped successfully.");
     }
 

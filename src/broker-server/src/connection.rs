@@ -28,5 +28,5 @@ pub async fn network_connection_gc(
     };
 
     info!("Network connection recovery thread has been successfully started.");
-    loop_select_ticket(ac_fn, 3, &stop_send).await;
+    loop_select_ticket(ac_fn, 3000, &stop_send).await;
 }

@@ -57,7 +57,7 @@ pub async fn clean_flapping_detect(
         Ok(())
     };
 
-    loop_select_ticket(ac_fn, 10, &stop_send).await;
+    loop_select_ticket(ac_fn, 10000, &stop_send).await;
 }
 
 pub async fn check_flapping_detect(

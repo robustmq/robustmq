@@ -72,7 +72,7 @@ impl ClusterController {
 
         loop_select_ticket(
             ac_fn,
-            config.meta_runtime.heartbeat_check_time_ms / 1000,
+            config.meta_runtime.heartbeat_check_time_ms,
             &self.stop_send,
         )
         .await;

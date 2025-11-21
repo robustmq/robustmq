@@ -106,7 +106,7 @@ impl SystemAlarm {
         };
 
         info!("System alarm thread start successfully");
-        loop_select_ticket(record_func, 60, &self.stop_send).await;
+        loop_select_ticket(record_func, 60000, &self.stop_send).await;
         Ok(())
     }
 

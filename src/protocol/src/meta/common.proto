@@ -169,8 +169,12 @@ message DeleteResourceConfigReply {}
 
 message SaveOffsetDataRequest {
   string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  string group = 2;
-  repeated SaveOffsetDataRequestOffset offsets = 3;
+  repeated SaveOffsetData offsets= 2;
+}
+
+message SaveOffsetData {
+  string group = 1;
+  repeated SaveOffsetDataRequestOffset offsets = 2;
 }
 
 message SaveOffsetDataRequestOffset {

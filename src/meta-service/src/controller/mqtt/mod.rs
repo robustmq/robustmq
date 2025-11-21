@@ -65,7 +65,7 @@ impl MqttController {
             self.check_start_thread().await;
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1, &self.stop_send).await;
+        loop_select_ticket(ac_fn, 1000, &self.stop_send).await;
     }
 
     pub async fn check_start_thread(&self) {
@@ -86,7 +86,7 @@ impl MqttController {
                     session.session_expire().await;
                     Ok(())
                 };
-                loop_select_ticket(ac_fn, 1, &stop_send).await;
+                loop_select_ticket(ac_fn, 1000, &stop_send).await;
             });
 
             // Periodically check if the session has expired
@@ -103,7 +103,7 @@ impl MqttController {
                     session.last_will_expire_send().await;
                     Ok(())
                 };
-                loop_select_ticket(ac_fn, 1, &stop_send).await;
+                loop_select_ticket(ac_fn, 1000, &stop_send).await;
             });
 
             // Whether the timed message expires
@@ -115,7 +115,7 @@ impl MqttController {
                     message.retain_message_expire().await;
                     Ok(())
                 };
-                loop_select_ticket(ac_fn, 1, &stop_send).await;
+                loop_select_ticket(ac_fn, 1000, &stop_send).await;
             });
 
             // Periodically detects whether a will message is sent
@@ -127,7 +127,7 @@ impl MqttController {
                     message.last_will_message_expire().await;
                     Ok(())
                 };
-                loop_select_ticket(ac_fn, 1, &stop_send).await;
+                loop_select_ticket(ac_fn, 1000, &stop_send).await;
             });
             self.thread_running_info.insert(cluster_name.clone(), true);
         }

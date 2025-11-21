@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::str;
+
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_flapping_detect,
     default_grpc_port, default_http_port, default_journal_runtime, default_journal_server,
@@ -19,7 +21,7 @@ use super::default::{
     default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
     default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
     default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
-    default_place_runtime, default_rocksdb, default_roles, default_runtime,
+    default_place_runtime, default_rocksdb, default_roles, default_runtime, default_storage_offset,
 };
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
@@ -122,6 +124,9 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_mqtt_system_monitor")]
     pub mqtt_system_monitor: MqttSystemMonitor,
+
+    #[serde(default = "default_storage_offset")]
+    pub storage_offset: StorageOffset,
 }
 
 impl BrokerConfig {
@@ -228,6 +233,11 @@ pub struct MqttSystemMonitor {
     pub os_cpu_high_watermark: f32,
 
     pub os_memory_high_watermark: f32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct StorageOffset {
+    pub enable_cache: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

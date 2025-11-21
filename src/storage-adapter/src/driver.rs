@@ -14,16 +14,15 @@
 
 use crate::{
     file::RocksDBStorageAdapter, journal::JournalStorageAdapter, memory::MemoryStorageAdapter,
-    minio::MinIoStorageAdapter, mysql::MySQLStorageAdapter, s3::S3StorageAdapter,
-    storage::ArcStorageAdapter,
+    minio::MinIoStorageAdapter, mysql::MySQLStorageAdapter, offset::OffsetManager,
+    s3::S3StorageAdapter, storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
 use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
-use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 
 pub async fn build_message_storage_driver(
-    client_pool: Arc<ClientPool>,
+    offset_manager: Arc<OffsetManager>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
@@ -32,7 +31,7 @@ pub async fn build_message_storage_driver(
         )),
 
         StorageAdapterType::Journal => Arc::new(
-            JournalStorageAdapter::new(client_pool, config.journal_config.unwrap_or_default())
+            JournalStorageAdapter::new(offset_manager, config.journal_config.unwrap_or_default())
                 .await?,
         ),
 

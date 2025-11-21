@@ -133,7 +133,7 @@ fn record_basic_metrics_thread(
 
             Ok(())
         };
-        loop_select_ticket(record_func, time_window, &stop_send).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
     });
 }
 
@@ -178,7 +178,7 @@ fn record_topic_metrics_thread(
 
             Ok(())
         };
-        loop_select_ticket(record_func, time_window, &stop_send).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
     });
 }
 
@@ -223,7 +223,7 @@ fn record_session_metrics_thread(
 
             Ok(())
         };
-        loop_select_ticket(record_func, time_window, &stop_send).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
     });
 }
 
@@ -290,7 +290,7 @@ fn record_connector_metrics_thread(
 
             Ok(())
         };
-        loop_select_ticket(record_func, time_window, &stop_send).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
     });
 }
 
@@ -445,7 +445,7 @@ fn record_subscribe_metrics_thread(
 
             Ok(())
         };
-        loop_select_ticket(record_func, time_window, &stop_send).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
     });
 }
 
