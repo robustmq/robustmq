@@ -7681,6 +7681,7 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
+ "tempfile",
  "third-driver",
  "thiserror 1.0.69",
  "tokio",

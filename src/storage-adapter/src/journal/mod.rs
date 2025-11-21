@@ -18,7 +18,6 @@ use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::journal::StorageDriverJournalConfig;
-use grpc_clients::pool::ClientPool;
 use journal_client::client::{JournalClient, JournalClientWriteData};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
@@ -27,15 +26,14 @@ use std::sync::Arc;
 
 pub struct JournalStorageAdapter {
     client: JournalClient,
-    offset_manager: OffsetManager,
+    offset_manager: Arc<OffsetManager>,
 }
 
 impl JournalStorageAdapter {
     pub async fn new(
-        client_pool: Arc<ClientPool>,
+        offset_manager: Arc<OffsetManager>,
         config: StorageDriverJournalConfig,
     ) -> Result<JournalStorageAdapter, CommonError> {
-        let offset_manager = OffsetManager::new(client_pool);
         let client = match JournalClient::new(config.journal_addrs.clone()).await {
             Ok(client) => client,
             Err(e) => return Err(CommonError::CommonError(e.to_string())),

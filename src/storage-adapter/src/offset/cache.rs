@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,
@@ -26,20 +27,19 @@ use rocksdb_engine::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 
-use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
-
-pub struct OffsetCache {
+#[derive(Clone)]
+pub struct OffsetCacheManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     group_update_flag: DashMap<String, bool>,
     offset_storage: OffsetStorageManager,
 }
 
-impl OffsetCache {
+impl OffsetCacheManager {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>, client_pool: Arc<ClientPool>) -> Self {
         let offset_storage = OffsetStorageManager::new(client_pool.clone());
-        OffsetCache {
+        OffsetCacheManager {
             rocksdb_engine_handler,
-            group_update_flag: DashMap::with_capacity(4),
+            group_update_flag: DashMap::with_capacity(64),
             offset_storage,
         }
     }
@@ -56,16 +56,16 @@ impl OffsetCache {
             let key = self.offset_key(group_name, namespace, shard_name);
             let shard_offset = ShardOffset {
                 namespace: namespace.to_string(),
-                shard_name: namespace.to_string(),
+                shard_name: shard_name.to_string(),
                 offset: *offset,
                 ..Default::default()
             };
 
             let val = serialize(&shard_offset)?;
             batch.put_cf(&cf, &key, val);
-            self.group_update_flag.insert(group_name.to_string(), true);
         }
         self.rocksdb_engine_handler.db.write(batch)?;
+        self.group_update_flag.insert(group_name.to_string(), true);
         Ok(())
     }
 
@@ -73,40 +73,78 @@ impl OffsetCache {
         self.async_commit_offset_to_storage().await
     }
 
+    pub async fn try_comparison_and_save_offset(&self) -> Result<(), CommonError> {
+        let key_prefix = self.offset_key_prefix();
+        let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
+        for (_, val) in self
+            .rocksdb_engine_handler
+            .read_prefix(cf.clone(), &key_prefix)?
+        {
+            let data = deserialize::<ShardOffset>(&val)?;
+        }
+        Ok(())
+    }
+
     pub async fn async_commit_offset_to_storage(&self) -> Result<(), CommonError> {
         let offsets = self.get_local_offset().await?;
-        self.offset_storage.batch_commit_offset(&offsets).await
+        if offsets.is_empty() {
+            return Ok(());
+        }
+
+        self.offset_storage.batch_commit_offset(&offsets).await?;
+
+        // Reset flags after successful commit
+        for entry in offsets.iter() {
+            self.group_update_flag.insert(entry.key().clone(), false);
+        }
+
+        Ok(())
     }
 
     pub async fn get_local_offset(&self) -> Result<DashMap<String, Vec<ShardOffset>>, CommonError> {
-        let results = DashMap::with_capacity(2);
-        for (group_name, flag) in self.group_update_flag.clone() {
+        let results = DashMap::with_capacity(16);
+        let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
+
+        for entry in self.group_update_flag.iter() {
+            let group_name = entry.key();
+            let flag = *entry.value();
+
             if !flag {
                 continue;
             }
-            let key_prefix = self.offset_key_prefix(&group_name);
-            let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
+
+            let key_prefix = self.offset_group_key_prefix(group_name);
             let mut group_data = Vec::new();
-            for (_, val) in self.rocksdb_engine_handler.read_prefix(cf, &key_prefix)? {
+            for (_, val) in self
+                .rocksdb_engine_handler
+                .read_prefix(cf.clone(), &key_prefix)?
+            {
                 let data = deserialize::<ShardOffset>(&val)?;
                 group_data.push(data);
             }
-            results.insert(group_name, group_data);
+
+            if !group_data.is_empty() {
+                results.insert(group_name.clone(), group_data);
+            }
         }
         Ok(results)
     }
 
     fn offset_key(&self, group_name: &str, namespace: &str, shard_name: &str) -> String {
-        format!("/offset/{}/{}/{}", group_name, namespace, shard_name)
+        format!("/offset/{group_name}/{namespace}/{shard_name}")
     }
 
-    fn offset_key_prefix(&self, group_name: &str) -> String {
-        format!("/offset/{}/", group_name)
+    fn offset_group_key_prefix(&self, group_name: &str) -> String {
+        format!("/offset/{group_name}/")
+    }
+
+    fn offset_key_prefix(&self) -> String {
+        "/offset/".to_string()
     }
 }
 
 pub fn flush_commit_offset_thread(
-    offset_cache: Arc<OffsetCache>,
+    offset_cache: Arc<OffsetCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
@@ -115,4 +153,56 @@ pub fn flush_commit_offset_thread(
 
         loop_select_ticket(ac_fn, 100, &stop_send).await;
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use grpc_clients::pool::ClientPool;
+    use rocksdb_engine::test::test_rocksdb_instance;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_commit_and_get_local_offset() {
+        let rocksdb = test_rocksdb_instance();
+        let client_pool = Arc::new(ClientPool::new(10));
+        let cache = OffsetCacheManager::new(rocksdb, client_pool);
+
+        let group_name = "test_group";
+        let namespace = "test_namespace";
+        let mut offsets = HashMap::new();
+        offsets.insert("shard_1".to_string(), 100u64);
+        offsets.insert("shard_2".to_string(), 200u64);
+
+        // Test commit_offset
+        cache
+            .commit_offset(group_name, namespace, &offsets)
+            .await
+            .unwrap();
+
+        // Verify flag is set
+        assert_eq!(
+            cache.group_update_flag.get(group_name).map(|r| *r.value()),
+            Some(true)
+        );
+
+        // Test get_local_offset
+        let local_offsets = cache.get_local_offset().await.unwrap();
+        assert_eq!(local_offsets.len(), 1);
+        assert!(local_offsets.contains_key(group_name));
+
+        let group_offsets = local_offsets.get(group_name).unwrap();
+        assert_eq!(group_offsets.len(), 2);
+
+        // Verify offset values
+        for shard_offset in group_offsets.iter() {
+            assert_eq!(shard_offset.namespace, namespace);
+            match shard_offset.shard_name.as_str() {
+                "shard_1" => assert_eq!(shard_offset.offset, 100),
+                "shard_2" => assert_eq!(shard_offset.offset, 200),
+                _ => panic!("Unexpected shard name"),
+            }
+        }
+    }
 }

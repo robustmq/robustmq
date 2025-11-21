@@ -66,6 +66,7 @@ use std::{
 use storage_adapter::{
     driver::build_message_storage_driver,
     expire::{message_expire_thread, MessageExpireConfig},
+    offset::OffsetManager,
     storage::ArcStorageAdapter,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
@@ -86,6 +87,7 @@ pub struct BrokerServer {
     rate_limiter_manager: Arc<RateLimiterManager>,
     connection_manager: Arc<NetworkConnectionManager>,
     broker_cache: Arc<BrokerCacheManager>,
+    offset_manager: Arc<OffsetManager>,
     config: BrokerConfig,
 }
 
@@ -120,10 +122,15 @@ impl BrokerServer {
             .await
         });
 
-        let raw_client_pool = client_pool.clone();
+        let offset_manager = Arc::new(OffsetManager::new(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+        ));
+
+        let raw_offset_manager = offset_manager.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
-                raw_client_pool.clone(),
+                raw_offset_manager.clone(),
                 config.message_storage.clone(),
             )
             .await
@@ -157,8 +164,10 @@ impl BrokerServer {
             rocksdb_engine_handler,
             rate_limiter_manager,
             connection_manager,
+            offset_manager,
         }
     }
+
     pub fn start(&self) {
         // start grpc server
         let place_params = self.place_params.clone();
@@ -424,6 +433,13 @@ impl BrokerServer {
                     error!("mqtt stop signal, error message:{}", e);
                 }
                 sleep(Duration::from_secs(3));
+            }
+
+            if let Err(e) = self.offset_manager.flush().await {
+                error!(
+                    "Offset manager flush operation failed. Error message: {}",
+                    e
+                );
             }
 
             if let Some(sx) = journal_stop {
