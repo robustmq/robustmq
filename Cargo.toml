@@ -216,7 +216,7 @@ ipnet = "2.3.0"
 reqwest = { version = "0.12.23", features = ["json"] }
 tempfile = "3.9.0"
 chrono = "0.4.41"
-bson = "2.9"
+bson = "3.1"
 strum = "0.27"
 strum_macros = "0.27"
 governor = "0.10.1"
