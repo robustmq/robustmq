@@ -38,6 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     name: license-header-check
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Check License Header
       uses: korandoru/hawkeye@v5

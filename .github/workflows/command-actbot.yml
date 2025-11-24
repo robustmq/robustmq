@@ -28,7 +28,7 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: ShyunnY/actbot@v0.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
