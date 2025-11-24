@@ -76,7 +76,7 @@ toml = "0.8.8"
 # ====================
 # Web Framework (Axum)
 # ====================
-axum = { version = "0.7.2", features = ["ws", "http1", "http2"] }
+axum = { version = "0.8.7", features = ["ws", "http1", "http2"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 hyper = { version = "1.6.0", features = ["server", "http1"] }
