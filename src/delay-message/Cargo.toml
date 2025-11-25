@@ -20,9 +20,6 @@ license.workspace = true
 
 
 [dependencies]
-bytes.workspace = true
-axum.workspace = true
-thiserror.workspace = true
 common-base.workspace = true
 storage-adapter.workspace = true
 metadata-struct.workspace = true
@@ -31,6 +28,4 @@ tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
 futures.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 common-metrics.workspace = true

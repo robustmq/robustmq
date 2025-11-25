@@ -35,17 +35,10 @@ path = "src/cli-bench/bench.rs"
 clap.workspace = true
 common-base.workspace = true
 common-config.workspace = true
-lazy_static.workspace = true
 tokio.workspace = true
-journal-server.workspace = true
 cli-command.workspace = true
 cli-bench.workspace = true
-clap-cargo.workspace = true
-protocol.workspace = true
-console-subscriber.workspace = true
 broker-server.workspace = true
-metadata-struct.workspace = true
-admin-server.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

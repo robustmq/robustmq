@@ -19,9 +19,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-thiserror.workspace = true
 serde.workspace = true
 common-base.workspace = true
 serde_json.workspace = true
-tracing.workspace = true
 toml.workspace = true

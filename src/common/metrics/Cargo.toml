@@ -28,6 +28,3 @@ common-base.workspace = true
 prometheus-client.workspace = true
 protocol.workspace = true
 metadata-struct.workspace = true
-dashmap.workspace = true
-serde.workspace = true
-serde_json.workspace = true

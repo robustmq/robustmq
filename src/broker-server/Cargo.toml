@@ -20,9 +20,7 @@ license.workspace = true
 
 
 [dependencies]
-bytes.workspace = true
 axum.workspace = true
-thiserror.workspace = true
 mqtt-broker.workspace = true
 meta-service.workspace = true
 tonic.workspace = true
@@ -33,7 +31,6 @@ common-base.workspace = true
 tower.workspace = true
 protocol.workspace = true
 common-config.workspace = true
-openraft.workspace = true
 grpc-clients.workspace = true
 tracing-appender.workspace = true
 delay-message.workspace = true

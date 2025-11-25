@@ -20,20 +20,12 @@ license.workspace = true
 
 
 [dependencies]
-bytes.workspace = true
-axum.workspace = true
-thiserror.workspace = true
-grpc-clients.workspace = true
 common-base.workspace = true
 common-config.workspace = true
-metadata-struct.workspace = true
-protocol.workspace = true
 serde_json.workspace = true
 prettytable-rs.workspace = true
 tokio.workspace = true
 paho-mqtt.workspace = true
-reqwest.workspace = true
-serde.workspace = true
 admin-server.workspace = true
 clap.workspace = true
 clap-cargo.workspace = true

@@ -21,7 +21,6 @@ license.workspace = true
 [dependencies]
 common-base.workspace = true
 common-config.workspace = true
-common-metrics.workspace = true
 grpc-clients.workspace = true
 metadata-struct.workspace = true
 protocol.workspace = true
@@ -30,5 +29,3 @@ serde_json.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-rocksdb-engine.workspace = true
-openraft.workspace = true
