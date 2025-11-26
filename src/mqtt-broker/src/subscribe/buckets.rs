@@ -13,11 +13,9 @@
 // limitations under the License.
 
 use std::sync::{atomic::AtomicU32, Arc};
-
 use dashmap::DashMap;
 use serde::Serialize;
 use tokio::sync::broadcast::Sender;
-
 use crate::subscribe::common::Subscriber;
 
 #[derive(Clone, Serialize)]
@@ -107,6 +105,7 @@ impl BucketsManager {
 
     // data list
     fn add_data_list(&self, seq: u32, subscriber: &Subscriber) {
+
         for row in self.buckets_data_list.iter() {
             if row.len() as u32 >= self.bucket_size {
                 continue;
@@ -136,9 +135,5 @@ impl BucketsManager {
 
     fn client_sub_path_key(&self, client_id: &str, sub_path: &str) -> String {
         format!("{client_id}_{sub_path}")
-    }
-
-    fn client_key(&self, client_id: &str, sub_path: &str, topic_name: &str) -> String {
-        format!("{client_id}_{sub_path}_{topic_name}")
     }
 }
