@@ -1399,7 +1399,6 @@ dependencies = [
  "console-subscriber",
  "crc32fast",
  "governor",
- "lazy_static",
  "local-ip-address",
  "opendal",
  "prometheus",
