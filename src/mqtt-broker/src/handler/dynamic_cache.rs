@@ -17,11 +17,15 @@ use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
+use crate::handler::subscribe::{
+    actually_execute_add_subscribe, actually_execute_remove_subscribe,
+};
 use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::parse::parse_subscribe_by_new_topic;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
@@ -135,6 +139,7 @@ pub async fn update_cache_metadata(
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
+    client_pool: &Arc<ClientPool>,
     request: UpdateMqttCacheRequest,
 ) -> ResultMqttBrokerError {
     match request.resource_type() {
@@ -180,18 +185,27 @@ pub async fn update_cache_metadata(
         MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
-                subscribe_manager.add_subscribe(subscribe);
+                actually_execute_add_subscribe(
+                    subscribe_manager,
+                    &cache_manager,
+                    client_pool,
+                    &subscribe,
+                )
+                .await?;
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
-                subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path);
+                actually_execute_remove_subscribe(subscribe_manager, &subscribe).await?;
             }
         },
         MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
+                parse_subscribe_by_new_topic(client_pool, cache_manager, subscribe_manager, &topic)
+                    .await?;
             }
+
             MqttBrokerUpdateCacheActionType::Delete => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 delete_topic(
@@ -202,6 +216,7 @@ pub async fn update_cache_metadata(
                     metrics_manager,
                 )
                 .await?;
+                // todo parse_subscribe_by_delete_topic
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {

@@ -22,7 +22,10 @@ use crate::{
 };
 use axum::{extract::State, Json};
 use common_base::utils::serialize;
-use mqtt_broker::subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData};
+use mqtt_broker::{
+    handler::sub_share::{decode_share_info, is_mqtt_share_subscribe, is_share_sub_leader},
+    subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData},
+};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -162,13 +165,10 @@ use common_base::{
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,
 };
-use metadata_struct::mqtt::{
-    auto_subscribe_rule::MqttAutoSubscribeRule, subscribe_data::is_mqtt_share_subscribe,
-};
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use mqtt_broker::{
     handler::error::MqttBrokerError,
     storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage},
-    subscribe::common::{decode_share_group_and_path, get_share_sub_leader, is_share_sub_leader},
 };
 use protocol::mqtt::common::{qos, retain_forward_rule};
 use std::sync::Arc;
@@ -188,10 +188,11 @@ pub async fn subscribe_list(
     );
 
     let mut subscribes = Vec::new();
-    for (_, sub) in state.mqtt_context.subscribe_manager.list_subscribe() {
+    for raw in state.mqtt_context.subscribe_manager.subscribe_list.iter() {
+        let sub = raw.value();
         subscribes.push(SubscribeListRow {
             broker_id: sub.broker_id,
-            client_id: sub.client_id,
+            client_id: sub.client_id.clone(),
             create_time: timestamp_to_local_datetime(sub.create_time as i64),
             no_local: if sub.filter.nolocal { 1 } else { 0 },
             path: sub.path.clone(),
@@ -228,7 +229,7 @@ pub async fn subscribe_detail(
     Json(params): Json<SubscribeDetailReq>,
 ) -> String {
     if is_mqtt_share_subscribe(&params.path) {
-        let (group, _) = decode_share_group_and_path(&params.path);
+        let (group, _) = decode_share_info(&params.path);
         let leader = match is_share_sub_leader(&state.client_pool, &group).await {
             Ok(data) => data,
             Err(e) => {
@@ -281,47 +282,44 @@ async fn exclusive_sub_detail(
     params: &SubscribeDetailReq,
 ) -> Result<Vec<SubTopicRaw>, MqttBrokerError> {
     let mut topic_list: Vec<SubTopicRaw> = Vec::new();
-    for topic_name in state
-        .mqtt_context
-        .subscribe_manager
-        .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
-    {
-        let key = state.mqtt_context.subscribe_manager.exclusive_key(
-            &params.client_id,
-            &params.path,
-            &topic_name,
-        );
+    // for topic_name in state
+    //     .mqtt_context
+    //     .subscribe_manager
+    //     .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
+    // {
+    //     let key = state.mqtt_context.subscribe_manager.exclusive_key(
+    //         &params.client_id,
+    //         &params.path,
+    //         &topic_name,
+    //     );
 
-        let push_data = state
-            .mqtt_context
-            .subscribe_manager
-            .get_exclusive_push(&key);
+    //     let push_data = state.mqtt_context.subscribe_manager.get_directly_push(&key);
 
-        let push_thread = if let Some(data) = state
-            .mqtt_context
-            .subscribe_manager
-            .get_exclusive_push_thread(&key)
-        {
-            Some(SubPushThreadDataRaw {
-                push_error_record_num: data.push_error_record_num,
-                push_success_record_num: data.push_success_record_num,
-                last_push_time: data.last_push_time,
-                last_run_time: data.last_run_time,
-                create_time: data.create_time,
-            })
-        } else {
-            None
-        };
+    //     let push_thread = if let Some(data) = state
+    //         .mqtt_context
+    //         .subscribe_manager
+    //         .get_directly_push_thread(&key)
+    //     {
+    //         Some(SubPushThreadDataRaw {
+    //             push_error_record_num: data.push_error_record_num,
+    //             push_success_record_num: data.push_success_record_num,
+    //             last_push_time: data.last_push_time,
+    //             last_run_time: data.last_run_time,
+    //             create_time: data.create_time,
+    //         })
+    //     } else {
+    //         None
+    //     };
 
-        topic_list.push(SubTopicRaw {
-            client_id: params.client_id.clone(),
-            path: params.path.clone(),
-            topic_name,
-            exclusive_push_data: push_data,
-            share_push_data: None,
-            push_thread,
-        });
-    }
+    //     topic_list.push(SubTopicRaw {
+    //         client_id: params.client_id.clone(),
+    //         path: params.path.clone(),
+    //         topic_name,
+    //         exclusive_push_data: push_data,
+    //         share_push_data: None,
+    //         push_thread,
+    //     });
+    // }
 
     Ok(topic_list)
 }
@@ -330,71 +328,69 @@ async fn share_sub_detail(
     state: &Arc<HttpState>,
     params: &SubscribeDetailReq,
 ) -> Result<(Vec<SubTopicRaw>, SubGroupLeaderRaw), CommonError> {
-    let (group, sub_name) = decode_share_group_and_path(&params.path);
-    let mut topic_list = Vec::new();
+    Err(CommonError::ClusterNoAvailableNode)
+    // let (group, sub_name) = decode_share_group_and_path(&params.path);
+    // let mut topic_list = Vec::new();
 
-    // topic list
-    for topic_name in state
-        .mqtt_context
-        .subscribe_manager
-        .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
-    {
-        let key =
-            state
-                .mqtt_context
-                .subscribe_manager
-                .share_leader_key(&group, &sub_name, &topic_name);
+    // // topic list
+    // for topic_name in state
+    //     .mqtt_context
+    //     .subscribe_manager
+    //     .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
+    // {
+    //     let key =
+    //         state
+    //             .mqtt_context
+    //             .subscribe_manager
+    //             .share_leader_key(&group, &sub_name, &topic_name);
 
-        let push_thread = if let Some(data) = state
-            .mqtt_context
-            .subscribe_manager
-            .get_share_leader_push_thread(&key)
-        {
-            Some(SubPushThreadDataRaw {
-                push_error_record_num: data.push_error_record_num,
-                push_success_record_num: data.push_success_record_num,
-                last_push_time: data.last_push_time,
-                last_run_time: data.last_run_time,
-                create_time: data.create_time,
-            })
-        } else {
-            None
-        };
+    //     let push_thread = if let Some(data) = state
+    //         .mqtt_context
+    //         .subscribe_manager
+    //         .get_leader_push_thread(&key)
+    //     {
+    //         Some(SubPushThreadDataRaw {
+    //             push_error_record_num: data.push_error_record_num,
+    //             push_success_record_num: data.push_success_record_num,
+    //             last_push_time: data.last_push_time,
+    //             last_run_time: data.last_run_time,
+    //             create_time: data.create_time,
+    //         })
+    //     } else {
+    //         None
+    //     };
 
-        let leader_push_data = state
-            .mqtt_context
-            .subscribe_manager
-            .get_share_leader_push(&key);
+    //     let leader_push_data = state.mqtt_context.subscribe_manager.get_share_push(&key);
 
-        topic_list.push(SubTopicRaw {
-            client_id: params.client_id.clone(),
-            path: params.path.clone(),
-            topic_name,
-            exclusive_push_data: None,
-            share_push_data: leader_push_data,
-            push_thread,
-        });
-    }
+    //     topic_list.push(SubTopicRaw {
+    //         client_id: params.client_id.clone(),
+    //         path: params.path.clone(),
+    //         topic_name,
+    //         exclusive_push_data: None,
+    //         share_push_data: leader_push_data,
+    //         push_thread,
+    //     });
+    // }
 
-    // group info
-    let (group, _) = decode_share_group_and_path(&params.path);
-    let reply = get_share_sub_leader(&state.client_pool, &group).await?;
-    use metadata_struct::mqtt::node_extend::MqttNodeExtend;
+    // // group info
+    // let (group, _) = decode_share_group_and_path(&params.path);
+    // let reply = get_share_sub_leader(&state.client_pool, &group).await?;
+    // use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 
-    let extend_info_str = if !reply.extend_info.is_empty() {
-        let extend: MqttNodeExtend = serialize::deserialize(&reply.extend_info)?;
-        serde_json::to_string(&extend).unwrap_or_default()
-    } else {
-        String::new()
-    };
+    // let extend_info_str = if !reply.extend_info.is_empty() {
+    //     let extend: MqttNodeExtend = serialize::deserialize(&reply.extend_info)?;
+    //     serde_json::to_string(&extend).unwrap_or_default()
+    // } else {
+    //     String::new()
+    // };
 
-    let group_leader_info: SubGroupLeaderRaw = SubGroupLeaderRaw {
-        broker_addr: reply.broker_addr.clone(),
-        broker_id: reply.broker_id,
-        extend_info: extend_info_str,
-    };
+    // let group_leader_info: SubGroupLeaderRaw = SubGroupLeaderRaw {
+    //     broker_addr: reply.broker_addr.clone(),
+    //     broker_id: reply.broker_id,
+    //     extend_info: extend_info_str,
+    // };
 
-    Ok((topic_list, group_leader_info))
+    // Ok((topic_list, group_leader_info))
 }
 
 pub async fn auto_subscribe_list(

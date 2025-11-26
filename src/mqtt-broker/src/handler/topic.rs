@@ -198,7 +198,7 @@ pub async fn delete_topic(
 
     cache_manager.delete_topic(topic_name);
     metrics_manager.remove_topic(topic_name)?;
-    subscribe_manager.remove_topic(topic_name);
+    subscribe_manager.remove_by_topic(topic_name);
     Ok(())
 }
 

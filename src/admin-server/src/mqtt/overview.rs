@@ -95,14 +95,13 @@ async fn cluster_overview_by_req(
         connector_thread_num: connector_manager.connector_thread.len() as u32,
         connection_num: connection_manager.connections.len() as u32,
         session_num: cache_manager.session_info.len() as u32,
-        subscribe_num: subscribe_manager.subscribe_list_len() as u32,
-        exclusive_subscribe_num: subscribe_manager.exclusive_push_len() as u32,
-        exclusive_subscribe_thread_num: subscribe_manager.exclusive_push_thread_len() as u32,
-        share_subscribe_leader_num: subscribe_manager.share_leader_push_len() as u32,
-        share_subscribe_leader_thread_num: subscribe_manager.share_leader_push_thread_len() as u32,
-        share_subscribe_resub_num: subscribe_manager.share_follower_resub_len() as u32,
-        share_subscribe_follower_thread_num: subscribe_manager.share_follower_resub_thread_len()
-            as u32,
+        subscribe_num: subscribe_manager.subscribe_list.len() as u32,
+        exclusive_subscribe_num: 0, //subscribe_manager.directly_sub_manager.len() as u32,
+        exclusive_subscribe_thread_num: 0, // subscribe_manager.directly_push_thread_len() as u32,
+        share_subscribe_leader_num: 0, //subscribe_manager.share_push_len() as u32,
+        share_subscribe_leader_thread_num: 0, //subscribe_manager.share_push_thread_len() as u32,
+        share_subscribe_resub_num: 0,
+        share_subscribe_follower_thread_num: 0,
         topic_num: cache_manager.topic_info.len() as u32,
         node_list,
         placement_status,
@@ -111,7 +110,6 @@ async fn cluster_overview_by_req(
         websocket_connection_num: connection_manager.websocket_write_list.len() as u32,
         quic_connection_num: connection_manager.quic_write_list.len() as u32,
     };
-    let _ = subscribe_manager.snapshot_info();
 
     Ok(reply)
 }

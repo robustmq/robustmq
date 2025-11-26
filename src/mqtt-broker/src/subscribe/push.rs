@@ -594,9 +594,3 @@ where
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn topic_subscribe_test() {}
-}

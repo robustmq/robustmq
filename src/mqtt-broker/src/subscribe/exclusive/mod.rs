@@ -91,10 +91,10 @@ impl ExclusivePush {
     async fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
-        for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread_list() {
+        for (exclusive_key, sx) in self.subscribe_manager.directly_push_thread_list() {
             if !self
                 .subscribe_manager
-                .contain_exclusive_push(&exclusive_key)
+                .contain_directly_push(&exclusive_key)
             {
                 if let Err(e) = sx.sender.send(true) {
                     error!(
@@ -103,7 +103,7 @@ impl ExclusivePush {
                     );
                 }
                 self.subscribe_manager
-                    .remove_exclusive_push_thread(&exclusive_key);
+                    .remove_directly_push_thread(&exclusive_key);
             }
         }
     }
@@ -111,10 +111,10 @@ impl ExclusivePush {
     // Handles exclusive subscription push tasks
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
-        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_push_list() {
+        for (exclusive_key, subscriber) in self.subscribe_manager.directly_push_list() {
             if self
                 .subscribe_manager
-                .contain_exclusive_push_thread(&exclusive_key)
+                .contain_directly_push_thread(&exclusive_key)
             {
                 continue;
             }
@@ -129,7 +129,7 @@ impl ExclusivePush {
             let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
 
             // Subscribe to the data push thread
-            self.subscribe_manager.add_exclusive_push_thread(
+            self.subscribe_manager.add_directly_push_thread(
                 exclusive_key.clone(),
                 SubPushThreadData {
                     push_success_record_num: 0,
@@ -153,7 +153,7 @@ impl ExclusivePush {
                     Ok(offset) => offset,
                     Err(e) => {
                         error!("{}", e);
-                        subscribe_manager.remove_exclusive_push_thread(&exclusive_key);
+                        subscribe_manager.remove_directly_push_thread(&exclusive_key);
                         return;
                     }
                 };
@@ -170,7 +170,7 @@ impl ExclusivePush {
                                         subscriber.topic_name
                                     );
 
-                                    subscribe_manager.remove_exclusive_push_thread(&exclusive_key);
+                                    subscribe_manager.remove_directly_push_thread(&exclusive_key);
                                     break;
                                 }
                             }
@@ -337,7 +337,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         }
     }
 
-    context.subscribe_manager.update_exclusive_push_thread_info(
+    context.subscribe_manager.update_directly_push_thread_info(
         &context.exclusive_key.clone(),
         success_num as u64,
         error_num as u64,

@@ -40,6 +40,7 @@ pub async fn update_cache_by_req(
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
+    client_pool: &Arc<ClientPool>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
     let conf = broker_config();
@@ -54,6 +55,7 @@ pub async fn update_cache_by_req(
         schema_manager,
         message_storage_adapter,
         metrics_manager,
+        client_pool,
         req.clone(),
     )
     .await?;
@@ -80,7 +82,7 @@ pub async fn delete_session_by_req(
     }
 
     for client_id in req.client_id.iter() {
-        subscribe_manager.remove_client_id(client_id);
+        subscribe_manager.remove_by_client_id(client_id);
         cache_manager.remove_session(client_id);
     }
     record_mqtt_session_deleted();

@@ -33,7 +33,7 @@ use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::ArcStorageAdapter;
 
 pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str) -> bool {
-    subscribe_manager.contain_topic_subscribe(topic)
+    subscribe_manager.topic_subscribes.contains_key(topic)
 }
 
 #[derive(Clone)]

@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::handler::{
-    flapping_detect::BanLog, slow_subscribe::SlowSubscribeData,
-    system_alarm::SystemAlarmEventMessage,
+    flapping_detect::BanLog, sub_slow::SlowSubscribeData, system_alarm::SystemAlarmEventMessage,
 };
 
 pub fn system_event_key(alarm: &SystemAlarmEventMessage) -> String {

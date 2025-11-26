@@ -14,7 +14,23 @@
 
 pub mod common;
 pub mod directly;
-pub mod exclusive;
+// pub mod exclusive;
 pub mod manager;
 pub mod push;
-pub mod share;
+// pub mod share;
+pub mod buckets;
+pub mod parse;
+
+pub struct PushManager {}
+
+impl PushManager {
+    pub fn new() -> Self {
+        PushManager {}
+    }
+
+    pub async fn start(&self) {
+        // start directly push
+
+        // start share push
+    }
+}

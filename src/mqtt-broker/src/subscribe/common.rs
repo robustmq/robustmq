@@ -15,15 +15,11 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
+use crate::handler::sub_share::{decode_share_info, is_mqtt_share_subscribe};
+use crate::handler::sub_wildcards::is_wildcards;
 use crate::storage::message::MessageStorage;
-use common_base::error::common::CommonError;
 use common_base::error::not_record_error;
-use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
-use common_config::broker::broker_config;
-use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
-use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use protocol::mqtt::common::{
     Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
 };
@@ -32,20 +28,14 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-const SUBSCRIBE_WILDCARDS_1: &str = "+";
-const SUBSCRIBE_WILDCARDS_2: &str = "#";
-const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
-const SUBSCRIBE_NAME_REGEX: &str = r"^[\$a-zA-Z0-9_#+/]+$";
-pub const SHARE_QUEUE_DEFAULT_GROUP_NAME: &str = "$queue_group_robustmq";
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
-    pub protocol: MqttProtocol,
     pub client_id: String,
     pub sub_path: String,
     pub rewrite_sub_path: Option<String>,
     pub topic_name: String,
     pub group_name: Option<String>,
+    pub protocol: MqttProtocol,
     pub qos: QoS,
     pub nolocal: bool,
     pub preserve_retain: bool,
@@ -106,29 +96,6 @@ pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
     true
 }
 
-pub fn sub_path_validator(sub_path: &str) -> ResultMqttBrokerError {
-    let regex = Regex::new(SUBSCRIBE_NAME_REGEX)?;
-
-    if !regex.is_match(sub_path) {
-        return Err(MqttBrokerError::InvalidSubPath(sub_path.to_owned()));
-    }
-
-    for path in sub_path.split(SUBSCRIBE_SPLIT_DELIMITER) {
-        if path.contains(SUBSCRIBE_WILDCARDS_1) && path != SUBSCRIBE_WILDCARDS_1 {
-            return Err(MqttBrokerError::InvalidSubPath(sub_path.to_owned()));
-        }
-        if path.contains(SUBSCRIBE_WILDCARDS_2) && path != SUBSCRIBE_WILDCARDS_2 {
-            return Err(MqttBrokerError::InvalidSubPath(sub_path.to_owned()));
-        }
-    }
-
-    Ok(())
-}
-
-pub fn is_wildcards(sub_path: &str) -> bool {
-    sub_path.contains(SUBSCRIBE_WILDCARDS_1) || sub_path.contains(SUBSCRIBE_WILDCARDS_2)
-}
-
 pub fn is_match_sub_and_topic(sub_path: &str, topic: &str) -> ResultMqttBrokerError {
     let path = decode_sub_path(sub_path);
     let topic_name = decode_sub_path(topic);
@@ -176,11 +143,9 @@ pub fn build_sub_path_regex(sub_path: &str) -> Result<Regex, MqttBrokerError> {
 }
 
 pub fn decode_sub_path(sub_path: &str) -> String {
-    if is_mqtt_share_sub(sub_path) {
+    if is_mqtt_share_subscribe(sub_path) {
         let (_, group_path) = decode_share_info(sub_path);
         group_path
-    } else if is_mqtt_queue_sub(sub_path) {
-        decode_queue_info(sub_path)
     } else if is_exclusive_sub(sub_path) {
         decode_exclusive_sub_path_to_topic_name(sub_path).to_owned()
     } else {
@@ -219,57 +184,6 @@ pub async fn get_sub_topic_name_list(
     result
 }
 
-pub fn decode_share_group_and_path(path: &str) -> (String, String) {
-    if is_mqtt_queue_sub(path) {
-        (
-            SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
-            decode_queue_info(path),
-        )
-    } else {
-        decode_share_info(path)
-    }
-}
-
-fn decode_share_info(sub_path: &str) -> (String, String) {
-    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
-    str_slice.remove(0);
-    let group_name = str_slice.remove(0).to_string();
-    let sub_path = format!("/{}", str_slice.join("/"));
-    (group_name, sub_path)
-}
-
-fn decode_queue_info(sub_path: &str) -> String {
-    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
-    str_slice.remove(0);
-    format!("/{}", str_slice.join("/"))
-}
-
-pub async fn is_share_sub_leader(
-    client_pool: &Arc<ClientPool>,
-    group_name: &String,
-) -> Result<bool, CommonError> {
-    let conf = broker_config();
-    let req = GetShareSubLeaderRequest {
-        cluster_name: conf.cluster_name.to_owned(),
-        group_name: group_name.to_owned(),
-    };
-    let reply =
-        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
-    Ok(reply.broker_id == conf.broker_id)
-}
-
-pub async fn get_share_sub_leader(
-    client_pool: &Arc<ClientPool>,
-    group_name: &String,
-) -> Result<GetShareSubLeaderReply, CommonError> {
-    let conf = broker_config();
-    let req = GetShareSubLeaderRequest {
-        cluster_name: conf.cluster_name.to_owned(),
-        group_name: group_name.to_owned(),
-    };
-    placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await
-}
-
 pub async fn loop_commit_offset(
     message_storage: &MessageStorage,
     topic_name: &str,
@@ -301,10 +215,9 @@ pub fn is_error_by_suback(suback: &SubAck) -> bool {
 mod tests {
     use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::{
-        build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
-        get_sub_topic_name_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,
+        build_sub_path_regex, decode_share_info, decode_sub_path, get_sub_topic_name_list,
+        is_match_sub_and_topic, is_wildcards, min_qos,
     };
-    use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
 
@@ -313,12 +226,6 @@ mod tests {
         assert!(!is_wildcards("/test/t1"));
         assert!(is_wildcards("/test/+"));
         assert!(is_wildcards("/test/#"));
-    }
-
-    #[tokio::test]
-    async fn decode_queue_info_test() {
-        let res = decode_queue_info("$queue/vvv/v1");
-        println!("{res}");
     }
 
     #[tokio::test]
@@ -419,30 +326,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn is_share_sub_test() {
-        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
-        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
-        let sub3 = "$share/consumer1/sport/#".to_string();
-        let sub4 = "$share/comsumer1/finance/#".to_string();
-
-        assert!(is_mqtt_share_sub(&sub1));
-        assert!(is_mqtt_share_sub(&sub2));
-        assert!(is_mqtt_share_sub(&sub3));
-        assert!(is_mqtt_share_sub(&sub4));
-
-        let sub5 = "/comsumer1/$share/finance/#".to_string();
-        let sub6 = "/comsumer1/$share/finance/$share".to_string();
-
-        assert!(!is_mqtt_share_sub(&sub5));
-        assert!(!is_mqtt_share_sub(&sub6));
-    }
-
-    #[tokio::test]
-    async fn is_queue_sub_test() {
-        assert!(is_mqtt_queue_sub("$queue/vvv/v1"));
-    }
-
-    #[tokio::test]
     #[ignore]
     async fn decode_share_info_test() {
         let sub1 = "$share/consumer1/sport/tennis/+".to_string();
@@ -489,36 +372,6 @@ mod tests {
         let result = get_sub_topic_name_list(&metadata_cache, &sub_path).await;
         assert!(result.len() == 1);
         assert_eq!(result.first().unwrap().clone(), topic.topic_name);
-    }
-
-    #[tokio::test]
-    async fn sub_path_validator_test() {
-        let path = "/loboxu/test";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "/loboxu/#";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "/loboxu/+";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/#";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/#/test";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/+/test";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/+test";
-        assert!(sub_path_validator(path).is_err());
-
-        let path = "$share/loboxu/#test";
-        assert!(sub_path_validator(path).is_err());
-
-        let path = "$share/loboxu/*test";
-        assert!(sub_path_validator(path).is_err());
     }
 
     #[tokio::test]
