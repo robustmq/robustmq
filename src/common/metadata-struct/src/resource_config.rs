@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+
+use crate::adapter::serde_bytes_wrapper;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct ClusterResourceConfig {
     pub cluster_name: String,
     pub resource: String,
-    pub config: Vec<u8>,
+    #[serde(with = "serde_bytes_wrapper")]
+    pub config: Bytes,
 }
 
 impl ClusterResourceConfig {
