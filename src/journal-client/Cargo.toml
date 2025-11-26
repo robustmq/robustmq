@@ -20,14 +20,12 @@ license.workspace = true
 
 
 [dependencies]
-bytes.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 protocol.workspace = true
 futures.workspace = true
 common-base.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 dashmap.workspace = true
 tracing.workspace = true

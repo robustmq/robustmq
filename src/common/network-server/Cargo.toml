@@ -21,7 +21,6 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 protocol.workspace = true
-serde.workspace = true
 common-base.workspace = true
 tracing.workspace = true
 dashmap.workspace = true

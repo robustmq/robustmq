@@ -22,13 +22,10 @@ license.workspace = true
 [dependencies]
 common-base.workspace = true
 bytes.workspace = true
-axum.workspace = true
 thiserror.workspace = true
 tonic.workspace = true
 protocol.workspace = true
 tokio.workspace = true
-tonic-web.workspace = true
-tower-http = { workspace = true, features = ["cors"] }
 grpc-clients.workspace = true
 tokio-util.workspace = true
 futures.workspace = true
@@ -43,4 +40,3 @@ prost.workspace = true
 rocksdb-engine.workspace = true
 common-config.workspace = true
 tracing-appender.workspace = true
-bincode.workspace = true

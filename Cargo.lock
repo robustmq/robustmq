@@ -266,8 +266,8 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
- "strum 0.26.3",
- "strum_macros 0.26.4",
+ "strum",
+ "strum_macros",
  "thiserror 1.0.69",
  "typed-builder 0.19.1",
  "uuid",
@@ -990,13 +990,10 @@ version = "0.2.5"
 dependencies = [
  "common-base",
  "common-config",
- "common-metrics",
  "dashmap",
  "grpc-clients",
  "metadata-struct",
- "openraft",
  "protocol",
- "rocksdb-engine",
  "serde",
  "serde_json",
  "tokio",
@@ -1010,7 +1007,6 @@ dependencies = [
  "admin-server",
  "axum",
  "broker-core",
- "bytes",
  "common-base",
  "common-config",
  "common-metrics",
@@ -1020,7 +1016,6 @@ dependencies = [
  "meta-service",
  "mqtt-broker",
  "network-server",
- "openraft",
  "pprof-monitor",
  "protocol",
  "rate-limit",
@@ -1028,7 +1023,6 @@ dependencies = [
  "schema-register",
  "serde_json",
  "storage-adapter",
- "thiserror 1.0.69",
  "tokio",
  "tonic",
  "tonic-web",
@@ -1325,21 +1319,13 @@ name = "cli-command"
 version = "0.2.5"
 dependencies = [
  "admin-server",
- "axum",
- "bytes",
  "clap",
  "clap-cargo",
  "common-base",
  "common-config",
- "grpc-clients",
- "metadata-struct",
  "paho-mqtt",
  "prettytable-rs",
- "protocol",
- "reqwest",
- "serde",
  "serde_json",
- "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -1356,20 +1342,13 @@ dependencies = [
 name = "cmd"
 version = "0.2.5"
 dependencies = [
- "admin-server",
  "broker-server",
  "clap",
- "clap-cargo",
  "cli-bench",
  "cli-command",
  "common-base",
  "common-config",
- "console-subscriber",
- "journal-server",
- "lazy_static",
- "metadata-struct",
  "mockall",
- "protocol",
  "tokio",
 ]
 
@@ -1422,7 +1401,6 @@ dependencies = [
  "governor",
  "lazy_static",
  "local-ip-address",
- "mysql",
  "opendal",
  "prometheus",
  "prost",
@@ -1436,7 +1414,6 @@ dependencies = [
  "rustls 0.23.32",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
@@ -1455,9 +1432,7 @@ dependencies = [
  "common-base",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
  "toml 0.8.23",
- "tracing",
 ]
 
 [[package]]
@@ -1467,12 +1442,9 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
- "dashmap",
  "metadata-struct",
  "prometheus-client",
  "protocol",
- "serde",
- "serde_json",
  "tokio",
  "tonic",
  "tracing",
@@ -1955,17 +1927,12 @@ dependencies = [
 name = "delay-message"
 version = "0.2.5"
 dependencies = [
- "axum",
- "bytes",
  "common-base",
  "common-metrics",
  "dashmap",
  "futures",
  "metadata-struct",
- "serde",
- "serde_json",
  "storage-adapter",
- "thiserror 1.0.69",
  "tokio",
  "tokio-util",
  "tracing",
@@ -2947,17 +2914,12 @@ dependencies = [
 name = "grpc-clients"
 version = "0.2.5"
 dependencies = [
- "bytes",
  "common-base",
  "dashmap",
- "lazy_static",
  "metadata-struct",
  "mobc",
- "prost",
  "protocol",
  "regex",
- "serde_json",
- "thiserror 1.0.69",
  "tokio",
  "tonic",
  "tracing",
@@ -3636,14 +3598,12 @@ dependencies = [
 name = "journal-client"
 version = "0.2.5"
 dependencies = [
- "bytes",
  "common-base",
  "dashmap",
  "futures",
  "metadata-struct",
  "protocol",
  "rand 0.8.5",
- "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
@@ -3655,8 +3615,6 @@ dependencies = [
 name = "journal-server"
 version = "0.2.5"
 dependencies = [
- "axum",
- "bincode",
  "bytes",
  "common-base",
  "common-config",
@@ -3675,8 +3633,6 @@ dependencies = [
  "tokio-rustls 0.26.4",
  "tokio-util",
  "tonic",
- "tonic-web",
- "tower-http 0.5.2",
  "tracing",
  "tracing-appender",
 ]
@@ -4077,7 +4033,6 @@ dependencies = [
  "metadata-struct",
  "mobc",
  "openraft",
- "prometheus-client",
  "prost",
  "prost-validate",
  "protocol",
@@ -4090,9 +4045,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tonic",
- "tonic-web",
- "tower 0.5.2",
- "tower-http 0.5.2",
  "tracing",
  "tracing-appender",
  "zstd",
@@ -4102,18 +4054,13 @@ dependencies = [
 name = "metadata-struct"
 version = "0.2.5"
 dependencies = [
- "bincode",
  "bytes",
- "clap",
  "common-base",
- "crc32fast",
  "dashmap",
  "protocol",
  "pulsar",
  "serde",
- "serde_bytes",
  "serde_json",
- "thiserror 1.0.69",
  "tokio",
  "tracing",
 ]
@@ -4271,9 +4218,7 @@ dependencies = [
 name = "mqtt-broker"
 version = "0.2.5"
 dependencies = [
- "async-stream",
  "axum",
- "axum-server",
  "base64 0.22.1",
  "bcrypt",
  "broker-core",
@@ -4295,7 +4240,6 @@ dependencies = [
  "ipnet",
  "jsonwebtoken",
  "lapin",
- "lazy_static",
  "md5",
  "metadata-struct",
  "mongodb",
@@ -4303,7 +4247,6 @@ dependencies = [
  "network-server",
  "os_info",
  "pbkdf2 0.12.2",
- "prometheus-client",
  "protocol",
  "pulsar",
  "quinn",
@@ -4317,7 +4260,6 @@ dependencies = [
  "robustmq-test",
  "rocksdb-engine",
  "rustls 0.23.32",
- "rustls-pemfile 2.2.0",
  "rustls-pki-types",
  "schema-register",
  "serde",
@@ -4326,8 +4268,8 @@ dependencies = [
  "sha2",
  "sqlx",
  "storage-adapter",
- "strum 0.27.2",
- "strum_macros 0.27.2",
+ "strum",
+ "strum_macros",
  "sysinfo",
  "tempfile",
  "third-driver",
@@ -4516,7 +4458,6 @@ dependencies = [
  "protocol",
  "quinn",
  "rustls-pemfile 2.2.0",
- "serde",
  "tokio",
  "tokio-rustls 0.26.4",
  "tokio-util",
@@ -4640,16 +4581,6 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
-]
-
-[[package]]
-name = "num_cpus"
-version = "1.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
-dependencies = [
- "hermit-abi 0.5.2",
- "libc",
 ]
 
 [[package]]
@@ -4860,83 +4791,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "opentelemetry"
-version = "0.27.1"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
-dependencies = [
- "futures-core",
- "futures-sink",
- "js-sys",
- "pin-project-lite",
- "thiserror 2.0.17",
- "tracing",
-]
-
-[[package]]
-name = "opentelemetry-http"
-version = "0.27.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
-dependencies = [
- "async-trait",
- "bytes",
- "http",
- "opentelemetry",
- "reqwest",
- "tracing",
-]
-
-[[package]]
-name = "opentelemetry-otlp"
-version = "0.27.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
-dependencies = [
- "async-trait",
- "futures-core",
- "http",
- "opentelemetry",
- "opentelemetry-http",
- "opentelemetry-proto",
- "opentelemetry_sdk",
- "prost",
- "reqwest",
- "thiserror 2.0.17",
- "tokio",
- "tonic",
- "tracing",
-]
-
-[[package]]
-name = "opentelemetry-proto"
-version = "0.27.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
-dependencies = [
- "opentelemetry",
- "opentelemetry_sdk",
- "prost",
- "tonic",
-]
-
-[[package]]
-name = "opentelemetry_sdk"
-version = "0.27.1"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
-dependencies = [
- "async-trait",
- "futures-channel",
- "futures-executor",
- "futures-util",
- "glob",
- "opentelemetry",
- "percent-encoding",
- "rand 0.8.5",
- "serde_json",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
- "tracing",
 ]
 
 [[package]]
@@ -5496,7 +5350,6 @@ version = "0.2.5"
 dependencies = [
  "axum",
  "bytes",
- "hyper",
  "mockall",
  "pprof",
  "tokio",
@@ -5864,8 +5717,6 @@ dependencies = [
 name = "protocol"
 version = "0.2.5"
 dependencies = [
- "axum",
- "bincode",
  "bytes",
  "common-base",
  "futures",
@@ -6434,7 +6285,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
- "futures-channel",
  "futures-core",
  "futures-util",
  "h2",
@@ -6567,23 +6417,17 @@ version = "0.2.5"
 dependencies = [
  "admin-server",
  "apache-avro",
- "axum",
- "bincode",
  "broker-core",
  "bytes",
  "common-base",
  "common-config",
  "dashmap",
  "futures",
- "futures-util",
  "grpc-clients",
  "journal-client",
  "metadata-struct",
  "mqtt-broker",
  "network-server",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
  "paho-mqtt",
  "protocol",
  "quinn",
@@ -6593,7 +6437,6 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-adapter",
- "thiserror 1.0.69",
  "tokio",
  "tokio-util",
  "tonic",
@@ -6615,21 +6458,14 @@ dependencies = [
 name = "rocksdb-engine"
 version = "0.2.5"
 dependencies = [
- "bincode",
  "common-base",
  "common-config",
  "common-metrics",
  "dashmap",
  "futures",
- "metadata-struct",
- "num_cpus",
  "rocksdb",
  "serde",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -6964,19 +6800,12 @@ name = "schema-register"
 version = "0.2.5"
 dependencies = [
  "apache-avro",
- "axum",
- "bytes",
  "common-base",
  "dashmap",
- "futures",
  "metadata-struct",
  "protofish",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
  "valico",
 ]
 
@@ -7666,8 +7495,6 @@ name = "storage-adapter"
 version = "0.2.5"
 dependencies = [
  "axum",
- "bincode",
- "bytes",
  "common-base",
  "common-config",
  "dashmap",
@@ -7685,9 +7512,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "third-driver",
- "thiserror 1.0.69",
  "tokio",
- "tokio-util",
  "tracing",
 ]
 
@@ -7727,12 +7552,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 
 [[package]]
-name = "strum"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
-
-[[package]]
 name = "strum_macros"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7742,18 +7561,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.106",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
  "syn 2.0.106",
 ]
 
@@ -7953,7 +7760,6 @@ dependencies = [
  "r2d2_mysql",
  "r2d2_postgres",
  "redis",
- "thiserror 1.0.69",
 ]
 
 [[package]]

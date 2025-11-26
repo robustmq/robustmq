@@ -37,14 +37,12 @@ tracing-subscriber.workspace = true
 tracing-appender.workspace = true
 console-subscriber = { workspace = true, features = ["grpc-web"] }
 bincode.workspace = true
-mysql.workspace = true
 clap.workspace = true
 regex.workspace = true
 opendal.workspace = true
 valico.workspace = true
 apache-avro.workspace = true
 crc32fast.workspace = true
-tempfile.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
 quinn.workspace = true

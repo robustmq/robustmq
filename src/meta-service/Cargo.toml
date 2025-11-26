@@ -21,8 +21,6 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 tonic.workspace = true
-tonic-web.workspace = true
-tower-http = { workspace = true, features = ["cors"] }
 common-base.workspace = true
 common-config.workspace = true
 protocol.workspace = true
@@ -43,8 +41,6 @@ prost.workspace = true
 tracing.workspace = true
 mobc.workspace = true
 rocksdb.workspace = true
-tower.workspace = true
-prometheus-client.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
 tracing-appender.workspace = true

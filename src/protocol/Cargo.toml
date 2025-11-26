@@ -21,13 +21,10 @@ build = "build.rs"
 
 [dependencies]
 bytes.workspace = true
-axum.workspace = true
 tonic.workspace = true
 thiserror.workspace = true
 prost.workspace = true
-tonic-build.workspace = true
 tokio-util.workspace = true
-bincode.workspace = true
 tokio.workspace = true
 futures.workspace = true
 common-base.workspace = true

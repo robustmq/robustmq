@@ -19,7 +19,6 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-thiserror.workspace = true
 common-base.workspace = true
 mysql.workspace = true
 r2d2.workspace = true
