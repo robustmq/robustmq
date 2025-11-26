@@ -203,7 +203,6 @@ apache-avro = "0.17.0"
 # ====================
 anyhow = "1.0.98"
 thiserror = "1.0"
-lazy_static = "1.4"
 bytes = { version = "1", features = ["serde"] }
 uuid = { version = "1.7.0", features = ["v4"] }
 dashmap = { version = "6.1.0", features = ["serde"] }

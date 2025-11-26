@@ -13,28 +13,31 @@
 // limitations under the License.
 
 use std::sync::atomic::AtomicU32;
+use std::sync::LazyLock;
 
-use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 use tokio::runtime::{Builder, Runtime};
 
 static GLOBAL_RUNTIME_ID: AtomicU32 = AtomicU32::new(0);
 pub const THREAD_NAME_LABEL: &str = "thread_name";
 
-lazy_static! {
-    static ref METRIC_RUNTIME_THREADS_ALIVE: IntGaugeVec = register_int_gauge_vec!(
+static METRIC_RUNTIME_THREADS_ALIVE: LazyLock<IntGaugeVec> = LazyLock::new(|| {
+    register_int_gauge_vec!(
         "runtime_threads_alive",
         "runtime threads alive",
         &[THREAD_NAME_LABEL]
     )
-    .unwrap();
-    static ref METRIC_RUNTIME_THREADS_IDLE: IntGaugeVec = register_int_gauge_vec!(
+    .unwrap()
+});
+
+static METRIC_RUNTIME_THREADS_IDLE: LazyLock<IntGaugeVec> = LazyLock::new(|| {
+    register_int_gauge_vec!(
         "runtime_threads_idle",
         "runtime threads idle",
         &[THREAD_NAME_LABEL]
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 struct RuntimeBuilder {
     runtime_name: String,
