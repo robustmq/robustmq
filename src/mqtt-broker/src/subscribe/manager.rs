@@ -92,17 +92,18 @@ impl SubscribeManager {
     }
 
     // directly && share
-    pub fn add_directly_sub(&self, topic: &str, subscriber: &Subscriber) {
+    pub async fn add_directly_sub(&self, topic: &str, subscriber: &Subscriber) {
         self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
-        self.directly_push.add(subscriber);
+        self.directly_push.add(subscriber).await;
     }
 
     pub fn add_share_sub(&self, topic: &str, subscriber: &Subscriber) {
         self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
+        // todo
     }
 
     // remove
-    pub fn remove_by_client_id(&self, client_id: &str) {
+    pub async fn remove_by_client_id(&self, client_id: &str) {
         // subscribe list
         for (key, subscribe) in self.subscribe_list.clone() {
             if subscribe.client_id == *client_id {
@@ -119,10 +120,10 @@ impl SubscribeManager {
         self.not_push_client.remove(client_id);
 
         // remove directly sub
-        self.directly_push.remove_by_client_id(client_id);
+        self.directly_push.remove_by_client_id(client_id).await;
     }
 
-    pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
+    pub async fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
         // subscribe list
         let key = self.subscribe_key(client_id, sub_path);
         self.subscribe_list.remove(&key);
@@ -133,7 +134,7 @@ impl SubscribeManager {
         }
 
         // remove directly sub
-        self.directly_push.remove_by_sub(client_id, sub_path);
+        self.directly_push.remove_by_sub(client_id, sub_path).await;
     }
 
     pub fn remove_by_topic(&self, _topic_name: &str) {

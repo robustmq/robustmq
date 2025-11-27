@@ -134,6 +134,7 @@ pub async fn parse_subscribe_by_new_subscribe(
             filter: context.filter.clone(),
             rewrite_sub_path: context.rewrite_sub_path.clone(),
         })
+        .await
     }
 }
 
@@ -166,7 +167,7 @@ async fn add_share_push(
     Ok(())
 }
 
-fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
+async fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
     let path = if is_exclusive_sub(&context.filter.path) {
         decode_exclusive_sub_path_to_topic_name(&context.filter.path).to_owned()
     } else {
@@ -197,7 +198,8 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
 
         context
             .subscribe_manager
-            .add_directly_sub(&context.topic.topic_name, &sub);
+            .add_directly_sub(&context.topic.topic_name, &sub)
+            .await;
     }
     Ok(())
 }

@@ -76,35 +76,29 @@ impl RocksDBStorageAdapter {
         })
     }
 
-    fn get_offset(&self, namespace: &str, shard_name: &str) -> Result<u64, CommonError> {
+    fn get_offset(&self, shard_name: &str) -> Result<u64, CommonError> {
         let cf = self.get_cf()?;
-        let shard_offset_key = shard_offset_key(namespace, shard_name);
+        let shard_offset_key = shard_offset_key(shard_name);
         let offset = match self.db.read::<u64>(cf.clone(), &shard_offset_key)? {
             Some(offset) => offset,
             None => {
                 return Err(CommonError::CommonError(format!(
-                    "shard {shard_name} under {namespace} not exists"
+                    "shard {shard_name} not exists"
                 )));
             }
         };
         Ok(offset)
     }
 
-    fn save_offset(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        offset: u64,
-    ) -> Result<(), CommonError> {
+    fn save_offset(&self, shard_name: &str, offset: u64) -> Result<(), CommonError> {
         let cf = self.get_cf()?;
-        let shard_offset_key = shard_offset_key(namespace, shard_name);
+        let shard_offset_key = shard_offset_key(shard_name);
         self.db.write(cf, &shard_offset_key, &offset)?;
         Ok(())
     }
 
     fn batch_write_internal(
         &self,
-        namespace: &str,
         shard_name: &str,
         messages: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
@@ -112,7 +106,7 @@ impl RocksDBStorageAdapter {
             return Ok(Vec::new());
         }
         let cf = self.get_cf()?;
-        let offset = self.get_offset(namespace, shard_name)?;
+        let offset = self.get_offset(shard_name)?;
 
         let mut start_offset = offset;
         let mut offset_res = Vec::with_capacity(messages.len());
@@ -126,20 +120,20 @@ impl RocksDBStorageAdapter {
             record_to_save.offset = Some(start_offset);
 
             // save record (using bincode for better performance)
-            let shard_record_key = shard_record_key(namespace, shard_name, start_offset);
+            let shard_record_key = shard_record_key(shard_name, start_offset);
             let serialized_msg = serialize::serialize(&record_to_save)?;
             batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
             // save key (use original msg to avoid borrow issues)
             if let Some(key) = &msg.key {
-                let key_offset_key = key_offset_key(namespace, shard_name, key);
+                let key_offset_key = key_offset_key(shard_name, key);
                 batch.put_cf(&cf, key_offset_key.as_bytes(), start_offset.to_be_bytes());
             }
 
             // save tag
             if let Some(tags) = &msg.tags {
                 for tag in tags.iter() {
-                    let tag_offsets_key = tag_offsets_key(namespace, shard_name, tag, start_offset);
+                    let tag_offsets_key = tag_offsets_key(shard_name, tag, start_offset);
                     batch.put_cf(&cf, tag_offsets_key.as_bytes(), start_offset.to_be_bytes());
                 }
             }
@@ -148,7 +142,7 @@ impl RocksDBStorageAdapter {
             // Time index every 5,000 records
             if msg.timestamp > 0 && start_offset % 5000 == 0 {
                 let timestamp_offset_key =
-                    timestamp_offset_key(namespace, shard_name, msg.timestamp, start_offset);
+                    timestamp_offset_key(shard_name, msg.timestamp, start_offset);
                 batch.put_cf(
                     &cf,
                     timestamp_offset_key.as_bytes(),
@@ -161,7 +155,7 @@ impl RocksDBStorageAdapter {
 
         self.db.write_batch(batch)?;
 
-        self.save_offset(namespace, shard_name, start_offset)?;
+        self.save_offset(shard_name, start_offset)?;
         Ok(offset_res)
     }
 }
@@ -169,36 +163,26 @@ impl RocksDBStorageAdapter {
 #[async_trait]
 impl StorageAdapter for RocksDBStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
-        let namespace = &shard.namespace;
         let shard_name = &shard.shard_name;
         let cf = self.get_cf()?;
-        let shard_offset_key = shard_offset_key(namespace, shard_name);
+        let shard_offset_key = shard_offset_key(shard_name);
 
-        if self.get_offset(namespace, shard_name).is_ok() {
+        if self.get_offset(shard_name).is_ok() {
             return Err(CommonError::CommonError(format!(
-                "shard {shard_name} under namespace {namespace} already exists"
+                "shard {shard_name} already exists"
             )));
         }
 
         self.db.write(cf.clone(), &shard_offset_key, &0_u64)?;
-        self.db
-            .write(cf, &shard_info_key(namespace, shard_name), shard)
+        self.db.write(cf, &shard_info_key(shard_name), shard)
     }
 
-    async fn list_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<Vec<ShardInfo>, CommonError> {
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
         let cf = self.get_cf()?;
-        let prefix_key = if shard_name.is_empty() {
-            if namespace.is_empty() {
-                "/shard/".to_string()
-            } else {
-                format!("/shard/{}/", namespace)
-            }
+        let prefix_key = if shard.is_empty() {
+            "/shard/".to_string()
         } else {
-            shard_info_key(namespace, shard_name)
+            shard_info_key(&shard)
         };
 
         let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
@@ -208,35 +192,28 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .collect::<Result<Vec<ShardInfo>, CommonError>>()
     }
 
-    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
         let cf = self.get_cf()?;
-        self.get_offset(namespace, shard_name)?;
+        self.get_offset(&shard)?;
 
-        let record_prefix = shard_record_key_prefix(namespace, shard_name);
+        let record_prefix = shard_record_key_prefix(&shard);
         self.db.delete_prefix(cf.clone(), &record_prefix)?;
 
-        let key_index_prefix = format!("/key/{}/{}/", namespace, shard_name);
+        let key_index_prefix = format!("/key/{}/", shard);
         self.db.delete_prefix(cf.clone(), &key_index_prefix)?;
 
-        let tag_index_prefix = format!("/tag/{}/{}/", namespace, shard_name);
+        let tag_index_prefix = format!("/tag/{}/", shard);
         self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
 
-        let timestamp_index_prefix = timestamp_offset_key_prefix(namespace, shard_name);
+        let timestamp_index_prefix = timestamp_offset_key_prefix(&shard);
         self.db.delete_prefix(cf.clone(), &timestamp_index_prefix)?;
 
-        self.db
-            .delete(cf.clone(), &shard_offset_key(namespace, shard_name))?;
-        self.db.delete(cf, &shard_info_key(namespace, shard_name))
+        self.db.delete(cf.clone(), &shard_offset_key(&shard))?;
+        self.db.delete(cf, &shard_info_key(&shard))
     }
 
-    async fn write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        message: &Record,
-    ) -> Result<u64, CommonError> {
-        let offsets =
-            self.batch_write_internal(namespace, shard_name, std::slice::from_ref(message))?;
+    async fn write(&self, shard: &str, message: &Record) -> Result<u64, CommonError> {
+        let offsets = self.batch_write_internal(&shard, std::slice::from_ref(message))?;
 
         offsets
             .first()
@@ -244,23 +221,17 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .ok_or_else(|| CommonError::CommonError("Empty offset result from write".to_string()))
     }
 
-    async fn batch_write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        messages: &[Record],
-    ) -> Result<Vec<u64>, CommonError> {
+    async fn batch_write(&self, shard: &str, messages: &[Record]) -> Result<Vec<u64>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
 
-        self.batch_write_internal(namespace, shard_name, messages)
+        self.batch_write_internal(&shard, messages)
     }
 
     async fn read_by_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
@@ -272,7 +243,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         // Generate keys for batch read (capped at reasonable size)
         let keys: Vec<String> = (offset..offset.saturating_add(max_batch_size as u64))
-            .map(|i| shard_record_key(namespace, shard_name, i))
+            .map(|i| shard_record_key(&shard, i))
             .collect();
 
         // Batch read all records at once (much faster than individual reads)
@@ -302,14 +273,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let tag_offset_key_prefix = tag_offsets_key_prefix(namespace, shard_name, tag);
+        let tag_offset_key_prefix = tag_offsets_key_prefix(&shard, tag);
 
         // Use Iterator instead of read_prefix to avoid loading all tag offsets into memory
         // This is critical for tags with millions of records
@@ -363,7 +333,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         let keys: Vec<String> = offsets
             .iter()
-            .map(|off| shard_record_key(namespace, shard_name, *off))
+            .map(|off| shard_record_key(&shard, *off))
             .collect();
 
         let batch_results = self.db.multi_get::<Record>(cf, &keys)?;
@@ -390,8 +360,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         key: &str,
         read_config: &ReadConfig,
@@ -401,7 +370,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         }
 
         let cf = self.get_cf()?;
-        let key_offset_key = key_offset_key(namespace, shard_name, key);
+        let key_offset_key = key_offset_key(&shard, key);
 
         let key_offset_bytes = match self.db.db.get_cf(&cf, &key_offset_key) {
             Ok(Some(data)) => data,
@@ -417,7 +386,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let key_offset = parse_offset_bytes(&key_offset_bytes)?;
 
         if key_offset >= offset {
-            let shard_record_key = shard_record_key(namespace, shard_name, key_offset);
+            let shard_record_key = shard_record_key(&shard, key_offset);
             let Some(record) = self.db.read::<Record>(cf, &shard_record_key)? else {
                 return Ok(Vec::new());
             };
@@ -434,20 +403,18 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         let cf = self.get_cf()?;
 
         // Optimized: Use single Iterator scan instead of two separate queries
         // Start from the target timestamp and find the first matching entry
-        let timestamp_search_prefix =
-            timestamp_offset_key_search_prefix(namespace, shard_name, timestamp);
+        let timestamp_search_prefix = timestamp_offset_key_search_prefix(&shard, timestamp);
         let mut iter = self.db.db.raw_iterator_cf(&cf);
         iter.seek(&timestamp_search_prefix);
 
-        let timestamp_index_prefix = timestamp_offset_key_prefix(namespace, shard_name);
+        let timestamp_index_prefix = timestamp_offset_key_prefix(&shard);
 
         // Scan forward from target timestamp to find first valid entry
         while iter.valid() {
@@ -478,8 +445,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
                             // Use utility function for offset parsing
                             if let Ok(offset) = parse_offset_bytes(v) {
                                 return Ok(Some(ShardOffset {
-                                    namespace: namespace.to_string(),
-                                    shard_name: shard_name.to_string(),
+                                    shard_name: shard.to_string(),
                                     offset,
                                     ..Default::default()
                                 }));
@@ -518,7 +484,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
     async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offsets: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         if offsets.is_empty() {
@@ -532,8 +497,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let mut batch = WriteBatch::default();
 
         for (shard_name, offset) in offsets.iter() {
-            let group_record_offsets_key =
-                group_record_offsets_key(group_name, namespace, shard_name);
+            let group_record_offsets_key = group_record_offsets_key(group_name, shard_name);
             batch.put_cf(
                 &cf,
                 group_record_offsets_key.as_bytes(),
@@ -571,20 +535,16 @@ mod tests {
     #[tokio::test]
     async fn stream_read_write() {
         let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
-        let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
         // Test create and list shard
-        adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        adapter.create_shard(&shard).await.unwrap();
 
-        let shards = adapter.list_shard(&namespace, &shard_name).await.unwrap();
+        let shards = adapter.list_shard(&shard.shard_name).await.unwrap();
         assert_eq!(shards.len(), 1);
         assert_eq!(shards[0].shard_name, shard_name);
 
@@ -594,15 +554,14 @@ mod tests {
             .collect();
 
         let offsets = adapter
-            .batch_write(&namespace, &shard_name, &messages)
+            .batch_write(&shard.shard_name, &messages)
             .await
             .unwrap();
         assert_eq!(offsets, vec![0, 1, 2, 3]);
 
         let records = adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 0,
                 &ReadConfig {
                     max_record_num: u64::MAX,
@@ -618,7 +577,7 @@ mod tests {
         let mut commit_offsets = HashMap::new();
         commit_offsets.insert(shard_name.clone(), 2);
         adapter
-            .commit_offset(&group_id, &namespace, &commit_offsets)
+            .commit_offset(&group_id, &commit_offsets)
             .await
             .unwrap();
 
@@ -626,8 +585,8 @@ mod tests {
         assert_eq!(group_offsets[0].offset, 2);
 
         // Test delete shard
-        adapter.delete_shard(&namespace, &shard_name).await.unwrap();
-        let shards = adapter.list_shard(&namespace, &shard_name).await.unwrap();
+        adapter.delete_shard(&shard.shard_name).await.unwrap();
+        let shards = adapter.list_shard(&shard.shard_name).await.unwrap();
         assert_eq!(shards.len(), 0);
 
         adapter.close().await.unwrap();
@@ -639,29 +598,34 @@ mod tests {
         let adapter = Arc::new(RocksDBStorageAdapter::new(
             test_storage_driver_rockdb_config(),
         ));
-        let namespace = unique_id();
-        let shards: Vec<_> = (0..4).map(|i| format!("shard-{i}")).collect();
+        let shard_names: Vec<_> = (0..4).map(|i| format!("shard-{i}")).collect();
+        let shards: Vec<_> = shard_names
+            .iter()
+            .map(|name| ShardInfo {
+                shard_name: name.clone(),
+                replica_num: 1,
+            })
+            .collect();
 
         // Create shards
         for shard in &shards {
-            adapter
-                .create_shard(&ShardInfo {
-                    namespace: namespace.clone(),
-                    shard_name: shard.clone(),
-                    replica_num: 1,
-                })
-                .await
-                .unwrap();
+            adapter.create_shard(shard).await.unwrap();
         }
 
-        assert_eq!(adapter.list_shard(&namespace, "").await.unwrap().len(), 4);
+        let shard = ShardInfo {
+            shard_name: String::new(),
+            replica_num: 0,
+        };
+        assert_eq!(
+            adapter.list_shard(&shard.shard_name).await.unwrap().len(),
+            4
+        );
 
         // Concurrent write and read test
         let tasks: Vec<_> = (0..100)
             .map(|tid| {
                 let adapter = adapter.clone();
-                let namespace = namespace.clone();
-                let shard_name = shards[tid % shards.len()].clone();
+                let shard = shards[tid % shards.len()].clone();
 
                 tokio::spawn(async move {
                     let records: Vec<_> = (0..10)
@@ -683,7 +647,7 @@ mod tests {
                         .collect();
 
                     let offsets = adapter
-                        .batch_write(&namespace, &shard_name, &records)
+                        .batch_write(&shard.shard_name, &records)
                         .await
                         .unwrap();
 
@@ -692,8 +656,7 @@ mod tests {
                     // Verify read by offset
                     let read_records = adapter
                         .read_by_offset(
-                            &namespace,
-                            &shard_name,
+                            &shard.shard_name,
                             offsets[0],
                             &ReadConfig {
                                 max_record_num: 10,
@@ -708,8 +671,7 @@ mod tests {
                     // Verify read by tag
                     let tag_records = adapter
                         .read_by_tag(
-                            &namespace,
-                            &shard_name,
+                            &shard.shard_name,
                             0,
                             &format!("tag-{tid}"),
                             &ReadConfig {
@@ -731,8 +693,7 @@ mod tests {
         for shard in &shards {
             let records = adapter
                 .read_by_offset(
-                    &namespace,
-                    shard,
+                    &shard.shard_name,
                     0,
                     &ReadConfig {
                         max_record_num: u64::MAX,
@@ -747,10 +708,13 @@ mod tests {
 
         // Cleanup
         for shard in &shards {
-            adapter.delete_shard(&namespace, shard).await.unwrap();
+            adapter.delete_shard(&shard.shard_name).await.unwrap();
         }
 
-        assert_eq!(adapter.list_shard(&namespace, "").await.unwrap().len(), 0);
+        assert_eq!(
+            adapter.list_shard(&shard.shard_name).await.unwrap().len(),
+            0
+        );
         adapter.close().await.unwrap();
     }
 
@@ -761,25 +725,20 @@ mod tests {
         let adapter = Arc::new(RocksDBStorageAdapter::new(
             test_storage_driver_rockdb_config(),
         ));
-        let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
         // Create shard
-        adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        adapter.create_shard(&shard).await.unwrap();
 
         // Spawn 50 concurrent tasks, each writing 20 records
         let tasks: Vec<_> = (0..50)
             .map(|tid| {
                 let adapter = adapter.clone();
-                let namespace = namespace.clone();
-                let shard_name = shard_name.clone();
+                let shard = shard.clone();
 
                 tokio::spawn(async move {
                     let records: Vec<_> = (0..20)
@@ -795,7 +754,7 @@ mod tests {
                         .collect();
 
                     adapter
-                        .batch_write(&namespace, &shard_name, &records)
+                        .batch_write(&shard.shard_name, &records)
                         .await
                         .unwrap()
                 })
@@ -835,8 +794,7 @@ mod tests {
         // Verify all records can be read back
         let read_records = adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 0,
                 &ReadConfig {
                     max_record_num: 1024,

@@ -145,8 +145,6 @@ pub async fn try_init_topic(
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {
-        let namespace = cluster_name();
-
         // create Topic
         let topic_storage = TopicStorage::new(client_pool.clone());
         let conf = broker_config();
@@ -161,6 +159,7 @@ pub async fn try_init_topic(
         metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer
+        let namespace = cluster_name();
         let list = message_storage_adapter
             .list_shard(&namespace, topic_name)
             .await?;

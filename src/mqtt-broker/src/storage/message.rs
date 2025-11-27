@@ -17,7 +17,7 @@ use common_config::broker::broker_config;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::storage::{ArcStorageAdapter, ShardOffset};
 
 pub fn cluster_name() -> String {
     let conf = broker_config();
@@ -71,13 +71,20 @@ impl MessageStorage {
         Ok(records)
     }
 
-    pub async fn get_group_offset(&self, group_id: &str) -> Result<u64, CommonError> {
-        let offset_data = self.storage_adapter.get_offset_by_group(group_id).await?;
-
-        if let Some(offset) = offset_data.first() {
-            return Ok(offset.offset);
+    pub async fn get_group_offset(
+        &self,
+        group_id: &str,
+        shard_name: &str,
+    ) -> Result<u32, CommonError> {
+        let namespace = cluster_name();
+        for row in self
+            .storage_adapter
+            .get_offset_by_group(group_id)
+            .await?
+            .iter()
+        {
+            if name
         }
-        Ok(0)
     }
 
     pub async fn commit_group_offset(

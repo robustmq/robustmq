@@ -40,12 +40,11 @@ impl MySQLStorageAdapter {
 
         let create_tags_table_sql = format!(
             "CREATE TABLE IF NOT EXISTS `{}` (
-                `namespace` varchar(255) NOT NULL,
                 `shard` varchar(255) NOT NULL,
                 `m_offset` bigint unsigned NOT NULL,
                 `tag` varchar(255) NOT NULL,
                 PRIMARY KEY (`m_offset`, `tag`),
-                INDEX `ns_shard_tag_offset_idx` (`namespace`, `shard`, `tag`, `m_offset`)
+                INDEX `ns_shard_tag_offset_idx` (`shard`, `tag`, `m_offset`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
             Self::tags_table_name()
         );
@@ -55,10 +54,9 @@ impl MySQLStorageAdapter {
         let create_groups_table_sql = format!(
             "CREATE TABLE IF NOT EXISTS `{}` (
                 `group` varchar(255) NOT NULL,
-                `namespace` varchar(255) NOT NULL,
                 `shard` varchar(255) NOT NULL,
                 `offset` bigint unsigned NOT NULL,
-                PRIMARY KEY (`group`, `namespace`, `shard`),
+                PRIMARY KEY (`group`,  `shard`),
                 INDEX `group` (`group`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
             Self::groups_table_name()
@@ -68,10 +66,9 @@ impl MySQLStorageAdapter {
 
         let create_shard_info_table_sql = format!(
             "CREATE TABLE IF NOT EXISTS `{}` (
-                `namespace` varchar(255) NOT NULL,
                 `shard` varchar(255) NOT NULL,
                 `info` blob,
-                PRIMARY KEY (`namespace`, `shard`)
+                PRIMARY KEY (`shard`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
             Self::shard_info_table_name()
         );
@@ -86,8 +83,8 @@ impl MySQLStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn record_table_name(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
-        format!("record_{}_{}", namespace.as_ref(), shard_name.as_ref())
+    pub fn record_table_name(shard_name: impl AsRef<str>) -> String {
+        format!("record_{}", shard_name.as_ref())
     }
 
     #[inline(always)]
@@ -106,23 +103,15 @@ impl MySQLStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn increment_id_table_name(
-        namespace: impl AsRef<str>,
-        shard_name: impl AsRef<str>,
-    ) -> String {
-        format!(
-            "increment_id_{}_{}",
-            namespace.as_ref(),
-            shard_name.as_ref()
-        )
+    pub fn increment_id_table_name(shard_name: impl AsRef<str>) -> String {
+        format!("increment_id_{}", shard_name.as_ref())
     }
 }
 
 impl MySQLStorageAdapter {
     async fn handle_write_request(
         &self,
-        namespace: String,
-        shard_name: String,
+        shard_name: &str,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
         let mut conn = self.pool.get()?;
@@ -133,7 +122,7 @@ impl MySQLStorageAdapter {
             // STEP 1: insert an empty record in the increment_id table to get an offset
             conn.query_drop(format!(
                 "INSERT INTO `{}` () VALUES ();",
-                Self::increment_id_table_name(&namespace, &shard_name)
+                Self::increment_id_table_name(shard_name)
             ))?;
 
             let offset: u64 =
@@ -144,7 +133,7 @@ impl MySQLStorageAdapter {
 
             let insert_record_sql = format!(
                 "INSERT INTO `{}` (`offset`, `key`, `data`, `header`, `tags`, `ts`) VALUES (:offset, :key, :data, :header, :tags, :ts);",
-                Self::record_table_name(&namespace, &shard_name)
+                Self::record_table_name(shard_name)
             );
 
             conn.exec_drop(
@@ -163,7 +152,7 @@ impl MySQLStorageAdapter {
 
             // Then we need to insert into tags table
             let insert_tags_sql = format!(
-                "INSERT INTO `{}` (`namespace`, `shard`, `m_offset`, `tag`) VALUES (:namespace, :shard, :m_offset, :tag);",
+                "INSERT INTO `{}` (`shard`, `m_offset`, `tag`) VALUES (:shard, :m_offset, :tag);",
                 Self::tags_table_name()
             );
 
@@ -172,8 +161,7 @@ impl MySQLStorageAdapter {
                     insert_tags_sql.as_str(),
                     tags.iter().map(|tag| {
                         params! {
-                            "namespace" => namespace.clone(),
-                            "shard" => shard_name.clone(),
+                            "shard" => shard_name.to_string(),
                             "m_offset" => offset - 1, // offset is 1-based in the mysql AUTO_INCREMENT column
                             "tag" => tag,
                         }
@@ -203,10 +191,8 @@ impl MySQLStorageAdapter {
 
                 // Clean up the increment_id table every 10 minutes
                 for shard_info in query_res {
-                    let incr_id_table_name = Self::increment_id_table_name(
-                        shard_info.namespace.clone(),
-                        shard_info.shard_name.clone(),
-                    );
+                    let incr_id_table_name =
+                        Self::increment_id_table_name(shard_info.shard_name.clone());
                     conn.query_drop(format!(
                         "DELETE FROM `{}` WHERE `offset` < (
                             SELECT max_offset FROM (
@@ -230,7 +216,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         let mut conn = self.pool.get()?;
 
-        let table_name = Self::record_table_name(&shard.namespace, &shard.shard_name);
+        let table_name = Self::record_table_name(&shard.shard_name);
 
         let check_table_exists_sql = format!("SHOW TABLES LIKE '{table_name}';");
 
@@ -239,8 +225,8 @@ impl StorageAdapter for MySQLStorageAdapter {
             .is_some()
         {
             return Err(CommonError::CommonError(format!(
-                "shard {} under namespace {} already exists",
-                &shard.shard_name, &shard.namespace
+                "shard {} already exists",
+                &shard.shard_name
             )));
         };
 
@@ -261,14 +247,13 @@ impl StorageAdapter for MySQLStorageAdapter {
         conn.query_drop(create_table_sql)?;
 
         let insert_shard_info_sql = format!(
-            "REPLACE INTO `{}` (`namespace`, `shard`, `info`) VALUES (:namespace, :shard, :info)",
+            "REPLACE INTO `{}` (`shard`, `info`) VALUES ( :shard, :info)",
             Self::shard_info_table_name()
         );
 
         conn.exec_drop(
             insert_shard_info_sql,
             params! {
-                "namespace" => shard.namespace.clone(),
                 "shard" => shard.shard_name.clone(),
                 "info" => serde_json::to_vec(&shard)?,
             },
@@ -279,7 +264,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             "CREATE TABLE IF NOT EXISTS `{}` (
                 `offset` bigint unsigned PRIMARY KEY AUTO_INCREMENT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
-            Self::increment_id_table_name(&shard.namespace, &shard.shard_name)
+            Self::increment_id_table_name(&shard.shard_name)
         );
 
         conn.query_drop(create_increment_id_table_sql)?;
@@ -287,49 +272,28 @@ impl StorageAdapter for MySQLStorageAdapter {
         Ok(())
     }
 
-    async fn list_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<Vec<ShardInfo>, CommonError> {
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
         let mut conn = self.pool.get()?;
 
-        if namespace.is_empty() {
-            let sql = format!("SELECT info FROM `{}`;", Self::shard_info_table_name());
-            let res = conn.query_map(sql, |info: Vec<u8>| {
+        if shard.is_empty() {
+            let sql = format!("SELECT info FROM `{}`", Self::shard_info_table_name());
+
+            let res = conn.exec_map(sql, params! {}, |info: Vec<u8>| {
                 serde_json::from_slice::<ShardInfo>(&info).unwrap()
             })?;
 
             return Ok(res);
         }
 
-        if shard_name.is_empty() {
-            let sql = format!(
-                "SELECT info FROM `{}` WHERE namespace = :namespace;",
-                Self::shard_info_table_name()
-            );
-
-            let res = conn.exec_map(
-                sql,
-                params! {
-                    "namespace" => namespace,
-                },
-                |info: Vec<u8>| serde_json::from_slice::<ShardInfo>(&info).unwrap(),
-            )?;
-
-            return Ok(res);
-        }
-
         let sql = format!(
-            "SELECT info FROM `{}` WHERE namespace = :namespace AND shard = :shard;",
+            "SELECT info FROM `{}` WHERE shard = :shard;",
             Self::shard_info_table_name()
         );
 
         let res = conn.exec_map(
             sql,
             params! {
-                "namespace" => namespace,
-                "shard" => shard_name,
+                "shard" => shard,
             },
             |info: Vec<u8>| serde_json::from_slice::<ShardInfo>(&info).unwrap(),
         )?;
@@ -337,8 +301,8 @@ impl StorageAdapter for MySQLStorageAdapter {
         Ok(res)
     }
 
-    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
-        let table_name = Self::record_table_name(namespace, shard_name);
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
+        let table_name = Self::record_table_name(shard);
 
         let check_table_exists_sql = format!("SHOW TABLES LIKE '{table_name}';");
 
@@ -349,8 +313,8 @@ impl StorageAdapter for MySQLStorageAdapter {
             .is_none()
         {
             return Err(CommonError::CommonError(format!(
-                "shard {} under namespace {} does not exist",
-                &shard_name, &namespace
+                "shard {}  does not exist",
+                shard
             )));
         };
 
@@ -366,47 +330,28 @@ impl StorageAdapter for MySQLStorageAdapter {
         conn.exec_drop(
             drop_shard_info_sql,
             params! {
-                "namespace" => namespace,
-                "shard" => shard_name,
+                "shard" => shard,
             },
         )?;
 
         Ok(())
     }
 
-    async fn write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        data: &Record,
-    ) -> Result<u64, CommonError> {
-        let offsets = self
-            .handle_write_request(
-                namespace.to_string(),
-                shard_name.to_string(),
-                vec![data.clone()],
-            )
-            .await?;
+    async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError> {
+        let offsets = self.handle_write_request(shard, vec![data.clone()]).await?;
 
         Ok(offsets.first().cloned().ok_or(CommonError::CommonError(
             "Failed to get offset. The vector is empty!".to_string(),
         ))?)
     }
 
-    async fn batch_write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        data: &[Record],
-    ) -> Result<Vec<u64>, CommonError> {
-        self.handle_write_request(namespace.to_string(), shard_name.to_string(), data.to_vec())
-            .await
+    async fn batch_write(&self, shard: &str, data: &[Record]) -> Result<Vec<u64>, CommonError> {
+        self.handle_write_request(shard, data.to_vec()).await
     }
 
     async fn read_by_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
@@ -418,7 +363,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             WHERE `offset` >= :offset
             ORDER BY `offset`
             LIMIT :limit;",
-            Self::record_table_name(namespace, shard_name)
+            Self::record_table_name(shard)
         );
 
         let res: Vec<Record> = conn.exec_map(
@@ -452,8 +397,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         tag: &str,
         read_config: &ReadConfig,
@@ -464,11 +408,11 @@ impl StorageAdapter for MySQLStorageAdapter {
             "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
             FROM
                 `{}` l LEFT JOIN `{}` r on l.m_offset = r.offset
-            WHERE l.tag = :tag and l.m_offset >= :offset and l.namespace = :namespace and l.shard = :shard
+            WHERE l.tag = :tag and l.m_offset >= :offset and l.shard = :shard
             ORDER BY l.m_offset
             LIMIT :limit",
             Self::tags_table_name(),
-            Self::record_table_name(namespace, shard_name)
+            Self::record_table_name(shard)
         );
 
         let res: Vec<Record> = conn.exec_map(
@@ -476,8 +420,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             params! {
                 "tag" => tag,
                 "offset" => offset,
-                "namespace" => namespace,
-                "shard" => shard_name,
+                "shard" => shard,
                 "limit" => read_config.max_record_num,
             },
             |(offset, key, data, header, tags, ts): (
@@ -505,8 +448,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         key: &str,
         read_config: &ReadConfig,
@@ -519,7 +461,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             WHERE `offset` >= :offset AND `key` = :key
             ORDER BY `offset`
             LIMIT :limit",
-            Self::record_table_name(namespace, shard_name)
+            Self::record_table_name(shard)
         );
 
         let res = conn
@@ -556,8 +498,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         let mut conn = self.pool.get()?;
@@ -568,7 +509,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             WHERE `ts` >= :ts
             ORDER BY `ts`
             LIMIT 1",
-            Self::record_table_name(namespace, shard_name)
+            Self::record_table_name(shard)
         );
 
         conn.exec_first(
@@ -613,24 +554,22 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let mut conn = self.pool.get()?;
 
         let sql = format!(
-            "REPLACE INTO `{}` (`group`, `namespace`, `shard`, `offset`) VALUES (:group, :namespace, :shard, :offset)",
+            "REPLACE INTO `{}` (`group`, `shard`, `offset`) VALUES (:group, :shard, :offset)",
             Self::groups_table_name()
         );
 
         conn.exec_batch(
             sql,
-            offset.iter().map(|(shard, offset)| {
+            offset.iter().map(|(shard_name, offset_val)| {
                 params! {
                     "group" => group_name,
-                    "namespace" => namespace,
-                    "shard" => shard,
-                    "offset" => offset,
+                    "shard" => shard_name,
+                    "offset" => offset_val,
                 }
             }),
         )?;
@@ -669,20 +608,13 @@ mod tests {
     async fn mysql_create_shard() {
         let mysql_adapter = MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap();
         let shard_name = String::from("test");
-        let namespace = unique_id();
-        mysql_adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        mysql_adapter.create_shard(&shard).await.unwrap();
 
-        mysql_adapter
-            .delete_shard(&namespace, &shard_name)
-            .await
-            .unwrap();
+        mysql_adapter.delete_shard(&shard.shard_name).await.unwrap();
     }
 
     #[tokio::test]
@@ -690,15 +622,11 @@ mod tests {
     async fn mysql_batch_write() {
         let mysql_adapter = MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap();
         let shard_name = String::from("test");
-        let namespace = unique_id();
-        mysql_adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        mysql_adapter.create_shard(&shard).await.unwrap();
         let mut data = Vec::new();
         let header = vec![Header {
             name: "n1".to_string(),
@@ -728,7 +656,7 @@ mod tests {
         });
 
         let result = mysql_adapter
-            .batch_write(&namespace, &shard_name, &data)
+            .batch_write(&shard.shard_name, &data)
             .await
             .unwrap();
 
@@ -738,8 +666,7 @@ mod tests {
 
         let records = mysql_adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 0,
                 &ReadConfig {
                     max_record_num: 10,
@@ -764,28 +691,19 @@ mod tests {
     #[ignore]
     async fn mysql_stream_read_write() {
         let mysql_adapter = MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap();
-
-        let namespace = unique_id();
         let shard_name = "test-11".to_string();
 
         // step 1: create shard
-        mysql_adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        mysql_adapter.create_shard(&shard).await.unwrap();
 
-        let shards = mysql_adapter
-            .list_shard(&namespace, &shard_name)
-            .await
-            .unwrap();
+        let shards = mysql_adapter.list_shard(&shard.shard_name).await.unwrap();
 
         assert_eq!(shards.len(), 1);
         assert_eq!(shards.first().unwrap().shard_name, shard_name);
-        assert_eq!(shards.first().unwrap().namespace, namespace);
         assert_eq!(shards.first().unwrap().replica_num, 1);
 
         // insert two records (no key or tag) into the shard
@@ -797,7 +715,7 @@ mod tests {
         ];
 
         let result = mysql_adapter
-            .batch_write(&namespace, &shard_name, &data)
+            .batch_write(&shard.shard_name, &data)
             .await
             .unwrap();
 
@@ -808,8 +726,7 @@ mod tests {
         assert_eq!(
             mysql_adapter
                 .read_by_offset(
-                    &namespace,
-                    &shard_name,
+                    &shard.shard_name,
                     0,
                     &ReadConfig {
                         max_record_num: 10,
@@ -831,15 +748,14 @@ mod tests {
         ];
 
         let result = mysql_adapter
-            .batch_write(&namespace, &shard_name, &data)
+            .batch_write(&shard.shard_name, &data)
             .await
             .unwrap();
 
         // read from offset 2
         let result_read = mysql_adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 2,
                 &ReadConfig {
                     max_record_num: 10,
@@ -863,7 +779,7 @@ mod tests {
         // read m1
         let offset = 0;
         let res = mysql_adapter
-            .read_by_offset(&namespace, &shard_name, offset, &read_config)
+            .read_by_offset(&shard.shard_name, offset, &read_config)
             .await
             .unwrap();
 
@@ -879,7 +795,7 @@ mod tests {
         );
 
         mysql_adapter
-            .commit_offset(&group_id, &namespace, &offset_data)
+            .commit_offset(&group_id, &offset_data)
             .await
             .unwrap();
 
@@ -888,8 +804,7 @@ mod tests {
 
         let res = mysql_adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 offset.first().unwrap().offset + 1,
                 &read_config,
             )
@@ -907,7 +822,7 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         mysql_adapter
-            .commit_offset(&group_id, &namespace, &offset_data)
+            .commit_offset(&group_id, &offset_data)
             .await
             .unwrap();
 
@@ -917,8 +832,7 @@ mod tests {
 
         let res = mysql_adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 offset.first().unwrap().offset + 1,
                 &read_config,
             )
@@ -935,7 +849,7 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         mysql_adapter
-            .commit_offset(&group_id, &namespace, &offset_data)
+            .commit_offset(&group_id, &offset_data)
             .await
             .unwrap();
 
@@ -944,8 +858,7 @@ mod tests {
 
         let res = mysql_adapter
             .read_by_offset(
-                &namespace,
-                &shard_name,
+                &shard.shard_name,
                 offset.first().unwrap().offset + 1,
                 &read_config,
             )
@@ -962,21 +875,15 @@ mod tests {
             res.first().unwrap().clone().offset.unwrap(),
         );
         mysql_adapter
-            .commit_offset(&group_id, &namespace, &offset_data)
+            .commit_offset(&group_id, &offset_data)
             .await
             .unwrap();
 
         // delete shard
-        mysql_adapter
-            .delete_shard(&namespace, &shard_name)
-            .await
-            .unwrap();
+        mysql_adapter.delete_shard(&shard.shard_name).await.unwrap();
 
         // check if the shard is deleted
-        let shards = mysql_adapter
-            .list_shard(&namespace, &shard_name)
-            .await
-            .unwrap();
+        let shards = mysql_adapter.list_shard(&shard.shard_name).await.unwrap();
 
         assert_eq!(shards.len(), 0);
 
@@ -989,26 +896,21 @@ mod tests {
         let mysql_adapter =
             Arc::new(MySQLStorageAdapter::new(StorageDriverMySQLConfig::default()).unwrap());
 
-        let namespace = unique_id();
         let shard_name = "test-concurrent".to_string();
 
         // step 1: create shard
-        mysql_adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        mysql_adapter.create_shard(&shard).await.unwrap();
 
         let mut handles = Vec::new();
 
         // spawn 100 tasks to write data concurrently
         for tid in 0..100 {
             let mysql_adapter = mysql_adapter.clone();
-            let namespace = namespace.clone();
-            let shard_name = shard_name.clone();
+            let shard = shard.clone();
 
             let handle = tokio::spawn(async move {
                 let mut data = Vec::new();
@@ -1032,7 +934,7 @@ mod tests {
                 }
 
                 let offsets = mysql_adapter
-                    .batch_write(&namespace, &shard_name, &data)
+                    .batch_write(&shard.shard_name, &data)
                     .await
                     .unwrap();
 
@@ -1042,8 +944,7 @@ mod tests {
                 for (idx, offset) in offsets.into_iter().enumerate() {
                     let record = mysql_adapter
                         .read_by_offset(
-                            &namespace,
-                            &shard_name,
+                            &shard.shard_name,
                             offset,
                             &ReadConfig {
                                 max_record_num: 1,

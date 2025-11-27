@@ -19,6 +19,7 @@ pub mod manager;
 pub mod push;
 // pub mod share;
 pub mod buckets;
+pub mod directly_push;
 pub mod parse;
 
 pub struct PushManager {}

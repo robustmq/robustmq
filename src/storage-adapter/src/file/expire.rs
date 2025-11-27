@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 use crate::key::*;
 use crate::storage::ShardInfo;
 use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
@@ -73,15 +72,11 @@ pub async fn expire_messages_by_timestamp(
             }
         };
 
-        let namespace = &shard_info.namespace;
         let shard_name = &shard_info.shard_name;
 
-        debug!(
-            "Processing shard: namespace={}, shard_name={}",
-            namespace, shard_name
-        );
+        debug!("Processing shard: shard_name={}", shard_name);
 
-        let record_prefix = shard_record_key_prefix(namespace, shard_name);
+        let record_prefix = shard_record_key_prefix(shard_name);
         let mut iter = db.db.raw_iterator_cf(&cf);
         iter.seek(&record_prefix);
 
@@ -131,7 +126,7 @@ pub async fn expire_messages_by_timestamp(
                 // Key index is a key -> latest_offset mapping
                 // We should only delete it if it still points to this expired record
                 if let Some(key) = &record.key {
-                    let key_index_key = key_offset_key(namespace, shard_name, key);
+                    let key_index_key = key_offset_key(shard_name, key);
 
                     if let Ok(Some(indexed_offset_bytes)) = db.db.get_cf(&cf, &key_index_key) {
                         if let Ok(indexed_offset) = parse_offset_bytes(&indexed_offset_bytes) {
@@ -146,14 +141,13 @@ pub async fn expire_messages_by_timestamp(
                 // Delete tag indexes (always safe to delete as tags are many-to-many)
                 if let Some(tags) = &record.tags {
                     for tag in tags {
-                        let tag_index = tag_offsets_key(namespace, shard_name, tag, offset);
+                        let tag_index = tag_offsets_key(shard_name, tag, offset);
                         batch.delete_cf(&cf, tag_index.as_bytes());
                     }
                 }
 
                 if record.timestamp > 0 && offset.is_multiple_of(5000) {
-                    let ts_index =
-                        timestamp_offset_key(namespace, shard_name, record.timestamp, offset);
+                    let ts_index = timestamp_offset_key(shard_name, record.timestamp, offset);
                     batch.delete_cf(&cf, ts_index.as_bytes());
                 }
             }
@@ -165,8 +159,8 @@ pub async fn expire_messages_by_timestamp(
 
         if deleted_count > 0 {
             info!(
-                "Expired {} messages from shard {}/{} (scanned {})",
-                deleted_count, namespace, shard_name, shard_scanned
+                "Expired {} messages from shard {} (scanned {})",
+                deleted_count, shard_name, shard_scanned
             );
             total_deleted += deleted_count;
         }
@@ -185,25 +179,19 @@ mod tests {
     use super::*;
     use crate::file::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
-    use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
     use rocksdb_engine::test::test_storage_driver_rockdb_config;
 
     #[tokio::test]
     async fn test_expire_messages_by_timestamp() {
         let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
-
-        let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
-        adapter
-            .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
-                shard_name: shard_name.clone(),
-                replica_num: 1,
-            })
-            .await
-            .unwrap();
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        adapter.create_shard(&shard).await.unwrap();
 
         let now = now_second();
 
@@ -238,7 +226,7 @@ mod tests {
         ];
 
         adapter
-            .batch_write(&namespace, &shard_name, &messages)
+            .batch_write(&shard.shard_name, &messages)
             .await
             .unwrap();
 
@@ -247,7 +235,7 @@ mod tests {
             max_size: u64::MAX,
         };
         let records = adapter
-            .read_by_offset(&namespace, &shard_name, 0, &read_config)
+            .read_by_offset(&shard.shard_name, 0, &read_config)
             .await
             .unwrap();
         assert_eq!(records.len(), 3);
@@ -264,16 +252,16 @@ mod tests {
         // Instead, we check specific offsets individually
         let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
 
-        let key0 = shard_record_key(&namespace, &shard_name, 0);
+        let key0 = shard_record_key(&shard_name, 0);
         let record0 = adapter.db.read::<Record>(cf.clone(), &key0).unwrap();
         assert!(record0.is_none(), "Offset 0 should be expired");
 
-        let key1 = shard_record_key(&namespace, &shard_name, 1);
+        let key1 = shard_record_key(&shard_name, 1);
         let record1 = adapter.db.read::<Record>(cf.clone(), &key1).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
         assert_eq!(record1.unwrap().key, Some("key2".to_string()));
 
-        let key2 = shard_record_key(&namespace, &shard_name, 2);
+        let key2 = shard_record_key(&shard_name, 2);
         let record2 = adapter.db.read::<Record>(cf.clone(), &key2).unwrap();
         assert!(record2.is_some(), "Offset 2 should exist");
         assert_eq!(record2.unwrap().key, Some("key3".to_string()));
@@ -283,12 +271,10 @@ mod tests {
     #[tokio::test]
     async fn test_expire_preserves_key_index_for_newer_messages() {
         let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
-        let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
         adapter
             .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
                 replica_num: 1,
             })
@@ -318,13 +304,17 @@ mod tests {
             },
         ];
 
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
         adapter
-            .batch_write(&namespace, &shard_name, &messages)
+            .batch_write(&shard.shard_name, &messages)
             .await
             .unwrap();
 
         let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
-        let key_index_key = key_offset_key(&namespace, &shard_name, "same_key");
+        let key_index_key = key_offset_key(&shard_name, "same_key");
         let key_index_bytes = adapter.db.db.get_cf(&cf, &key_index_key).unwrap().unwrap();
         assert_eq!(key_index_bytes.len(), 8);
         let key_index_offset = u64::from_be_bytes(key_index_bytes.as_slice().try_into().unwrap());
@@ -339,11 +329,11 @@ mod tests {
             .await
             .unwrap();
 
-        let record0_key = shard_record_key(&namespace, &shard_name, 0);
+        let record0_key = shard_record_key(&shard_name, 0);
         let record0 = adapter.db.read::<Record>(cf.clone(), &record0_key).unwrap();
         assert!(record0.is_none(), "Offset 0 should be expired");
 
-        let record1_key = shard_record_key(&namespace, &shard_name, 1);
+        let record1_key = shard_record_key(&shard_name, 1);
         let record1 = adapter.db.read::<Record>(cf.clone(), &record1_key).unwrap();
         assert!(record1.is_some(), "Offset 1 should exist");
         assert_eq!(record1.unwrap().data.as_ref(), b"new_data");
@@ -362,7 +352,7 @@ mod tests {
             max_size: u64::MAX,
         };
         let key_records = adapter
-            .read_by_key(&namespace, &shard_name, 0, "same_key", &read_config)
+            .read_by_key(&shard.shard_name, 0, "same_key", &read_config)
             .await
             .unwrap();
         assert_eq!(key_records.len(), 1);
@@ -373,12 +363,10 @@ mod tests {
     #[tokio::test]
     async fn test_expire_batch_commit_logic() {
         let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
-        let namespace = unique_id();
         let shard_name = "test-shard".to_string();
 
         adapter
             .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
                 replica_num: 1,
             })
@@ -399,13 +387,17 @@ mod tests {
             })
             .collect();
 
+        let shard = ShardInfo {
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
         adapter
-            .batch_write(&namespace, &shard_name, &messages)
+            .batch_write(&shard.shard_name, &messages)
             .await
             .unwrap();
 
         let cf = adapter.db.cf_handle(DB_COLUMN_FAMILY_BROKER).unwrap();
-        let record0_key = shard_record_key(&namespace, &shard_name, 0);
+        let record0_key = shard_record_key(&shard_name, 0);
         let record0 = adapter.db.read::<Record>(cf.clone(), &record0_key).unwrap();
         assert!(record0.is_some());
 
@@ -416,7 +408,7 @@ mod tests {
             .unwrap();
 
         for i in 0..2500 {
-            let record_key = shard_record_key(&namespace, &shard_name, i);
+            let record_key = shard_record_key(&shard_name, i);
             let record = adapter.db.read::<Record>(cf.clone(), &record_key).unwrap();
             assert!(record.is_none(), "Record at offset {} should be expired", i);
         }

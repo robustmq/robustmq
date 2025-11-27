@@ -62,15 +62,6 @@ impl MemoryStorageAdapter {
     }
 
     #[inline]
-    pub fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
-        let mut key = String::with_capacity(namespace.len() + shard_name.len() + 1);
-        key.push_str(namespace);
-        key.push('_');
-        key.push_str(shard_name);
-        key
-    }
-
-    #[inline]
     fn get_start_offset(&self, shard_key: &str) -> u64 {
         self.shard_state
             .get(shard_key)
@@ -173,7 +164,6 @@ impl MemoryStorageAdapter {
 
     async fn internal_batch_write(
         &self,
-        namespace: &str,
         shard_name: &str,
         messages: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
@@ -181,13 +171,12 @@ impl MemoryStorageAdapter {
             return Ok(Vec::new());
         }
 
-        let shard_key = self.shard_key(namespace, shard_name);
-        self.shard_state.entry(shard_key.clone()).or_default();
+        self.shard_state.entry(shard_name.to_string()).or_default();
 
-        let offsets = if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
-            let start_offset = self.shard_state.get(&shard_key).unwrap().next_offset;
+        let offsets = if let Some(mut data_list) = self.shard_data.get_mut(shard_name) {
+            let start_offset = self.shard_state.get(shard_name).unwrap().next_offset;
             let offsets = self.process_and_insert_messages(
-                &shard_key,
+                shard_name,
                 messages,
                 start_offset,
                 &mut data_list,
@@ -195,18 +184,18 @@ impl MemoryStorageAdapter {
 
             drop(data_list);
 
-            self.shard_state.get_mut(&shard_key).unwrap().next_offset =
+            self.shard_state.get_mut(shard_name).unwrap().next_offset =
                 start_offset + messages.len() as u64;
 
             offsets
         } else {
             let mut data_list =
                 Vec::with_capacity(messages.len().min(self.config.max_records_per_shard));
-            let offsets = self.process_and_insert_messages(&shard_key, messages, 0, &mut data_list);
+            let offsets = self.process_and_insert_messages(shard_name, messages, 0, &mut data_list);
 
-            self.shard_data.insert(shard_key.clone(), data_list);
+            self.shard_data.insert(shard_name.to_string(), data_list);
 
-            let mut state = self.shard_state.get_mut(&shard_key).unwrap();
+            let mut state = self.shard_state.get_mut(shard_name).unwrap();
             state.next_offset = messages.len() as u64;
             state.start_offset = 0;
 
@@ -276,22 +265,19 @@ impl MemoryStorageAdapter {
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
-        let key = self.shard_key(&shard.namespace, &shard.shard_name);
         self.shard_data.insert(
-            key.clone(),
+            shard.shard_name.clone(),
             Vec::with_capacity(self.config.max_records_per_shard),
         );
-        self.shard_info.insert(key.clone(), shard.clone());
-        self.shard_state.insert(key, ShardState::default());
+        self.shard_info
+            .insert(shard.shard_name.clone(), shard.clone());
+        self.shard_state
+            .insert(shard.shard_name.clone(), ShardState::default());
         Ok(())
     }
 
-    async fn list_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<Vec<ShardInfo>, CommonError> {
-        if shard_name.is_empty() {
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
+        if shard.is_empty() {
             return Ok(self
                 .shard_info
                 .iter()
@@ -299,55 +285,39 @@ impl StorageAdapter for MemoryStorageAdapter {
                 .collect());
         }
 
-        let key = self.shard_key(namespace, shard_name);
         Ok(self
             .shard_info
-            .get(&key)
+            .get(shard)
             .map(|info| vec![info.clone()])
             .unwrap_or_default())
     }
 
-    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
-        let key = self.shard_key(namespace, shard_name);
-        self.shard_data.remove(&key);
-        self.shard_info.remove(&key);
-        self.shard_state.remove(&key);
-        self.remove_indexes(&key);
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
+        self.shard_data.remove(shard);
+        self.shard_info.remove(shard);
+        self.shard_state.remove(shard);
+        self.remove_indexes(shard);
         Ok(())
     }
 
-    async fn batch_write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        messages: &[Record],
-    ) -> Result<Vec<u64>, CommonError> {
-        self.internal_batch_write(namespace, shard_name, messages)
-            .await
+    async fn batch_write(&self, shard: &str, messages: &[Record]) -> Result<Vec<u64>, CommonError> {
+        self.internal_batch_write(shard, messages).await
     }
 
-    async fn write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        data: &Record,
-    ) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError> {
         let offsets = self
-            .internal_batch_write(namespace, shard_name, std::slice::from_ref(data))
+            .internal_batch_write(shard, std::slice::from_ref(data))
             .await?;
         Ok(offsets[0])
     }
 
     async fn read_by_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-
-        let Some(data_list) = self.shard_data.get(&shard_key) else {
+        let Some(data_list) = self.shard_data.get(shard) else {
             return Ok(Vec::new());
         };
 
@@ -355,7 +325,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             return Ok(Vec::new());
         }
 
-        let start_offset = self.get_start_offset(&shard_key);
+        let start_offset = self.get_start_offset(shard);
 
         if offset < start_offset {
             return Ok(Vec::new());
@@ -377,31 +347,22 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-
-        if let Some(tag_map) = self.tag_index.get(&shard_key) {
+        if let Some(tag_map) = self.tag_index.get(shard) {
             if let Some(offsets) = tag_map.get(tag) {
-                if let Some(data_list) = self.shard_data.get(&shard_key) {
-                    return Ok(self.read_by_index(
-                        &shard_key,
-                        offset,
-                        offsets,
-                        &data_list,
-                        read_config,
-                    ));
+                if let Some(data_list) = self.shard_data.get(shard) {
+                    return Ok(self.read_by_index(shard, offset, offsets, &data_list, read_config));
                 }
             }
         }
 
-        if let Some(data_list) = self.shard_data.get(&shard_key) {
+        if let Some(data_list) = self.shard_data.get(shard) {
             return Ok(
-                self.linear_scan(&shard_key, offset, &data_list, read_config, |record| {
+                self.linear_scan(shard, offset, &data_list, read_config, |record| {
                     record
                         .tags
                         .as_ref()
@@ -415,31 +376,22 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         key: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-
-        if let Some(key_map) = self.key_index.get(&shard_key) {
+        if let Some(key_map) = self.key_index.get(shard) {
             if let Some(offsets) = key_map.get(key) {
-                if let Some(data_list) = self.shard_data.get(&shard_key) {
-                    return Ok(self.read_by_index(
-                        &shard_key,
-                        offset,
-                        offsets,
-                        &data_list,
-                        read_config,
-                    ));
+                if let Some(data_list) = self.shard_data.get(shard) {
+                    return Ok(self.read_by_index(shard, offset, offsets, &data_list, read_config));
                 }
             }
         }
 
-        if let Some(data_list) = self.shard_data.get(&shard_key) {
+        if let Some(data_list) = self.shard_data.get(shard) {
             return Ok(
-                self.linear_scan(&shard_key, offset, &data_list, read_config, |record| {
+                self.linear_scan(shard, offset, &data_list, read_config, |record| {
                     record.key.as_deref() == Some(key)
                 }),
             );
@@ -450,19 +402,16 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-        let start_offset = self.get_start_offset(&shard_key);
+        let start_offset = self.get_start_offset(shard);
 
-        if let Some(ts_map) = self.timestamp_index.get(&shard_key) {
+        if let Some(ts_map) = self.timestamp_index.get(shard) {
             for (_ts, &offset) in ts_map.range(timestamp..) {
                 if offset >= start_offset {
                     return Ok(Some(ShardOffset {
-                        namespace: namespace.to_string(),
-                        shard_name: shard_name.to_string(),
+                        shard_name: shard.to_string(),
                         offset,
                         ..Default::default()
                     }));
@@ -470,13 +419,12 @@ impl StorageAdapter for MemoryStorageAdapter {
             }
         }
 
-        if let Some(record_list) = self.shard_data.get(&shard_key) {
+        if let Some(record_list) = self.shard_data.get(shard) {
             for record in record_list.iter() {
                 if record.timestamp >= timestamp {
                     if let Some(offset) = record.offset {
                         return Ok(Some(ShardOffset {
-                            namespace: namespace.to_string(),
-                            shard_name: shard_name.to_string(),
+                            shard_name: shard.to_string(),
                             offset,
                             ..Default::default()
                         }));
@@ -506,7 +454,6 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let data = self
@@ -515,8 +462,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             .or_insert_with(|| DashMap::with_capacity(offset.len()));
 
         for (shard_name, offset_val) in offset.iter() {
-            let group_key = self.shard_key(namespace, shard_name);
-            data.insert(group_key, *offset_val);
+            data.insert(shard_name.to_string(), *offset_val);
         }
 
         Ok(())
@@ -601,33 +547,38 @@ mod tests {
         let namespace = unique_id();
         let shard_name = "test-shard";
         let config = read_config();
+        let shard = ShardInfo {
+            shard_name: shard_name.to_string(),
+            replica_num: 1,
+        };
 
         // Test batch write and verify offsets
         let messages = vec![create_message(b"msg1"), create_message(b"msg2")];
         let offsets = adapter
-            .batch_write(&namespace, shard_name, &messages)
+            .batch_write(&shard.shard_name, &messages)
             .await
             .unwrap();
         assert_eq!(offsets, vec![0, 1]);
 
         // Test read by offset
         let records = adapter
-            .read_by_offset(&namespace, shard_name, 0, &config)
+            .read_by_offset(&shard.shard_name, 0, &config)
             .await
             .unwrap();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].data.as_ref(), b"msg1");
 
         // Test empty batch write
-        let empty_offsets = adapter
-            .batch_write(&namespace, shard_name, &[])
-            .await
-            .unwrap();
+        let empty_offsets = adapter.batch_write(&shard.shard_name, &[]).await.unwrap();
         assert_eq!(empty_offsets.len(), 0);
 
         // Test read from non-existent shard
+        let nonexistent_shard = ShardInfo {
+            shard_name: "nonexistent".to_string(),
+            replica_num: 1,
+        };
         let empty_records = adapter
-            .read_by_offset(&namespace, "nonexistent", 0, &config)
+            .read_by_offset(&nonexistent_shard.shard_name, 0, &config)
             .await
             .unwrap();
         assert_eq!(empty_records.len(), 0);
@@ -640,9 +591,12 @@ mod tests {
             ..Default::default()
         };
         let adapter = MemoryStorageAdapter::new(config_adapter);
-        let namespace = unique_id();
         let shard_name = "lru-test";
         let config = read_config();
+        let shard = ShardInfo {
+            shard_name: shard_name.to_string(),
+            replica_num: 1,
+        };
 
         // Write 5 messages (exceeds capacity)
         for i in 0..5 {
@@ -652,12 +606,11 @@ mod tests {
                 "",
                 1000 + i * 100,
             );
-            adapter.write(&namespace, shard_name, &msg).await.unwrap();
+            adapter.write(&shard.shard_name, &msg).await.unwrap();
         }
 
         // Verify all 5 messages are stored before eviction
-        let shard_key = adapter.shard_key(&namespace, shard_name);
-        assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 5);
+        assert_eq!(adapter.shard_data.get(&shard.shard_name).unwrap().len(), 5);
 
         // Trigger LRU eviction
         adapter
@@ -666,44 +619,44 @@ mod tests {
             .unwrap();
 
         // Verify only 3 newest messages remain
-        assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 3);
+        assert_eq!(adapter.shard_data.get(&shard.shard_name).unwrap().len(), 3);
 
         // Verify offset state is correct
-        let state = adapter.shard_state.get(&shard_key).unwrap();
+        let state = adapter.shard_state.get(&shard.shard_name).unwrap();
         assert_eq!(state.start_offset, 2); // First 2 messages evicted
         assert_eq!(state.next_offset, 5); // Next offset to assign
 
         // Test read evicted records (offset 0-1)
         let evicted = adapter
-            .read_by_offset(&namespace, shard_name, 0, &config)
+            .read_by_offset(&shard.shard_name, 0, &config)
             .await
             .unwrap();
         assert_eq!(evicted.len(), 0);
 
         // Test read remaining records (offset 2-4)
         let remaining = adapter
-            .read_by_offset(&namespace, shard_name, 2, &config)
+            .read_by_offset(&shard.shard_name, 2, &config)
             .await
             .unwrap();
         assert_eq!(remaining.len(), 3);
 
         // Test evicted tag is not found
         let evicted_tag = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-0", &config)
+            .read_by_tag(&shard.shard_name, 0, "tag-0", &config)
             .await
             .unwrap();
         assert_eq!(evicted_tag.len(), 0);
 
         // Test remaining tag is found
         let remaining_tag = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-3", &config)
+            .read_by_tag(&shard.shard_name, 0, "tag-3", &config)
             .await
             .unwrap();
         assert_eq!(remaining_tag.len(), 1);
 
         // Test timestamp query after eviction
         let offset_result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 1150)
+            .get_offset_by_timestamp(&shard.shard_name, 1150)
             .await
             .unwrap()
             .unwrap();
@@ -714,19 +667,22 @@ mod tests {
     async fn test_indexed_queries() {
         // Setup
         let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
         let shard_name = "index-test";
         let config = read_config();
+        let shard = ShardInfo {
+            shard_name: shard_name.to_string(),
+            replica_num: 1,
+        };
 
         // Write messages with tags and keys
         let msg1 = create_message_with_metadata(b"msg1", vec!["tag-a"], "key-1", 0);
         let msg2 = create_message_with_metadata(b"msg2", vec!["tag-b"], "key-2", 0);
-        adapter.write(&namespace, shard_name, &msg1).await.unwrap();
-        adapter.write(&namespace, shard_name, &msg2).await.unwrap();
+        adapter.write(&shard.shard_name, &msg1).await.unwrap();
+        adapter.write(&shard.shard_name, &msg2).await.unwrap();
 
         // Test read by tag (using index)
         let tag_results = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-a", &config)
+            .read_by_tag(&shard.shard_name, 0, "tag-a", &config)
             .await
             .unwrap();
         assert_eq!(tag_results.len(), 1);
@@ -734,7 +690,7 @@ mod tests {
 
         // Test read by key (using index)
         let key_results = adapter
-            .read_by_key(&namespace, shard_name, 0, "key-2", &config)
+            .read_by_key(&shard.shard_name, 0, "key-2", &config)
             .await
             .unwrap();
         assert_eq!(key_results.len(), 1);
@@ -742,18 +698,17 @@ mod tests {
 
         // Test read with non-existent tag
         let empty_tag = adapter
-            .read_by_tag(&namespace, shard_name, 0, "nonexistent", &config)
+            .read_by_tag(&shard.shard_name, 0, "nonexistent", &config)
             .await
             .unwrap();
         assert_eq!(empty_tag.len(), 0);
 
         // Test fallback to linear scan when index is removed
-        let shard_key = adapter.shard_key(&namespace, shard_name);
-        adapter.tag_index.remove(&shard_key);
-        adapter.key_index.remove(&shard_key);
+        adapter.tag_index.remove(&shard.shard_name);
+        adapter.key_index.remove(&shard.shard_name);
 
         let fallback_results = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-a", &config)
+            .read_by_tag(&shard.shard_name, 0, "tag-a", &config)
             .await
             .unwrap();
         assert_eq!(fallback_results.len(), 1); // Still finds via linear scan
@@ -763,16 +718,13 @@ mod tests {
     async fn test_shard_management() {
         // Setup
         let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
 
         // Create two shards
         let shard1 = ShardInfo {
-            namespace: namespace.clone(),
             shard_name: "shard-1".to_string(),
             replica_num: 3,
         };
         let shard2 = ShardInfo {
-            namespace: namespace.clone(),
             shard_name: "shard-2".to_string(),
             replica_num: 3,
         };
@@ -780,22 +732,30 @@ mod tests {
         adapter.create_shard(&shard2).await.unwrap();
 
         // Test list all shards
-        let all_shards = adapter.list_shard(&namespace, "").await.unwrap();
+        let list_all = ShardInfo {
+            shard_name: String::new(),
+            replica_num: 0,
+        };
+        let all_shards = adapter.list_shard(&list_all.shard_name).await.unwrap();
         assert_eq!(all_shards.len(), 2);
 
         // Test list specific shard
-        let specific_shard = adapter.list_shard(&namespace, "shard-1").await.unwrap();
+        let list_one = ShardInfo {
+            shard_name: "shard-1".to_string(),
+            replica_num: 0,
+        };
+        let specific_shard = adapter.list_shard(&list_one.shard_name).await.unwrap();
         assert_eq!(specific_shard.len(), 1);
         assert_eq!(specific_shard[0].shard_name, "shard-1");
 
         // Test delete shard
-        adapter.delete_shard(&namespace, "shard-1").await.unwrap();
+        adapter.delete_shard(&shard1.shard_name).await.unwrap();
 
         // Verify shard-1 is deleted
-        let remaining_shards = adapter.list_shard(&namespace, "").await.unwrap();
+        let remaining_shards = adapter.list_shard(&list_all.shard_name).await.unwrap();
         assert_eq!(remaining_shards.len(), 1);
 
-        let deleted_shard = adapter.list_shard(&namespace, "shard-1").await.unwrap();
+        let deleted_shard = adapter.list_shard(&list_one.shard_name).await.unwrap();
         assert_eq!(deleted_shard.len(), 0);
     }
 
@@ -803,9 +763,12 @@ mod tests {
     async fn test_consumer_group_offset() {
         // Setup
         let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
         let shard_name = "group-test";
         let group_name = "consumer-group-1";
+        let shard = ShardInfo {
+            shard_name: shard_name.to_string(),
+            replica_num: 1,
+        };
 
         // Write some messages
         let messages = vec![
@@ -814,16 +777,13 @@ mod tests {
             create_message(b"msg3"),
         ];
         adapter
-            .batch_write(&namespace, shard_name, &messages)
+            .batch_write(&shard.shard_name, &messages)
             .await
             .unwrap();
 
         // Commit offset 1 for the consumer group
         let mut offsets = HashMap::from([(shard_name.to_string(), 1u64)]);
-        adapter
-            .commit_offset(group_name, &namespace, &offsets)
-            .await
-            .unwrap();
+        adapter.commit_offset(group_name, &offsets).await.unwrap();
 
         // Verify committed offset
         let group_offsets = adapter.get_offset_by_group(group_name).await.unwrap();
@@ -832,10 +792,7 @@ mod tests {
 
         // Update offset to 2
         offsets.insert(shard_name.to_string(), 2);
-        adapter
-            .commit_offset(group_name, &namespace, &offsets)
-            .await
-            .unwrap();
+        adapter.commit_offset(group_name, &offsets).await.unwrap();
 
         // Verify updated offset
         let updated_offsets = adapter.get_offset_by_group(group_name).await.unwrap();
@@ -853,20 +810,23 @@ mod tests {
     async fn test_timestamp_query() {
         // Setup
         let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
         let shard_name = "timestamp-test";
+        let shard = ShardInfo {
+            shard_name: shard_name.to_string(),
+            replica_num: 1,
+        };
 
         // Write messages with different timestamps
         let timestamps = [1000u64, 2000, 3000];
         for (i, &timestamp) in timestamps.iter().enumerate() {
             let msg =
                 create_message_with_metadata(format!("msg{}", i).as_bytes(), vec![], "", timestamp);
-            adapter.write(&namespace, shard_name, &msg).await.unwrap();
+            adapter.write(&shard.shard_name, &msg).await.unwrap();
         }
 
         // Test query: timestamp 1500 should return offset 1 (closest match)
         let result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 1500)
+            .get_offset_by_timestamp(&shard.shard_name, 1500)
             .await
             .unwrap()
             .unwrap();
@@ -874,7 +834,7 @@ mod tests {
 
         // Test query: timestamp 500 should return offset 0 (first message)
         let result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 500)
+            .get_offset_by_timestamp(&shard.shard_name, 500)
             .await
             .unwrap()
             .unwrap();
@@ -882,14 +842,18 @@ mod tests {
 
         // Test query: timestamp 4000 (beyond all messages) should return None
         let result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 4000)
+            .get_offset_by_timestamp(&shard.shard_name, 4000)
             .await
             .unwrap();
         assert!(result.is_none());
 
         // Test query: non-existent shard should return None
+        let nonexistent_shard = ShardInfo {
+            shard_name: "nonexistent".to_string(),
+            replica_num: 1,
+        };
         let result = adapter
-            .get_offset_by_timestamp(&namespace, "nonexistent", 1000)
+            .get_offset_by_timestamp(&nonexistent_shard.shard_name, 1000)
             .await
             .unwrap();
         assert!(result.is_none());

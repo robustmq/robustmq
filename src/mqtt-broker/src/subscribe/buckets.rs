@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::{atomic::AtomicU32, Arc};
+use crate::subscribe::common::Subscriber;
+use common_base::tools::unique_id;
 use dashmap::DashMap;
 use serde::Serialize;
+use std::sync::{atomic::AtomicU32, Arc};
 use tokio::sync::broadcast::Sender;
-use crate::subscribe::common::Subscriber;
 
 #[derive(Clone, Serialize)]
 pub struct SubPushThreadData {
@@ -32,8 +33,8 @@ pub struct SubPushThreadData {
 #[derive(Clone, Default)]
 pub struct BucketsManager {
     // (bucket_id, (seq,subscriber))
-    pub buckets_data_list: DashMap<u32, DashMap<u32, Subscriber>>,
-    pub buckets_push_thread: DashMap<u32, SubPushThreadData>,
+    pub buckets_data_list: DashMap<String, DashMap<u32, Subscriber>>,
+    pub buckets_push_thread: DashMap<String, SubPushThreadData>,
 
     // (client_id, (seq))
     client_id_sub: DashMap<String, Vec<u32>>,
@@ -56,8 +57,7 @@ impl BucketsManager {
         }
     }
 
-    pub fn add(&self, subscriber: &Subscriber) {
-        // add index
+    pub async fn add(&self, subscriber: &Subscriber) {
         let seq = self
             .seq_num
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -83,39 +83,46 @@ impl BucketsManager {
         }
 
         // add data list
-        self.add_data_list(seq, &subscriber);
+        self.add_data_list(seq, &subscriber).await;
     }
 
-    pub fn remove_by_client_id(&self, client_id: &str) {
+    pub async fn remove_by_client_id(&self, client_id: &str) {
         if let Some(data) = self.client_id_sub.get(client_id) {
             for seq in data.iter() {
-                self.remove_data_list_by_seq(&seq);
+                self.remove_data_list_by_seq(&seq).await;
             }
         }
     }
 
-    pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
+    pub async fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
         let key = self.client_sub_path_key(client_id, sub_path);
         if let Some(data) = self.client_id_sub_path_sub.get(&key) {
             for seq in data.iter() {
-                self.remove_data_list_by_seq(&seq);
+                self.remove_data_list_by_seq(&seq).await;
             }
         }
     }
 
     // data list
-    fn add_data_list(&self, seq: u32, subscriber: &Subscriber) {
-
+    async fn add_data_list(&self, seq: u32, subscriber: &Subscriber) {
+        let mut write_success = false;
         for row in self.buckets_data_list.iter() {
             if row.len() as u32 >= self.bucket_size {
                 continue;
             }
             row.insert(seq, subscriber.clone());
+            write_success = true;
             break;
+        }
+
+        if !write_success {
+            let data = DashMap::with_capacity(2);
+            data.insert(seq, subscriber.clone());
+            self.buckets_data_list.insert(unique_id(), data);
         }
     }
 
-    fn remove_data_list_by_seq(&self, seq: &u32) {
+    async fn remove_data_list_by_seq(&self, seq: &u32) {
         for row in self.buckets_data_list.iter() {
             if row.contains_key(seq) {
                 // todo
@@ -125,7 +132,7 @@ impl BucketsManager {
     }
 
     // len
-    pub fn len(&self) -> u32 {
+    pub async fn len(&self) -> u32 {
         let mut length = 0;
         for row in self.buckets_data_list.iter() {
             length += row.len();

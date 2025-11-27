@@ -14,8 +14,7 @@
 
 use crate::{
     file::RocksDBStorageAdapter, journal::JournalStorageAdapter, memory::MemoryStorageAdapter,
-    minio::MinIoStorageAdapter, mysql::MySQLStorageAdapter, offset::OffsetManager,
-    s3::S3StorageAdapter, storage::ArcStorageAdapter,
+    mysql::MySQLStorageAdapter, offset::OffsetManager, storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
 use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
@@ -44,12 +43,16 @@ pub async fn build_message_storage_driver(
         )),
 
         StorageAdapterType::S3 => {
-            Arc::new(S3StorageAdapter::new(config.s3_config.unwrap_or_default()))
+            // Arc::new(S3StorageAdapter::new(config.s3_config.unwrap_or_default()))
+            return Err(CommonError::UnavailableStorageType);
         }
 
-        StorageAdapterType::MinIO => Arc::new(MinIoStorageAdapter::new(
-            config.minio_config.unwrap_or_default(),
-        )?),
+        StorageAdapterType::MinIO => {
+            // Arc::new(MinIoStorageAdapter::new(
+            // config.minio_config.unwrap_or_default(),
+            // )?)
+            return Err(CommonError::UnavailableStorageType);
+        }
     };
 
     Ok(storage)
