@@ -44,9 +44,7 @@ mod tests {
                 tags: vec![format!("tag-{}", i)],
             };
 
-            let res_opt = client
-                .write(namespace.to_owned(), shard_name.to_owned(), data)
-                .await;
+            let res_opt = client.write(&namespace, &shard_name, data).await;
             assert!(res_opt.is_ok());
         }
     }

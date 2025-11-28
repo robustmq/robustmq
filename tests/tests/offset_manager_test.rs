@@ -31,11 +31,10 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(3));
         let offset_manager = OffsetManager::new(client_pool, rocksdb_engine_handler);
         let group_name = "g1";
-        let namespace = "n1";
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
         offset_manager
-            .commit_offset(group_name, namespace, &offset)
+            .commit_offset(group_name, &offset)
             .await
             .unwrap();
 
@@ -64,11 +63,10 @@ mod tests {
         });
 
         let group_name = "g1";
-        let namespace = "n1";
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
         offset_manager
-            .commit_offset(group_name, namespace, &offset)
+            .commit_offset(group_name, &offset)
             .await
             .unwrap();
 

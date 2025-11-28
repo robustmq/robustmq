@@ -135,9 +135,7 @@ mod tests {
             tags: vec!["tag0".to_string()],
         };
 
-        let res_opt = client
-            .write(namespace.to_owned(), shard_name.to_owned(), data)
-            .await;
+        let res_opt = client.write(namespace, shard_name, data).await;
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
@@ -150,9 +148,7 @@ mod tests {
             content: "ccccc1".as_bytes().to_vec(),
             tags: vec!["tag1".to_string()],
         };
-        let res_opt = client
-            .write(namespace.to_owned(), shard_name.to_owned(), data)
-            .await;
+        let res_opt = client.write(namespace, shard_name, data).await;
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
@@ -177,9 +173,7 @@ mod tests {
                 tags: vec!["tag4".to_string()],
             },
         ];
-        let res_opt = client
-            .batch_write(namespace.to_owned(), shard_name.to_owned(), data)
-            .await;
+        let res_opt = client.batch_write(namespace, shard_name, data).await;
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();

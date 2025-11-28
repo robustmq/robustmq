@@ -110,7 +110,9 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     let group_name = connector_name.clone();
 
     loop {
-        let offset = message_storage.get_group_offset(&group_name).await?;
+        let offset = message_storage
+            .get_group_offset(&group_name, &config.topic_name)
+            .await?;
 
         select! {
             val = stop_recv.recv() => {
@@ -526,7 +528,6 @@ mod tests {
         let shard_name = connector.topic_name.clone();
         storage_adapter
             .create_shard(&ShardInfo {
-                namespace: "default".to_string(),
                 shard_name,
                 ..Default::default()
             })

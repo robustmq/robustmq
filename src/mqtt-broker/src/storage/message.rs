@@ -13,16 +13,10 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use common_config::broker::broker_config;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
-use storage_adapter::storage::{ArcStorageAdapter, ShardOffset};
-
-pub fn cluster_name() -> String {
-    let conf = broker_config();
-    conf.cluster_name.clone()
-}
+use storage_adapter::storage::ArcStorageAdapter;
 
 #[derive(Clone)]
 pub struct MessageStorage {
@@ -40,10 +34,9 @@ impl MessageStorage {
         record: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
         let shard_name = topic_name;
-        let namespace = cluster_name();
         let results = self
             .storage_adapter
-            .batch_write(&namespace, shard_name, &record)
+            .batch_write(shard_name, &record)
             .await?;
         Ok(results)
     }
@@ -55,13 +48,13 @@ impl MessageStorage {
         record_num: u64,
     ) -> Result<Vec<Record>, CommonError> {
         let shard_name = topic_name;
-        let namespace = cluster_name();
+
         let mut read_config = ReadConfig::new();
         read_config.max_record_num = record_num;
 
         let records = self
             .storage_adapter
-            .read_by_offset(&namespace, shard_name, offset, &read_config)
+            .read_by_offset(shard_name, offset, &read_config)
             .await?;
         for raw in records.iter() {
             if !raw.crc32_check() {
@@ -75,16 +68,18 @@ impl MessageStorage {
         &self,
         group_id: &str,
         shard_name: &str,
-    ) -> Result<u32, CommonError> {
-        let namespace = cluster_name();
+    ) -> Result<u64, CommonError> {
         for row in self
             .storage_adapter
             .get_offset_by_group(group_id)
             .await?
             .iter()
         {
-            if name
+            if *shard_name == row.shard_name {
+                return Ok(row.offset);
+            }
         }
+        Ok(0)
     }
 
     pub async fn commit_group_offset(
@@ -94,13 +89,11 @@ impl MessageStorage {
         offset: u64,
     ) -> Result<(), CommonError> {
         let shard_name = topic_name;
-        let namespace = cluster_name();
-
         let mut offset_data = HashMap::new();
         offset_data.insert(shard_name.to_owned(), offset);
 
         self.storage_adapter
-            .commit_offset(group_id, &namespace, &offset_data)
+            .commit_offset(group_id, &offset_data)
             .await
     }
 }

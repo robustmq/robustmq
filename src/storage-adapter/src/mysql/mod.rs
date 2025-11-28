@@ -278,7 +278,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         if shard.is_empty() {
             let sql = format!("SELECT info FROM `{}`", Self::shard_info_table_name());
 
-            let res = conn.exec_map(sql, params! {}, |info: Vec<u8>| {
+            let res = conn.query_map(sql, |info: Vec<u8>| {
                 serde_json::from_slice::<ShardInfo>(&info).unwrap()
             })?;
 
@@ -323,7 +323,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         conn.query_drop(drop_table_sql)?;
 
         let drop_shard_info_sql = format!(
-            "DELETE FROM `{}` WHERE namespace = :namespace AND shard = :shard",
+            "DELETE FROM `{}` WHERE shard = :shard",
             Self::shard_info_table_name()
         );
 

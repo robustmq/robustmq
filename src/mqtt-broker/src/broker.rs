@@ -278,7 +278,6 @@ impl MqttBrokerServer {
             if let Err(e) = start_delay_message_manager(
                 &delay_message_manager,
                 &message_storage_adapter,
-                &conf.cluster_name,
                 delay_message_manager.get_shard_num(),
             )
             .await

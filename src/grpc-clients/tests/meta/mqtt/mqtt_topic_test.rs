@@ -36,7 +36,6 @@ mod tests {
 
         let mqtt_topic: MQTTTopic = MQTTTopic {
             topic_name: topic_name.clone(),
-            cluster_name: cluster_name.clone(),
             create_time: now_second(),
         };
 

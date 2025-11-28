@@ -414,7 +414,6 @@ pub(crate) async fn write_topic_data(
 #[cfg(test)]
 mod test {
     use crate::common::tool::test_build_mqtt_cache_manager;
-    use crate::storage::message::cluster_name;
     use crate::system_topic::write_topic_data;
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
@@ -431,7 +430,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MQTTTopic::new(cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
         let message_storage_adapter = build_memory_storage_driver();
@@ -455,9 +454,9 @@ mod test {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
-        let cluster = cluster_name();
+
         let results = message_storage_adapter
-            .read_by_offset(&cluster, &topic.topic_name, 0, &read_config)
+            .read_by_offset(&topic.topic_name, 0, &read_config)
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
@@ -482,7 +481,7 @@ mod test {
         let cache_manger = test_build_mqtt_cache_manager().await;
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MQTTTopic::new(cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
         let expect_data = "test_data".to_string();
         super::report_system_data(
@@ -500,9 +499,8 @@ mod test {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
-        let cluster = cluster_name();
         let results = message_storage_adapter
-            .read_by_offset(&cluster, &mqtt_topic.topic_name, 0, &read_config)
+            .read_by_offset(&mqtt_topic.topic_name, 0, &read_config)
             .await
             .unwrap();
 

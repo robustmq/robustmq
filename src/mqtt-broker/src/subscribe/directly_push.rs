@@ -70,7 +70,9 @@ impl DirectlyPushManager {
         let qos = build_pub_qos(&self.cache_manager, &subscriber).await;
         let sub_ids = build_sub_ids(&subscriber);
         let storage = MessageStorage::new(self.message_storage.clone());
-        let offset = storage.get_group_offset(group).await?;
+        let offset = storage
+            .get_group_offset(group, &subscriber.topic_name)
+            .await?;
         Ok(1)
     }
 

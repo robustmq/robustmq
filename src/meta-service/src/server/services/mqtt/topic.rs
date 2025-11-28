@@ -44,11 +44,11 @@ pub async fn list_topic_by_req(
     let mut topics = Vec::new();
 
     if !req.topic_name.is_empty() {
-        if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
+        if let Some(topic) = storage.get(&req.topic_name)? {
             topics.push(topic.encode()?);
         }
     } else {
-        let data = storage.list(&req.cluster_name)?;
+        let data = storage.list()?;
         topics = data
             .into_iter()
             .map(|raw| raw.encode())
@@ -76,10 +76,7 @@ pub async fn create_topic_by_req(
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     // Check if topic already exists
-    if topic_storage
-        .get(&req.cluster_name, &req.topic_name)?
-        .is_some()
-    {
+    if topic_storage.get(&req.topic_name)?.is_some() {
         return Err(MetaServiceError::TopicAlreadyExist(req.topic_name.clone()));
     }
 
@@ -103,7 +100,7 @@ pub async fn delete_topic_by_req(
 
     // Get topic to delete (must exist)
     let topic = topic_storage
-        .get(&req.cluster_name, &req.topic_name)?
+        .get(&req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
@@ -124,7 +121,7 @@ pub async fn set_topic_retain_message_by_req(
 
     // Verify topic exists
     topic_storage
-        .get(&req.cluster_name, &req.topic_name)?
+        .get(&req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     let (data_type, data) = if req.retain_message.is_none() {

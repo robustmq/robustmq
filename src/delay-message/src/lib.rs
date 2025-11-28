@@ -39,23 +39,20 @@ pub mod pop;
 pub async fn start_delay_message_manager(
     delay_message_manager: &Arc<DelayMessageManager>,
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     shard_num: u64,
 ) -> Result<(), CommonError> {
     delay_message_manager.start().await;
-    init_delay_message_shard(message_storage_adapter, namespace, shard_num).await?;
+    init_delay_message_shard(message_storage_adapter, shard_num).await?;
 
     start_recover_delay_queue(
         delay_message_manager,
         message_storage_adapter,
-        namespace,
         shard_num,
     );
 
     start_delay_message_pop(
         delay_message_manager,
         message_storage_adapter,
-        namespace,
         shard_num,
     );
 
@@ -63,7 +60,6 @@ pub async fn start_delay_message_manager(
 }
 
 pub struct DelayMessageManager {
-    namespace: String,
     shard_num: u64,
     message_storage_adapter: ArcStorageAdapter,
     incr_no: AtomicU64,
@@ -73,12 +69,10 @@ pub struct DelayMessageManager {
 
 impl DelayMessageManager {
     pub fn new(
-        namespace: String,
         shard_num: u64,
         message_storage_adapter: ArcStorageAdapter,
     ) -> Self {
         DelayMessageManager {
-            namespace,
             shard_num,
             message_storage_adapter,
             incr_no: AtomicU64::new(0),
@@ -100,17 +94,11 @@ impl DelayMessageManager {
         data: Record,
     ) -> Result<(), CommonError> {
         let shard_no = self.get_target_shard_no();
-        let namespace = self.namespace.clone();
         let delay_shard_name = get_delay_message_shard_name(shard_no);
 
         // Persist DelayMessage
-        let offset = persist_delay_message(
-            &self.message_storage_adapter,
-            &namespace,
-            &delay_shard_name,
-            data,
-        )
-        .await?;
+        let offset =
+            persist_delay_message(&self.message_storage_adapter, &delay_shard_name, data).await?;
 
         // DelayInfo into delay queue
         let delay_info = DelayMessageInfo {
@@ -122,7 +110,7 @@ impl DelayMessageManager {
         self.send_to_delay_queue(shard_no, &delay_info);
 
         // persist DelayInfo
-        persist_delay_info(&self.message_storage_adapter, &self.namespace, delay_info).await?;
+        persist_delay_info(&self.message_storage_adapter, delay_info).await?;
         Ok(())
     }
 
