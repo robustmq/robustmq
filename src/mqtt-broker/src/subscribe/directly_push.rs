@@ -28,7 +28,6 @@ use common_metrics::mqtt::subscribe::{
     record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
     record_subscribe_topic_messages_sent,
 };
-use dashmap::DashMap;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -38,7 +37,6 @@ use tokio::{select, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
 
 const BATCH_SIZE: u64 = 500;
-const OFFSET_CACHE_CAPACITY: usize = 128;
 
 const IDLE_SLEEP_MS: u64 = 100;
 const LOW_LOAD_SLEEP_MS: u64 = 50;
@@ -51,7 +49,6 @@ pub struct DirectlyPushManager {
     cache_manager: Arc<MQTTCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     message_storage: MessageStorage,
-    offset_cache: DashMap<String, u64>,
     uuid: String,
 }
 
@@ -67,7 +64,6 @@ impl DirectlyPushManager {
         DirectlyPushManager {
             subscribe_manager,
             message_storage: MessageStorage::new(storage_adapter),
-            offset_cache: DashMap::with_capacity(OFFSET_CACHE_CAPACITY),
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,
@@ -275,15 +271,15 @@ impl DirectlyPushManager {
         group: &str,
         topic_name: &str,
     ) -> Result<Vec<Record>, MqttBrokerError> {
-        let offset = self.get_offset(group, topic_name).await? + 1;
+        let offset = self
+            .message_storage
+            .get_group_offset(group, topic_name)
+            .await?
+            + 1;
         Ok(self
             .message_storage
             .read_topic_message(topic_name, offset, BATCH_SIZE)
             .await?)
-    }
-
-    fn offset_cache_key(&self, group: &str, topic_name: &str) -> String {
-        format!("{group}_{topic_name}")
     }
 
     async fn commit_offset(
@@ -295,24 +291,7 @@ impl DirectlyPushManager {
         self.message_storage
             .commit_group_offset(group, topic_name, offset)
             .await?;
-
-        let key = self.offset_cache_key(group, topic_name);
-        self.offset_cache.insert(key, offset);
         Ok(())
-    }
-
-    async fn get_offset(&self, group: &str, topic_name: &str) -> Result<u64, MqttBrokerError> {
-        let key = self.offset_cache_key(group, topic_name);
-        if let Some(offset) = self.offset_cache.get(&key) {
-            return Ok(*offset);
-        }
-
-        let offset = self
-            .message_storage
-            .get_group_offset(group, topic_name)
-            .await?;
-        self.offset_cache.insert(key, offset);
-        Ok(offset)
     }
 
     fn record_metrics(
