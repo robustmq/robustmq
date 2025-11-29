@@ -122,8 +122,24 @@ impl BucketsManager {
 
     async fn remove_data_list_by_seq(&self, seq: &u32) {
         for row in self.buckets_data_list.iter() {
-            if row.contains_key(seq) {
-                // todo
+            if let Some((_, subscriber)) = row.remove(seq) {
+                if let Some(mut data) = self.client_id_sub.get_mut(&subscriber.client_id) {
+                    data.retain(|s| s != seq);
+                    if data.is_empty() {
+                        drop(data);
+                        self.client_id_sub.remove(&subscriber.client_id);
+                    }
+                }
+
+                let key = self.client_sub_path_key(&subscriber.client_id, &subscriber.sub_path);
+                if let Some(mut data) = self.client_id_sub_path_sub.get_mut(&key) {
+                    data.retain(|s| s != seq);
+                    if data.is_empty() {
+                        drop(data);
+                        self.client_id_sub_path_sub.remove(&key);
+                    }
+                }
+
                 break;
             }
         }
