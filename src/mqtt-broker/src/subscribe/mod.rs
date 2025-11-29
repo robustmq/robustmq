@@ -19,7 +19,6 @@ use common_base::{
 use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
@@ -39,12 +38,7 @@ pub mod push;
 pub mod buckets;
 pub mod directly_push;
 pub mod parse;
-
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-pub enum PushModel {
-    QuickFailure,
-    RetryFailure,
-}
+pub mod push_model;
 
 pub struct PushManager {
     cache_manager: Arc<MQTTCacheManager>,
@@ -120,9 +114,7 @@ impl PushManager {
 
                 let stop_sx = sub_thread_stop_sx.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = push_manager.start(&stop_sx).await {
-                        error!("{}", e);
-                    }
+                    push_manager.start(&stop_sx).await;
                 });
 
                 self.directly_buckets_push_thread

@@ -19,7 +19,7 @@ use crate::{
         common::{is_ignore_push_error, Subscriber},
         manager::SubscribeManager,
         push::{build_publish_message, send_publish_packet_to_client},
-        PushModel,
+        push_model::{get_push_model, PushModel},
     },
 };
 use crate::{handler::cache::MQTTCacheManager, storage::message::MessageStorage};
@@ -32,10 +32,10 @@ use dashmap::DashMap;
 use metadata_struct::adapter::record::Record;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
-use tokio::sync::broadcast::Sender;
-use tracing::warn;
+use tokio::{select, sync::broadcast::Sender, time::sleep};
+use tracing::{error, info, warn};
 
 pub struct DirectlyPushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -67,7 +67,41 @@ impl DirectlyPushManager {
         }
     }
 
-    pub async fn start(&self, stop_sx: &Sender<bool>) -> ResultMqttBrokerError {
+    pub async fn start(&self, stop_sx: &Sender<bool>) {
+        let mut stop_rx = stop_sx.subscribe();
+        loop {
+            select! {
+                val = stop_rx.recv() =>{
+                    if let Ok(flag) = val {
+                        if flag {
+                            info!("DirectlyPushManager[{}] stopped", self.uuid);
+                            break;
+                        }
+                    }
+                }
+                res = self.send_messages(stop_sx) =>{
+                    match res {
+                        Ok(processed_count) => {
+                            if processed_count == 0 {
+                                sleep(Duration::from_millis(100)).await;
+                            } else if processed_count < 10 {
+                                sleep(Duration::from_millis(50)).await;
+                            } else {
+                                sleep(Duration::from_millis(10)).await;
+                            }
+                        }
+                        Err(e) => {
+                            error!("DirectlyPushManager[{}] send messages failed: {}", self.uuid, e);
+                            sleep(Duration::from_millis(100)).await;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<usize, MqttBrokerError> {
+        let mut processed_count = 0;
         if let Some(data) = self
             .subscribe_manager
             .directly_push
@@ -83,21 +117,20 @@ impl DirectlyPushManager {
                         continue;
                     };
 
-                    let mut is_commit_offset = true;
-                    let mut success = true;
-                    let model = PushModel::QuickFailure;
-                    if let Err(e) = self.push_data(&row, &record, stop_sx).await {
-                        if !is_ignore_push_error(&e) {
-                            warn!(
-                                "Exclusive push fail, offset [{:?}], error message:{},",
-                                record.offset, e
-                            );
-                        }
-                        if model == PushModel::RetryFailure {
-                            is_commit_offset = false
-                        }
-                        success = false;
-                    }
+                    let model = get_push_model(&row.client_id, &row.topic_name);
+                    let (is_commit_offset, success) =
+                        match self.push_data(&row, &record, stop_sx).await {
+                            Ok(_) => (true, true),
+                            Err(e) => {
+                                if !is_ignore_push_error(&e) {
+                                    warn!(
+                                        "Directly push fail, offset [{:?}], error message:{}",
+                                        record.offset, e
+                                    );
+                                }
+                                (model != PushModel::RetryFailure, false)
+                            }
+                        };
 
                     self.record_metrics(
                         &row.client_id,
@@ -111,11 +144,13 @@ impl DirectlyPushManager {
                         self.commit_offset(&row.group_name, &row.topic_name, record_offset)
                             .await?;
                     }
+
+                    processed_count += 1;
                 }
             }
         }
 
-        Ok(())
+        Ok(processed_count)
     }
 
     async fn push_data(
@@ -124,7 +159,6 @@ impl DirectlyPushManager {
         record: &Record,
         stop_sx: &Sender<bool>,
     ) -> ResultMqttBrokerError {
-        // build publish params
         let sub_pub_param = if let Some(params) = build_publish_message(
             &self.cache_manager,
             &self.connection_manager,
@@ -135,12 +169,12 @@ impl DirectlyPushManager {
         {
             params
         } else {
+            // Invalid message. Just submit the offset normally and skip the processing of this message.
             return Ok(());
         };
 
         let send_time = now_second();
 
-        // publish data to client
         send_publish_packet_to_client(
             &self.connection_manager,
             &self.cache_manager,
@@ -166,11 +200,15 @@ impl DirectlyPushManager {
         group: &str,
         topic_name: &str,
     ) -> Result<Vec<Record>, MqttBrokerError> {
-        let offset = self.get_offset(group, topic_name).await?;
+        let offset = self.get_offset(group, topic_name).await? + 1;
         Ok(self
             .message_storage
             .read_topic_message(topic_name, offset, 100)
             .await?)
+    }
+
+    fn offset_cache_key(&self, group: &str, topic_name: &str) -> String {
+        format!("{group}_{topic_name}")
     }
 
     async fn commit_offset(
@@ -179,7 +217,7 @@ impl DirectlyPushManager {
         topic_name: &str,
         offset: u64,
     ) -> ResultMqttBrokerError {
-        let key = format!("{group}_{}", topic_name);
+        let key = self.offset_cache_key(group, topic_name);
         self.offset_cache.insert(key, offset);
         self.message_storage
             .commit_group_offset(group, topic_name, offset)
@@ -188,7 +226,7 @@ impl DirectlyPushManager {
     }
 
     async fn get_offset(&self, group: &str, topic_name: &str) -> Result<u64, MqttBrokerError> {
-        let key = format!("{group}_{}", topic_name);
+        let key = self.offset_cache_key(group, topic_name);
         if let Some(offset) = self.offset_cache.get(&key) {
             return Ok(*offset);
         }
@@ -212,8 +250,8 @@ impl DirectlyPushManager {
         record_subscribe_bytes_sent(client_id, path, data_size, success);
         record_subscribe_topic_bytes_sent(client_id, path, topic_name, data_size, success);
 
-        record_subscribe_messages_sent(client_id, path, true);
-        record_subscribe_topic_messages_sent(client_id, path, topic_name, true);
+        record_subscribe_messages_sent(client_id, path, success);
+        record_subscribe_topic_messages_sent(client_id, path, topic_name, success);
     }
 }
 
