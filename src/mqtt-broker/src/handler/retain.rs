@@ -21,12 +21,13 @@ use crate::handler::sub_option::{
     is_send_retain_msg_by_retain_handling,
 };
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::common::get_sub_topic_name_list;
 use crate::subscribe::common::min_qos;
-use crate::subscribe::common::{get_sub_topic_name_list, Subscriber};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
+use common_base::tools::now_second;
 use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use common_metrics::mqtt::statistics::{record_mqtt_retained_dec, record_mqtt_retained_inc};
 use dashmap::DashMap;
@@ -208,7 +209,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 content_type: msg.content_type,
             };
 
-            let pkid = context
+            let p_kid = context
                 .cache_manager
                 .pkid_metadata
                 .generate_pkid(&context.client_id, &qos)
@@ -217,7 +218,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
             let publish = Publish {
                 dup: false,
                 qos,
-                p_kid: pkid,
+                p_kid,
                 retain,
                 topic: Bytes::copy_from_slice(topic_name.as_bytes()),
                 payload: msg.payload,
@@ -225,23 +226,18 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
             let packet = MqttPacket::Publish(publish.clone(), Some(properties));
 
-            let sub_pub_param = SubPublishParam::new(
-                Subscriber {
-                    protocol: context.protocol.to_owned(),
-                    client_id: context.client_id.to_string(),
-                    ..Default::default()
-                },
+            let sub_pub_param = SubPublishParam {
                 packet,
-                msg.create_time as u128,
-                "".to_string(),
-                pkid,
-            );
+                create_time: now_second(),
+                client_id: context.client_id.clone(),
+                p_kid,
+                qos,
+            };
 
             send_publish_packet_to_client(
                 &context.connection_manager,
                 &context.cache_manager,
                 &sub_pub_param,
-                &qos,
                 &context.stop_sx,
             )
             .await?;

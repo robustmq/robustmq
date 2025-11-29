@@ -106,6 +106,7 @@ pub(crate) async fn init_delay_message_shard(
             let shard = ShardInfo {
                 shard_name: shard_name.clone(),
                 replica_num: 1,
+                ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
             info!("init shard: {}", shard_name);
@@ -121,7 +122,6 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
     use storage_adapter::storage::build_memory_storage_driver;
 

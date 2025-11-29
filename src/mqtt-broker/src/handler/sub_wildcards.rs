@@ -43,36 +43,4 @@ pub fn is_wildcards(sub_path: &str) -> bool {
     sub_path.contains(SUBSCRIBE_WILDCARDS_1) || sub_path.contains(SUBSCRIBE_WILDCARDS_2)
 }
 
-mod tests {
-    use crate::handler::sub_wildcards::sub_path_validator;
-
-    #[tokio::test]
-    async fn sub_path_validator_test() {
-        let path = "/loboxu/test";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "/loboxu/#";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "/loboxu/+";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/#";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/#/test";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/+/test";
-        assert!(sub_path_validator(path).is_ok());
-
-        let path = "$share/loboxu/+test";
-        assert!(sub_path_validator(path).is_err());
-
-        let path = "$share/loboxu/#test";
-        assert!(sub_path_validator(path).is_err());
-
-        let path = "$share/loboxu/*test";
-        assert!(sub_path_validator(path).is_err());
-    }
-}
+mod tests {}

@@ -156,7 +156,7 @@ pub fn storage_key_mqtt_topic(topic_name: &str) -> String {
 
 #[inline]
 pub fn storage_key_mqtt_topic_cluster_prefix() -> String {
-    format!("/meta/mqtt/topic/")
+    "/meta/mqtt/topic/".to_string()
 }
 
 #[inline]

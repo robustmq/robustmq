@@ -132,6 +132,7 @@ pub async fn load_metadata_cache(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
@@ -187,7 +188,7 @@ pub async fn update_cache_metadata(
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
                 actually_execute_add_subscribe(
                     subscribe_manager,
-                    &cache_manager,
+                    cache_manager,
                     client_pool,
                     &subscribe,
                 )

@@ -611,6 +611,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         mysql_adapter.create_shard(&shard).await.unwrap();
 
@@ -625,6 +626,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         mysql_adapter.create_shard(&shard).await.unwrap();
         let mut data = Vec::new();
@@ -697,6 +699,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         mysql_adapter.create_shard(&shard).await.unwrap();
 
@@ -902,6 +905,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         mysql_adapter.create_shard(&shard).await.unwrap();
 

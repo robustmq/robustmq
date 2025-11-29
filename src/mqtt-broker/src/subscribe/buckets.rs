@@ -34,7 +34,6 @@ pub struct SubPushThreadData {
 pub struct BucketsManager {
     // (bucket_id, (seq,subscriber))
     pub buckets_data_list: DashMap<String, DashMap<u32, Subscriber>>,
-    pub buckets_push_thread: DashMap<String, SubPushThreadData>,
 
     // (client_id, (seq))
     client_id_sub: DashMap<String, Vec<u32>>,
@@ -53,7 +52,6 @@ impl BucketsManager {
             client_id_sub: DashMap::new(),
             client_id_sub_path_sub: DashMap::new(),
             buckets_data_list: DashMap::with_capacity(2),
-            buckets_push_thread: DashMap::with_capacity(2),
         }
     }
 
@@ -83,13 +81,13 @@ impl BucketsManager {
         }
 
         // add data list
-        self.add_data_list(seq, &subscriber).await;
+        self.add_data_list(seq, subscriber).await;
     }
 
     pub async fn remove_by_client_id(&self, client_id: &str) {
         if let Some(data) = self.client_id_sub.get(client_id) {
             for seq in data.iter() {
-                self.remove_data_list_by_seq(&seq).await;
+                self.remove_data_list_by_seq(seq).await;
             }
         }
     }
@@ -98,7 +96,7 @@ impl BucketsManager {
         let key = self.client_sub_path_key(client_id, sub_path);
         if let Some(data) = self.client_id_sub_path_sub.get(&key) {
             for seq in data.iter() {
-                self.remove_data_list_by_seq(&seq).await;
+                self.remove_data_list_by_seq(seq).await;
             }
         }
     }
@@ -129,15 +127,6 @@ impl BucketsManager {
                 break;
             }
         }
-    }
-
-    // len
-    pub async fn len(&self) -> u32 {
-        let mut length = 0;
-        for row in self.buckets_data_list.iter() {
-            length += row.len();
-        }
-        length as u32
     }
 
     fn client_sub_path_key(&self, client_id: &str, sub_path: &str) -> String {

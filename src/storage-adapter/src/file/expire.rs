@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 use crate::key::*;
 use crate::storage::ShardInfo;
 use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
@@ -190,6 +191,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         adapter.create_shard(&shard).await.unwrap();
 
@@ -277,6 +279,7 @@ mod tests {
             .create_shard(&ShardInfo {
                 shard_name: shard_name.clone(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -307,6 +310,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         adapter
             .batch_write(&shard.shard_name, &messages)
@@ -369,6 +373,7 @@ mod tests {
             .create_shard(&ShardInfo {
                 shard_name: shard_name.clone(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -390,6 +395,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         adapter
             .batch_write(&shard.shard_name, &messages)

@@ -18,7 +18,6 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
-use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -162,6 +161,7 @@ pub async fn try_init_topic(
             let shard = ShardInfo {
                 shard_name: topic_name.to_owned(),
                 replica_num: 1,
+                ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
         }

@@ -225,43 +225,17 @@ impl MqttBrokerServer {
     }
 
     fn start_subscribe_push(&self) {
-        let subscribe_manager = self.subscribe_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let metadata_cache = self.cache_manager.clone();
         let stop_send = self.inner_stop.clone();
-        let push_manager = PushManager::new();
+        let push_manager = PushManager::new(
+            self.cache_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.connection_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
+            self.subscribe_manager.clone(),
+        );
         tokio::spawn(async move {
-            push_manager.start().await;
+            push_manager.start(&stop_send).await;
         });
-
-        // let stop_send = self.inner_stop.clone();
-        // let exclusive_sub = ExclusivePush::new(
-        //     self.message_storage_adapter.clone(),
-        //     self.cache_manager.clone(),
-        //     self.subscribe_manager.clone(),
-        //     self.connection_manager.clone(),
-        //     self.metrics_cache_manager.clone(),
-        //     self.rocksdb_engine_handler.clone(),
-        //     stop_send,
-        // );
-
-        // tokio::spawn(async move {
-        //     exclusive_sub.start().await;
-        // });
-
-        // let stop_send = self.inner_stop.clone();
-        // let share_push = SharePush::new(
-        //     self.subscribe_manager.clone(),
-        //     self.message_storage_adapter.clone(),
-        //     self.connection_manager.clone(),
-        //     self.cache_manager.clone(),
-        //     self.rocksdb_engine_handler.clone(),
-        //     stop_send,
-        // );
-
-        // tokio::spawn(async move {
-        //     share_push.start().await;
-        // });
 
         let metadata_cache = self.cache_manager.clone();
         let stop_send = self.inner_stop.clone();

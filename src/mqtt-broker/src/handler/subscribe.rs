@@ -115,7 +115,7 @@ pub async fn actually_execute_add_subscribe(
 ) -> ResultMqttBrokerError {
     subscribe_manager.add_subscribe(subscribe);
     let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.filter.path);
-    for row in cache_manager.topic_info.iter() {
+    if let Some(row) = cache_manager.topic_info.iter().next() {
         let topic = row.value();
         return parse_subscribe_by_new_subscribe(ParseSubscribeContext {
             client_pool: client_pool.clone(),
@@ -126,7 +126,7 @@ pub async fn actually_execute_add_subscribe(
             pkid: subscribe.pkid,
             filter: subscribe.filter.clone(),
             subscribe_properties: subscribe.subscribe_properties.clone(),
-            rewrite_sub_path: rewrite_sub_path,
+            rewrite_sub_path,
         })
         .await;
     }

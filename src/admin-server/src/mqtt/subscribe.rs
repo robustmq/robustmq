@@ -21,7 +21,6 @@ use crate::{
     },
 };
 use axum::{extract::State, Json};
-use common_base::utils::serialize;
 use mqtt_broker::{
     handler::sub_share::{decode_share_info, is_mqtt_share_subscribe, is_share_sub_leader},
     subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData},
@@ -278,10 +277,10 @@ pub async fn share_subscribe_detail(
 }
 
 async fn exclusive_sub_detail(
-    state: &Arc<HttpState>,
-    params: &SubscribeDetailReq,
+    _state: &Arc<HttpState>,
+    _params: &SubscribeDetailReq,
 ) -> Result<Vec<SubTopicRaw>, MqttBrokerError> {
-    let mut topic_list: Vec<SubTopicRaw> = Vec::new();
+    let topic_list: Vec<SubTopicRaw> = Vec::new();
     // for topic_name in state
     //     .mqtt_context
     //     .subscribe_manager
@@ -325,8 +324,8 @@ async fn exclusive_sub_detail(
 }
 
 async fn share_sub_detail(
-    state: &Arc<HttpState>,
-    params: &SubscribeDetailReq,
+    _state: &Arc<HttpState>,
+    _params: &SubscribeDetailReq,
 ) -> Result<(Vec<SubTopicRaw>, SubGroupLeaderRaw), CommonError> {
     Err(CommonError::ClusterNoAvailableNode)
     // let (group, sub_name) = decode_share_group_and_path(&params.path);

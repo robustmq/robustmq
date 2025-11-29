@@ -182,7 +182,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let prefix_key = if shard.is_empty() {
             "/shard/".to_string()
         } else {
-            shard_info_key(&shard)
+            shard_info_key(shard)
         };
 
         let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
@@ -194,9 +194,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
         let cf = self.get_cf()?;
-        self.get_offset(&shard)?;
+        self.get_offset(shard)?;
 
-        let record_prefix = shard_record_key_prefix(&shard);
+        let record_prefix = shard_record_key_prefix(shard);
         self.db.delete_prefix(cf.clone(), &record_prefix)?;
 
         let key_index_prefix = format!("/key/{}/", shard);
@@ -205,15 +205,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let tag_index_prefix = format!("/tag/{}/", shard);
         self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
 
-        let timestamp_index_prefix = timestamp_offset_key_prefix(&shard);
+        let timestamp_index_prefix = timestamp_offset_key_prefix(shard);
         self.db.delete_prefix(cf.clone(), &timestamp_index_prefix)?;
 
-        self.db.delete(cf.clone(), &shard_offset_key(&shard))?;
-        self.db.delete(cf, &shard_info_key(&shard))
+        self.db.delete(cf.clone(), &shard_offset_key(shard))?;
+        self.db.delete(cf, &shard_info_key(shard))
     }
 
     async fn write(&self, shard: &str, message: &Record) -> Result<u64, CommonError> {
-        let offsets = self.batch_write_internal(&shard, std::slice::from_ref(message))?;
+        let offsets = self.batch_write_internal(shard, std::slice::from_ref(message))?;
 
         offsets
             .first()
@@ -226,7 +226,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             return Ok(Vec::new());
         }
 
-        self.batch_write_internal(&shard, messages)
+        self.batch_write_internal(shard, messages)
     }
 
     async fn read_by_offset(
@@ -243,7 +243,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         // Generate keys for batch read (capped at reasonable size)
         let keys: Vec<String> = (offset..offset.saturating_add(max_batch_size as u64))
-            .map(|i| shard_record_key(&shard, i))
+            .map(|i| shard_record_key(shard, i))
             .collect();
 
         // Batch read all records at once (much faster than individual reads)
@@ -279,7 +279,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let tag_offset_key_prefix = tag_offsets_key_prefix(&shard, tag);
+        let tag_offset_key_prefix = tag_offsets_key_prefix(shard, tag);
 
         // Use Iterator instead of read_prefix to avoid loading all tag offsets into memory
         // This is critical for tags with millions of records
@@ -333,7 +333,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         let keys: Vec<String> = offsets
             .iter()
-            .map(|off| shard_record_key(&shard, *off))
+            .map(|off| shard_record_key(shard, *off))
             .collect();
 
         let batch_results = self.db.multi_get::<Record>(cf, &keys)?;
@@ -370,7 +370,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         }
 
         let cf = self.get_cf()?;
-        let key_offset_key = key_offset_key(&shard, key);
+        let key_offset_key = key_offset_key(shard, key);
 
         let key_offset_bytes = match self.db.db.get_cf(&cf, &key_offset_key) {
             Ok(Some(data)) => data,
@@ -386,7 +386,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let key_offset = parse_offset_bytes(&key_offset_bytes)?;
 
         if key_offset >= offset {
-            let shard_record_key = shard_record_key(&shard, key_offset);
+            let shard_record_key = shard_record_key(shard, key_offset);
             let Some(record) = self.db.read::<Record>(cf, &shard_record_key)? else {
                 return Ok(Vec::new());
             };
@@ -410,11 +410,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         // Optimized: Use single Iterator scan instead of two separate queries
         // Start from the target timestamp and find the first matching entry
-        let timestamp_search_prefix = timestamp_offset_key_search_prefix(&shard, timestamp);
+        let timestamp_search_prefix = timestamp_offset_key_search_prefix(shard, timestamp);
         let mut iter = self.db.db.raw_iterator_cf(&cf);
         iter.seek(&timestamp_search_prefix);
 
-        let timestamp_index_prefix = timestamp_offset_key_prefix(&shard);
+        let timestamp_index_prefix = timestamp_offset_key_prefix(shard);
 
         // Scan forward from target timestamp to find first valid entry
         while iter.valid() {
@@ -541,6 +541,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         adapter.create_shard(&shard).await.unwrap();
 
@@ -604,6 +605,7 @@ mod tests {
             .map(|name| ShardInfo {
                 shard_name: name.clone(),
                 replica_num: 1,
+                ..Default::default()
             })
             .collect();
 
@@ -615,6 +617,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: String::new(),
             replica_num: 0,
+            ..Default::default()
         };
         assert_eq!(
             adapter.list_shard(&shard.shard_name).await.unwrap().len(),
@@ -731,6 +734,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.clone(),
             replica_num: 1,
+            ..Default::default()
         };
         adapter.create_shard(&shard).await.unwrap();
 

@@ -44,17 +44,9 @@ pub async fn start_delay_message_manager(
     delay_message_manager.start().await;
     init_delay_message_shard(message_storage_adapter, shard_num).await?;
 
-    start_recover_delay_queue(
-        delay_message_manager,
-        message_storage_adapter,
-        shard_num,
-    );
+    start_recover_delay_queue(delay_message_manager, message_storage_adapter, shard_num);
 
-    start_delay_message_pop(
-        delay_message_manager,
-        message_storage_adapter,
-        shard_num,
-    );
+    start_delay_message_pop(delay_message_manager, message_storage_adapter, shard_num);
 
     Ok(())
 }
@@ -68,10 +60,7 @@ pub struct DelayMessageManager {
 }
 
 impl DelayMessageManager {
-    pub fn new(
-        shard_num: u64,
-        message_storage_adapter: ArcStorageAdapter,
-    ) -> Self {
+    pub fn new(shard_num: u64, message_storage_adapter: ArcStorageAdapter) -> Self {
         DelayMessageManager {
             shard_num,
             message_storage_adapter,

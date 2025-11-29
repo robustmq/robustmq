@@ -18,7 +18,6 @@ use crate::handler::error::MqttBrokerError;
 use crate::handler::sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use crate::handler::sub_share::{decode_share_info, is_mqtt_share_subscribe};
 use crate::handler::sub_wildcards::is_wildcards;
-use crate::storage::message::MessageStorage;
 use common_base::error::not_record_error;
 use protocol::mqtt::common::{
     Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
@@ -34,10 +33,10 @@ pub struct Subscriber {
     pub sub_path: String,
     pub rewrite_sub_path: Option<String>,
     pub topic_name: String,
-    pub group_name: Option<String>,
+    pub group_name: String,
     pub protocol: MqttProtocol,
     pub qos: QoS,
-    pub nolocal: bool,
+    pub no_local: bool,
     pub preserve_retain: bool,
     pub retain_forward_rule: RetainHandling,
     pub subscription_identifier: Option<usize>,
@@ -53,29 +52,11 @@ pub struct SubscribeData {
 
 #[derive(Clone, Debug)]
 pub struct SubPublishParam {
-    pub subscribe: Subscriber,
     pub packet: MqttPacket,
-    pub create_time: u128,
-    pub pkid: u16,
-    pub group_id: String,
-}
-
-impl SubPublishParam {
-    pub fn new(
-        subscribe: Subscriber,
-        packet: MqttPacket,
-        create_time: u128,
-        group_id: String,
-        pkid: u16,
-    ) -> Self {
-        SubPublishParam {
-            subscribe,
-            packet,
-            create_time,
-            pkid,
-            group_id,
-        }
-    }
+    pub create_time: u64,
+    pub client_id: String,
+    pub p_kid: u16,
+    pub qos: QoS,
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
@@ -182,18 +163,6 @@ pub async fn get_sub_topic_name_list(
     }
 
     result
-}
-
-pub async fn loop_commit_offset(
-    message_storage: &MessageStorage,
-    topic_name: &str,
-    group_id: &str,
-    offset: u64,
-) -> ResultMqttBrokerError {
-    message_storage
-        .commit_group_offset(group_id, topic_name, offset)
-        .await?;
-    Ok(())
 }
 
 pub fn is_error_by_suback(suback: &SubAck) -> bool {

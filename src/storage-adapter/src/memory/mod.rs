@@ -511,7 +511,6 @@ impl StorageAdapter for MemoryStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_base::tools::unique_id;
 
     // Helper: Default read configuration for tests
     fn read_config() -> ReadConfig {
@@ -544,12 +543,12 @@ mod tests {
     async fn test_write_and_read() {
         // Setup
         let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
         let shard_name = "test-shard";
         let config = read_config();
         let shard = ShardInfo {
             shard_name: shard_name.to_string(),
             replica_num: 1,
+            ..Default::default()
         };
 
         // Test batch write and verify offsets
@@ -576,6 +575,7 @@ mod tests {
         let nonexistent_shard = ShardInfo {
             shard_name: "nonexistent".to_string(),
             replica_num: 1,
+            ..Default::default()
         };
         let empty_records = adapter
             .read_by_offset(&nonexistent_shard.shard_name, 0, &config)
@@ -596,6 +596,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.to_string(),
             replica_num: 1,
+            ..Default::default()
         };
 
         // Write 5 messages (exceeds capacity)
@@ -672,6 +673,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.to_string(),
             replica_num: 1,
+            ..Default::default()
         };
 
         // Write messages with tags and keys
@@ -723,10 +725,12 @@ mod tests {
         let shard1 = ShardInfo {
             shard_name: "shard-1".to_string(),
             replica_num: 3,
+            ..Default::default()
         };
         let shard2 = ShardInfo {
             shard_name: "shard-2".to_string(),
             replica_num: 3,
+            ..Default::default()
         };
         adapter.create_shard(&shard1).await.unwrap();
         adapter.create_shard(&shard2).await.unwrap();
@@ -735,6 +739,7 @@ mod tests {
         let list_all = ShardInfo {
             shard_name: String::new(),
             replica_num: 0,
+            ..Default::default()
         };
         let all_shards = adapter.list_shard(&list_all.shard_name).await.unwrap();
         assert_eq!(all_shards.len(), 2);
@@ -743,6 +748,7 @@ mod tests {
         let list_one = ShardInfo {
             shard_name: "shard-1".to_string(),
             replica_num: 0,
+            ..Default::default()
         };
         let specific_shard = adapter.list_shard(&list_one.shard_name).await.unwrap();
         assert_eq!(specific_shard.len(), 1);
@@ -768,6 +774,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.to_string(),
             replica_num: 1,
+            ..Default::default()
         };
 
         // Write some messages
@@ -814,6 +821,7 @@ mod tests {
         let shard = ShardInfo {
             shard_name: shard_name.to_string(),
             replica_num: 1,
+            ..Default::default()
         };
 
         // Write messages with different timestamps
@@ -851,6 +859,7 @@ mod tests {
         let nonexistent_shard = ShardInfo {
             shard_name: "nonexistent".to_string(),
             replica_num: 1,
+            ..Default::default()
         };
         let result = adapter
             .get_offset_by_timestamp(&nonexistent_shard.shard_name, 1000)
