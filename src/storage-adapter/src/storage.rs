@@ -24,17 +24,22 @@ use std::{collections::HashMap, sync::Arc};
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
+pub enum OffsetStrategy {
+    Earliest,
+    Latest,
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ShardInfo {
-    pub namespace: String,
     pub shard_name: String,
     pub replica_num: u32,
+    pub earliest_offset: Option<u64>,
+    pub latest_offset: Option<u64>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct ShardOffset {
     pub group: String,
-    pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,
     pub offset: u64,
@@ -44,40 +49,24 @@ pub struct ShardOffset {
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<Vec<ShardInfo>, CommonError>;
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError>;
 
-    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError>;
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 
-    async fn write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        data: &Record,
-    ) -> Result<u64, CommonError>;
+    async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError>;
 
-    async fn batch_write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        data: &[Record],
-    ) -> Result<Vec<u64>, CommonError>;
+    async fn batch_write(&self, shard: &str, data: &[Record]) -> Result<Vec<u64>, CommonError>;
 
     async fn read_by_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;
 
     async fn read_by_tag(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         tag: &str,
         read_config: &ReadConfig,
@@ -85,8 +74,7 @@ pub trait StorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         key: &str,
         read_config: &ReadConfig,
@@ -94,8 +82,7 @@ pub trait StorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError>;
 
@@ -104,7 +91,6 @@ pub trait StorageAdapter {
     async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 

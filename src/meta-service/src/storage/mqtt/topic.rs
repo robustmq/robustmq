@@ -43,19 +43,14 @@ impl MqttTopicStorage {
     }
 
     // Topic
-    pub fn save(
-        &self,
-        cluster_name: &str,
-        topic_name: &str,
-        topic: MQTTTopic,
-    ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic(cluster_name, topic_name);
+    pub fn save(&self, topic_name: &str, topic: MQTTTopic) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_topic(topic_name);
         engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, topic)?;
         Ok(())
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTTopic>, MetaServiceError> {
-        let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
+    pub fn list(&self) -> Result<Vec<MQTTTopic>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_topic_cluster_prefix();
         let data = engine_prefix_list_by_meta_data::<MQTTTopic>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -63,20 +58,16 @@ impl MqttTopicStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(
-        &self,
-        cluster_name: &str,
-        topic_name: &str,
-    ) -> Result<Option<MQTTTopic>, MetaServiceError> {
-        let key = storage_key_mqtt_topic(cluster_name, topic_name);
+    pub fn get(&self, topic_name: &str) -> Result<Option<MQTTTopic>, MetaServiceError> {
+        let key = storage_key_mqtt_topic(topic_name);
         Ok(
             engine_get_by_meta_data::<MQTTTopic>(self.rocksdb_engine_handler.clone(), &key)?
                 .map(|data| data.data),
         )
     }
 
-    pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), MetaServiceError> {
-        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
+    pub fn delete(&self, topic_name: &str) -> Result<(), MetaServiceError> {
+        let key: String = storage_key_mqtt_topic(topic_name);
         engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
@@ -175,9 +166,8 @@ mod tests {
         MqttTopicStorage::new(test_rocksdb_instance())
     }
 
-    fn create_topic(cluster: &str, topic_name: &str) -> MQTTTopic {
+    fn create_topic(topic_name: &str) -> MQTTTopic {
         MQTTTopic {
-            cluster_name: cluster.to_string(),
             topic_name: topic_name.to_string(),
             create_time: now_second(),
         }
@@ -213,28 +203,23 @@ mod tests {
     #[test]
     fn test_topic_crud() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Save & Get
         storage
-            .save(cluster, "sensor/temp", create_topic(cluster, "sensor/temp"))
+            .save("sensor/temp", create_topic("sensor/temp"))
             .unwrap();
-        assert!(storage.get(cluster, "sensor/temp").unwrap().is_some());
+        assert!(storage.get("sensor/temp").unwrap().is_some());
 
         // List
         storage
-            .save(
-                cluster,
-                "sensor/humidity",
-                create_topic(cluster, "sensor/humidity"),
-            )
+            .save("sensor/humidity", create_topic("sensor/humidity"))
             .unwrap();
-        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+        assert_eq!(storage.list().unwrap().len(), 2);
 
         // Delete & Verify
-        storage.delete(cluster, "sensor/humidity").unwrap();
-        assert!(storage.get(cluster, "sensor/humidity").unwrap().is_none());
-        assert_eq!(storage.list(cluster).unwrap().len(), 1);
+        storage.delete("sensor/humidity").unwrap();
+        assert!(storage.get("sensor/humidity").unwrap().is_none());
+        assert_eq!(storage.list().unwrap().len(), 1);
     }
 
     #[test]
@@ -289,7 +274,7 @@ mod tests {
     #[test]
     fn test_get_nonexistent() {
         let storage = setup_storage();
-        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
+        assert!(storage.get("nonexistent").unwrap().is_none());
         assert!(storage
             .get_retain_message("cluster1", "nonexistent")
             .unwrap()

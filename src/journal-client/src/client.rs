@@ -135,26 +135,26 @@ impl JournalClient {
 
     pub async fn batch_write(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         data: Vec<JournalClientWriteData>,
     ) -> Result<Vec<SenderMessageResp>, JournalClientError> {
         let active_segment = get_active_segment(
             &self.metadata_cache,
             &self.connection_manager,
-            &namespace,
-            &shard_name,
+            namespace,
+            shard_name,
         )
         .await;
 
-        let message = SenderMessage::build(&namespace, &shard_name, active_segment, data.clone());
+        let message = SenderMessage::build(namespace, shard_name, active_segment, data.clone());
         self.writer.send(&message).await
     }
 
     pub async fn write(
         &self,
-        namespace: String,
-        shard_name: String,
+        namespace: &str,
+        shard_name: &str,
         data: JournalClientWriteData,
     ) -> Result<SenderMessageResp, JournalClientError> {
         let resp_vec = self.batch_write(namespace, shard_name, vec![data]).await?;

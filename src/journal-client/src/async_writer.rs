@@ -43,8 +43,8 @@ pub struct SenderMessage {
 
 impl SenderMessage {
     pub fn build(
-        namespace: &String,
-        shard_name: &String,
+        namespace: &str,
+        shard_name: &str,
         segment: u32,
         data: Vec<JournalClientWriteData>,
     ) -> Self {

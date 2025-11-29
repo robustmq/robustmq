@@ -52,17 +52,14 @@ impl OffsetManager {
     pub async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         if self.enable_cache {
             self.offset_cache_storage
-                .commit_offset(group_name, namespace, offset)
+                .commit_offset(group_name, offset)
                 .await
         } else {
-            self.offset_storage
-                .commit_offset(group_name, namespace, offset)
-                .await
+            self.offset_storage.commit_offset(group_name, offset).await
         }
     }
 

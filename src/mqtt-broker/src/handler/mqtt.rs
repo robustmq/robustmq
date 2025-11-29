@@ -19,7 +19,6 @@ use super::response::build_pub_ack_fail;
 use super::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
 use super::sub_auto::try_auto_subscribe;
 use super::subscribe::{save_subscribe, SaveSubscribeContext};
-use super::unsubscribe::remove_subscribe;
 use crate::handler::cache::{
     ConnectionLiveTime, MQTTCacheManager, QosAckPackageData, QosAckPackageType,
 };
@@ -35,6 +34,7 @@ use crate::handler::response::{
     response_packet_mqtt_unsuback, ResponsePacketMqttConnectSuccessContext,
 };
 use crate::handler::session::{build_session, save_session, BuildSessionContext};
+use crate::handler::subscribe::remove_subscribe;
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
@@ -798,13 +798,8 @@ impl MqttService {
             return packet;
         }
 
-        if let Err(e) = remove_subscribe(
-            &connection.client_id,
-            un_subscribe,
-            &self.client_pool,
-            &self.subscribe_manager,
-        )
-        .await
+        if let Err(e) =
+            remove_subscribe(&connection.client_id, un_subscribe, &self.client_pool).await
         {
             return response_packet_mqtt_unsuback(
                 &connection,

@@ -14,20 +14,6 @@
 
 use regex::Regex;
 
-const EXCLUSIVE_SUB_PREFIX: &str = "$exclusive";
-
-pub fn is_exclusive_sub(sub_path: &str) -> bool {
-    sub_path.starts_with(EXCLUSIVE_SUB_PREFIX)
-}
-
-pub fn decode_exclusive_sub_path_to_topic_name(sub_path: &str) -> &str {
-    if is_exclusive_sub(sub_path) {
-        sub_path.trim_start_matches(EXCLUSIVE_SUB_PREFIX)
-    } else {
-        sub_path
-    }
-}
-
 pub fn topic_name_regex_match(topic_name1: &str, topic_name2: &str) -> bool {
     base_topic_name_regex_match(topic_name1, topic_name2)
         || base_topic_name_regex_match(topic_name2, topic_name1)
@@ -60,31 +46,6 @@ pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_is_exclusive_sub() {
-        assert!(is_exclusive_sub("$exclusive/topic"));
-        assert!(is_exclusive_sub("$exclusive/another/topic"));
-        assert!(!is_exclusive_sub("/exclusive/topic"));
-        assert!(!is_exclusive_sub("/topic"));
-    }
-
-    #[test]
-    fn test_decode_exclusive_sub_path_to_topic_name() {
-        assert_eq!(
-            decode_exclusive_sub_path_to_topic_name("$exclusive/topic"),
-            "/topic"
-        );
-        assert_eq!(
-            decode_exclusive_sub_path_to_topic_name("$exclusive/another/topic"),
-            "/another/topic"
-        );
-        assert_eq!(decode_exclusive_sub_path_to_topic_name("topic"), "topic");
-        assert_eq!(
-            decode_exclusive_sub_path_to_topic_name("/exclusive/topic"),
-            "/exclusive/topic"
-        );
-    }
 
     #[test]
     fn test_topic_name_regex_match() {

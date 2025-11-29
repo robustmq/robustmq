@@ -28,12 +28,11 @@ const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
 
 pub async fn persist_delay_info(
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     delay_info: DelayMessageInfo,
 ) -> Result<(), CommonError> {
     let data = Record::from_bytes(serialize::serialize(&delay_info)?);
     message_storage_adapter
-        .write(namespace, DELAY_QUEUE_INFO_SHARD_NAME, &data)
+        .write(DELAY_QUEUE_INFO_SHARD_NAME, &data)
         .await?;
     Ok(())
 }
@@ -41,7 +40,6 @@ pub async fn persist_delay_info(
 pub async fn recover_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
     delay_message_manager: &Arc<DelayMessageManager>,
-    namespace: &str,
     read_config: ReadConfig,
     shard_num: u64,
 ) {
@@ -49,7 +47,7 @@ pub async fn recover_delay_queue(
     let mut total_num = 0;
     loop {
         let data = match message_storage_adapter
-            .read_by_offset(namespace, DELAY_QUEUE_INFO_SHARD_NAME, offset, &read_config)
+            .read_by_offset(DELAY_QUEUE_INFO_SHARD_NAME, offset, &read_config)
             .await
         {
             Ok(data) => data,
@@ -111,7 +109,6 @@ mod test {
     #[tokio::test]
     pub async fn persist_delay_info_test() {
         let message_storage_adapter = build_memory_storage_driver();
-        let namespace = unique_id();
 
         let target_shard_name = unique_id();
         let delay_shard_name = unique_id();
@@ -123,18 +120,13 @@ mod test {
                 delay_timestamp: 5,
             };
 
-            let res = persist_delay_info(&message_storage_adapter, &namespace, delay_info).await;
+            let res = persist_delay_info(&message_storage_adapter, delay_info).await;
             assert!(res.is_ok());
         }
 
         for i in 0..10 {
-            let res = read_offset_data(
-                &message_storage_adapter,
-                &namespace,
-                DELAY_QUEUE_INFO_SHARD_NAME,
-                i,
-            )
-            .await;
+            let res =
+                read_offset_data(&message_storage_adapter, DELAY_QUEUE_INFO_SHARD_NAME, i).await;
             assert!(res.is_ok());
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
@@ -149,11 +141,9 @@ mod test {
 
     #[tokio::test]
     pub async fn build_delay_queue_test() {
-        let namespace = unique_id();
         let shard_num = 1;
         let message_storage_adapter = build_memory_storage_driver();
         let delay_message_manager = Arc::new(DelayMessageManager::new(
-            namespace.clone(),
             shard_num,
             message_storage_adapter.clone(),
         ));
@@ -169,7 +159,6 @@ mod test {
         }
 
         let new_delay_message_manager = Arc::new(DelayMessageManager::new(
-            namespace.clone(),
             shard_num,
             message_storage_adapter.clone(),
         ));
@@ -178,7 +167,6 @@ mod test {
         start_delay_message_pop(
             &new_delay_message_manager,
             &message_storage_adapter,
-            &namespace,
             shard_num,
         );
 
@@ -191,7 +179,6 @@ mod test {
         recover_delay_queue(
             &message_storage_adapter,
             &new_delay_message_manager,
-            &namespace,
             read_config,
             shard_num,
         )
@@ -200,8 +187,7 @@ mod test {
         sleep(Duration::from_secs(15)).await;
 
         for i in 0..10 {
-            let res =
-                read_offset_data(&message_storage_adapter, &namespace, &target_topic, i).await;
+            let res = read_offset_data(&message_storage_adapter, &target_topic, i).await;
             assert!(res.is_ok());
             println!("i:{i},res:{res:?}");
             let raw = res.unwrap().unwrap();

@@ -12,28 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MQTTTopic {
-    pub topic_name: String,
-    pub create_time: u64,
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
+pub enum PushModel {
+    QuickFailure,
+    RetryFailure,
 }
 
-impl MQTTTopic {
-    pub fn new(topic_name: String) -> Self {
-        MQTTTopic {
-            topic_name,
-            create_time: now_second(),
-        }
+pub fn get_push_model(client_id: &str, topic_name: &str) -> PushModel {
+    if let Some(model) = get_push_model_by_client_id(client_id) {
+        return model;
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
-        serialize::serialize(self)
+    if let Some(model) = get_push_model_by_topic_name(topic_name) {
+        return model;
     }
+    PushModel::QuickFailure
+}
 
-    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
-        serialize::deserialize(data)
-    }
+fn get_push_model_by_topic_name(_topic_name: &str) -> Option<PushModel> {
+    Some(PushModel::QuickFailure)
+}
+
+fn get_push_model_by_client_id(_client_id: &str) -> Option<PushModel> {
+    None
 }

@@ -137,7 +137,7 @@ pub async fn disconnect_connection(
     if delete_session {
         session_storage.delete_session(client_id.to_owned()).await?;
         cache_manager.remove_session(client_id);
-        subscribe_manager.remove_client_id(client_id);
+        subscribe_manager.remove_by_client_id(client_id);
     } else {
         cache_manager.update_session_connect_id(client_id, None);
         session_storage

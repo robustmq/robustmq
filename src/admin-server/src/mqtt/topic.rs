@@ -224,10 +224,11 @@ pub async fn topic_detail(
         return error_response("Topic does not exist.".to_string());
     };
 
-    let sub_list = state
-        .mqtt_context
-        .subscribe_manager
-        .get_topic_subscribe_list(&topic.topic_name);
+    let sub_list = Vec::new();
+    //  state
+    //     .mqtt_context
+    //     .subscribe_manager
+    //     .get_topic_subscribe_list(&topic.topic_name);
 
     let storage = TopicStorage::new(state.client_pool.clone());
     let (retain_message, retain_message_at) =

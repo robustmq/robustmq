@@ -26,13 +26,10 @@ mod tests {
 
     #[tokio::test]
     async fn topic_test() {
-        let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
-
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(config.cluster_name.clone(), topic_name.clone());
+        let topic = MQTTTopic::new(topic_name.clone());
         match topic_storage.save_topic(topic).await {
             Ok(_) => {}
             Err(e) => panic!("{}", e),
@@ -69,7 +66,7 @@ mod tests {
             ..Default::default()
         };
 
-        let topic = MQTTTopic::new(config.cluster_name.clone(), topic_name.clone());
+        let topic = MQTTTopic::new(topic_name.clone());
         println!("{:?}", topic);
         topic_storage.save_topic(topic.clone()).await.unwrap();
 

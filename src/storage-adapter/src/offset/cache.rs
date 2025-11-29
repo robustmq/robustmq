@@ -45,15 +45,13 @@ impl OffsetCacheManager {
     pub async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let mut batch = rocksdb::WriteBatch::default();
         let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
         for (shard_name, offset) in offset.iter() {
-            let key = self.offset_key(group_name, namespace, shard_name);
+            let key = self.offset_key(group_name, shard_name);
             let shard_offset = ShardOffset {
-                namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 offset: *offset,
                 ..Default::default()
@@ -100,15 +98,12 @@ impl OffsetCacheManager {
 
             let mut remote_map = HashMap::new();
             for remote_offset in remote_offsets {
-                let key = format!("{}:{}", remote_offset.namespace, remote_offset.shard_name);
-                remote_map.insert(key, remote_offset);
+                remote_map.insert(remote_offset.shard_name.clone(), remote_offset);
             }
 
             let mut group_updates = Vec::new();
             for local_offset in local_offsets.iter() {
-                let key = format!("{}:{}", local_offset.namespace, local_offset.shard_name);
-
-                if let Some(remote_offset) = remote_map.get(&key) {
+                if let Some(remote_offset) = remote_map.get(&local_offset.shard_name) {
                     if local_offset.offset > remote_offset.offset {
                         group_updates.push(local_offset.clone());
                     }
@@ -172,8 +167,8 @@ impl OffsetCacheManager {
         Ok(results)
     }
 
-    fn offset_key(&self, group_name: &str, namespace: &str, shard_name: &str) -> String {
-        format!("/offset/{group_name}/{namespace}/{shard_name}")
+    fn offset_key(&self, group_name: &str, shard_name: &str) -> String {
+        format!("/offset/{group_name}/{shard_name}")
     }
 
     fn offset_group_key_prefix(&self, group_name: &str) -> String {
@@ -200,16 +195,12 @@ mod tests {
         let cache = OffsetCacheManager::new(rocksdb, client_pool);
 
         let group_name = "test_group";
-        let namespace = "test_namespace";
         let mut offsets = HashMap::new();
         offsets.insert("shard_1".to_string(), 100u64);
         offsets.insert("shard_2".to_string(), 200u64);
 
         // Test commit_offset
-        cache
-            .commit_offset(group_name, namespace, &offsets)
-            .await
-            .unwrap();
+        cache.commit_offset(group_name, &offsets).await.unwrap();
 
         // Verify flag is set
         assert_eq!(
@@ -227,7 +218,6 @@ mod tests {
 
         // Verify offset values
         for shard_offset in group_offsets.iter() {
-            assert_eq!(shard_offset.namespace, namespace);
             match shard_offset.shard_name.as_str() {
                 "shard_1" => assert_eq!(shard_offset.offset, 100),
                 "shard_2" => assert_eq!(shard_offset.offset, 200),

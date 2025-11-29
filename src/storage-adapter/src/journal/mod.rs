@@ -51,7 +51,7 @@ impl StorageAdapter for JournalStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         if let Err(e) = self
             .client
-            .create_shard(&shard.namespace, &shard.shard_name, shard.replica_num)
+            .create_shard("", &shard.shard_name, shard.replica_num)
             .await
         {
             return Err(CommonError::CommonError(e.to_string()));
@@ -59,14 +59,10 @@ impl StorageAdapter for JournalStorageAdapter {
         Ok(())
     }
 
-    async fn list_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<Vec<ShardInfo>, CommonError> {
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
         let reply = self
             .client
-            .list_shard(namespace, shard_name)
+            .list_shard("", shard)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))?;
 
@@ -74,7 +70,6 @@ impl StorageAdapter for JournalStorageAdapter {
 
         for shard in reply {
             let shard_info = ShardInfo {
-                namespace: shard.namespace,
                 shard_name: shard.shard_name,
                 ..Default::default()
             };
@@ -85,30 +80,21 @@ impl StorageAdapter for JournalStorageAdapter {
         Ok(res)
     }
 
-    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
-        if let Err(e) = self.client.delete_shard(namespace, shard_name).await {
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
+        if let Err(e) = self.client.delete_shard("", shard).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
     }
 
-    async fn write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        record: &Record,
-    ) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, record: &Record) -> Result<u64, CommonError> {
         let data = JournalClientWriteData {
             key: record.key.clone().unwrap_or_default(),
             content: record.data.to_vec(),
             tags: record.tags.clone().unwrap_or_default(),
         };
 
-        match self
-            .client
-            .write(namespace.to_string(), shard_name.to_string(), data)
-            .await
-        {
+        match self.client.write("", shard, data).await {
             Ok(resp) => {
                 if let Some(err) = resp.error {
                     return Err(CommonError::CommonError(err));
@@ -119,12 +105,7 @@ impl StorageAdapter for JournalStorageAdapter {
         }
     }
 
-    async fn batch_write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        records: &[Record],
-    ) -> Result<Vec<u64>, CommonError> {
+    async fn batch_write(&self, shard: &str, records: &[Record]) -> Result<Vec<u64>, CommonError> {
         let mut data = Vec::new();
         for record in records {
             data.push(JournalClientWriteData {
@@ -134,11 +115,7 @@ impl StorageAdapter for JournalStorageAdapter {
             });
         }
 
-        match self
-            .client
-            .batch_write(namespace.to_string(), shard_name.to_string(), data)
-            .await
-        {
+        match self.client.batch_write("", shard, data).await {
             Ok(resp) => {
                 let mut resp_offsets = Vec::new();
                 for raw in resp {
@@ -155,14 +132,13 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn read_by_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_offset(namespace, shard_name, offset, read_config)
+            .read_by_offset("", shard, offset, read_config)
             .await
         {
             Ok(results) => Ok(results),
@@ -172,15 +148,14 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_tag(namespace, shard_name, offset, tag, read_config)
+            .read_by_tag("", shard, offset, tag, read_config)
             .await
         {
             Ok(results) => Ok(results),
@@ -190,15 +165,14 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         key: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_key(namespace, shard_name, offset, key, read_config)
+            .read_by_key("", shard, offset, key, read_config)
             .await
         {
             Ok(results) => Ok(results),
@@ -212,17 +186,16 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         match self
             .client
-            .get_offset_by_timestamp(namespace, shard_name, timestamp)
+            .get_offset_by_timestamp("", shard, timestamp)
             .await
         {
             Ok(result) => Ok(Some(ShardOffset {
-                shard_name: shard_name.to_string(),
+                shard_name: shard.to_string(),
                 segment_no: result.0,
                 offset: result.1,
                 ..Default::default()
@@ -234,12 +207,9 @@ impl StorageAdapter for JournalStorageAdapter {
     async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        self.offset_manager
-            .commit_offset(group_name, namespace, offset)
-            .await
+        self.offset_manager.commit_offset(group_name, offset).await
     }
 
     async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {

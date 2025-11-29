@@ -76,6 +76,7 @@ impl MqttBrokerInnerService for GrpcInnerServices {
             &self.schema_manager,
             &self.message_storage_adapter,
             &self.metrics_manager,
+            &self.client_pool,
             &req,
         )
         .await

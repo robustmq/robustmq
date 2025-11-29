@@ -24,8 +24,8 @@ use super::response::{
 use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
 use crate::handler::response::{build_puback, build_pubrec};
+use crate::handler::sub_wildcards::sub_path_validator;
 use crate::security::AuthDriver;
-use crate::subscribe::common::sub_path_validator;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::config::BrokerConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;

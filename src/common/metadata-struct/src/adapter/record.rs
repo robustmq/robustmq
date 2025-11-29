@@ -161,6 +161,42 @@ impl Record {
     pub fn header(&self) -> &[Header] {
         self.header.as_deref().unwrap_or(&[])
     }
+
+    /// Calculate the approximate size of the Record in bytes
+    /// This includes all fields: data, key, tags, headers, and metadata
+    pub fn size(&self) -> usize {
+        let mut total_size = 0;
+
+        // Fixed-size fields
+        total_size += std::mem::size_of::<Option<u64>>(); // offset
+        total_size += std::mem::size_of::<u64>(); // timestamp
+        total_size += std::mem::size_of::<u32>(); // crc_num
+
+        // data (the main payload)
+        total_size += self.data.len();
+
+        // key
+        if let Some(ref key) = self.key {
+            total_size += key.len();
+        }
+
+        // tags
+        if let Some(ref tags) = self.tags {
+            for tag in tags {
+                total_size += tag.len();
+            }
+        }
+
+        // headers
+        if let Some(ref headers) = self.header {
+            for header in headers {
+                total_size += header.name.len();
+                total_size += header.value.len();
+            }
+        }
+
+        total_size
+    }
 }
 
 impl SerializeMessage for Record {

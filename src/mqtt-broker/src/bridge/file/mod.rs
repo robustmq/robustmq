@@ -258,11 +258,7 @@ pub fn start_local_file_connector(
 
 #[cfg(test)]
 mod tests {
-    use common_base::{
-        tools::{now_second, unique_id},
-        utils::crc::calc_crc32,
-    };
-    use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
+    use common_base::{tools::now_second, utils::crc::calc_crc32};
     use metadata_struct::{
         adapter::record::{Header, Record},
         mqtt::bridge::{
@@ -283,16 +279,6 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn file_bridge_plugin_test() {
-        // init a dummy mqtt broker config
-        let namespace = unique_id();
-
-        let mqtt_config = BrokerConfig {
-            cluster_name: namespace.clone(),
-            ..Default::default()
-        };
-
-        init_broker_conf_by_config(mqtt_config);
-
         let storage_adapter = build_memory_storage_driver();
 
         let shard_name = "test_topic".to_string();
@@ -300,7 +286,6 @@ mod tests {
         // prepare some data for testing
         storage_adapter
             .create_shard(&ShardInfo {
-                namespace: namespace.clone(),
                 shard_name: shard_name.clone(),
                 ..Default::default()
             })
@@ -327,7 +312,7 @@ mod tests {
         }
 
         storage_adapter
-            .batch_write(&namespace, &shard_name, &test_data)
+            .batch_write(&shard_name, &test_data)
             .await
             .unwrap();
 

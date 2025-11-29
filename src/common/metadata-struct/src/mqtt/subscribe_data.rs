@@ -16,9 +16,6 @@ use common_base::{error::common::CommonError, utils::serialize};
 use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
-pub const SHARE_SUB_PREFIX: &str = "$share";
-pub const QUEUE_SUB_PREFIX: &str = "$queue";
-
 #[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct MqttSubscribe {
     pub client_id: String,
@@ -42,26 +39,5 @@ impl MqttSubscribe {
     }
 }
 
-pub fn is_mqtt_share_subscribe(sub_name: &str) -> bool {
-    is_mqtt_share_sub(sub_name) || is_mqtt_queue_sub(sub_name)
-}
-
-pub fn is_mqtt_share_sub(sub_name: &str) -> bool {
-    sub_name.starts_with(SHARE_SUB_PREFIX)
-}
-
-pub fn is_mqtt_queue_sub(sub_name: &str) -> bool {
-    sub_name.starts_with(QUEUE_SUB_PREFIX)
-}
-
 #[cfg(test)]
-mod tests {
-    use crate::mqtt::subscribe_data::{is_mqtt_share_sub, is_mqtt_share_subscribe};
-
-    #[test]
-    fn is_mqtt_share_subscribe_test() {
-        assert!(is_mqtt_share_sub("$share/g1/test/hello"));
-        assert!(is_mqtt_share_subscribe("$share/g1/test/hello"));
-        assert!(!is_mqtt_share_subscribe("/test/hello"));
-    }
-}
+mod tests {}

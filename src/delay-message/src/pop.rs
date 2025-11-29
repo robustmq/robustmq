@@ -25,7 +25,6 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{error, info};
 
 pub async fn pop_delay_queue(
-    namespace: &str,
     message_storage_adapter: &ArcStorageAdapter,
     delay_message_manager: &Arc<DelayMessageManager>,
     shard_no: u64,
@@ -34,14 +33,8 @@ pub async fn pop_delay_queue(
         while let Some(expired) = delay_queue.next().await {
             let delay_message = expired.into_inner();
             let raw_message_storage_adapter = message_storage_adapter.clone();
-            let raw_namespace = namespace.to_owned();
             tokio::spawn(async move {
-                send_delay_message_to_shard(
-                    &raw_message_storage_adapter,
-                    &raw_namespace,
-                    delay_message,
-                )
-                .await;
+                send_delay_message_to_shard(&raw_message_storage_adapter, delay_message).await;
             });
         }
     }
@@ -49,25 +42,26 @@ pub async fn pop_delay_queue(
 
 async fn send_delay_message_to_shard(
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     delay_message: DelayMessageInfo,
 ) {
     let mut times = 0;
     info!(
-        "send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}",
-        namespace, delay_message.target_shard_name, delay_message.offset
+        "send_delay_message_to_shard start,shard_name:{},offset:{}",
+        delay_message.target_shard_name, delay_message.offset
     );
 
     loop {
         if times > 100 {
-            error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, delay_message.target_shard_name, delay_message.offset);
+            error!(
+                "send_delay_message_to_shard failed, times: {},shard_name:{},offset:{}",
+                times, delay_message.target_shard_name, delay_message.offset
+            );
             break;
         }
 
         times += 1;
         let record = match read_offset_data(
             message_storage_adapter,
-            namespace,
             &delay_message.delay_shard_name,
             delay_message.offset,
         )
@@ -83,7 +77,7 @@ async fn send_delay_message_to_shard(
         };
 
         match message_storage_adapter
-            .write(namespace, &delay_message.target_shard_name, &record)
+            .write(&delay_message.target_shard_name, &record)
             .await
         {
             Ok(id) => {
@@ -101,7 +95,6 @@ async fn send_delay_message_to_shard(
 
 pub(crate) async fn read_offset_data(
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     shard_name: &str,
     offset: u64,
 ) -> Result<Option<Record>, CommonError> {
@@ -110,7 +103,7 @@ pub(crate) async fn read_offset_data(
         max_size: 1024 * 1024 * 1024,
     };
     let results = message_storage_adapter
-        .read_by_offset(namespace, shard_name, offset, &read_config)
+        .read_by_offset(shard_name, offset, &read_config)
         .await?;
 
     for record in results {
@@ -138,18 +131,15 @@ mod test {
     #[tokio::test]
     pub async fn read_offset_data_test() {
         let message_storage_adapter = build_memory_storage_driver();
-        let namespace = unique_id();
         let shard_name = "s1".to_string();
         for i in 0..100 {
             let data = Record::from_string(format!("data{i}"));
-            let res = message_storage_adapter
-                .write(&namespace, &shard_name, &data)
-                .await;
+            let res = message_storage_adapter.write(&shard_name, &data).await;
             assert!(res.is_ok());
         }
 
         for i in 0..100 {
-            let res = read_offset_data(&message_storage_adapter, &namespace, &shard_name, i).await;
+            let res = read_offset_data(&message_storage_adapter, &shard_name, i).await;
             assert!(res.is_ok());
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
@@ -162,13 +152,10 @@ mod test {
     #[tokio::test]
     pub async fn send_delay_message_to_shard_test() {
         let message_storage_adapter = build_memory_storage_driver();
-        let namespace = unique_id();
         let shard_name = "s1".to_string();
         for i in 0..100 {
             let data = Record::from_string(format!("data{i}"));
-            let res = message_storage_adapter
-                .write(&namespace, &shard_name, &data)
-                .await;
+            let res = message_storage_adapter.write(&shard_name, &data).await;
             assert!(res.is_ok());
         }
 
@@ -180,12 +167,11 @@ mod test {
                 offset: i,
                 delay_timestamp: 5,
             };
-            send_delay_message_to_shard(&message_storage_adapter, &namespace, delay_message).await;
+            send_delay_message_to_shard(&message_storage_adapter, delay_message).await;
         }
 
         for i in 0..100 {
-            let res =
-                read_offset_data(&message_storage_adapter, &namespace, &target_shard_name, i).await;
+            let res = read_offset_data(&message_storage_adapter, &target_shard_name, i).await;
             assert!(res.is_ok());
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
@@ -197,22 +183,15 @@ mod test {
 
     #[tokio::test]
     pub async fn pop_delay_queue_test() {
-        let namespace = unique_id();
         let shard_num = 1;
         let message_storage_adapter = build_memory_storage_driver();
         let delay_message_manager = Arc::new(DelayMessageManager::new(
-            namespace.clone(),
             shard_num,
             message_storage_adapter.clone(),
         ));
         delay_message_manager.start().await;
 
-        start_delay_message_pop(
-            &delay_message_manager,
-            &message_storage_adapter,
-            &namespace,
-            shard_num,
-        );
+        start_delay_message_pop(&delay_message_manager, &message_storage_adapter, shard_num);
 
         let target_topic = unique_id();
         for i in 0..10 {
@@ -225,8 +204,7 @@ mod test {
         sleep(Duration::from_secs(15)).await;
 
         for i in 0..10 {
-            let res =
-                read_offset_data(&message_storage_adapter, &namespace, &target_topic, i).await;
+            let res = read_offset_data(&message_storage_adapter, &target_topic, i).await;
             assert!(res.is_ok());
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);

@@ -23,20 +23,12 @@ use metadata_struct::mqtt::user::MqttUser;
 
 impl CacheManager {
     // Topic
-    pub fn add_topic(&self, cluster_name: &str, topic: MQTTTopic) {
-        if let Some(data) = self.topic_list.get_mut(cluster_name) {
-            data.insert(topic.topic_name.clone(), topic);
-        } else {
-            let data = DashMap::with_capacity(8);
-            data.insert(topic.topic_name.clone(), topic);
-            self.topic_list.insert(cluster_name.to_owned(), data);
-        }
+    pub fn add_topic(&self, topic: MQTTTopic) {
+        self.topic_list.insert(topic.topic_name.to_owned(), topic);
     }
 
-    pub fn remove_topic(&self, cluster_name: &str, topic_name: &str) {
-        if let Some(data) = self.topic_list.get_mut(cluster_name) {
-            data.remove(topic_name);
-        }
+    pub fn remove_topic(&self, topic_name: &str) {
+        self.topic_list.remove(topic_name);
     }
 
     // User
@@ -51,7 +43,7 @@ impl CacheManager {
     }
 
     pub fn remove_user(&self, cluster_name: &str, user_name: &str) {
-        if let Some(data) = self.topic_list.get_mut(cluster_name) {
+        if let Some(data) = self.user_list.get_mut(cluster_name) {
             data.remove(user_name);
         }
     }
