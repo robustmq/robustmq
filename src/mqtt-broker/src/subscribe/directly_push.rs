@@ -25,7 +25,8 @@ use crate::{
 use crate::{handler::cache::MQTTCacheManager, storage::message::MessageStorage};
 use common_base::tools::now_second;
 use common_metrics::mqtt::subscribe::{
-    record_subscribe_bytes_sent, record_subscribe_topic_bytes_sent,
+    record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
+    record_subscribe_topic_messages_sent,
 };
 use dashmap::DashMap;
 use metadata_struct::adapter::record::Record;
@@ -83,6 +84,7 @@ impl DirectlyPushManager {
                     };
 
                     let mut is_commit_offset = true;
+                    let mut success = true;
                     let model = PushModel::QuickFailure;
                     if let Err(e) = self.push_data(&row, &record, stop_sx).await {
                         if !is_ignore_push_error(&e) {
@@ -94,7 +96,16 @@ impl DirectlyPushManager {
                         if model == PushModel::RetryFailure {
                             is_commit_offset = false
                         }
+                        success = false;
                     }
+
+                    self.record_metrics(
+                        &row.client_id,
+                        &row.sub_path,
+                        &row.topic_name,
+                        record.data.len() as u64,
+                        success,
+                    );
 
                     if is_commit_offset {
                         self.commit_offset(&row.group_name, &row.topic_name, record_offset)
@@ -147,20 +158,6 @@ impl DirectlyPushManager {
         )
         .await?;
 
-        record_subscribe_bytes_sent(
-            &subscriber.client_id,
-            &subscriber.sub_path,
-            record.data.len() as u64,
-            true,
-        );
-
-        record_subscribe_topic_bytes_sent(
-            &subscriber.client_id,
-            &subscriber.sub_path,
-            &subscriber.topic_name,
-            record.data.len() as u64,
-            true,
-        );
         Ok(())
     }
 
@@ -202,6 +199,21 @@ impl DirectlyPushManager {
             .await?;
         self.offset_cache.insert(key, offset);
         Ok(offset)
+    }
+
+    fn record_metrics(
+        &self,
+        client_id: &str,
+        path: &str,
+        topic_name: &str,
+        data_size: u64,
+        success: bool,
+    ) {
+        record_subscribe_bytes_sent(client_id, path, data_size, success);
+        record_subscribe_topic_bytes_sent(client_id, path, topic_name, data_size, success);
+
+        record_subscribe_messages_sent(client_id, path, true);
+        record_subscribe_topic_messages_sent(client_id, path, topic_name, true);
     }
 }
 
