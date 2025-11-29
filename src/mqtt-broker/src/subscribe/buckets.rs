@@ -16,6 +16,7 @@ use crate::subscribe::common::Subscriber;
 use common_base::tools::unique_id;
 use dashmap::DashMap;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::sync::{atomic::AtomicU32, Arc};
 use tokio::sync::broadcast::Sender;
 
@@ -36,9 +37,9 @@ pub struct BucketsManager {
     pub buckets_data_list: DashMap<String, DashMap<u32, Subscriber>>,
 
     // (client_id, (seq))
-    client_id_sub: DashMap<String, Vec<u32>>,
+    client_id_sub: DashMap<String, HashSet<u32>>,
     // (client_id_sub_path, (seq))
-    client_id_sub_path_sub: DashMap<String, Vec<u32>>,
+    client_id_sub_path_sub: DashMap<String, HashSet<u32>>,
 
     bucket_size: u32,
     seq_num: Arc<AtomicU32>,
@@ -60,27 +61,23 @@ impl BucketsManager {
             .seq_num
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        // add client_id sub
         if let Some(mut data) = self.client_id_sub.get_mut(&subscriber.client_id) {
-            if !data.contains(&seq) {
-                data.push(seq);
-            }
+            data.insert(seq);
         } else {
-            self.client_id_sub
-                .insert(subscriber.client_id.clone(), vec![seq]);
+            let mut set = HashSet::new();
+            set.insert(seq);
+            self.client_id_sub.insert(subscriber.client_id.clone(), set);
         }
 
-        // add client_id_sub_path_sub
         let key = self.client_sub_path_key(&subscriber.client_id, &subscriber.sub_path);
         if let Some(mut data) = self.client_id_sub_path_sub.get_mut(&key) {
-            if !data.contains(&seq) {
-                data.push(seq);
-            }
+            data.insert(seq);
         } else {
-            self.client_id_sub_path_sub.insert(key, vec![seq]);
+            let mut set = HashSet::new();
+            set.insert(seq);
+            self.client_id_sub_path_sub.insert(key, set);
         }
 
-        // add data list
         self.add_data_list(seq, subscriber).await;
     }
 
@@ -124,7 +121,7 @@ impl BucketsManager {
         for row in self.buckets_data_list.iter() {
             if let Some((_, subscriber)) = row.remove(seq) {
                 if let Some(mut data) = self.client_id_sub.get_mut(&subscriber.client_id) {
-                    data.retain(|s| s != seq);
+                    data.remove(seq);
                     if data.is_empty() {
                         drop(data);
                         self.client_id_sub.remove(&subscriber.client_id);
@@ -133,7 +130,7 @@ impl BucketsManager {
 
                 let key = self.client_sub_path_key(&subscriber.client_id, &subscriber.sub_path);
                 if let Some(mut data) = self.client_id_sub_path_sub.get_mut(&key) {
-                    data.retain(|s| s != seq);
+                    data.remove(seq);
                     if data.is_empty() {
                         drop(data);
                         self.client_id_sub_path_sub.remove(&key);

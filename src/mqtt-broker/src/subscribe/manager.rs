@@ -104,22 +104,15 @@ impl SubscribeManager {
 
     // remove
     pub async fn remove_by_client_id(&self, client_id: &str) {
-        // subscribe list
-        for (key, subscribe) in self.subscribe_list.clone() {
-            if subscribe.client_id == *client_id {
-                self.subscribe_list.remove(&key);
-            }
-        }
+        self.subscribe_list
+            .retain(|_, subscribe| subscribe.client_id != *client_id);
 
-        // topic subscribe
         for mut list in self.topic_subscribes.iter_mut() {
             list.retain(|x| x.client_id != *client_id);
         }
 
-        // not push client
         self.not_push_client.remove(client_id);
 
-        // remove directly sub
         self.directly_push.remove_by_client_id(client_id).await;
     }
 
@@ -161,10 +154,15 @@ impl SubscribeManager {
     // topic subscribe
     pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
         if let Some(mut list) = self.topic_subscribes.get_mut(topic_name) {
-            list.push(TopicSubscribeInfo {
-                client_id: client_id.to_owned(),
-                path: path.to_owned(),
-            });
+            if !list
+                .iter()
+                .any(|info| info.client_id == client_id && info.path == path)
+            {
+                list.push(TopicSubscribeInfo {
+                    client_id: client_id.to_owned(),
+                    path: path.to_owned(),
+                });
+            }
         } else {
             self.topic_subscribes.insert(
                 topic_name.to_owned(),
