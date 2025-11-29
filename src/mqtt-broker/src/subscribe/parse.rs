@@ -32,6 +32,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::error;
 
 #[derive(Clone)]
 pub struct ParseSubscribeContext {
@@ -69,37 +70,48 @@ struct AddSharePushContext {
     pub pkid: u16,
 }
 
-pub async fn parse_subscribe_by_new_topic(
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<MQTTCacheManager>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    topic: &MQTTTopic,
-) -> ResultMqttBrokerError {
-    let conf = broker_config();
+/// Parses and matches all existing subscriptions when a new topic is created.
+/// This will iterate through all subscriptions to find matches.
+pub fn parse_subscribe_by_new_topic(
+    client_pool: Arc<ClientPool>,
+    cache_manager: Arc<MQTTCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    topic: MQTTTopic,
+) {
+    tokio::spawn(async move {
+        let conf = broker_config();
 
-    for row in subscribe_manager.subscribe_list.iter() {
-        let subscribe = row.value();
-        if subscribe.broker_id != conf.broker_id {
-            continue;
+        for row in subscribe_manager.subscribe_list.iter() {
+            let subscribe = row.value();
+            if subscribe.broker_id != conf.broker_id {
+                continue;
+            }
+            let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
+
+            if let Err(e) = parse_subscribe_by_new_subscribe(ParseSubscribeContext {
+                client_pool: client_pool.clone(),
+                subscribe_manager: subscribe_manager.clone(),
+                client_id: subscribe.client_id.clone(),
+                topic: topic.clone(),
+                protocol: subscribe.protocol.clone(),
+                pkid: subscribe.pkid,
+                filter: subscribe.filter.clone(),
+                subscribe_properties: subscribe.subscribe_properties.clone(),
+                rewrite_sub_path: rewrite_sub_path.clone(),
+            })
+            .await
+            {
+                error!(
+                    "Failed to parse subscribe for client [{}], topic [{}]: {}",
+                    subscribe.client_id, topic.topic_name, e
+                );
+            }
         }
-        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
-
-        parse_subscribe_by_new_subscribe(ParseSubscribeContext {
-            client_pool: client_pool.clone(),
-            subscribe_manager: subscribe_manager.clone(),
-            client_id: subscribe.client_id.clone(),
-            topic: topic.clone(),
-            protocol: subscribe.protocol.clone(),
-            pkid: subscribe.pkid,
-            filter: subscribe.filter.clone(),
-            subscribe_properties: subscribe.subscribe_properties.clone(),
-            rewrite_sub_path: rewrite_sub_path.clone(),
-        })
-        .await?;
-    }
-    Ok(())
+    });
 }
 
+/// Matches a subscription with a topic and adds it to the appropriate push manager.
+/// Used both when a new subscription is created and when a new topic is created.
 pub async fn parse_subscribe_by_new_subscribe(
     context: ParseSubscribeContext,
 ) -> ResultMqttBrokerError {
@@ -109,22 +121,20 @@ pub async fn parse_subscribe_by_new_subscribe(
         None
     };
 
-    // share sub
     if is_mqtt_share_subscribe(&context.filter.path) {
         add_share_push(
             &context.subscribe_manager,
-            &mut AddSharePushContext {
+            &AddSharePushContext {
                 topic_name: context.topic.topic_name.to_owned(),
                 client_id: context.client_id.to_owned(),
                 protocol: context.protocol.clone(),
                 sub_identifier,
                 filter: context.filter.clone(),
                 pkid: context.pkid,
-                sub_path: "".to_string(),
-                group_name: "".to_string(),
+                sub_path: String::new(),
+                group_name: String::new(),
             },
         )
-        .await
     } else {
         add_directly_push(AddDirectlyPushContext {
             subscribe_manager: context.subscribe_manager.clone(),
@@ -135,24 +145,22 @@ pub async fn parse_subscribe_by_new_subscribe(
             filter: context.filter.clone(),
             rewrite_sub_path: context.rewrite_sub_path.clone(),
         })
-        .await
     }
 }
 
-async fn add_share_push(
-    _subscribe_manager: &Arc<SubscribeManager>,
-    req: &mut AddSharePushContext,
+fn add_share_push(
+    subscribe_manager: &Arc<SubscribeManager>,
+    req: &AddSharePushContext,
 ) -> ResultMqttBrokerError {
     let (group_name, sub_name) = decode_share_info(&req.filter.path);
-    req.group_name = format!("{group_name}_{sub_name}");
-    req.sub_path = sub_name;
+    let group_name_full = format!("{group_name}_{sub_name}");
 
-    if is_match_sub_and_topic(&req.sub_path, &req.topic_name).is_ok() {
-        let _sub = Subscriber {
+    if is_match_sub_and_topic(&sub_name, &req.topic_name).is_ok() {
+        let sub = Subscriber {
             protocol: req.protocol.clone(),
             client_id: req.client_id.clone(),
             topic_name: req.topic_name.clone(),
-            group_name: req.group_name.clone(),
+            group_name: group_name_full,
             qos: req.filter.qos,
             no_local: req.filter.nolocal,
             preserve_retain: req.filter.preserve_retain,
@@ -163,25 +171,21 @@ async fn add_share_push(
             create_time: now_second(),
         };
 
-        // subscribe_manager.directly_sub_manager.add_sub(sub);
+        subscribe_manager.add_share_sub(&req.topic_name, &sub);
     }
     Ok(())
 }
 
-async fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
+fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
     let path = if is_exclusive_sub(&context.filter.path) {
-        decode_exclusive_sub_path_to_topic_name(&context.filter.path).to_owned()
+        decode_exclusive_sub_path_to_topic_name(&context.filter.path)
     } else {
-        context.filter.path.to_owned()
+        &context.filter.path
     };
 
-    let new_path = if let Some(sub_path) = context.rewrite_sub_path.clone() {
-        sub_path
-    } else {
-        path.clone()
-    };
+    let new_path = context.rewrite_sub_path.as_deref().unwrap_or(path);
 
-    if is_match_sub_and_topic(&new_path, &context.topic.topic_name).is_ok() {
+    if is_match_sub_and_topic(new_path, &context.topic.topic_name).is_ok() {
         let sub = Subscriber {
             protocol: context.protocol.to_owned(),
             client_id: context.client_id.to_owned(),

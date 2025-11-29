@@ -203,8 +203,12 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
-                parse_subscribe_by_new_topic(client_pool, cache_manager, subscribe_manager, &topic)
-                    .await?;
+                parse_subscribe_by_new_topic(
+                    client_pool.clone(),
+                    cache_manager.clone(),
+                    subscribe_manager.clone(),
+                    topic.clone(),
+                );
             }
 
             MqttBrokerUpdateCacheActionType::Delete => {
