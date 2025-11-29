@@ -22,7 +22,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::{
     handler::cache::MQTTCacheManager,

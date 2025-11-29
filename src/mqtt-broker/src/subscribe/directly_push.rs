@@ -35,10 +35,15 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
-const BATCH_SIZE: u64 = 100;
+const BATCH_SIZE: u64 = 500;
 const OFFSET_CACHE_CAPACITY: usize = 128;
+
+const IDLE_SLEEP_MS: u64 = 100;
+const LOW_LOAD_SLEEP_MS: u64 = 50;
+const HIGH_LOAD_SLEEP_MS: u64 = 10;
+const LOW_LOAD_THRESHOLD: usize = 10;
 
 pub struct DirectlyPushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -86,16 +91,16 @@ impl DirectlyPushManager {
                     match res {
                         Ok(processed_count) => {
                             if processed_count == 0 {
-                                sleep(Duration::from_millis(100)).await;
-                            } else if processed_count < 10 {
-                                sleep(Duration::from_millis(50)).await;
+                                sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
+                            } else if processed_count < LOW_LOAD_THRESHOLD {
+                                sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
                             } else {
-                                sleep(Duration::from_millis(10)).await;
+                                sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
                             }
                         }
                         Err(e) => {
                             error!("DirectlyPushManager[{}] send messages failed: {}", self.uuid, e);
-                            sleep(Duration::from_millis(100)).await;
+                            sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
                         }
                     }
                 }
@@ -111,6 +116,7 @@ impl DirectlyPushManager {
             .buckets_data_list
             .get(&self.uuid)
         {
+            let subscriber_count = data.len();
             for row in data.iter() {
                 match self.process_subscriber_messages(&row, stop_sx).await {
                     Ok(count) => {
@@ -118,11 +124,18 @@ impl DirectlyPushManager {
                     }
                     Err(e) => {
                         error!(
-                            "Failed to process messages for subscriber [client_id: {}, topic: {}]: {}",
-                            row.client_id, row.topic_name, e
+                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}]: {}",
+                            row.client_id, row.group_name, row.topic_name, row.sub_path, e
                         );
                     }
                 }
+            }
+
+            if processed_count > 0 {
+                debug!(
+                    "Processed {} messages across {} subscribers in bucket [{}]",
+                    processed_count, subscriber_count, self.uuid
+                );
             }
         }
 
@@ -135,53 +148,81 @@ impl DirectlyPushManager {
         stop_sx: &Sender<bool>,
     ) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
+        let mut last_commit_offset: Option<u64> = None;
+
         let data_list = self
             .next_message(&subscriber.group_name, &subscriber.topic_name)
             .await?;
 
+        let data_list_len = data_list.len();
+        if data_list_len == 0 {
+            return Ok(0);
+        }
+
         let model = get_push_model(&subscriber.client_id, &subscriber.topic_name);
+
         for record in data_list {
             let record_offset = if let Some(offset) = record.offset {
                 offset
             } else {
+                warn!(
+                    "Record without offset for subscriber [client_id: {}, topic: {}], skipping",
+                    subscriber.client_id, subscriber.topic_name
+                );
                 continue;
             };
 
-            let (is_commit_offset, success) =
-                match self.push_data(subscriber, &record, stop_sx).await {
-                    Ok(pushed) => {
-                        if pushed {
-                            processed_count += 1;
-                        }
-                        (true, pushed)
+            let success = match self.push_data(subscriber, &record, stop_sx).await {
+                Ok(pushed) => {
+                    if pushed {
+                        processed_count += 1;
                     }
-                    Err(e) => {
-                        if !is_ignore_push_error(&e) {
-                            warn!(
-                                "Directly push fail, offset [{:?}], error message:{}",
-                                record.offset, e
-                            );
-                        }
-                        (model != PushModel::RetryFailure, false)
+                    last_commit_offset = Some(record_offset);
+                    pushed
+                }
+                Err(e) => {
+                    if !is_ignore_push_error(&e) {
+                        warn!(
+                            "Directly push fail, offset [{:?}], error message:{}",
+                            record.offset, e
+                        );
                     }
-                };
+                    if model == PushModel::RetryFailure {
+                        break;
+                    }
+                    false
+                }
+            };
 
             self.record_metrics(
                 &subscriber.client_id,
                 &subscriber.sub_path,
                 &subscriber.topic_name,
-                record.data.len() as u64,
+                record.size() as u64,
                 success,
             );
+        }
 
-            if is_commit_offset {
-                self.commit_offset(
-                    &subscriber.group_name,
-                    &subscriber.topic_name,
-                    record_offset,
-                )
-                .await?;
+        if let Some(offset) = last_commit_offset {
+            if let Err(e) = self
+                .commit_offset(&subscriber.group_name, &subscriber.topic_name, offset)
+                .await
+            {
+                error!(
+                    "Failed to commit offset for subscriber [client_id: {}, group: {}, topic: {}, offset: {}]: {}. Messages may be redelivered on next poll",
+                    subscriber.client_id, subscriber.group_name, subscriber.topic_name, offset, e
+                );
+            } else {
+                debug!(
+                    "Committed offset {} for subscriber [client_id: {}, topic: {}], processed: {} messages",
+                    offset, subscriber.client_id, subscriber.topic_name, processed_count
+                );
             }
+        } else if data_list_len > 0 {
+            debug!(
+                "No offset to commit for subscriber [client_id: {}, topic: {}], all messages failed or skipped",
+                subscriber.client_id, subscriber.topic_name
+            );
         }
 
         Ok(processed_count)
@@ -251,11 +292,12 @@ impl DirectlyPushManager {
         topic_name: &str,
         offset: u64,
     ) -> ResultMqttBrokerError {
-        let key = self.offset_cache_key(group, topic_name);
-        self.offset_cache.insert(key, offset);
         self.message_storage
             .commit_group_offset(group, topic_name, offset)
             .await?;
+
+        let key = self.offset_cache_key(group, topic_name);
+        self.offset_cache.insert(key, offset);
         Ok(())
     }
 
