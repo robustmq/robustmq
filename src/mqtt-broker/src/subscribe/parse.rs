@@ -203,8 +203,7 @@ async fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerE
 
         context
             .subscribe_manager
-            .add_directly_sub(&context.topic.topic_name, &sub)
-            .await;
+            .add_directly_sub(&context.topic.topic_name, &sub);
     }
     Ok(())
 }

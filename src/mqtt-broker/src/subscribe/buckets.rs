@@ -17,7 +17,8 @@ use common_base::tools::unique_id;
 use dashmap::DashMap;
 use serde::Serialize;
 use std::collections::HashSet;
-use std::sync::{atomic::AtomicU32, Arc};
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 
 #[derive(Clone, Serialize)]
@@ -31,32 +32,38 @@ pub struct SubPushThreadData {
     pub sender: Sender<bool>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct BucketsManager {
     // (bucket_id, (seq,subscriber))
-    pub buckets_data_list: DashMap<String, DashMap<u32, Subscriber>>,
+    pub buckets_data_list: DashMap<String, DashMap<u64, Subscriber>>,
 
     // (client_id, (seq))
-    client_id_sub: DashMap<String, HashSet<u32>>,
+    client_id_sub: DashMap<String, HashSet<u64>>,
     // (client_id_sub_path, (seq))
-    client_id_sub_path_sub: DashMap<String, HashSet<u32>>,
+    client_id_sub_path_sub: DashMap<String, HashSet<u64>>,
 
-    bucket_size: u32,
-    seq_num: Arc<AtomicU32>,
+    bucket_size: u64,
+    seq_num: Arc<AtomicU64>,
+}
+
+impl Default for BucketsManager {
+    fn default() -> Self {
+        Self::new(10000)
+    }
 }
 
 impl BucketsManager {
-    pub fn new(bucket_len: u32) -> Self {
+    pub fn new(bucket_len: u64) -> Self {
         BucketsManager {
             bucket_size: bucket_len,
-            seq_num: Arc::new(AtomicU32::new(0)),
-            client_id_sub: DashMap::new(),
-            client_id_sub_path_sub: DashMap::new(),
-            buckets_data_list: DashMap::with_capacity(2),
+            seq_num: Arc::new(AtomicU64::new(0)),
+            client_id_sub: DashMap::with_capacity(128),
+            client_id_sub_path_sub: DashMap::with_capacity(128),
+            buckets_data_list: DashMap::with_capacity(8),
         }
     }
 
-    pub async fn add(&self, subscriber: &Subscriber) {
+    pub fn add(&self, subscriber: &Subscriber) {
         let seq = self
             .seq_num
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -78,31 +85,38 @@ impl BucketsManager {
             self.client_id_sub_path_sub.insert(key, set);
         }
 
-        self.add_data_list(seq, subscriber).await;
+        self.add_data_list(seq, subscriber);
     }
 
-    pub async fn remove_by_client_id(&self, client_id: &str) {
-        if let Some(data) = self.client_id_sub.get(client_id) {
-            for seq in data.iter() {
-                self.remove_data_list_by_seq(seq).await;
-            }
+    pub fn remove_by_client_id(&self, client_id: &str) {
+        let seqs: Vec<u64> = self
+            .client_id_sub
+            .get(client_id)
+            .map(|data| data.iter().copied().collect())
+            .unwrap_or_default();
+
+        for seq in seqs {
+            self.remove_data_list_by_seq(&seq);
         }
     }
 
-    pub async fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
+    pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
         let key = self.client_sub_path_key(client_id, sub_path);
-        if let Some(data) = self.client_id_sub_path_sub.get(&key) {
-            for seq in data.iter() {
-                self.remove_data_list_by_seq(seq).await;
-            }
+        let seqs: Vec<u64> = self
+            .client_id_sub_path_sub
+            .get(&key)
+            .map(|data| data.iter().copied().collect())
+            .unwrap_or_default();
+
+        for seq in seqs {
+            self.remove_data_list_by_seq(&seq);
         }
     }
 
-    // data list
-    async fn add_data_list(&self, seq: u32, subscriber: &Subscriber) {
+    fn add_data_list(&self, seq: u64, subscriber: &Subscriber) {
         let mut write_success = false;
         for row in self.buckets_data_list.iter() {
-            if row.len() as u32 >= self.bucket_size {
+            if row.len() as u64 >= self.bucket_size {
                 continue;
             }
             row.insert(seq, subscriber.clone());
@@ -117,7 +131,9 @@ impl BucketsManager {
         }
     }
 
-    async fn remove_data_list_by_seq(&self, seq: &u32) {
+    fn remove_data_list_by_seq(&self, seq: &u64) {
+        let mut empty_bucket_id: Option<String> = None;
+
         for row in self.buckets_data_list.iter() {
             if let Some((_, subscriber)) = row.remove(seq) {
                 if let Some(mut data) = self.client_id_sub.get_mut(&subscriber.client_id) {
@@ -137,12 +153,137 @@ impl BucketsManager {
                     }
                 }
 
+                if row.is_empty() {
+                    empty_bucket_id = Some(row.key().clone());
+                }
+
                 break;
             }
+        }
+
+        if let Some(bucket_id) = empty_bucket_id {
+            self.buckets_data_list.remove(&bucket_id);
         }
     }
 
     fn client_sub_path_key(&self, client_id: &str, sub_path: &str) -> String {
         format!("{client_id}_{sub_path}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
+
+    fn create_sub(client_id: &str, sub_path: &str) -> Subscriber {
+        Subscriber {
+            client_id: client_id.to_string(),
+            sub_path: sub_path.to_string(),
+            rewrite_sub_path: None,
+            topic_name: "topic".to_string(),
+            group_name: format!("group_{}", client_id),
+            protocol: MqttProtocol::Mqtt5,
+            qos: QoS::AtLeastOnce,
+            no_local: false,
+            preserve_retain: false,
+            retain_forward_rule: RetainHandling::OnNewSubscribe,
+            subscription_identifier: None,
+            create_time: 0,
+        }
+    }
+
+    #[test]
+    fn test_add() {
+        let mgr = BucketsManager::new(10);
+
+        mgr.add(&create_sub("c1", "/t1"));
+        mgr.add(&create_sub("c2", "/t2"));
+
+        assert_eq!(mgr.seq_num.load(std::sync::atomic::Ordering::Relaxed), 2);
+        assert_eq!(mgr.buckets_data_list.len(), 1);
+
+        let bucket = mgr.buckets_data_list.iter().next().unwrap();
+        assert_eq!(bucket.len(), 2);
+        assert!(bucket.get(&0).is_some());
+        assert!(bucket.get(&1).is_some());
+
+        assert!(mgr.client_id_sub.get("c1").unwrap().contains(&0));
+        assert!(mgr.client_id_sub.get("c2").unwrap().contains(&1));
+
+        let key = mgr.client_sub_path_key("c1", "/t1");
+        assert!(mgr.client_id_sub_path_sub.get(&key).unwrap().contains(&0));
+    }
+
+    #[test]
+    fn test_bucket_overflow() {
+        let mgr = BucketsManager::new(2);
+
+        for i in 0..5 {
+            mgr.add(&create_sub(&format!("c{}", i), "/t"));
+        }
+
+        assert!(mgr.buckets_data_list.len() >= 2);
+
+        let total: usize = mgr.buckets_data_list.iter().map(|b| b.len()).sum();
+        assert_eq!(total, 5);
+    }
+
+    #[test]
+    fn test_remove_by_client_id() {
+        let mgr = BucketsManager::new(10);
+
+        mgr.add(&create_sub("c1", "/t1"));
+        mgr.add(&create_sub("c1", "/t2"));
+        mgr.add(&create_sub("c2", "/t1"));
+
+        assert_eq!(mgr.client_id_sub.get("c1").unwrap().len(), 2);
+
+        mgr.remove_by_client_id("c1");
+
+        assert!(mgr.client_id_sub.get("c1").is_none());
+        assert!(mgr
+            .client_id_sub_path_sub
+            .get(&mgr.client_sub_path_key("c1", "/t1"))
+            .is_none());
+        assert!(mgr.client_id_sub.get("c2").is_some());
+
+        let total: usize = mgr.buckets_data_list.iter().map(|b| b.len()).sum();
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn test_remove_by_sub() {
+        let mgr = BucketsManager::new(10);
+
+        mgr.add(&create_sub("c1", "/t1"));
+        mgr.add(&create_sub("c1", "/t2"));
+
+        mgr.remove_by_sub("c1", "/t1");
+
+        assert_eq!(mgr.client_id_sub.get("c1").unwrap().len(), 1);
+        assert!(mgr
+            .client_id_sub_path_sub
+            .get(&mgr.client_sub_path_key("c1", "/t1"))
+            .is_none());
+        assert!(mgr
+            .client_id_sub_path_sub
+            .get(&mgr.client_sub_path_key("c1", "/t2"))
+            .is_some());
+    }
+
+    #[test]
+    fn test_cleanup_empty_bucket() {
+        let mgr = BucketsManager::new(10);
+
+        mgr.add(&create_sub("c1", "/t"));
+
+        assert_eq!(mgr.buckets_data_list.len(), 1);
+
+        mgr.remove_by_client_id("c1");
+
+        assert_eq!(mgr.buckets_data_list.len(), 0);
+        assert_eq!(mgr.client_id_sub.len(), 0);
+        assert_eq!(mgr.client_id_sub_path_sub.len(), 0);
     }
 }

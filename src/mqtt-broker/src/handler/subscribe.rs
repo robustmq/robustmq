@@ -101,9 +101,7 @@ pub async fn actually_execute_remove_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     subscribe: &MqttSubscribe,
 ) -> ResultMqttBrokerError {
-    subscribe_manager
-        .remove_by_sub(&subscribe.client_id, &subscribe.path)
-        .await;
+    subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
     Ok(())
 }
 

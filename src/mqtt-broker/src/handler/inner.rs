@@ -83,7 +83,7 @@ pub async fn delete_session_by_req(
     }
 
     for client_id in req.client_id.iter() {
-        subscribe_manager.remove_by_client_id(client_id).await;
+        subscribe_manager.remove_by_client_id(client_id);
         cache_manager.remove_session(client_id);
     }
     record_mqtt_session_deleted();
