@@ -37,6 +37,9 @@ use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
 use tracing::{error, info, warn};
 
+const BATCH_SIZE: u64 = 100;
+const OFFSET_CACHE_CAPACITY: usize = 128;
+
 pub struct DirectlyPushManager {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
@@ -59,7 +62,7 @@ impl DirectlyPushManager {
         DirectlyPushManager {
             subscribe_manager,
             message_storage: MessageStorage::new(storage_adapter),
-            offset_cache: DashMap::with_capacity(2),
+            offset_cache: DashMap::with_capacity(OFFSET_CACHE_CAPACITY),
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,
@@ -109,44 +112,75 @@ impl DirectlyPushManager {
             .get(&self.uuid)
         {
             for row in data.iter() {
-                let data_list = self.next_message(&row.group_name, &row.topic_name).await?;
-                for record in data_list {
-                    let record_offset = if let Some(offset) = record.offset {
-                        offset
-                    } else {
-                        continue;
-                    };
-
-                    let model = get_push_model(&row.client_id, &row.topic_name);
-                    let (is_commit_offset, success) =
-                        match self.push_data(&row, &record, stop_sx).await {
-                            Ok(_) => (true, true),
-                            Err(e) => {
-                                if !is_ignore_push_error(&e) {
-                                    warn!(
-                                        "Directly push fail, offset [{:?}], error message:{}",
-                                        record.offset, e
-                                    );
-                                }
-                                (model != PushModel::RetryFailure, false)
-                            }
-                        };
-
-                    self.record_metrics(
-                        &row.client_id,
-                        &row.sub_path,
-                        &row.topic_name,
-                        record.data.len() as u64,
-                        success,
-                    );
-
-                    if is_commit_offset {
-                        self.commit_offset(&row.group_name, &row.topic_name, record_offset)
-                            .await?;
+                match self.process_subscriber_messages(&row, stop_sx).await {
+                    Ok(count) => {
+                        processed_count += count;
                     }
-
-                    processed_count += 1;
+                    Err(e) => {
+                        error!(
+                            "Failed to process messages for subscriber [client_id: {}, topic: {}]: {}",
+                            row.client_id, row.topic_name, e
+                        );
+                    }
                 }
+            }
+        }
+
+        Ok(processed_count)
+    }
+
+    async fn process_subscriber_messages(
+        &self,
+        subscriber: &Subscriber,
+        stop_sx: &Sender<bool>,
+    ) -> Result<usize, MqttBrokerError> {
+        let mut processed_count = 0;
+        let data_list = self
+            .next_message(&subscriber.group_name, &subscriber.topic_name)
+            .await?;
+
+        let model = get_push_model(&subscriber.client_id, &subscriber.topic_name);
+        for record in data_list {
+            let record_offset = if let Some(offset) = record.offset {
+                offset
+            } else {
+                continue;
+            };
+
+            let (is_commit_offset, success) =
+                match self.push_data(subscriber, &record, stop_sx).await {
+                    Ok(pushed) => {
+                        if pushed {
+                            processed_count += 1;
+                        }
+                        (true, pushed)
+                    }
+                    Err(e) => {
+                        if !is_ignore_push_error(&e) {
+                            warn!(
+                                "Directly push fail, offset [{:?}], error message:{}",
+                                record.offset, e
+                            );
+                        }
+                        (model != PushModel::RetryFailure, false)
+                    }
+                };
+
+            self.record_metrics(
+                &subscriber.client_id,
+                &subscriber.sub_path,
+                &subscriber.topic_name,
+                record.data.len() as u64,
+                success,
+            );
+
+            if is_commit_offset {
+                self.commit_offset(
+                    &subscriber.group_name,
+                    &subscriber.topic_name,
+                    record_offset,
+                )
+                .await?;
             }
         }
 
@@ -158,7 +192,7 @@ impl DirectlyPushManager {
         subscriber: &Subscriber,
         record: &Record,
         stop_sx: &Sender<bool>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<bool, MqttBrokerError> {
         let sub_pub_param = if let Some(params) = build_publish_message(
             &self.cache_manager,
             &self.connection_manager,
@@ -169,8 +203,8 @@ impl DirectlyPushManager {
         {
             params
         } else {
-            // Invalid message. Just submit the offset normally and skip the processing of this message.
-            return Ok(());
+            // Message skipped (expired, no_local, packet too large, etc.)
+            return Ok(false);
         };
 
         let send_time = now_second();
@@ -192,7 +226,7 @@ impl DirectlyPushManager {
         )
         .await?;
 
-        Ok(())
+        Ok(true)
     }
 
     async fn next_message(
@@ -203,7 +237,7 @@ impl DirectlyPushManager {
         let offset = self.get_offset(group, topic_name).await? + 1;
         Ok(self
             .message_storage
-            .read_topic_message(topic_name, offset, 100)
+            .read_topic_message(topic_name, offset, BATCH_SIZE)
             .await?)
     }
 
