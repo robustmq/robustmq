@@ -17,15 +17,11 @@ use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
-use crate::handler::subscribe::{
-    actually_execute_add_subscribe, actually_execute_remove_subscribe,
-};
 use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::parse::parse_subscribe_by_new_topic;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
@@ -183,32 +179,22 @@ pub async fn update_cache_metadata(
                 cache_manager.del_user(user.username);
             }
         },
+
         MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
-                actually_execute_add_subscribe(
-                    subscribe_manager,
-                    cache_manager,
-                    client_pool,
-                    &subscribe,
-                )
-                .await?;
+                subscribe_manager.add_subscribe(&subscribe);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
-                actually_execute_remove_subscribe(subscribe_manager, &subscribe).await?;
+                subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
             }
         },
+
         MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
-                parse_subscribe_by_new_topic(
-                    client_pool.clone(),
-                    cache_manager.clone(),
-                    subscribe_manager.clone(),
-                    topic.clone(),
-                );
             }
 
             MqttBrokerUpdateCacheActionType::Delete => {

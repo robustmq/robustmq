@@ -15,7 +15,6 @@
 use super::{cache::MQTTCacheManager, error::MqttBrokerError};
 use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::parse::{parse_subscribe_by_new_subscribe, ParseSubscribeContext};
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::placement_delete_subscribe;
@@ -96,41 +95,3 @@ pub async fn remove_subscribe(
 
     Ok(())
 }
-
-pub async fn actually_execute_remove_subscribe(
-    subscribe_manager: &Arc<SubscribeManager>,
-    subscribe: &MqttSubscribe,
-) -> ResultMqttBrokerError {
-    subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
-    Ok(())
-}
-
-pub async fn actually_execute_add_subscribe(
-    subscribe_manager: &Arc<SubscribeManager>,
-    cache_manager: &Arc<MQTTCacheManager>,
-    client_pool: &Arc<ClientPool>,
-    subscribe: &MqttSubscribe,
-) -> ResultMqttBrokerError {
-    subscribe_manager.add_subscribe(subscribe);
-    let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.filter.path);
-    if let Some(row) = cache_manager.topic_info.iter().next() {
-        let topic = row.value();
-        return parse_subscribe_by_new_subscribe(ParseSubscribeContext {
-            client_pool: client_pool.clone(),
-            subscribe_manager: subscribe_manager.clone(),
-            client_id: subscribe.client_id.clone(),
-            topic: topic.clone(),
-            protocol: subscribe.protocol.clone(),
-            pkid: subscribe.pkid,
-            filter: subscribe.filter.clone(),
-            subscribe_properties: subscribe.subscribe_properties.clone(),
-            rewrite_sub_path,
-        })
-        .await;
-    }
-
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {}

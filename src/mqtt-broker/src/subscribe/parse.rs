@@ -28,8 +28,13 @@ use crate::{
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MQTTTopic;
-use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
+use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MQTTTopic};
+use protocol::{
+    broker::broker_mqtt_inner::{
+        MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType,
+    },
+    mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
@@ -70,51 +75,81 @@ struct AddSharePushContext {
     pub pkid: u16,
 }
 
+#[derive(Clone)]
+struct ParseSubscribeData {
+    action_type: MqttBrokerUpdateCacheActionType,
+    resource_type: MqttBrokerUpdateCacheResourceType,
+    subscribe: Option<MqttSubscribe>,
+    topic: Option<MQTTTopic>,
+}
+
+pub async fn parse_subscribe_by_new_subscribe(
+    subscribe_manager: &Arc<SubscribeManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    subscribe: &MqttSubscribe,
+) -> ResultMqttBrokerError {
+    subscribe_manager.add_subscribe(subscribe);
+    let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.filter.path);
+    if let Some(row) = cache_manager.topic_info.iter().next() {
+        let topic = row.value();
+        parse_subscribe(ParseSubscribeContext {
+            client_pool: client_pool.clone(),
+            subscribe_manager: subscribe_manager.clone(),
+            client_id: subscribe.client_id.clone(),
+            topic: topic.clone(),
+            protocol: subscribe.protocol.clone(),
+            pkid: subscribe.pkid,
+            filter: subscribe.filter.clone(),
+            subscribe_properties: subscribe.subscribe_properties.clone(),
+            rewrite_sub_path,
+        })
+        .await;
+    }
+    Ok(())
+}
+
 /// Parses and matches all existing subscriptions when a new topic is created.
 /// This will iterate through all subscriptions to find matches.
-pub fn parse_subscribe_by_new_topic(
+pub async fn parse_subscribe_by_new_topic(
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<MQTTCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     topic: MQTTTopic,
 ) {
-    tokio::spawn(async move {
-        let conf = broker_config();
+    let conf = broker_config();
 
-        for row in subscribe_manager.subscribe_list.iter() {
-            let subscribe = row.value();
-            if subscribe.broker_id != conf.broker_id {
-                continue;
-            }
-            let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
-
-            if let Err(e) = parse_subscribe_by_new_subscribe(ParseSubscribeContext {
-                client_pool: client_pool.clone(),
-                subscribe_manager: subscribe_manager.clone(),
-                client_id: subscribe.client_id.clone(),
-                topic: topic.clone(),
-                protocol: subscribe.protocol.clone(),
-                pkid: subscribe.pkid,
-                filter: subscribe.filter.clone(),
-                subscribe_properties: subscribe.subscribe_properties.clone(),
-                rewrite_sub_path: rewrite_sub_path.clone(),
-            })
-            .await
-            {
-                error!(
-                    "Failed to parse subscribe for client [{}], topic [{}]: {}",
-                    subscribe.client_id, topic.topic_name, e
-                );
-            }
+    for row in subscribe_manager.subscribe_list.iter() {
+        let subscribe = row.value();
+        if subscribe.broker_id != conf.broker_id {
+            continue;
         }
-    });
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
+
+        if let Err(e) = parse_subscribe(ParseSubscribeContext {
+            client_pool: client_pool.clone(),
+            subscribe_manager: subscribe_manager.clone(),
+            client_id: subscribe.client_id.clone(),
+            topic: topic.clone(),
+            protocol: subscribe.protocol.clone(),
+            pkid: subscribe.pkid,
+            filter: subscribe.filter.clone(),
+            subscribe_properties: subscribe.subscribe_properties.clone(),
+            rewrite_sub_path: rewrite_sub_path.clone(),
+        })
+        .await
+        {
+            error!(
+                "Failed to parse subscribe for client [{}], topic [{}]: {}",
+                subscribe.client_id, topic.topic_name, e
+            );
+        }
+    }
 }
 
 /// Matches a subscription with a topic and adds it to the appropriate push manager.
 /// Used both when a new subscription is created and when a new topic is created.
-pub async fn parse_subscribe_by_new_subscribe(
-    context: ParseSubscribeContext,
-) -> ResultMqttBrokerError {
+async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBrokerError {
     let sub_identifier = if let Some(properties) = context.subscribe_properties.clone() {
         properties.subscription_identifier
     } else {

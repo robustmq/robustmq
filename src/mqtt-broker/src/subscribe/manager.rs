@@ -43,11 +43,6 @@ pub struct TopicSubscribeInfo {
     pub path: String,
 }
 
-#[derive(Clone, Debug)]
-pub struct TemporaryNotPushClient {
-    pub last_check_time: u64,
-}
-
 #[derive(Clone, Default)]
 pub struct SubscribeManager {
     //(client_id_path: MqttSubscribe)
@@ -62,7 +57,7 @@ pub struct SubscribeManager {
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
 
     //(client_id, TemporaryNotPushClient)
-    pub not_push_client: DashMap<String, TemporaryNotPushClient>,
+    pub not_push_client: DashMap<String, u64>,
 }
 
 impl SubscribeManager {
@@ -107,7 +102,6 @@ impl SubscribeManager {
         }
 
         self.not_push_client.remove(client_id);
-
         self.directly_push.remove_by_client_id(client_id);
     }
 
@@ -127,18 +121,13 @@ impl SubscribeManager {
     }
 
     pub fn add_not_push_client(&self, client_id: &str) {
-        self.not_push_client.insert(
-            client_id.to_string(),
-            TemporaryNotPushClient {
-                last_check_time: now_second(),
-            },
-        );
+        self.not_push_client
+            .insert(client_id.to_string(), now_second());
     }
 
     pub fn update_not_push_client(&self, client_id: &str) {
-        if let Some(mut raw) = self.not_push_client.get_mut(client_id) {
-            raw.last_check_time = now_second();
-        }
+        self.not_push_client
+            .insert(client_id.to_string(), now_second());
     }
 
     pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
@@ -264,10 +253,10 @@ mod tests {
         mgr.add_not_push_client("c1");
         assert!(mgr.not_push_client.get("c1").is_some());
 
-        let initial_time = mgr.not_push_client.get("c1").unwrap().last_check_time;
+        let initial_time = *mgr.not_push_client.get("c1").unwrap();
 
         mgr.update_not_push_client("c1");
-        let updated_time = mgr.not_push_client.get("c1").unwrap().last_check_time;
+        let updated_time = *mgr.not_push_client.get("c1").unwrap();
 
         assert!(updated_time >= initial_time);
     }
