@@ -267,7 +267,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "strum",
- "strum_macros",
+ "strum_macros 0.26.4",
  "thiserror 1.0.69",
  "typed-builder 0.19.1",
  "uuid",
@@ -4268,7 +4268,7 @@ dependencies = [
  "sqlx",
  "storage-adapter",
  "strum",
- "strum_macros",
+ "strum_macros 0.27.2",
  "sysinfo",
  "tempfile",
  "third-driver",
@@ -7560,6 +7560,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
+ "syn 2.0.106",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
  "syn 2.0.106",
 ]
 
