@@ -53,7 +53,7 @@ mod tests {
                 publish_data(&cli, msg, false);
                 distinct_conn(cli);
 
-                // subscribe +
+                // subscribe with + wildcard
                 let client_id: String =
                     build_client_id(format!("sub_wildcards_test_+_{network}_{qos}").as_str());
 
@@ -83,7 +83,7 @@ mod tests {
                 subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
                 distinct_conn(cli);
 
-                // subscribe #
+                // subscribe with # wildcard (multi-level)
                 let client_id =
                     build_client_id(format!("sub_wildcards_test_#_{network}_{qos}").as_str());
 
@@ -97,13 +97,13 @@ mod tests {
                 };
                 let cli = connect_server(&client_properties);
 
-                let sub_topic = "/tests/+".to_string();
+                // Fix: /tests/# matches /tests/v1/v2/{uniq}
+                let sub_topic = "/tests/#".to_string();
                 let call_fn = |msg: Message| {
                     let payload = match String::from_utf8(msg.payload().to_vec()) {
                         Ok(payload) => payload,
                         Err(_) => return false,
                     };
-                    println!("payload: {payload:?}");
                     payload == message_content
                 };
 

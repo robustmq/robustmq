@@ -241,7 +241,6 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
                 &context.stop_sx,
             )
             .await?;
-            println!("{}", 5);
             debug!(
                 "retain the successful message sending: client_id: {}, topi_id: {}",
                 context.client_id, topic_name
