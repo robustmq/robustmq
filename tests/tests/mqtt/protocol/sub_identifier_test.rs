@@ -33,9 +33,9 @@ mod tests {
                     build_client_id(format!("sub_identifier_test_pub_{network}_{qos}").as_str());
 
                 let topic = unique_id();
-                let topic1 = format!("/test_tcp/{topic}/+");
-                let topic2 = format!("/test_tcp/{topic}/test");
-                let topic3 = format!("/test_tcp/{topic}/test_one");
+                let topic1 = format!("/sub_identifier_test/{topic}/+");
+                let topic2 = format!("/sub_identifier_test/{topic}/test");
+                let topic3 = format!("/sub_identifier_teste/{topic}/test_one");
 
                 // publish
                 let client_properties = ClientTestProperties {
