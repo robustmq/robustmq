@@ -141,10 +141,10 @@ pub fn engine_list_by_prefix_to_map_by_journal<T>(
 where
     T: DeserializeOwned,
 {
-    use common_base::tools::now_mills;
+    use common_base::tools::now_millis;
     use common_metrics::rocksdb::metrics_rocksdb_list_ms;
 
-    let start_time = now_mills();
+    let start_time = now_millis();
 
     let cf = rocksdb_engine_handler
         .cf_handle(column_family)
@@ -165,7 +165,7 @@ where
         }
     }
 
-    let duration = (now_mills() - start_time) as f64;
+    let duration = (now_millis() - start_time) as f64;
     metrics_rocksdb_list_ms(DB_COLUMN_FAMILY_JOURNAL, duration);
 
     Ok(results)

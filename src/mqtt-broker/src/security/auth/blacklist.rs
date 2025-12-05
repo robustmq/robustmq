@@ -115,8 +115,8 @@ pub fn is_blacklist(
 #[cfg(test)]
 mod test {
     use super::is_blacklist;
-    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::tools::{local_hostname, now_second};
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;

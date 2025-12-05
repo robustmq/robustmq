@@ -14,8 +14,8 @@
 
 use super::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink};
 use super::manager::ConnectorManager;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use axum::async_trait;
 use chrono::{DateTime, Local, Timelike};
 use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;

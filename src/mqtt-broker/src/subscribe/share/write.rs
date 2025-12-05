@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use dashmap::DashMap;
 use futures::SinkExt;
 use protocol::mqtt::common::MqttPacket;

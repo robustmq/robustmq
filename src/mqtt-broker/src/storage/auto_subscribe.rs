@@ -25,8 +25,8 @@ use protocol::meta::meta_service_mqtt::{
     DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
 };
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 pub struct AutoSubscribeStorage {
     client_pool: Arc<ClientPool>,

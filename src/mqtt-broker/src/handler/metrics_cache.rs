@@ -521,7 +521,7 @@ fn calc_value(max_value: u64, min_value: u64, time_window: u64) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use crate::common::metrics_cache::calc_value;
+    use crate::handler::metrics_cache::calc_value;
 
     #[test]
     fn test_calc_value_rounding() {

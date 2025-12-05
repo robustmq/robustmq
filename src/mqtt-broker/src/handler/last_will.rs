@@ -17,7 +17,7 @@ use super::error::MqttBrokerError;
 use super::message::build_message_expire;
 use super::retain::save_retain_message;
 use super::topic::try_init_topic;
-use crate::common::types::ResultMqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 use bytes::Bytes;

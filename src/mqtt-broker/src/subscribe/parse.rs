@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    common::types::ResultMqttBrokerError,
+    handler::tool::ResultMqttBrokerError,
     handler::{
         cache::MQTTCacheManager,
         sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},

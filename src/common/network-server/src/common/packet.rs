@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use protocol::{
     mqtt::common::MqttPacket,
     robust::{
@@ -36,7 +36,7 @@ impl RequestPackage {
             connection_id,
             addr,
             packet,
-            receive_ms: now_mills(),
+            receive_ms: now_millis(),
         }
     }
 }

@@ -16,7 +16,7 @@ use crate::{
     gauge_metric_inc_by, gauge_metric_set, histogram_metric_observe, register_gauge_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use metadata_struct::connection::NetworkConnectionType;
 use prometheus_client::encoding::EncodeLabelSet;
 
@@ -232,7 +232,7 @@ pub fn metrics_response_queue_size(
 }
 
 pub fn record_ws_request_duration(receive_ms: u128, response_ms: u128) {
-    let now = now_mills();
+    let now = now_millis();
     let ws_type = NetworkConnectionType::WebSocket;
 
     metrics_request_total_ms(&ws_type, (now - receive_ms) as f64);

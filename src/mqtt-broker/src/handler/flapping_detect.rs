@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::local::LocalStorage;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::time_unit_enum::TimeUnit;

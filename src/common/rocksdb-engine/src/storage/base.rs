@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{rocksdb::RocksDBEngine, warp::StorageDataWrap};
-use common_base::{error::common::CommonError, tools::now_mills, utils};
+use common_base::{error::common::CommonError, tools::now_millis, utils};
 use common_metrics::rocksdb::{
     metrics_rocksdb_delete_ms, metrics_rocksdb_exist_ms, metrics_rocksdb_get_ms,
     metrics_rocksdb_list_ms, metrics_rocksdb_save_ms,
@@ -37,9 +37,9 @@ pub fn get_cf_handle<'a>(
 /// Macro to simplify metrics collection for RocksDB operations
 macro_rules! with_metrics {
     ($source:expr, $metric_fn:expr, $operation:expr) => {{
-        let start_time = now_mills();
+        let start_time = now_millis();
         let result = $operation;
-        let duration = (now_mills() - start_time) as f64;
+        let duration = (now_millis() - start_time) as f64;
         $metric_fn($source, duration);
         result
     }};

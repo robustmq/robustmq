@@ -16,7 +16,7 @@ use super::{
     cache::MQTTCacheManager,
     subscribe::{save_subscribe, SaveSubscribeContext},
 };
-use crate::common::types::ResultMqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;

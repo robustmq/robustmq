@@ -23,7 +23,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{error, warn};
 
-use crate::common::types::ResultMqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},

@@ -22,8 +22,8 @@ use protocol::meta::meta_service_mqtt::{
     CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
 };
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 pub struct BlackListStorage {
     client_pool: Arc<ClientPool>,

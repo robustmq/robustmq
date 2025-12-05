@@ -17,7 +17,7 @@ use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
 use crate::common::tool::calc_resp_channel_len;
 use crate::common::{channel::RequestChannel, metric::record_packet_handler_info_by_response};
 use common_base::error::not_record_error;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_metrics::network::metrics_response_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::robust::RobustMQPacket;
@@ -60,7 +60,7 @@ pub fn response_process(context: ResponseChildProcessContext) {
                     },
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
-                            let out_response_queue_ms = now_mills();
+                            let out_response_queue_ms = now_millis();
                             record_response_channel_metrics(&response_process_rx,index, request_channel.channel_size);
 
                             let permit = semaphore.clone().acquire_owned().await.unwrap();

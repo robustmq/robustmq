@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::{cache::MQTTCacheManager, error::MqttBrokerError};
-use crate::common::types::ResultMqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;

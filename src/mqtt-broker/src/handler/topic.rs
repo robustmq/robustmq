@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::error::MqttBrokerError;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;

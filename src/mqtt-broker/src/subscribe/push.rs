@@ -14,7 +14,6 @@
 
 use super::common::min_qos;
 use super::common::Subscriber;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::{
     MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
 };
@@ -23,11 +22,12 @@ use crate::handler::message::is_message_expire;
 use crate::handler::metrics::record_publish_send_metrics;
 use crate::handler::metrics::record_send_metrics;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -167,7 +167,7 @@ pub async fn send_publish_packet_to_client(
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
-                    create_time: now_mills(),
+                    create_time: now_millis(),
                 },
             );
 
@@ -195,7 +195,7 @@ pub async fn send_publish_packet_to_client(
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_ack_sx.clone(),
-                    create_time: now_mills(),
+                    create_time: now_millis(),
                 },
             );
 
@@ -336,7 +336,7 @@ pub async fn send_message_to_client(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
 ) -> ResultMqttBrokerError {
-    let start = now_mills();
+    let start = now_millis();
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
             protocol
@@ -619,7 +619,7 @@ async fn interruptible_sleep(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::Subscriber;
     use common_base::tools::now_second;
     use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};

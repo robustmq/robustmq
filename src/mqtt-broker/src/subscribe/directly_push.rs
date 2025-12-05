@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{handler::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
-    common::types::ResultMqttBrokerError,
+    handler::tool::ResultMqttBrokerError,
     handler::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
     subscribe::{
         common::{is_ignore_push_error, Subscriber},
@@ -22,7 +23,6 @@ use crate::{
         push_model::{get_push_model, PushModel},
     },
 };
-use crate::{handler::cache::MQTTCacheManager, storage::message::MessageStorage};
 use common_base::tools::now_second;
 use common_metrics::mqtt::subscribe::{
     record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,

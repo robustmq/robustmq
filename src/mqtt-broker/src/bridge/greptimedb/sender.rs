@@ -19,8 +19,8 @@ use metadata_struct::mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 #[derive(Clone)]
 pub struct Sender {

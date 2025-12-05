@@ -47,7 +47,7 @@ use crate::system_topic::event::{
     st_report_unsubscribed_event, StReportConnectedEventContext, StReportDisconnectedEventContext,
     StReportSubscribedEventContext, StReportUnsubscribedEventContext,
 };
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::{now_millis, now_second};
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
 use delay_message::DelayMessageManager;
@@ -546,7 +546,7 @@ impl MqttService {
                 }) {
                     debug!(
                             "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
-                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id, now_mills() -  data.create_time
+                            e,data.create_time, now_millis(), conn.client_id, pub_ack.pkid, connect_id, now_millis() -  data.create_time
                         );
                 }
             }
@@ -574,7 +574,7 @@ impl MqttService {
                     pkid: pub_rec.pkid,
                 }) {
                     debug!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
-                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id, now_mills() -  data.create_time);
+                        e,data.create_time, now_millis(), client_id, pub_rec.pkid, connect_id, now_millis() -  data.create_time);
                 }
             }
         }
@@ -602,7 +602,7 @@ impl MqttService {
                 }) {
                     debug!(
                             "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
-                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id, now_mills() -  data.create_time
+                            e,data.create_time, now_millis(), client_id, pub_comp.pkid, connect_id, now_millis() -  data.create_time
                         );
                 }
             }

@@ -17,7 +17,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::segment_name;
 use protocol::journal::journal_engine::{WriteReqBody, WriteReqMessages, WriteReqSegmentMessages};
@@ -361,9 +361,9 @@ fn build_send_data(
 // Fetching data in bulk
 async fn get_batch_message(recv: &mut Receiver<DataSenderPkg>, line_ms: u64) -> Vec<DataSenderPkg> {
     let mut results = Vec::new();
-    let start_ms = now_mills();
+    let start_ms = now_millis();
     loop {
-        if (now_mills() - start_ms) > line_ms as u128 {
+        if (now_millis() - start_ms) > line_ms as u128 {
             break;
         }
 

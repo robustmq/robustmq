@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use crate::{
-    bridge::failure::failure_message_process, common::types::ResultMqttBrokerError,
+    bridge::failure::failure_message_process, handler::tool::ResultMqttBrokerError,
     storage::connector::ConnectorStorage,
 };
 use axum::async_trait;
 
 use common_base::{
     error::ResultCommonError,
-    tools::{loop_select_ticket, now_mills},
+    tools::{loop_select_ticket, now_millis},
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -134,7 +134,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                             continue;
                         }
 
-                        let start_time = now_mills();
+                        let start_time = now_millis();
                         let message_count = data.len() as u64;
                         let mut retry_times = 0;
                         loop{
@@ -175,7 +175,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
                     },
                     Err(e) => {
-                        update_last_active(connector_manager, &connector_name, now_mills(), 0, false);
+                        update_last_active(connector_manager, &connector_name, now_millis(), 0, false);
                         error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);
                         sleep(Duration::from_millis(100)).await;
                     }

@@ -230,8 +230,8 @@ pub struct KeepAliveRunInfo {
 #[cfg(test)]
 mod test {
     use super::keep_live_time;
-    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::manager::SubscribeManager;
     use common_base::tools::{local_hostname, now_second, unique_id};
     use grpc_clients::pool::ClientPool;

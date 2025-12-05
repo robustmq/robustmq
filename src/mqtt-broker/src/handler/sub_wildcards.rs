@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{common::types::ResultMqttBrokerError, handler::error::MqttBrokerError};
+use crate::{handler::error::MqttBrokerError, handler::tool::ResultMqttBrokerError};
 use regex::Regex;
 
 const SUBSCRIBE_WILDCARDS_1: &str = "+";

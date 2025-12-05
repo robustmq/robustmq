@@ -182,7 +182,7 @@ impl Authentication for JwtAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use jsonwebtoken::{encode, EncodingKey, Header};
 
     #[tokio::test]

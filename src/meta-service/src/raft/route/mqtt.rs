@@ -24,7 +24,7 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use axum::body::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::{now_millis, now_second};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -210,7 +210,7 @@ impl DataRouteMqtt {
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
             regex: req.regex.clone(),
-            timestamp: now_mills(),
+            timestamp: now_millis(),
         };
         storage.save_topic_rewrite_rule(
             &req.cluster_name,

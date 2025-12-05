@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::cache::MQTTCacheManager;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::subscribe::common::{decode_sub_path, is_match_sub_and_topic};
 use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use common_base::error::common::CommonError;
@@ -93,10 +93,10 @@ fn gen_rewrite_topic(
 mod tests {
     use std::time::Duration;
 
-    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
 
     use super::*;
-    use common_base::tools::now_mills;
+    use common_base::tools::now_millis;
     use tokio::time::sleep;
 
     /// * Assume that the following topic rewrite rules have been added to the conf file:
@@ -184,7 +184,7 @@ mod tests {
                 source_topic: rule.source.to_string(),
                 dest_topic: rule.destination.to_string(),
                 regex: rule.regex.to_string(),
-                timestamp: now_mills(),
+                timestamp: now_millis(),
             };
             cache_manager.add_topic_rewrite_rule(rule);
             sleep(Duration::from_millis(200)).await;

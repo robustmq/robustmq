@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use crate::handler::sub_share::{decode_share_info, is_mqtt_share_subscribe};
 use crate::handler::sub_wildcards::is_wildcards;
+use crate::handler::tool::ResultMqttBrokerError;
 use common_base::error::not_record_error;
 use protocol::mqtt::common::{
     Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
@@ -179,8 +179,8 @@ pub fn is_error_by_suback(suback: &SubAck) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::error::MqttBrokerError;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::{
         build_sub_path_regex, decode_share_info, decode_sub_path, get_sub_topic_name_list,
         is_error_by_suback, is_ignore_push_error, is_match_sub_and_topic, is_wildcards, min_qos,

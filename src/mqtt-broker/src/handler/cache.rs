@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::pkid_manager::PkidManager;
+use crate::handler::pkid_manager::PkidManager;
 use crate::security::auth::metadata::AclMetadata;
 use broker_core::cache::BrokerCacheManager;
 use dashmap::DashMap;
@@ -425,7 +425,7 @@ impl MQTTCacheManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
 
     use super::*;
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;

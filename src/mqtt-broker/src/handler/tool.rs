@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::handler::cache::MQTTCacheManager;
+use crate::handler::error::MqttBrokerError;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::default_broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::MqttPacket;
+use std::sync::Arc;
 
-use crate::handler::cache::MQTTCacheManager;
-
+pub type ResultMqttBrokerError = Result<(), MqttBrokerError>;
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
         return true;
