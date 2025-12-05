@@ -770,7 +770,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_offset_by_timestamp() {
         let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
         let shard = create_test_shard(&adapter, "test-shard").await;

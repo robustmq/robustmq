@@ -26,6 +26,8 @@ mod tests {
 
     #[tokio::test]
     async fn topic_test() {
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();

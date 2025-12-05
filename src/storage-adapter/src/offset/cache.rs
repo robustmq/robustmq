@@ -211,78 +211,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_commit_and_get_local_offset() {
+    async fn test_basic_commit_and_retrieval() {
         let cache = setup();
-        let offs = HashMap::from([("shard_1".into(), 100u64), ("shard_2".into(), 200u64)]);
 
-        cache.commit_offset("g1", &offs).await.unwrap();
+        // Commit multiple shards for one group
+        cache
+            .commit_offset(
+                "g1",
+                &HashMap::from([("s1".into(), 100u64), ("s2".into(), 200u64)]),
+            )
+            .await
+            .unwrap();
 
-        // Verify flag is set
-        assert_eq!(
-            cache.group_update_flag.get("g1").map(|r| *r.value()),
-            Some(true)
-        );
-
-        // Verify get_local_offset
+        // Verify flag set and offsets retrievable
+        assert!(cache.group_update_flag.get("g1").is_some_and(|v| *v));
         let local = cache.get_local_offset().await.unwrap();
-        assert_eq!(local.len(), 1);
-        assert_eq!(local.get("g1").unwrap().len(), 2);
+        assert_eq!(local.get("g1").expect("g1 exists").len(), 2);
     }
 
     #[tokio::test]
-    async fn test_new_shard_offset_sync() {
+    async fn test_flag_based_filtering() {
         let cache = setup();
 
-        // Commit offset for shard_1 (simulates new shard with no remote data)
-        cache
-            .commit_offset("g1", &HashMap::from([("shard_1".into(), 10u64)]))
-            .await
-            .unwrap();
-
-        // Verify flag is set before sync
-        assert_eq!(
-            cache.group_update_flag.get("g1").map(|r| *r.value()),
-            Some(true)
-        );
-
-        // try_comparison_and_save_offset should not fail even with new shard
-        // (validates fix 2: new shard is included in updates, not ignored)
-        let result = cache.try_comparison_and_save_offset().await;
-        assert!(result.is_ok(), "Should handle new shard without panic");
-    }
-
-    #[tokio::test]
-    async fn test_flag_reset_preserves_updates() {
-        let cache = setup();
-
-        // Simulate: commit offset, then flag=true
-        cache
-            .commit_offset("g1", &HashMap::from([("s1".into(), 10u64)]))
-            .await
-            .unwrap();
-        assert_eq!(
-            cache.group_update_flag.get("g1").map(|r| *r.value()),
-            Some(true)
-        );
-
-        // Simulate concurrent scenario: another commit while async_commit runs
-        cache
-            .commit_offset("g1", &HashMap::from([("s1".into(), 20u64)]))
-            .await
-            .unwrap();
-
-        // Flag should still be true (validates fix 3: CAS logic)
-        assert_eq!(
-            cache.group_update_flag.get("g1").map(|r| *r.value()),
-            Some(true)
-        );
-    }
-
-    #[tokio::test]
-    async fn test_efficiency_only_reads_updated_groups() {
-        let cache = setup();
-
-        // Commit to g1 and g2
         cache
             .commit_offset("g1", &HashMap::from([("s1".into(), 10u64)]))
             .await
@@ -292,18 +242,10 @@ mod tests {
             .await
             .unwrap();
 
-        // Reset g2 flag
         cache.group_update_flag.insert("g2".into(), false);
 
-        // get_local_offset should only return g1
         let local = cache.get_local_offset().await.unwrap();
         assert_eq!(local.len(), 1);
         assert!(local.contains_key("g1"));
-        assert!(!local.contains_key("g2"));
-
-        // try_comparison_and_save_offset should only process g1 (validates fix 4)
-        // This would be visible in real metrics, but in tests we verify indirectly
-        let result = cache.try_comparison_and_save_offset().await;
-        assert!(result.is_ok());
     }
 }

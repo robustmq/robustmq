@@ -34,6 +34,11 @@ pub(crate) fn start_recover_delay_queue(
         max_size: 1024 * 1024 * 1024,
     };
 
+    info!(
+        "Starting delay queue recovery from persistent storage (shards: {})",
+        shard_num
+    );
+
     let new_delay_message_manager = delay_message_manager.clone();
     let new_message_storage_adapter = message_storage_adapter.clone();
     tokio::spawn(async move {
@@ -52,6 +57,8 @@ pub(crate) fn start_delay_message_pop(
     message_storage_adapter: &ArcStorageAdapter,
     shard_num: u64,
 ) {
+    info!("Starting delay message pop threads (shards: {})", shard_num);
+
     for shard_no in 0..shard_num {
         let new_delay_message_manager = delay_message_manager.clone();
         let new_message_storage_adapter = message_storage_adapter.clone();
@@ -60,13 +67,14 @@ pub(crate) fn start_delay_message_pop(
         delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
 
         tokio::spawn(async move {
+            info!("Delay message pop thread started for shard {}", shard_no);
             let mut recv = stop_send.subscribe();
             loop {
                 select! {
                     val = recv.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("{}","Heartbeat reporting thread exited successfully");
+                                info!("Delay message pop thread stopped for shard {}", shard_no);
                                 break;
                             }
                         }
@@ -75,7 +83,10 @@ pub(crate) fn start_delay_message_pop(
                         &new_message_storage_adapter,
                         &new_delay_message_manager,
                         shard_no,
-                    ) => {}
+                    ) => {
+                        // Yield to other tasks to avoid tight loops when many messages expire
+                        tokio::task::yield_now().await;
+                    }
                 }
             }
         });
@@ -88,6 +99,10 @@ pub(crate) async fn persist_delay_message(
     data: Record,
 ) -> Result<u64, CommonError> {
     let offset = message_storage_adapter.write(shard_name, &data).await?;
+    debug!(
+        "Delay message persisted to shard {} at offset {}",
+        shard_name, offset
+    );
 
     Ok(offset)
 }
@@ -96,6 +111,7 @@ pub(crate) async fn init_delay_message_shard(
     message_storage_adapter: &ArcStorageAdapter,
     shard_num: u64,
 ) -> Result<(), CommonError> {
+    let mut created_count = 0;
     for i in 0..shard_num {
         let shard_name = get_delay_message_shard_name(i);
         let results = message_storage_adapter.list_shard(&shard_name).await?;
@@ -107,9 +123,15 @@ pub(crate) async fn init_delay_message_shard(
                 ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
-            info!("init shard: {}", shard_name);
+            debug!("Created delay message shard: {}", shard_name);
+            created_count += 1;
         }
     }
+
+    info!(
+        "Delay message shards initialized: {} total, {} newly created",
+        shard_num, created_count
+    );
 
     Ok(())
 }

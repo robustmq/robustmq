@@ -31,6 +31,7 @@ use std::{
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
+use tracing::debug;
 
 pub mod delay;
 pub mod persist;
@@ -65,8 +66,8 @@ impl DelayMessageManager {
             shard_num,
             message_storage_adapter,
             incr_no: AtomicU64::new(0),
-            delay_queue_list: DashMap::with_capacity(2),
-            delay_queue_pop_thread: DashMap::with_capacity(2),
+            delay_queue_list: DashMap::with_capacity(shard_num as usize),
+            delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
         }
     }
 
@@ -95,6 +96,7 @@ impl DelayMessageManager {
             target_shard_name: target_topic.to_string(),
             offset,
             delay_timestamp: now_second() + delay_timestamp,
+            shard_no,
         };
         self.send_to_delay_queue(shard_no, &delay_info);
 
@@ -114,10 +116,22 @@ impl DelayMessageManager {
 
     pub fn send_to_delay_queue(&self, shard_no: u64, delay_info: &DelayMessageInfo) {
         if let Some(mut delay_queue) = self.delay_queue_list.get_mut(&shard_no) {
-            delay_queue.insert_at(
-                delay_info.clone(),
-                Instant::now() + Duration::from_secs(delay_info.delay_timestamp - now_second()),
+            let now = now_second();
+            let delay_duration = if delay_info.delay_timestamp > now {
+                Duration::from_secs(delay_info.delay_timestamp - now)
+            } else {
+                Duration::from_secs(0)
+            };
+
+            debug!(
+                "Adding message to delay queue: shard_no={}, target={}, delay={}s, will_expire_at={}",
+                shard_no,
+                delay_info.target_shard_name,
+                delay_duration.as_secs(),
+                delay_info.delay_timestamp
             );
+
+            delay_queue.insert_at(delay_info.clone(), Instant::now() + delay_duration);
             record_mqtt_delay_queue_total_capacity_set(shard_no, delay_queue.capacity() as i64);
             record_mqtt_delay_queue_used_capacity_set(shard_no, delay_queue.len() as i64);
             record_mqtt_delay_queue_remaining_capacity_set(
@@ -137,7 +151,7 @@ impl DelayMessageManager {
 
     fn get_target_shard_no(&self) -> u64 {
         self.incr_no
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
             % self.shard_num
     }
 }

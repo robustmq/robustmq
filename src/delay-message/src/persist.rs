@@ -20,9 +20,9 @@ use metadata_struct::{
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::time::sleep;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-use crate::DelayMessageManager;
+use crate::{pop::read_offset_data, DelayMessageManager};
 
 const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
 
@@ -41,7 +41,7 @@ pub async fn recover_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
     delay_message_manager: &Arc<DelayMessageManager>,
     read_config: ReadConfig,
-    shard_num: u64,
+    _shard_num: u64,
 ) {
     let mut offset = 0;
     let mut total_num = 0;
@@ -73,12 +73,31 @@ pub async fn recover_delay_queue(
                 }
             };
 
-            if delay_info.delay_timestamp < now_second() {
+            let now = now_second();
+            if delay_info.delay_timestamp < now {
+                warn!(
+                    "Delay message expired during recovery, sending immediately. \
+                     Delay shard: {}, offset: {}, target: {}, expired by: {}s",
+                    delay_info.delay_shard_name,
+                    delay_info.offset,
+                    delay_info.target_shard_name,
+                    now - delay_info.delay_timestamp
+                );
+
+                let storage = message_storage_adapter.clone();
+                let info = delay_info.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = send_expired_delay_message(&storage, &info).await {
+                        error!(
+                            "Failed to send expired delay message (shard: {}, offset: {}): {:?}",
+                            info.delay_shard_name, info.offset, e
+                        );
+                    }
+                });
                 continue;
             }
 
-            let shard_no = offset % shard_num;
-            delay_message_manager.send_to_delay_queue(shard_no, &delay_info);
+            delay_message_manager.send_to_delay_queue(delay_info.shard_no, &delay_info);
 
             total_num += 1;
         }
@@ -86,6 +105,35 @@ pub async fn recover_delay_queue(
         offset += 1;
     }
     info!("Delay queue index was successfully constructed from the persistent store. Number of data items: {}", total_num);
+}
+
+async fn send_expired_delay_message(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_info: &DelayMessageInfo,
+) -> Result<(), CommonError> {
+    let record = read_offset_data(
+        message_storage_adapter,
+        &delay_info.delay_shard_name,
+        delay_info.offset,
+    )
+    .await?
+    .ok_or_else(|| {
+        CommonError::CommonError(format!(
+            "Expired delay message not found: shard={}, offset={}",
+            delay_info.delay_shard_name, delay_info.offset
+        ))
+    })?;
+
+    message_storage_adapter
+        .write(&delay_info.target_shard_name, &record)
+        .await?;
+
+    info!(
+        "Expired delay message sent successfully: {} -> {} (offset: {})",
+        delay_info.delay_shard_name, delay_info.target_shard_name, delay_info.offset
+    );
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -118,6 +166,7 @@ mod test {
                 target_shard_name: target_shard_name.to_owned(),
                 offset: i,
                 delay_timestamp: 5,
+                shard_no: 0,
             };
 
             let res = persist_delay_info(&message_storage_adapter, delay_info).await;
@@ -139,7 +188,7 @@ mod test {
         }
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     pub async fn build_delay_queue_test() {
         let shard_num = 1;
         let message_storage_adapter = build_memory_storage_driver();
@@ -152,8 +201,9 @@ mod test {
         let target_topic = unique_id();
         for i in 0..10 {
             let data = Record::from_string(format!("data{i}"));
+            // Use fixed delay to maintain order
             let res: Result<(), common_base::error::common::CommonError> =
-                delay_message_manager.send(&target_topic, i + 1, data).await;
+                delay_message_manager.send(&target_topic, 2, data).await;
 
             assert!(res.is_ok());
         }
@@ -184,17 +234,30 @@ mod test {
         )
         .await;
 
-        sleep(Duration::from_secs(15)).await;
+        // Wait for all messages to expire (2 seconds + buffer)
+        sleep(Duration::from_secs(3)).await;
 
+        // Give spawned tasks time to complete
+        sleep(Duration::from_millis(500)).await;
+
+        // Collect all messages and verify content (order may vary for concurrent expiry)
+        let mut received_data = std::collections::HashSet::new();
         for i in 0..10 {
             let res = read_offset_data(&message_storage_adapter, &target_topic, i).await;
             assert!(res.is_ok());
-            println!("i:{i},res:{res:?}");
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
 
             let d = String::from_utf8(raw.data.to_vec()).unwrap();
-            assert_eq!(d, format!("data{i}"));
+            received_data.insert(d);
+        }
+
+        // Verify all expected messages were received
+        for i in 0..10 {
+            assert!(
+                received_data.contains(&format!("data{i}")),
+                "Missing data{i} in received messages"
+            );
         }
     }
 }

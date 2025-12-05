@@ -32,7 +32,7 @@ mod tests {
 
         for t in [2, 4, 6] {
             let uniq_tp = uniq_topic();
-            let topic = format!("$delayed/{t}{uniq_tp}");
+            let topic = format!("$delayed/{}/{}", t, &uniq_tp[1..]);
 
             // publish
             let client_id = build_client_id(format!("delay_publish_test_{network}_{qos}").as_str());
