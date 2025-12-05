@@ -93,8 +93,10 @@ impl OffsetManager {
     }
 
     pub async fn get_offset(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
-        // Because the frequency of Get Offset is relatively low, to prevent inconsistent offset data
-        // each time we obtain the offset, we need to retrieve it from the meta service.
-        return self.offset_storage.get_offset(group).await;
+        // If cache is enabled, flush pending updates before reading to ensure consistency
+        if self.enable_cache {
+            self.offset_cache_storage.flush().await?;
+        }
+        self.offset_storage.get_offset(group).await
     }
 }

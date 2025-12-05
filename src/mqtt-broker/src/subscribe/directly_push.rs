@@ -198,7 +198,6 @@ impl DirectlyPushManager {
                 success,
             );
         }
-
         if let Some(offset) = last_commit_offset {
             if let Err(e) = self
                 .commit_offset(&subscriber.group_name, &subscriber.topic_name, offset)
@@ -274,8 +273,8 @@ impl DirectlyPushManager {
         let offset = self
             .message_storage
             .get_group_offset(group, topic_name)
-            .await?
-            + 1;
+            .await?;
+
         Ok(self
             .message_storage
             .read_topic_message(topic_name, offset, BATCH_SIZE)
@@ -289,7 +288,7 @@ impl DirectlyPushManager {
         offset: u64,
     ) -> ResultMqttBrokerError {
         self.message_storage
-            .commit_group_offset(group, topic_name, offset)
+            .commit_group_offset(group, topic_name, offset + 1)
             .await?;
         Ok(())
     }

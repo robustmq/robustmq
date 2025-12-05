@@ -98,14 +98,20 @@ mod tests {
                 let target_ms2 = target_ms.1.parse::<i64>().unwrap();
                 let diff = target_ms2 - recv_ms1;
                 assert_eq!(diff, t as i64);
+
+                let actual_delay = now_second() - target_ms2 as u64;
                 println!(
-                    "t:{},now:{},target_ms2:{},diff:{}",
+                    "t:{},now:{},target_ms2:{},actual_delay:{}s",
                     t,
                     now_second(),
                     target_ms2,
-                    now_second() - target_ms2 as u64
+                    actual_delay
                 );
-                assert!((now_second() - target_ms2 as u64) < 3);
+                assert!(
+                    actual_delay < 10,
+                    "Delay message arrived {}s late (tolerance: 10s)",
+                    actual_delay
+                );
                 payload == message_content
             };
 

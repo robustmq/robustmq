@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
 use crate::{persist::recover_delay_queue, pop::pop_delay_queue, DelayMessageManager};
@@ -60,8 +60,8 @@ pub(crate) fn start_delay_message_pop(
         delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
 
         tokio::spawn(async move {
+            let mut recv = stop_send.subscribe();
             loop {
-                let mut recv = stop_send.subscribe();
                 select! {
                     val = recv.recv() =>{
                         if let Ok(flag) = val {
@@ -75,9 +75,7 @@ pub(crate) fn start_delay_message_pop(
                         &new_message_storage_adapter,
                         &new_delay_message_manager,
                         shard_no,
-                    ) => {
-                        sleep(Duration::from_millis(100)).await;
-                    }
+                    ) => {}
                 }
             }
         });

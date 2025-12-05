@@ -70,8 +70,12 @@ async fn send_delay_message_to_shard(
             Ok(Some(record)) => record,
             Ok(None) => break,
             Err(e) => {
-                error!("read_offset_data failed, err: {:?}", e);
-                tokio::time::sleep(Duration::from_millis(1000)).await;
+                let backoff = Duration::from_millis(50 * (1 << times.min(5)));
+                error!(
+                    "read_offset_data failed, attempt {}/{}, retrying in {:?}, err: {:?}",
+                    times, 100, backoff, e
+                );
+                tokio::time::sleep(backoff).await;
                 continue;
             }
         };
@@ -85,8 +89,12 @@ async fn send_delay_message_to_shard(
                 break;
             }
             Err(e) => {
-                error!("write failed, err: {:?}", e);
-                tokio::time::sleep(Duration::from_millis(1000)).await;
+                let backoff = Duration::from_millis(50 * (1 << times.min(5)));
+                error!(
+                    "write failed, attempt {}/{}, retrying in {:?}, err: {:?}",
+                    times, 100, backoff, e
+                );
+                tokio::time::sleep(backoff).await;
                 continue;
             }
         }

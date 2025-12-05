@@ -21,7 +21,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::select;
 use tokio::sync::broadcast;
 use tonic::Status;
-use tracing::{info, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::enum_type::time_unit_enum::TimeUnit;
@@ -217,10 +217,7 @@ fn select_best_ip(candidates: &mut [(String, IpAddr)]) -> Option<String> {
         100
     });
 
-    candidates.first().map(|(name, ip)| {
-        info!("Selected network interface: {} -> {}", name, ip);
-        ip.to_string()
-    })
+    candidates.first().map(|(_, ip)| ip.to_string())
 }
 
 pub fn local_hostname() -> String {
