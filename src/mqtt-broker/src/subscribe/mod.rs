@@ -22,7 +22,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
-use tracing::debug;
+use tracing::{debug, info, warn};
 
 use crate::{
     handler::cache::MQTTCacheManager,
@@ -68,32 +68,47 @@ impl PushManager {
     }
 
     pub async fn start(&self, stop_sx: &broadcast::Sender<bool>) {
+        info!("PushManager started");
         let ac_fn = async || -> ResultCommonError {
-            // directly
             self.start_directly_push_thread();
             self.stop_directly_push_thread();
-
-            // share
             Ok(())
         };
         loop_select_ticket(ac_fn, 1000, stop_sx).await;
+        info!("PushManager stopped");
     }
 
     pub fn start_directly_push_thread(&self) {
+        // Collect empty buckets to remove
+        let empty_buckets: Vec<String> = self
+            .subscribe_manager
+            .directly_push
+            .buckets_data_list
+            .iter()
+            .filter(|row| row.value().is_empty())
+            .map(|row| row.key().clone())
+            .collect();
+
+        // Remove empty buckets
+        for bucket_id in empty_buckets {
+            self.subscribe_manager
+                .directly_push
+                .buckets_data_list
+                .remove(&bucket_id);
+            debug!("Removed empty bucket: {}", bucket_id);
+        }
+
+        // Start threads for new buckets
         for row in self
             .subscribe_manager
             .directly_push
             .buckets_data_list
             .iter()
         {
-            if row.value().is_empty() {
-                self.subscribe_manager
-                    .directly_push
-                    .buckets_data_list
-                    .remove(row.key());
-                continue;
-            }
-            if !self.directly_buckets_push_thread.contains_key(row.key()) {
+            let bucket_id = row.key().clone();
+            if !self.directly_buckets_push_thread.contains_key(&bucket_id) {
+                info!("Starting push thread for bucket: {}", bucket_id);
+
                 let (sub_thread_stop_sx, _) = broadcast::channel(1);
                 let thread_data = SubPushThreadData {
                     push_error_record_num: 0,
@@ -103,13 +118,14 @@ impl PushManager {
                     create_time: now_second(),
                     sender: sub_thread_stop_sx.clone(),
                 };
+
                 let push_manager = DirectlyPushManager::new(
                     self.subscribe_manager.clone(),
                     self.cache_manager.clone(),
                     self.storage_adapter.clone(),
                     self.connection_manager.clone(),
                     self.rocksdb_engine_handler.clone(),
-                    row.key().to_string(),
+                    bucket_id.clone(),
                 );
 
                 let stop_sx = sub_thread_stop_sx.clone();
@@ -118,23 +134,31 @@ impl PushManager {
                 });
 
                 self.directly_buckets_push_thread
-                    .insert(row.key().to_string(), thread_data);
+                    .insert(bucket_id, thread_data);
             }
         }
     }
 
     pub fn stop_directly_push_thread(&self) {
-        for row in self.directly_buckets_push_thread.iter() {
-            if !self
-                .subscribe_manager
-                .directly_push
-                .buckets_data_list
-                .contains_key(row.key())
-            {
-                if let Err(e) = row.sender.send(true) {
-                    debug!("{}", e);
+        let threads_to_stop: Vec<String> = self
+            .directly_buckets_push_thread
+            .iter()
+            .filter(|row| {
+                !self
+                    .subscribe_manager
+                    .directly_push
+                    .buckets_data_list
+                    .contains_key(row.key())
+            })
+            .map(|row| row.key().clone())
+            .collect();
+
+        for bucket_id in threads_to_stop {
+            if let Some((_, thread_data)) = self.directly_buckets_push_thread.remove(&bucket_id) {
+                info!("Stopping push thread for bucket: {}", bucket_id);
+                if let Err(e) = thread_data.sender.send(true) {
+                    warn!("Failed to send stop signal to bucket {}: {}", bucket_id, e);
                 }
-                self.directly_buckets_push_thread.remove(row.key());
             }
         }
     }
