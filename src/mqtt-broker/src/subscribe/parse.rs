@@ -37,6 +37,10 @@ use protocol::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::{
+    select,
+    sync::{broadcast, mpsc::Receiver},
+};
 use tracing::error;
 
 #[derive(Clone)]
@@ -76,11 +80,54 @@ struct AddSharePushContext {
 }
 
 #[derive(Clone)]
-struct ParseSubscribeData {
-    action_type: MqttBrokerUpdateCacheActionType,
-    resource_type: MqttBrokerUpdateCacheResourceType,
-    subscribe: Option<MqttSubscribe>,
-    topic: Option<MQTTTopic>,
+pub struct ParseSubscribeData {
+    pub action_type: MqttBrokerUpdateCacheActionType,
+    pub resource_type: MqttBrokerUpdateCacheResourceType,
+    pub subscribe: Option<MqttSubscribe>,
+    pub topic: Option<MQTTTopic>,
+}
+
+pub async fn start_update_parse_thread(
+    client_pool: Arc<ClientPool>,
+    cache_manager: Arc<MQTTCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    mut rx: Receiver<ParseSubscribeData>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let mut stop_recv = stop_sx.subscribe();
+
+    loop {
+        select! {
+            val = stop_recv.recv() => {
+                if let Ok(flag) = val {
+                    if flag {
+                        break;
+                    }
+                }
+            }
+
+            result = rx.recv() => {
+                if let Some(data) = result{
+                    if data.resource_type == MqttBrokerUpdateCacheResourceType::Topic{
+                        if let Some(topic) = data.topic{
+                           if let Err(e) =  parse_subscribe_by_new_topic(&client_pool, &cache_manager, &subscribe_manager, &topic).await{
+                                error!("{}",e);
+                           }
+                        }
+
+                    }
+
+                    if data.resource_type == MqttBrokerUpdateCacheResourceType::Subscribe{
+                        if let Some(subscribe) = data.subscribe{
+                            if let Err(e) = parse_subscribe_by_new_subscribe(&subscribe_manager, &cache_manager, &client_pool, &subscribe).await{
+                                 error!("{}",e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub async fn parse_subscribe_by_new_subscribe(
@@ -104,7 +151,7 @@ pub async fn parse_subscribe_by_new_subscribe(
             subscribe_properties: subscribe.subscribe_properties.clone(),
             rewrite_sub_path,
         })
-        .await;
+        .await?;
     }
     Ok(())
 }
@@ -112,11 +159,11 @@ pub async fn parse_subscribe_by_new_subscribe(
 /// Parses and matches all existing subscriptions when a new topic is created.
 /// This will iterate through all subscriptions to find matches.
 pub async fn parse_subscribe_by_new_topic(
-    client_pool: Arc<ClientPool>,
-    cache_manager: Arc<MQTTCacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
-    topic: MQTTTopic,
-) {
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<MQTTCacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    topic: &MQTTTopic,
+) -> ResultMqttBrokerError {
     let conf = broker_config();
 
     for row in subscribe_manager.subscribe_list.iter() {
@@ -126,7 +173,7 @@ pub async fn parse_subscribe_by_new_topic(
         }
         let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
 
-        if let Err(e) = parse_subscribe(ParseSubscribeContext {
+        parse_subscribe(ParseSubscribeContext {
             client_pool: client_pool.clone(),
             subscribe_manager: subscribe_manager.clone(),
             client_id: subscribe.client_id.clone(),
@@ -137,14 +184,9 @@ pub async fn parse_subscribe_by_new_topic(
             subscribe_properties: subscribe.subscribe_properties.clone(),
             rewrite_sub_path: rewrite_sub_path.clone(),
         })
-        .await
-        {
-            error!(
-                "Failed to parse subscribe for client [{}], topic [{}]: {}",
-                subscribe.client_id, topic.topic_name, e
-            );
-        }
+        .await?;
     }
+    Ok(())
 }
 
 /// Matches a subscription with a topic and adds it to the appropriate push manager.

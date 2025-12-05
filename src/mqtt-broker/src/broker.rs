@@ -22,12 +22,13 @@ use crate::handler::dynamic_cache::load_metadata_cache;
 use crate::handler::flapping_detect::clean_flapping_detect;
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::system_alarm::SystemAlarm;
-use crate::handler::topic_rewrite::start_convert_thread;
+use crate::handler::topic_rewrite::start_topic_rewrite_convert_thread;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
 use crate::server::{Server, TcpServerContext};
 use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::parse::{start_update_parse_thread, ParseSubscribeData};
 use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
@@ -42,6 +43,7 @@ use std::sync::Arc;
 use storage_adapter::offset::OffsetManager;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast::{self};
+use tokio::sync::mpsc;
 use tracing::{error, info};
 
 #[derive(Clone)]
@@ -124,7 +126,7 @@ impl MqttBrokerServer {
 
         self.start_connector_thread();
 
-        self.start_subscribe_push();
+        self.start_subscribe_push().await;
 
         self.start_server();
 
@@ -224,7 +226,8 @@ impl MqttBrokerServer {
         });
     }
 
-    fn start_subscribe_push(&self) {
+    async fn start_subscribe_push(&self) {
+        // start push manager
         let stop_send = self.inner_stop.clone();
         let push_manager = PushManager::new(
             self.cache_manager.clone(),
@@ -233,14 +236,28 @@ impl MqttBrokerServer {
             self.rocksdb_engine_handler.clone(),
             self.subscribe_manager.clone(),
         );
+
         tokio::spawn(async move {
             push_manager.start(&stop_send).await;
         });
 
+        // parse topic rewrite
         let metadata_cache = self.cache_manager.clone();
         let stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            start_convert_thread(metadata_cache, stop_send).await;
+            start_topic_rewrite_convert_thread(metadata_cache, stop_send).await;
+        });
+
+        // parse subscribe data
+        let (sx, rx) = mpsc::channel::<ParseSubscribeData>(2000);
+        self.subscribe_manager.set_cache_sender(sx).await;
+        let subscribe_manager = self.subscribe_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
+        let stop_send = self.inner_stop.clone();
+        tokio::spawn(async move {
+            start_update_parse_thread(client_pool, cache_manager, subscribe_manager, rx, stop_send)
+                .await;
         });
     }
 

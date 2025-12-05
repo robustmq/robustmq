@@ -25,7 +25,7 @@ use regex::Regex;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-pub async fn start_convert_thread(
+pub async fn start_topic_rewrite_convert_thread(
     cache_manager: Arc<MQTTCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
@@ -38,7 +38,7 @@ pub async fn start_convert_thread(
     loop_select_ticket(ac_fn, 3000, &stop_send).await;
 }
 
-pub async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
+async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
     if !cache_manager.is_re_calc_topic_rewrite().await {
         return Ok(());
     }

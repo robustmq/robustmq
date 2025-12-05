@@ -41,7 +41,6 @@ pub async fn update_cache_by_req(
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
-    client_pool: &Arc<ClientPool>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
     let conf = broker_config();
@@ -56,7 +55,6 @@ pub async fn update_cache_by_req(
         schema_manager,
         message_storage_adapter,
         metrics_manager,
-        client_pool,
         req.clone(),
     )
     .await?;

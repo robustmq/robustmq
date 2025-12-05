@@ -14,13 +14,15 @@
 
 use crate::{
     handler::sub_exclusive::is_exclusive_sub,
-    subscribe::{buckets::BucketsManager, common::Subscriber},
+    subscribe::{buckets::BucketsManager, common::Subscriber, parse::ParseSubscribeData},
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
+use tokio::sync::{mpsc::Sender, RwLock};
+use tracing::error;
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct ShareLeaderSubscribeData {
@@ -58,6 +60,8 @@ pub struct SubscribeManager {
 
     //(client_id, TemporaryNotPushClient)
     pub not_push_client: DashMap<String, u64>,
+
+    pub update_cache_sender: Arc<RwLock<Option<Sender<ParseSubscribeData>>>>,
 }
 
 impl SubscribeManager {
@@ -68,6 +72,7 @@ impl SubscribeManager {
             not_push_client: DashMap::with_capacity(32),
             directly_push: BucketsManager::new(10000),
             share_push: BucketsManager::new(10000),
+            update_cache_sender: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -83,6 +88,7 @@ impl SubscribeManager {
             .map(|da| da.clone())
     }
 
+    // directly && share
     pub fn add_directly_sub(&self, topic: &str, subscriber: &Subscriber) {
         self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
         self.directly_push.add(subscriber);
@@ -93,6 +99,7 @@ impl SubscribeManager {
         // todo
     }
 
+    // remove
     pub fn remove_by_client_id(&self, client_id: &str) {
         self.subscribe_list
             .retain(|_, subscribe| subscribe.client_id != *client_id);
@@ -120,6 +127,22 @@ impl SubscribeManager {
         // todo
     }
 
+    // add parse data
+    pub async fn set_cache_sender(&self, sender: Sender<ParseSubscribeData>) {
+        let mut write = self.update_cache_sender.write().await;
+        *write = Some(sender);
+    }
+
+    pub async fn add_wait_parse_data(&self, data: ParseSubscribeData) {
+        let read = self.update_cache_sender.read().await;
+        if let Some(sender) = read.clone() {
+            if let Err(e) = sender.send(data).await {
+                error!("{}", e);
+            }
+        }
+    }
+
+    // not push client
     pub fn add_not_push_client(&self, client_id: &str) {
         self.not_push_client
             .insert(client_id.to_string(), now_second());
@@ -130,6 +153,7 @@ impl SubscribeManager {
             .insert(client_id.to_string(), now_second());
     }
 
+    // topic
     pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
         self.topic_subscribes
             .entry(topic_name.to_owned())

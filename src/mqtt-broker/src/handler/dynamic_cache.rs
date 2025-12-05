@@ -22,6 +22,7 @@ use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::parse::ParseSubscribeData;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
@@ -136,7 +137,6 @@ pub async fn update_cache_metadata(
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
-    client_pool: &Arc<ClientPool>,
     request: UpdateMqttCacheRequest,
 ) -> ResultMqttBrokerError {
     match request.resource_type() {
@@ -184,10 +184,27 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
                 subscribe_manager.add_subscribe(&subscribe);
+
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Set,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
+                        subscribe: Some(subscribe),
+                        topic: None,
+                    })
+                    .await;
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
                 subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Delete,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
+                        subscribe: Some(subscribe),
+                        topic: None,
+                    })
+                    .await;
             }
         },
 
@@ -195,6 +212,14 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Set,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Topic,
+                        subscribe: None,
+                        topic: Some(topic),
+                    })
+                    .await;
             }
 
             MqttBrokerUpdateCacheActionType::Delete => {
@@ -207,7 +232,14 @@ pub async fn update_cache_metadata(
                     metrics_manager,
                 )
                 .await?;
-                // todo parse_subscribe_by_delete_topic
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Delete,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Topic,
+                        subscribe: None,
+                        topic: Some(topic),
+                    })
+                    .await;
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {
