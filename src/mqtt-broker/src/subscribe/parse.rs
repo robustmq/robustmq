@@ -110,18 +110,33 @@ pub async fn start_update_parse_thread(
                 if let Some(data) = result{
                     if data.resource_type == MqttBrokerUpdateCacheResourceType::Topic{
                         if let Some(topic) = data.topic{
-                           if let Err(e) =  parse_subscribe_by_new_topic(&client_pool, &cache_manager, &subscribe_manager, &topic).await{
-                                error!("{}",e);
-                           }
+                            match data.action_type{
+                                MqttBrokerUpdateCacheActionType::Set=>{
+                                    if let Err(e) =  parse_subscribe_by_new_topic(&client_pool, &cache_manager, &subscribe_manager, &topic).await{
+                                            error!("{}",e);
+                                    }
+                                },
+                                MqttBrokerUpdateCacheActionType::Delete => {
+                                    subscribe_manager.remove_by_topic(&topic.topic_name);
+                                }
+                            }
                         }
 
                     }
 
                     if data.resource_type == MqttBrokerUpdateCacheResourceType::Subscribe{
                         if let Some(subscribe) = data.subscribe{
-                            if let Err(e) = parse_subscribe_by_new_subscribe(&subscribe_manager, &cache_manager, &client_pool, &subscribe).await{
-                                 error!("{}",e);
+                            match data.action_type{
+                                MqttBrokerUpdateCacheActionType::Set=>{
+                                    if let Err(e) = parse_subscribe_by_new_subscribe(&subscribe_manager, &cache_manager, &client_pool, &subscribe).await{
+                                        error!("{}",e);
+                                    }
+                                },
+                                MqttBrokerUpdateCacheActionType::Delete => {
+                                    subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
+                                }
                             }
+
                         }
                     }
                 }
