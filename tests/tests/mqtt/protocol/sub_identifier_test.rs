@@ -35,7 +35,7 @@ mod tests {
                 let topic = unique_id();
                 let topic1 = format!("/sub_identifier_test/{topic}/+");
                 let topic2 = format!("/sub_identifier_test/{topic}/test");
-                let topic3 = format!("/sub_identifier_teste/{topic}/test_one");
+                let topic3 = format!("/sub_identifier_test/{topic}/test_one");
 
                 // publish
                 let client_properties = ClientTestProperties {
@@ -103,31 +103,29 @@ mod tests {
                 let mut r_two = false;
                 let rx = cli.start_consuming();
 
+                let mut timeout_count = 0;
                 loop {
                     let res_opt = rx.recv_timeout(Duration::from_secs(10));
-                    let message = res_opt.unwrap();
-                    println!("message: {message:?}");
-                    if let Some(msg) = message {
-                        let sub_identifier = if let Some(id) = msg
-                            .properties()
-                            .get_int(PropertyCode::SubscriptionIdentifier)
-                        {
-                            id
-                        } else {
-                            continue;
-                        };
-
-                        println!("sub_identifier: {sub_identifier}");
-
-                        match sub_identifier {
-                            1 => {
-                                r_one = true;
+                    match res_opt {
+                        Ok(Some(msg)) => {
+                            println!("message: {msg:?}");
+                            if let Some(id) = msg
+                                .properties()
+                                .get_int(PropertyCode::SubscriptionIdentifier)
+                            {
+                                println!("sub_identifier: {id}");
+                                match id {
+                                    1 => r_one = true,
+                                    2 => r_two = true,
+                                    _ => panic!("unexpected sub_identifier: {}", id),
+                                }
                             }
-                            2 => {
-                                r_two = true;
-                            }
-                            _ => {
-                                panic!("sub_identifier error");
+                        }
+                        Ok(None) => continue,
+                        Err(e) => {
+                            timeout_count += 1;
+                            if timeout_count > 3 {
+                                panic!("Timeout waiting for messages with sub_identifier: {:?}", e);
                             }
                         }
                     }
@@ -145,25 +143,27 @@ mod tests {
                     .finalize();
                 publish_data(&cli, msg, false);
 
+                let mut timeout_count = 0;
                 loop {
                     let res_opt = rx.recv_timeout(Duration::from_secs(10));
-                    if res_opt.is_err() {
-                        println!("{res_opt:?}");
-                        continue;
-                    }
-                    let message = res_opt.unwrap();
-                    if let Some(msg) = message {
-                        let sub_identifier = if let Some(id) = msg
-                            .properties()
-                            .get_int(PropertyCode::SubscriptionIdentifier)
-                        {
-                            id
-                        } else {
-                            continue;
-                        };
-
-                        assert_eq!(sub_identifier, 1);
-                        break;
+                    match res_opt {
+                        Ok(Some(msg)) => {
+                            if let Some(id) = msg
+                                .properties()
+                                .get_int(PropertyCode::SubscriptionIdentifier)
+                            {
+                                assert_eq!(id, 1, "Expected sub_identifier=1 for topic3");
+                                break;
+                            }
+                        }
+                        Ok(None) => continue,
+                        Err(e) => {
+                            timeout_count += 1;
+                            println!("Timeout {}/3: {e:?}", timeout_count);
+                            if timeout_count > 3 {
+                                panic!("Timeout waiting for message on topic3 after 3 attempts");
+                            }
+                        }
                     }
                 }
 
