@@ -28,7 +28,7 @@ mod tests {
     async fn sub_exclusive_test() {
         for network in network_types() {
             for qos in qos_list() {
-                let topic = format!("/tests/{}", unique_id());
+                let topic = format!("/sub_exclusive_test/{}", unique_id());
                 let sub_exclusive_topics: &[String; 1] = &[format!("$exclusive{}", topic.clone())];
                 let sub_opts = &[SubscribeOptions::default()];
 
