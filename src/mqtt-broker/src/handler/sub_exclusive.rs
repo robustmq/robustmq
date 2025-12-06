@@ -41,6 +41,7 @@ pub fn allow_exclusive_subscribe(subscribe: &Subscribe) -> bool {
 
 pub fn already_exclusive_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
+    client_id: &str,
     subscribe: &Subscribe,
 ) -> bool {
     for filter in subscribe.filters.clone() {
@@ -48,7 +49,7 @@ pub fn already_exclusive_subscribe(
             continue;
         }
         let topic_name = decode_exclusive_sub_path_to_topic_name(&filter.path);
-        if subscribe_manager.is_exclusive_subscribe(topic_name) {
+        if subscribe_manager.is_exclusive_subscribe_by_other(topic_name, client_id) {
             return true;
         }
     }
@@ -117,9 +118,26 @@ mod tests {
         };
 
         let subscribe_manager = Arc::new(SubscribeManager::new());
-        assert!(!already_exclusive_subscribe(&subscribe_manager, &subscribe));
+        assert!(!already_exclusive_subscribe(
+            &subscribe_manager,
+            &client_id,
+            &subscribe
+        ));
 
         subscribe_manager.add_topic_subscribe(topic_name, &client_id, ex_path);
-        assert!(already_exclusive_subscribe(&subscribe_manager, &subscribe))
+        // Same client can resubscribe
+        assert!(!already_exclusive_subscribe(
+            &subscribe_manager,
+            &client_id,
+            &subscribe
+        ));
+
+        // Different client cannot subscribe
+        let other_client_id = unique_id();
+        assert!(already_exclusive_subscribe(
+            &subscribe_manager,
+            &other_client_id,
+            &subscribe
+        ))
     }
 }

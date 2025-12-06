@@ -336,7 +336,7 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if already_exclusive_subscribe(subscribe_manager, subscribe) {
+    if already_exclusive_subscribe(subscribe_manager, &connection.client_id, subscribe) {
         return Some(response_packet_mqtt_suback(
             protocol,
             connection,

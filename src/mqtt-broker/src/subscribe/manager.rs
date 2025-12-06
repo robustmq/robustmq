@@ -104,9 +104,11 @@ impl SubscribeManager {
         self.subscribe_list
             .retain(|_, subscribe| subscribe.client_id != *client_id);
 
-        for mut list in self.topic_subscribes.iter_mut() {
+        // Clean up topic_subscribes and remove empty entries
+        self.topic_subscribes.retain(|_, list| {
             list.retain(|x| x.client_id != *client_id);
-        }
+            !list.is_empty()
+        });
 
         self.not_push_client.remove(client_id);
         self.directly_push.remove_by_client_id(client_id);
@@ -116,9 +118,11 @@ impl SubscribeManager {
         let key = self.subscribe_key(client_id, sub_path);
         self.subscribe_list.remove(&key);
 
-        for mut list in self.topic_subscribes.iter_mut() {
+        // Clean up topic_subscribes and remove empty entries
+        self.topic_subscribes.retain(|_, list| {
             list.retain(|x| !(x.path == *sub_path && x.client_id == *client_id));
-        }
+            !list.is_empty()
+        });
 
         self.directly_push.remove_by_sub(client_id, sub_path);
     }
@@ -168,6 +172,16 @@ impl SubscribeManager {
         self.topic_subscribes
             .get(topic_name)
             .map(|list| list.iter().any(|raw| is_exclusive_sub(&raw.path)))
+            .unwrap_or(false)
+    }
+
+    pub fn is_exclusive_subscribe_by_other(&self, topic_name: &str, client_id: &str) -> bool {
+        self.topic_subscribes
+            .get(topic_name)
+            .map(|list| {
+                list.iter()
+                    .any(|raw| is_exclusive_sub(&raw.path) && raw.client_id != *client_id)
+            })
             .unwrap_or(false)
     }
 
@@ -296,5 +310,21 @@ mod tests {
         assert!(mgr.is_exclusive_subscribe("topic2"));
 
         assert!(!mgr.is_exclusive_subscribe("topic_not_exist"));
+    }
+
+    #[test]
+    fn test_is_exclusive_subscribe_by_other() {
+        let mgr = SubscribeManager::new();
+
+        mgr.add_topic_subscribe("topic1", "c1", "$exclusive/t1");
+
+        // Same client should return false
+        assert!(!mgr.is_exclusive_subscribe_by_other("topic1", "c1"));
+
+        // Different client should return true
+        assert!(mgr.is_exclusive_subscribe_by_other("topic1", "c2"));
+
+        // Non-existent topic should return false
+        assert!(!mgr.is_exclusive_subscribe_by_other("topic_not_exist", "c1"));
     }
 }
