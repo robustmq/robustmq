@@ -104,9 +104,11 @@ impl SubscribeManager {
         self.subscribe_list
             .retain(|_, subscribe| subscribe.client_id != *client_id);
 
-        for mut list in self.topic_subscribes.iter_mut() {
+        // Clean up topic_subscribes and remove empty entries
+        self.topic_subscribes.retain(|_, list| {
             list.retain(|x| x.client_id != *client_id);
-        }
+            !list.is_empty()
+        });
 
         self.not_push_client.remove(client_id);
         self.directly_push.remove_by_client_id(client_id);
@@ -116,9 +118,11 @@ impl SubscribeManager {
         let key = self.subscribe_key(client_id, sub_path);
         self.subscribe_list.remove(&key);
 
-        for mut list in self.topic_subscribes.iter_mut() {
+        // Clean up topic_subscribes and remove empty entries
+        self.topic_subscribes.retain(|_, list| {
             list.retain(|x| !(x.path == *sub_path && x.client_id == *client_id));
-        }
+            !list.is_empty()
+        });
 
         self.directly_push.remove_by_sub(client_id, sub_path);
     }
