@@ -19,7 +19,7 @@ use crate::{
         core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
         manager::ConnectorManager,
     },
-    common::types::ResultMqttBrokerError,
+    handler::tool::ResultMqttBrokerError,
 };
 use axum::async_trait;
 use metadata_struct::{

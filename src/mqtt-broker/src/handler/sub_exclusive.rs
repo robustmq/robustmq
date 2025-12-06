@@ -13,9 +13,22 @@
 // limitations under the License.
 
 use crate::subscribe::manager::SubscribeManager;
-use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use protocol::mqtt::common::Subscribe;
 use std::sync::Arc;
+
+const EXCLUSIVE_SUB_PREFIX: &str = "$exclusive";
+
+pub fn is_exclusive_sub(sub_path: &str) -> bool {
+    sub_path.starts_with(EXCLUSIVE_SUB_PREFIX)
+}
+
+pub fn decode_exclusive_sub_path_to_topic_name(sub_path: &str) -> &str {
+    if is_exclusive_sub(sub_path) {
+        sub_path.trim_start_matches(EXCLUSIVE_SUB_PREFIX)
+    } else {
+        sub_path
+    }
+}
 
 pub fn allow_exclusive_subscribe(subscribe: &Subscribe) -> bool {
     for filter in subscribe.filters.clone() {
@@ -51,8 +64,36 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        handler::sub_exclusive::already_exclusive_subscribe, subscribe::manager::SubscribeManager,
+        handler::sub_exclusive::{
+            already_exclusive_subscribe, decode_exclusive_sub_path_to_topic_name, is_exclusive_sub,
+        },
+        subscribe::manager::SubscribeManager,
     };
+
+    #[test]
+    fn test_is_exclusive_sub() {
+        assert!(is_exclusive_sub("$exclusive/topic"));
+        assert!(is_exclusive_sub("$exclusive/another/topic"));
+        assert!(!is_exclusive_sub("/exclusive/topic"));
+        assert!(!is_exclusive_sub("/topic"));
+    }
+
+    #[test]
+    fn test_decode_exclusive_sub_path_to_topic_name() {
+        assert_eq!(
+            decode_exclusive_sub_path_to_topic_name("$exclusive/topic"),
+            "/topic"
+        );
+        assert_eq!(
+            decode_exclusive_sub_path_to_topic_name("$exclusive/another/topic"),
+            "/another/topic"
+        );
+        assert_eq!(decode_exclusive_sub_path_to_topic_name("topic"), "topic");
+        assert_eq!(
+            decode_exclusive_sub_path_to_topic_name("/exclusive/topic"),
+            "/exclusive/topic"
+        );
+    }
 
     #[test]
     fn already_exclusive_subscribe_test() {

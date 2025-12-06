@@ -20,4 +20,5 @@ pub struct DelayMessageInfo {
     pub target_shard_name: String,
     pub offset: u64,
     pub delay_timestamp: u64,
+    pub shard_no: u64,
 }

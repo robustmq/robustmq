@@ -22,7 +22,7 @@ use rocksdb_engine::{
 
 use crate::{
     handler::{
-        error::MqttBrokerError, flapping_detect::BanLog, slow_subscribe::SlowSubscribeData,
+        error::MqttBrokerError, flapping_detect::BanLog, sub_slow::SlowSubscribeData,
         system_alarm::SystemAlarmEventMessage,
     },
     storage::keys::{

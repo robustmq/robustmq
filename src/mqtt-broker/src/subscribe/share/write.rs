@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::tool::ResultMqttBrokerError;
 use dashmap::DashMap;
 use futures::SinkExt;
 use protocol::mqtt::common::MqttPacket;
@@ -21,8 +22,6 @@ use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 use tracing::error;
-
-use crate::common::types::ResultMqttBrokerError;
 
 pub struct WriteStream {
     write_list:

@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_base::tools::{get_local_ip, now_mills};
+use common_base::tools::{get_local_ip, now_millis};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -139,14 +139,14 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
     if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
         let event_data = SystemTopicConnectedEventMessage {
             username: context.connection.login_user.clone(),
-            ts: now_mills(),
+            ts: now_millis(),
             sock_port: network_connection.addr.port(),
             proto_ver: Some(network_connection.protocol.unwrap().to_mqtt()),
             proto_name: "MQTT".to_string(),
             keepalive: context.connection.keep_alive,
             ip_address: context.connection.source_ip_addr.clone(),
             expiry_interval: context.session.session_expiry,
-            connected_at: now_mills(),
+            connected_at: now_millis(),
             connect_ack: 1,
             client_id: context.session.client_id.to_string(),
             clean_start: false,
@@ -183,14 +183,14 @@ pub async fn st_report_disconnected_event(context: StReportDisconnectedEventCont
     if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
         let event_data = SystemTopicDisConnectedEventMessage {
             username: context.connection.login_user.clone(),
-            ts: now_mills(),
+            ts: now_millis(),
             sock_port: network_connection.addr.port(),
             reason: format!("{:?}", context.reason),
             proto_ver: Some(network_connection.protocol.unwrap().to_mqtt()),
             proto_name: "MQTT".to_string(),
             ip_address: context.connection.source_ip_addr.clone(),
             client_id: context.session.client_id.to_string(),
-            disconnected_at: now_mills(),
+            disconnected_at: now_millis(),
         };
 
         match serde_json::to_string(&event_data) {
@@ -234,7 +234,7 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
             };
             let event_data = SystemTopicSubscribedEventMessage {
                 username: context.connection.login_user.clone(),
-                ts: now_mills(),
+                ts: now_millis(),
                 subopts,
                 topic: filter.path,
                 protocol: format!("{:?}", network_connection.protocol.clone()),
@@ -274,7 +274,7 @@ pub async fn st_report_unsubscribed_event(context: StReportUnsubscribedEventCont
         for path in context.un_subscribe.filters.clone() {
             let event_data = SystemTopicUnSubscribedEventMessage {
                 username: context.connection.login_user.clone(),
-                ts: now_mills(),
+                ts: now_millis(),
                 topic: path,
                 protocol: format!("{:?}", network_connection.protocol.clone()),
                 client_id: context.connection.client_id.to_string(),

@@ -25,7 +25,7 @@ use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
 use bytes::Bytes;
-use common_base::tools::{now_mills, unique_id};
+use common_base::tools::{now_millis, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
@@ -109,7 +109,7 @@ pub async fn create_shard_by_req(
             last_segment_seq: 0,
             status: JournalShardStatus::Run,
             config: shard_config,
-            create_time: now_mills(),
+            create_time: now_millis(),
         };
 
         sync_save_shard_info(raft_manager, &shard).await?;

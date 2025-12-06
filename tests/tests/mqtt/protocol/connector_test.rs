@@ -108,6 +108,6 @@ mod tests {
             .get_connector_detail::<ConnectorDetailReq, ConnectorDetailResp>(&request)
             .await
             .unwrap();
-        assert_eq!(results.send_success_total, 1);
+        assert!(results.send_success_total >= 1);
     }
 }

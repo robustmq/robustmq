@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
@@ -30,16 +31,15 @@ mod tests {
         let rocksdb_engine_handler = test_rocksdb_instance();
         let client_pool = Arc::new(ClientPool::new(3));
         let offset_manager = OffsetManager::new(client_pool, rocksdb_engine_handler);
-        let group_name = "g1";
-        let namespace = "n1";
+        let group_name = unique_id();
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
         offset_manager
-            .commit_offset(group_name, namespace, &offset)
+            .commit_offset(&group_name, &offset)
             .await
             .unwrap();
 
-        let rep_offset = offset_manager.get_offset(group_name).await.unwrap();
+        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);
@@ -63,17 +63,16 @@ mod tests {
             raw_offset_manager.offset_save_thread(stop_send).await;
         });
 
-        let group_name = "g1";
-        let namespace = "n1";
+        let group_name = unique_id();
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
         offset_manager
-            .commit_offset(group_name, namespace, &offset)
+            .commit_offset(&group_name, &offset)
             .await
             .unwrap();
 
         sleep(Duration::from_secs(2)).await;
-        let rep_offset = offset_manager.get_offset(group_name).await.unwrap();
+        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);

@@ -13,13 +13,11 @@
 // limitations under the License.
 
 use super::error::MqttBrokerError;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
-use crate::storage::message::cluster_name;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
-use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -145,15 +143,12 @@ pub async fn try_init_topic(
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {
-        let namespace = cluster_name();
-
         // create Topic
         let topic_storage = TopicStorage::new(client_pool.clone());
-        let conf = broker_config();
         let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
             topic
         } else {
-            let topic = MQTTTopic::new(conf.cluster_name.clone(), topic_name.to_owned());
+            let topic = MQTTTopic::new(topic_name.to_owned());
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };
@@ -161,14 +156,12 @@ pub async fn try_init_topic(
         metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer
-        let list = message_storage_adapter
-            .list_shard(&namespace, topic_name)
-            .await?;
+        let list = message_storage_adapter.list_shard(topic_name).await?;
         if list.is_empty() {
             let shard = ShardInfo {
-                namespace: namespace.clone(),
                 shard_name: topic_name.to_owned(),
                 replica_num: 1,
+                ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
         }
@@ -186,19 +179,14 @@ pub async fn delete_topic(
     metrics_manager: &Arc<MQTTMetricsCache>,
 ) -> Result<(), MqttBrokerError> {
     // delete shard
-    let namespace = cluster_name();
-    let list = message_storage_adapter
-        .list_shard(&namespace, topic_name)
-        .await?;
+    let list = message_storage_adapter.list_shard(topic_name).await?;
     if !list.is_empty() {
-        message_storage_adapter
-            .delete_shard(&namespace, topic_name)
-            .await?;
+        message_storage_adapter.delete_shard(topic_name).await?;
     }
 
     cache_manager.delete_topic(topic_name);
     metrics_manager.remove_topic(topic_name)?;
-    subscribe_manager.remove_topic(topic_name);
+    subscribe_manager.remove_by_topic(topic_name);
     Ok(())
 }
 

@@ -18,7 +18,7 @@ use crate::common::packet::{build_mqtt_packet_wrapper, RequestPackage, ResponseP
 use crate::common::tool::calc_req_channel_len;
 use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::error::not_record_error;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::robust::RobustMQPacket;
@@ -61,7 +61,7 @@ pub fn handler_process(
                         }
                     },
                     val = child_process_rx.recv()=>{
-                        let out_queue_time = now_mills();
+                        let out_queue_time = now_millis();
                         record_request_channel_metrics(&child_process_rx,index,request_channel.channel_size);
                         if let Some(packet) = val{
                             let permit = semaphore.clone().acquire_owned().await.unwrap();
@@ -77,7 +77,7 @@ pub fn handler_process(
                                     if let Some(mut resp) = response_data {
                                         resp.out_queue_ms = out_queue_time;
                                         resp.receive_ms = packet.receive_ms;
-                                        resp.end_handler_ms = now_mills();
+                                        resp.end_handler_ms = now_millis();
                                         // permit_request_channel.send_response_packet_to_handler(&permit_raw_network_type, resp).await;
                                         process_response(&permit_raw_connect_manager, &permit_raw_network_type, &resp).await;
                                     } else {
@@ -109,7 +109,7 @@ async fn process_response(
     network_type: &NetworkConnectionType,
     response_package: &ResponsePackage,
 ) {
-    let out_response_queue_ms = now_mills();
+    let out_response_queue_ms = now_millis();
     if let Some(protocol) = connection_manager.get_connect_protocol(response_package.connection_id)
     {
         let packet_wrapper = match response_package.packet.clone() {

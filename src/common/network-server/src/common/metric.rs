@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::packet::{RequestPackage, ResponsePackage};
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_metrics::network::{
     metrics_request_handler_ms, metrics_request_not_response_total_ms, metrics_request_queue_ms,
     metrics_request_response_ms, metrics_request_response_queue_ms, metrics_request_total_ms,
@@ -27,10 +27,10 @@ pub fn record_packet_handler_info_no_response(
     end_handler_ms: u128,
     packet_name: String,
 ) {
-    let end_ms = now_mills();
+    let end_ms = now_millis();
     let handler_queue_ms = out_handler_queue_ms - request_packet.receive_ms;
     let handler_ms = end_handler_ms - out_handler_queue_ms;
-    let total_ms = now_mills() - request_packet.receive_ms;
+    let total_ms = now_millis() - request_packet.receive_ms;
 
     // request queue ms
     metrics_request_queue_ms(&NetworkConnectionType::Tcp, handler_queue_ms as f64);
@@ -54,7 +54,7 @@ pub fn record_packet_handler_info_by_response(
     response_package: &ResponsePackage,
     out_response_queue_ms: u128,
 ) {
-    let end_ms = now_mills();
+    let end_ms = now_millis();
     let request_queue_ms = response_package.out_queue_ms - response_package.receive_ms;
     let handler_ms = response_package.end_handler_ms - response_package.out_queue_ms;
     let response_queue_ms = out_response_queue_ms - response_package.end_handler_ms;

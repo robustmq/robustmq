@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::slow_subscribe::record_slow_subscribe_data;
@@ -44,7 +44,7 @@ use tracing::warn;
 use tracing::{error, info};
 
 #[derive(Clone)]
-pub struct ShareLeaderPush {
+pub struct SharePush {
     pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: ArcStorageAdapter,
     connection_manager: Arc<ConnectionManager>,
@@ -53,7 +53,7 @@ pub struct ShareLeaderPush {
     stop_sx: broadcast::Sender<bool>,
 }
 
-impl ShareLeaderPush {
+impl SharePush {
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         message_storage: ArcStorageAdapter,
@@ -62,7 +62,7 @@ impl ShareLeaderPush {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        ShareLeaderPush {
+        SharePush {
             subscribe_manager,
             message_storage,
             connection_manager,
@@ -84,15 +84,15 @@ impl ShareLeaderPush {
     pub fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
-        for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread_list() {
+        for (share_leader_key, sx) in self.subscribe_manager.share_push_thread_list() {
             if !self
                 .subscribe_manager
-                .contain_share_leader_push(&share_leader_key)
+                .contain_share_push(&share_leader_key)
             {
                 match sx.sender.send(true) {
                     Ok(_) => {
                         self.subscribe_manager
-                            .remove_share_leader_push_thread(&share_leader_key);
+                            .remove_leader_push_thread(&share_leader_key);
                     }
                     Err(err) => {
                         error!("stop sub share thread error, error message:{}", err);
@@ -102,24 +102,24 @@ impl ShareLeaderPush {
         }
 
         // gc
-        for (key, raw) in self.subscribe_manager.share_leader_push_list() {
+        for (key, raw) in self.subscribe_manager.share_push_list() {
             if raw.sub_list.is_empty() {
-                self.subscribe_manager.remove_share_leader_push(&key);
+                self.subscribe_manager.remove_share_push(&key);
             }
         }
     }
 
     pub async fn start_push_thread(&self) {
         // Periodically verify if any push tasks are not started. If so, the thread is started
-        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_push_list() {
+        for (share_leader_key, sub_data) in self.subscribe_manager.share_push_list() {
             if sub_data.sub_list.is_empty() {
                 if let Some(sx) = self
                     .subscribe_manager
-                    .get_share_leader_push_thread(&share_leader_key)
+                    .get_leader_push_thread(&share_leader_key)
                 {
                     if sx.sender.send(true).is_ok() {
                         self.subscribe_manager
-                            .remove_share_leader_push(&share_leader_key);
+                            .remove_share_push(&share_leader_key);
                     }
                 }
             }
@@ -127,7 +127,7 @@ impl ShareLeaderPush {
             // start push data thread
             if !self
                 .subscribe_manager
-                .contain_share_leader_push_thread(&share_leader_key)
+                .contain_leader_push_thread(&share_leader_key)
             {
                 if let Err(e) = self.push_by_round_robin(share_leader_key, sub_data).await {
                     error!("{:?}", e);
@@ -152,7 +152,7 @@ impl ShareLeaderPush {
         let mut offset = message_storage.get_group_offset(&group_id).await?;
 
         // save push thread
-        self.subscribe_manager.add_share_leader_push_thread(
+        self.subscribe_manager.add_leader_push_thread(
             share_leader_key.clone(),
             SubPushThreadData {
                 push_success_record_num: 0,
@@ -231,7 +231,7 @@ impl ShareLeaderPush {
                 }
             }
 
-            subscribe_manager.remove_share_leader_push_thread(&share_leader_key);
+            subscribe_manager.remove_leader_push_thread(&share_leader_key);
         });
         Ok(())
     }
@@ -394,7 +394,7 @@ async fn read_message_process(
 
     context
         .subscribe_manager
-        .update_subscribe_leader_push_thread_info(
+        .update_subscribe_push_thread_info(
             &context.share_leader_key,
             success_num as u64,
             error_num as u64,
@@ -413,7 +413,7 @@ async fn get_subscribe_by_random(
     mut seq: u64,
 ) -> Option<Subscriber> {
     loop {
-        if let Some(sub_list) = subscribe_manager.get_share_leader_push(share_leader_key) {
+        if let Some(sub_list) = subscribe_manager.get_share_push(share_leader_key) {
             let index = seq % (sub_list.sub_list.len() as u64);
             let keys: Vec<String> = sub_list
                 .sub_list

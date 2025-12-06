@@ -279,7 +279,7 @@ impl Authentication for Redis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
     use common_config::security::PasswordConfig;
     use metadata_struct::mqtt::user::MqttUser;

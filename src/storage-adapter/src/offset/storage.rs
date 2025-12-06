@@ -54,7 +54,6 @@ impl OffsetStorageManager {
             results.push(ShardOffset {
                 shard_name: raw.shard_name,
                 offset: raw.offset,
-                namespace: raw.namespace,
                 ..Default::default()
             });
         }
@@ -64,13 +63,12 @@ impl OffsetStorageManager {
     pub async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let offsets = offset
             .iter()
             .map(|(key, value)| SaveOffsetDataRequestOffset {
-                namespace: namespace.to_string(),
+                namespace: "".to_string(),
                 shard_name: key.to_string(),
                 offset: *value,
             })
@@ -97,7 +95,7 @@ impl OffsetStorageManager {
                 .value()
                 .iter()
                 .map(|shard_offset| SaveOffsetDataRequestOffset {
-                    namespace: shard_offset.namespace.to_string(),
+                    namespace: "".to_string(),
                     shard_name: shard_offset.shard_name.to_string(),
                     offset: shard_offset.offset,
                 })

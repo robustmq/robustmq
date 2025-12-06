@@ -27,8 +27,8 @@ use redis::{Client, Cmd, RedisError};
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{error, info, warn};
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},

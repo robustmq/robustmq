@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
 use crate::{persist::recover_delay_queue, pop::pop_delay_queue, DelayMessageManager};
@@ -27,7 +27,6 @@ const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-message-shard-";
 pub(crate) fn start_recover_delay_queue(
     delay_message_manager: &Arc<DelayMessageManager>,
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     shard_num: u64,
 ) {
     let read_config = ReadConfig {
@@ -35,14 +34,17 @@ pub(crate) fn start_recover_delay_queue(
         max_size: 1024 * 1024 * 1024,
     };
 
+    info!(
+        "Starting delay queue recovery from persistent storage (shards: {})",
+        shard_num
+    );
+
     let new_delay_message_manager = delay_message_manager.clone();
     let new_message_storage_adapter = message_storage_adapter.clone();
-    let new_namespace = namespace.to_owned();
     tokio::spawn(async move {
         recover_delay_queue(
             &new_message_storage_adapter,
             &new_delay_message_manager,
-            &new_namespace,
             read_config,
             shard_num,
         )
@@ -53,36 +55,37 @@ pub(crate) fn start_recover_delay_queue(
 pub(crate) fn start_delay_message_pop(
     delay_message_manager: &Arc<DelayMessageManager>,
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     shard_num: u64,
 ) {
+    info!("Starting delay message pop threads (shards: {})", shard_num);
+
     for shard_no in 0..shard_num {
         let new_delay_message_manager = delay_message_manager.clone();
         let new_message_storage_adapter = message_storage_adapter.clone();
-        let new_namespace = namespace.to_owned();
 
         let (stop_send, _) = broadcast::channel(2);
         delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
 
         tokio::spawn(async move {
+            info!("Delay message pop thread started for shard {}", shard_no);
+            let mut recv = stop_send.subscribe();
             loop {
-                let mut recv = stop_send.subscribe();
                 select! {
                     val = recv.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("{}","Heartbeat reporting thread exited successfully");
+                                info!("Delay message pop thread stopped for shard {}", shard_no);
                                 break;
                             }
                         }
                     }
                     _ =  pop_delay_queue(
-                        &new_namespace,
                         &new_message_storage_adapter,
                         &new_delay_message_manager,
                         shard_no,
                     ) => {
-                        sleep(Duration::from_millis(100)).await;
+                        // Yield to other tasks to avoid tight loops when many messages expire
+                        tokio::task::yield_now().await;
                     }
                 }
             }
@@ -92,38 +95,43 @@ pub(crate) fn start_delay_message_pop(
 
 pub(crate) async fn persist_delay_message(
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     shard_name: &str,
     data: Record,
 ) -> Result<u64, CommonError> {
-    let offset = message_storage_adapter
-        .write(namespace, shard_name, &data)
-        .await?;
+    let offset = message_storage_adapter.write(shard_name, &data).await?;
+    debug!(
+        "Delay message persisted to shard {} at offset {}",
+        shard_name, offset
+    );
 
     Ok(offset)
 }
 
 pub(crate) async fn init_delay_message_shard(
     message_storage_adapter: &ArcStorageAdapter,
-    namespace: &str,
     shard_num: u64,
 ) -> Result<(), CommonError> {
+    let mut created_count = 0;
     for i in 0..shard_num {
         let shard_name = get_delay_message_shard_name(i);
-        let results = message_storage_adapter
-            .list_shard(namespace, &shard_name)
-            .await?;
+        let results = message_storage_adapter.list_shard(&shard_name).await?;
 
         if results.is_empty() {
             let shard = ShardInfo {
-                namespace: namespace.to_owned(),
                 shard_name: shard_name.clone(),
                 replica_num: 1,
+                ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
-            info!("init shard:{}, {}", namespace, shard_name);
+            debug!("Created delay message shard: {}", shard_name);
+            created_count += 1;
         }
     }
+
+    info!(
+        "Delay message shards initialized: {} total, {} newly created",
+        shard_num, created_count
+    );
 
     Ok(())
 }
@@ -134,7 +142,6 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
     use storage_adapter::storage::build_memory_storage_driver;
 
@@ -164,15 +171,12 @@ mod test {
     #[tokio::test]
     pub async fn init_delay_message_shard_test() {
         let message_storage_adapter = build_memory_storage_driver();
-        let namespace = unique_id();
         let shard_num = 1;
-        let res = init_delay_message_shard(&message_storage_adapter, &namespace, shard_num).await;
+        let res = init_delay_message_shard(&message_storage_adapter, shard_num).await;
         assert!(res.is_ok());
 
         let shard_name = get_delay_message_shard_name(shard_num - 1);
-        let res = message_storage_adapter
-            .list_shard(&namespace, &shard_name)
-            .await;
+        let res = message_storage_adapter.list_shard(&shard_name).await;
         assert!(res.is_ok());
         let res = res.unwrap();
         assert_eq!(res.len(), 1);
@@ -182,15 +186,13 @@ mod test {
     #[tokio::test]
     pub async fn persist_delay_message_test() {
         let message_storage_adapter = build_memory_storage_driver();
-        let namespace = unique_id();
         let shard_name = "test".to_string();
         let data = Record::from_string("test".to_string());
-        let res =
-            persist_delay_message(&message_storage_adapter, &namespace, &shard_name, data).await;
+        let res = persist_delay_message(&message_storage_adapter, &shard_name, data).await;
         assert!(res.is_ok());
         let offset = res.unwrap();
 
-        let res = read_offset_data(&message_storage_adapter, &namespace, &shard_name, offset).await;
+        let res = read_offset_data(&message_storage_adapter, &shard_name, offset).await;
         assert!(res.is_ok());
         let res = res.unwrap().unwrap();
         assert_eq!(res.offset.unwrap(), offset);

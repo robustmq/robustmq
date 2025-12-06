@@ -105,8 +105,8 @@ mod test {
     use std::sync::Arc;
 
     use super::Plaintext;
-    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use crate::security::login::Authentication;
 
     #[tokio::test]

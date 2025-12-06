@@ -28,7 +28,7 @@ mod tests {
     async fn sub_exclusive_test() {
         for network in network_types() {
             for qos in qos_list() {
-                let topic = format!("/tests/{}", unique_id());
+                let topic = format!("/sub_exclusive_test/{}", unique_id());
                 let sub_exclusive_topics: &[String; 1] = &[format!("$exclusive{}", topic.clone())];
                 let sub_opts = &[SubscribeOptions::default()];
 
@@ -52,9 +52,11 @@ mod tests {
                 distinct_conn(cli);
 
                 // subscribe exclusive topic
+                let client_id1 =
+                    build_client_id(format!("sub_exclusive_test_cli1_{network}_{qos}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
-                    client_id: client_id.to_string(),
+                    client_id: client_id1.to_string(),
                     addr: broker_addr_by_type(&network),
                     ws: ws_by_type(&network),
                     ssl: ssl_by_type(&network),
@@ -66,9 +68,11 @@ mod tests {
                 assert!(result.is_ok());
 
                 // subscribe topic success
+                let client_id2 =
+                    build_client_id(format!("sub_exclusive_test_cli2_{network}_{qos}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
-                    client_id: client_id.to_string(),
+                    client_id: client_id2.to_string(),
                     addr: broker_addr_by_type(&network),
                     ws: ws_by_type(&network),
                     ssl: ssl_by_type(&network),
@@ -80,9 +84,11 @@ mod tests {
                 assert!(result.is_ok());
 
                 // subscribe exclusive topic fail
+                let client_id3 =
+                    build_client_id(format!("sub_exclusive_test_cli3_{network}_{qos}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
-                    client_id: client_id.to_string(),
+                    client_id: client_id3.to_string(),
                     addr: broker_addr_by_type(&network),
                     ws: ws_by_type(&network),
                     ssl: ssl_by_type(&network),

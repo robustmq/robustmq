@@ -33,6 +33,7 @@ use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::debug;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_cache_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
@@ -80,7 +81,7 @@ pub async fn delete_session_by_req(
     }
 
     for client_id in req.client_id.iter() {
-        subscribe_manager.remove_client_id(client_id);
+        subscribe_manager.remove_by_client_id(client_id);
         cache_manager.remove_session(client_id);
     }
     record_mqtt_session_deleted();

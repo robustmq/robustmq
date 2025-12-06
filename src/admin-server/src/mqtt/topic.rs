@@ -23,7 +23,7 @@ use crate::{
 use axum::{extract::State, Json};
 use common_base::{
     http_response::{error_response, success_response},
-    tools::now_mills,
+    tools::now_millis,
 };
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
@@ -224,10 +224,11 @@ pub async fn topic_detail(
         return error_response("Topic does not exist.".to_string());
     };
 
-    let sub_list = state
-        .mqtt_context
-        .subscribe_manager
-        .get_topic_subscribe_list(&topic.topic_name);
+    let sub_list = Vec::new();
+    //  state
+    //     .mqtt_context
+    //     .subscribe_manager
+    //     .get_topic_subscribe_list(&topic.topic_name);
 
     let storage = TopicStorage::new(state.client_pool.clone());
     let (retain_message, retain_message_at) =
@@ -312,7 +313,7 @@ pub async fn topic_rewrite_create(
         source_topic: params.source_topic.clone(),
         dest_topic: params.dest_topic.clone(),
         regex: params.regex.clone(),
-        timestamp: now_mills(),
+        timestamp: now_millis(),
     };
 
     let topic_storage = TopicStorage::new(state.client_pool.clone());

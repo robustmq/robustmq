@@ -24,7 +24,7 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use axum::body::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::{now_millis, now_second};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -90,18 +90,16 @@ impl DataRouteMqtt {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let topic = MQTTTopic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&topic.cluster_name, &topic.topic_name, topic.clone())?;
-        self.cache_manager
-            .add_topic(&topic.cluster_name, topic.clone());
+        storage.save(&topic.topic_name, topic.clone())?;
+        self.cache_manager.add_topic(topic.clone());
         Ok(())
     }
 
     pub fn delete_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.cluster_name, &req.topic_name)?;
-        self.cache_manager
-            .remove_topic(&req.cluster_name, &req.topic_name);
+        storage.delete(&req.topic_name)?;
+        self.cache_manager.remove_topic(&req.topic_name);
         Ok(())
     }
 
@@ -110,7 +108,7 @@ impl DataRouteMqtt {
         let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let topic = if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
+        let topic = if let Some(topic) = storage.get(&req.topic_name)? {
             topic
         } else {
             return Ok(());
@@ -135,7 +133,7 @@ impl DataRouteMqtt {
         let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let topic = if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
+        let topic = if let Some(topic) = storage.get(&req.topic_name)? {
             topic
         } else {
             return Ok(());
@@ -212,7 +210,7 @@ impl DataRouteMqtt {
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
             regex: req.regex.clone(),
-            timestamp: now_mills(),
+            timestamp: now_millis(),
         };
         storage.save_topic_rewrite_rule(
             &req.cluster_name,

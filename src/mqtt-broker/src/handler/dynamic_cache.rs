@@ -15,13 +15,14 @@
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::parse::ParseSubscribeData;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
@@ -128,6 +129,7 @@ pub async fn load_metadata_cache(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
@@ -177,21 +179,49 @@ pub async fn update_cache_metadata(
                 cache_manager.del_user(user.username);
             }
         },
+
         MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
-                subscribe_manager.add_subscribe(subscribe);
+                subscribe_manager.add_subscribe(&subscribe);
+
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Set,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
+                        subscribe: Some(subscribe),
+                        topic: None,
+                    })
+                    .await;
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
-                subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path);
+                subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Delete,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
+                        subscribe: Some(subscribe),
+                        topic: None,
+                    })
+                    .await;
             }
         },
+
         MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Set,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Topic,
+                        subscribe: None,
+                        topic: Some(topic),
+                    })
+                    .await;
             }
+
             MqttBrokerUpdateCacheActionType::Delete => {
                 let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
                 delete_topic(
@@ -202,6 +232,14 @@ pub async fn update_cache_metadata(
                     metrics_manager,
                 )
                 .await?;
+                subscribe_manager
+                    .add_wait_parse_data(ParseSubscribeData {
+                        action_type: MqttBrokerUpdateCacheActionType::Delete,
+                        resource_type: MqttBrokerUpdateCacheResourceType::Topic,
+                        subscribe: None,
+                        topic: Some(topic),
+                    })
+                    .await;
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {

@@ -15,13 +15,11 @@
 use std::fmt::Write;
 
 /// Generate record key for a specific offset
-/// Format: /record/{namespace}/{shard}/record/{offset:020}
+/// Format: /record/{shard}/record/{offset:020}
 #[inline(always)]
-pub fn shard_record_key(namespace: &str, shard: &str, record_offset: u64) -> String {
-    let mut key = String::with_capacity(17 + namespace.len() + shard.len() + 20);
+pub fn shard_record_key(shard: &str, record_offset: u64) -> String {
+    let mut key = String::with_capacity(17 + shard.len() + 20);
     key.push_str("/record/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push_str("/record/");
     let _ = write!(key, "{:020}", record_offset);
@@ -29,38 +27,32 @@ pub fn shard_record_key(namespace: &str, shard: &str, record_offset: u64) -> Str
 }
 
 /// Generate record key prefix for range queries
-/// Format: /record/{namespace}/{shard}/record/
+/// Format: /record/{shard}/record/
 #[inline(always)]
-pub fn shard_record_key_prefix(namespace: &str, shard: &str) -> String {
-    let mut key = String::with_capacity(17 + namespace.len() + shard.len());
+pub fn shard_record_key_prefix(shard: &str) -> String {
+    let mut key = String::with_capacity(17 + shard.len());
     key.push_str("/record/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push_str("/record/");
     key
 }
 
 /// Generate shard offset key to store the next offset
-/// Format: /offset/{namespace}/{shard}
+/// Format: /offset/{shard}
 #[inline(always)]
-pub fn shard_offset_key(namespace: &str, shard: &str) -> String {
-    let mut key = String::with_capacity(9 + namespace.len() + shard.len());
+pub fn shard_offset_key(shard: &str) -> String {
+    let mut key = String::with_capacity(9 + shard.len());
     key.push_str("/offset/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key
 }
 
 /// Generate key-to-offset mapping key
-/// Format: /key/{namespace}/{shard}/{record_key}
+/// Format: /key/{shard}/{record_key}
 #[inline(always)]
-pub fn key_offset_key(namespace: &str, shard: &str, record_key: &str) -> String {
-    let mut key = String::with_capacity(7 + namespace.len() + shard.len() + record_key.len());
+pub fn key_offset_key(shard: &str, record_key: &str) -> String {
+    let mut key = String::with_capacity(7 + shard.len() + record_key.len());
     key.push_str("/key/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push('/');
     key.push_str(record_key);
@@ -68,13 +60,11 @@ pub fn key_offset_key(namespace: &str, shard: &str, record_key: &str) -> String 
 }
 
 /// Generate tag-to-offset mapping key for a specific offset
-/// Format: /tag/{namespace}/{shard}/{tag}/{offset:020}
+/// Format: /tag/{shard}/{tag}/{offset:020}
 #[inline(always)]
-pub fn tag_offsets_key(namespace: &str, shard: &str, tag: &str, offset: u64) -> String {
-    let mut key = String::with_capacity(7 + namespace.len() + shard.len() + tag.len() + 20);
+pub fn tag_offsets_key(shard: &str, tag: &str, offset: u64) -> String {
+    let mut key = String::with_capacity(7 + shard.len() + tag.len() + 20);
     key.push_str("/tag/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push('/');
     key.push_str(tag);
@@ -84,13 +74,11 @@ pub fn tag_offsets_key(namespace: &str, shard: &str, tag: &str, offset: u64) -> 
 }
 
 /// Generate tag prefix for range queries
-/// Format: /tag/{namespace}/{shard}/{tag}/
+/// Format: /tag/{shard}/{tag}/
 #[inline(always)]
-pub fn tag_offsets_key_prefix(namespace: &str, shard: &str, tag: &str) -> String {
-    let mut key = String::with_capacity(7 + namespace.len() + shard.len() + tag.len());
+pub fn tag_offsets_key_prefix(shard: &str, tag: &str) -> String {
+    let mut key = String::with_capacity(7 + shard.len() + tag.len());
     key.push_str("/tag/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push('/');
     key.push_str(tag);
@@ -99,14 +87,12 @@ pub fn tag_offsets_key_prefix(namespace: &str, shard: &str, tag: &str) -> String
 }
 
 /// Generate consumer group offset key
-/// Format: /group/{group}/{namespace}/{shard}
+/// Format: /group/{group}/{shard}
 #[inline(always)]
-pub fn group_record_offsets_key(group: &str, namespace: &str, shard: &str) -> String {
-    let mut key = String::with_capacity(9 + group.len() + namespace.len() + shard.len());
+pub fn group_record_offsets_key(group: &str, shard: &str) -> String {
+    let mut key = String::with_capacity(9 + group.len() + shard.len());
     key.push_str("/group/");
     key.push_str(group);
-    key.push('/');
-    key.push_str(namespace);
     key.push('/');
     key.push_str(shard);
     key
@@ -124,25 +110,21 @@ pub fn group_record_offsets_key_prefix(group: &str) -> String {
 }
 
 /// Generate shard info key to store ShardInfo metadata
-/// Format: /shard/{namespace}/{shard}
+/// Format: /shard/{shard}
 #[inline(always)]
-pub fn shard_info_key(namespace: &str, shard: &str) -> String {
-    let mut key = String::with_capacity(8 + namespace.len() + shard.len());
+pub fn shard_info_key(shard: &str) -> String {
+    let mut key = String::with_capacity(8 + shard.len());
     key.push_str("/shard/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key
 }
 
 /// Generate timestamp-to-offset mapping key
-/// Format: /timestamp/{namespace}/{shard}/{timestamp:020}/{offset:020}
+/// Format: /timestamp/{shard}/{timestamp:020}/{offset:020}
 #[inline(always)]
-pub fn timestamp_offset_key(namespace: &str, shard: &str, timestamp: u64, offset: u64) -> String {
-    let mut key = String::with_capacity(13 + namespace.len() + shard.len() + 40);
+pub fn timestamp_offset_key(shard: &str, timestamp: u64, offset: u64) -> String {
+    let mut key = String::with_capacity(13 + shard.len() + 40);
     key.push_str("/timestamp/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push('/');
     let _ = write!(key, "{:020}/{:020}", timestamp, offset);
@@ -150,26 +132,22 @@ pub fn timestamp_offset_key(namespace: &str, shard: &str, timestamp: u64, offset
 }
 
 /// Generate timestamp index prefix for range queries
-/// Format: /timestamp/{namespace}/{shard}/
+/// Format: /timestamp/{shard}/
 #[inline(always)]
-pub fn timestamp_offset_key_prefix(namespace: &str, shard: &str) -> String {
-    let mut key = String::with_capacity(13 + namespace.len() + shard.len());
+pub fn timestamp_offset_key_prefix(shard: &str) -> String {
+    let mut key = String::with_capacity(13 + shard.len());
     key.push_str("/timestamp/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push('/');
     key
 }
 
 /// Generate timestamp search prefix for searching from a specific timestamp
-/// Format: /timestamp/{namespace}/{shard}/{timestamp:020}/
+/// Format: /timestamp/{shard}/{timestamp:020}/
 #[inline(always)]
-pub fn timestamp_offset_key_search_prefix(namespace: &str, shard: &str, timestamp: u64) -> String {
-    let mut key = String::with_capacity(13 + namespace.len() + shard.len() + 20);
+pub fn timestamp_offset_key_search_prefix(shard: &str, timestamp: u64) -> String {
+    let mut key = String::with_capacity(13 + shard.len() + 20);
     key.push_str("/timestamp/");
-    key.push_str(namespace);
-    key.push('/');
     key.push_str(shard);
     key.push('/');
     let _ = write!(key, "{:020}/", timestamp);
@@ -182,44 +160,44 @@ mod tests {
 
     #[test]
     fn test_shard_record_key() {
-        let key = shard_record_key("ns1", "shard1", 123);
-        assert_eq!(key, "/record/ns1/shard1/record/00000000000000000123");
+        let key = shard_record_key("shard1", 123);
+        assert_eq!(key, "/record/shard1/record/00000000000000000123");
     }
 
     #[test]
     fn test_shard_record_key_prefix() {
-        let key = shard_record_key_prefix("ns1", "shard1");
-        assert_eq!(key, "/record/ns1/shard1/record/");
+        let key = shard_record_key_prefix("shard1");
+        assert_eq!(key, "/record/shard1/record/");
     }
 
     #[test]
     fn test_shard_offset_key() {
-        let key = shard_offset_key("ns1", "shard1");
-        assert_eq!(key, "/offset/ns1/shard1");
+        let key = shard_offset_key("shard1");
+        assert_eq!(key, "/offset/shard1");
     }
 
     #[test]
     fn test_key_offset_key() {
-        let key = key_offset_key("ns1", "shard1", "mykey");
-        assert_eq!(key, "/key/ns1/shard1/mykey");
+        let key = key_offset_key("shard1", "mykey");
+        assert_eq!(key, "/key/shard1/mykey");
     }
 
     #[test]
     fn test_tag_offsets_key() {
-        let key = tag_offsets_key("ns1", "shard1", "tag1", 456);
-        assert_eq!(key, "/tag/ns1/shard1/tag1/00000000000000000456");
+        let key = tag_offsets_key("shard1", "tag1", 456);
+        assert_eq!(key, "/tag/shard1/tag1/00000000000000000456");
     }
 
     #[test]
     fn test_tag_offsets_key_prefix() {
-        let key = tag_offsets_key_prefix("ns1", "shard1", "tag1");
-        assert_eq!(key, "/tag/ns1/shard1/tag1/");
+        let key = tag_offsets_key_prefix("shard1", "tag1");
+        assert_eq!(key, "/tag/shard1/tag1/");
     }
 
     #[test]
     fn test_group_record_offsets_key() {
-        let key = group_record_offsets_key("group1", "ns1", "shard1");
-        assert_eq!(key, "/group/group1/ns1/shard1");
+        let key = group_record_offsets_key("group1", "shard1");
+        assert_eq!(key, "/group/group1/shard1");
     }
 
     #[test]
@@ -230,28 +208,28 @@ mod tests {
 
     #[test]
     fn test_shard_info_key() {
-        let key = shard_info_key("ns1", "shard1");
-        assert_eq!(key, "/shard/ns1/shard1");
+        let key = shard_info_key("shard1");
+        assert_eq!(key, "/shard/shard1");
     }
 
     #[test]
     fn test_timestamp_offset_key() {
-        let key = timestamp_offset_key("ns1", "shard1", 1234567890, 100);
+        let key = timestamp_offset_key("shard1", 1234567890, 100);
         assert_eq!(
             key,
-            "/timestamp/ns1/shard1/00000000001234567890/00000000000000000100"
+            "/timestamp/shard1/00000000001234567890/00000000000000000100"
         );
     }
 
     #[test]
     fn test_timestamp_offset_key_prefix() {
-        let key = timestamp_offset_key_prefix("ns1", "shard1");
-        assert_eq!(key, "/timestamp/ns1/shard1/");
+        let key = timestamp_offset_key_prefix("shard1");
+        assert_eq!(key, "/timestamp/shard1/");
     }
 
     #[test]
     fn test_timestamp_offset_key_search_prefix() {
-        let key = timestamp_offset_key_search_prefix("ns1", "shard1", 1234567890);
-        assert_eq!(key, "/timestamp/ns1/shard1/00000000001234567890/");
+        let key = timestamp_offset_key_search_prefix("shard1", 1234567890);
+        assert_eq!(key, "/timestamp/shard1/00000000001234567890/");
     }
 }

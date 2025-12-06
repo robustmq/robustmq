@@ -21,7 +21,7 @@ use crate::controller::mqtt::call_broker::{
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
@@ -46,7 +46,7 @@ pub async fn register_node_by_req(
     if cluster_cache.get_cluster(&node.cluster_name).is_none() {
         let cluster = ClusterInfo {
             cluster_name: node.cluster_name.clone(),
-            create_time: now_mills(),
+            create_time: now_millis(),
         };
         sync_save_cluster(raft_manager, &cluster).await?;
     }

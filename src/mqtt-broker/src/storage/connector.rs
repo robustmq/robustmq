@@ -29,8 +29,8 @@ use protocol::meta::meta_service_mqtt::{
     DeleteConnectorRequest, ListConnectorRequest, UpdateConnectorRequest,
 };
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 pub struct ConnectorStorage {
     client_pool: Arc<ClientPool>,

@@ -19,7 +19,6 @@ use super::response::build_pub_ack_fail;
 use super::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
 use super::sub_auto::try_auto_subscribe;
 use super::subscribe::{save_subscribe, SaveSubscribeContext};
-use super::unsubscribe::remove_subscribe;
 use crate::handler::cache::{
     ConnectionLiveTime, MQTTCacheManager, QosAckPackageData, QosAckPackageType,
 };
@@ -35,6 +34,7 @@ use crate::handler::response::{
     response_packet_mqtt_unsuback, ResponsePacketMqttConnectSuccessContext,
 };
 use crate::handler::session::{build_session, save_session, BuildSessionContext};
+use crate::handler::subscribe::remove_subscribe;
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
@@ -47,7 +47,7 @@ use crate::system_topic::event::{
     st_report_unsubscribed_event, StReportConnectedEventContext, StReportDisconnectedEventContext,
     StReportSubscribedEventContext, StReportUnsubscribedEventContext,
 };
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::{now_millis, now_second};
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
 use delay_message::DelayMessageManager;
@@ -546,7 +546,7 @@ impl MqttService {
                 }) {
                     debug!(
                             "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
-                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id, now_mills() -  data.create_time
+                            e,data.create_time, now_millis(), conn.client_id, pub_ack.pkid, connect_id, now_millis() -  data.create_time
                         );
                 }
             }
@@ -574,7 +574,7 @@ impl MqttService {
                     pkid: pub_rec.pkid,
                 }) {
                     debug!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
-                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id, now_mills() -  data.create_time);
+                        e,data.create_time, now_millis(), client_id, pub_rec.pkid, connect_id, now_millis() -  data.create_time);
                 }
             }
         }
@@ -602,7 +602,7 @@ impl MqttService {
                 }) {
                     debug!(
                             "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
-                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id, now_mills() -  data.create_time
+                            e,data.create_time, now_millis(), client_id, pub_comp.pkid, connect_id, now_millis() -  data.create_time
                         );
                 }
             }
@@ -798,13 +798,8 @@ impl MqttService {
             return packet;
         }
 
-        if let Err(e) = remove_subscribe(
-            &connection.client_id,
-            un_subscribe,
-            &self.client_pool,
-            &self.subscribe_manager,
-        )
-        .await
+        if let Err(e) =
+            remove_subscribe(&connection.client_id, un_subscribe, &self.client_pool).await
         {
             return response_packet_mqtt_unsuback(
                 &connection,

@@ -362,7 +362,6 @@ impl BrokerServer {
         message_storage_adapter: ArcStorageAdapter,
         offset_manager: Arc<OffsetManager>,
     ) -> MqttBrokerServerParams {
-        let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
             broker_cache.clone(),
@@ -370,11 +369,8 @@ impl BrokerServer {
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
-        let delay_message_manager = Arc::new(DelayMessageManager::new(
-            config.cluster_name.clone(),
-            1,
-            message_storage_adapter.clone(),
-        ));
+        let delay_message_manager =
+            Arc::new(DelayMessageManager::new(1, message_storage_adapter.clone()));
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
 

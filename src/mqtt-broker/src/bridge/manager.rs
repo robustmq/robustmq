@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::{now_millis, now_second};
 use common_metrics::mqtt::connector::{
     record_connector_messages_sent_failure, record_connector_messages_sent_success,
     record_connector_send_duration,
@@ -115,7 +115,7 @@ pub fn update_last_active(
 
         if success {
             thread.send_success_total += message_count;
-            let duration_ms = (now_mills() - start_time) as f64;
+            let duration_ms = (now_millis() - start_time) as f64;
             record_connector_messages_sent_success(connector_name.to_owned(), message_count);
             record_connector_send_duration(connector_name.to_owned(), duration_ms);
         } else {
@@ -241,7 +241,7 @@ mod tests {
         let thread = create_test_thread();
         manager.add_connector_thread("test_connector", thread);
 
-        update_last_active(&manager, "test_connector", now_mills(), 100, true);
+        update_last_active(&manager, "test_connector", now_millis(), 100, true);
 
         let thread = manager.get_connector_thread("test_connector").unwrap();
         assert_eq!(thread.send_success_total, 100);
@@ -255,7 +255,7 @@ mod tests {
         let thread = create_test_thread();
         manager.add_connector_thread("test_connector", thread);
 
-        update_last_active(&manager, "test_connector", now_mills(), 50, false);
+        update_last_active(&manager, "test_connector", now_millis(), 50, false);
 
         let thread = manager.get_connector_thread("test_connector").unwrap();
         assert_eq!(thread.send_success_total, 0);
@@ -269,9 +269,9 @@ mod tests {
         let thread = create_test_thread();
         manager.add_connector_thread("test_connector", thread);
 
-        update_last_active(&manager, "test_connector", now_mills(), 100, true);
-        update_last_active(&manager, "test_connector", now_mills(), 50, true);
-        update_last_active(&manager, "test_connector", now_mills(), 10, false);
+        update_last_active(&manager, "test_connector", now_millis(), 100, true);
+        update_last_active(&manager, "test_connector", now_millis(), 50, true);
+        update_last_active(&manager, "test_connector", now_millis(), 10, false);
 
         let thread = manager.get_connector_thread("test_connector").unwrap();
         assert_eq!(thread.send_success_total, 150);

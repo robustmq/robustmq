@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::journal::segment::segment_name;
@@ -93,10 +93,10 @@ impl AsyncReader {
 
     pub async fn read(&self) -> Result<Vec<ReadMessageData>, JournalClientError> {
         let mut results: Vec<ReadMessageData> = Vec::new();
-        let start_time = now_mills();
+        let start_time = now_millis();
         let mut recv = self.data_sender.subscribe();
         loop {
-            if (now_mills() - start_time) >= 100 {
+            if (now_millis() - start_time) >= 100 {
                 break;
             }
             let data = recv.recv().await?;

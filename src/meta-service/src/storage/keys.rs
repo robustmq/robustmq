@@ -150,13 +150,13 @@ pub fn storage_key_mqtt_user_cluster_prefix(cluster_name: &str) -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_topic(cluster_name: &str, topic_name: &str) -> String {
-    format!("/meta/mqtt/topic/{cluster_name}/{topic_name}")
+pub fn storage_key_mqtt_topic(topic_name: &str) -> String {
+    format!("/meta/mqtt/topic/{topic_name}")
 }
 
 #[inline]
-pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: &str) -> String {
-    format!("/meta/mqtt/topic/{cluster_name}/")
+pub fn storage_key_mqtt_topic_cluster_prefix() -> String {
+    "/meta/mqtt/topic/".to_string()
 }
 
 #[inline]

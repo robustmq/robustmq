@@ -37,7 +37,7 @@ pub struct MemoryStorageAdapter {
     pub group_data: DashMap<String, DashMap<String, u64>>,
     pub tag_index: DashMap<String, HashMap<String, Vec<u64>>>,
     pub key_index: DashMap<String, HashMap<String, Vec<u64>>>,
-    pub timestamp_index: DashMap<String, BTreeMap<u64, u64>>,
+    pub timestamp_index: DashMap<String, BTreeMap<u64, Vec<u64>>>,
     pub shard_state: DashMap<String, ShardState>,
 }
 
@@ -59,15 +59,6 @@ impl MemoryStorageAdapter {
             group_data: DashMap::with_capacity(config.initial_group_capacity),
             config,
         }
-    }
-
-    #[inline]
-    pub fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
-        let mut key = String::with_capacity(namespace.len() + shard_name.len() + 1);
-        key.push_str(namespace);
-        key.push('_');
-        key.push_str(shard_name);
-        key
     }
 
     #[inline]
@@ -100,7 +91,7 @@ impl MemoryStorageAdapter {
                 .timestamp_index
                 .entry(shard_key.to_string())
                 .or_default();
-            ts_map.insert(record.timestamp, offset);
+            ts_map.entry(record.timestamp).or_default().push(offset);
         }
     }
 
@@ -135,7 +126,12 @@ impl MemoryStorageAdapter {
 
         if self.config.enable_timestamp_index && record.timestamp > 0 {
             if let Some(mut ts_map) = self.timestamp_index.get_mut(shard_key) {
-                ts_map.remove(&record.timestamp);
+                if let Some(offsets) = ts_map.get_mut(&record.timestamp) {
+                    offsets.retain(|&o| o != offset);
+                    if offsets.is_empty() {
+                        ts_map.remove(&record.timestamp);
+                    }
+                }
             }
         }
     }
@@ -173,7 +169,6 @@ impl MemoryStorageAdapter {
 
     async fn internal_batch_write(
         &self,
-        namespace: &str,
         shard_name: &str,
         messages: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
@@ -181,37 +176,26 @@ impl MemoryStorageAdapter {
             return Ok(Vec::new());
         }
 
-        let shard_key = self.shard_key(namespace, shard_name);
-        self.shard_state.entry(shard_key.clone()).or_default();
+        // Ensure shard_data exists atomically
+        self.shard_data
+            .entry(shard_name.to_string())
+            .or_insert_with(|| Vec::with_capacity(self.config.max_records_per_shard));
 
-        let offsets = if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
-            let start_offset = self.shard_state.get(&shard_key).unwrap().next_offset;
-            let offsets = self.process_and_insert_messages(
-                &shard_key,
-                messages,
-                start_offset,
-                &mut data_list,
-            );
+        self.shard_state.entry(shard_name.to_string()).or_default();
 
-            drop(data_list);
+        // Now we can safely get mutable reference
+        let mut data_list = self.shard_data.get_mut(shard_name).unwrap();
 
-            self.shard_state.get_mut(&shard_key).unwrap().next_offset =
-                start_offset + messages.len() as u64;
-
-            offsets
-        } else {
-            let mut data_list =
-                Vec::with_capacity(messages.len().min(self.config.max_records_per_shard));
-            let offsets = self.process_and_insert_messages(&shard_key, messages, 0, &mut data_list);
-
-            self.shard_data.insert(shard_key.clone(), data_list);
-
-            let mut state = self.shard_state.get_mut(&shard_key).unwrap();
-            state.next_offset = messages.len() as u64;
-            state.start_offset = 0;
-
-            offsets
+        // Reserve offset range atomically before inserting data
+        let start_offset = {
+            let mut state = self.shard_state.get_mut(shard_name).unwrap();
+            let start = state.next_offset;
+            state.next_offset = start + messages.len() as u64;
+            start
         };
+
+        let offsets =
+            self.process_and_insert_messages(shard_name, messages, start_offset, &mut data_list);
 
         Ok(offsets)
     }
@@ -276,22 +260,19 @@ impl MemoryStorageAdapter {
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
-        let key = self.shard_key(&shard.namespace, &shard.shard_name);
         self.shard_data.insert(
-            key.clone(),
+            shard.shard_name.clone(),
             Vec::with_capacity(self.config.max_records_per_shard),
         );
-        self.shard_info.insert(key.clone(), shard.clone());
-        self.shard_state.insert(key, ShardState::default());
+        self.shard_info
+            .insert(shard.shard_name.clone(), shard.clone());
+        self.shard_state
+            .insert(shard.shard_name.clone(), ShardState::default());
         Ok(())
     }
 
-    async fn list_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<Vec<ShardInfo>, CommonError> {
-        if shard_name.is_empty() {
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
+        if shard.is_empty() {
             return Ok(self
                 .shard_info
                 .iter()
@@ -299,55 +280,39 @@ impl StorageAdapter for MemoryStorageAdapter {
                 .collect());
         }
 
-        let key = self.shard_key(namespace, shard_name);
         Ok(self
             .shard_info
-            .get(&key)
+            .get(shard)
             .map(|info| vec![info.clone()])
             .unwrap_or_default())
     }
 
-    async fn delete_shard(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
-        let key = self.shard_key(namespace, shard_name);
-        self.shard_data.remove(&key);
-        self.shard_info.remove(&key);
-        self.shard_state.remove(&key);
-        self.remove_indexes(&key);
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
+        self.shard_data.remove(shard);
+        self.shard_info.remove(shard);
+        self.shard_state.remove(shard);
+        self.remove_indexes(shard);
         Ok(())
     }
 
-    async fn batch_write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        messages: &[Record],
-    ) -> Result<Vec<u64>, CommonError> {
-        self.internal_batch_write(namespace, shard_name, messages)
-            .await
+    async fn batch_write(&self, shard: &str, messages: &[Record]) -> Result<Vec<u64>, CommonError> {
+        self.internal_batch_write(shard, messages).await
     }
 
-    async fn write(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        data: &Record,
-    ) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError> {
         let offsets = self
-            .internal_batch_write(namespace, shard_name, std::slice::from_ref(data))
+            .internal_batch_write(shard, std::slice::from_ref(data))
             .await?;
         Ok(offsets[0])
     }
 
     async fn read_by_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-
-        let Some(data_list) = self.shard_data.get(&shard_key) else {
+        let Some(data_list) = self.shard_data.get(shard) else {
             return Ok(Vec::new());
         };
 
@@ -355,7 +320,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             return Ok(Vec::new());
         }
 
-        let start_offset = self.get_start_offset(&shard_key);
+        let start_offset = self.get_start_offset(shard);
 
         if offset < start_offset {
             return Ok(Vec::new());
@@ -377,31 +342,22 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-
-        if let Some(tag_map) = self.tag_index.get(&shard_key) {
+        if let Some(tag_map) = self.tag_index.get(shard) {
             if let Some(offsets) = tag_map.get(tag) {
-                if let Some(data_list) = self.shard_data.get(&shard_key) {
-                    return Ok(self.read_by_index(
-                        &shard_key,
-                        offset,
-                        offsets,
-                        &data_list,
-                        read_config,
-                    ));
+                if let Some(data_list) = self.shard_data.get(shard) {
+                    return Ok(self.read_by_index(shard, offset, offsets, &data_list, read_config));
                 }
             }
         }
 
-        if let Some(data_list) = self.shard_data.get(&shard_key) {
+        if let Some(data_list) = self.shard_data.get(shard) {
             return Ok(
-                self.linear_scan(&shard_key, offset, &data_list, read_config, |record| {
+                self.linear_scan(shard, offset, &data_list, read_config, |record| {
                     record
                         .tags
                         .as_ref()
@@ -415,31 +371,22 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn read_by_key(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         offset: u64,
         key: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-
-        if let Some(key_map) = self.key_index.get(&shard_key) {
+        if let Some(key_map) = self.key_index.get(shard) {
             if let Some(offsets) = key_map.get(key) {
-                if let Some(data_list) = self.shard_data.get(&shard_key) {
-                    return Ok(self.read_by_index(
-                        &shard_key,
-                        offset,
-                        offsets,
-                        &data_list,
-                        read_config,
-                    ));
+                if let Some(data_list) = self.shard_data.get(shard) {
+                    return Ok(self.read_by_index(shard, offset, offsets, &data_list, read_config));
                 }
             }
         }
 
-        if let Some(data_list) = self.shard_data.get(&shard_key) {
+        if let Some(data_list) = self.shard_data.get(shard) {
             return Ok(
-                self.linear_scan(&shard_key, offset, &data_list, read_config, |record| {
+                self.linear_scan(shard, offset, &data_list, read_config, |record| {
                     record.key.as_deref() == Some(key)
                 }),
             );
@@ -450,19 +397,17 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn get_offset_by_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
+        shard: &str,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-        let start_offset = self.get_start_offset(&shard_key);
+        let start_offset = self.get_start_offset(shard);
 
-        if let Some(ts_map) = self.timestamp_index.get(&shard_key) {
-            for (_ts, &offset) in ts_map.range(timestamp..) {
-                if offset >= start_offset {
+        if let Some(ts_map) = self.timestamp_index.get(shard) {
+            for (_ts, offsets) in ts_map.range(timestamp..) {
+                // Find the first offset in the list that is >= start_offset
+                if let Some(&offset) = offsets.iter().find(|&&o| o >= start_offset) {
                     return Ok(Some(ShardOffset {
-                        namespace: namespace.to_string(),
-                        shard_name: shard_name.to_string(),
+                        shard_name: shard.to_string(),
                         offset,
                         ..Default::default()
                     }));
@@ -470,13 +415,12 @@ impl StorageAdapter for MemoryStorageAdapter {
             }
         }
 
-        if let Some(record_list) = self.shard_data.get(&shard_key) {
+        if let Some(record_list) = self.shard_data.get(shard) {
             for record in record_list.iter() {
                 if record.timestamp >= timestamp {
                     if let Some(offset) = record.offset {
                         return Ok(Some(ShardOffset {
-                            namespace: namespace.to_string(),
-                            shard_name: shard_name.to_string(),
+                            shard_name: shard.to_string(),
                             offset,
                             ..Default::default()
                         }));
@@ -495,6 +439,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             .map(|data| {
                 data.iter()
                     .map(|entry| ShardOffset {
+                        shard_name: entry.key().clone(),
                         offset: *entry.value(),
                         ..Default::default()
                     })
@@ -506,7 +451,6 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn commit_offset(
         &self,
         group_name: &str,
-        namespace: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let data = self
@@ -515,8 +459,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             .or_insert_with(|| DashMap::with_capacity(offset.len()));
 
         for (shard_name, offset_val) in offset.iter() {
-            let group_key = self.shard_key(namespace, shard_name);
-            data.insert(group_key, *offset_val);
+            data.insert(shard_name.to_string(), *offset_val);
         }
 
         Ok(())
@@ -544,13 +487,13 @@ impl StorageAdapter for MemoryStorageAdapter {
                     }
                 }
 
-                data_list.drain(0..to_evict);
-
-                drop(data_list);
-
+                // Update start_offset BEFORE draining to maintain consistency
+                // This ensures any concurrent reads will see the correct offset range
                 if let Some(mut state) = self.shard_state.get_mut(&shard_key) {
                     state.start_offset += to_evict as u64;
                 }
+
+                data_list.drain(0..to_evict);
             }
         }
 
@@ -565,333 +508,213 @@ impl StorageAdapter for MemoryStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_base::tools::unique_id;
+    use std::sync::Arc;
 
-    // Helper: Default read configuration for tests
-    fn read_config() -> ReadConfig {
-        ReadConfig {
-            max_record_num: 10,
-            max_size: 1024 * 1024,
-        }
-    }
-
-    // Helper: Create a simple message record
-    fn create_message(data: &[u8]) -> Record {
+    fn msg(data: &[u8]) -> Record {
         Record::from_bytes(data.to_vec())
     }
 
-    // Helper: Create message with metadata (tags, key, timestamp)
-    fn create_message_with_metadata(
-        data: &[u8],
-        tags: Vec<&str>,
-        key: &str,
-        timestamp: u64,
-    ) -> Record {
-        let mut record = create_message(data);
-        record.tags = Some(tags.into_iter().map(|s| s.to_string()).collect());
-        record.key = Some(key.to_string());
-        record.timestamp = timestamp;
-        record
+    fn msg_meta(data: &[u8], tags: Vec<&str>, key: &str, ts: u64) -> Record {
+        let mut r = msg(data);
+        r.tags = Some(tags.into_iter().map(|s| s.to_string()).collect());
+        r.key = Some(key.to_string());
+        r.timestamp = ts;
+        r
     }
 
     #[tokio::test]
-    async fn test_write_and_read() {
-        // Setup
-        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
-        let shard_name = "test-shard";
-        let config = read_config();
+    async fn test_core_write_read() {
+        let a = MemoryStorageAdapter::default();
+        let cfg = ReadConfig {
+            max_record_num: 10,
+            max_size: 1024,
+        };
 
-        // Test batch write and verify offsets
-        let messages = vec![create_message(b"msg1"), create_message(b"msg2")];
-        let offsets = adapter
-            .batch_write(&namespace, shard_name, &messages)
+        // Write & read basic
+        let offsets = a
+            .batch_write("s1", &[msg(b"m1"), msg(b"m2")])
             .await
             .unwrap();
         assert_eq!(offsets, vec![0, 1]);
 
-        // Test read by offset
-        let records = adapter
-            .read_by_offset(&namespace, shard_name, 0, &config)
-            .await
-            .unwrap();
-        assert_eq!(records.len(), 2);
-        assert_eq!(records[0].data.as_ref(), b"msg1");
+        let recs = a.read_by_offset("s1", 0, &cfg).await.unwrap();
+        assert_eq!(recs.len(), 2);
+        assert_eq!(recs[0].data.as_ref(), b"m1");
 
-        // Test empty batch write
-        let empty_offsets = adapter
-            .batch_write(&namespace, shard_name, &[])
+        // Tag/key indexes
+        a.batch_write("s1", &[msg_meta(b"m3", vec!["t1"], "k1", 0)])
             .await
             .unwrap();
-        assert_eq!(empty_offsets.len(), 0);
+        assert_eq!(a.read_by_tag("s1", 0, "t1", &cfg).await.unwrap().len(), 1);
+        assert_eq!(
+            a.read_by_key("s1", 0, "k1", &cfg).await.unwrap()[0]
+                .data
+                .as_ref(),
+            b"m3"
+        );
 
-        // Test read from non-existent shard
-        let empty_records = adapter
-            .read_by_offset(&namespace, "nonexistent", 0, &config)
-            .await
-            .unwrap();
-        assert_eq!(empty_records.len(), 0);
+        // Duplicate timestamps
+        a.batch_write(
+            "s2",
+            &[
+                msg_meta(b"a", vec![], "", 100),
+                msg_meta(b"b", vec![], "", 100),
+            ],
+        )
+        .await
+        .unwrap();
+        let ts_idx = a.timestamp_index.get("s2").unwrap();
+        assert_eq!(ts_idx.get(&100).unwrap(), &vec![0, 1]);
+        assert_eq!(
+            a.get_offset_by_timestamp("s2", 100)
+                .await
+                .unwrap()
+                .unwrap()
+                .offset,
+            0
+        );
     }
 
     #[tokio::test]
-    async fn test_lru_eviction() {
-        let config_adapter = StorageDriverMemoryConfig {
-            max_records_per_shard: 3,
+    async fn test_group_offset_with_shard_name() {
+        let a = MemoryStorageAdapter::default();
+
+        a.batch_write("s1", &[msg(b"x")]).await.unwrap();
+        a.batch_write("s2", &[msg(b"y")]).await.unwrap();
+
+        // Commit & verify shard_name is preserved
+        let offs = HashMap::from([("s1".to_string(), 10u64), ("s2".to_string(), 20u64)]);
+        a.commit_offset("g1", &offs).await.unwrap();
+
+        let result = a.get_offset_by_group("g1").await.unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result.iter().find(|o| o.shard_name == "s1").unwrap().offset,
+            10
+        );
+        assert_eq!(
+            result.iter().find(|o| o.shard_name == "s2").unwrap().offset,
+            20
+        );
+    }
+
+    #[tokio::test]
+    async fn test_expire_consistency() {
+        let cfg = StorageDriverMemoryConfig {
+            max_records_per_shard: 2,
             ..Default::default()
         };
-        let adapter = MemoryStorageAdapter::new(config_adapter);
-        let namespace = unique_id();
-        let shard_name = "lru-test";
-        let config = read_config();
+        let a = MemoryStorageAdapter::new(cfg);
+        let rd = ReadConfig {
+            max_record_num: 10,
+            max_size: 1024,
+        };
 
-        // Write 5 messages (exceeds capacity)
-        for i in 0..5 {
-            let msg = create_message_with_metadata(
-                format!("msg{}", i).as_bytes(),
-                vec![&format!("tag-{}", i)],
-                "",
-                1000 + i * 100,
-            );
-            adapter.write(&namespace, shard_name, &msg).await.unwrap();
+        // Write 4, expire to 2
+        for i in 0..4 {
+            a.write(
+                "s",
+                &msg_meta(
+                    format!("{}", i).as_bytes(),
+                    vec![&format!("t{}", i)],
+                    "",
+                    1000 + i,
+                ),
+            )
+            .await
+            .unwrap();
+        }
+        a.message_expire(&MessageExpireConfig::default())
+            .await
+            .unwrap();
+
+        // Verify state & data
+        let state = a.shard_state.get("s").unwrap();
+        assert_eq!(state.start_offset, 2);
+        assert_eq!(state.next_offset, 4);
+        assert_eq!(a.shard_data.get("s").unwrap().len(), 2);
+
+        // Evicted inaccessible, remaining accessible
+        assert_eq!(a.read_by_offset("s", 0, &rd).await.unwrap().len(), 0);
+        assert_eq!(a.read_by_tag("s", 0, "t0", &rd).await.unwrap().len(), 0);
+        assert_eq!(a.read_by_offset("s", 2, &rd).await.unwrap().len(), 2);
+        assert_eq!(a.read_by_tag("s", 0, "t2", &rd).await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_writes() {
+        let a = Arc::new(MemoryStorageAdapter::default());
+        let mut handles = vec![];
+
+        // 10 threads, each write 5 messages
+        for t in 0..10 {
+            let a_clone = a.clone();
+            let h = tokio::spawn(async move {
+                let mut offs = vec![];
+                for i in 0..5 {
+                    let data = format!("t{}m{}", t, i);
+                    let o = a_clone
+                        .write("concurrent", &msg(data.as_bytes()))
+                        .await
+                        .unwrap();
+                    offs.push(o);
+                }
+                offs
+            });
+            handles.push(h);
         }
 
-        // Verify all 5 messages are stored before eviction
-        let shard_key = adapter.shard_key(&namespace, shard_name);
-        assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 5);
-
-        // Trigger LRU eviction
-        adapter
-            .message_expire(&MessageExpireConfig::default())
-            .await
-            .unwrap();
-
-        // Verify only 3 newest messages remain
-        assert_eq!(adapter.shard_data.get(&shard_key).unwrap().len(), 3);
-
-        // Verify offset state is correct
-        let state = adapter.shard_state.get(&shard_key).unwrap();
-        assert_eq!(state.start_offset, 2); // First 2 messages evicted
-        assert_eq!(state.next_offset, 5); // Next offset to assign
-
-        // Test read evicted records (offset 0-1)
-        let evicted = adapter
-            .read_by_offset(&namespace, shard_name, 0, &config)
-            .await
-            .unwrap();
-        assert_eq!(evicted.len(), 0);
-
-        // Test read remaining records (offset 2-4)
-        let remaining = adapter
-            .read_by_offset(&namespace, shard_name, 2, &config)
-            .await
-            .unwrap();
-        assert_eq!(remaining.len(), 3);
-
-        // Test evicted tag is not found
-        let evicted_tag = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-0", &config)
-            .await
-            .unwrap();
-        assert_eq!(evicted_tag.len(), 0);
-
-        // Test remaining tag is found
-        let remaining_tag = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-3", &config)
-            .await
-            .unwrap();
-        assert_eq!(remaining_tag.len(), 1);
-
-        // Test timestamp query after eviction
-        let offset_result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 1150)
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(offset_result.offset >= 2); // Should point to remaining messages
-    }
-
-    #[tokio::test]
-    async fn test_indexed_queries() {
-        // Setup
-        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
-        let shard_name = "index-test";
-        let config = read_config();
-
-        // Write messages with tags and keys
-        let msg1 = create_message_with_metadata(b"msg1", vec!["tag-a"], "key-1", 0);
-        let msg2 = create_message_with_metadata(b"msg2", vec!["tag-b"], "key-2", 0);
-        adapter.write(&namespace, shard_name, &msg1).await.unwrap();
-        adapter.write(&namespace, shard_name, &msg2).await.unwrap();
-
-        // Test read by tag (using index)
-        let tag_results = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-a", &config)
-            .await
-            .unwrap();
-        assert_eq!(tag_results.len(), 1);
-        assert_eq!(tag_results[0].data.as_ref(), b"msg1");
-
-        // Test read by key (using index)
-        let key_results = adapter
-            .read_by_key(&namespace, shard_name, 0, "key-2", &config)
-            .await
-            .unwrap();
-        assert_eq!(key_results.len(), 1);
-        assert_eq!(key_results[0].data.as_ref(), b"msg2");
-
-        // Test read with non-existent tag
-        let empty_tag = adapter
-            .read_by_tag(&namespace, shard_name, 0, "nonexistent", &config)
-            .await
-            .unwrap();
-        assert_eq!(empty_tag.len(), 0);
-
-        // Test fallback to linear scan when index is removed
-        let shard_key = adapter.shard_key(&namespace, shard_name);
-        adapter.tag_index.remove(&shard_key);
-        adapter.key_index.remove(&shard_key);
-
-        let fallback_results = adapter
-            .read_by_tag(&namespace, shard_name, 0, "tag-a", &config)
-            .await
-            .unwrap();
-        assert_eq!(fallback_results.len(), 1); // Still finds via linear scan
-    }
-
-    #[tokio::test]
-    async fn test_shard_management() {
-        // Setup
-        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
-
-        // Create two shards
-        let shard1 = ShardInfo {
-            namespace: namespace.clone(),
-            shard_name: "shard-1".to_string(),
-            replica_num: 3,
-        };
-        let shard2 = ShardInfo {
-            namespace: namespace.clone(),
-            shard_name: "shard-2".to_string(),
-            replica_num: 3,
-        };
-        adapter.create_shard(&shard1).await.unwrap();
-        adapter.create_shard(&shard2).await.unwrap();
-
-        // Test list all shards
-        let all_shards = adapter.list_shard(&namespace, "").await.unwrap();
-        assert_eq!(all_shards.len(), 2);
-
-        // Test list specific shard
-        let specific_shard = adapter.list_shard(&namespace, "shard-1").await.unwrap();
-        assert_eq!(specific_shard.len(), 1);
-        assert_eq!(specific_shard[0].shard_name, "shard-1");
-
-        // Test delete shard
-        adapter.delete_shard(&namespace, "shard-1").await.unwrap();
-
-        // Verify shard-1 is deleted
-        let remaining_shards = adapter.list_shard(&namespace, "").await.unwrap();
-        assert_eq!(remaining_shards.len(), 1);
-
-        let deleted_shard = adapter.list_shard(&namespace, "shard-1").await.unwrap();
-        assert_eq!(deleted_shard.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_consumer_group_offset() {
-        // Setup
-        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
-        let shard_name = "group-test";
-        let group_name = "consumer-group-1";
-
-        // Write some messages
-        let messages = vec![
-            create_message(b"msg1"),
-            create_message(b"msg2"),
-            create_message(b"msg3"),
-        ];
-        adapter
-            .batch_write(&namespace, shard_name, &messages)
-            .await
-            .unwrap();
-
-        // Commit offset 1 for the consumer group
-        let mut offsets = HashMap::from([(shard_name.to_string(), 1u64)]);
-        adapter
-            .commit_offset(group_name, &namespace, &offsets)
-            .await
-            .unwrap();
-
-        // Verify committed offset
-        let group_offsets = adapter.get_offset_by_group(group_name).await.unwrap();
-        assert_eq!(group_offsets.len(), 1);
-        assert_eq!(group_offsets[0].offset, 1);
-
-        // Update offset to 2
-        offsets.insert(shard_name.to_string(), 2);
-        adapter
-            .commit_offset(group_name, &namespace, &offsets)
-            .await
-            .unwrap();
-
-        // Verify updated offset
-        let updated_offsets = adapter.get_offset_by_group(group_name).await.unwrap();
-        assert_eq!(updated_offsets[0].offset, 2);
-
-        // Test get offset for non-existent group
-        let empty_offsets = adapter
-            .get_offset_by_group("nonexistent-group")
-            .await
-            .unwrap();
-        assert_eq!(empty_offsets.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_timestamp_query() {
-        // Setup
-        let adapter = MemoryStorageAdapter::new(StorageDriverMemoryConfig::default());
-        let namespace = unique_id();
-        let shard_name = "timestamp-test";
-
-        // Write messages with different timestamps
-        let timestamps = [1000u64, 2000, 3000];
-        for (i, &timestamp) in timestamps.iter().enumerate() {
-            let msg =
-                create_message_with_metadata(format!("msg{}", i).as_bytes(), vec![], "", timestamp);
-            adapter.write(&namespace, shard_name, &msg).await.unwrap();
+        // Collect all offsets
+        let mut all_offsets = vec![];
+        for h in handles {
+            all_offsets.extend(h.await.unwrap());
         }
 
-        // Test query: timestamp 1500 should return offset 1 (closest match)
-        let result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 1500)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.offset, 1);
+        // Verify: 50 unique offsets [0..49]
+        all_offsets.sort();
+        assert_eq!(all_offsets.len(), 50);
+        assert_eq!(all_offsets, (0..50).collect::<Vec<u64>>());
 
-        // Test query: timestamp 500 should return offset 0 (first message)
-        let result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 500)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.offset, 0);
+        // Verify final state
+        let state = a.shard_state.get("concurrent").unwrap();
+        assert_eq!(state.next_offset, 50);
+        assert_eq!(a.shard_data.get("concurrent").unwrap().len(), 50);
+    }
 
-        // Test query: timestamp 4000 (beyond all messages) should return None
-        let result = adapter
-            .get_offset_by_timestamp(&namespace, shard_name, 4000)
-            .await
-            .unwrap();
-        assert!(result.is_none());
+    #[tokio::test]
+    async fn test_shard_lifecycle() {
+        let a = MemoryStorageAdapter::default();
 
-        // Test query: non-existent shard should return None
-        let result = adapter
-            .get_offset_by_timestamp(&namespace, "nonexistent", 1000)
-            .await
-            .unwrap();
-        assert!(result.is_none());
+        // create_shard
+        let s1 = ShardInfo {
+            shard_name: "s1".into(),
+            replica_num: 3,
+            ..Default::default()
+        };
+        let s2 = ShardInfo {
+            shard_name: "s2".into(),
+            replica_num: 1,
+            ..Default::default()
+        };
+        a.create_shard(&s1).await.unwrap();
+        a.create_shard(&s2).await.unwrap();
+
+        // list_shard: all
+        let all = a.list_shard("").await.unwrap();
+        assert_eq!(all.len(), 2);
+
+        // list_shard: specific
+        let one = a.list_shard("s1").await.unwrap();
+        assert_eq!(one.len(), 1);
+        assert_eq!(one[0].shard_name, "s1");
+        assert_eq!(one[0].replica_num, 3);
+
+        // delete_shard
+        a.delete_shard("s1").await.unwrap();
+        assert_eq!(a.list_shard("").await.unwrap().len(), 1);
+        assert_eq!(a.list_shard("s1").await.unwrap().len(), 0);
+
+        // close (no-op, just verify it doesn't panic)
+        a.close().await.unwrap();
     }
 }

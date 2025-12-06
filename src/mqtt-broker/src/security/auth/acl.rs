@@ -69,9 +69,9 @@ fn check_for_deny(
 #[cfg(test)]
 mod test {
     use super::is_acl_deny;
-    use crate::common::tool::test_build_mqtt_cache_manager;
     use crate::handler::cache::MQTTCacheManager;
     use crate::handler::constant::WILDCARD_RESOURCE;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;

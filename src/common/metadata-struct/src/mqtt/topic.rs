@@ -17,15 +17,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MQTTTopic {
-    pub cluster_name: String,
     pub topic_name: String,
     pub create_time: u64,
 }
 
 impl MQTTTopic {
-    pub fn new(cluster_name: String, topic_name: String) -> Self {
+    pub fn new(topic_name: String) -> Self {
         MQTTTopic {
-            cluster_name,
             topic_name,
             create_time: now_second(),
         }

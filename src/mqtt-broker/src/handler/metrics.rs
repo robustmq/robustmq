@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_metrics::mqtt::{
     packets::record_packet_send_metrics,
     publish::{
@@ -76,7 +76,7 @@ pub fn record_send_metrics(
         record_packet_send_duration(
             network,
             mqtt_packet_to_string(packet),
-            (now_mills() - start) as f64,
+            (now_millis() - start) as f64,
         );
     }
 

@@ -24,7 +24,7 @@ use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_metrics::mqtt::event::{
     record_mqtt_connection_failed, record_mqtt_connection_success, record_mqtt_subscribe_failed,
     record_mqtt_subscribe_success, record_mqtt_unsubscribe_success,
@@ -85,7 +85,7 @@ impl Command for MQTTHandlerCommand {
         addr: &SocketAddr,
         robust_packet: &RobustMQPacket,
     ) -> Option<ResponsePackage> {
-        let start = now_mills();
+        let start = now_millis();
         let packet = robust_packet.get_mqtt_packet().unwrap();
         let mut is_connect_pkg = false;
         if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
@@ -209,7 +209,7 @@ impl Command for MQTTHandlerCommand {
         record_packet_process_duration(
             &tcp_connection.connection_type,
             &mqtt_packet_to_string(&packet),
-            (now_mills() - start) as f64,
+            (now_millis() - start) as f64,
         );
         resp_package
     }

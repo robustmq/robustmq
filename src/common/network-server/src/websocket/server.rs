@@ -25,7 +25,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_config::broker::broker_config;
 use common_metrics::network::record_ws_request_duration;
 use futures_util::stream::StreamExt;
@@ -224,7 +224,7 @@ async fn process_socket_packet_by_binary(
     addr: &SocketAddr,
     data: &Vec<u8>,
 ) -> ResultCommonError {
-    let receive_ms = now_mills();
+    let receive_ms = now_millis();
     let mut buf = BytesMut::with_capacity(data.len());
     buf.put(data.as_slice());
     if let Some(packet) = codec.decode_data(&mut buf)? {
@@ -272,7 +272,7 @@ async fn process_socket_packet_by_binary(
             };
 
             // write to client
-            let response_ms = now_mills();
+            let response_ms = now_millis();
             if let Err(e) = connection_manager
                 .write_websocket_frame(
                     tcp_connection.connection_id,

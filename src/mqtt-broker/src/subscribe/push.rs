@@ -14,7 +14,6 @@
 
 use super::common::min_qos;
 use super::common::Subscriber;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::{
     MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
 };
@@ -23,11 +22,13 @@ use crate::handler::message::is_message_expire;
 use crate::handler::metrics::record_publish_send_metrics;
 use crate::handler::metrics::record_send_metrics;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
+use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
@@ -47,84 +48,78 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
 use tracing::{debug, warn};
 
-#[derive(Clone)]
-pub struct BuildPublishMessageContext {
-    pub cache_manager: Arc<MQTTCacheManager>,
-    pub connection_manager: Arc<ConnectionManager>,
-    pub client_id: String,
-    pub record: Record,
-    pub group_id: String,
-    pub qos: QoS,
-    pub subscriber: Subscriber,
-    pub sub_ids: Vec<usize>,
-}
+// Timeout constants
+const ACK_WAIT_TIMEOUT_SECS: u64 = 5;
+const RETRY_OPERATION_TIMEOUT_SECS: u64 = 3;
+const RETRY_SLEEP_INTERVAL_MS: u64 = 200;
+const RETRY_SLEEP_ITERATIONS: usize = 5; // 5 * 200ms = 1000ms
 
 pub async fn build_publish_message(
-    context: BuildPublishMessageContext,
+    cache_manager: &Arc<MQTTCacheManager>,
+    connection_manager: &Arc<ConnectionManager>,
+    record: &Record,
+    subscriber: &Subscriber,
 ) -> Result<Option<SubPublishParam>, MqttBrokerError> {
-    let msg = MqttMessage::decode_record(context.record.clone())?;
+    let msg = MqttMessage::decode_record(record.clone())?;
 
+    // Early exit for expired messages
     if is_message_expire(&msg) {
-        debug!("Message dropping: message expires, is not pushed to the client, and is discarded");
-        return Ok(None);
-    }
-
-    if !is_send_msg_by_bo_local(
-        context.subscriber.nolocal,
-        &context.subscriber.client_id,
-        &msg.client_id,
-    ) {
         debug!(
-            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_name: {}",
-            context.subscriber.client_id, context.subscriber.topic_name
+            "Message dropping: message expired, client_id: {}, topic: {}",
+            subscriber.client_id, subscriber.topic_name
         );
         return Ok(None);
     }
 
-    let connect_id = if let Some(id) = context.cache_manager.get_connect_id(&context.client_id) {
-        id
-    } else {
-        return Err(MqttBrokerError::ConnectionNullSkipPushMessage(
-            context.client_id.to_owned(),
-        ));
-    };
+    // Early exit for no_local constraint
+    if !is_send_msg_by_bo_local(subscriber.no_local, &subscriber.client_id, &msg.client_id) {
+        debug!(
+            "Message dropping: no_local constraint, client_id: {}, topic: {}",
+            subscriber.client_id, subscriber.topic_name
+        );
+        return Ok(None);
+    }
 
-    if let Some(conn) = context.cache_manager.get_connection(connect_id) {
+    let connect_id = cache_manager
+        .get_connect_id(&subscriber.client_id)
+        .ok_or_else(|| {
+            MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.to_owned())
+        })?;
+
+    // Check max packet size constraint
+    if let Some(conn) = cache_manager.get_connection(connect_id) {
         if msg.payload.len() > (conn.max_packet_size as usize) {
             debug!(
-                "{:?}",
-                MqttBrokerError::PacketsExceedsLimitBySubPublish(
-                    context.client_id.to_owned(),
-                    msg.payload.len(),
-                    conn.max_packet_size
-                )
+                "Message dropping: payload size {} exceeds max packet size {}, client_id: {}",
+                msg.payload.len(),
+                conn.max_packet_size,
+                subscriber.client_id
             );
             return Ok(None);
         }
     }
 
-    let mut contain_properties = false;
-    if let Some(protocol) = context.connection_manager.get_connect_protocol(connect_id) {
-        if protocol.is_mqtt5() {
-            contain_properties = true;
-        }
-    }
+    // Determine if MQTT5 properties should be included
+    let contain_properties = connection_manager
+        .get_connect_protocol(connect_id)
+        .map(|p| p.is_mqtt5())
+        .unwrap_or(false);
 
-    let pkid = context
-        .cache_manager
+    let qos = build_pub_qos(cache_manager, subscriber).await;
+    let p_kid = cache_manager
         .pkid_metadata
-        .generate_pkid(&context.client_id, &context.qos)
+        .generate_pkid(&subscriber.client_id, &qos)
         .await;
 
-    let retain =
-        get_retain_flag_by_retain_as_published(context.subscriber.preserve_retain, msg.retain);
+    let retain = get_retain_flag_by_retain_as_published(subscriber.preserve_retain, msg.retain);
+    let sub_ids = build_sub_ids(subscriber);
 
     let publish = Publish {
         dup: false,
-        qos: context.qos,
-        p_kid: pkid,
+        qos,
+        p_kid,
         retain,
-        topic: Bytes::copy_from_slice(context.subscriber.topic_name.as_bytes()),
+        topic: Bytes::copy_from_slice(subscriber.topic_name.as_bytes()),
         payload: msg.payload,
     };
 
@@ -136,7 +131,7 @@ pub async fn build_publish_message(
             response_topic: msg.response_topic,
             correlation_data: msg.correlation_data,
             user_properties: msg.user_properties.unwrap_or_default(),
-            subscription_identifiers: context.sub_ids,
+            subscription_identifiers: sub_ids,
             content_type: msg.content_type,
         })
     } else {
@@ -144,84 +139,82 @@ pub async fn build_publish_message(
     };
 
     let packet = MqttPacket::Publish(publish, properties);
-    let sub_pub_param = SubPublishParam::new(
-        context.subscriber.clone(),
+    Ok(Some(SubPublishParam {
         packet,
-        context.record.timestamp as u128,
-        context.group_id.to_string(),
-        pkid,
-    );
-    Ok(Some(sub_pub_param))
+        create_time: now_second(),
+        client_id: subscriber.client_id.to_string(),
+        p_kid,
+        qos,
+    }))
 }
 
 pub async fn send_publish_packet_to_client(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     sub_pub_param: &SubPublishParam,
-    qos: &QoS,
     stop_sx: &Sender<bool>,
 ) -> ResultMqttBrokerError {
-    match qos {
+    match sub_pub_param.qos {
         QoS::AtMostOnce => {
-            push_packet_to_client(cache_manager, connection_manager, sub_pub_param, stop_sx)
-                .await?;
+            push_packet_to_client(cache_manager, connection_manager, sub_pub_param, stop_sx).await
         }
 
         QoS::AtLeastOnce => {
             let (wait_puback_sx, _) = broadcast::channel(1);
-            let client_id = sub_pub_param.subscribe.client_id.clone();
-            let pkid: u16 = sub_pub_param.pkid;
+            let pkid = sub_pub_param.p_kid;
             cache_manager.pkid_metadata.add_ack_packet(
-                &client_id,
+                &sub_pub_param.client_id,
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
-                    create_time: now_mills(),
+                    create_time: now_millis(),
                 },
             );
 
-            exclusive_publish_message_qos1(
+            let result = exclusive_publish_message_qos1(
                 cache_manager,
                 connection_manager,
                 sub_pub_param,
                 stop_sx,
                 &wait_puback_sx,
             )
-            .await?;
+            .await;
 
             cache_manager
                 .pkid_metadata
-                .remove_ack_packet(&client_id, pkid);
+                .remove_ack_packet(&sub_pub_param.client_id, pkid);
+
+            result
         }
 
         QoS::ExactlyOnce => {
             let (wait_ack_sx, _) = broadcast::channel(1);
-            let client_id = sub_pub_param.subscribe.client_id.clone();
-            let pkid = sub_pub_param.pkid;
+            let pkid = sub_pub_param.p_kid;
             cache_manager.pkid_metadata.add_ack_packet(
-                &client_id,
+                &sub_pub_param.client_id,
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_ack_sx.clone(),
-                    create_time: now_mills(),
+                    create_time: now_millis(),
                 },
             );
 
-            exclusive_publish_message_qos2(
+            let result = exclusive_publish_message_qos2(
                 cache_manager,
                 connection_manager,
                 sub_pub_param,
                 stop_sx,
                 &wait_ack_sx,
             )
-            .await?;
+            .await;
 
             cache_manager
                 .pkid_metadata
-                .remove_ack_packet(&client_id, pkid);
+                .remove_ack_packet(&sub_pub_param.client_id, pkid);
+
+            result
         }
     }
-    Ok(())
 }
 
 pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
@@ -231,15 +224,13 @@ pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &S
         .await
         .mqtt_protocol_config
         .max_qos;
-    min_qos(qos(cluster_qos).unwrap(), subscriber.qos)
+
+    let cluster_qos_level = qos(cluster_qos).unwrap_or(QoS::ExactlyOnce);
+    min_qos(cluster_qos_level, subscriber.qos)
 }
 
 pub fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {
-    let mut sub_ids = Vec::new();
-    if let Some(id) = subscriber.subscription_identifier {
-        sub_ids.push(id);
-    }
-    sub_ids
+    subscriber.subscription_identifier.into_iter().collect()
 }
 
 // When the subscription QOS is 0,
@@ -251,17 +242,20 @@ pub async fn push_packet_to_client(
     stop_sx: &broadcast::Sender<bool>,
 ) -> ResultMqttBrokerError {
     let action_fn = || async {
-        let client_id = sub_pub_param.subscribe.client_id.clone();
-
-        if cache_manager.get_session_info(&client_id).is_none() {
-            return Err(MqttBrokerError::SessionNullSkipPushMessage(client_id));
+        if cache_manager
+            .get_session_info(&sub_pub_param.client_id)
+            .is_none()
+        {
+            return Err(MqttBrokerError::SessionNullSkipPushMessage(
+                sub_pub_param.client_id.clone(),
+            ));
         }
 
-        let connect_id = if let Some(id) = cache_manager.get_connect_id(&client_id) {
-            id
-        } else {
-            return Err(MqttBrokerError::ConnectionNullSkipPushMessage(client_id));
-        };
+        let connect_id = cache_manager
+            .get_connect_id(&sub_pub_param.client_id)
+            .ok_or_else(|| {
+                MqttBrokerError::ConnectionNullSkipPushMessage(sub_pub_param.client_id.clone())
+            })?;
 
         let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
         let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subscribe".to_string());
@@ -337,31 +331,12 @@ pub async fn exclusive_publish_message_qos2(
     Ok(())
 }
 
-pub async fn wait_packet_ack(
-    sx: &Sender<QosAckPackageData>,
-    type_name: &str,
-    client_id: &str,
-) -> Result<Option<QosAckPackageData>, MqttBrokerError> {
-    let timeout_ms = 30;
-    match timeout(Duration::from_secs(timeout_ms), async {
-        (sx.subscribe().recv().await).ok()
-    })
-    .await
-    {
-        Ok(Some(data)) => Ok(Some(data)),
-        Ok(None) => Ok(None),
-        Err(_) => Err(MqttBrokerError::CommonError(format!(
-            "Publish message to client {client_id}, wait {type_name} timeout, more than {client_id}s"
-        ))),
-    }
-}
-
 pub async fn send_message_to_client(
     resp: ResponsePackage,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
 ) -> ResultMqttBrokerError {
-    let start = now_mills();
+    let start = now_millis();
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
             protocol
@@ -369,46 +344,61 @@ pub async fn send_message_to_client(
             RobustMQProtocol::MQTT3
         };
 
-    let packet = resp.packet.get_mqtt_packet().unwrap();
+    let packet = resp
+        .packet
+        .get_mqtt_packet()
+        .ok_or_else(|| MqttBrokerError::CommonError("Failed to get MQTT packet".to_string()))?;
+
     let response = build_mqtt_packet_wrapper(protocol.clone(), packet.clone());
 
-    if connection_manager.is_websocket(resp.connection_id) {
-        let mut codec = MqttCodec::new(Some(protocol.to_u8()));
-        let mut buff = BytesMut::new();
-        if let Err(e) = codec.encode_data(response.to_mqtt(), &mut buff) {
-            return Err(MqttBrokerError::WebsocketEncodePacketFailed(e.to_string()));
+    // Send based on connection type
+    match (
+        connection_manager.is_websocket(resp.connection_id),
+        connection_manager.is_quic(resp.connection_id),
+    ) {
+        (true, _) => {
+            let mut codec = MqttCodec::new(Some(protocol.to_u8()));
+            let mut buff = BytesMut::new();
+            if let Err(e) = codec.encode_data(response.to_mqtt(), &mut buff) {
+                return Err(MqttBrokerError::WebsocketEncodePacketFailed(e.to_string()));
+            }
+            connection_manager
+                .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))
+                .await?;
         }
-        connection_manager
-            .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))
-            .await?;
-    } else if connection_manager.is_quic(resp.connection_id) {
-        connection_manager
-            .write_quic_frame(resp.connection_id, response)
-            .await?;
-    } else {
-        connection_manager
-            .write_tcp_frame(resp.connection_id, response)
-            .await?
+        (false, true) => {
+            connection_manager
+                .write_quic_frame(resp.connection_id, response)
+                .await?;
+        }
+        (false, false) => {
+            connection_manager
+                .write_tcp_frame(resp.connection_id, response)
+                .await?;
+        }
+    }
+
+    // Record metrics for Publish packets
+    if let MqttPacket::Publish(publish, _) = &packet {
+        if let Ok(topic_name) = String::from_utf8(publish.topic.to_vec()) {
+            if let Some(connection) = cache_manager.get_connection(resp.connection_id) {
+                record_publish_send_metrics(
+                    &connection.client_id,
+                    resp.connection_id,
+                    &topic_name,
+                    publish.payload.len() as u64,
+                );
+            }
+        }
     }
 
     let network_type = connection_manager.get_network_type(resp.connection_id);
     let wrapper = MqttPacketWrapper {
         protocol_version: protocol.to_u8(),
-        packet: packet.clone(),
+        packet,
     };
 
-    if let MqttPacket::Publish(publish, _) = packet.clone() {
-        let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        let connection = cache_manager.get_connection(resp.connection_id).unwrap();
-        record_publish_send_metrics(
-            &connection.client_id,
-            resp.connection_id,
-            &topic_name,
-            publish.payload.len() as u64,
-        );
-    }
-
-    record_send_metrics(&wrapper, &packet, network_type, start);
+    record_send_metrics(&wrapper, &wrapper.packet, network_type, start);
     Ok(())
 }
 
@@ -423,18 +413,21 @@ pub async fn wait_pub_ack(
         let mut wait_ack_rx = wait_ack_sx.subscribe();
         loop {
             let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubAck && package.pkid == sub_pub_param.pkid {
+            if package.ack_type == QosAckPackageType::PubAck && package.pkid == sub_pub_param.p_kid
+            {
                 return Ok(());
             }
-            sleep(Duration::from_secs(1)).await;
         }
     };
 
     let ac_fn = async || -> ResultMqttBrokerError {
         loop {
-            if timeout(Duration::from_secs(5), wait_pub_ack_fn())
-                .await
-                .is_err()
+            if timeout(
+                Duration::from_secs(ACK_WAIT_TIMEOUT_SECS),
+                wait_pub_ack_fn(),
+            )
+            .await
+            .is_err()
             {
                 push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await?;
@@ -459,18 +452,21 @@ pub async fn wait_pub_rec(
         let mut wait_ack_rx = wait_rec_sx.subscribe();
         loop {
             let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubRec && package.pkid == sub_pub_param.pkid {
+            if package.ack_type == QosAckPackageType::PubRec && package.pkid == sub_pub_param.p_kid
+            {
                 return Ok(());
             }
-            sleep(Duration::from_secs(1)).await;
         }
     };
 
     let ac_fn = async || -> ResultMqttBrokerError {
         loop {
-            if timeout(Duration::from_secs(5), wait_pub_rec_fn())
-                .await
-                .is_err()
+            if timeout(
+                Duration::from_secs(ACK_WAIT_TIMEOUT_SECS),
+                wait_pub_rec_fn(),
+            )
+            .await
+            .is_err()
             {
                 push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await?;
@@ -491,23 +487,25 @@ pub async fn wait_pub_comp(
     stop_sx: &broadcast::Sender<bool>,
     wait_comp_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
-    let wait_pub_rec_fn = async || -> ResultMqttBrokerError {
+    let wait_pub_comp_fn = async || -> ResultMqttBrokerError {
         let mut wait_ack_rx = wait_comp_sx.subscribe();
         loop {
             let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubComp && package.pkid == sub_pub_param.pkid
+            if package.ack_type == QosAckPackageType::PubComp && package.pkid == sub_pub_param.p_kid
             {
                 return Ok(());
             }
-            sleep(Duration::from_secs(1)).await;
         }
     };
 
     let ac_fn = async || -> ResultMqttBrokerError {
         loop {
-            if timeout(Duration::from_secs(5), wait_pub_rec_fn())
-                .await
-                .is_err()
+            if timeout(
+                Duration::from_secs(ACK_WAIT_TIMEOUT_SECS),
+                wait_pub_comp_fn(),
+            )
+            .await
+            .is_err()
             {
                 qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx)
                     .await?;
@@ -527,21 +525,20 @@ pub async fn qos2_send_pubrel(
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
 ) -> ResultMqttBrokerError {
-    let mut new_sub_pub_param = sub_pub_param.to_owned();
-
     let pubrel = PubRel {
-        pkid: sub_pub_param.pkid,
+        pkid: sub_pub_param.p_kid,
         reason: Some(protocol::mqtt::common::PubRelReason::Success),
     };
-    new_sub_pub_param.packet = MqttPacket::PubRel(pubrel, None);
 
-    push_packet_to_client(
-        metadata_cache,
-        connection_manager,
-        &new_sub_pub_param,
-        stop_sx,
-    )
-    .await
+    let pubrel_param = SubPublishParam {
+        packet: MqttPacket::PubRel(pubrel, None),
+        create_time: sub_pub_param.create_time,
+        client_id: sub_pub_param.client_id.clone(),
+        p_kid: sub_pub_param.p_kid,
+        qos: sub_pub_param.qos,
+    };
+
+    push_packet_to_client(metadata_cache, connection_manager, &pubrel_param, stop_sx).await
 }
 
 async fn retry_tool_fn_timeout<F, Fut>(
@@ -553,12 +550,14 @@ where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = ResultMqttBrokerError>,
 {
-    let to = 3;
-    match timeout(Duration::from_secs(to), retry_tool_fn(ac_fn, stop_sx)).await {
-        Ok(res) => res?,
-        Err(_) => return Err(MqttBrokerError::OperationTimeout(to, action.to_string())),
-    }
-    Ok(())
+    timeout(
+        Duration::from_secs(RETRY_OPERATION_TIMEOUT_SECS),
+        retry_tool_fn(ac_fn, stop_sx),
+    )
+    .await
+    .map_err(|_| {
+        MqttBrokerError::OperationTimeout(RETRY_OPERATION_TIMEOUT_SECS, action.to_string())
+    })?
 }
 
 async fn retry_tool_fn<F, Fut>(ac_fn: F, stop_sx: &broadcast::Sender<bool>) -> ResultMqttBrokerError
@@ -584,7 +583,11 @@ where
 
                     if !is_ignore_push_error(&e){
                         warn!("retry tool fn fail, error message:{}",e);
-                        sleep(Duration::from_secs(1)).await;
+
+                        // Sleep with interruptible intervals for better responsiveness
+                        if interruptible_sleep(&mut stop_recv, RETRY_SLEEP_ITERATIONS).await.is_err() {
+                            return Ok(());
+                        }
                         continue;
                     }
                 }
@@ -595,8 +598,171 @@ where
     Ok(())
 }
 
+/// Sleep in small intervals while checking for stop signal
+async fn interruptible_sleep(
+    stop_recv: &mut broadcast::Receiver<bool>,
+    iterations: usize,
+) -> Result<(), ()> {
+    for _ in 0..iterations {
+        select! {
+            val = stop_recv.recv() => {
+                if let Ok(true) = val {
+                    return Err(());
+                }
+            }
+            _ = sleep(Duration::from_millis(RETRY_SLEEP_INTERVAL_MS)) => {}
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
+    use super::*;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::subscribe::common::Subscriber;
+    use common_base::tools::now_second;
+    use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
+    use std::time::Instant;
+
+    fn create_test_subscriber(
+        client_id: &str,
+        subscription_identifier: Option<usize>,
+        qos: QoS,
+    ) -> Subscriber {
+        Subscriber {
+            client_id: client_id.to_string(),
+            sub_path: "/test/topic".to_string(),
+            rewrite_sub_path: None,
+            topic_name: "/test/topic".to_string(),
+            group_name: "test_group".to_string(),
+            protocol: MqttProtocol::Mqtt5,
+            qos,
+            no_local: false,
+            preserve_retain: false,
+            retain_forward_rule: RetainHandling::OnEverySubscribe,
+            subscription_identifier,
+            create_time: now_second(),
+        }
+    }
+
     #[test]
-    fn topic_subscribe_test() {}
+    fn test_build_sub_ids_with_identifier() {
+        let subscriber = create_test_subscriber("client1", Some(123), QoS::AtLeastOnce);
+        assert_eq!(build_sub_ids(&subscriber), vec![123]);
+    }
+
+    #[test]
+    fn test_build_sub_ids_without_identifier() {
+        let subscriber = create_test_subscriber("client1", None, QoS::AtLeastOnce);
+        assert_eq!(build_sub_ids(&subscriber), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn test_build_sub_ids_with_zero_identifier() {
+        let subscriber = create_test_subscriber("client1", Some(0), QoS::AtLeastOnce);
+        assert_eq!(build_sub_ids(&subscriber), vec![0]);
+    }
+
+    #[tokio::test]
+    async fn test_build_pub_qos_min_selection() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let subscriber = create_test_subscriber("client1", None, QoS::ExactlyOnce);
+        let result = build_pub_qos(&cache_manager, &subscriber).await;
+        assert!(matches!(result, QoS::AtLeastOnce | QoS::ExactlyOnce));
+    }
+
+    #[tokio::test]
+    async fn test_build_pub_qos_subscriber_lower() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let subscriber = create_test_subscriber("client1", None, QoS::AtMostOnce);
+        assert_eq!(
+            build_pub_qos(&cache_manager, &subscriber).await,
+            QoS::AtMostOnce
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_pub_qos_same_level() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let subscriber = create_test_subscriber("client1", None, QoS::AtLeastOnce);
+        assert_eq!(
+            build_pub_qos(&cache_manager, &subscriber).await,
+            QoS::AtLeastOnce
+        );
+    }
+
+    #[tokio::test]
+    async fn test_interruptible_sleep_completes_normally() {
+        let (_stop_sx, mut stop_rx) = broadcast::channel(1);
+        let start = Instant::now();
+        let result = interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS).await;
+
+        assert!(result.is_ok());
+        assert!(start.elapsed().as_millis() >= 1000);
+    }
+
+    #[tokio::test]
+    async fn test_interruptible_sleep_interrupted_early() {
+        let (stop_sx, mut stop_rx) = broadcast::channel(1);
+        let start = Instant::now();
+
+        tokio::spawn(async move {
+            sleep(Duration::from_millis(400)).await;
+            let _ = stop_sx.send(true);
+        });
+
+        let result = interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS).await;
+        assert!(result.is_err());
+        assert!(start.elapsed().as_millis() < 1000);
+    }
+
+    #[tokio::test]
+    async fn test_interruptible_sleep_immediate_stop() {
+        let (stop_sx, mut stop_rx) = broadcast::channel(1);
+        stop_sx.send(true).unwrap();
+        assert!(interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_interruptible_sleep_false_signal_ignored() {
+        let (stop_sx, mut stop_rx) = broadcast::channel(1);
+
+        tokio::spawn(async move {
+            sleep(Duration::from_millis(200)).await;
+            let _ = stop_sx.send(false);
+        });
+
+        assert!(interruptible_sleep(&mut stop_rx, 2).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_interruptible_sleep_zero_iterations() {
+        let (_stop_sx, mut stop_rx) = broadcast::channel(1);
+        assert!(interruptible_sleep(&mut stop_rx, 0).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_interruptible_sleep_responsiveness() {
+        let (stop_sx, mut stop_rx) = broadcast::channel(1);
+        let start = Instant::now();
+
+        tokio::spawn(async move {
+            sleep(Duration::from_millis(50)).await;
+            let _ = stop_sx.send(true);
+        });
+
+        assert!(interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS)
+            .await
+            .is_err());
+        assert!(start.elapsed().as_millis() <= 250);
+    }
+
+    #[test]
+    fn test_retry_sleep_iterations_constant() {
+        let total_ms = (RETRY_SLEEP_ITERATIONS as u64) * RETRY_SLEEP_INTERVAL_MS;
+        assert_eq!(total_ms, 1000);
+    }
 }

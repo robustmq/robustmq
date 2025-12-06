@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::{

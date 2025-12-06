@@ -52,7 +52,7 @@ pub struct CacheManager {
 
     // MQTT
     // (cluster_name,(topic_name,topic))
-    pub topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
+    pub topic_list: DashMap<String, MQTTTopic>,
 
     // (cluster_name,(username,user))
     pub user_list: DashMap<String, DashMap<String, MqttUser>>,
@@ -254,9 +254,9 @@ pub fn load_cache(
     for cluster in cache_manager.get_all_cluster() {
         // Topic
         let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let data = topic.list(&cluster.cluster_name)?;
+        let data = topic.list()?;
         for topic in data {
-            cache_manager.add_topic(&cluster.cluster_name, topic);
+            cache_manager.add_topic(topic);
         }
 
         // User

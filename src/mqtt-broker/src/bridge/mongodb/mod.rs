@@ -28,8 +28,8 @@ use mongodb::{
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{debug, error, info, warn};
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},

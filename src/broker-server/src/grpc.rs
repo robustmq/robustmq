@@ -15,7 +15,7 @@
 use crate::cluster_service::ClusterInnerService;
 use axum::http::{self};
 use common_base::error::common::CommonError;
-use common_base::tools::now_mills;
+use common_base::tools::now_millis;
 use common_config::broker::broker_config;
 use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grpc_request};
 use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
@@ -207,9 +207,9 @@ where
         let mut inner = std::mem::replace(&mut self.inner, clone);
 
         Box::pin(async move {
-            let start_time = now_mills();
+            let start_time = now_millis();
             let response = inner.call(req).await;
-            let duration_ms = (now_mills() - start_time) as f64;
+            let duration_ms = (now_millis() - start_time) as f64;
 
             match response {
                 Ok(resp) => {

@@ -14,9 +14,9 @@
 
 use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flow_control::is_connection_rate_exceeded;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::{now_second, unique_id};
@@ -137,7 +137,7 @@ pub async fn disconnect_connection(
     if delete_session {
         session_storage.delete_session(client_id.to_owned()).await?;
         cache_manager.remove_session(client_id);
-        subscribe_manager.remove_client_id(client_id);
+        subscribe_manager.remove_by_client_id(client_id);
     } else {
         cache_manager.update_session_connect_id(client_id, None);
         session_storage
@@ -241,7 +241,7 @@ where
 #[cfg(test)]
 mod test {
 
-    use crate::common::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager;
 
     use super::{
         build_connection, get_client_id, response_information, MQTTConnection,

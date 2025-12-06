@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::tool::ResultMqttBrokerError;
 use broker_core::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use common_config::config::{

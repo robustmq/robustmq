@@ -596,7 +596,7 @@ mod tests {
     //         start_segment_seq: 0,
     //         active_segment_seq: 0,
     //         last_segment_seq: 0,
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //     };
     //     let segment_no = 1;
     //     let segment = create_segment(
@@ -617,7 +617,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 1,
     //         node_inner_addr: "".to_string(),
@@ -637,7 +637,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 2,
     //         node_inner_addr: "".to_string(),
@@ -648,7 +648,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 3,
     //         node_inner_addr: "".to_string(),
@@ -691,7 +691,7 @@ mod tests {
     //         start_segment_seq: 0,
     //         active_segment_seq: 0,
     //         last_segment_seq: 0,
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //     };
 
     //     let extend_info = JournalNodeExtend {
@@ -703,7 +703,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 1,
     //         node_inner_addr: "".to_string(),
@@ -714,7 +714,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 2,
     //         node_inner_addr: "".to_string(),
@@ -725,7 +725,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 3,
     //         node_inner_addr: "".to_string(),
@@ -768,7 +768,7 @@ mod tests {
     //         start_segment_seq: 0,
     //         active_segment_seq: 0,
     //         last_segment_seq: 0,
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //     };
 
     //     engine_cache.add_shard(&shard_info);
@@ -782,7 +782,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 1,
     //         node_inner_addr: "".to_string(),
@@ -793,7 +793,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 2,
     //         node_inner_addr: "".to_string(),
@@ -804,7 +804,7 @@ mod tests {
     //     let node = BrokerNode {
     //         cluster_name: config.cluster_name.clone(),
     //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
+    //         create_time: now_millis(),
     //         extend: serde_json::to_string(&extend_info).unwrap(),
     //         node_id: 3,
     //         node_inner_addr: "".to_string(),
