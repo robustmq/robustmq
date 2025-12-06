@@ -147,7 +147,7 @@ zstd = "0.13"
 # Message Queue & Streaming
 # ====================
 rdkafka = "0.37.0"
-kafka-protocol = "0.15.1"
+kafka-protocol = "0.17.0"
 pulsar = "6.3.1"
 lapin = "2.5.0"
 elasticsearch = "8.19.0-alpha.1"
