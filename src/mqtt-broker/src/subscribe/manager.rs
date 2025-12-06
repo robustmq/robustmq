@@ -175,6 +175,16 @@ impl SubscribeManager {
             .unwrap_or(false)
     }
 
+    pub fn is_exclusive_subscribe_by_other(&self, topic_name: &str, client_id: &str) -> bool {
+        self.topic_subscribes
+            .get(topic_name)
+            .map(|list| {
+                list.iter()
+                    .any(|raw| is_exclusive_sub(&raw.path) && raw.client_id != *client_id)
+            })
+            .unwrap_or(false)
+    }
+
     fn subscribe_key(&self, client_id: &str, path: &str) -> String {
         format!("{client_id}#{path}")
     }
@@ -300,5 +310,21 @@ mod tests {
         assert!(mgr.is_exclusive_subscribe("topic2"));
 
         assert!(!mgr.is_exclusive_subscribe("topic_not_exist"));
+    }
+
+    #[test]
+    fn test_is_exclusive_subscribe_by_other() {
+        let mgr = SubscribeManager::new();
+
+        mgr.add_topic_subscribe("topic1", "c1", "$exclusive/t1");
+
+        // Same client should return false
+        assert!(!mgr.is_exclusive_subscribe_by_other("topic1", "c1"));
+
+        // Different client should return true
+        assert!(mgr.is_exclusive_subscribe_by_other("topic1", "c2"));
+
+        // Non-existent topic should return false
+        assert!(!mgr.is_exclusive_subscribe_by_other("topic_not_exist", "c1"));
     }
 }
