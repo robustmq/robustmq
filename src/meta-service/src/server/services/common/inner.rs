@@ -99,7 +99,7 @@ pub async fn set_resource_config_by_req(
     let config = ClusterResourceConfig {
         cluster_name: req.cluster_name.clone(),
         resource: req.resources.join("/"),
-        config: req.config.clone(),
+        config: req.config.clone().into(),
     };
 
     update_cache_by_set_resource_config(&req.cluster_name, call_manager, client_pool, config)
