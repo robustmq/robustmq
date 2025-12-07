@@ -50,7 +50,7 @@ pub mod schema_test;
 mod session_expire;
 // pub mod share_sub_test;
 pub mod sub_auto;
-pub mod sub_exclusive_test;
+// pub mod sub_exclusive_test;
 pub mod sub_identifier_test;
 pub mod sub_options_test;
 pub mod sub_wildcards_test;

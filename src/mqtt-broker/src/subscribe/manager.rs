@@ -54,7 +54,7 @@ pub struct SubscribeManager {
     pub directly_push: BucketsManager,
 
     // share sub
-    pub share_push: BucketsManager,
+    pub share_push: DashMap<String, BucketsManager>,
 
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
 
@@ -71,7 +71,7 @@ impl SubscribeManager {
             topic_subscribes: DashMap::with_capacity(64),
             not_push_client: DashMap::with_capacity(32),
             directly_push: BucketsManager::new(10000),
-            share_push: BucketsManager::new(10000),
+            share_push: DashMap::new(),
             update_cache_sender: Arc::new(RwLock::new(None)),
         }
     }
@@ -96,7 +96,14 @@ impl SubscribeManager {
 
     pub fn add_share_sub(&self, topic: &str, subscriber: &Subscriber) {
         self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
-        // todo
+        if let Some(bucket) = self.share_push.get(&subscriber.group_name) {
+            bucket.add(subscriber);
+        } else {
+            let bucket = BucketsManager::new(10000);
+            bucket.add(subscriber);
+            self.share_push
+                .insert(subscriber.group_name.to_string(), bucket);
+        }
     }
 
     // remove
@@ -112,6 +119,10 @@ impl SubscribeManager {
 
         self.not_push_client.remove(client_id);
         self.directly_push.remove_by_client_id(client_id);
+
+        for row in self.share_push.iter() {
+            row.remove_by_client_id(client_id);
+        }
     }
 
     pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
@@ -125,10 +136,20 @@ impl SubscribeManager {
         });
 
         self.directly_push.remove_by_sub(client_id, sub_path);
+
+        for row in self.share_push.iter() {
+            row.remove_by_sub(client_id, sub_path);
+        }
     }
 
-    pub fn remove_by_topic(&self, _topic_name: &str) {
-        // todo
+    pub fn remove_by_topic(&self, topic_name: &str) {
+        self.topic_subscribes.remove(topic_name);
+
+        self.directly_push.remove_by_topic(topic_name);
+
+        for row in self.share_push.iter() {
+            row.remove_by_topic(topic_name);
+        }
     }
 
     // add parse data

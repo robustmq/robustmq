@@ -41,6 +41,8 @@ pub struct BucketsManager {
     client_id_sub: DashMap<String, HashSet<u64>>,
     // (client_id_sub_path, (seq))
     client_id_sub_path_sub: DashMap<String, HashSet<u64>>,
+    // (topic, (seq))
+    topic_sub: DashMap<String, HashSet<u64>>,
 
     bucket_size: u64,
     seq_num: Arc<AtomicU64>,
@@ -60,6 +62,7 @@ impl BucketsManager {
             client_id_sub: DashMap::with_capacity(128),
             client_id_sub_path_sub: DashMap::with_capacity(128),
             buckets_data_list: DashMap::with_capacity(8),
+            topic_sub: DashMap::with_capacity(8),
         }
     }
 
@@ -85,6 +88,15 @@ impl BucketsManager {
             self.client_id_sub_path_sub.insert(key, set);
         }
 
+        if let Some(mut data) = self.topic_sub.get_mut(&subscriber.topic_name) {
+            data.insert(seq);
+        } else {
+            let mut set = HashSet::new();
+            set.insert(seq);
+            self.client_id_sub
+                .insert(subscriber.topic_name.clone(), set);
+        }
+
         self.add_data_list(seq, subscriber);
     }
 
@@ -105,6 +117,18 @@ impl BucketsManager {
         let seqs: Vec<u64> = self
             .client_id_sub_path_sub
             .get(&key)
+            .map(|data| data.iter().copied().collect())
+            .unwrap_or_default();
+
+        for seq in seqs {
+            self.remove_data_list_by_seq(&seq);
+        }
+    }
+
+    pub fn remove_by_topic(&self, topic: &str) {
+        let seqs: Vec<u64> = self
+            .topic_sub
+            .get(topic)
             .map(|data| data.iter().copied().collect())
             .unwrap_or_default();
 
