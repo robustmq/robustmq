@@ -229,6 +229,18 @@ pub async fn handle_status(args: StatusArgs) {
             println!("❌ RobustMQ Status: Offline or unreachable");
             println!("🌐 Server: {}", args.server);
             error_info(format!("Connection error: {e}"));
+            return;
+        }
+    }
+
+    match admin_client.get_status().await {
+        Ok(status_info) => {
+            println!("✅ RobustMQ Status Info: {status_info}");
+        }
+        Err(e) => {
+            println!("❌ RobustMQ Status: Offline or unreachable");
+            println!("🌐 Server: {}", args.server);
+            error_info(format!("Connection error: {e}"));
         }
     }
 }
