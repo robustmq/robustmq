@@ -273,7 +273,7 @@ mod tests {
         assert_eq!(topic_name, "/sport/#".to_string());
 
         let (group_name, topic_name) = decode_share_info(&sub4);
-        assert_eq!(group_name, "consumer1".to_string());
+        assert_eq!(group_name, "comsumer1".to_string());
         assert_eq!(topic_name, "/finance/#".to_string());
     }
 

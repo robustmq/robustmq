@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use crate::{
-    handler::tool::ResultMqttBrokerError,
     handler::{
         cache::MQTTCacheManager,
+        error::MqttBrokerError,
         sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
-        sub_share::{decode_share_info, is_mqtt_share_subscribe},
+        sub_share::{
+            decode_share_info, full_group_name, is_mqtt_share_subscribe, is_share_sub_leader,
+        },
+        tool::ResultMqttBrokerError,
     },
     subscribe::{
         common::{is_match_sub_and_topic, Subscriber},
@@ -256,6 +259,7 @@ async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBrokerErro
     if is_mqtt_share_subscribe(&context.filter.path) {
         add_share_push(
             &context.subscribe_manager,
+            &context.client_pool,
             &AddSharePushContext {
                 topic_name: context.topic.topic_name.to_owned(),
                 client_id: context.client_id.to_owned(),
@@ -264,7 +268,8 @@ async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBrokerErro
                 filter: context.filter.clone(),
                 pkid: context.pkid,
             },
-        );
+        )
+        .await?;
     } else {
         add_directly_push(AddDirectlyPushContext {
             subscribe_manager: context.subscribe_manager.clone(),
@@ -274,20 +279,29 @@ async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBrokerErro
             sub_identifier,
             filter: context.filter.clone(),
             rewrite_sub_path: context.rewrite_sub_path.clone(),
-        });
+        })?;
     }
     Ok(())
 }
 
-fn add_share_push(subscribe_manager: &Arc<SubscribeManager>, req: &AddSharePushContext) {
+async fn add_share_push(
+    subscribe_manager: &Arc<SubscribeManager>,
+    client_pool: &Arc<ClientPool>,
+    req: &AddSharePushContext,
+) -> ResultMqttBrokerError {
     let (group_name, sub_name) = decode_share_info(&req.filter.path);
-    let group_name_full = format!("{group_name}_{sub_name}");
+    let group_name_full = full_group_name(&group_name, &sub_name);
 
     if is_match_sub_and_topic(&sub_name, &req.topic_name).is_ok() {
         debug!(
             "Adding share subscription: client='{}', group='{}', topic='{}'",
             req.client_id, group_name_full, req.topic_name
         );
+
+        // If the current node is not the Leader, then there is no need to process it and no error needs to be reported.
+        if !is_share_sub_leader(client_pool, &group_name_full).await? {
+            return Ok(());
+        }
 
         let sub = create_subscriber(
             req.protocol.clone(),
@@ -302,9 +316,10 @@ fn add_share_push(subscribe_manager: &Arc<SubscribeManager>, req: &AddSharePushC
 
         subscribe_manager.add_share_sub(&req.topic_name, &sub);
     }
+    Ok(())
 }
 
-fn add_directly_push(context: AddDirectlyPushContext) {
+fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
     let path = if is_exclusive_sub(&context.filter.path) {
         decode_exclusive_sub_path_to_topic_name(&context.filter.path)
     } else {
@@ -340,6 +355,7 @@ fn add_directly_push(context: AddDirectlyPushContext) {
             .subscribe_manager
             .add_directly_sub(&context.topic.topic_name, &sub);
     }
+    Ok(())
 }
 
 #[cfg(test)]

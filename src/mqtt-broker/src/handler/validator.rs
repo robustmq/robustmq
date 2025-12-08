@@ -24,10 +24,12 @@ use super::response::{
 use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
 use crate::handler::response::{build_puback, build_pubrec};
+use crate::handler::sub_share::group_leader_validator;
 use crate::handler::sub_wildcards::sub_path_validator;
 use crate::security::AuthDriver;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::config::BrokerConfig;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, LastWill, LastWillProperties, Login, MqttPacket,
@@ -36,6 +38,7 @@ use protocol::mqtt::common::{
 };
 use std::cmp::min;
 use std::sync::Arc;
+use tracing::error;
 
 pub fn connect_validator(
     protocol: &MqttProtocol,
@@ -293,6 +296,7 @@ pub async fn publish_validator(
 pub async fn subscribe_validator(
     protocol: &MqttProtocol,
     auth_driver: &Arc<AuthDriver>,
+    client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
@@ -357,6 +361,29 @@ pub async fn subscribe_validator(
             vec![SubscribeReasonCode::NotAuthorized],
             None,
         ));
+    }
+
+    match group_leader_validator(client_pool, &subscribe.filters).await {
+        Ok(Some(addr)) => {
+            return Some(response_packet_mqtt_suback(
+                protocol,
+                connection,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::],
+                None,
+            ));
+        }
+        Ok(None) => {}
+        Err(e) => {
+            error!("{}", e);
+            return Some(response_packet_mqtt_suback(
+                protocol,
+                connection,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::Unspecified],
+                None,
+            ));
+        }
     }
 
     None
