@@ -58,7 +58,7 @@ pub async fn send_message_validator(
     msg: &MqttMessage,
 ) -> Result<bool, MqttBrokerError> {
     // Check if message has expired
-    if !send_message_validator_by_message_expire(&msg) {
+    if !send_message_validator_by_message_expire(msg) {
         return Ok(false);
     }
     // Check if message size is within limits
@@ -778,6 +778,6 @@ mod tests {
             ..Default::default()
         };
         let result = send_message_validator(&cache_manager, "test_client", &msg).await;
-        assert_eq!(result.unwrap(), false);
+        assert!(!result.unwrap());
     }
 }
