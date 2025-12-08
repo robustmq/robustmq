@@ -369,7 +369,7 @@ pub async fn subscribe_validator(
                 protocol,
                 connection,
                 subscribe.packet_identifier,
-                vec![SubscribeReasonCode::],
+                vec![SubscribeReasonCode::Unspecified],
                 None,
             ));
         }
