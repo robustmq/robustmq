@@ -24,21 +24,6 @@ use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{mpsc::Sender, RwLock};
 use tracing::error;
 
-#[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct ShareLeaderSubscribeData {
-    pub path: String,
-
-    // group
-    pub group_name: String,
-    pub sub_path: String,
-
-    // topic
-    pub topic_name: String,
-
-    // (client_id, subscriber)
-    pub sub_list: DashMap<String, Subscriber>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct TopicSubscribeInfo {
     pub client_id: String,
@@ -54,7 +39,10 @@ pub struct SubscribeManager {
     pub directly_push: BucketsManager,
 
     // share sub
+    // (group_name, BucketsManager)
     pub share_push: DashMap<String, BucketsManager>,
+    // (group_name, Vec<TopicName>)
+    pub share_group_topics: DashMap<String, HashSet<String>>,
 
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
 
@@ -71,7 +59,8 @@ impl SubscribeManager {
             topic_subscribes: DashMap::with_capacity(64),
             not_push_client: DashMap::with_capacity(32),
             directly_push: BucketsManager::new(10000),
-            share_push: DashMap::new(),
+            share_push: DashMap::with_capacity(8),
+            share_group_topics: DashMap::with_capacity(8),
             update_cache_sender: Arc::new(RwLock::new(None)),
         }
     }
@@ -95,7 +84,10 @@ impl SubscribeManager {
     }
 
     pub fn add_share_sub(&self, topic: &str, subscriber: &Subscriber) {
+        // topic_subscribes
         self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
+
+        // share_push
         if let Some(bucket) = self.share_push.get(&subscriber.group_name) {
             bucket.add(subscriber);
         } else {
@@ -103,6 +95,16 @@ impl SubscribeManager {
             bucket.add(subscriber);
             self.share_push
                 .insert(subscriber.group_name.to_string(), bucket);
+        }
+
+        // share_group_topics
+        if let Some(mut list) = self.share_group_topics.get_mut(&subscriber.group_name) {
+            list.insert(topic.to_string());
+        } else {
+            let mut set = HashSet::new();
+            set.insert(topic.to_string());
+            self.share_group_topics
+                .insert(subscriber.group_name.to_string(), set);
         }
     }
 
