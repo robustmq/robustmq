@@ -23,7 +23,7 @@ use crate::{
 use axum::{extract::State, Json};
 use mqtt_broker::{
     handler::sub_share::{decode_share_info, is_mqtt_share_subscribe, is_share_sub_leader},
-    subscribe::{common::Subscriber, manager::ShareLeaderSubscribeData},
+    subscribe::common::Subscriber,
 };
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -65,7 +65,6 @@ pub struct SubTopicRaw {
     pub path: String,
     pub topic_name: String,
     pub exclusive_push_data: Option<Subscriber>,
-    pub share_push_data: Option<ShareLeaderSubscribeData>,
     pub push_thread: Option<SubPushThreadDataRaw>,
 }
 

@@ -24,21 +24,6 @@ use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{mpsc::Sender, RwLock};
 use tracing::error;
 
-#[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct ShareLeaderSubscribeData {
-    pub path: String,
-
-    // group
-    pub group_name: String,
-    pub sub_path: String,
-
-    // topic
-    pub topic_name: String,
-
-    // (client_id, subscriber)
-    pub sub_list: DashMap<String, Subscriber>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct TopicSubscribeInfo {
     pub client_id: String,
@@ -54,7 +39,10 @@ pub struct SubscribeManager {
     pub directly_push: BucketsManager,
 
     // share sub
-    pub share_push: BucketsManager,
+    // (group_name, BucketsManager)
+    pub share_push: DashMap<String, BucketsManager>,
+    // (group_name, Vec<TopicName>)
+    pub share_group_topics: DashMap<String, HashSet<String>>,
 
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
 
@@ -71,7 +59,8 @@ impl SubscribeManager {
             topic_subscribes: DashMap::with_capacity(64),
             not_push_client: DashMap::with_capacity(32),
             directly_push: BucketsManager::new(10000),
-            share_push: BucketsManager::new(10000),
+            share_push: DashMap::with_capacity(8),
+            share_group_topics: DashMap::with_capacity(8),
             update_cache_sender: Arc::new(RwLock::new(None)),
         }
     }
@@ -95,8 +84,28 @@ impl SubscribeManager {
     }
 
     pub fn add_share_sub(&self, topic: &str, subscriber: &Subscriber) {
+        // topic_subscribes
         self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
-        // todo
+
+        // share_push
+        if let Some(bucket) = self.share_push.get(&subscriber.group_name) {
+            bucket.add(subscriber);
+        } else {
+            let bucket = BucketsManager::new(10000);
+            bucket.add(subscriber);
+            self.share_push
+                .insert(subscriber.group_name.to_string(), bucket);
+        }
+
+        // share_group_topics
+        if let Some(mut list) = self.share_group_topics.get_mut(&subscriber.group_name) {
+            list.insert(topic.to_string());
+        } else {
+            let mut set = HashSet::new();
+            set.insert(topic.to_string());
+            self.share_group_topics
+                .insert(subscriber.group_name.to_string(), set);
+        }
     }
 
     // remove
@@ -104,27 +113,45 @@ impl SubscribeManager {
         self.subscribe_list
             .retain(|_, subscribe| subscribe.client_id != *client_id);
 
-        for mut list in self.topic_subscribes.iter_mut() {
+        // Clean up topic_subscribes and remove empty entries
+        self.topic_subscribes.retain(|_, list| {
             list.retain(|x| x.client_id != *client_id);
-        }
+            !list.is_empty()
+        });
 
         self.not_push_client.remove(client_id);
         self.directly_push.remove_by_client_id(client_id);
+
+        for row in self.share_push.iter() {
+            row.remove_by_client_id(client_id);
+        }
     }
 
     pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
         let key = self.subscribe_key(client_id, sub_path);
         self.subscribe_list.remove(&key);
 
-        for mut list in self.topic_subscribes.iter_mut() {
+        // Clean up topic_subscribes and remove empty entries
+        self.topic_subscribes.retain(|_, list| {
             list.retain(|x| !(x.path == *sub_path && x.client_id == *client_id));
-        }
+            !list.is_empty()
+        });
 
         self.directly_push.remove_by_sub(client_id, sub_path);
+
+        for row in self.share_push.iter() {
+            row.remove_by_sub(client_id, sub_path);
+        }
     }
 
-    pub fn remove_by_topic(&self, _topic_name: &str) {
-        // todo
+    pub fn remove_by_topic(&self, topic_name: &str) {
+        self.topic_subscribes.remove(topic_name);
+
+        self.directly_push.remove_by_topic(topic_name);
+
+        for row in self.share_push.iter() {
+            row.remove_by_topic(topic_name);
+        }
     }
 
     // add parse data
@@ -168,6 +195,16 @@ impl SubscribeManager {
         self.topic_subscribes
             .get(topic_name)
             .map(|list| list.iter().any(|raw| is_exclusive_sub(&raw.path)))
+            .unwrap_or(false)
+    }
+
+    pub fn is_exclusive_subscribe_by_other(&self, topic_name: &str, client_id: &str) -> bool {
+        self.topic_subscribes
+            .get(topic_name)
+            .map(|list| {
+                list.iter()
+                    .any(|raw| is_exclusive_sub(&raw.path) && raw.client_id != *client_id)
+            })
             .unwrap_or(false)
     }
 
@@ -296,5 +333,21 @@ mod tests {
         assert!(mgr.is_exclusive_subscribe("topic2"));
 
         assert!(!mgr.is_exclusive_subscribe("topic_not_exist"));
+    }
+
+    #[test]
+    fn test_is_exclusive_subscribe_by_other() {
+        let mgr = SubscribeManager::new();
+
+        mgr.add_topic_subscribe("topic1", "c1", "$exclusive/t1");
+
+        // Same client should return false
+        assert!(!mgr.is_exclusive_subscribe_by_other("topic1", "c1"));
+
+        // Different client should return true
+        assert!(mgr.is_exclusive_subscribe_by_other("topic1", "c2"));
+
+        // Non-existent topic should return false
+        assert!(!mgr.is_exclusive_subscribe_by_other("topic_not_exist", "c1"));
     }
 }
