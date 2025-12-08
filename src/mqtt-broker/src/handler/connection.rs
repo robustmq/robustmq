@@ -202,6 +202,7 @@ where
             packet: response_packet_mqtt_distinct_by_reason(
                 &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::QuotaExceeded),
+                None,
             ),
         };
         if let Err(e) = write_frame_stream.send(packet_wrapper).await {
@@ -226,6 +227,7 @@ where
             packet: response_packet_mqtt_distinct_by_reason(
                 &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::ConnectionRateExceeded),
+                None,
             ),
         };
 

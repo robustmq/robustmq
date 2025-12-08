@@ -25,7 +25,7 @@ pub const SHARE_SUB_PREFIX: &str = "$share";
 
 pub async fn group_leader_validator(
     client_pool: &Arc<ClientPool>,
-    filters: &Vec<Filter>,
+    filters: &[Filter],
 ) -> Result<Option<String>, CommonError> {
     for filter in filters.iter() {
         if !is_mqtt_share_subscribe(&filter.path) {

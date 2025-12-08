@@ -98,6 +98,7 @@ impl Command for MQTTHandlerCommand {
                 RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
                     &MqttProtocol::Mqtt4,
                     Some(DisconnectReasonCode::NotAuthorized),
+                    None,
                 )),
             ));
         }
@@ -315,6 +316,7 @@ impl MQTTHandlerCommand {
                 RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
                     &tcp_connection.get_protocol(),
                     Some(DisconnectReasonCode::MaximumConnectTime),
+                    None,
                 )),
             ));
         };

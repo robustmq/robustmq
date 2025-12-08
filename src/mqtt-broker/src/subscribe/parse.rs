@@ -15,7 +15,6 @@
 use crate::{
     handler::{
         cache::MQTTCacheManager,
-        error::MqttBrokerError,
         sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
         sub_share::{
             decode_share_info, full_group_name, is_mqtt_share_subscribe, is_share_sub_leader,
@@ -415,7 +414,7 @@ mod tests {
         };
 
         // Should not panic
-        add_directly_push(context);
+        add_directly_push(context).unwrap();
         assert!(manager.topic_subscribes.get("topic").is_some());
     }
 
@@ -438,7 +437,7 @@ mod tests {
         };
 
         // Should not panic and should match wildcard
-        add_directly_push(context);
+        add_directly_push(context).unwrap();
         assert!(manager.topic_subscribes.get("test/topic").is_some());
     }
 }
