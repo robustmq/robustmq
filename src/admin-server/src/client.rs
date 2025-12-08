@@ -183,7 +183,14 @@ impl AdminHttpClient {
 impl AdminHttpClient {
     /// Get service version information
     pub async fn get_version(&self) -> Result<String, HttpClientError> {
-        self.get("/").await
+        // Use "/api" (no trailing slash) to avoid static file route conflict
+        self.get(&api_path("")).await
+    }
+
+    /// Get cluster status information
+    pub async fn get_status(&self) -> Result<String, HttpClientError> {
+        let empty_request = serde_json::json!({});
+        self.post_raw(&api_path(STATUS_PATH), &empty_request).await
     }
 
     /// Get cluster overview

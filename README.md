@@ -135,7 +135,7 @@ make build-full         # With frontend
 
 ## 🤝 Contributing
 
-We welcome contributions! Check out our [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) and [Good First Issues](https://github.com/robustmq/robustmq/labels/good%20first%20issue).
+We welcome contributions! Check out our [Contribution Guide](https://robustmq.com/en/ContributionGuide/GitHub-Contribution-Guide.html) and [Good First Issues](https://github.com/robustmq/robustmq/labels/good%20first%20issue).
 
 
 ## 🌐 Community

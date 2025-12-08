@@ -15,70 +15,19 @@
 
 sh example/mqtt-cluster/stop.sh
 
-start_pc_cluster(){
+start_server(){
 
-    nohup cargo run --package cmd --bin meta-service -- --conf=example/mqtt-cluster/meta-service/node-1.toml 2>/tmp/1.log &
-    # nohup cargo run --package cmd --bin meta-service -- --conf=example/mqtt-cluster/meta-service/node-2.toml 2>/tmp/2.log &
-    # nohup cargo run --package cmd --bin meta-service -- --conf=example/mqtt-cluster/meta-service/node-3.toml 2>/tmp/3.log &
+    nohup cargo run --package cmd --bin broker-server -- --conf=example/mqtt-cluster/config/server.toml 2>/tmp/1.log &
     sleep 3
 
-    no1=`ps -ef | grep meta-service  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
+    no=`ps -ef | grep broker-server  | grep example/mqtt-cluster/config/server.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no" ]
     then
-        echo "meta-service node 1 started successfully. process no: $no1"
+        echo "broker server node started successfully. process no: $no"
     fi
 
-    # no2=`ps -ef | grep meta-service  | grep node-2 | grep -v grep | awk '{print $2}'`
-    # if [[ -n $no2 ]]
-    # then
-    #     echo "meta-service node 2 started successfully. process no: $no2"
-    # fi
-
-    # no3=`ps -ef | grep meta-service  | grep node-3 | grep -v grep | awk '{print $2}'`
-    # if [[ -n $no3 ]]
-    # then
-    #     echo "meta-service node 3 started successfully. process no: $no3"
-    # fi
-
-    echo "\n-------------------------------------\n"
-
-    # cargo run --package cmd --bin cli-command place -s 127.0.0.1:1228 status
-    # cargo run --package cmd --bin cli-command place -s 127.0.0.1:2228 status
-    # cargo run --package cmd --bin cli-command place -s 127.0.0.1:3228 status
+    # you can run the following command to query cluster status
+    # cargo run --package cmd --bin cli-command status --server 127.0.0.1:8080
 }
 
-start_mqtt_cluster(){
-    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/4.log &
-
-    no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
-        echo "mqtt cluster node 1 started successfully. process no: $no1"
-    fi
-
-    echo "\n-------------------------------------\n"
-
-    # cargo run --package cmd --bin cli-command mqtt -s 127.0.0.1:9981 status
-}
-
-start_journal_cluster(){
-    nohup cargo run --package cmd --bin journal-server -- --conf=example/mqtt-cluster/journal-server/node-1.toml 2>/tmp/7.log &
-
-    no1=`ps -ef | grep journal-server | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
-        echo "journal-server node 1 started successfully. process no: $no1"
-    fi
-
-    echo "\n-------------------------------------\n"
-}
-
-start_pc_cluster
-
-sleep 3
-
-start_journal_cluster
-
-sleep 3
-
-start_mqtt_cluster
+start_server

@@ -1,0 +1,60 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cluster_name = "example-cluster"
+broker_id = 1
+roles = ["meta", "broker"]
+grpc_port = 1228
+http_port = 8080
+meta_addrs = { 1 = "127.0.0.1:1228" }
+
+[rocksdb]
+data_path = "example/mqtt-cluster/data/broker/data"
+max_open_files = 10000
+
+[p_prof]
+enable = false
+port = 6777
+frequency = 1000
+
+[log]
+log_config = "example/mqtt-cluster/config/server-tracing.toml"
+log_path = "example/mqtt-cluster/data/broker/logs"
+
+[network]
+accept_thread_num = 1
+handler_thread_num = 1
+response_thread_num = 1
+queue_size = 2000
+lock_max_try_mut_times = 30
+lock_try_mut_sleep_time_ms = 50
+keep_alive_enable = false
+
+[mqtt_keep_alive]
+enable = true
+default_time = 180
+max_time = 3600
+default_timeout = 2
+
+[prometheus]
+enable = true
+port = 9091
+
+[mqtt_offline_message]
+enable = true
+expire_ms = 3600000
+max_messages_num = 100000
+
+[storage_offset]
+enable_cache = true

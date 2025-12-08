@@ -225,4 +225,4 @@ make install
 
 - [Main README](../README.md) - Project overview
 - [Build Guide](https://robustmq.com/en/QuickGuide/Build-and-Package.html) - Detailed build instructions
-- [Contributing Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) - How to contribute
+- [Contributing Guide](https://robustmq.com/en/ContributionGuide/GitHub-Contribution-Guide.html) - How to contribute
