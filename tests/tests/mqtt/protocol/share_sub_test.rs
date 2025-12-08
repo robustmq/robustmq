@@ -14,9 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder};
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
@@ -24,6 +21,8 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder};
 
     #[tokio::test]
     async fn share_single_subscribe_test() {
