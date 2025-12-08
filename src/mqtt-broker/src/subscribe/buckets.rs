@@ -93,8 +93,7 @@ impl BucketsManager {
         } else {
             let mut set = HashSet::new();
             set.insert(seq);
-            self.topic_sub
-                .insert(subscriber.topic_name.clone(), set);
+            self.topic_sub.insert(subscriber.topic_name.clone(), set);
         }
 
         self.add_data_list(seq, subscriber);
