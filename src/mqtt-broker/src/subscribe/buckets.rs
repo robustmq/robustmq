@@ -32,7 +32,7 @@ pub struct SubPushThreadData {
     pub sender: Sender<bool>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct BucketsManager {
     // (bucket_id, (seq,subscriber))
     pub buckets_data_list: DashMap<String, DashMap<u64, Subscriber>>,
@@ -46,16 +46,11 @@ pub struct BucketsManager {
 
     bucket_size: u64,
     seq_num: Arc<AtomicU64>,
-}
-
-impl Default for BucketsManager {
-    fn default() -> Self {
-        Self::new(10000)
-    }
+    bucket_id: Option<String>,
 }
 
 impl BucketsManager {
-    pub fn new(bucket_len: u64) -> Self {
+    pub fn new(bucket_id: Option<String>, bucket_len: u64) -> Self {
         BucketsManager {
             bucket_size: bucket_len,
             seq_num: Arc::new(AtomicU64::new(0)),
@@ -63,6 +58,7 @@ impl BucketsManager {
             client_id_sub_path_sub: DashMap::with_capacity(128),
             buckets_data_list: DashMap::with_capacity(8),
             topic_sub: DashMap::with_capacity(8),
+            bucket_id,
         }
     }
 
@@ -136,21 +132,47 @@ impl BucketsManager {
         }
     }
 
+    pub fn get_sub_client_seqs(&self, key: &str) -> Vec<u64> {
+        if let Some(data) = self.buckets_data_list.get(key) {
+            return data.iter().map(|entry| *entry.key()).collect();
+        }
+        Vec::new()
+    }
+
+    pub fn get_subscribe_by_key_seq(&self, key: &str, seq: u64) -> Option<Subscriber> {
+        if let Some(data) = self.buckets_data_list.get(key) {
+            if let Some(sub) = data.get(&seq) {
+                return Some(sub.clone());
+            }
+        }
+        None
+    }
+
     fn add_data_list(&self, seq: u64, subscriber: &Subscriber) {
         let mut write_success = false;
-        for row in self.buckets_data_list.iter() {
-            if row.len() as u64 >= self.bucket_size {
-                continue;
+        if let Some(bucket_id) = self.bucket_id.clone() {
+            if let Some(data) = self.buckets_data_list.get(&bucket_id) {
+                data.insert(seq, subscriber.clone());
+            } else {
+                let data = DashMap::with_capacity(2);
+                data.insert(seq, subscriber.clone());
+                self.buckets_data_list.insert(bucket_id, data);
             }
-            row.insert(seq, subscriber.clone());
-            write_success = true;
-            break;
-        }
+        } else {
+            for row in self.buckets_data_list.iter() {
+                if row.len() as u64 >= self.bucket_size {
+                    continue;
+                }
+                row.insert(seq, subscriber.clone());
+                write_success = true;
+                break;
+            }
 
-        if !write_success {
-            let data = DashMap::with_capacity(2);
-            data.insert(seq, subscriber.clone());
-            self.buckets_data_list.insert(unique_id(), data);
+            if !write_success {
+                let data = DashMap::with_capacity(2);
+                data.insert(seq, subscriber.clone());
+                self.buckets_data_list.insert(unique_id(), data);
+            }
         }
     }
 
@@ -218,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let mgr = BucketsManager::new(10);
+        let mgr = BucketsManager::new(None, 10);
 
         mgr.add(&create_sub("c1", "/t1"));
         mgr.add(&create_sub("c2", "/t2"));
@@ -240,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_bucket_overflow() {
-        let mgr = BucketsManager::new(2);
+        let mgr = BucketsManager::new(None, 2);
 
         for i in 0..5 {
             mgr.add(&create_sub(&format!("c{}", i), "/t"));
@@ -254,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_remove_by_client_id() {
-        let mgr = BucketsManager::new(10);
+        let mgr = BucketsManager::new(None, 10);
 
         mgr.add(&create_sub("c1", "/t1"));
         mgr.add(&create_sub("c1", "/t2"));
@@ -277,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_remove_by_sub() {
-        let mgr = BucketsManager::new(10);
+        let mgr = BucketsManager::new(None, 10);
 
         mgr.add(&create_sub("c1", "/t1"));
         mgr.add(&create_sub("c1", "/t2"));
@@ -297,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_cleanup_empty_bucket() {
-        let mgr = BucketsManager::new(10);
+        let mgr = BucketsManager::new(None, 10);
 
         mgr.add(&create_sub("c1", "/t"));
 

@@ -58,7 +58,7 @@ impl SubscribeManager {
             subscribe_list: DashMap::with_capacity(128),
             topic_subscribes: DashMap::with_capacity(64),
             not_push_client: DashMap::with_capacity(32),
-            directly_push: BucketsManager::new(10000),
+            directly_push: BucketsManager::new(None, 10000),
             share_push: DashMap::with_capacity(8),
             share_group_topics: DashMap::with_capacity(8),
             update_cache_sender: Arc::new(RwLock::new(None)),
@@ -91,7 +91,7 @@ impl SubscribeManager {
         if let Some(bucket) = self.share_push.get(&subscriber.group_name) {
             bucket.add(subscriber);
         } else {
-            let bucket = BucketsManager::new(10000);
+            let bucket = BucketsManager::new(Some(subscriber.group_name.to_string()), 10000);
             bucket.add(subscriber);
             self.share_push
                 .insert(subscriber.group_name.to_string(), bucket);

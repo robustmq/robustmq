@@ -19,6 +19,10 @@ use crate::handler::sub_share::{decode_share_info, is_mqtt_share_subscribe};
 use crate::handler::sub_wildcards::is_wildcards;
 use crate::handler::tool::ResultMqttBrokerError;
 use common_base::error::not_record_error;
+use common_metrics::mqtt::subscribe::{
+    record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
+    record_subscribe_topic_messages_sent,
+};
 use protocol::mqtt::common::{
     Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
 };
@@ -175,6 +179,20 @@ pub fn is_error_by_suback(suback: &SubAck) -> bool {
                 | SubscribeReasonCode::QoS2
         )
     })
+}
+
+pub fn record_sub_send_metrics(
+    client_id: &str,
+    path: &str,
+    topic_name: &str,
+    data_size: u64,
+    success: bool,
+) {
+    record_subscribe_bytes_sent(client_id, path, data_size, success);
+    record_subscribe_topic_bytes_sent(client_id, path, topic_name, data_size, success);
+
+    record_subscribe_messages_sent(client_id, path, success);
+    record_subscribe_topic_messages_sent(client_id, path, topic_name, success);
 }
 
 #[cfg(test)]
