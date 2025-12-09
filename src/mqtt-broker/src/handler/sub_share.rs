@@ -61,7 +61,7 @@ pub fn decode_share_info(path: &str) -> (String, String) {
 }
 
 pub fn full_group_name(group_name: &str, sub_name: &str) -> String {
-    format!("{group_name}_{sub_name}")
+    format!("{group_name}{sub_name}")
 }
 
 pub async fn is_share_sub_leader(

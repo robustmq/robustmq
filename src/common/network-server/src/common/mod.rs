@@ -17,7 +17,6 @@ pub mod connection_manager;
 pub mod handler;
 pub mod metric;
 pub mod packet;
-// pub mod response;
 pub mod tcp_acceptor;
 pub mod tls_acceptor;
 pub mod tool;
