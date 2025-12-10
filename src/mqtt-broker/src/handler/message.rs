@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::tools::now_second;
+use protocol::mqtt::common::PublishProperties;
 use std::sync::Arc;
 
-use common_base::tools::now_second;
-use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::PublishProperties;
-
 use super::cache::MQTTCacheManager;
-
-pub fn is_message_expire(message: &MqttMessage) -> bool {
-    message.expiry_interval < now_second()
-}
 
 pub async fn build_message_expire(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -42,11 +36,10 @@ pub async fn build_message_expire(
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::message::{build_message_expire, is_message_expire};
+    use crate::handler::message::build_message_expire;
     use crate::handler::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
     use common_config::config::{BrokerConfig, MqttProtocolConfig};
-    use metadata_struct::mqtt::message::MqttMessage;
     use protocol::mqtt::common::PublishProperties;
 
     #[tokio::test]
@@ -71,22 +64,5 @@ mod tests {
         };
         let res = build_message_expire(&cache_manager, &Some(publish_properties)).await;
         assert_eq!(res, now_second() + 3);
-    }
-
-    #[test]
-    fn is_message_expire_test() {
-        let message = MqttMessage {
-            expiry_interval: now_second() - 10,
-            ..Default::default()
-        };
-
-        assert!(is_message_expire(&message));
-
-        let message = MqttMessage {
-            expiry_interval: now_second() + 10,
-            ..Default::default()
-        };
-
-        assert!(!is_message_expire(&message));
     }
 }

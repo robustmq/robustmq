@@ -62,7 +62,7 @@ pub fn topic_name_validator(topic_name: &str) -> ResultMqttBrokerError {
         ));
     }
 
-    let format_str = "^[A-Za-z0-9_+#/$]+$";
+    let format_str = "^[A-Za-z0-9_+#$/\\-]+$";
     let re = Regex::new(format_str).unwrap();
     if !re.is_match(topic_name) {
         return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(

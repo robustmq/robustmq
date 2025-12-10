@@ -23,7 +23,7 @@ use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::common::get_sub_topic_name_list;
 use crate::subscribe::common::min_qos;
-use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
+use crate::subscribe::common::{client_unavailable_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
@@ -124,7 +124,7 @@ pub async fn try_send_retain_message(context: TrySendRetainMessageContext) {
         })
         .await
         {
-            if !is_ignore_push_error(&e) {
+            if !client_unavailable_error(&e) {
                 warn!(
                     "Sending retain message failed with error message :{},client_id:{}",
                     e, context.client_id

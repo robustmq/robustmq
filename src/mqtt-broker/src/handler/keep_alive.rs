@@ -93,6 +93,7 @@ impl ClientKeepAlive {
                     let resp = response_packet_mqtt_distinct_by_reason(
                         &protocol.to_mqtt(),
                         Some(DisconnectReasonCode::NormalDisconnection),
+                        None,
                     );
 
                     let wrap = MqttPacketWrapper {

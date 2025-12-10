@@ -171,6 +171,7 @@ pub fn response_packet_mqtt_distinct(
 pub fn response_packet_mqtt_distinct_by_reason(
     protocol: &MqttProtocol,
     code: Option<DisconnectReasonCode>,
+    server_reference: Option<String>,
 ) -> MqttPacket {
     if !protocol.is_mqtt5() {
         return MqttPacket::Disconnect(Disconnect { reason_code: None }, None);
@@ -180,6 +181,7 @@ pub fn response_packet_mqtt_distinct_by_reason(
         Disconnect { reason_code: code },
         Some(DisconnectProperties {
             reason_string: Some("".to_string()),
+            server_reference,
             ..Default::default()
         }),
     )

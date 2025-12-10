@@ -12,25 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::sub_option::is_send_msg_by_bo_local;
+use crate::subscribe::common::record_sub_send_metrics;
+use crate::subscribe::push::{
+    send_message_validator_by_max_message_size, send_message_validator_by_message_expire,
+};
 use crate::{handler::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
     handler::tool::ResultMqttBrokerError,
     handler::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
     subscribe::{
-        common::{is_ignore_push_error, Subscriber},
+        common::{client_unavailable_error, Subscriber},
         manager::SubscribeManager,
         push::{build_publish_message, send_publish_packet_to_client},
-        push_model::{get_push_model, PushModel},
     },
 };
 use common_base::tools::now_second;
-use common_metrics::mqtt::subscribe::{
-    record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
-    record_subscribe_topic_messages_sent,
-};
 use metadata_struct::adapter::record::Record;
+use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
@@ -41,7 +43,7 @@ const BATCH_SIZE: u64 = 500;
 const IDLE_SLEEP_MS: u64 = 100;
 const LOW_LOAD_SLEEP_MS: u64 = 50;
 const HIGH_LOAD_SLEEP_MS: u64 = 10;
-const LOW_LOAD_THRESHOLD: usize = 10;
+const LOW_LOAD_THRESHOLD: u64 = 10;
 
 pub struct SharePushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -50,7 +52,7 @@ pub struct SharePushManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     message_storage: MessageStorage,
     group_name: String,
-    uuid: String,
+    seq: AtomicU64,
 }
 
 impl SharePushManager {
@@ -61,7 +63,6 @@ impl SharePushManager {
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         group_name: String,
-        uuid: String,
     ) -> Self {
         SharePushManager {
             subscribe_manager,
@@ -70,18 +71,19 @@ impl SharePushManager {
             rocksdb_engine_handler,
             connection_manager,
             group_name,
-            uuid,
+            seq: AtomicU64::new(0),
         }
     }
 
     pub async fn start(&self, stop_sx: &Sender<bool>) {
+        info!("SharePushManager[{}] started", self.group_name);
         let mut stop_rx = stop_sx.subscribe();
         loop {
             select! {
                 val = stop_rx.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
-                            info!("DirectlyPushManager[{}] stopped", self.uuid);
+                            info!("SharePushManager[{}] stopped", self.group_name);
                             break;
                         }
                     }
@@ -98,7 +100,7 @@ impl SharePushManager {
                             }
                         }
                         Err(e) => {
-                            error!("DirectlyPushManager[{}] send messages failed: {}", self.uuid, e);
+                            error!("SharePushManager[{}] send messages failed: {}", self.group_name, e);
                             sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
                         }
                     }
@@ -107,142 +109,165 @@ impl SharePushManager {
         }
     }
 
-    pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<usize, MqttBrokerError> {
-        let mut processed_count = 0;
-        if let Some(_data) = self
+    pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<u64, MqttBrokerError> {
+        let topic_list = if let Some(topic_list) = self
             .subscribe_manager
-            .directly_push
-            .buckets_data_list
-            .get(&self.uuid)
+            .share_group_topics
+            .get(&self.group_name)
         {
-            if let Some(topic_list) = self
-                .subscribe_manager
-                .share_group_topics
-                .get(&self.group_name)
-            {
-                for topic in topic_list.iter() {
-                    let data_list = self.next_message(&self.group_name, topic).await?;
+            topic_list
+        } else {
+            return Ok(0);
+        };
 
-                    let data_list_len = data_list.len();
-                    if data_list_len == 0 {
-                        return Ok(0);
-                    }
-                }
-            }
-        }
-
-        if let Some(data) = self
-            .subscribe_manager
-            .directly_push
-            .buckets_data_list
-            .get(&self.uuid)
-        {
-            let subscriber_count = data.len();
-            for row in data.iter() {
-                match self.process_subscriber_messages(&row, stop_sx).await {
-                    Ok(count) => {
-                        processed_count += count;
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}]: {}",
-                            row.client_id, row.group_name, row.topic_name, row.sub_path, e
-                        );
-                    }
-                }
-            }
-
-            if processed_count > 0 {
-                debug!(
-                    "Processed {} messages across {} subscribers in bucket [{}]",
-                    processed_count, subscriber_count, self.uuid
-                );
-            }
-        }
-
-        Ok(processed_count)
-    }
-
-    async fn process_subscriber_messages(
-        &self,
-        subscriber: &Subscriber,
-        stop_sx: &Sender<bool>,
-    ) -> Result<usize, MqttBrokerError> {
-        let mut processed_count = 0;
-        let mut last_commit_offset: Option<u64> = None;
-
-        let data_list = self
-            .next_message(&subscriber.group_name, &subscriber.topic_name)
-            .await?;
-
-        let data_list_len = data_list.len();
-        if data_list_len == 0 {
+        if topic_list.is_empty() {
             return Ok(0);
         }
 
-        let model = get_push_model(&subscriber.client_id, &subscriber.topic_name);
+        let buckets = if let Some(data) = self.subscribe_manager.share_push.get(&self.group_name) {
+            data.clone()
+        } else {
+            return Ok(0);
+        };
 
-        for record in data_list {
-            let record_offset = if let Some(offset) = record.offset {
-                offset
-            } else {
-                warn!(
-                    "Record without offset for subscriber [client_id: {}, topic: {}], skipping",
-                    subscriber.client_id, subscriber.topic_name
-                );
+        let seqs = buckets.get_sub_client_seqs(&self.group_name);
+        if seqs.is_empty() {
+            return Ok(0);
+        }
+
+        let mut processed_count = 0;
+        for topic in topic_list.iter() {
+            let data_list = self.next_message(&self.group_name, topic).await?;
+            if data_list.is_empty() {
                 continue;
-            };
+            }
 
-            let success = match self.push_data(subscriber, &record, stop_sx).await {
-                Ok(pushed) => {
-                    if pushed {
-                        processed_count += 1;
-                    }
+            let mut last_commit_offset: Option<u64> = None;
+            for record in data_list {
+                let record_offset = if let Some(offset) = record.offset {
+                    offset
+                } else {
+                    warn!(
+                        "Record without offset for subscriber [group_name: {}], skipping",
+                        self.group_name
+                    );
+                    continue;
+                };
+
+                let msg = MqttMessage::decode_record(record.clone())?;
+
+                // If the message has expired, it will not be delivered.
+                if !send_message_validator_by_message_expire(&msg) {
                     last_commit_offset = Some(record_offset);
-                    pushed
+                    continue;
                 }
-                Err(e) => {
-                    if !is_ignore_push_error(&e) {
-                        warn!(
-                            "Directly push fail, offset [{:?}], error message:{}",
-                            record.offset, e
+
+                let max_attempts = seqs.len();
+                let mut attempts = 0;
+                let mut break_flag = false;
+                loop {
+                    if attempts >= max_attempts {
+                        debug!(
+                            "Failed to push message after {} attempts for group {}, skipping record at offset {:?}",
+                            attempts, self.group_name, record.offset
                         );
-                    }
-                    if model == PushModel::RetryFailure {
+                        break_flag = true;
                         break;
                     }
-                    false
-                }
-            };
+                    attempts += 1;
 
-            self.record_metrics(
-                &subscriber.client_id,
-                &subscriber.sub_path,
-                &subscriber.topic_name,
-                record.size() as u64,
-                success,
-            );
-        }
-        if let Some(offset) = last_commit_offset {
-            if let Err(e) = self
-                .commit_offset(&subscriber.group_name, &subscriber.topic_name, offset)
-                .await
-            {
-                error!(
-                    "Failed to commit offset for subscriber [client_id: {}, group: {}, topic: {}, offset: {}]: {}. Messages may be redelivered on next poll",
-                    subscriber.client_id, subscriber.group_name, subscriber.topic_name, offset, e
-                );
-            } else {
-                debug!(
-                    "Committed offset {} for subscriber [client_id: {}, topic: {}], processed: {} messages",
-                    offset, subscriber.client_id, subscriber.topic_name, processed_count
-                );
+                    let row_seq = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let index = row_seq % (seqs.len() as u64);
+                    if let Some(subscriber) =
+                        buckets.get_subscribe_by_key_seq(&self.group_name, index)
+                    {
+                        // check allow send
+                        if !self
+                            .subscribe_manager
+                            .allow_push_client(&subscriber.client_id)
+                        {
+                            continue;
+                        }
+
+                        // If the message exceeds the size limit specified for the entire client ID, try the next client.
+                        let allow = match send_message_validator_by_max_message_size(
+                            &self.cache_manager,
+                            &subscriber.client_id,
+                            &msg,
+                        )
+                        .await
+                        {
+                            Ok(allow) => allow,
+                            Err(e) => {
+                                if !client_unavailable_error(&e) {
+                                    self.subscribe_manager
+                                        .add_not_push_client(&subscriber.client_id);
+                                }
+                                continue;
+                            }
+                        };
+
+                        if !allow {
+                            continue;
+                        }
+
+                        // If the message cannot be sent to the entire client group, try the next client.
+                        if !is_send_msg_by_bo_local(
+                            subscriber.no_local,
+                            &subscriber.client_id,
+                            &msg.client_id,
+                        ) {
+                            continue;
+                        }
+
+                        // Push data
+                        let success = match self.push_data(&subscriber, &msg, stop_sx).await {
+                            Ok(pushed) => {
+                                if pushed {
+                                    processed_count += 1;
+                                }
+                                last_commit_offset = Some(record_offset);
+                                pushed
+                            }
+                            Err(e) => {
+                                if !client_unavailable_error(&e) {
+                                    self.subscribe_manager
+                                        .add_not_push_client(&subscriber.client_id);
+                                }
+
+                                continue;
+                            }
+                        };
+
+                        record_sub_send_metrics(
+                            &subscriber.client_id,
+                            &subscriber.sub_path,
+                            &subscriber.topic_name,
+                            record.size() as u64,
+                            success,
+                        );
+                        break;
+                    }
+                }
+
+                if break_flag {
+                    break;
+                }
             }
-        } else if data_list_len > 0 {
-            debug!(
-                "No offset to commit for subscriber [client_id: {}, topic: {}], all messages failed or skipped",
-                subscriber.client_id, subscriber.topic_name
-            );
+
+            if let Some(offset) = last_commit_offset {
+                if let Err(e) = self.commit_offset(&self.group_name, topic, offset).await {
+                    error!(
+                        "Failed to commit offset for subscriber [group: {}, topic: {}, offset: {}]: {}. Messages may be redelivered on next poll",
+                        &self.group_name, topic, offset, e
+                    );
+                } else {
+                    debug!(
+                        "Committed offset {} for share group [group: {}, topic: {}], total processed: {} messages",
+                        offset, self.group_name, topic, processed_count
+                    );
+                }
+            }
         }
 
         Ok(processed_count)
@@ -251,13 +276,13 @@ impl SharePushManager {
     async fn push_data(
         &self,
         subscriber: &Subscriber,
-        record: &Record,
+        msg: &MqttMessage,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
         let sub_pub_param = if let Some(params) = build_publish_message(
             &self.cache_manager,
             &self.connection_manager,
-            record,
+            msg,
             subscriber,
         )
         .await?
@@ -283,7 +308,7 @@ impl SharePushManager {
             &self.rocksdb_engine_handler,
             subscriber,
             send_time,
-            record.timestamp,
+            msg.create_time,
         )
         .await?;
 
@@ -317,23 +342,4 @@ impl SharePushManager {
             .await?;
         Ok(())
     }
-
-    fn record_metrics(
-        &self,
-        client_id: &str,
-        path: &str,
-        topic_name: &str,
-        data_size: u64,
-        success: bool,
-    ) {
-        record_subscribe_bytes_sent(client_id, path, data_size, success);
-        record_subscribe_topic_bytes_sent(client_id, path, topic_name, data_size, success);
-
-        record_subscribe_messages_sent(client_id, path, success);
-        record_subscribe_topic_messages_sent(client_id, path, topic_name, success);
-    }
-}
-
-pub fn directly_group_name(client_id: &str, path: &str, topic_name: &str) -> String {
-    format!("directly_sub_{client_id}_{path}_{topic_name}")
 }

@@ -330,6 +330,7 @@ impl MqttService {
             return Some(response_packet_mqtt_distinct_by_reason(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
+                None,
             ));
         };
 
@@ -622,6 +623,7 @@ impl MqttService {
             return response_packet_mqtt_distinct_by_reason(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
+                None,
             );
         };
 
@@ -660,12 +662,14 @@ impl MqttService {
             return response_packet_mqtt_distinct_by_reason(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
+                None,
             );
         };
 
         if let Some(packet) = subscribe_validator(
             &self.protocol,
             &self.auth_driver,
+            &self.client_pool,
             &self.subscribe_manager,
             &connection,
             subscribe,
@@ -757,6 +761,7 @@ impl MqttService {
             return response_packet_mqtt_distinct_by_reason(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
+                None,
             );
         };
 
@@ -784,6 +789,7 @@ impl MqttService {
             return response_packet_mqtt_distinct_by_reason(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
+                None,
             );
         };
 

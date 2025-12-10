@@ -15,40 +15,74 @@
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_get_share_sub_leader, pool::ClientPool};
-use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
+use protocol::{
+    meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest},
+    mqtt::common::Filter,
+};
 use std::sync::Arc;
 
 pub const SHARE_SUB_PREFIX: &str = "$share";
 
-pub fn is_mqtt_share_subscribe(sub_name: &str) -> bool {
-    sub_name.starts_with(SHARE_SUB_PREFIX)
+pub async fn group_leader_validator(
+    client_pool: &Arc<ClientPool>,
+    filters: &[Filter],
+) -> Result<Option<String>, CommonError> {
+    for filter in filters.iter() {
+        if !is_mqtt_share_subscribe(&filter.path) {
+            continue;
+        }
+
+        let (group_name, sub_name) = decode_share_info(&filter.path);
+        let group_name_full = full_group_name(&group_name, &sub_name);
+
+        let reply = get_share_sub_leader(client_pool, &group_name_full).await?;
+        let conf = broker_config();
+        if reply.broker_id != conf.broker_id {
+            return Ok(Some(reply.broker_addr));
+        }
+    }
+    Ok(None)
 }
 
-pub fn decode_share_info(sub_path: &str) -> (String, String) {
-    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
-    str_slice.remove(0);
-    let group_name = str_slice.remove(0).to_string();
-    let sub_path = format!("/{}", str_slice.join("/"));
-    (group_name, sub_path)
+pub fn is_mqtt_share_subscribe(path: &str) -> bool {
+    path.starts_with(SHARE_SUB_PREFIX)
+}
+
+pub fn decode_share_info(path: &str) -> (String, String) {
+    let parts: Vec<&str> = path.split('/').collect();
+
+    if parts.len() < 3 || parts[0] != "$share" {
+        return (String::new(), String::new());
+    }
+
+    let group_name = parts[1].to_string();
+    let topic_path = format!("/{}", parts[2..].join("/"));
+    (group_name, topic_path)
+}
+
+pub fn full_group_name(group_name: &str, sub_name: &str) -> String {
+    format!("{group_name}{sub_name}")
 }
 
 pub async fn is_share_sub_leader(
     client_pool: &Arc<ClientPool>,
-    group_name: &String,
+    group_name: &str,
 ) -> Result<bool, CommonError> {
+    let reply = fetch_share_sub_leader(client_pool, group_name).await?;
     let conf = broker_config();
-    let req = GetShareSubLeaderRequest {
-        cluster_name: conf.cluster_name.to_owned(),
-        group_name: group_name.to_owned(),
-    };
-    let reply =
-        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
     Ok(reply.broker_id == conf.broker_id)
 }
 
 pub async fn get_share_sub_leader(
     client_pool: &Arc<ClientPool>,
-    group_name: &String,
+    group_name: &str,
+) -> Result<GetShareSubLeaderReply, CommonError> {
+    fetch_share_sub_leader(client_pool, group_name).await
+}
+
+async fn fetch_share_sub_leader(
+    client_pool: &Arc<ClientPool>,
+    group_name: &str,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_config();
     let req = GetShareSubLeaderRequest {
@@ -56,4 +90,46 @@ pub async fn get_share_sub_leader(
         group_name: group_name.to_owned(),
     };
     placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_share_info() {
+        assert_eq!(
+            decode_share_info("$share/consumer1/sport/tennis/+"),
+            ("consumer1".to_string(), "/sport/tennis/+".to_string())
+        );
+        assert_eq!(
+            decode_share_info("$share/group/a/b/c"),
+            ("group".to_string(), "/a/b/c".to_string())
+        );
+        assert_eq!(
+            decode_share_info("$share/g/t"),
+            ("g".to_string(), "/t".to_string())
+        );
+        assert_eq!(decode_share_info(""), ("".to_string(), "".to_string()));
+        assert_eq!(
+            decode_share_info("$share"),
+            ("".to_string(), "".to_string())
+        );
+        assert_eq!(
+            decode_share_info("$share/group"),
+            ("".to_string(), "".to_string())
+        );
+        assert_eq!(
+            decode_share_info("share/g/t"),
+            ("".to_string(), "".to_string())
+        );
+    }
+
+    #[test]
+    fn test_is_mqtt_share_subscribe() {
+        assert!(is_mqtt_share_subscribe("$share/g/t"));
+        assert!(is_mqtt_share_subscribe("$share"));
+        assert!(!is_mqtt_share_subscribe("share/g/t"));
+        assert!(!is_mqtt_share_subscribe(""));
+    }
 }

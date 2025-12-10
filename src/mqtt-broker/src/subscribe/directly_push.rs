@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::sub_option::is_send_msg_by_bo_local;
+use crate::subscribe::common::record_sub_send_metrics;
+use crate::subscribe::push::send_message_validator;
 use crate::{handler::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
     handler::tool::ResultMqttBrokerError,
     handler::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
     subscribe::{
-        common::{is_ignore_push_error, Subscriber},
+        common::{client_unavailable_error, Subscriber},
         manager::SubscribeManager,
         push::{build_publish_message, send_publish_packet_to_client},
         push_model::{get_push_model, PushModel},
     },
 };
 use common_base::tools::now_second;
-use common_metrics::mqtt::subscribe::{
-    record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
-    record_subscribe_topic_messages_sent,
-};
 use metadata_struct::adapter::record::Record;
+use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
@@ -177,7 +177,7 @@ impl DirectlyPushManager {
                     pushed
                 }
                 Err(e) => {
-                    if !is_ignore_push_error(&e) {
+                    if !client_unavailable_error(&e) {
                         warn!(
                             "Directly push fail, offset [{:?}], error message:{}",
                             record.offset, e
@@ -190,7 +190,7 @@ impl DirectlyPushManager {
                 }
             };
 
-            self.record_metrics(
+            record_sub_send_metrics(
                 &subscriber.client_id,
                 &subscriber.sub_path,
                 &subscriber.topic_name,
@@ -198,6 +198,7 @@ impl DirectlyPushManager {
                 success,
             );
         }
+
         if let Some(offset) = last_commit_offset {
             if let Err(e) = self
                 .commit_offset(&subscriber.group_name, &subscriber.topic_name, offset)
@@ -229,10 +230,22 @@ impl DirectlyPushManager {
         record: &Record,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
+        let msg = MqttMessage::decode_record(record.clone())?;
+        if !send_message_validator(&self.cache_manager, &subscriber.client_id, &msg).await? {
+            return Ok(false);
+        }
+
+        if !is_send_msg_by_bo_local(subscriber.no_local, &subscriber.client_id, &msg.client_id) {
+            debug!(
+                "Message dropping: no_local constraint, client_id: {}, topic: {}",
+                subscriber.client_id, subscriber.topic_name
+            );
+            return Ok(false);
+        }
         let sub_pub_param = if let Some(params) = build_publish_message(
             &self.cache_manager,
             &self.connection_manager,
-            record,
+            &msg,
             subscriber,
         )
         .await?
@@ -244,7 +257,6 @@ impl DirectlyPushManager {
         };
 
         let send_time = now_second();
-
         send_publish_packet_to_client(
             &self.connection_manager,
             &self.cache_manager,
@@ -291,21 +303,6 @@ impl DirectlyPushManager {
             .commit_group_offset(group, topic_name, offset + 1)
             .await?;
         Ok(())
-    }
-
-    fn record_metrics(
-        &self,
-        client_id: &str,
-        path: &str,
-        topic_name: &str,
-        data_size: u64,
-        success: bool,
-    ) {
-        record_subscribe_bytes_sent(client_id, path, data_size, success);
-        record_subscribe_topic_bytes_sent(client_id, path, topic_name, data_size, success);
-
-        record_subscribe_messages_sent(client_id, path, success);
-        record_subscribe_topic_messages_sent(client_id, path, topic_name, success);
     }
 }
 
