@@ -155,7 +155,7 @@ mod tests {
         let r3_flag = format!("{}_sub3", flag);
         let r3_sub_topic = sub_topic.clone();
         let tx3 = tx.clone();
-        let handle3 = tokio::spawn(async move {
+        tokio::spawn(async move {
             let client_id = build_client_id(&r3_flag);
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
@@ -200,8 +200,7 @@ mod tests {
         }
         distinct_conn(cli);
 
-        sleep(Duration::from_secs(2)).await;
-
+        sleep(Duration::from_secs(5)).await;
         drop(tx);
 
         let mut results = vec![];
