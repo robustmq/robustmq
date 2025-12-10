@@ -18,7 +18,7 @@ use crate::handler::sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_
 use crate::handler::sub_share::{decode_share_info, is_mqtt_share_subscribe};
 use crate::handler::sub_wildcards::is_wildcards;
 use crate::handler::tool::ResultMqttBrokerError;
-use common_base::error::not_record_error;
+use common_base::error::client_unavailable_error_by_str;
 use common_metrics::mqtt::subscribe::{
     record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
     record_subscribe_topic_messages_sent,
@@ -63,8 +63,8 @@ pub struct SubPublishParam {
     pub qos: QoS,
 }
 
-pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
-    if not_record_error(&e.to_string()) {
+pub fn client_unavailable_error(e: &MqttBrokerError) -> bool {
+    if client_unavailable_error_by_str(&e.to_string()) {
         return true;
     }
 
@@ -200,8 +200,8 @@ mod tests {
     use crate::handler::error::MqttBrokerError;
     use crate::handler::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::{
-        build_sub_path_regex, decode_share_info, decode_sub_path, get_sub_topic_name_list,
-        is_error_by_suback, is_ignore_push_error, is_match_sub_and_topic, is_wildcards, min_qos,
+        build_sub_path_regex, client_unavailable_error, decode_share_info, decode_sub_path,
+        get_sub_topic_name_list, is_error_by_suback, is_match_sub_and_topic, is_wildcards, min_qos,
     };
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{QoS, SubAck, SubscribeReasonCode};
@@ -292,22 +292,21 @@ mod tests {
     #[test]
     fn is_ignore_push_error_test() {
         // Should ignore these errors
-        assert!(is_ignore_push_error(
+        assert!(client_unavailable_error(
             &MqttBrokerError::SessionNullSkipPushMessage("client1".to_string())
         ));
-        assert!(is_ignore_push_error(
+        assert!(client_unavailable_error(
             &MqttBrokerError::ConnectionNullSkipPushMessage("client1".to_string())
         ));
-        assert!(is_ignore_push_error(
+        assert!(client_unavailable_error(
             &MqttBrokerError::NotObtainAvailableConnection("client1".to_string(), 1000)
         ));
-        assert!(is_ignore_push_error(&MqttBrokerError::OperationTimeout(
-            1000,
-            "op".to_string()
-        )));
+        assert!(client_unavailable_error(
+            &MqttBrokerError::OperationTimeout(1000, "op".to_string())
+        ));
 
         // Should not ignore other errors
-        assert!(!is_ignore_push_error(&MqttBrokerError::InvalidSubPath(
+        assert!(!client_unavailable_error(&MqttBrokerError::InvalidSubPath(
             "path".to_string()
         )));
     }

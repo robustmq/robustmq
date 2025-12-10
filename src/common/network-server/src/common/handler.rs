@@ -17,7 +17,7 @@ use crate::common::metric::record_packet_handler_info_by_response;
 use crate::common::packet::{build_mqtt_packet_wrapper, RequestPackage, ResponsePackage};
 use crate::common::tool::calc_req_channel_len;
 use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
-use common_base::error::not_record_error;
+use common_base::error::client_unavailable_error_by_str;
 use common_base::tools::now_millis;
 use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
@@ -129,7 +129,7 @@ async fn process_response(
                     .write_tcp_frame(response_package.connection_id, packet_wrapper)
                     .await
                 {
-                    if not_record_error(&e.to_string()) {
+                    if client_unavailable_error_by_str(&e.to_string()) {
                         return;
                     }
                     error!("{}", e);
@@ -140,7 +140,7 @@ async fn process_response(
                     .write_quic_frame(response_package.connection_id, packet_wrapper)
                     .await
                 {
-                    if not_record_error(&e.to_string()) {
+                    if client_unavailable_error_by_str(&e.to_string()) {
                         return;
                     }
                     error!("{}", e);

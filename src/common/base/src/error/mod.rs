@@ -20,7 +20,7 @@ pub mod mqtt_protocol_error;
 
 pub type ResultCommonError = Result<(), CommonError>;
 
-pub fn not_record_error(error: &String) -> bool {
+pub fn client_unavailable_error_by_str(error: &String) -> bool {
     if error
         .to_string()
         .contains("Connection management could not obtain an available")

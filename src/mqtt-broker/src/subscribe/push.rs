@@ -22,7 +22,7 @@ use crate::handler::metrics::record_publish_send_metrics;
 use crate::handler::metrics::record_send_metrics;
 use crate::handler::sub_option::get_retain_flag_by_retain_as_published;
 use crate::handler::tool::ResultMqttBrokerError;
-use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
+use crate::subscribe::common::{client_unavailable_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
@@ -584,7 +584,7 @@ where
                         return Err(e);
                     }
 
-                    if !is_ignore_push_error(&e){
+                    if !client_unavailable_error(&e){
                         warn!("retry tool fn fail, error message:{}",e);
 
                         // Sleep with interruptible intervals for better responsiveness

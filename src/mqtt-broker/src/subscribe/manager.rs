@@ -175,9 +175,17 @@ impl SubscribeManager {
             .insert(client_id.to_string(), now_second());
     }
 
-    pub fn update_not_push_client(&self, client_id: &str) {
-        self.not_push_client
-            .insert(client_id.to_string(), now_second());
+    pub fn allow_push_client(&self, client_id: &str) -> bool {
+        if let Some(time) = self.not_push_client.get(client_id) {
+            if (now_second() - *time) >= 10 {
+                self.not_push_client.remove(client_id);
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        true
     }
 
     // topic
@@ -305,21 +313,6 @@ mod tests {
 
         let list = mgr.topic_subscribes.get("topic1").unwrap();
         assert!(!list.iter().any(|x| x.client_id == "c1"));
-    }
-
-    #[test]
-    fn test_not_push_client() {
-        let mgr = SubscribeManager::new();
-
-        mgr.add_not_push_client("c1");
-        assert!(mgr.not_push_client.get("c1").is_some());
-
-        let initial_time = *mgr.not_push_client.get("c1").unwrap();
-
-        mgr.update_not_push_client("c1");
-        let updated_time = *mgr.not_push_client.get("c1").unwrap();
-
-        assert!(updated_time >= initial_time);
     }
 
     #[test]

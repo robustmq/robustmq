@@ -20,7 +20,7 @@ use crate::{
     handler::tool::ResultMqttBrokerError,
     handler::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
     subscribe::{
-        common::{is_ignore_push_error, Subscriber},
+        common::{client_unavailable_error, Subscriber},
         manager::SubscribeManager,
         push::{build_publish_message, send_publish_packet_to_client},
         push_model::{get_push_model, PushModel},
@@ -177,7 +177,7 @@ impl DirectlyPushManager {
                     pushed
                 }
                 Err(e) => {
-                    if !is_ignore_push_error(&e) {
+                    if !client_unavailable_error(&e) {
                         warn!(
                             "Directly push fail, offset [{:?}], error message:{}",
                             record.offset, e

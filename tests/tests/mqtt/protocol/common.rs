@@ -140,7 +140,6 @@ where
 
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
-        println!("{res:?}");
         if let Ok(msg_opt) = res {
             assert!(msg_opt.is_some());
             let msg = msg_opt.unwrap();

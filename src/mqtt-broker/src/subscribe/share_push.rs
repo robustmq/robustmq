@@ -22,7 +22,7 @@ use crate::{
     handler::tool::ResultMqttBrokerError,
     handler::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
     subscribe::{
-        common::{is_ignore_push_error, Subscriber},
+        common::{client_unavailable_error, Subscriber},
         manager::SubscribeManager,
         push::{build_publish_message, send_publish_packet_to_client},
     },
@@ -76,6 +76,7 @@ impl SharePushManager {
     }
 
     pub async fn start(&self, stop_sx: &Sender<bool>) {
+        info!("SharePushManager[{}] started", self.group_name);
         let mut stop_rx = stop_sx.subscribe();
         loop {
             select! {
@@ -166,7 +167,7 @@ impl SharePushManager {
                 let mut break_flag = false;
                 loop {
                     if attempts >= max_attempts {
-                        warn!(
+                        debug!(
                             "Failed to push message after {} attempts for group {}, skipping record at offset {:?}",
                             attempts, self.group_name, record.offset
                         );
@@ -180,14 +181,33 @@ impl SharePushManager {
                     if let Some(subscriber) =
                         buckets.get_subscribe_by_key_seq(&self.group_name, index)
                     {
+                        // check allow send
+                        if !self
+                            .subscribe_manager
+                            .allow_push_client(&subscriber.client_id)
+                        {
+                            continue;
+                        }
+
                         // If the message exceeds the size limit specified for the entire client ID, try the next client.
-                        if !send_message_validator_by_max_message_size(
+                        let allow = match send_message_validator_by_max_message_size(
                             &self.cache_manager,
                             &subscriber.client_id,
                             &msg,
                         )
-                        .await?
+                        .await
                         {
+                            Ok(allow) => allow,
+                            Err(e) => {
+                                if !client_unavailable_error(&e) {
+                                    self.subscribe_manager
+                                        .add_not_push_client(&subscriber.client_id);
+                                }
+                                continue;
+                            }
+                        };
+
+                        if !allow {
                             continue;
                         }
 
@@ -210,11 +230,9 @@ impl SharePushManager {
                                 pushed
                             }
                             Err(e) => {
-                                if !is_ignore_push_error(&e) {
-                                    warn!(
-                                        "Share push failed, group: {}, topic: {}, offset: {:?}, error: {}",
-                                        self.group_name, topic, record.offset, e
-                                    );
+                                if !client_unavailable_error(&e) {
+                                    self.subscribe_manager
+                                        .add_not_push_client(&subscriber.client_id);
                                 }
 
                                 continue;
