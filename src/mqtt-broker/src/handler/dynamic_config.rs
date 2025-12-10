@@ -16,6 +16,7 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::tool::ResultMqttBrokerError;
 use broker_core::cluster::ClusterStorage;
+use bytes::Bytes;
 use common_config::broker::broker_config;
 use common_config::config::{
     BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
@@ -162,7 +163,7 @@ pub async fn build_cluster_config(
 pub async fn update_cluster_dynamic_config(
     cache_manager: &Arc<MQTTCacheManager>,
     resource_type: ClusterDynamicConfig,
-    config: Vec<u8>,
+    config: Bytes,
 ) -> ResultMqttBrokerError {
     match resource_type {
         ClusterDynamicConfig::MqttSlowSubscribeConfig => {
