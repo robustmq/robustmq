@@ -145,7 +145,6 @@ pub struct StatusArgs {
 
 #[derive(Debug, Deserialize)]
 struct StatusResponse {
-    code: i32,
     data: ClusterInfo,
 }
 
