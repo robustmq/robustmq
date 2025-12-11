@@ -42,10 +42,10 @@ pub struct StorageAdapterConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StorageAdapterType {
-    Journal,
+    // Journal,
     #[default]
     Memory,
-    Mysql,
+    // Mysql,
     File,
     MinIO,
     S3,
@@ -56,9 +56,9 @@ impl FromStr for StorageAdapterType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "journal" => Ok(StorageAdapterType::Journal),
+            // "journal" => Ok(StorageAdapterType::Journal),
             "memory" => Ok(StorageAdapterType::Memory),
-            "mysql" => Ok(StorageAdapterType::Mysql),
+            // "mysql" => Ok(StorageAdapterType::Mysql),
             "file" | "rocksdb" => Ok(StorageAdapterType::File), // "rocksdb" is an alias for backward compatibility
             "minio" => Ok(StorageAdapterType::MinIO),
             "s3" => Ok(StorageAdapterType::S3),
@@ -75,18 +75,18 @@ mod tests {
 
     #[test]
     fn storage_type_from_str() {
-        assert_eq!(
-            StorageAdapterType::from_str("journal").unwrap(),
-            StorageAdapterType::Journal
-        );
+        // assert_eq!(
+        //     StorageAdapterType::from_str("journal").unwrap(),
+        //     StorageAdapterType::Journal
+        // );
         assert_eq!(
             StorageAdapterType::from_str("memory").unwrap(),
             StorageAdapterType::Memory
         );
-        assert_eq!(
-            StorageAdapterType::from_str("mysql").unwrap(),
-            StorageAdapterType::Mysql
-        );
+        // assert_eq!(
+        //     StorageAdapterType::from_str("mysql").unwrap(),
+        //     StorageAdapterType::Mysql
+        // );
         assert_eq!(
             StorageAdapterType::from_str("rocksdb").unwrap(),
             StorageAdapterType::File

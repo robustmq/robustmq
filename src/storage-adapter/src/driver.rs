@@ -13,15 +13,17 @@
 // limitations under the License.
 
 use crate::{
-    file::RocksDBStorageAdapter, journal::JournalStorageAdapter, memory::MemoryStorageAdapter,
-    mysql::MySQLStorageAdapter, offset::OffsetManager, storage::ArcStorageAdapter,
+    file::RocksDBStorageAdapter, memory::MemoryStorageAdapter, offset::OffsetManager,
+    storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
 use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn build_message_storage_driver(
-    offset_manager: Arc<OffsetManager>,
+    _offset_manager: Arc<OffsetManager>,
+    db: Arc<RocksDBEngine>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
@@ -29,18 +31,15 @@ pub async fn build_message_storage_driver(
             config.memory_config.unwrap_or_default(),
         )),
 
-        StorageAdapterType::Journal => Arc::new(
-            JournalStorageAdapter::new(offset_manager, config.journal_config.unwrap_or_default())
-                .await?,
-        ),
+        // StorageAdapterType::Journal => Arc::new(
+        //     JournalStorageAdapter::new(offset_manager, config.journal_config.unwrap_or_default())
+        //         .await?,
+        // ),
 
-        StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
-            config.mysql_config.unwrap_or_default(),
-        )?),
-
-        StorageAdapterType::File => Arc::new(RocksDBStorageAdapter::new(
-            config.rocksdb_config.unwrap_or_default(),
-        )),
+        // StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
+        //     config.mysql_config.unwrap_or_default(),
+        // )?),
+        StorageAdapterType::File => Arc::new(RocksDBStorageAdapter::new(db)),
 
         StorageAdapterType::S3 => {
             // Arc::new(S3StorageAdapter::new(config.s3_config.unwrap_or_default()))

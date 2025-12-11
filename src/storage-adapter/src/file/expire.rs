@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::key::*;
+use crate::file::key::*;
 use crate::storage::ShardInfo;
 use crate::{expire::MessageExpireConfig, file::parse_offset_bytes};
 use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
@@ -181,11 +181,11 @@ mod tests {
     use crate::file::RocksDBStorageAdapter;
     use crate::storage::{ShardInfo, StorageAdapter};
     use metadata_struct::adapter::record::Record;
-    use rocksdb_engine::test::test_storage_driver_rockdb_config;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[tokio::test]
     async fn test_expire_messages_by_timestamp() {
-        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
+        let adapter = RocksDBStorageAdapter::new(test_rocksdb_instance());
         let shard_name = "test-shard".to_string();
 
         let shard = ShardInfo {
@@ -272,7 +272,7 @@ mod tests {
     /// Test that key index is NOT deleted when the same key has newer messages
     #[tokio::test]
     async fn test_expire_preserves_key_index_for_newer_messages() {
-        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
+        let adapter = RocksDBStorageAdapter::new(test_rocksdb_instance());
         let shard_name = "test-shard".to_string();
 
         adapter
@@ -350,13 +350,9 @@ mod tests {
             key_index_offset_after, 1,
             "Key index should still point to offset 1 after expiration"
         );
-
-        let read_config = metadata_struct::adapter::read_config::ReadConfig {
-            max_record_num: 10,
-            max_size: u64::MAX,
-        };
+        
         let key_records = adapter
-            .read_by_key(&shard.shard_name, 0, "same_key", &read_config)
+            .read_by_key(&shard.shard_name, "same_key")
             .await
             .unwrap();
         assert_eq!(key_records.len(), 1);
@@ -366,7 +362,7 @@ mod tests {
     /// Test batch commit logic with large number of deletions
     #[tokio::test]
     async fn test_expire_batch_commit_logic() {
-        let adapter = RocksDBStorageAdapter::new(test_storage_driver_rockdb_config());
+        let adapter = RocksDBStorageAdapter::new(test_rocksdb_instance());
         let shard_name = "test-shard".to_string();
 
         adapter
