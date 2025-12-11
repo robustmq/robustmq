@@ -76,9 +76,7 @@ impl MemoryStorageAdapter {
     }
 
     fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
-        let Some(ts_map) = self.timestamp_index.get(shard) else {
-            return None;
-        };
+        let ts_map = self.timestamp_index.get(shard)?;
 
         let mut found_offset = None;
         for entry in ts_map.iter() {
@@ -90,7 +88,7 @@ impl MemoryStorageAdapter {
             found_offset = Some(offset);
         }
 
-        return None;
+        None
     }
 
     fn read_data_by_time(
@@ -99,9 +97,7 @@ impl MemoryStorageAdapter {
         start_offset: Option<u64>,
         timestamp: u64,
     ) -> Option<u64> {
-        let Some(data_map) = self.shard_data.get(shard) else {
-            return None;
-        };
+        let data_map = self.shard_data.get(shard)?;
 
         let start = start_offset.unwrap_or(0);
 
@@ -201,10 +197,10 @@ impl MemoryStorageAdapter {
             return Ok(offset_res);
         }
 
-        return Err(CommonError::CommonError(format!(
+        Err(CommonError::CommonError(format!(
             "shard {} data not found",
             shard_name
-        )));
+        )))
     }
 }
 
@@ -276,7 +272,7 @@ impl StorageAdapter for MemoryStorageAdapter {
 
         let mut records = Vec::new();
         let mut total_size = 0;
-        let end_offset = offset.saturating_add(read_config.max_record_num as u64);
+        let end_offset = offset.saturating_add(read_config.max_record_num);
 
         for current_offset in offset..end_offset {
             let Some(record) = data_map.get(&current_offset) else {
@@ -409,6 +405,15 @@ impl StorageAdapter for MemoryStorageAdapter {
             return Ok(());
         }
 
+        for shard_name in offset.keys() {
+            if !self.shard_info.contains_key(shard_name) {
+                return Err(CommonError::CommonError(format!(
+                    "shard {} not exists",
+                    shard_name
+                )));
+            }
+        }
+
         let group_map = self
             .group_data
             .entry(group_name.to_string())
@@ -453,7 +458,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(adapter.list_shard("").await.unwrap().len(), 2);
-        assert_eq!(adapter.list_shard("shard1").await.unwrap()[0].replica_num, 3);
+        assert_eq!(
+            adapter.list_shard("shard1").await.unwrap()[0].replica_num,
+            3
+        );
 
         adapter.delete_shard("shard1").await.unwrap();
         assert_eq!(adapter.list_shard("").await.unwrap().len(), 1);
@@ -486,19 +494,58 @@ mod tests {
         r2.tags = Some(vec!["b".to_string(), "c".to_string()]);
         r2.timestamp = 2000;
 
-        assert_eq!(adapter.batch_write("s", &[r1, r2]).await.unwrap(), vec![0, 1]);
+        assert_eq!(
+            adapter.batch_write("s", &[r1, r2]).await.unwrap(),
+            vec![0, 1]
+        );
         assert_eq!(adapter.read_by_offset("s", 0, &cfg).await.unwrap().len(), 2);
         assert_eq!(adapter.read_by_offset("s", 1, &cfg).await.unwrap().len(), 1);
 
-        assert_eq!(adapter.read_by_tag("s", "a", None, &cfg).await.unwrap().len(), 1);
-        assert_eq!(adapter.read_by_tag("s", "c", None, &cfg).await.unwrap().len(), 2);
-        assert_eq!(adapter.read_by_tag("s", "b", Some(1), &cfg).await.unwrap().len(), 1);
+        assert_eq!(
+            adapter
+                .read_by_tag("s", "a", None, &cfg)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            adapter
+                .read_by_tag("s", "c", None, &cfg)
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            adapter
+                .read_by_tag("s", "b", Some(1), &cfg)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
 
-        assert_eq!(adapter.read_by_key("s", "k2").await.unwrap()[0].data, b"msg2".to_vec());
+        assert_eq!(
+            adapter.read_by_key("s", "k2").await.unwrap()[0].data,
+            b"msg2".to_vec()
+        );
         assert_eq!(adapter.read_by_key("s", "k3").await.unwrap().len(), 0);
 
-        assert_eq!(adapter.get_offset_by_timestamp("s", 1500).await.unwrap().unwrap().offset, 1);
-        assert!(adapter.get_offset_by_timestamp("s", 5000).await.unwrap().is_none());
+        assert_eq!(
+            adapter
+                .get_offset_by_timestamp("s", 1500)
+                .await
+                .unwrap()
+                .unwrap()
+                .offset,
+            1
+        );
+        assert!(adapter
+            .get_offset_by_timestamp("s", 5000)
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]
@@ -506,21 +553,60 @@ mod tests {
         let adapter = MemoryStorageAdapter::default();
 
         adapter
-            .commit_offset("g1", &HashMap::from([("s1".into(), 100), ("s2".into(), 200)]))
+            .create_shard(&ShardInfo {
+                shard_name: "s1".to_string(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        adapter
+            .create_shard(&ShardInfo {
+                shard_name: "s2".to_string(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        adapter
+            .commit_offset(
+                "g1",
+                &HashMap::from([("s1".into(), 100), ("s2".into(), 200)]),
+            )
             .await
             .unwrap();
 
         let offsets = adapter.get_offset_by_group("g1").await.unwrap();
         assert_eq!(offsets.len(), 2);
-        assert_eq!(offsets.iter().find(|o| o.shard_name == "s1").unwrap().offset, 100);
-        assert_eq!(offsets.iter().find(|o| o.shard_name == "s2").unwrap().offset, 200);
+        assert_eq!(
+            offsets
+                .iter()
+                .find(|o| o.shard_name == "s1")
+                .unwrap()
+                .offset,
+            100
+        );
+        assert_eq!(
+            offsets
+                .iter()
+                .find(|o| o.shard_name == "s2")
+                .unwrap()
+                .offset,
+            200
+        );
 
         adapter
             .commit_offset("g1", &HashMap::from([("s1".into(), 150)]))
             .await
             .unwrap();
         let offsets = adapter.get_offset_by_group("g1").await.unwrap();
-        assert_eq!(offsets.iter().find(|o| o.shard_name == "s1").unwrap().offset, 150);
+        assert_eq!(
+            offsets
+                .iter()
+                .find(|o| o.shard_name == "s1")
+                .unwrap()
+                .offset,
+            150
+        );
 
         adapter
             .commit_offset("g2", &HashMap::from([("s1".into(), 300)]))
@@ -529,5 +615,10 @@ mod tests {
         assert_eq!(adapter.get_offset_by_group("g2").await.unwrap().len(), 1);
 
         assert_eq!(adapter.get_offset_by_group("g3").await.unwrap().len(), 0);
+
+        assert!(adapter
+            .commit_offset("g1", &HashMap::from([("s3".into(), 100)]))
+            .await
+            .is_err());
     }
 }

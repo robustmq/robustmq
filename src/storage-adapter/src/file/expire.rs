@@ -350,7 +350,7 @@ mod tests {
             key_index_offset_after, 1,
             "Key index should still point to offset 1 after expiration"
         );
-        
+
         let key_records = adapter
             .read_by_key(&shard.shard_name, "same_key")
             .await

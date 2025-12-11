@@ -361,7 +361,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn write(&self, shard: &str, message: &Record) -> Result<u64, CommonError> {
         let offsets = self
-            .batch_write_internal(shard, &vec![message.clone()])
+            .batch_write_internal(shard, std::slice::from_ref(message))
             .await?;
 
         offsets
@@ -386,7 +386,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
 
-        let keys: Vec<String> = (offset..offset.saturating_add(read_config.max_record_num as u64))
+        let keys: Vec<String> = (offset..offset.saturating_add(read_config.max_record_num))
             .map(|i| shard_record_key(shard, i))
             .collect();
 
@@ -505,7 +505,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             if let Some(offset) = record.offset {
                 return Ok(Some(ShardOffset {
                     shard_name: shard.to_string(),
-                    offset: offset,
+                    offset,
                     ..Default::default()
                 }));
             }
