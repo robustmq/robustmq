@@ -288,7 +288,7 @@ pub async fn handle_status(args: StatusArgs) {
                 println!("{:<20} {}", "Start Time", start_time_local);
 
                 println!("\n🧩 Broker Nodes");
-                println!("{:<5} {:<15} {:<20} {}", "ID", "IP", "Inner Addr", "Roles");
+                println!("{:<5} {:<15} {:<20} Roles", "ID", "IP", "Inner Addr");
                 for node in broker_node_list {
                     println!(
                         "{:<5} {:<15} {:<20} {:?}",
