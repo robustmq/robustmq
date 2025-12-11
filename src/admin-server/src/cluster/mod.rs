@@ -98,7 +98,6 @@ pub async fn cluster_config_get(
 
 pub async fn cluster_info(
     State(state): State<Arc<HttpState>>,
-    Json(_params): Json<serde_json::Value>,
 ) -> String {
     let cluster_storage = ClusterStorage::new(state.client_pool.clone());
     let meta_data = match cluster_storage.meta_cluster_status().await {

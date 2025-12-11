@@ -189,8 +189,7 @@ impl AdminHttpClient {
 
     /// Get cluster status information
     pub async fn get_status(&self) -> Result<String, HttpClientError> {
-        let empty_request = serde_json::json!({});
-        self.post_raw(&api_path(STATUS_PATH), &empty_request).await
+        self.get(&api_path(STATUS_PATH)).await
     }
 
     /// Get cluster overview
