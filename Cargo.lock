@@ -1319,12 +1319,14 @@ name = "cli-command"
 version = "0.2.6"
 dependencies = [
  "admin-server",
+ "chrono",
  "clap",
  "clap-cargo",
  "common-base",
  "common-config",
  "paho-mqtt",
  "prettytable-rs",
+ "serde",
  "serde_json",
  "tokio",
 ]

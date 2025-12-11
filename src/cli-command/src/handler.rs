@@ -25,6 +25,7 @@ use crate::mqtt::params::{
     SystemAlarmArgs, TopicArgs, TopicRewriteArgs, UserArgs,
 };
 use clap::{arg, Parser, Subcommand};
+use serde::Deserialize;
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -142,6 +143,36 @@ pub struct StatusArgs {
     server: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct StatusResponse {
+    data: ClusterInfo,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClusterInfo {
+    version: String,
+    cluster_name: String,
+    start_time: u64,
+    broker_node_list: Vec<BrokerNode>,
+    meta: MetaInfo,
+}
+
+#[derive(Debug, Deserialize)]
+struct BrokerNode {
+    node_id: u64,
+    node_ip: String,
+    node_inner_addr: String,
+    roles: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MetaInfo {
+    state: String,
+    current_leader: u64,
+    current_term: u64,
+    last_log_index: u64,
+}
+
 pub async fn handle_mqtt(args: MqttArgs) {
     let params = MqttCliCommandParam {
         server: args.server,
@@ -234,9 +265,50 @@ pub async fn handle_status(args: StatusArgs) {
     }
 
     match admin_client.get_status().await {
-        Ok(status_info) => {
-            println!("✅ RobustMQ Status Info: {status_info}");
-        }
+        Ok(status_info) => match serde_json::from_str::<StatusResponse>(&status_info) {
+            Ok(response) => {
+                let ClusterInfo {
+                    version,
+                    cluster_name,
+                    start_time,
+                    broker_node_list,
+                    meta,
+                } = response.data;
+
+                println!("\n📊 Cluster Summary");
+                println!("{:<20} {}", "Version", version);
+                println!("{:<20} {}", "Cluster", cluster_name);
+                use chrono::{Local, TimeZone};
+
+                let start_time_local = Local
+                    .timestamp_opt(start_time as i64, 0)
+                    .single()
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|| start_time.to_string());
+                println!("{:<20} {}", "Start Time", start_time_local);
+
+                println!("\n🧩 Broker Nodes");
+                println!("{:<5} {:<15} {:<20} Roles", "ID", "IP", "Inner Addr");
+                for node in broker_node_list {
+                    println!(
+                        "{:<5} {:<15} {:<20} {:?}",
+                        node.node_id, node.node_ip, node.node_inner_addr, node.roles
+                    );
+                }
+
+                println!("\n🗳️ Meta Status");
+                println!("{:<20} {}", "State", meta.state);
+                println!("{:<20} {}", "Current Leader", meta.current_leader);
+                println!("{:<20} {}", "Current Term", meta.current_term);
+                println!("{:<20} {}", "Last Log Index", meta.last_log_index);
+            }
+            Err(e) => {
+                println!("❌ RobustMQ Status: Invalid payload");
+                println!("🌐 Server: {}", args.server);
+                error_info(format!("Failed to parse status payload: {e}"));
+                println!("Raw payload: {status_info}");
+            }
+        },
         Err(e) => {
             println!("❌ RobustMQ Status: Offline or unreachable");
             println!("🌐 Server: {}", args.server);
