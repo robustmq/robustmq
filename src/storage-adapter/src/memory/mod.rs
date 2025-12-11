@@ -78,17 +78,22 @@ impl MemoryStorageAdapter {
     fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
         let ts_map = self.timestamp_index.get(shard)?;
 
+        let mut entries: Vec<(u64, u64)> = ts_map
+            .iter()
+            .map(|entry| (*entry.key(), *entry.value()))
+            .collect();
+
+        entries.sort_by_key(|(ts, _)| *ts);
+
         let mut found_offset = None;
-        for entry in ts_map.iter() {
-            let ts = *entry.key();
-            let offset = *entry.value();
+        for (ts, offset) in entries {
             if ts > timestamp {
-                return found_offset;
+                break;
             }
             found_offset = Some(offset);
         }
 
-        None
+        found_offset
     }
 
     fn read_data_by_time(
@@ -98,12 +103,14 @@ impl MemoryStorageAdapter {
         timestamp: u64,
     ) -> Option<u64> {
         let data_map = self.shard_data.get(shard)?;
+        let shard_state = self.shard_state.get(shard)?;
 
         let start = start_offset.unwrap_or(0);
+        let end = shard_state.next_offset;
 
-        for offset in start.. {
+        for offset in start..end {
             let Some(record) = data_map.get(&offset) else {
-                break;
+                continue;
             };
 
             if record.timestamp >= timestamp {
@@ -207,6 +214,13 @@ impl MemoryStorageAdapter {
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+        if self.shard_info.contains_key(&shard.shard_name) {
+            return Err(CommonError::CommonError(format!(
+                "shard {} data already exist",
+                shard.shard_name
+            )));
+        }
+
         self.shard_data
             .insert(shard.shard_name.clone(), DashMap::with_capacity(8));
         self.shard_info
@@ -235,15 +249,22 @@ impl StorageAdapter for MemoryStorageAdapter {
             .unwrap_or_default())
     }
 
-    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
-        self.shard_data.remove(shard);
-        self.shard_info.remove(shard);
-        self.shard_state.remove(shard);
-        self.remove_indexes(shard);
-        self.shard_write_locks.remove(shard);
+    async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {
+        if !self.shard_info.contains_key(shard_name) {
+            return Err(CommonError::CommonError(format!(
+                "shard {} data not found",
+                shard_name
+            )));
+        }
+
+        self.shard_data.remove(shard_name);
+        self.shard_info.remove(shard_name);
+        self.shard_state.remove(shard_name);
+        self.shard_write_locks.remove(shard_name);
+        self.remove_indexes(shard_name);
 
         for mut group_entry in self.group_data.iter_mut() {
-            group_entry.value_mut().remove(shard);
+            group_entry.value_mut().remove(shard_name);
         }
 
         Ok(())
@@ -620,5 +641,62 @@ mod tests {
             .commit_offset("g1", &HashMap::from([("s3".into(), 100)]))
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_timestamp_index_with_multiple_entries() {
+        let adapter = MemoryStorageAdapter::default();
+        let cfg = ReadConfig {
+            max_record_num: 100,
+            max_size: 1024 * 1024,
+        };
+
+        adapter
+            .create_shard(&ShardInfo {
+                shard_name: "s".to_string(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let mut records = Vec::new();
+        for i in 0..15000 {
+            let mut r = Record::from_bytes(format!("msg{}", i).into_bytes());
+            r.timestamp = 1000 + i;
+            records.push(r);
+        }
+
+        let offsets = adapter.batch_write("s", &records).await.unwrap();
+        assert_eq!(offsets.len(), 15000);
+        assert_eq!(offsets[0], 0);
+        assert_eq!(offsets[14999], 14999);
+
+        let result = adapter.get_offset_by_timestamp("s", 1000).await.unwrap();
+        assert_eq!(result.unwrap().offset, 0);
+
+        let result = adapter.get_offset_by_timestamp("s", 3500).await.unwrap();
+        assert_eq!(result.unwrap().offset, 2500);
+
+        let result = adapter.get_offset_by_timestamp("s", 6000).await.unwrap();
+        assert_eq!(result.unwrap().offset, 5000);
+
+        let result = adapter.get_offset_by_timestamp("s", 8000).await.unwrap();
+        assert_eq!(result.unwrap().offset, 7000);
+
+        let result = adapter.get_offset_by_timestamp("s", 11000).await.unwrap();
+        assert_eq!(result.unwrap().offset, 10000);
+
+        let result = adapter.get_offset_by_timestamp("s", 14500).await.unwrap();
+        assert_eq!(result.unwrap().offset, 13500);
+
+        let result = adapter.get_offset_by_timestamp("s", 500).await.unwrap();
+        assert_eq!(result.unwrap().offset, 0);
+
+        let result = adapter.get_offset_by_timestamp("s", 20000).await.unwrap();
+        assert!(result.is_none());
+
+        let read_result = adapter.read_by_offset("s", 5000, &cfg).await.unwrap();
+        assert!(!read_result.is_empty());
+        assert_eq!(read_result[0].timestamp, 6000);
     }
 }
