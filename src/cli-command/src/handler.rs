@@ -281,17 +281,15 @@ pub async fn handle_status(args: StatusArgs) {
                 println!("{:<20} {}", "Cluster", cluster_name);
                 use chrono::{Local, TimeZone};
 
-                let start_time_local = Local.timestamp_opt(start_time as i64, 0)
+                let start_time_local = Local
+                    .timestamp_opt(start_time as i64, 0)
                     .single()
                     .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
                     .unwrap_or_else(|| start_time.to_string());
                 println!("{:<20} {}", "Start Time", start_time_local);
 
                 println!("\n🧩 Broker Nodes");
-                println!(
-                    "{:<5} {:<15} {:<20} {}",
-                    "ID", "IP", "Inner Addr", "Roles"
-                );
+                println!("{:<5} {:<15} {:<20} {}", "ID", "IP", "Inner Addr", "Roles");
                 for node in broker_node_list {
                     println!(
                         "{:<5} {:<15} {:<20} {:?}",
@@ -311,7 +309,7 @@ pub async fn handle_status(args: StatusArgs) {
                 error_info(format!("Failed to parse status payload: {e}"));
                 println!("Raw payload: {status_info}");
             }
-        }
+        },
         Err(e) => {
             println!("❌ RobustMQ Status: Offline or unreachable");
             println!("🌐 Server: {}", args.server);
