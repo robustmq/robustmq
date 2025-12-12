@@ -128,9 +128,11 @@ impl BrokerServer {
         ));
 
         let raw_offset_manager = offset_manager.clone();
+        let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
                 raw_offset_manager.clone(),
+                raw_rocksdb_engine_handler.clone(),
                 config.message_storage.clone(),
             )
             .await

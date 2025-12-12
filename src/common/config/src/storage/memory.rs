@@ -18,11 +18,6 @@ use serde::{Deserialize, Serialize};
 pub struct StorageDriverMemoryConfig {
     pub max_records_per_shard: usize,
     pub max_shard_size_limit: usize,
-    pub initial_shard_capacity: usize,
-    pub initial_group_capacity: usize,
-    pub enable_tag_index: bool,
-    pub enable_key_index: bool,
-    pub enable_timestamp_index: bool,
 }
 
 impl Default for StorageDriverMemoryConfig {
@@ -30,11 +25,6 @@ impl Default for StorageDriverMemoryConfig {
         Self {
             max_records_per_shard: 1000,
             max_shard_size_limit: 10_000_000,
-            initial_shard_capacity: 16,
-            initial_group_capacity: 8,
-            enable_tag_index: true,
-            enable_key_index: true,
-            enable_timestamp_index: true,
         }
     }
 }
@@ -55,21 +45,6 @@ impl StorageDriverMemoryConfig {
             ));
         }
 
-        if self.initial_shard_capacity == 0 {
-            return Err("initial_shard_capacity cannot be 0".to_string());
-        }
-
-        if self.initial_shard_capacity > 1024 {
-            return Err(format!(
-                "initial_shard_capacity ({}) should not exceed 1024",
-                self.initial_shard_capacity
-            ));
-        }
-
-        if self.initial_group_capacity == 0 {
-            return Err("initial_group_capacity cannot be 0".to_string());
-        }
-
         Ok(())
     }
 
@@ -84,11 +59,6 @@ impl StorageDriverMemoryConfig {
         Self {
             max_records_per_shard: 1_000,
             max_shard_size_limit: 10_000,
-            initial_shard_capacity: 4,
-            initial_group_capacity: 2,
-            enable_tag_index: true,
-            enable_key_index: true,
-            enable_timestamp_index: true,
         }
     }
 
@@ -96,11 +66,6 @@ impl StorageDriverMemoryConfig {
         Self {
             max_records_per_shard: 10_000,
             max_shard_size_limit: 100_000,
-            initial_shard_capacity: 16,
-            initial_group_capacity: 8,
-            enable_tag_index: true,
-            enable_key_index: true,
-            enable_timestamp_index: true,
         }
     }
 
@@ -108,11 +73,6 @@ impl StorageDriverMemoryConfig {
         Self {
             max_records_per_shard: 100_000,
             max_shard_size_limit: 1_000_000,
-            initial_shard_capacity: 64,
-            initial_group_capacity: 32,
-            enable_tag_index: true,
-            enable_key_index: true,
-            enable_timestamp_index: true,
         }
     }
 
@@ -120,11 +80,6 @@ impl StorageDriverMemoryConfig {
         Self {
             max_records_per_shard: 1_000,
             max_shard_size_limit: 5_000,
-            initial_shard_capacity: 4,
-            initial_group_capacity: 2,
-            enable_tag_index: false,
-            enable_key_index: false,
-            enable_timestamp_index: false,
         }
     }
 }

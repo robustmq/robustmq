@@ -142,18 +142,6 @@ pub fn timestamp_offset_key_prefix(shard: &str) -> String {
     key
 }
 
-/// Generate timestamp search prefix for searching from a specific timestamp
-/// Format: /timestamp/{shard}/{timestamp:020}/
-#[inline(always)]
-pub fn timestamp_offset_key_search_prefix(shard: &str, timestamp: u64) -> String {
-    let mut key = String::with_capacity(13 + shard.len() + 20);
-    key.push_str("/timestamp/");
-    key.push_str(shard);
-    key.push('/');
-    let _ = write!(key, "{:020}/", timestamp);
-    key
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,11 +213,5 @@ mod tests {
     fn test_timestamp_offset_key_prefix() {
         let key = timestamp_offset_key_prefix("shard1");
         assert_eq!(key, "/timestamp/shard1/");
-    }
-
-    #[test]
-    fn test_timestamp_offset_key_search_prefix() {
-        let key = timestamp_offset_key_search_prefix("shard1", 1234567890);
-        assert_eq!(key, "/timestamp/shard1/00000000001234567890/");
     }
 }

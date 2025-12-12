@@ -67,18 +67,12 @@ pub trait StorageAdapter {
     async fn read_by_tag(
         &self,
         shard: &str,
-        offset: u64,
         tag: &str,
+        start_offset: Option<u64>,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;
 
-    async fn read_by_key(
-        &self,
-        shard: &str,
-        offset: u64,
-        key: &str,
-        read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError>;
+    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError>;
 
     async fn get_offset_by_timestamp(
         &self,
