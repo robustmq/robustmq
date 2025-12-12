@@ -422,7 +422,7 @@ mod test {
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use std::sync::Arc;
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
 
     #[tokio::test]
     async fn test_write_topic_data() {
@@ -430,10 +430,19 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
+        let message_storage_adapter = build_memory_storage_driver();
+        message_storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: topic_name.to_string(),
+                replica_num: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
         let mqtt_topic = MQTTTopic::new(topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
-        let message_storage_adapter = build_memory_storage_driver();
         let data = "test_write_topic_data".to_string();
 
         let topic_message =
@@ -481,6 +490,14 @@ mod test {
         let cache_manger = test_build_mqtt_cache_manager().await;
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
+        message_storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: topic_name.to_string(),
+                replica_num: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
         let mqtt_topic = MQTTTopic::new(topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
         let expect_data = "test_data".to_string();

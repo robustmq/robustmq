@@ -20,7 +20,7 @@ use storage_adapter::storage::ArcStorageAdapter;
 
 #[derive(Clone)]
 pub struct MessageStorage {
-    storage_adapter: ArcStorageAdapter,
+    pub storage_adapter: ArcStorageAdapter,
 }
 
 impl MessageStorage {
@@ -104,7 +104,7 @@ mod tests {
     use common_config::storage::memory::StorageDriverMemoryConfig;
     use metadata_struct::adapter::record::Record;
     use std::sync::Arc;
-    use storage_adapter::memory::MemoryStorageAdapter;
+    use storage_adapter::{memory::MemoryStorageAdapter, storage::ShardInfo};
 
     async fn create_test_storage() -> MessageStorage {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new(
@@ -116,6 +116,16 @@ mod tests {
     #[tokio::test]
     async fn test_message_read_write_with_metadata() {
         let storage = create_test_storage().await;
+        let shard_name = "topic1";
+        storage
+            .storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: shard_name.to_string(),
+                replica_num: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // Test basic append and read
         let records: Vec<Record> = (0..10)
@@ -127,14 +137,14 @@ mod tests {
             .collect();
 
         let offsets = storage
-            .append_topic_message("topic1", records)
+            .append_topic_message(shard_name, records)
             .await
             .unwrap();
         assert_eq!(offsets.len(), 10);
 
         // Test read with offset and limit
         let msgs = storage
-            .read_topic_message("topic1", offsets[5], 3)
+            .read_topic_message(shard_name, offsets[5], 3)
             .await
             .unwrap();
         assert_eq!(msgs.len(), 3);
@@ -146,6 +156,25 @@ mod tests {
     #[tokio::test]
     async fn test_group_offset_isolation() {
         let storage = create_test_storage().await;
+        storage
+            .storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: "t1".to_string(),
+                replica_num: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        storage
+            .storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: "t2".to_string(),
+                replica_num: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // Initial offset is 0
         assert_eq!(storage.get_group_offset("g1", "t1").await.unwrap(), 0);
@@ -164,32 +193,42 @@ mod tests {
     #[tokio::test]
     async fn test_consumer_flow() {
         let storage = create_test_storage().await;
+        let shard_name = "topic1";
+        storage
+            .storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: shard_name.to_string(),
+                replica_num: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // Append messages
         let records: Vec<Record> = (0..10)
             .map(|i| Record::from_string(format!("Msg{}", i)))
             .collect();
         let offsets = storage
-            .append_topic_message("topic", records)
+            .append_topic_message(shard_name, records)
             .await
             .unwrap();
 
         // First consume: read and commit
-        let offset = storage.get_group_offset("group", "topic").await.unwrap();
+        let offset = storage.get_group_offset("group", shard_name).await.unwrap();
         let batch1 = storage
-            .read_topic_message("topic", offset, 5)
+            .read_topic_message(shard_name, offset, 5)
             .await
             .unwrap();
         assert_eq!(batch1.len(), 5);
         storage
-            .commit_group_offset("group", "topic", offsets[5])
+            .commit_group_offset("group", shard_name, offsets[5])
             .await
             .unwrap();
 
         // Second consume: continue from last committed
-        let offset = storage.get_group_offset("group", "topic").await.unwrap();
+        let offset = storage.get_group_offset("group", shard_name).await.unwrap();
         let batch2 = storage
-            .read_topic_message("topic", offset, 5)
+            .read_topic_message(shard_name, offset, 5)
             .await
             .unwrap();
         assert_eq!(batch2.len(), 5);

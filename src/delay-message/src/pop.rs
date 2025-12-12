@@ -62,9 +62,9 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    Ok(message_storage_adapter
+    message_storage_adapter
         .write(&delay_message.target_shard_name, &record)
-        .await?)
+        .await
 }
 
 pub(crate) async fn read_offset_data(
