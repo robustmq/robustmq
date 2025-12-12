@@ -24,7 +24,7 @@ use tracing::{error, info, warn};
 
 use crate::{pop::read_offset_data, DelayMessageManager};
 
-const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
+pub const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
 
 pub async fn persist_delay_info(
     message_storage_adapter: &ArcStorageAdapter,
@@ -145,10 +145,11 @@ mod test {
         adapter::{read_config::ReadConfig, record::Record},
         delay_info::DelayMessageInfo,
     };
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
     use tokio::time::sleep;
 
     use crate::{
+        delay::init_delay_message_shard,
         persist::{persist_delay_info, recover_delay_queue, DELAY_QUEUE_INFO_SHARD_NAME},
         pop::read_offset_data,
         start_delay_message_pop, DelayMessageManager,
@@ -160,6 +161,24 @@ mod test {
 
         let target_shard_name = unique_id();
         let delay_shard_name = unique_id();
+        message_storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: target_shard_name.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        message_storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: delay_shard_name.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        init_delay_message_shard(&message_storage_adapter, 10)
+            .await
+            .unwrap();
         for i in 0..10 {
             let delay_info = DelayMessageInfo {
                 delay_shard_name: delay_shard_name.to_owned(),
@@ -199,6 +218,17 @@ mod test {
         delay_message_manager.start().await;
 
         let target_topic = unique_id();
+        message_storage_adapter
+            .create_shard(&ShardInfo {
+                shard_name: target_topic.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        init_delay_message_shard(&message_storage_adapter, 10)
+            .await
+            .unwrap();
         for i in 0..10 {
             let data = Record::from_string(format!("data{i}"));
             // Use fixed delay to maintain order
