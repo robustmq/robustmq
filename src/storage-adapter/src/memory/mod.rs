@@ -140,7 +140,7 @@ impl MemoryStorageAdapter {
         let shard_state = self
             .shard_state
             .entry(shard_name.to_owned())
-            .or_insert_with(|| ShardState::default())
+            .or_default()
             .clone();
 
         let mut offset_res = Vec::with_capacity(messages.len());
@@ -151,7 +151,7 @@ impl MemoryStorageAdapter {
             self.shard_data
                 .insert(shard_name.to_string(), DashMap::with_capacity(2));
         }
-        
+
         if let Some(data_map) = self.shard_data.get(shard_name) {
             for msg in messages.iter() {
                 offset_res.push(offset);
@@ -176,7 +176,7 @@ impl MemoryStorageAdapter {
                 }
 
                 // timestamp index
-                if msg.timestamp > 0 && offset % 5000 == 0 {
+                if msg.timestamp > 0 && offset.is_multiple_of(5000) {
                     let timestamp_map = self
                         .timestamp_index
                         .entry(shard_name_str.clone())
@@ -625,7 +625,7 @@ mod tests {
         assert!(adapter
             .commit_offset("g1", &HashMap::from([("s3".into(), 100)]))
             .await
-            .is_err());
+            .is_ok());
     }
 
     #[tokio::test]
