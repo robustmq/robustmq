@@ -130,13 +130,6 @@ impl MemoryStorageAdapter {
             return Ok(Vec::new());
         }
 
-        if !self.shard_info.contains_key(shard_name) {
-            return Err(CommonError::CommonError(format!(
-                "shard {} not exists",
-                shard_name
-            )));
-        }
-
         let lock = self
             .shard_write_locks
             .entry(shard_name.to_string())
@@ -144,20 +137,21 @@ impl MemoryStorageAdapter {
             .clone();
 
         let _guard = lock.lock().await;
-
-        let shard_state = if let Some(state) = self.shard_state.get(shard_name) {
-            state.clone()
-        } else {
-            return Err(CommonError::CommonError(format!(
-                "shard {} not exists",
-                shard_name
-            )));
-        };
+        let shard_state = self
+            .shard_state
+            .entry(shard_name.to_owned())
+            .or_insert_with(|| ShardState::default())
+            .clone();
 
         let mut offset_res = Vec::with_capacity(messages.len());
         let mut offset = shard_state.next_offset;
         let shard_name_str = shard_name.to_string();
 
+        if !self.shard_data.contains_key(shard_name) {
+            self.shard_data
+                .insert(shard_name.to_string(), DashMap::with_capacity(2));
+        }
+        
         if let Some(data_map) = self.shard_data.get(shard_name) {
             for msg in messages.iter() {
                 offset_res.push(offset);
@@ -424,15 +418,6 @@ impl StorageAdapter for MemoryStorageAdapter {
     ) -> Result<(), CommonError> {
         if offset.is_empty() {
             return Ok(());
-        }
-
-        for shard_name in offset.keys() {
-            if !self.shard_info.contains_key(shard_name) {
-                return Err(CommonError::CommonError(format!(
-                    "shard {} not exists",
-                    shard_name
-                )));
-            }
         }
 
         let group_map = self
