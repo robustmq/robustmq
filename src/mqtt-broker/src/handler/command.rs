@@ -280,7 +280,7 @@ impl MQTTHandlerCommand {
         if let MqttPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
             if conn_ack.code == ConnectReturnCode::Success {
                 let username = if let Some(user) = login {
-                    user.username.to_owned()
+                    user.username
                 } else {
                     "".to_string()
                 };

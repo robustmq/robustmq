@@ -739,11 +739,11 @@ mod tests {
 
         // test the display of connect and connect_properties in v5
         assert_eq!(connect.to_string(), outcome.connect.to_string());
-        assert_eq!(login.clone().to_string(), login_read.clone().to_string());
+        assert_eq!(login.to_string(), login_read.to_string());
         assert_eq!(properties.to_string(), connect_properties.to_string());
-        assert_eq!(lastwill.clone().to_string(), lastwill_read.to_string());
+        assert_eq!(lastwill.to_string(), lastwill_read.to_string());
         assert_eq!(
-            will_properties.clone().to_string(),
+            will_properties.to_string(),
             lastwillproperties_read.to_string()
         );
     }

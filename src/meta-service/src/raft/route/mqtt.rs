@@ -91,7 +91,7 @@ impl DataRouteMqtt {
         let topic = MQTTTopic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.topic_name, topic.clone())?;
-        self.cache_manager.add_topic(topic.clone());
+        self.cache_manager.add_topic(topic);
         Ok(())
     }
 

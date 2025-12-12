@@ -47,8 +47,8 @@ pub fn test_build_segment() -> SegmentIdentity {
     let segment_no = 10;
 
     SegmentIdentity {
-        namespace: namespace.clone(),
-        shard_name: shard_name.clone(),
+        namespace,
+        shard_name,
         segment_seq: segment_no,
     }
 }

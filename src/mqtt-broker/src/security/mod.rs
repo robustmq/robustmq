@@ -64,7 +64,7 @@ impl AuthDriver {
     pub fn new(cache_manager: Arc<MQTTCacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_config();
 
-        let driver = match build_driver(client_pool.clone(), &conf.mqtt_auth_config.authn_config) {
+        let driver = match build_driver(client_pool, &conf.mqtt_auth_config.authn_config) {
             Ok(driver) => driver,
             Err(e) => {
                 panic!("{}, auth config:{:?}", e, conf.mqtt_auth_config);
@@ -318,7 +318,7 @@ impl AuthDriver {
         let mut user_acl = HashSet::new();
         let mut client_acl = HashSet::new();
 
-        for acl in all_acls.clone() {
+        for acl in all_acls {
             match acl.resource_type {
                 MqttAclResourceType::User => user_acl.insert(acl.resource_name.clone()),
                 MqttAclResourceType::ClientId => client_acl.insert(acl.resource_name.clone()),

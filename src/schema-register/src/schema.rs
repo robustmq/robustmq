@@ -112,7 +112,7 @@ impl SchemaRegisterManager {
             }
         } else {
             self.schema_resource_list
-                .insert(schema_name, vec![resource_name.to_owned()]);
+                .insert(schema_name, vec![resource_name]);
         }
     }
 

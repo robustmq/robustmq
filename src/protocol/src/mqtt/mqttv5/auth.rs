@@ -293,6 +293,6 @@ mod tests {
 
         // test display of puback and puback_properties in v5
         assert_eq!(auth.to_string(), auth_read.to_string());
-        assert_eq!(properties.clone().to_string(), auth_properties.to_string());
+        assert_eq!(properties.to_string(), auth_properties.to_string());
     }
 }

@@ -141,7 +141,7 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),
-            raw_stop_send.clone(),
+            raw_stop_send,
         );
         tokio::spawn(async move {
             keep_alive.start_heartbeat_check().await;

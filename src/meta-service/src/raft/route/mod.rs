@@ -52,8 +52,7 @@ impl DataRoute {
         let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
-        let route_journal =
-            DataRouteJournal::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+        let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
         DataRoute {
             route_kv,
             route_mqtt,

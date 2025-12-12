@@ -237,7 +237,7 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
                 ts: now_millis(),
                 subopts,
                 topic: filter.path,
-                protocol: format!("{:?}", network_connection.protocol.clone()),
+                protocol: format!("{:?}", network_connection.protocol),
                 client_id: context.connection.client_id.to_string(),
             };
             match serde_json::to_string(&event_data) {
@@ -276,7 +276,7 @@ pub async fn st_report_unsubscribed_event(context: StReportUnsubscribedEventCont
                 username: context.connection.login_user.clone(),
                 ts: now_millis(),
                 topic: path,
-                protocol: format!("{:?}", network_connection.protocol.clone()),
+                protocol: format!("{:?}", network_connection.protocol),
                 client_id: context.connection.client_id.to_string(),
             };
             match serde_json::to_string(&event_data) {

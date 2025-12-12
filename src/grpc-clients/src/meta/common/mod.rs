@@ -51,15 +51,14 @@ impl Manager for PlacementServiceManager {
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MetaServiceServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+        match MetaServiceServiceClient::connect(format!("http://{}", self.addr)).await {
             Ok(client) => {
                 return Ok(client);
             }
             Err(err) => {
                 return Err(CommonError::CommonError(format!(
                     "manager connect error:{},{}",
-                    err,
-                    self.addr.clone()
+                    err, self.addr
                 )))
             }
         };

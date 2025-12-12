@@ -54,7 +54,7 @@ pub fn connect_server5(
         println!("Error creating the client: {err:?}");
         process::exit(1);
     });
-    let conn_opts = build_v5_conn_pros(props.clone(), username, password, ws, ssl);
+    let conn_opts = build_v5_conn_pros(props, username, password, ws, ssl);
     match cli.connect(conn_opts) {
         Ok(response) => {
             let resp = response.connect_response().unwrap();
@@ -128,7 +128,7 @@ pub fn build_v5_conn_pros(
         .keep_alive_interval(Duration::from_secs(600))
         .clean_start(true)
         .connect_timeout(Duration::from_secs(60))
-        .properties(props.clone())
+        .properties(props)
         .user_name(username)
         .password(password)
         .finalize()

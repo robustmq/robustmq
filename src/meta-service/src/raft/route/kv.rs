@@ -29,7 +29,7 @@ pub struct DataRouteKv {
 
 impl DataRouteKv {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
+        let kv_storage = KvStorage::new(rocksdb_engine_handler);
         DataRouteKv { kv_storage }
     }
     pub fn set(&self, value: Bytes) -> Result<(), MetaServiceError> {

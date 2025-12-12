@@ -312,7 +312,7 @@ pub fn record_packet_send_metrics(packet_wrapper: &MqttPacketWrapper, network_ty
         qos: qos_str,
     };
     let label = NetworkLabel {
-        network: network_type.clone(),
+        network: network_type,
     };
     let payload_size = calc_mqtt_packet_size(packet_wrapper.to_owned());
     counter_metric_inc!(MQTT_PACKETS_SENT, label_qos);

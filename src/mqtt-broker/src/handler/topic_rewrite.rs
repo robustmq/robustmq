@@ -86,7 +86,7 @@ fn gen_rewrite_topic(
         }
         return Ok(format!("{prefix}{rewrite_topic}"));
     }
-    Ok(input.to_owned())
+    Ok(input)
 }
 
 #[cfg(test)]

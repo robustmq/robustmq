@@ -125,7 +125,7 @@ impl AsyncWriter {
 
         let node_sender_thread = NodeSenderThread {
             node_send: data_sender.clone(),
-            stop_send: stop_send.clone(),
+            stop_send,
         };
 
         self.node_senders.insert(node_id, node_sender_thread);

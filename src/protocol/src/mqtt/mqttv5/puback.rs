@@ -249,10 +249,7 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        assert_eq!(puback.clone().to_string(), pub_ack_read.clone().to_string());
-        assert_eq!(
-            properties.clone().to_string(),
-            puback_properties.clone().to_string()
-        );
+        assert_eq!(puback.to_string(), pub_ack_read.to_string());
+        assert_eq!(properties.to_string(), puback_properties.to_string());
     }
 }
