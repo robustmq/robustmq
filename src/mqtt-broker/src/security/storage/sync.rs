@@ -23,7 +23,7 @@ use tokio::sync::broadcast;
 pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     sync_user_cache(auth_driver.clone(), stop_send.clone());
     sync_acl_cache(auth_driver.clone(), stop_send.clone());
-    sync_blacklist_cache(auth_driver.clone(), stop_send.clone());
+    sync_blacklist_cache(auth_driver, stop_send);
 }
 
 fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {

@@ -91,7 +91,7 @@ impl Server {
             network_type: NetworkConnectionType::Tcp,
             proc_config,
             stop_sx: context.stop_sx.clone(),
-            broker_cache: context.broker_cache.clone(),
+            broker_cache: context.broker_cache,
         };
 
         // TCP Server

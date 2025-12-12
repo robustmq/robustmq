@@ -212,7 +212,7 @@ impl CacheManager {
             }
         }
 
-        let node = NodeStorage::new(rocksdb_engine_handler.clone());
+        let node = NodeStorage::new(rocksdb_engine_handler);
         if let Ok(result) = node.list(None) {
             for bn in result {
                 self.add_broker_node(bn);

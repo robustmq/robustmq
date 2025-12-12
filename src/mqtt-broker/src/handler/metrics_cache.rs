@@ -483,23 +483,23 @@ pub fn metrics_record_thread(
 
     record_subscribe_metrics_thread(
         metrics_cache_manager.clone(),
-        subscribe_manager.clone(),
+        subscribe_manager,
         time_window,
         stop_send.clone(),
     );
 
     record_session_metrics_thread(
         metrics_cache_manager.clone(),
-        cache_manager.clone(),
+        cache_manager,
         time_window,
         stop_send.clone(),
     );
 
     record_connector_metrics_thread(
-        metrics_cache_manager.clone(),
+        metrics_cache_manager,
         connector_manager,
         time_window,
-        stop_send.clone(),
+        stop_send,
     );
 }
 

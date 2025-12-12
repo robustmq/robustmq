@@ -167,7 +167,7 @@ impl Authentication for JwtAuth {
 
         // update user information to cache
         let user = MqttUser {
-            username: jwt_username.clone(),
+            username: jwt_username,
             password: self.password.clone(),
             salt: None,
             is_superuser: claims.is_superuser.unwrap_or(false),

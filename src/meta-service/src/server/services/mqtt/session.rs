@@ -110,7 +110,7 @@ pub async fn delete_session_by_req(
     if let Some(will_message) = will_storage.get(&req.cluster_name, &req.client_id)? {
         let delay = session.last_will_delay_interval.unwrap_or_default();
         cache_manager.add_expire_last_will(ExpireLastWill {
-            client_id: will_message.client_id.clone(),
+            client_id: will_message.client_id,
             delay_sec: now_second() + delay,
             cluster_name: req.cluster_name.clone(),
         });

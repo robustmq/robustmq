@@ -40,8 +40,7 @@ impl OffsetManager {
     pub fn new(client_pool: Arc<ClientPool>, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
         let conf = broker_config();
         let offset_storage = OffsetStorageManager::new(client_pool.clone());
-        let offset_cache_storage =
-            OffsetCacheManager::new(rocksdb_engine_handler.clone(), client_pool.clone());
+        let offset_cache_storage = OffsetCacheManager::new(rocksdb_engine_handler, client_pool);
         OffsetManager {
             enable_cache: conf.storage_offset.enable_cache,
             offset_storage,

@@ -45,17 +45,11 @@ impl Manager for JournalServiceManager {
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match EngineServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+        match EngineServiceClient::connect(format!("http://{}", self.addr)).await {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => {
-                return Err(CommonError::CommonError(format!(
-                    "{},{}",
-                    err,
-                    self.addr.clone()
-                )))
-            }
+            Err(err) => return Err(CommonError::CommonError(format!("{},{}", err, self.addr))),
         };
     }
 

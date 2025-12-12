@@ -42,7 +42,7 @@ impl BrokerCacheManager {
             cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
             node_lists: DashMap::with_capacity(2),
-            cluster_config: Arc::new(RwLock::new(cluster.clone())),
+            cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
         }
     }

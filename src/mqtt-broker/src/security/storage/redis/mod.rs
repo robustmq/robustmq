@@ -238,7 +238,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let id = RedisAuthAcl::generate_id(&username, &clientid, &acl.topic);
 
         let redis_acl = RedisAuthAcl {
-            id: id.clone(),
+            id,
             username,
             permission,
             ipaddr: acl.ip,

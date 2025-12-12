@@ -34,7 +34,7 @@ pub struct OffsetCacheManager {
 
 impl OffsetCacheManager {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>, client_pool: Arc<ClientPool>) -> Self {
-        let offset_storage = OffsetStorageManager::new(client_pool.clone());
+        let offset_storage = OffsetStorageManager::new(client_pool);
         OffsetCacheManager {
             rocksdb_engine_handler,
             group_update_flag: DashMap::with_capacity(64),

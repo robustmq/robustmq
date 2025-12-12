@@ -54,8 +54,8 @@ impl StateMachineStore {
         route: Arc<DataRoute>,
     ) -> Result<StateMachineStore, StorageError<TypeConfig>> {
         let mut sm = Self {
-            machine: machine.clone(),
-            db: db.clone(),
+            machine,
+            db,
             data: StateMachineData {
                 last_applied_log_id: None,
                 last_membership: Default::default(),

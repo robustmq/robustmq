@@ -203,7 +203,7 @@ impl BrokerServer {
                 schema_manager: self.mqtt_params.schema_manager.clone(),
             },
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
-            broker_cache: broker_cache.clone(),
+            broker_cache,
             rate_limiter_manager: self.rate_limiter_manager.clone(),
             storage_adapter: self.mqtt_params.message_storage_adapter.clone(),
         });
@@ -267,7 +267,7 @@ impl BrokerServer {
 
         if config.is_start_journal() {
             journal_stop_send = Some(stop_send.clone());
-            let server = JournalServer::new(self.journal_params.clone(), stop_send.clone());
+            let server = JournalServer::new(self.journal_params.clone(), stop_send);
             journal_runtime.spawn(async move {
                 server.start().await;
             });
@@ -300,7 +300,7 @@ impl BrokerServer {
 
         // offset flush thread
         let offset_cache = self.offset_manager.clone();
-        let raw_stop_send = stop_send.clone();
+        let raw_stop_send = stop_send;
         server_runtime.spawn(async move {
             offset_cache.offset_save_thread(raw_stop_send).await;
         });

@@ -219,7 +219,7 @@ async fn get_write(
     segment_iden: &SegmentIdentity,
 ) -> Result<SegmentWrite, JournalServerError> {
     let write = if let Some(write) = cache_manager.get_segment_write_thread(segment_iden) {
-        write.clone()
+        write
     } else {
         create_write_thread(
             cache_manager,

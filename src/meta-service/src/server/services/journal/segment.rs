@@ -387,7 +387,7 @@ pub async fn build_segment(
         &shard_info.shard_name,
         segment_no,
     ) {
-        return Ok(segment.clone());
+        return Ok(segment);
     }
 
     let node_list = cache_manager.get_broker_node_id_by_cluster(&shard_info.cluster_name);

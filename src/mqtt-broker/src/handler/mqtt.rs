@@ -563,7 +563,7 @@ impl MqttService {
         _: &Option<PubRecProperties>,
     ) -> Option<MqttPacket> {
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
-            let client_id = conn.client_id.clone();
+            let client_id = conn.client_id;
             let pkid = pub_rec.pkid;
             if let Some(data) = self
                 .cache_manager
@@ -590,7 +590,7 @@ impl MqttService {
         _: &Option<PubCompProperties>,
     ) -> Option<MqttPacket> {
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
-            let client_id = conn.client_id.clone();
+            let client_id = conn.client_id;
             let pkid = pub_comp.pkid;
             if let Some(data) = self
                 .cache_manager
@@ -618,7 +618,7 @@ impl MqttService {
         _: &Option<PubRelProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
-            se.clone()
+            se
         } else {
             return response_packet_mqtt_distinct_by_reason(
                 &self.protocol,
@@ -756,7 +756,7 @@ impl MqttService {
 
     pub async fn ping(&self, connect_id: u64, _: &PingReq) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
-            se.clone()
+            se
         } else {
             return response_packet_mqtt_distinct_by_reason(
                 &self.protocol,

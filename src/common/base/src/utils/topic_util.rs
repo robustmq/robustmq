@@ -27,7 +27,7 @@ pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> 
 
     if regex_topic_name.contains("+") {
         let regex_str = regex_topic_name.replace("+", "[^+*/]+");
-        let regex = Regex::new(&regex_str.to_string()).unwrap();
+        let regex = Regex::new(&regex_str).unwrap();
         return regex.is_match(topic_name);
     }
 
@@ -36,7 +36,7 @@ pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> 
             return false;
         }
         let regex_str = regex_topic_name.replace("#", "[^+#]+");
-        let regex = Regex::new(&regex_str.to_string()).unwrap();
+        let regex = Regex::new(&regex_str).unwrap();
         return regex.is_match(topic_name);
     }
 
