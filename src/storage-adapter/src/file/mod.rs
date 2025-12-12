@@ -44,20 +44,6 @@ struct IndexInfo {
     pub create_time: u64,
 }
 
-#[inline]
-pub fn parse_offset_bytes(bytes: &[u8]) -> Result<u64, CommonError> {
-    if bytes.len() != 8 {
-        return Err(CommonError::CommonError(format!(
-            "Invalid offset bytes length: expected 8, got {}",
-            bytes.len()
-        )));
-    }
-
-    Ok(u64::from_be_bytes(bytes.try_into().map_err(|_| {
-        CommonError::CommonError("Failed to convert offset bytes".to_string())
-    })?))
-}
-
 #[derive(Clone)]
 pub struct RocksDBStorageAdapter {
     pub db: Arc<RocksDBEngine>,
@@ -81,25 +67,32 @@ impl RocksDBStorageAdapter {
         })
     }
 
-    fn get_offset(&self, shard_name: &str) -> Result<u64, CommonError> {
+    fn save_latest_offset(&self, shard_name: &str, offset: u64) -> Result<(), CommonError> {
         let cf = self.get_cf()?;
-        let shard_offset_key = shard_offset_key(shard_name);
-        let offset = match self.db.read::<u64>(cf.clone(), &shard_offset_key)? {
-            Some(offset) => offset,
-            None => {
-                return Err(CommonError::CommonError(format!(
-                    "shard {shard_name} not exists"
-                )));
-            }
-        };
-        Ok(offset)
+        let key = latest_offset_key(shard_name);
+        self.db.write(cf, &key, &offset)?;
+        Ok(())
     }
 
-    fn save_offset(&self, shard_name: &str, offset: u64) -> Result<(), CommonError> {
+    fn get_latest_offset(&self, shard_name: &str) -> Result<u64, CommonError> {
         let cf = self.get_cf()?;
-        let shard_offset_key = shard_offset_key(shard_name);
-        self.db.write(cf, &shard_offset_key, &offset)?;
+        let key = latest_offset_key(shard_name);
+        Ok(self.db.read::<u64>(cf, &key)?.unwrap_or(0))
+    }
+
+    fn _save_earliest_offset(&self, shard_name: &str, offset: u64) -> Result<(), CommonError> {
+        let cf = self.get_cf()?;
+        let key = earliest_offset_key(shard_name);
+        if !self.db.exist(cf.clone(), &key) {
+            self.db.write(cf, &key, &offset)?;
+        }
         Ok(())
+    }
+
+    fn _get_earliest_offset(&self, shard_name: &str) -> Result<u64, CommonError> {
+        let cf = self.get_cf()?;
+        let key = earliest_offset_key(shard_name);
+        Ok(self.db.read::<u64>(cf, &key)?.unwrap_or(0))
     }
 
     async fn batch_write_internal(
@@ -120,62 +113,59 @@ impl RocksDBStorageAdapter {
         let _guard = lock.lock().await;
 
         let cf = self.get_cf()?;
-        let offset = self.get_offset(shard_name)?;
+        let mut offset = self.get_latest_offset(shard_name)?;
 
-        let mut start_offset = offset;
         let mut offset_res = Vec::with_capacity(messages.len());
         let mut batch = WriteBatch::default();
 
         for msg in messages {
-            offset_res.push(start_offset);
+            offset_res.push(offset);
 
             // save message
             let mut record_to_save = msg.clone();
-            record_to_save.offset = Some(start_offset);
-            let shard_record_key = shard_record_key(shard_name, start_offset);
+            record_to_save.offset = Some(offset);
+            let shard_record_key = shard_record_key(shard_name, offset);
             let serialized_msg = serialize::serialize(&record_to_save)?;
             batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
             // save index
             let offset_info = IndexInfo {
                 shard_name: shard_name.to_string(),
-                offset: start_offset,
+                offset,
                 create_time: now_second(),
             };
             let offset_info_data = serialize(&offset_info)?;
 
             // key index
             if let Some(key) = &msg.key {
-                let key_offset_key = key_offset_key(shard_name, key);
-                batch.put_cf(&cf, key_offset_key.as_bytes(), offset_info_data.clone());
+                let key_index_key = key_index_key(shard_name, key);
+                batch.put_cf(&cf, key_index_key.as_bytes(), offset_info_data.clone());
             }
 
             // tag index
             if let Some(tags) = &msg.tags {
                 for tag in tags.iter() {
-                    let tag_offsets_key = tag_offsets_key(shard_name, tag, start_offset);
-                    batch.put_cf(&cf, tag_offsets_key.as_bytes(), offset_info_data.clone());
+                    let tag_index_key = tag_index_key(shard_name, tag, offset);
+                    batch.put_cf(&cf, tag_index_key.as_bytes(), offset_info_data.clone());
                 }
             }
 
             // timestamp index
-            if msg.timestamp > 0 && start_offset % 5000 == 0 {
-                let timestamp_offset_key =
-                    timestamp_offset_key(shard_name, msg.timestamp, start_offset);
+            if msg.timestamp > 0 && offset % 5000 == 0 {
+                let timestamp_index_key = timestamp_index_key(shard_name, msg.timestamp, offset);
                 batch.put_cf(
                     &cf,
-                    timestamp_offset_key.as_bytes(),
+                    timestamp_index_key.as_bytes(),
                     offset_info_data.clone(),
                 );
             }
 
             // offset incr
-            start_offset += 1;
+            offset += 1;
         }
 
         self.db.write_batch(batch)?;
-
-        self.save_offset(shard_name, start_offset)?;
+        self.save_latest_offset(shard_name, offset)?;
         Ok(offset_res)
     }
 
@@ -186,7 +176,7 @@ impl RocksDBStorageAdapter {
     ) -> Result<Option<IndexInfo>, CommonError> {
         let cf = self.get_cf()?;
         let mut result = None;
-        let timestamp_index_prefix = timestamp_offset_key_prefix(shard);
+        let timestamp_index_prefix = timestamp_index_prefix(shard);
         let mut iter = self.db.db.raw_iterator_cf(&cf);
         iter.seek(&timestamp_index_prefix);
 
@@ -292,11 +282,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
         }
 
         // init shard
-        self.db.write(cf.clone(), &shard_info_key, shard)?;
+        self.db.write(cf.clone(), &shard_info_key, &shard)?;
 
         // init shard offset
-        let shard_offset_key = shard_offset_key(shard_name);
-        self.db.write(cf.clone(), &shard_offset_key, &0_u64)?;
+        self.db
+            .write(cf.clone(), &earliest_offset_key(shard_name), &0_u64)?;
+        self.db
+            .write(cf.clone(), &latest_offset_key(shard_name), &0_u64)?;
 
         // init shard lock
         self.shard_write_locks
@@ -308,17 +300,21 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
         let cf = self.get_cf()?;
-        let prefix_key = if shard.is_empty() {
-            "/shard/".to_string()
+        if shard.is_empty() {
+            let raw_shard_info = self.db.read_prefix(cf.clone(), &shard_info_key_prefix())?;
+            let mut result = Vec::new();
+            for (_, v) in raw_shard_info {
+                result.push(serialize::deserialize::<ShardInfo>(v.as_slice())?);
+            }
+            Ok(result)
         } else {
-            shard_info_key(shard)
-        };
-
-        let raw_shard_info = self.db.read_prefix(cf, &prefix_key)?;
-        raw_shard_info
-            .into_iter()
-            .map(|(_, v)| serialize::deserialize::<ShardInfo>(v.as_slice()))
-            .collect::<Result<Vec<ShardInfo>, CommonError>>()
+            let key = shard_info_key(shard);
+            if let Some(v) = self.db.read::<ShardInfo>(cf.clone(), &key)? {
+                Ok(vec![v])
+            } else {
+                Ok(Vec::new())
+            }
+        }
     }
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
@@ -344,11 +340,12 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
 
         // delete timestamp index
-        let timestamp_index_prefix = timestamp_offset_key_prefix(shard);
+        let timestamp_index_prefix = timestamp_index_prefix(shard);
         self.db.delete_prefix(cf.clone(), &timestamp_index_prefix)?;
 
         // delete shard offset
-        self.db.delete(cf.clone(), &shard_offset_key(shard))?;
+        self.db.delete(cf.clone(), &earliest_offset_key(shard))?;
+        self.db.delete(cf.clone(), &latest_offset_key(shard))?;
 
         // delete shard info
         self.db.delete(cf, &shard_info_key)?;
@@ -419,7 +416,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let tag_offset_key_prefix = tag_offsets_key_prefix(shard, tag);
+        let tag_offset_key_prefix = tag_index_prefix(shard, tag);
         let tag_entries = self.db.read_prefix(cf.clone(), &tag_offset_key_prefix)?;
 
         // Filter and collect offsets >= specified offset
@@ -473,9 +470,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let key_offset_key = key_offset_key(shard, key);
+        let key_index = key_index_key(shard, key);
 
-        let key_offset_bytes = match self.db.db.get_cf(&cf, &key_offset_key) {
+        let key_offset_bytes = match self.db.db.get_cf(&cf, &key_index) {
             Ok(Some(data)) => data,
             Ok(_) => return Ok(Vec::new()),
             Err(e) => {

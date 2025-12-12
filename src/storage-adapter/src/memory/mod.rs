@@ -25,8 +25,8 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
 pub struct ShardState {
-    pub start_offset: u64,
-    pub next_offset: u64,
+    pub earliest_offset: u64,
+    pub latest_offset: u64,
 }
 
 #[derive(Clone)]
@@ -43,7 +43,9 @@ pub struct MemoryStorageAdapter {
     pub key_index: DashMap<String, DashMap<String, u64>>,
     //(shard, (timestamp, offset))
     pub timestamp_index: DashMap<String, DashMap<u64, u64>>,
+    //(shard, ShardState)
     pub shard_state: DashMap<String, ShardState>,
+    //(shard, lock)
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     pub config: StorageDriverMemoryConfig,
 }
@@ -106,7 +108,7 @@ impl MemoryStorageAdapter {
         let shard_state = self.shard_state.get(shard)?;
 
         let start = start_offset.unwrap_or(0);
-        let end = shard_state.next_offset;
+        let end = shard_state.latest_offset;
 
         for offset in start..end {
             let Some(record) = data_map.get(&offset) else {
@@ -144,7 +146,7 @@ impl MemoryStorageAdapter {
             .clone();
 
         let mut offset_res = Vec::with_capacity(messages.len());
-        let mut offset = shard_state.next_offset;
+        let mut offset = shard_state.latest_offset;
         let shard_name_str = shard_name.to_string();
 
         if !self.shard_data.contains_key(shard_name) {
@@ -191,8 +193,8 @@ impl MemoryStorageAdapter {
             self.shard_state.insert(
                 shard_name.to_string(),
                 ShardState {
-                    start_offset: shard_state.start_offset,
-                    next_offset: offset,
+                    earliest_offset: shard_state.earliest_offset,
+                    latest_offset: offset,
                 },
             );
             return Ok(offset_res);
