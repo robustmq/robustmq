@@ -37,7 +37,7 @@ pub(crate) async fn report_cluster_status(
 ) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
     if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
-        write_topic_data(
+        let _ = write_topic_data(
             message_storage_adapter,
             metadata_cache,
             client_pool,

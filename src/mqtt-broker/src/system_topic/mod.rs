@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::MQTTCacheManager;
+use crate::handler::tool::ResultMqttBrokerError;
 use crate::handler::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::system_topic::packet::bytes::{
@@ -80,7 +81,6 @@ use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
-use tracing::error;
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
@@ -347,7 +347,7 @@ pub(crate) async fn report_system_data<F, Fut>(
     let data = data_generator().await;
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
-        write_topic_data(
+        let _ = write_topic_data(
             message_storage_adapter,
             metadata_cache,
             client_pool,
@@ -372,43 +372,20 @@ pub(crate) async fn write_topic_data(
     client_pool: &Arc<ClientPool>,
     topic_name: String,
     record: Record,
-) {
-    match try_init_topic(
+) -> ResultMqttBrokerError {
+    let topic = try_init_topic(
         &topic_name,
         &metadata_cache.clone(),
         &message_storage_adapter.clone(),
         &client_pool.clone(),
     )
-    .await
-    {
-        Ok(topic) => {
-            let message_storage = MessageStorage::new(message_storage_adapter.clone());
-            match message_storage
-                .append_topic_message(&topic.topic_name, vec![record])
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => {
-                    error!(
-                        "Message written to system subject {} Error, error message :{}",
-                        topic_name,
-                        e.to_string()
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            if e.to_string().contains("already exist") {
-                return;
-            }
+    .await?;
 
-            error!(
-                "Initializing system topic {} Failed, error message :{}",
-                topic_name,
-                e.to_string()
-            );
-        }
-    }
+    let message_storage = MessageStorage::new(message_storage_adapter.clone());
+    message_storage
+        .append_topic_message(&topic.topic_name, vec![record])
+        .await?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -448,7 +425,7 @@ mod test {
         let topic_message =
             MqttMessage::build_system_topic_message(topic_name.clone(), data).unwrap();
 
-        write_topic_data(
+        let _ = write_topic_data(
             &message_storage_adapter,
             &cache_manger,
             &client_pool,

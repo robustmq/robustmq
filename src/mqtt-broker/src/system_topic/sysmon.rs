@@ -35,7 +35,7 @@ pub async fn st_report_system_alarm_event(
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
-        write_topic_data(
+        let _ = write_topic_data(
             message_storage_adapter,
             metadata_cache,
             client_pool,
