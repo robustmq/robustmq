@@ -588,7 +588,7 @@ mod tests {
             rocksdb_engine_handler.clone(),
         ));
         let config = StorageAdapterConfig {
-            storage_type: StorageAdapterType::File,
+            storage_type: StorageAdapterType::RocksDB,
             rocksdb_config: Some(StorageDriverRocksDBConfig::default()),
             ..Default::default()
         };

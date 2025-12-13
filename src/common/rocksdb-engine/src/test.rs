@@ -15,10 +15,7 @@
 use std::sync::Arc;
 
 use common_base::utils::file_utils::test_temp_dir;
-use common_config::{
-    broker::{default_broker_config, init_broker_conf_by_config},
-    storage::rocksdb::StorageDriverRocksDBConfig,
-};
+use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 
 use crate::{rocksdb::RocksDBEngine, storage::family::column_family_list};
 
@@ -30,14 +27,4 @@ pub fn test_rocksdb_instance() -> Arc<RocksDBEngine> {
         config.rocksdb.max_open_files,
         column_family_list(),
     ))
-}
-
-pub fn test_storage_driver_rockdb_config() -> StorageDriverRocksDBConfig {
-    StorageDriverRocksDBConfig {
-        data_path: test_temp_dir(),
-        max_open_files: 100,
-        block_cache_size: 100000,
-        write_buffer_size: 1000000,
-        max_write_buffer_number: 100000,
-    }
 }
