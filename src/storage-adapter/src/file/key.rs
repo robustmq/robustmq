@@ -21,7 +21,7 @@ pub fn shard_record_key(shard: &str, record_offset: u64) -> String {
     let mut key = String::with_capacity(32 + shard.len());
     key.push_str("/sm/r/");
     key.push_str(shard);
-    key.push_str("/");
+    key.push('/');
     let _ = write!(key, "{:020}", record_offset);
     key
 }
@@ -33,7 +33,7 @@ pub fn shard_record_key_prefix(shard: &str) -> String {
     let mut key = String::with_capacity(18 + shard.len());
     key.push_str("/sm/r/");
     key.push_str(shard);
-    key.push_str("/");
+    key.push('/');
     key
 }
 

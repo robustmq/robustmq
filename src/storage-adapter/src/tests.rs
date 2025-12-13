@@ -22,7 +22,6 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1 = ShardInfo {
         shard_name: "shard1".to_string(),
         replica_num: 3,
-        ..Default::default()
     };
     adapter.create_shard(&shard1).await.unwrap();
     adapter
