@@ -69,6 +69,17 @@ pub fn key_index_key(shard: &str, record_key: &str) -> String {
     key
 }
 
+/// Generate key index prefix for a shard
+/// Format: /sm/i/k/{shard}/
+#[inline(always)]
+pub fn key_index_prefix(shard: &str) -> String {
+    let mut key = String::with_capacity(14 + shard.len());
+    key.push_str("/sm/i/k/");
+    key.push_str(shard);
+    key.push('/');
+    key
+}
+
 /// Generate tag index key for a specific offset
 /// Format: /sm/i/t/{shard}/{tag}/{offset:020}
 #[inline(always)]
@@ -83,10 +94,21 @@ pub fn tag_index_key(shard: &str, tag: &str, offset: u64) -> String {
     key
 }
 
-/// Generate tag index prefix for range queries
+/// Generate tag index prefix for a shard (all tags)
+/// Format: /sm/i/t/{shard}/
+#[inline(always)]
+pub fn tag_index_prefix(shard: &str) -> String {
+    let mut key = String::with_capacity(12 + shard.len());
+    key.push_str("/sm/i/t/");
+    key.push_str(shard);
+    key.push('/');
+    key
+}
+
+/// Generate tag index prefix for a specific tag
 /// Format: /sm/i/t/{shard}/{tag}/
 #[inline(always)]
-pub fn tag_index_prefix(shard: &str, tag: &str) -> String {
+pub fn tag_index_tag_prefix(shard: &str, tag: &str) -> String {
     let mut key = String::with_capacity(26 + shard.len() + tag.len());
     key.push_str("/sm/i/t/");
     key.push_str(shard);
@@ -167,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_all_key_formats() {
-        let cases: [(_, &'static str); 13] = [
+        let cases: [(_, &'static str); 15] = [
             (
                 shard_record_key("shard1", 123),
                 "/sm/r/shard1/00000000000000000123",
@@ -189,12 +211,20 @@ mod tests {
                 "/sm/i/k/shard1/mykey",
             ),
             (
+                key_index_prefix("shard1"),
+                "/sm/i/k/shard1/",
+            ),
+            (
                 tag_index_key("shard1", "tag1", 456),
                 "/sm/i/t/shard1/tag1/00000000000000000456",
             ),
             (
-                tag_index_prefix("shard1", "tag1"),
+                tag_index_tag_prefix("shard1", "tag1"),
                 "/sm/i/t/shard1/tag1/",
+            ),
+            (
+                tag_index_prefix("shard1"),
+                "/sm/i/t/shard1/",
             ),
             (
                 group_record_offsets_key("group1", "shard1"),
@@ -224,7 +254,7 @@ mod tests {
 
         for (actual, expected) in cases {
             assert_eq!(actual, expected);
-        }
     }
+}
 }
 

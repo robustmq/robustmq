@@ -332,11 +332,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.db.delete_prefix(cf.clone(), &record_prefix)?;
 
         // delete key index
-        let key_index_prefix = format!("/key/{}/", shard);
-        self.db.delete_prefix(cf.clone(), &key_index_prefix)?;
+        let key_prefix = key_index_prefix(shard);
+        self.db.delete_prefix(cf.clone(), &key_prefix)?;
 
         // delete tag index
-        let tag_index_prefix = format!("/tag/{}/", shard);
+        let tag_index_prefix = tag_index_prefix(shard);
         self.db.delete_prefix(cf.clone(), &tag_index_prefix)?;
 
         // delete timestamp index
@@ -416,7 +416,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let tag_offset_key_prefix = tag_index_prefix(shard, tag);
+        let tag_offset_key_prefix = tag_index_tag_prefix(shard, tag);
         let tag_entries = self.db.read_prefix(cf.clone(), &tag_offset_key_prefix)?;
 
         // Filter and collect offsets >= specified offset
@@ -566,4 +566,43 @@ impl StorageAdapter for RocksDBStorageAdapter {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use bytes::Bytes;
+    use rocksdb_engine::test::test_rocksdb_instance;
+
+    #[tokio::test]
+    async fn test_shard_lifecycle() {
+        let db = test_rocksdb_instance();
+        let adapter = RocksDBStorageAdapter::new(db);
+
+        let shard = ShardInfo {
+            shard_name: "s1".to_string(),
+            ..Default::default()
+        };
+
+        adapter.create_shard(&shard).await.unwrap();
+
+        let listed = adapter.list_shard("").await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].shard_name, "s1");
+
+        let cfg = ReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        };
+        let offset = adapter
+            .write("s1", &Record::from_bytes(b"hello".to_vec()))
+            .await
+            .unwrap();
+        assert_eq!(offset, 0);
+
+        let records = adapter.read_by_offset("s1", 0, &cfg).await.unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].data, Bytes::from_static(b"hello"));
+
+        adapter.delete_shard("s1").await.unwrap();
+        let listed = adapter.list_shard("").await.unwrap();
+        assert!(listed.is_empty());
+    }
+}
