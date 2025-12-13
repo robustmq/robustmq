@@ -221,7 +221,6 @@ impl RocksDBStorageAdapter {
         timestamp: u64,
     ) -> Result<Option<Record>, CommonError> {
         let cf = self.get_cf()?;
-        let mut result = None;
         let timestamp_index_prefix = if let Some(si) = start_index {
             shard_record_key(shard, si.offset)
         } else {
@@ -231,7 +230,6 @@ impl RocksDBStorageAdapter {
         let mut iter = self.db.db.raw_iterator_cf(&cf);
         iter.seek(&timestamp_index_prefix);
 
-        let mut prefix_record = None;
         while iter.valid() {
             let Some(key_bytes) = iter.key() else {
                 break;
@@ -254,16 +252,16 @@ impl RocksDBStorageAdapter {
             }
 
             let record = deserialize::<Record>(value_byte)?;
-            if record.timestamp > timestamp {
-                result = prefix_record;
-                break;
+            // Return the first record with timestamp >= target timestamp
+            // This matches the Memory adapter semantics
+            if record.timestamp >= timestamp {
+                return Ok(Some(record));
             }
 
-            prefix_record = Some(record);
             iter.next();
         }
 
-        Ok(result)
+        Ok(None)
     }
 }
 
