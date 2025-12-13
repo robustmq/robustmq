@@ -14,14 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StorageDriverRocksDBConfig {}
-
-impl Default for StorageDriverRocksDBConfig {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl StorageDriverRocksDBConfig {
     pub fn validate(&self) -> Result<(), String> {
