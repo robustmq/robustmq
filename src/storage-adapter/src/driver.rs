@@ -39,7 +39,7 @@ pub async fn build_message_storage_driver(
         // StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
         //     config.mysql_config.unwrap_or_default(),
         // )?),
-        StorageAdapterType::File => Arc::new(RocksDBStorageAdapter::new(db)),
+        StorageAdapterType::RocksDB => Arc::new(RocksDBStorageAdapter::new(db)),
 
         StorageAdapterType::S3 => {
             // Arc::new(S3StorageAdapter::new(config.s3_config.unwrap_or_default()))

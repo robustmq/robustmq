@@ -123,7 +123,6 @@ pub(crate) async fn init_delay_message_shard(
             let shard = ShardInfo {
                 shard_name: shard_name.clone(),
                 replica_num: 1,
-                ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
             debug!("Created delay message shard: {}", shard_name);
@@ -138,7 +137,6 @@ pub(crate) async fn init_delay_message_shard(
         let shard = ShardInfo {
             shard_name: DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
             replica_num: 1,
-            ..Default::default()
         };
         message_storage_adapter.create_shard(&shard).await?;
         debug!(

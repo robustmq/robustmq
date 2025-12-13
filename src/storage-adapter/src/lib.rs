@@ -19,6 +19,7 @@ pub mod file;
 // pub mod journal;
 pub mod memory;
 pub mod minio;
+pub mod tests;
 // pub mod mysql;
 pub mod offset;
 pub mod s3;

@@ -7496,6 +7496,7 @@ name = "storage-adapter"
 version = "0.2.7"
 dependencies = [
  "axum",
+ "bytes",
  "common-base",
  "common-config",
  "dashmap",

@@ -25,8 +25,8 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
 pub struct ShardState {
-    pub start_offset: u64,
-    pub next_offset: u64,
+    pub earliest_offset: u64,
+    pub latest_offset: u64,
 }
 
 #[derive(Clone)]
@@ -43,7 +43,9 @@ pub struct MemoryStorageAdapter {
     pub key_index: DashMap<String, DashMap<String, u64>>,
     //(shard, (timestamp, offset))
     pub timestamp_index: DashMap<String, DashMap<u64, u64>>,
+    //(shard, ShardState)
     pub shard_state: DashMap<String, ShardState>,
+    //(shard, lock)
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     pub config: StorageDriverMemoryConfig,
 }
@@ -106,7 +108,7 @@ impl MemoryStorageAdapter {
         let shard_state = self.shard_state.get(shard)?;
 
         let start = start_offset.unwrap_or(0);
-        let end = shard_state.next_offset;
+        let end = shard_state.latest_offset;
 
         for offset in start..end {
             let Some(record) = data_map.get(&offset) else {
@@ -144,7 +146,7 @@ impl MemoryStorageAdapter {
             .clone();
 
         let mut offset_res = Vec::with_capacity(messages.len());
-        let mut offset = shard_state.next_offset;
+        let mut offset = shard_state.latest_offset;
         let shard_name_str = shard_name.to_string();
 
         if !self.shard_data.contains_key(shard_name) {
@@ -191,8 +193,8 @@ impl MemoryStorageAdapter {
             self.shard_state.insert(
                 shard_name.to_string(),
                 ShardState {
-                    start_offset: shard_state.start_offset,
-                    next_offset: offset,
+                    earliest_offset: shard_state.earliest_offset,
+                    latest_offset: offset,
                 },
             );
             return Ok(offset_res);
@@ -443,245 +445,65 @@ impl StorageAdapter for MemoryStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::Arc;
 
-    #[tokio::test]
-    async fn test_shard_lifecycle() {
-        let adapter = MemoryStorageAdapter::default();
+    use crate::{
+        driver::build_message_storage_driver,
+        offset::OffsetManager,
+        storage::ArcStorageAdapter,
+        tests::{
+            test_consumer_group_offset, test_shard_lifecycle,
+            test_timestamp_index_with_multiple_entries, test_write_and_read,
+        },
+    };
+    use common_config::storage::{
+        memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType,
+    };
+    use grpc_clients::pool::ClientPool;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-        let shard1 = ShardInfo {
-            shard_name: "shard1".to_string(),
-            replica_num: 3,
+    async fn build_adapter() -> ArcStorageAdapter {
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let client_pool = Arc::new(ClientPool::new(2));
+        let offset_manager = Arc::new(OffsetManager::new(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+        ));
+        let config = StorageAdapterConfig {
+            storage_type: StorageAdapterType::Memory,
+            memory_config: Some(StorageDriverMemoryConfig::default()),
             ..Default::default()
         };
-        adapter.create_shard(&shard1).await.unwrap();
-        adapter
-            .create_shard(&ShardInfo {
-                shard_name: "shard2".to_string(),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-
-        assert_eq!(adapter.list_shard("").await.unwrap().len(), 2);
-        assert_eq!(
-            adapter.list_shard("shard1").await.unwrap()[0].replica_num,
-            3
-        );
-
-        adapter.delete_shard("shard1").await.unwrap();
-        assert_eq!(adapter.list_shard("").await.unwrap().len(), 1);
-        assert_eq!(adapter.list_shard("shard1").await.unwrap().len(), 0);
+        build_message_storage_driver(
+            offset_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            config,
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
-    async fn test_write_and_read() {
-        let adapter = MemoryStorageAdapter::default();
-        let cfg = ReadConfig {
-            max_record_num: 10,
-            max_size: 1024 * 1024,
-        };
-
-        adapter
-            .create_shard(&ShardInfo {
-                shard_name: "s".to_string(),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-
-        let mut r1 = Record::from_bytes(b"msg1".to_vec());
-        r1.key = Some("k1".to_string());
-        r1.tags = Some(vec!["a".to_string(), "c".to_string()]);
-        r1.timestamp = 1000;
-
-        let mut r2 = Record::from_bytes(b"msg2".to_vec());
-        r2.key = Some("k2".to_string());
-        r2.tags = Some(vec!["b".to_string(), "c".to_string()]);
-        r2.timestamp = 2000;
-
-        assert_eq!(
-            adapter.batch_write("s", &[r1, r2]).await.unwrap(),
-            vec![0, 1]
-        );
-        assert_eq!(adapter.read_by_offset("s", 0, &cfg).await.unwrap().len(), 2);
-        assert_eq!(adapter.read_by_offset("s", 1, &cfg).await.unwrap().len(), 1);
-
-        assert_eq!(
-            adapter
-                .read_by_tag("s", "a", None, &cfg)
-                .await
-                .unwrap()
-                .len(),
-            1
-        );
-        assert_eq!(
-            adapter
-                .read_by_tag("s", "c", None, &cfg)
-                .await
-                .unwrap()
-                .len(),
-            2
-        );
-        assert_eq!(
-            adapter
-                .read_by_tag("s", "b", Some(1), &cfg)
-                .await
-                .unwrap()
-                .len(),
-            1
-        );
-
-        assert_eq!(
-            adapter.read_by_key("s", "k2").await.unwrap()[0].data,
-            b"msg2".to_vec()
-        );
-        assert_eq!(adapter.read_by_key("s", "k3").await.unwrap().len(), 0);
-
-        assert_eq!(
-            adapter
-                .get_offset_by_timestamp("s", 1500)
-                .await
-                .unwrap()
-                .unwrap()
-                .offset,
-            1
-        );
-        assert!(adapter
-            .get_offset_by_timestamp("s", 5000)
-            .await
-            .unwrap()
-            .is_none());
+    async fn test_memory_shard_lifecycle() {
+        let adapter = build_adapter().await;
+        test_shard_lifecycle(adapter).await;
     }
 
     #[tokio::test]
-    async fn test_consumer_group_offset() {
-        let adapter = MemoryStorageAdapter::default();
-
-        adapter
-            .create_shard(&ShardInfo {
-                shard_name: "s1".to_string(),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-        adapter
-            .create_shard(&ShardInfo {
-                shard_name: "s2".to_string(),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-
-        adapter
-            .commit_offset(
-                "g1",
-                &HashMap::from([("s1".into(), 100), ("s2".into(), 200)]),
-            )
-            .await
-            .unwrap();
-
-        let offsets = adapter.get_offset_by_group("g1").await.unwrap();
-        assert_eq!(offsets.len(), 2);
-        assert_eq!(
-            offsets
-                .iter()
-                .find(|o| o.shard_name == "s1")
-                .unwrap()
-                .offset,
-            100
-        );
-        assert_eq!(
-            offsets
-                .iter()
-                .find(|o| o.shard_name == "s2")
-                .unwrap()
-                .offset,
-            200
-        );
-
-        adapter
-            .commit_offset("g1", &HashMap::from([("s1".into(), 150)]))
-            .await
-            .unwrap();
-        let offsets = adapter.get_offset_by_group("g1").await.unwrap();
-        assert_eq!(
-            offsets
-                .iter()
-                .find(|o| o.shard_name == "s1")
-                .unwrap()
-                .offset,
-            150
-        );
-
-        adapter
-            .commit_offset("g2", &HashMap::from([("s1".into(), 300)]))
-            .await
-            .unwrap();
-        assert_eq!(adapter.get_offset_by_group("g2").await.unwrap().len(), 1);
-
-        assert_eq!(adapter.get_offset_by_group("g3").await.unwrap().len(), 0);
-
-        assert!(adapter
-            .commit_offset("g1", &HashMap::from([("s3".into(), 100)]))
-            .await
-            .is_ok());
+    async fn test_memory_write_and_read() {
+        let adapter = build_adapter().await;
+        test_write_and_read(adapter).await;
     }
 
     #[tokio::test]
-    async fn test_timestamp_index_with_multiple_entries() {
-        let adapter = MemoryStorageAdapter::default();
-        let cfg = ReadConfig {
-            max_record_num: 100,
-            max_size: 1024 * 1024,
-        };
+    async fn test_memory_consumer_group_offset() {
+        let adapter = build_adapter().await;
+        test_consumer_group_offset(adapter).await;
+    }
 
-        adapter
-            .create_shard(&ShardInfo {
-                shard_name: "s".to_string(),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-
-        let mut records = Vec::new();
-        for i in 0..15000 {
-            let mut r = Record::from_bytes(format!("msg{}", i).into_bytes());
-            r.timestamp = 1000 + i;
-            records.push(r);
-        }
-
-        let offsets = adapter.batch_write("s", &records).await.unwrap();
-        assert_eq!(offsets.len(), 15000);
-        assert_eq!(offsets[0], 0);
-        assert_eq!(offsets[14999], 14999);
-
-        let result = adapter.get_offset_by_timestamp("s", 1000).await.unwrap();
-        assert_eq!(result.unwrap().offset, 0);
-
-        let result = adapter.get_offset_by_timestamp("s", 3500).await.unwrap();
-        assert_eq!(result.unwrap().offset, 2500);
-
-        let result = adapter.get_offset_by_timestamp("s", 6000).await.unwrap();
-        assert_eq!(result.unwrap().offset, 5000);
-
-        let result = adapter.get_offset_by_timestamp("s", 8000).await.unwrap();
-        assert_eq!(result.unwrap().offset, 7000);
-
-        let result = adapter.get_offset_by_timestamp("s", 11000).await.unwrap();
-        assert_eq!(result.unwrap().offset, 10000);
-
-        let result = adapter.get_offset_by_timestamp("s", 14500).await.unwrap();
-        assert_eq!(result.unwrap().offset, 13500);
-
-        let result = adapter.get_offset_by_timestamp("s", 500).await.unwrap();
-        assert_eq!(result.unwrap().offset, 0);
-
-        let result = adapter.get_offset_by_timestamp("s", 20000).await.unwrap();
-        assert!(result.is_none());
-
-        let read_result = adapter.read_by_offset("s", 5000, &cfg).await.unwrap();
-        assert!(!read_result.is_empty());
-        assert_eq!(read_result[0].timestamp, 6000);
+    #[tokio::test]
+    async fn test_memory_timestamp_index_with_multiple_entries() {
+        let adapter = build_adapter().await;
+        test_timestamp_index_with_multiple_entries(adapter).await;
     }
 }

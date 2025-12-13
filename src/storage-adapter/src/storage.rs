@@ -33,8 +33,6 @@ pub enum OffsetStrategy {
 pub struct ShardInfo {
     pub shard_name: String,
     pub replica_num: u32,
-    pub earliest_offset: Option<u64>,
-    pub latest_offset: Option<u64>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]

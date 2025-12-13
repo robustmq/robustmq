@@ -48,6 +48,9 @@ default_time = 180
 max_time = 3600
 default_timeout = 2
 
+[message_storage]
+storage_type = "RocksDB"
+
 [prometheus]
 enable = true
 port = 9091
