@@ -194,26 +194,11 @@ mod tests {
                 shard_record_key("shard1", 123),
                 "/sm/r/shard1/00000000000000000123",
             ),
-            (
-                shard_record_key_prefix("shard1"),
-                "/sm/r/shard1/",
-            ),
-            (
-                earliest_offset_key("shard1"),
-                "/sm/o/e/shard1",
-            ),
-            (
-                latest_offset_key("shard1"),
-                "/sm/o/l/shard1",
-            ),
-            (
-                key_index_key("shard1", "mykey"),
-                "/sm/i/k/shard1/mykey",
-            ),
-            (
-                key_index_prefix("shard1"),
-                "/sm/i/k/shard1/",
-            ),
+            (shard_record_key_prefix("shard1"), "/sm/r/shard1/"),
+            (earliest_offset_key("shard1"), "/sm/o/e/shard1"),
+            (latest_offset_key("shard1"), "/sm/o/l/shard1"),
+            (key_index_key("shard1", "mykey"), "/sm/i/k/shard1/mykey"),
+            (key_index_prefix("shard1"), "/sm/i/k/shard1/"),
             (
                 tag_index_key("shard1", "tag1", 456),
                 "/sm/i/t/shard1/tag1/00000000000000000456",
@@ -222,39 +207,23 @@ mod tests {
                 tag_index_tag_prefix("shard1", "tag1"),
                 "/sm/i/t/shard1/tag1/",
             ),
-            (
-                tag_index_prefix("shard1"),
-                "/sm/i/t/shard1/",
-            ),
+            (tag_index_prefix("shard1"), "/sm/i/t/shard1/"),
             (
                 group_record_offsets_key("group1", "shard1"),
                 "/sm/g/group1/shard1",
             ),
-            (
-                group_record_offsets_key_prefix("group1"),
-                "/sm/g/group1/",
-            ),
-            (
-                shard_info_key("shard1"),
-                "/sm/s/shard1",
-            ),
-            (
-                shard_info_key_prefix(),
-                "/sm/s/",
-            ),
+            (group_record_offsets_key_prefix("group1"), "/sm/g/group1/"),
+            (shard_info_key("shard1"), "/sm/s/shard1"),
+            (shard_info_key_prefix(), "/sm/s/"),
             (
                 timestamp_index_key("shard1", 1234567890, 100),
                 "/sm/i/ts/shard1/00000000001234567890/00000000000000000100",
             ),
-            (
-                timestamp_index_prefix("shard1"),
-                "/sm/i/ts/shard1/",
-            ),
+            (timestamp_index_prefix("shard1"), "/sm/i/ts/shard1/"),
         ];
 
         for (actual, expected) in cases {
             assert_eq!(actual, expected);
+        }
     }
 }
-}
-

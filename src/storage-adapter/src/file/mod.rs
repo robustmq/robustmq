@@ -27,7 +27,6 @@ use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 
-mod expire;
 mod key;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -567,42 +566,64 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use bytes::Bytes;
+    use crate::{
+        driver::build_message_storage_driver,
+        offset::OffsetManager,
+        storage::ArcStorageAdapter,
+        tests::{
+            test_consumer_group_offset, test_shard_lifecycle,
+            test_timestamp_index_with_multiple_entries, test_write_and_read,
+        },
+    };
+    use common_config::storage::{
+        rocksdb::StorageDriverRocksDBConfig, StorageAdapterConfig, StorageAdapterType,
+    };
+    use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
+    use std::sync::Arc;
 
-    #[tokio::test]
-    async fn test_shard_lifecycle() {
-        let db = test_rocksdb_instance();
-        let adapter = RocksDBStorageAdapter::new(db);
-
-        let shard = ShardInfo {
-            shard_name: "s1".to_string(),
+    async fn build_adapter() -> ArcStorageAdapter {
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let client_pool = Arc::new(ClientPool::new(2));
+        let offset_manager = Arc::new(OffsetManager::new(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+        ));
+        let config = StorageAdapterConfig {
+            storage_type: StorageAdapterType::File,
+            rocksdb_config: Some(StorageDriverRocksDBConfig::default()),
             ..Default::default()
         };
+        build_message_storage_driver(
+            offset_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            config,
+        )
+        .await
+        .unwrap()
+    }
 
-        adapter.create_shard(&shard).await.unwrap();
+    #[tokio::test]
+    async fn test_memory_shard_lifecycle() {
+        let adapter = build_adapter().await;
+        test_shard_lifecycle(adapter).await;
+    }
 
-        let listed = adapter.list_shard("").await.unwrap();
-        assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].shard_name, "s1");
+    #[tokio::test]
+    async fn test_memory_write_and_read() {
+        let adapter = build_adapter().await;
+        test_write_and_read(adapter).await;
+    }
 
-        let cfg = ReadConfig {
-            max_record_num: 10,
-            max_size: 1024 * 1024,
-        };
-        let offset = adapter
-            .write("s1", &Record::from_bytes(b"hello".to_vec()))
-            .await
-            .unwrap();
-        assert_eq!(offset, 0);
+    #[tokio::test]
+    async fn test_memory_consumer_group_offset() {
+        let adapter = build_adapter().await;
+        test_consumer_group_offset(adapter).await;
+    }
 
-        let records = adapter.read_by_offset("s1", 0, &cfg).await.unwrap();
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].data, Bytes::from_static(b"hello"));
-
-        adapter.delete_shard("s1").await.unwrap();
-        let listed = adapter.list_shard("").await.unwrap();
-        assert!(listed.is_empty());
+    #[tokio::test]
+    async fn test_memory_timestamp_index_with_multiple_entries() {
+        let adapter = build_adapter().await;
+        test_timestamp_index_with_multiple_entries(adapter).await;
     }
 }
