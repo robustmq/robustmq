@@ -235,7 +235,7 @@ impl ConnectorScheduler {
 
     async fn assign_brokers_batch(
         &self,
-        connectors: &Vec<MQTTConnector>,
+        connectors: &[MQTTConnector],
     ) -> Result<(), MetaServiceError> {
         if connectors.is_empty() {
             return Ok(());
@@ -245,7 +245,13 @@ impl ConnectorScheduler {
         let mut broker_load = calculate_broker_load_internal(&self.cache_manager)?;
 
         // Step 2: Assign each connector to the broker with minimum load
-        for mut connector in connectors.clone() {
+        for connector in connectors.iter() {
+            // Skip already assigned connectors
+            if connector.broker_id.is_some() {
+                continue;
+            }
+
+            let mut connector = connector.clone();
             // Select broker with minimum load
             let broker_id = match broker_load
                 .iter()

@@ -298,7 +298,6 @@ mod tests {
     #[tokio::test]
     async fn open_segment_write_test() {
         init_broker_conf_by_config(default_broker_config());
-        let cluster_name = "c1".to_string();
         let namespace = unique_id();
         let shard_name = "s1".to_string();
         let segment_no = 10;

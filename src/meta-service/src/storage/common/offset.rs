@@ -125,7 +125,6 @@ mod tests {
     #[test]
     fn test_offset_delete() {
         let storage = OffsetStorage::new(test_rocksdb_instance());
-        let cluster = "cluster1";
         let group = "group1";
 
         // Save

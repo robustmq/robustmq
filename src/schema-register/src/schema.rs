@@ -155,7 +155,6 @@ mod test {
     #[test]
     pub fn json_schema_test() {
         let schema_manager = SchemaRegisterManager::new();
-        let cluster_name = "test1".to_string();
         let schema_name = "schema1".to_string();
         let schema_json_content = r#"{
             "type": "object",
@@ -221,7 +220,6 @@ mod test {
     #[test]
     pub fn avro_schema_test() {
         let schema_manager = SchemaRegisterManager::new();
-        let cluster_name = "test1".to_string();
         let schema_name = "schema1".to_string();
         let schema_avro_content = r#"
         {

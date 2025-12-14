@@ -14,7 +14,6 @@
 
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::cache::CacheManager;
-use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::journal::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,

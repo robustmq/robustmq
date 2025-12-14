@@ -106,12 +106,7 @@ impl ClusterStorage {
             node_id: config.broker_id,
         };
 
-        unregister_node(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            req.clone(),
-        )
-        .await?;
+        unregister_node(&self.client_pool, &config.get_meta_service_addr(), req).await?;
         Ok(())
     }
 
@@ -121,12 +116,7 @@ impl ClusterStorage {
             node_id: config.broker_id,
         };
 
-        heartbeat(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            req.clone(),
-        )
-        .await?;
+        heartbeat(&self.client_pool, &config.get_meta_service_addr(), req).await?;
 
         Ok(())
     }

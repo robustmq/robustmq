@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
@@ -68,7 +68,6 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec!["127.0.0.1:1228".to_string()];
 
-        let cluster_name = unique_id();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();

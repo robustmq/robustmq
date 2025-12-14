@@ -85,11 +85,7 @@ impl ConnectorStorage {
         Ok(())
     }
 
-    pub async fn delete_connector(
-        &self,
-        _cluster_name: &str,
-        connector_name: &str,
-    ) -> ResultMqttBrokerError {
+    pub async fn delete_connector(&self, connector_name: &str) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteConnectorRequest {
             connector_name: connector_name.to_owned(),

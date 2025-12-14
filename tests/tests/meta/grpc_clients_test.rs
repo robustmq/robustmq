@@ -14,9 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::meta::common::{
-        cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
-    };
+    use crate::meta::common::{extend_info, namespace, node_id, node_ip, pc_addr, shard_name};
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::meta::node::BrokerNode;

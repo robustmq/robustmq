@@ -184,7 +184,6 @@ mod tests {
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
 
         //create test data
-        let cluster_name = "test_cluster".to_string();
         let schema_name = "test_schema".to_string();
         let resource_name = "test_resource";
 

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;

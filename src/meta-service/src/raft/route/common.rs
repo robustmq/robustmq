@@ -149,7 +149,6 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;

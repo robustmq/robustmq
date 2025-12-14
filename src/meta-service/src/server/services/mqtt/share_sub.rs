@@ -191,7 +191,7 @@ pub fn get_share_sub_leader_by_req(
 mod tests {
     use super::ShareSubLeader;
     use crate::core::cache::CacheManager;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::meta::node::BrokerNode;

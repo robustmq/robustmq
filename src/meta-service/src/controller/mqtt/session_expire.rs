@@ -195,8 +195,12 @@ pub async fn delete_sessions(
             let request = DeleteSessionRequest {
                 client_id: client_ids.clone(),
             };
-            match broker_mqtt_delete_session(client_pool, &[addr.node_inner_addr.clone()], request)
-                .await
+            match broker_mqtt_delete_session(
+                client_pool,
+                std::slice::from_ref(&addr.node_inner_addr),
+                request,
+            )
+            .await
             {
                 Ok(_) => {}
                 Err(e) => {

@@ -14,7 +14,6 @@
 
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::now_second;
-use common_config::broker::broker_config;
 use protocol::cluster::cluster_status::{
     cluster_service_server::ClusterService, ClusterStatusReply, ClusterStatusRequest,
 };

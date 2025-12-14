@@ -154,7 +154,7 @@ mod test {
             .map(|i| format!("shard_{i}"))
             .collect::<Vec<_>>();
 
-        for cluster in clusters.iter() {
+        for _cluster in clusters.iter() {
             for namespace in namespaces.iter() {
                 for shard in shards.iter() {
                     // 5 segments per shard
