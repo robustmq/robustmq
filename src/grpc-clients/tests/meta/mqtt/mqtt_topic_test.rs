@@ -32,7 +32,6 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let topic_name: String = unique_id();
-        let cluster_name: String = unique_id();
 
         let mqtt_topic: MQTTTopic = MQTTTopic {
             topic_name: topic_name.clone(),
@@ -40,7 +39,6 @@ mod tests {
         };
 
         let request = CreateTopicRequest {
-            cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
             content: mqtt_topic.encode().unwrap(),
         };
@@ -50,7 +48,6 @@ mod tests {
             .unwrap();
 
         contain_topic(
-            cluster_name.clone(),
             topic_name.clone(),
             &client_pool,
             &addrs,
@@ -60,7 +57,6 @@ mod tests {
         .await;
 
         let request = DeleteTopicRequest {
-            cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
 
@@ -69,7 +65,6 @@ mod tests {
             .unwrap();
 
         contain_topic(
-            cluster_name.clone(),
             topic_name.clone(),
             &client_pool,
             &addrs,
@@ -80,7 +75,6 @@ mod tests {
     }
 
     async fn contain_topic(
-        cluster_name: String,
         topic_name: String,
         client_pool: &ClientPool,
         addrs: &[impl AsRef<str>],
@@ -88,7 +82,6 @@ mod tests {
         contain: bool,
     ) {
         let request = ListTopicRequest {
-            cluster_name,
             topic_name,
         };
         let mut data_stream = placement_list_topic(client_pool, addrs, request)

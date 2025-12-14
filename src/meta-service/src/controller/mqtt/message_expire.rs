@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::storage::keys::{
-    storage_key_mqtt_last_will_prefix, storage_key_mqtt_retain_message_cluster_prefix,
+    storage_key_mqtt_last_will_prefix, storage_key_mqtt_retain_message_prefix,
 };
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -40,7 +40,7 @@ impl MessageExpire {
     }
 
     pub async fn retain_message_expire(&self) {
-        let search_key = storage_key_mqtt_retain_message_cluster_prefix(&self.cluster_name);
+        let search_key = storage_key_mqtt_retain_message_prefix();
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
         let cf = if let Some(cf) = self

@@ -26,7 +26,6 @@ service JournalServerInnerService {
 }
 
 message UpdateJournalCacheRequest {
-  string cluster_name = 1;
   JournalUpdateCacheActionType action_type = 2;
   JournalUpdateCacheResourceType resource_type = 3;
   bytes data = 4;
@@ -35,7 +34,6 @@ message UpdateJournalCacheRequest {
 message UpdateJournalCacheReply {}
 
 message DeleteShardFileRequest {
-  string cluster_name = 1;
   string namespace = 2;
   string shard_name = 3;
 }
@@ -43,7 +41,6 @@ message DeleteShardFileRequest {
 message DeleteShardFileReply {}
 
 message GetShardDeleteStatusRequest {
-  string cluster_name = 1;
   string namespace = 2;
   string shard_name = 3;
 }
@@ -53,7 +50,6 @@ message GetShardDeleteStatusReply {
 }
 
 message DeleteSegmentFileRequest {
-  string cluster_name = 1;
   string namespace = 2;
   string shard_name = 3;
   uint32 segment = 4;
@@ -62,7 +58,6 @@ message DeleteSegmentFileRequest {
 message DeleteSegmentFileReply {}
 
 message GetSegmentDeleteStatusRequest {
-  string cluster_name = 1;
   string namespace = 2;
   string shard_name = 3;
   uint32 segment = 4;

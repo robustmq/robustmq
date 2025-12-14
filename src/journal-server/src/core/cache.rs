@@ -390,7 +390,6 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
 
     // load node
     let request = NodeListRequest {
-        cluster_name: conf.cluster_name.clone(),
     };
     match node_list(client_pool, &conf.get_meta_service_addr(), request).await {
         Ok(list) => {
@@ -415,7 +414,6 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
 
     // load shard
     let request = ListShardRequest {
-        cluster_name: conf.cluster_name.clone(),
         ..Default::default()
     };
     match list_shard(client_pool, &conf.get_meta_service_addr(), request).await {
@@ -440,7 +438,6 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
 
     // load segment
     let request = ListSegmentRequest {
-        cluster_name: conf.cluster_name.clone(),
         segment_no: -1,
         ..Default::default()
     };
@@ -465,7 +462,6 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
     }
     // load segment data
     let request = ListSegmentMetaRequest {
-        cluster_name: conf.cluster_name.clone(),
         segment_no: -1,
         ..Default::default()
     };

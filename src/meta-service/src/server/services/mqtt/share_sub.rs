@@ -186,11 +186,11 @@ pub fn get_share_sub_leader_by_req(
 
     // Get leader broker ID for the shared subscription group
     let leader_broker = share_sub
-        .get_leader_node(&req.cluster_name, &req.group_name)
+        .get_leader_node(&req.group_name)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
 
     // Get broker node details from cache
-    match cache_manager.get_broker_node(&req.cluster_name, leader_broker) {
+    match cache_manager.get_broker_node(leader_broker) {
         Some(node) => Ok(GetShareSubLeaderReply {
             broker_id: node.node_id,
             broker_addr: node.node_ip,

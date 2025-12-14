@@ -30,15 +30,12 @@ mod tests {
     async fn test_share_sub() {
         let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec!["127.0.0.1:1228".to_string()];
-
-        let cluster_name = unique_id();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();
         let extend_info = Vec::new();
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_ip,
             node_id,
             node_inner_addr,
@@ -57,7 +54,6 @@ mod tests {
 
         let group_name = "test".to_string();
         let req = GetShareSubLeaderRequest {
-            cluster_name: cluster_name.clone(),
             group_name,
         };
 
@@ -81,7 +77,6 @@ mod tests {
         let extend_info = Vec::new();
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_ip,
             node_id,
             node_inner_addr,
@@ -100,7 +95,6 @@ mod tests {
 
         let group_name = "$queue/topic1".to_string();
         let req = GetShareSubLeaderRequest {
-            cluster_name: cluster_name.clone(),
             group_name,
         };
 

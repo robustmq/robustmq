@@ -308,7 +308,6 @@ pub async fn topic_rewrite_create(
     ValidatedJson(params): ValidatedJson<CreateTopicRewriteReq>,
 ) -> String {
     let rule = MqttTopicRewriteRule {
-        cluster: state.broker_cache.cluster_name.clone(),
         action: params.action.clone(),
         source_topic: params.source_topic.clone(),
         dest_topic: params.dest_topic.clone(),

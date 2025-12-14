@@ -23,7 +23,6 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
 use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
@@ -40,19 +39,10 @@ pub async fn register_node_by_req(
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = BrokerNode::decode(&req.node)?;
-    cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
+    cluster_cache.report_broker_heart(node.node_id);
     sync_save_node(raft_manager, &node).await?;
 
-    if cluster_cache.get_cluster(&node.cluster_name).is_none() {
-        let cluster = ClusterInfo {
-            cluster_name: node.cluster_name.clone(),
-            create_time: now_millis(),
-        };
-        sync_save_cluster(raft_manager, &cluster).await?;
-    }
-
     update_cache_by_add_node(
-        &node.cluster_name,
         mqtt_call_manager,
         client_pool,
         node.clone(),

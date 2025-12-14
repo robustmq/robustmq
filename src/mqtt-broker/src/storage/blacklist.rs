@@ -37,7 +37,6 @@ impl BlackListStorage {
     pub async fn list_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         let config = broker_config();
         let request = ListBlacklistRequest {
-            cluster_name: config.cluster_name.clone(),
         };
         let reply =
             list_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -51,7 +50,6 @@ impl BlackListStorage {
     pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateBlacklistRequest {
-            cluster_name: config.cluster_name.clone(),
             blacklist: blacklist.encode()?,
         };
         create_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -61,7 +59,6 @@ impl BlackListStorage {
     pub async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteBlacklistRequest {
-            cluster_name: config.cluster_name.clone(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
         };

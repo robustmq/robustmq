@@ -35,7 +35,6 @@ impl AclStorage {
     pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let config = broker_config();
         let request = ListAclRequest {
-            cluster_name: config.cluster_name.clone(),
         };
         let reply = list_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
@@ -50,7 +49,6 @@ impl AclStorage {
 
         let value = acl.encode()?;
         let request = CreateAclRequest {
-            cluster_name: config.cluster_name.clone(),
             acl: value,
         };
         create_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -61,7 +59,6 @@ impl AclStorage {
         let config = broker_config();
         let value = acl.encode()?;
         let request = DeleteAclRequest {
-            cluster_name: config.cluster_name.clone(),
             acl: value,
         };
         delete_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;

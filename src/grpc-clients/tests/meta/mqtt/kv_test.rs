@@ -14,8 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::common::get_placement_addr;
     use grpc_clients::{
         meta::common::call::{kv_delete, kv_exists, kv_get, kv_set},
         pool::ClientPool,
@@ -23,11 +22,9 @@ mod tests {
     use protocol::meta::meta_service_common::{
         DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
-
-    use crate::common::get_placement_addr;
+    use std::sync::Arc;
 
     #[tokio::test]
-
     async fn kv_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];

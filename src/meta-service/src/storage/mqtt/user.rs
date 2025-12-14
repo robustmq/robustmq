@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MqttUser;
 
-use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
+use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
@@ -35,18 +35,13 @@ impl MqttUserStorage {
         }
     }
 
-    pub fn save(
-        &self,
-        cluster_name: &str,
-        user_name: &str,
-        user: MqttUser,
-    ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_user(cluster_name, user_name);
+    pub fn save(&self, user_name: &str, user: MqttUser) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_user(user_name);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, user)
     }
 
-    pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
-        let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
+    pub fn list_all(&self) -> Result<Vec<MqttUser>, CommonError> {
+        let prefix_key = storage_key_mqtt_user_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttUser>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -54,8 +49,8 @@ impl MqttUserStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
-        let key: String = storage_key_mqtt_user(cluster_name, username);
+    pub fn get(&self, username: &str) -> Result<Option<MqttUser>, CommonError> {
+        let key: String = storage_key_mqtt_user(username);
         if let Some(data) =
             engine_get_by_meta_metadata::<MqttUser>(self.rocksdb_engine_handler.clone(), &key)?
         {
@@ -64,8 +59,8 @@ impl MqttUserStorage {
         Ok(None)
     }
 
-    pub fn delete(&self, cluster_name: &str, user_name: &str) -> Result<(), CommonError> {
-        let key: String = storage_key_mqtt_user(cluster_name, user_name);
+    pub fn delete(&self, user_name: &str) -> Result<(), CommonError> {
+        let key: String = storage_key_mqtt_user(user_name);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 }
@@ -97,28 +92,27 @@ mod tests {
     #[test]
     fn test_user_crud_operations() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Test: Save and Get
         let user1 = create_user("alice", "pass123", true);
-        storage.save(cluster, "alice", user1).unwrap();
+        storage.save("alice", user1).unwrap();
 
-        let retrieved = storage.get(cluster, "alice").unwrap();
+        let retrieved = storage.get("alice").unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().username, "alice");
 
         // Test: List multiple users
         let user2 = create_user("bob", "pass456", false);
-        storage.save(cluster, "bob", user2).unwrap();
+        storage.save("bob", user2).unwrap();
 
-        let all_users = storage.list_by_cluster(cluster).unwrap();
+        let all_users = storage.list_all().unwrap();
         assert_eq!(all_users.len(), 2);
 
         // Test: Delete and verify
-        storage.delete(cluster, "bob").unwrap();
-        assert!(storage.get(cluster, "bob").unwrap().is_none());
+        storage.delete("bob").unwrap();
+        assert!(storage.get("bob").unwrap().is_none());
 
-        let remaining = storage.list_by_cluster(cluster).unwrap();
+        let remaining = storage.list_all().unwrap();
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].username, "alice");
     }
@@ -126,7 +120,7 @@ mod tests {
     #[test]
     fn test_get_nonexistent_user() {
         let storage = setup_storage();
-        let result = storage.get("cluster1", "nonexistent").unwrap();
+        let result = storage.get("nonexistent").unwrap();
         assert!(result.is_none());
     }
 }

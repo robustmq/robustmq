@@ -23,7 +23,6 @@ service MQTTBrokerInnerService {
 }
 
 message UpdateMQTTCacheRequest {
-  string cluster_name = 1;
   MQTTBrokerUpdateCacheActionType action_type = 2;
   MQTTBrokerUpdateCacheResourceType resource_type = 3;
   bytes data = 4;
@@ -35,7 +34,6 @@ message UpdateMQTTCacheReply {
 }
 
 message DeleteSessionRequest {
-  string cluster_name = 1;
   repeated string client_id = 2;
 }
 

@@ -233,7 +233,6 @@ impl ShardHandler {
     ) -> Result<(), JournalServerError> {
         let conf = broker_config();
         let request = CreateNextSegmentRequest {
-            cluster_name: conf.cluster_name.to_string(),
             namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
         };
@@ -257,7 +256,6 @@ impl ShardHandler {
         // When the state is Idle, reverse the state to PreWrite
         if segment.status == SegmentStatus::Idle {
             let request = UpdateSegmentStatusRequest {
-                cluster_name: conf.cluster_name.to_string(),
                 namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_seq: segment.segment_seq,

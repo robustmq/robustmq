@@ -24,23 +24,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::error::common::CommonError;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-
 use crate::core::error::MetaServiceError;
 use crate::storage::keys::{
     storage_key_mqtt_auto_subscribe_rule, storage_key_mqtt_auto_subscribe_rule_prefix,
     storage_key_mqtt_subscribe, storage_key_mqtt_subscribe_client_id_prefix,
-    storage_key_mqtt_subscribe_cluster_prefix,
+    storage_key_mqtt_subscribe_prefix,
 };
+use common_base::error::common::CommonError;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
     engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
+use std::sync::Arc;
 
 pub struct MqttSubscribeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -54,17 +52,16 @@ impl MqttSubscribeStorage {
     }
     pub fn save(
         &self,
-        cluster_name: &str,
         client_id: &str,
         path: &str,
         subscribe: MqttSubscribe,
     ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
+        let key = storage_key_mqtt_subscribe(client_id, path);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, subscribe)
     }
 
-    pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
-        let prefix_key = storage_key_mqtt_subscribe_cluster_prefix(cluster_name);
+    pub fn list_all(&self) -> Result<Vec<MqttSubscribe>, CommonError> {
+        let prefix_key = storage_key_mqtt_subscribe_prefix();
         let resp = engine_prefix_list_by_meta_metadata::<MqttSubscribe>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -72,12 +69,8 @@ impl MqttSubscribeStorage {
         Ok(resp.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn list_by_client_id(
-        &self,
-        cluster_name: &str,
-        client_id: &str,
-    ) -> Result<Vec<MqttSubscribe>, CommonError> {
-        let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
+    pub fn list_by_client_id(&self, client_id: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
+        let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(client_id);
         let resp = engine_prefix_list_by_meta_metadata::<MqttSubscribe>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -85,30 +78,25 @@ impl MqttSubscribeStorage {
         Ok(resp.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn delete_by_client_id(
-        &self,
-        cluster_name: &str,
-        client_id: &str,
-    ) -> Result<(), CommonError> {
-        let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(cluster_name, client_id);
+    pub fn delete_by_client_id(&self, client_id: &str) -> Result<(), CommonError> {
+        let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(client_id);
         let list = engine_prefix_list_by_meta_metadata::<MqttSubscribe>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
         )?;
         for raw in list {
             let sub: MqttSubscribe = raw.data;
-            self.delete_by_path(&sub.cluster_name, &sub.client_id, &sub.filter.path)?;
+            self.delete_by_path(&sub.client_id, &sub.filter.path)?;
         }
         Ok(())
     }
 
     pub fn get(
         &self,
-        cluster_name: &str,
         client_id: &str,
         path: &str,
     ) -> Result<Option<MqttSubscribe>, MetaServiceError> {
-        let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
+        let key = storage_key_mqtt_subscribe(client_id, path);
         Ok(
             engine_get_by_meta_metadata::<MqttSubscribe>(
                 self.rocksdb_engine_handler.clone(),
@@ -118,23 +106,17 @@ impl MqttSubscribeStorage {
         )
     }
 
-    pub fn delete_by_path(
-        &self,
-        cluster_name: &str,
-        client_id: &str,
-        path: &str,
-    ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
+    pub fn delete_by_path(&self, client_id: &str, path: &str) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_subscribe(client_id, path);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
     pub fn save_auto_subscribe_rule(
         &self,
-        cluster_name: &str,
         topic: &str,
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
+        let key = storage_key_mqtt_auto_subscribe_rule(topic);
         engine_save_by_meta_metadata(
             self.rocksdb_engine_handler.clone(),
             &key,
@@ -143,21 +125,16 @@ impl MqttSubscribeStorage {
         Ok(())
     }
 
-    pub fn delete_auto_subscribe_rule(
-        &self,
-        cluster_name: &str,
-        topic: &str,
-    ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
+    pub fn delete_auto_subscribe_rule(&self, topic: &str) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_auto_subscribe_rule(topic);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
         Ok(())
     }
 
-    pub fn list_auto_subscribe_rule(
+    pub fn list_all_auto_subscribe_rules(
         &self,
-        cluster_name: &str,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MetaServiceError> {
-        let prefix_key = storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name);
+        let prefix_key = storage_key_mqtt_auto_subscribe_rule_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttAutoSubscribeRule>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -179,9 +156,8 @@ mod tests {
         MqttSubscribeStorage::new(test_rocksdb_instance())
     }
 
-    fn create_subscribe(cluster: &str, client_id: &str, topic: &str) -> MqttSubscribe {
+    fn create_subscribe(client_id: &str, topic: &str) -> MqttSubscribe {
         MqttSubscribe {
-            cluster_name: cluster.to_string(),
             client_id: client_id.to_string(),
             filter: Filter {
                 path: topic.to_string(),
@@ -192,9 +168,8 @@ mod tests {
         }
     }
 
-    fn create_auto_subscribe_rule(cluster: &str, topic: &str) -> MqttAutoSubscribeRule {
+    fn create_auto_subscribe_rule(topic: &str) -> MqttAutoSubscribeRule {
         MqttAutoSubscribeRule {
-            cluster: cluster.to_string(),
             topic: topic.to_string(),
             qos: QoS::AtLeastOnce,
             no_local: false,
@@ -206,131 +181,87 @@ mod tests {
     #[test]
     fn test_subscribe_crud() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
         let client = "client_a";
 
         // Save & Get
-        let sub = create_subscribe(cluster, client, "sensor/temp");
-        storage
-            .save(cluster, client, "sensor/temp", sub.clone())
-            .unwrap();
-        assert!(storage
-            .get(cluster, client, "sensor/temp")
-            .unwrap()
-            .is_some());
+        let sub = create_subscribe(client, "sensor/temp");
+        storage.save(client, "sensor/temp", sub.clone()).unwrap();
+        assert!(storage.get(client, "sensor/temp").unwrap().is_some());
 
         // List by client
         storage
             .save(
-                cluster,
                 client,
                 "sensor/humidity",
-                create_subscribe(cluster, client, "sensor/humidity"),
+                create_subscribe(client, "sensor/humidity"),
             )
             .unwrap();
-        assert_eq!(storage.list_by_client_id(cluster, client).unwrap().len(), 2);
+        assert_eq!(storage.list_by_client_id(client).unwrap().len(), 2);
 
         // Delete by path
-        storage
-            .delete_by_path(cluster, client, "sensor/temp")
-            .unwrap();
-        assert!(storage
-            .get(cluster, client, "sensor/temp")
-            .unwrap()
-            .is_none());
-        assert_eq!(storage.list_by_client_id(cluster, client).unwrap().len(), 1);
+        storage.delete_by_path(client, "sensor/temp").unwrap();
+        assert!(storage.get(client, "sensor/temp").unwrap().is_none());
+        assert_eq!(storage.list_by_client_id(client).unwrap().len(), 1);
     }
 
     #[test]
-    fn test_list_by_cluster() {
+    fn test_list_all() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         storage
-            .save(
-                cluster,
-                "client_a",
-                "topic1",
-                create_subscribe(cluster, "client_a", "topic1"),
-            )
+            .save("client_a", "topic1", create_subscribe("client_a", "topic1"))
             .unwrap();
         storage
-            .save(
-                cluster,
-                "client_b",
-                "topic2",
-                create_subscribe(cluster, "client_b", "topic2"),
-            )
+            .save("client_b", "topic2", create_subscribe("client_b", "topic2"))
             .unwrap();
 
-        let all = storage.list_by_cluster(cluster).unwrap();
+        let all = storage.list_all().unwrap();
         assert_eq!(all.len(), 2);
     }
 
     #[test]
     fn test_delete_by_client_id() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
         let client = "client_a";
 
         // Create multiple subscriptions for one client
         storage
-            .save(
-                cluster,
-                client,
-                "topic1",
-                create_subscribe(cluster, client, "topic1"),
-            )
+            .save(client, "topic1", create_subscribe(client, "topic1"))
             .unwrap();
         storage
-            .save(
-                cluster,
-                client,
-                "topic2",
-                create_subscribe(cluster, client, "topic2"),
-            )
+            .save(client, "topic2", create_subscribe(client, "topic2"))
             .unwrap();
-        assert_eq!(storage.list_by_client_id(cluster, client).unwrap().len(), 2);
+        assert_eq!(storage.list_by_client_id(client).unwrap().len(), 2);
 
         // Delete all subscriptions for the client
-        storage.delete_by_client_id(cluster, client).unwrap();
-        assert!(storage
-            .list_by_client_id(cluster, client)
-            .unwrap()
-            .is_empty());
+        storage.delete_by_client_id(client).unwrap();
+        assert!(storage.list_by_client_id(client).unwrap().is_empty());
     }
 
     #[test]
     fn test_auto_subscribe_rule() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
         let topic = "devices/#";
 
         // Save rule
-        let rule = create_auto_subscribe_rule(cluster, topic);
+        let rule = create_auto_subscribe_rule(topic);
         storage
-            .save_auto_subscribe_rule(cluster, topic, rule.clone())
+            .save_auto_subscribe_rule(topic, rule.clone())
             .unwrap();
 
         // List rules
-        let rules = storage.list_auto_subscribe_rule(cluster).unwrap();
+        let rules = storage.list_all_auto_subscribe_rules().unwrap();
         assert_eq!(rules.len(), 1);
         assert_eq!(rules[0].topic, topic);
 
         // Delete rule
-        storage.delete_auto_subscribe_rule(cluster, topic).unwrap();
-        assert!(storage
-            .list_auto_subscribe_rule(cluster)
-            .unwrap()
-            .is_empty());
+        storage.delete_auto_subscribe_rule(topic).unwrap();
+        assert!(storage.list_all_auto_subscribe_rules().unwrap().is_empty());
     }
 
     #[test]
     fn test_get_nonexistent() {
         let storage = setup_storage();
-        assert!(storage
-            .get("cluster1", "client1", "topic1")
-            .unwrap()
-            .is_none());
+        assert!(storage.get("client1", "topic1").unwrap().is_none());
     }
 }

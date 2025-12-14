@@ -41,14 +41,12 @@ pub fn list_user_by_req(
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
     let mut users = Vec::new();
 
-    if !req.cluster_name.is_empty() && !req.user_name.is_empty() {
-        if let Some(data) = storage.get(&req.cluster_name, &req.user_name)? {
+    if !req.user_name.is_empty() {
+        if let Some(data) = storage.get(&req.user_name)? {
             users.push(data.encode()?);
         }
-    }
-
-    if !req.cluster_name.is_empty() && req.user_name.is_empty() {
-        let user_list = storage.list_by_cluster(&req.cluster_name)?;
+    } else {
+        let user_list = storage.list_all()?;
         users = user_list
             .into_iter()
             .map(|user| user.encode())
@@ -60,45 +58,47 @@ pub fn list_user_by_req(
 
 pub async fn create_user_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateUserRequest,
 ) -> Result<CreateUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
 
     // Check if user already exists
-    if storage.get(&req.cluster_name, &req.user_name)?.is_some() {
+    if storage.get(&req.user_name)?.is_some() {
         return Err(MetaServiceError::UserAlreadyExist(req.user_name.clone()));
     }
 
     let data = StorageData::new(StorageDataType::MqttSetUser, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let user = MqttUser::decode(&req.content)?;
-    update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await?;
+    // TODO: Update cache after cluster_name removal
+    // let user = MqttUser::decode(&req.content)?;
+    // update_cache_by_add_user(call_manager, client_pool, user).await?;
 
     Ok(CreateUserReply {})
 }
 
 pub async fn delete_user_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &DeleteUserRequest,
 ) -> Result<DeleteUserReply, MetaServiceError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
 
     // Get user to delete (must exist)
-    let user = storage
-        .get(&req.cluster_name, &req.user_name)?
+    let _user = storage
+        .get(&req.user_name)?
         .ok_or_else(|| MetaServiceError::UserDoesNotExist(req.user_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::MqttDeleteUser, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await?;
+    // TODO: Update cache after cluster_name removal
+    // update_cache_by_delete_user(call_manager, client_pool, user).await?;
 
     Ok(DeleteUserReply {})
 }

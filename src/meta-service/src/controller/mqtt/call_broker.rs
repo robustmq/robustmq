@@ -27,7 +27,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use metadata_struct::resource_config::ClusterResourceConfig;
+use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
 use protocol::broker::broker_mqtt_inner::{
@@ -46,7 +46,6 @@ use tracing::warn;
 pub struct MQTTInnerCallMessage {
     action_type: MqttBrokerUpdateCacheActionType,
     resource_type: MqttBrokerUpdateCacheResourceType,
-    cluster_name: String,
     data: Vec<u8>,
 }
 
@@ -57,8 +56,8 @@ pub struct MQTTInnerCallNodeSender {
 }
 
 pub struct MQTTInnerCallManager {
-    node_sender: DashMap<String, MQTTInnerCallNodeSender>,
-    node_stop_sender: DashMap<String, Sender<bool>>,
+    node_sender: DashMap<u64, MQTTInnerCallNodeSender>,
+    node_stop_sender: DashMap<u64, Sender<bool>>,
     placement_cache_manager: Arc<CacheManager>,
     broker_cache: Arc<BrokerCacheManager>,
 }
@@ -78,36 +77,28 @@ impl MQTTInnerCallManager {
         }
     }
 
-    pub fn get_node_sender(&self, cluster: &str, node_id: u64) -> Option<MQTTInnerCallNodeSender> {
-        let key = self.node_key(cluster, node_id);
-        if let Some(sender) = self.node_sender.get(&key) {
+    pub fn get_node_sender(&self, node_id: u64) -> Option<MQTTInnerCallNodeSender> {
+        if let Some(sender) = self.node_sender.get(&node_id) {
             return Some(sender.clone());
         }
         None
     }
 
-    pub fn add_node_sender(&self, cluster: &str, node_id: u64, sender: MQTTInnerCallNodeSender) {
-        let key = self.node_key(cluster, node_id);
-        self.node_sender.insert(key, sender);
+    pub fn add_node_sender(&self, node_id: u64, sender: MQTTInnerCallNodeSender) {
+        self.node_sender.insert(node_id, sender);
     }
 
-    pub fn remove_node(&self, cluster: &str, node_id: u64) {
-        let key = self.node_key(cluster, node_id);
-        self.node_sender.remove(&key);
-        if let Some((_, send)) = self.node_stop_sender.remove(&key) {
+    pub fn remove_node(&self, node_id: u64) {
+        self.node_sender.remove(&node_id);
+        if let Some((_, send)) = self.node_stop_sender.remove(&node_id) {
             if let Err(e) = send.send(true) {
                 warn!("{}", e);
             }
         }
     }
 
-    pub fn add_node_stop_sender(&self, cluster: &str, node_id: u64, sender: Sender<bool>) {
-        let key = self.node_key(cluster, node_id);
-        self.node_stop_sender.insert(key, sender);
-    }
-
-    fn node_key(&self, cluster: &str, node_id: u64) -> String {
-        format!("{cluster}_{node_id}")
+    pub fn add_node_stop_sender(&self, node_id: u64, sender: Sender<bool>) {
+        self.node_stop_sender.insert(node_id, sender);
     }
 }
 
@@ -147,7 +138,6 @@ pub async fn mqtt_call_thread_manager(
 }
 
 pub async fn update_cache_by_add_session(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
@@ -156,15 +146,14 @@ pub async fn update_cache_by_add_session(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Session,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_session(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
@@ -173,15 +162,14 @@ pub async fn update_cache_by_delete_session(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Session,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_schema(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
@@ -190,15 +178,14 @@ pub async fn update_cache_by_add_schema(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Schema,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_schema(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
@@ -207,15 +194,14 @@ pub async fn update_cache_by_delete_schema(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Schema,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_schema_bind(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
@@ -224,15 +210,14 @@ pub async fn update_cache_by_add_schema_bind(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_schema_bind(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
@@ -241,15 +226,14 @@ pub async fn update_cache_by_delete_schema_bind(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_connector(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MQTTConnector,
@@ -258,15 +242,14 @@ pub async fn update_cache_by_add_connector(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Connector,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_connector(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MQTTConnector,
@@ -275,15 +258,14 @@ pub async fn update_cache_by_delete_connector(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Connector,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_user(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttUser,
@@ -292,15 +274,14 @@ pub async fn update_cache_by_add_user(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::User,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_user(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttUser,
@@ -309,15 +290,14 @@ pub async fn update_cache_by_delete_user(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::User,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_subscribe(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSubscribe,
@@ -326,15 +306,14 @@ pub async fn update_cache_by_add_subscribe(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_subscribe(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     session: MqttSubscribe,
@@ -343,15 +322,14 @@ pub async fn update_cache_by_delete_subscribe(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_topic(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
@@ -360,15 +338,14 @@ pub async fn update_cache_by_add_topic(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Topic,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_topic(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
@@ -377,15 +354,14 @@ pub async fn update_cache_by_delete_topic(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Topic,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_node(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
@@ -394,15 +370,14 @@ pub async fn update_cache_by_add_node(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::Node,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_node(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
@@ -411,32 +386,30 @@ pub async fn update_cache_by_delete_node(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Node,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_set_resource_config(
-    cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    config: ClusterResourceConfig,
+    config: ResourceConfig,
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&config)?;
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Set,
         resource_type: MqttBrokerUpdateCacheResourceType::ClusterResourceConfig,
-        cluster_name: cluster_name.to_string(),
+
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 async fn start_call_thread(
-    cluster_name: String,
     node: BrokerNode,
     call_manager: Arc<MQTTInnerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -444,7 +417,7 @@ async fn start_call_thread(
 ) {
     tokio::spawn(async move {
         let mut raw_stop_rx = stop_send.subscribe();
-        if let Some(node_send) = call_manager.get_node_sender(&cluster_name, node.node_id) {
+        if let Some(node_send) = call_manager.get_node_sender(node.node_id) {
             let mut data_recv = node_send.sender.subscribe();
             info!(
                 "Inner communication between Meta Service and MQTT Broker node [{:?}].",
@@ -493,7 +466,7 @@ async fn call_mqtt_update_cache(
     data: &MQTTInnerCallMessage,
 ) {
     let request = UpdateMqttCacheRequest {
-        cluster_name: data.cluster_name.to_string(),
+        
         action_type: data.action_type.into(),
         resource_type: data.resource_type.into(),
         data: data.data.clone(),
@@ -509,7 +482,7 @@ async fn call_mqtt_update_cache(
 
 async fn add_call_message(
     call_manager: &Arc<MQTTInnerCallManager>,
-    cluster_name: &str,
+
     client_pool: &Arc<ClientPool>,
     message: MQTTInnerCallMessage,
 ) -> Result<(), MetaServiceError> {
@@ -518,7 +491,7 @@ async fn add_call_message(
         .get_broker_node_by_cluster(cluster_name)
     {
         // todo Check whether the node is of the mqtt role
-        if let Some(node_sender) = call_manager.get_node_sender(cluster_name, node.node_id) {
+        if let Some(node_sender) = call_manager.get_node_sender(node.node_id) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}
                 Err(e) => {
@@ -547,7 +520,7 @@ async fn add_call_message(
                 stop_send.clone(),
             )
             .await;
-            call_manager.add_node_stop_sender(cluster_name, node.node_id, stop_send);
+            call_manager.add_node_stop_sender(node.node_id, stop_send);
 
             // Wait 2s for the "broadcast rx" thread to start, otherwise the send message will report a "channel closed" error
             sleep(Duration::from_secs(2)).await;

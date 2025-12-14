@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::core::BridgePluginThread;
 use common_base::tools::{now_millis, now_second};
 use common_metrics::mqtt::connector::{
     record_connector_messages_sent_failure, record_connector_messages_sent_success,
@@ -21,8 +20,7 @@ use common_metrics::mqtt::connector::{
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-
-use super::core::BridgePluginThread;
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct ConnectorManager {
@@ -146,7 +144,6 @@ mod tests {
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
-            cluster_name: "test_cluster".to_string(),
             create_time: now_second(),
             update_time: now_second(),
         }

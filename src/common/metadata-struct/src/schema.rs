@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct SchemaData {
-    pub cluster_name: String,
     pub name: String,
     pub schema_type: SchemaType,
     pub desc: String,
@@ -38,7 +37,6 @@ impl SchemaData {
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct SchemaResourceBind {
-    pub cluster_name: String,
     pub schema_name: String,
     pub resource_name: String,
 }

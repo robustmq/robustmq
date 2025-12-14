@@ -36,11 +36,10 @@ impl MqttLastWillStorage {
 
     pub fn save(
         &self,
-        cluster_name: &str,
         client_id: &str,
         last_will_message: MqttLastWillData,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_last_will(cluster_name, client_id);
+        let key = storage_key_mqtt_last_will(client_id);
         Ok(engine_save_by_meta_data(
             self.rocksdb_engine_handler.clone(),
             &key,
@@ -48,20 +47,16 @@ impl MqttLastWillStorage {
         )?)
     }
 
-    pub fn get(
-        &self,
-        cluster_name: &str,
-        client_id: &str,
-    ) -> Result<Option<MqttLastWillData>, MetaServiceError> {
-        let key = storage_key_mqtt_last_will(cluster_name, client_id);
+    pub fn get(&self, client_id: &str) -> Result<Option<MqttLastWillData>, MetaServiceError> {
+        let key = storage_key_mqtt_last_will(client_id);
         Ok(
             engine_get_by_meta_data::<MqttLastWillData>(self.rocksdb_engine_handler.clone(), &key)?
                 .map(|data| data.data),
         )
     }
 
-    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_last_will(cluster_name, client_id);
+    pub fn delete(&self, client_id: &str) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_last_will(client_id);
         Ok(engine_delete_by_meta_data(
             self.rocksdb_engine_handler.clone(),
             &key,
@@ -100,32 +95,30 @@ mod tests {
     #[test]
     fn test_lastwill_crud() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Save & Get
         let lastwill = create_last_will("client_a", "status/client_a");
-        storage.save(cluster, "client_a", lastwill).unwrap();
+        storage.save("client_a", lastwill).unwrap();
 
-        let retrieved = storage.get(cluster, "client_a").unwrap();
+        let retrieved = storage.get("client_a").unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().client_id, "client_a");
 
         // Delete & Verify
-        storage.delete(cluster, "client_a").unwrap();
-        assert!(storage.get(cluster, "client_a").unwrap().is_none());
+        storage.delete("client_a").unwrap();
+        assert!(storage.get("client_a").unwrap().is_none());
     }
 
     #[test]
     fn test_update_lastwill() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
         let client = "client_a";
 
         // Save initial
         storage
-            .save(cluster, client, create_last_will(client, "topic1"))
+            .save(client, create_last_will(client, "topic1"))
             .unwrap();
-        let initial = storage.get(cluster, client).unwrap().unwrap();
+        let initial = storage.get(client).unwrap().unwrap();
         assert_eq!(
             initial.last_will.as_ref().unwrap().topic.as_ref(),
             b"topic1"
@@ -133,9 +126,9 @@ mod tests {
 
         // Update
         storage
-            .save(cluster, client, create_last_will(client, "topic2"))
+            .save(client, create_last_will(client, "topic2"))
             .unwrap();
-        let updated = storage.get(cluster, client).unwrap().unwrap();
+        let updated = storage.get(client).unwrap().unwrap();
         assert_eq!(
             updated.last_will.as_ref().unwrap().topic.as_ref(),
             b"topic2"
@@ -145,6 +138,6 @@ mod tests {
     #[test]
     fn test_get_nonexistent() {
         let storage = setup_storage();
-        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
+        assert!(storage.get("nonexistent").unwrap().is_none());
     }
 }

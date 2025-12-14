@@ -24,17 +24,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_prefix};
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
     engine_delete_by_meta_data, engine_get_by_meta_data, engine_prefix_list_by_meta_data,
     engine_save_by_meta_data,
 };
-
-use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
-use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 pub struct MqttSessionStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -46,18 +44,13 @@ impl MqttSessionStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn save(
-        &self,
-        cluster_name: &str,
-        client_id: &str,
-        session: MqttSession,
-    ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_session(cluster_name, client_id);
+    pub fn save(&self, client_id: &str, session: MqttSession) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_session(client_id);
         engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, session)
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttSession>, CommonError> {
-        let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
+    pub fn list_all(&self) -> Result<Vec<MqttSession>, CommonError> {
+        let prefix_key = storage_key_mqtt_session_prefix();
         let data = engine_prefix_list_by_meta_data::<MqttSession>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -65,20 +58,16 @@ impl MqttSessionStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(
-        &self,
-        cluster_name: &str,
-        client_id: &str,
-    ) -> Result<Option<MqttSession>, CommonError> {
-        let key = storage_key_mqtt_session(cluster_name, client_id);
+    pub fn get(&self, client_id: &str) -> Result<Option<MqttSession>, CommonError> {
+        let key = storage_key_mqtt_session(client_id);
         Ok(
             engine_get_by_meta_data::<MqttSession>(self.rocksdb_engine_handler.clone(), &key)?
                 .map(|data| data.data),
         )
     }
 
-    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_session(cluster_name, client_id);
+    pub fn delete(&self, client_id: &str) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_session(client_id);
         engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)
     }
 }
@@ -86,76 +75,78 @@ impl MqttSessionStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use rocksdb_engine::test::test_rocksdb_instance;
 
     fn setup_storage() -> MqttSessionStorage {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
-        MqttSessionStorage::new(test_rocksdb_instance())
+        let db = test_rocksdb_instance();
+        MqttSessionStorage::new(db)
     }
 
-    fn create_session(client_id: &str, connection_id: u64) -> MqttSession {
+    fn create_session(client_id: &str) -> MqttSession {
         MqttSession {
             client_id: client_id.to_string(),
             session_expiry: 3600,
-            is_contain_last_will: false,
-            last_will_delay_interval: None,
-            create_time: now_second(),
-            connection_id: Some(connection_id),
-            broker_id: Some(1),
-            reconnect_time: None,
-            distinct_time: None,
+            ..Default::default()
         }
     }
 
     #[test]
-    fn test_session_crud() {
+    fn test_session_crud_operations() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
-        // Save & Get
-        let session = create_session("client_a", 100);
-        storage.save(cluster, "client_a", session).unwrap();
-        assert!(storage.get(cluster, "client_a").unwrap().is_some());
+        // Test: Save and Get
+        let session1 = create_session("client1");
+        storage.save("client1", session1).unwrap();
 
-        // List
-        storage
-            .save(cluster, "client_b", create_session("client_b", 101))
-            .unwrap();
-        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+        let retrieved = storage.get("client1").unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().client_id, "client1");
 
-        // Delete & Verify
-        storage.delete(cluster, "client_b").unwrap();
-        assert!(storage.get(cluster, "client_b").unwrap().is_none());
-        assert_eq!(storage.list(cluster).unwrap().len(), 1);
+        // Test: List multiple sessions
+        let session2 = create_session("client2");
+        storage.save("client2", session2).unwrap();
+
+        let all_sessions = storage.list_all().unwrap();
+        assert_eq!(all_sessions.len(), 2);
+
+        // Test: Delete and verify
+        storage.delete("client2").unwrap();
+        assert!(storage.get("client2").unwrap().is_none());
+
+        let remaining = storage.list_all().unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].client_id, "client1");
     }
 
     #[test]
-    fn test_update_session() {
+    fn test_get_nonexistent_session() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
-        let client = "client_a";
+        let result = storage.get("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_save_overwrites_existing() {
+        let storage = setup_storage();
 
         // Save initial session
-        storage
-            .save(cluster, client, create_session(client, 100))
-            .unwrap();
-        let initial = storage.get(cluster, client).unwrap().unwrap();
-        assert_eq!(initial.connection_id, Some(100));
+        let session1 = create_session("client1");
+        storage.save("client1", session1).unwrap();
 
-        // Update session
-        storage
-            .save(cluster, client, create_session(client, 200))
-            .unwrap();
-        let updated = storage.get(cluster, client).unwrap().unwrap();
-        assert_eq!(updated.connection_id, Some(200));
-    }
+        // Overwrite with new session
+        let mut session2 = create_session("client1");
+        session2.session_expiry = 7200;
+        storage.save("client1", session2).unwrap();
 
-    #[test]
-    fn test_get_nonexistent() {
-        let storage = setup_storage();
-        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
+        // Verify overwrite
+        let retrieved = storage.get("client1").unwrap().unwrap();
+        assert_eq!(retrieved.session_expiry, 7200);
+
+        // Should still have only one session
+        let all_sessions = storage.list_all().unwrap();
+        assert_eq!(all_sessions.len(), 1);
     }
 }

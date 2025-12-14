@@ -17,9 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::journal::shard::JournalShard;
 
-use crate::storage::keys::{
-    key_all_shard, key_shard, key_shard_cluster_prefix, key_shard_namespace_prefix,
-};
+use crate::storage::keys::{key_all_shard, key_shard, key_shard_namespace_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
@@ -38,21 +36,16 @@ impl ShardStorage {
     }
 
     pub fn save(&self, shard_info: &JournalShard) -> Result<(), CommonError> {
-        let shard_key = key_shard(
-            &shard_info.cluster_name,
-            &shard_info.namespace,
-            &shard_info.shard_name,
-        );
+        let shard_key = key_shard(&shard_info.namespace, &shard_info.shard_name);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, shard_info)
     }
 
     pub fn get(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
     ) -> Result<Option<JournalShard>, CommonError> {
-        let shard_key: String = key_shard(cluster_name, namespace, shard_name);
+        let shard_key: String = key_shard(namespace, shard_name);
         if let Some(data) = engine_get_by_meta_metadata::<JournalShard>(
             self.rocksdb_engine_handler.clone(),
             &shard_key,
@@ -62,13 +55,8 @@ impl ShardStorage {
         Ok(None)
     }
 
-    pub fn delete(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<(), CommonError> {
-        let shard_key = key_shard(cluster_name, namespace, shard_name);
+    pub fn delete(&self, namespace: &str, shard_name: &str) -> Result<(), CommonError> {
+        let shard_key = key_shard(namespace, shard_name);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
     }
 
@@ -86,26 +74,8 @@ impl ShardStorage {
         Ok(results)
     }
 
-    pub fn list_by_cluster_namespace(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-    ) -> Result<Vec<JournalShard>, CommonError> {
-        let prefix_key = key_shard_namespace_prefix(cluster_name, namespace);
-        let data = engine_prefix_list_by_meta_metadata::<JournalShard>(
-            self.rocksdb_engine_handler.clone(),
-            &prefix_key,
-        )?;
-
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
-    }
-
-    pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<JournalShard>, CommonError> {
-        let prefix_key = key_shard_cluster_prefix(cluster_name);
+    pub fn list_by_namespace(&self, namespace: &str) -> Result<Vec<JournalShard>, CommonError> {
+        let prefix_key = key_shard_namespace_prefix(namespace);
         let data = engine_prefix_list_by_meta_metadata::<JournalShard>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -161,7 +131,6 @@ mod tests {
                 for shard in shards.iter() {
                     let segment = JournalShard {
                         shard_uid: unique_id(),
-                        cluster_name: cluster.clone(),
                         namespace: namespace.clone(),
                         shard_name: shard.clone(),
                         start_segment_seq: 0,
@@ -181,35 +150,20 @@ mod tests {
             num_clusters * num_namespace_per_cluster * num_shards_per_namespace
         );
 
-        for cluster in clusters.iter() {
-            let cluster_segs = shard_storage.list_by_cluster(cluster).unwrap();
+        for namespace in namespaces.iter() {
+            let namespace_segs = shard_storage.list_by_namespace(namespace).unwrap();
             assert_eq!(
-                cluster_segs.len() as u32,
-                num_namespace_per_cluster * num_shards_per_namespace
+                namespace_segs.len() as u32,
+                num_clusters * num_shards_per_namespace
             );
-
-            for namespace in namespaces.iter() {
-                let namespace_segs = shard_storage
-                    .list_by_cluster_namespace(cluster, namespace)
-                    .unwrap();
-                assert_eq!(namespace_segs.len() as u32, num_shards_per_namespace);
-                for shard in shards.iter() {
-                    let shard_segs = shard_storage
-                        .get(cluster, namespace, shard)
-                        .unwrap()
-                        .unwrap();
-                    assert_eq!(shard_segs.cluster_name, *cluster);
-                    assert_eq!(shard_segs.namespace, *namespace);
-                    assert_eq!(shard_segs.shard_name, *shard);
-                }
+            for shard in shards.iter() {
+                let shard_segs = shard_storage.get(namespace, shard).unwrap().unwrap();
+                assert_eq!(shard_segs.namespace, *namespace);
+                assert_eq!(shard_segs.shard_name, *shard);
             }
         }
         shard_storage
-            .delete(
-                clusters[0].as_str(),
-                namespaces[0].as_str(),
-                shards[0].as_str(),
-            )
+            .delete(namespaces[0].as_str(), shards[0].as_str())
             .unwrap();
         let all_segs = shard_storage.all_shard().unwrap();
         assert_eq!(

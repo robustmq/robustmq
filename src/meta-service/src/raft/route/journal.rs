@@ -56,17 +56,10 @@ impl DataRouteJournal {
         let shard_info = JournalShard::decode(&value)?;
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        shard_storage.delete(
-            &shard_info.cluster_name,
-            &shard_info.namespace,
-            &shard_info.shard_name,
-        )?;
+        shard_storage.delete(&shard_info.namespace, &shard_info.shard_name)?;
 
-        self.cache_manager.remove_shard(
-            &shard_info.cluster_name,
-            &shard_info.namespace,
-            &shard_info.shard_name,
-        );
+        self.cache_manager
+            .remove_shard(&shard_info.namespace, &shard_info.shard_name);
 
         Ok(())
     }
@@ -86,15 +79,9 @@ impl DataRouteJournal {
         let segment = JournalSegment::decode(&value)?;
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(
-            &segment.cluster_name,
-            &segment.namespace,
-            &segment.shard_name,
-            segment.segment_seq,
-        )?;
+        storage.delete(&segment.namespace, &segment.shard_name, segment.segment_seq)?;
 
         self.cache_manager.remove_segment(
-            &segment.cluster_name,
             &segment.namespace,
             &segment.shard_name,
             segment.segment_seq,
@@ -117,19 +104,10 @@ impl DataRouteJournal {
         let meta = JournalSegmentMetadata::decode(&value)?;
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(
-            &meta.cluster_name,
-            &meta.namespace,
-            &meta.shard_name,
-            meta.segment_seq,
-        )?;
+        storage.delete(&meta.namespace, &meta.shard_name, meta.segment_seq)?;
 
-        self.cache_manager.remove_segment_meta(
-            &meta.cluster_name,
-            &meta.namespace,
-            &meta.shard_name,
-            meta.segment_seq,
-        );
+        self.cache_manager
+            .remove_segment_meta(&meta.namespace, &meta.shard_name, meta.segment_seq);
         Ok(())
     }
 }

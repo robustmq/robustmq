@@ -35,7 +35,6 @@ mod test {
     use crate::common::get_placement_addr;
 
     fn check_connector_equal(left: &MQTTConnector, right: &MQTTConnector) {
-        assert_eq!(left.cluster_name, right.cluster_name);
         assert_eq!(left.connector_name, right.connector_name);
         assert_eq!(
             left.connector_type.clone() as u8,
@@ -52,12 +51,10 @@ mod test {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
 
-        let cluster_name: String = "test_cluster".to_string();
         let connector_name = "test_connector".to_string();
 
         // create connector
         let mut connector = MQTTConnector {
-            cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
             connector_type: ConnectorType::LocalFile,
             config: ConnectorConfig::LocalFile(LocalFileConnectorConfig {
@@ -69,7 +66,6 @@ mod test {
         };
 
         let create_request = CreateConnectorRequest {
-            cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
             connector: connector.encode().unwrap(),
         };
@@ -83,7 +79,6 @@ mod test {
 
         // list the connector we just created
         let list_request = ListConnectorRequest {
-            cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
         };
 
@@ -113,7 +108,6 @@ mod test {
         connector.topic_name = "test_topic-2".to_string();
 
         let update_request = UpdateConnectorRequest {
-            cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
             connector: connector.encode().unwrap(),
         };
@@ -143,7 +137,6 @@ mod test {
 
         // delete connector
         let delete_request = DeleteConnectorRequest {
-            cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
         };
 

@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 
 pub struct JournalShard {
     pub shard_uid: String,
-    pub cluster_name: String,
     pub namespace: String,
     pub shard_name: String,
     pub start_segment_seq: u32,

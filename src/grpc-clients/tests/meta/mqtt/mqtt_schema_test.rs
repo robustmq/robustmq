@@ -28,7 +28,6 @@ mod test {
     use crate::common::get_placement_addr;
 
     fn check_schema_equal(left: &SchemaData, right: &SchemaData) {
-        assert_eq!(left.cluster_name, right.cluster_name);
         assert_eq!(left.name, right.name);
         assert_eq!(left.schema_type, right.schema_type);
         assert_eq!(left.schema, right.schema);
@@ -40,11 +39,9 @@ mod test {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
 
-        let cluster_name = "test_cluster".to_string();
         let schema_name = "test_schema".to_string();
 
         let mut schema_data = SchemaData {
-            cluster_name: cluster_name.clone(),
             name: schema_name.clone(),
             schema_type: SchemaType::JSON,
             schema: r#"{
@@ -64,7 +61,6 @@ mod test {
         };
 
         let create_request = CreateSchemaRequest {
-            cluster_name: cluster_name.clone(),
             schema_name: schema_name.clone(),
             schema: schema_data.encode().unwrap(),
         };
@@ -77,7 +73,6 @@ mod test {
         }
 
         let list_request = ListSchemaRequest {
-            cluster_name: cluster_name.clone(),
             schema_name: "".to_string(),
         };
 
@@ -108,7 +103,6 @@ mod test {
         schema_data.desc = "New schema".to_string();
 
         let update_request = UpdateSchemaRequest {
-            cluster_name: cluster_name.clone(),
             schema_name: schema_name.clone(),
             schema: schema_data.encode().unwrap(),
         };
@@ -136,7 +130,6 @@ mod test {
 
         // delete schema
         let delete_request = DeleteSchemaRequest {
-            cluster_name: cluster_name.clone(),
             schema_name: schema_name.clone(),
         };
 

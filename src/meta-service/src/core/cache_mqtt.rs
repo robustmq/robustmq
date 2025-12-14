@@ -32,20 +32,12 @@ impl CacheManager {
     }
 
     // User
-    pub fn add_user(&self, cluster_name: &str, user: MqttUser) {
-        if let Some(data) = self.user_list.get_mut(cluster_name) {
-            data.insert(user.username.clone(), user);
-        } else {
-            let data = DashMap::with_capacity(8);
-            data.insert(user.username.clone(), user);
-            self.user_list.insert(cluster_name.to_owned(), data);
-        }
+    pub fn add_user(&self, user: MqttUser) {
+        self.user_list.insert(user.username.clone(), user);
     }
 
-    pub fn remove_user(&self, cluster_name: &str, user_name: &str) {
-        if let Some(data) = self.user_list.get_mut(cluster_name) {
-            data.remove(user_name);
-        }
+    pub fn remove_user(&self, user_name: &str) {
+        self.user_list.remove(user_name);
     }
 
     // Expire LastWill
@@ -63,7 +55,7 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_expire_last_will(&self, cluster_name: &str, client_id: &str) {
+    pub fn remove_expire_last_will(&self, client_id: &str) {
         if let Some(data) = self.expire_last_wills.get_mut(cluster_name) {
             data.remove(client_id);
         }
@@ -82,7 +74,7 @@ impl CacheManager {
     }
 
     // Connector
-    pub fn add_connector(&self, cluster_name: &str, connector: &MQTTConnector) {
+    pub fn add_connector(&self, connector: &MQTTConnector) {
         if let Some(data) = self.connector_list.get_mut(cluster_name) {
             data.insert(connector.connector_name.clone(), connector.clone());
         } else {
@@ -92,12 +84,12 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_connector(&self, cluster_name: &str, connector_name: &str) {
+    pub fn remove_connector(&self, connector_name: &str) {
         if let Some(data) = self.connector_list.get_mut(cluster_name) {
             data.remove(connector_name);
         }
     }
-    pub fn get_connector(&self, cluster_name: &str, connector_name: &str) -> Option<MQTTConnector> {
+    pub fn get_connector(&self, connector_name: &str) -> Option<MQTTConnector> {
         if let Some(data) = self.connector_list.get(cluster_name) {
             if let Some(val) = data.get(connector_name) {
                 return Some(val.clone());
@@ -117,12 +109,7 @@ impl CacheManager {
     }
 
     // Report HeartBeart
-    pub fn report_connector_heartbeat(
-        &self,
-        cluster_name: &str,
-        connector_name: &str,
-        heartbeat_time: u64,
-    ) {
+    pub fn report_connector_heartbeat(&self, connector_name: &str, heartbeat_time: u64) {
         let key = format!("{cluster_name}_{connector_name}");
         let heartbeat = ConnectorHeartbeat {
             cluster_name: cluster_name.to_owned(),
@@ -132,9 +119,8 @@ impl CacheManager {
         self.connector_heartbeat.insert(key, heartbeat);
     }
 
-    pub fn remove_connector_heartbeat(&self, cluster_name: &str, connector_name: &str) {
-        let key = format!("{cluster_name}_{connector_name}");
-        self.connector_heartbeat.remove(&key);
+    pub fn remove_connector_heartbeat(&self, connector_name: &str) {
+        self.connector_heartbeat.remove(&connector_name);
     }
 
     pub fn get_all_connector_heartbeat(&self) -> Vec<ConnectorHeartbeat> {

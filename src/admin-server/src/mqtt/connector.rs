@@ -252,7 +252,6 @@ async fn connector_create_inner(
 
     let storage = ConnectorStorage::new(state.client_pool.clone());
     let connector = MQTTConnector {
-        cluster_name: state.broker_cache.cluster_name.clone(),
         connector_name: params.connector_name.clone(),
         connector_type,
         config: connector_config,

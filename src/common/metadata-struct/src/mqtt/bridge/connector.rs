@@ -63,7 +63,6 @@ impl ConnectorConfig {
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct MQTTConnector {
-    pub cluster_name: String,
     pub connector_name: String,
     pub connector_type: ConnectorType,
     pub config: ConnectorConfig,
@@ -112,16 +111,10 @@ impl MQTTConnector {
     }
 
     pub fn unique_key(&self) -> String {
-        format!("{}/{}", self.cluster_name, self.connector_name)
+        format!("{}", self.connector_name)
     }
 
     pub fn validate(&self) -> Result<(), CommonError> {
-        if self.cluster_name.is_empty() {
-            return Err(CommonError::CommonError(
-                "cluster_name cannot be empty".to_string(),
-            ));
-        }
-
         if self.connector_name.is_empty() {
             return Err(CommonError::CommonError(
                 "connector_name cannot be empty".to_string(),

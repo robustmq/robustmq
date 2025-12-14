@@ -45,7 +45,6 @@ impl SessionStorage {
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = CreateSessionRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id,
             session: session.encode()?,
         };
@@ -65,7 +64,6 @@ impl SessionStorage {
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = UpdateSessionRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id,
             connection_id,
             broker_id,
@@ -81,7 +79,6 @@ impl SessionStorage {
     pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteSessionRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id,
         };
 
@@ -93,7 +90,6 @@ impl SessionStorage {
     pub async fn get_session(&self, client_id: String) -> Result<Option<MqttSession>, CommonError> {
         let config = broker_config();
         let request = ListSessionRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id,
         };
 
@@ -112,7 +108,6 @@ impl SessionStorage {
     pub async fn list_session(&self) -> Result<DashMap<String, MqttSession>, CommonError> {
         let config = broker_config();
         let request = ListSessionRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id: "".to_string(),
         };
 
@@ -136,7 +131,6 @@ impl SessionStorage {
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = SaveLastWillMessageRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id,
             last_will_message,
         };
@@ -157,7 +151,6 @@ impl SessionStorage {
     ) -> Result<Option<MqttLastWillData>, CommonError> {
         let config = broker_config();
         let request = GetLastWillMessageRequest {
-            cluster_name: config.cluster_name.clone(),
             client_id,
         };
 

@@ -451,7 +451,6 @@ pub async fn auto_subscribe_create(
     };
 
     let auto_subscribe_rule = MqttAutoSubscribeRule {
-        cluster: state.broker_cache.cluster_name.clone(),
         topic: params.topic.clone(),
         qos: qos_new,
         no_local: params.no_local,

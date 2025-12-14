@@ -17,7 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::common::get_placement_addr;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
@@ -30,14 +30,12 @@ mod tests {
     async fn mqtt_share_sub_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = unique_id();
         let group_name: String = "test_group".to_string();
         let node_ip: String = "127.0.0.1".to_string();
         let node_id: u64 = 1;
 
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
             node_id,
             node_inner_addr: node_ip.clone(),
@@ -57,7 +55,6 @@ mod tests {
 
         let request = GetShareSubLeaderRequest {
             group_name: group_name.clone(),
-            cluster_name: cluster_name.clone(),
         };
         match placement_get_share_sub_leader(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -75,19 +72,9 @@ mod tests {
             }
         }
 
-        let request = GetShareSubLeaderRequest {
-            group_name: group_name.clone(),
-            cluster_name: "".to_string(),
-        };
-        assert!(
-            placement_get_share_sub_leader(&client_pool, &addrs, request)
-                .await
-                .is_err()
-        );
-
+        // Test with empty group_name - should fail validation
         let request = GetShareSubLeaderRequest {
             group_name: "".to_string(),
-            cluster_name: cluster_name.clone(),
         };
         assert!(
             placement_get_share_sub_leader(&client_pool, &addrs, request)

@@ -15,8 +15,6 @@
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-
-    use common_base::tools::unique_id;
     use grpc_clients::meta::mqtt::call::{
         placement_create_topic_rewrite_rule, placement_delete_topic_rewrite_rule,
         placement_list_topic_rewrite_rule,
@@ -30,15 +28,12 @@ mod tests {
     async fn test_topic_rewrite_rule() {
         let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec!["127.0.0.1:1228".to_string()];
-
-        let cluster_name = unique_id();
         let action: String = "All".to_string();
         let source_topic: String = "x/#".to_string();
         let dest_topic: String = "x/y/z/$1".to_string();
         let re: String = "^x/y/(.+)$".to_string();
 
         let req = CreateTopicRewriteRuleRequest {
-            cluster_name: cluster_name.clone(),
             action: action.clone(),
             source_topic: source_topic.clone(),
             dest_topic: dest_topic.clone(),
@@ -49,16 +44,13 @@ mod tests {
             .await
             .unwrap();
 
-        let req = ListTopicRewriteRuleRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let req = ListTopicRewriteRuleRequest {};
         let resp = placement_list_topic_rewrite_rule(&client_pool, &addrs, req)
             .await
             .unwrap();
         assert_eq!(resp.topic_rewrite_rules.len(), 1);
 
         let req = DeleteTopicRewriteRuleRequest {
-            cluster_name: cluster_name.clone(),
             action: action.clone(),
             source_topic: source_topic.clone(),
         };
@@ -66,9 +58,7 @@ mod tests {
             .await
             .unwrap();
 
-        let req = ListTopicRewriteRuleRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let req = ListTopicRewriteRuleRequest {};
         let resp = placement_list_topic_rewrite_rule(&client_pool, &addrs, req)
             .await
             .unwrap();

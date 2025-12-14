@@ -37,7 +37,6 @@ impl UserStorage {
     pub async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateUserRequest {
-            cluster_name: config.cluster_name.clone(),
             user_name: user_info.username.clone(),
             content: user_info.encode()?,
         };
@@ -48,7 +47,6 @@ impl UserStorage {
     pub async fn delete_user(&self, user_name: String) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteUserRequest {
-            cluster_name: config.cluster_name.clone(),
             user_name,
         };
         placement_delete_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -59,7 +57,6 @@ impl UserStorage {
         let config = broker_config();
 
         let request = ListUserRequest {
-            cluster_name: config.cluster_name.clone(),
             user_name: username.clone(),
         };
 
@@ -77,7 +74,6 @@ impl UserStorage {
     pub async fn user_list(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let config = broker_config();
         let request = ListUserRequest {
-            cluster_name: config.cluster_name.clone(),
             ..Default::default()
         };
 

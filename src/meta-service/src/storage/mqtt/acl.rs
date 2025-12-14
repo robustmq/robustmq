@@ -34,9 +34,9 @@ impl AclStorage {
         }
     }
 
-    pub fn save(&self, cluster_name: &str, acl: MqttAcl) -> Result<(), CommonError> {
+    pub fn save(&self, acl: MqttAcl) -> Result<(), CommonError> {
         let resource_type_str = acl.resource_type.to_string();
-        let mut acl_list = self.get(cluster_name, &resource_type_str, &acl.resource_name)?;
+        let mut acl_list = self.get(&resource_type_str, &acl.resource_name)?;
 
         if self.acl_exists(&acl_list, &acl) {
             return Ok(());
@@ -44,12 +44,12 @@ impl AclStorage {
 
         acl_list.push(acl.clone());
 
-        let key = storage_key_mqtt_acl(cluster_name, &resource_type_str, &acl.resource_name);
+        let key = storage_key_mqtt_acl(&resource_type_str, &acl.resource_name);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, acl_list)
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAcl>, CommonError> {
-        let prefix_key = storage_key_mqtt_acl_prefix(cluster_name);
+    pub fn list_all(&self) -> Result<Vec<MqttAcl>, CommonError> {
+        let prefix_key = storage_key_mqtt_acl_prefix();
         let data = engine_prefix_list_by_meta_metadata::<Vec<MqttAcl>>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -57,9 +57,9 @@ impl AclStorage {
         Ok(data.into_iter().flat_map(|raw| raw.data).collect())
     }
 
-    pub fn delete(&self, cluster_name: &str, delete_acl: &MqttAcl) -> Result<(), CommonError> {
+    pub fn delete(&self, delete_acl: &MqttAcl) -> Result<(), CommonError> {
         let resource_type_str = delete_acl.resource_type.to_string();
-        let acl_list = self.get(cluster_name, &resource_type_str, &delete_acl.resource_name)?;
+        let acl_list = self.get(&resource_type_str, &delete_acl.resource_name)?;
 
         if !self.acl_exists(&acl_list, delete_acl) {
             return Ok(());
@@ -70,17 +70,16 @@ impl AclStorage {
             .filter(|raw| !Self::acl_matches(raw, delete_acl))
             .collect();
 
-        let key = storage_key_mqtt_acl(cluster_name, &resource_type_str, &delete_acl.resource_name);
+        let key = storage_key_mqtt_acl(&resource_type_str, &delete_acl.resource_name);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, new_acl_list)
     }
 
     pub fn get(
         &self,
-        cluster_name: &str,
         resource_type: &str,
         resource_name: &str,
     ) -> Result<Vec<MqttAcl>, CommonError> {
-        let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
+        let key = storage_key_mqtt_acl(resource_type, resource_name);
         Ok(
             engine_get_by_meta_metadata::<Vec<MqttAcl>>(self.rocksdb_engine_handler.clone(), &key)?
                 .map(|data| data.data)
@@ -132,7 +131,6 @@ mod tests {
     #[test]
     fn test_acl_crud() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Save & Get
         let acl = create_acl(
@@ -142,10 +140,10 @@ mod tests {
             MqttAclPermission::Allow,
             MqttAclAction::Subscribe,
         );
-        storage.save(cluster, acl.clone()).unwrap();
+        storage.save(acl.clone()).unwrap();
 
         let acls = storage
-            .get(cluster, &acl.resource_type.to_string(), &acl.resource_name)
+            .get(&acl.resource_type.to_string(), &acl.resource_name)
             .unwrap();
         assert_eq!(acls.len(), 1);
 
@@ -157,13 +155,13 @@ mod tests {
             MqttAclPermission::Deny,
             MqttAclAction::Publish,
         );
-        storage.save(cluster, acl2).unwrap();
-        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+        storage.save(acl2).unwrap();
+        assert_eq!(storage.list_all().unwrap().len(), 2);
 
         // Delete
-        storage.delete(cluster, &acl).unwrap();
+        storage.delete(&acl).unwrap();
         let acls = storage
-            .get(cluster, &acl.resource_type.to_string(), &acl.resource_name)
+            .get(&acl.resource_type.to_string(), &acl.resource_name)
             .unwrap();
         assert_eq!(acls.len(), 0);
     }
@@ -171,7 +169,6 @@ mod tests {
     #[test]
     fn test_duplicate_acl() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         let acl = create_acl(
             MqttAclResourceType::User,
@@ -182,12 +179,12 @@ mod tests {
         );
 
         // Save twice
-        storage.save(cluster, acl.clone()).unwrap();
-        storage.save(cluster, acl.clone()).unwrap();
+        storage.save(acl.clone()).unwrap();
+        storage.save(acl.clone()).unwrap();
 
         // Should only have one
         let acls = storage
-            .get(cluster, &acl.resource_type.to_string(), &acl.resource_name)
+            .get(&acl.resource_type.to_string(), &acl.resource_name)
             .unwrap();
         assert_eq!(acls.len(), 1);
     }
@@ -195,7 +192,6 @@ mod tests {
     #[test]
     fn test_multiple_acls_per_resource() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Same resource, different topics
         let acl1 = create_acl(
@@ -213,15 +209,15 @@ mod tests {
             MqttAclAction::Publish,
         );
 
-        storage.save(cluster, acl1.clone()).unwrap();
-        storage.save(cluster, acl2.clone()).unwrap();
+        storage.save(acl1.clone()).unwrap();
+        storage.save(acl2.clone()).unwrap();
 
-        let acls = storage.get(cluster, "User", "alice").unwrap();
+        let acls = storage.get("User", "alice").unwrap();
         assert_eq!(acls.len(), 2);
 
         // Delete one
-        storage.delete(cluster, &acl1).unwrap();
-        let acls = storage.get(cluster, "User", "alice").unwrap();
+        storage.delete(&acl1).unwrap();
+        let acls = storage.get("User", "alice").unwrap();
         assert_eq!(acls.len(), 1);
         assert_eq!(acls[0].topic, "device/#");
     }
@@ -229,7 +225,7 @@ mod tests {
     #[test]
     fn test_get_nonexistent() {
         let storage = setup_storage();
-        let acls = storage.get("cluster1", "User", "nonexistent").unwrap();
+        let acls = storage.get("User", "nonexistent").unwrap();
         assert!(acls.is_empty());
     }
 }

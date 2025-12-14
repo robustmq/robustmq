@@ -35,7 +35,6 @@ mod tests {
         let addrs = vec![get_placement_addr()];
         let user_name: String = "chungka".to_string();
         let password: String = "123456".to_string();
-        let cluster_name: String = "test_cluster".to_string();
 
         let mqtt_user: MqttUser = MqttUser {
             username: user_name.clone(),
@@ -46,7 +45,6 @@ mod tests {
         };
 
         let request: CreateUserRequest = CreateUserRequest {
-            cluster_name: cluster_name.clone(),
             user_name: mqtt_user.username.clone(),
             content: mqtt_user.encode().unwrap(),
         };
@@ -58,7 +56,6 @@ mod tests {
         }
 
         let request: ListUserRequest = ListUserRequest {
-            cluster_name: cluster_name.clone(),
             user_name: mqtt_user.username.clone(),
         };
 
@@ -79,7 +76,6 @@ mod tests {
         }
 
         let request: DeleteUserRequest = DeleteUserRequest {
-            cluster_name: cluster_name.clone(),
             user_name: mqtt_user.username.clone(),
         };
 
@@ -91,7 +87,6 @@ mod tests {
         }
 
         let request: ListUserRequest = ListUserRequest {
-            cluster_name: cluster_name.clone(),
             user_name: mqtt_user.username.clone(),
         };
 

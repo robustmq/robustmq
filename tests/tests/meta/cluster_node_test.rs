@@ -26,11 +26,9 @@ mod tests {
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
         let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
-        let cluster_name = cluster_name();
         let node_id = node_id();
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),
             extend: extend_info(),
@@ -46,9 +44,7 @@ mod tests {
             .await
             .unwrap();
 
-        let request = NodeListRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let request = NodeListRequest {};
         match client.node_list(request).await {
             Ok(rep) => {
                 let mut flag = false;
@@ -65,17 +61,13 @@ mod tests {
                 panic!("{e:?}");
             }
         }
-        let request = UnRegisterNodeRequest {
-            cluster_name: cluster_name.clone(),
-            node_id,
-        };
+        let request = UnRegisterNodeRequest { node_id };
         client
             .un_register_node(tonic::Request::new(request))
             .await
             .unwrap();
 
         let request = NodeListRequest {
-            cluster_name: cluster_name.clone(),
         };
         match client.node_list(request).await {
             Ok(rep) => {

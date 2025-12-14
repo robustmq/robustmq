@@ -35,17 +35,16 @@ impl MqttBlackListStorage {
         }
     }
 
-    pub fn save(&self, cluster_name: &str, blacklist: MqttAclBlackList) -> Result<(), CommonError> {
+    pub fn save(&self, blacklist: MqttAclBlackList) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(
-            cluster_name,
             &blacklist.blacklist_type.to_string(),
             &blacklist.resource_name,
         );
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, blacklist)
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {
-        let prefix_key = storage_key_mqtt_blacklist_prefix(cluster_name);
+    pub fn list_all(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
+        let prefix_key = storage_key_mqtt_blacklist_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttAclBlackList>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -53,13 +52,8 @@ impl MqttBlackListStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn delete(
-        &self,
-        cluster_name: &str,
-        blacklist_type: &str,
-        resource_name: &str,
-    ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_blacklist(cluster_name, blacklist_type, resource_name);
+    pub fn delete(&self, blacklist_type: &str, resource_name: &str) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_blacklist(blacklist_type, resource_name);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 }
@@ -93,27 +87,26 @@ mod tests {
     #[test]
     fn test_blacklist_crud() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Save & List
         let bl1 = create_blacklist(MqttAclBlackListType::ClientId, "client_blocked");
-        storage.save(cluster, bl1.clone()).unwrap();
+        storage.save(bl1.clone()).unwrap();
 
-        let list = storage.list(cluster).unwrap();
+        let list = storage.list_all().unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].resource_name, "client_blocked");
 
         // Save another
         let bl2 = create_blacklist(MqttAclBlackListType::User, "user_blocked");
-        storage.save(cluster, bl2.clone()).unwrap();
-        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+        storage.save(bl2.clone()).unwrap();
+        assert_eq!(storage.list_all().unwrap().len(), 2);
 
         // Delete & Verify
         storage
-            .delete(cluster, &bl1.blacklist_type.to_string(), &bl1.resource_name)
+            .delete(&bl1.blacklist_type.to_string(), &bl1.resource_name)
             .unwrap();
 
-        let remaining = storage.list(cluster).unwrap();
+        let remaining = storage.list_all().unwrap();
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].resource_name, "user_blocked");
     }
@@ -121,18 +114,17 @@ mod tests {
     #[test]
     fn test_blacklist_types() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Test different blacklist types
         let client_id_bl = create_blacklist(MqttAclBlackListType::ClientId, "client1");
         let user_bl = create_blacklist(MqttAclBlackListType::User, "user1");
         let ip_bl = create_blacklist(MqttAclBlackListType::Ip, "192.168.1.100");
 
-        storage.save(cluster, client_id_bl.clone()).unwrap();
-        storage.save(cluster, user_bl.clone()).unwrap();
-        storage.save(cluster, ip_bl.clone()).unwrap();
+        storage.save(client_id_bl.clone()).unwrap();
+        storage.save(user_bl.clone()).unwrap();
+        storage.save(ip_bl.clone()).unwrap();
 
-        let list = storage.list(cluster).unwrap();
+        let list = storage.list_all().unwrap();
         assert_eq!(list.len(), 3);
 
         // Verify each type exists
@@ -150,18 +142,17 @@ mod tests {
     #[test]
     fn test_update_blacklist() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Save initial
         let initial = create_blacklist(MqttAclBlackListType::ClientId, "client1");
-        storage.save(cluster, initial.clone()).unwrap();
+        storage.save(initial.clone()).unwrap();
 
         // Update with different desc
         let mut updated = initial.clone();
         updated.desc = "updated description".to_string();
-        storage.save(cluster, updated).unwrap();
+        storage.save(updated).unwrap();
 
-        let list = storage.list(cluster).unwrap();
+        let list = storage.list_all().unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].desc, "updated description");
     }
@@ -169,7 +160,7 @@ mod tests {
     #[test]
     fn test_empty_list() {
         let storage = setup_storage();
-        let list = storage.list("empty_cluster").unwrap();
+        let list = storage.list_all().unwrap();
         assert!(list.is_empty());
     }
 }

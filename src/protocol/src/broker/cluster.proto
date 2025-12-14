@@ -21,23 +21,17 @@ service ClusterService {
   //
   // Returns cluster information including:
   // - node_count: Number of active nodes in the cluster
-  // - cluster_name: Name of the cluster  
   // - uptime: Cluster uptime in seconds
   // - version: Broker version information
   rpc ClusterStatus(ClusterStatusRequest) returns (ClusterStatusReply) {}
 }
 
 message ClusterStatusRequest {
-  // Optional: Filter by cluster name
-  string cluster_name = 1;
 }
 
 message ClusterStatusReply {
   // Number of active nodes in the cluster
   uint32 node_count = 1;
-  
-  // Name of the cluster
-  string cluster_name = 2;
   
   // Cluster uptime in seconds
   uint64 uptime = 3;

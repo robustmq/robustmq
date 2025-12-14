@@ -14,6 +14,9 @@
 
 #[cfg(test)]
 mod tests {
+    use crate::meta::common::{
+        cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
+    };
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::meta::node::BrokerNode;
@@ -26,15 +29,10 @@ mod tests {
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
 
-    use crate::meta::common::{
-        cluster_name, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
-    };
-
     #[tokio::test]
     async fn test_register_node_method_is_ok() {
         let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
         let node = BrokerNode {
-            cluster_name: cluster_name(),
             roles: Vec::new(),
             node_ip: node_ip(),
             node_id: node_id(),
@@ -59,7 +57,6 @@ mod tests {
             .expect("Failed to connect to MetaServiceService");
 
         let mut node = BrokerNode {
-            cluster_name: cluster_name(),
             roles: Vec::new(),
             node_ip: node_ip(),
             node_id: node_id(),
@@ -118,10 +115,7 @@ mod tests {
     async fn test_heartbeat() {
         let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
 
-        let request = HeartbeatRequest {
-            cluster_name: cluster_name(),
-            node_id: node_id(),
-        };
+        let request = HeartbeatRequest { node_id: node_id() };
         let res = client.heartbeat(tonic::Request::new(request)).await;
         assert!(res.is_err());
     }
@@ -130,10 +124,7 @@ mod tests {
     async fn test_unregister_node() {
         let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
 
-        let request = UnRegisterNodeRequest {
-            cluster_name: cluster_name(),
-            node_id: node_id(),
-        };
+        let request = UnRegisterNodeRequest { node_id: node_id() };
         client
             .un_register_node(tonic::Request::new(request))
             .await
@@ -150,7 +141,6 @@ mod tests {
         };
 
         let request = CreateShardRequest {
-            cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
             shard_config: config.encode().unwrap(),
@@ -169,7 +159,6 @@ mod tests {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let request = DeleteShardRequest {
-            cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
         };
@@ -186,7 +175,6 @@ mod tests {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let request = CreateNextSegmentRequest {
-            cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
         };
@@ -206,7 +194,6 @@ mod tests {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let request = DeleteSegmentRequest {
-            cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
             segment_seq: 1,

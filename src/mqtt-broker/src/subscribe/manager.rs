@@ -230,7 +230,6 @@ mod tests {
         MqttSubscribe {
             client_id: client_id.to_string(),
             path: path.to_string(),
-            cluster_name: "test_cluster".to_string(),
             broker_id: 1,
             protocol: MqttProtocol::Mqtt5,
             filter: Filter {

@@ -308,7 +308,6 @@ mod tests {
             segment_seq: segment_no,
         };
         let segment = JournalSegment {
-            cluster_name,
             namespace,
             shard_name,
             segment_seq: segment_no,

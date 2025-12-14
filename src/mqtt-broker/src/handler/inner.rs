@@ -19,7 +19,6 @@ use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 use broker_core::tool::wait_cluster_running;
-use common_config::broker::broker_config;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
@@ -43,10 +42,6 @@ pub async fn update_cache_by_req(
     metrics_manager: &Arc<MQTTMetricsCache>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
-    let conf = broker_config();
-    if conf.cluster_name != req.cluster_name {
-        return Ok(UpdateMqttCacheReply::default());
-    }
     wait_cluster_running(&cache_manager.broker_cache).await;
     update_cache_metadata(
         cache_manager,
@@ -67,14 +62,10 @@ pub async fn delete_session_by_req(
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
     debug!(
-        "Received request from Meta service to delete expired Session. Cluster name :{}, clientId count: {:?}",
-        req.cluster_name, req.client_id.len()
+        "Received request from Meta service to delete expired Session. clientId count: {:?}",
+        req.client_id.len()
     );
     wait_cluster_running(&cache_manager.broker_cache).await;
-
-    if cache_manager.broker_cache.cluster_name != req.cluster_name {
-        return Err(MqttBrokerError::ClusterNotMatch(req.cluster_name.clone()));
-    }
 
     if req.client_id.is_empty() {
         return Err(MqttBrokerError::ClientIDIsEmpty);

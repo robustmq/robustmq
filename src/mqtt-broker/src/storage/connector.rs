@@ -47,7 +47,6 @@ impl ConnectorStorage {
     ) -> Result<Vec<MQTTConnector>, MqttBrokerError> {
         let config = broker_config();
         let request = ListConnectorRequest {
-            cluster_name: config.cluster_name.clone(),
             connector_name: connector_name.to_owned(),
         };
         let reply =
@@ -67,7 +66,6 @@ impl ConnectorStorage {
     pub async fn create_connector(&self, connector: MQTTConnector) -> ResultCommonError {
         let config = broker_config();
         let request = CreateConnectorRequest {
-            cluster_name: config.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
             connector: connector.encode()?,
         };
@@ -79,7 +77,6 @@ impl ConnectorStorage {
     pub async fn update_connector(&self, connector: MQTTConnector) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = UpdateConnectorRequest {
-            cluster_name: config.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
             connector: connector.encode()?,
         };
@@ -90,12 +87,11 @@ impl ConnectorStorage {
 
     pub async fn delete_connector(
         &self,
-        cluster_name: &str,
+        _cluster_name: &str,
         connector_name: &str,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteConnectorRequest {
-            cluster_name: cluster_name.to_owned(),
             connector_name: connector_name.to_owned(),
         };
         placement_delete_connector(&self.client_pool, &config.get_meta_service_addr(), request)
@@ -109,7 +105,6 @@ impl ConnectorStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = ConnectorHeartbeatRequest {
-            cluster_name: config.cluster_name.clone(),
             heatbeats,
         };
         placement_connector_heartbeat(&self.client_pool, &config.get_meta_service_addr(), request)

@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::storage::keys::{
+    key_all_segment, key_segment, key_segment_namespace_prefix, key_segment_shard_prefix,
+};
 use common_base::error::common::CommonError;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
-
-use crate::storage::keys::{
-    key_all_segment, key_segment, key_segment_cluster_prefix, key_segment_namespace_prefix,
-    key_segment_shard_prefix,
-};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
     engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
+use std::sync::Arc;
 
 #[allow(dead_code)]
 pub fn is_seal_up_segment(status: &SegmentStatus) -> bool {
@@ -44,23 +41,17 @@ impl SegmentStorage {
     }
 
     pub fn save(&self, segment: JournalSegment) -> Result<(), CommonError> {
-        let shard_key = key_segment(
-            &segment.cluster_name,
-            &segment.namespace,
-            &segment.shard_name,
-            segment.segment_seq,
-        );
+        let shard_key = key_segment(&segment.namespace, &segment.shard_name, segment.segment_seq);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, segment)
     }
 
     pub fn get(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
         segment_seq: u32,
     ) -> Result<Option<JournalSegment>, CommonError> {
-        let shard_key: String = key_segment(cluster_name, namespace, shard_name, segment_seq);
+        let shard_key: String = key_segment(namespace, shard_name, segment_seq);
         if let Some(data) = engine_get_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &shard_key,
@@ -83,25 +74,8 @@ impl SegmentStorage {
         Ok(results)
     }
 
-    pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<JournalSegment>, CommonError> {
-        let prefix_key = key_segment_cluster_prefix(cluster_name);
-        let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
-            self.rocksdb_engine_handler.clone(),
-            &prefix_key,
-        )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
-    }
-
-    pub fn list_by_namespace(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-    ) -> Result<Vec<JournalSegment>, CommonError> {
-        let prefix_key = key_segment_namespace_prefix(cluster_name, namespace);
+    pub fn list_by_namespace(&self, namespace: &str) -> Result<Vec<JournalSegment>, CommonError> {
+        let prefix_key = key_segment_namespace_prefix(namespace);
         let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -115,11 +89,10 @@ impl SegmentStorage {
 
     pub fn list_by_shard(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
-        let prefix_key = key_segment_shard_prefix(cluster_name, namespace, shard_name);
+        let prefix_key = key_segment_shard_prefix(namespace, shard_name);
         let data = engine_prefix_list_by_meta_metadata::<JournalSegment>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -133,12 +106,11 @@ impl SegmentStorage {
 
     pub fn delete(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
         segment_seq: u32,
     ) -> Result<(), CommonError> {
-        let shard_key = key_segment(cluster_name, namespace, shard_name, segment_seq);
+        let shard_key = key_segment(namespace, shard_name, segment_seq);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
     }
 }
@@ -188,7 +160,6 @@ mod test {
                     // 5 segments per shard
                     for seq in 0..segs_per_shard {
                         let segment = JournalSegment {
-                            cluster_name: cluster.clone(),
                             namespace: namespace.clone(),
                             shard_name: shard.clone(),
                             segment_seq: seq,
@@ -208,50 +179,30 @@ mod test {
             num_clusters * num_namespace_per_cluster * num_shards_per_namespace * segs_per_shard
         );
 
-        for cluster in clusters.iter() {
-            let cluster_segs = segment_storage.list_by_cluster(cluster).unwrap();
+        for namespace in namespaces.iter() {
+            let namespace_segs = segment_storage.list_by_namespace(namespace).unwrap();
             assert_eq!(
-                cluster_segs.len() as u32,
-                num_namespace_per_cluster * num_shards_per_namespace * segs_per_shard
+                namespace_segs.len() as u32,
+                num_clusters * num_shards_per_namespace * segs_per_shard
             );
 
-            for namespace in namespaces.iter() {
-                let namespace_segs = segment_storage
-                    .list_by_namespace(cluster, namespace)
-                    .unwrap();
-                assert_eq!(
-                    namespace_segs.len() as u32,
-                    num_shards_per_namespace * segs_per_shard
-                );
+            for shard in shards.iter() {
+                let shard_segs = segment_storage.list_by_shard(namespace, shard).unwrap();
+                assert_eq!(shard_segs.len() as u32, num_clusters * segs_per_shard);
 
-                for shard in shards.iter() {
-                    let shard_segs = segment_storage
-                        .list_by_shard(cluster, namespace, shard)
-                        .unwrap();
-                    assert_eq!(shard_segs.len() as u32, segs_per_shard);
-
-                    for seq in 0..segs_per_shard {
-                        let seg = segment_storage
-                            .get(cluster, namespace, shard, seq)
-                            .unwrap()
-                            .unwrap();
-                        assert_eq!(seg.cluster_name, *cluster);
-                        assert_eq!(seg.namespace, *namespace);
-                        assert_eq!(seg.shard_name, *shard);
-                        assert_eq!(seg.segment_seq, seq);
-                    }
+                for seq in 0..segs_per_shard {
+                    let seg = segment_storage.get(namespace, shard, seq).unwrap().unwrap();
+                    assert_eq!(seg.namespace, *namespace);
+                    assert_eq!(seg.shard_name, *shard);
+                    assert_eq!(seg.segment_seq, seq);
                 }
             }
         }
 
-        for cluster in clusters.iter() {
-            for namespace in namespaces.iter() {
-                for shard in shards.iter() {
-                    for seq in 0..segs_per_shard {
-                        segment_storage
-                            .delete(cluster, namespace, shard, seq)
-                            .unwrap();
-                    }
+        for namespace in namespaces.iter() {
+            for shard in shards.iter() {
+                for seq in 0..segs_per_shard {
+                    segment_storage.delete(namespace, shard, seq).unwrap();
                 }
             }
         }
@@ -259,28 +210,19 @@ mod test {
         let all_segs = segment_storage.all_segment().unwrap();
         assert_eq!(all_segs.len(), 0);
 
-        for cluster in clusters.iter() {
-            let cluster_segs = segment_storage.list_by_cluster(cluster).unwrap();
-            assert_eq!(cluster_segs.len(), 0);
+        for namespace in namespaces.iter() {
+            let namespace_segs = segment_storage.list_by_namespace(namespace).unwrap();
+            assert_eq!(namespace_segs.len(), 0);
 
-            for namespace in namespaces.iter() {
-                let namespace_segs = segment_storage
-                    .list_by_namespace(cluster, namespace)
-                    .unwrap();
-                assert_eq!(namespace_segs.len(), 0);
+            for shard in shards.iter() {
+                let shard_segs = segment_storage.list_by_shard(namespace, shard).unwrap();
+                assert_eq!(shard_segs.len(), 0);
 
-                for shard in shards.iter() {
-                    let shard_segs = segment_storage
-                        .list_by_shard(cluster, namespace, shard)
-                        .unwrap();
-                    assert_eq!(shard_segs.len(), 0);
-
-                    for seq in 0..segs_per_shard {
-                        assert!(segment_storage
-                            .get(cluster, namespace, shard, seq)
-                            .unwrap()
-                            .is_none());
-                    }
+                for seq in 0..segs_per_shard {
+                    assert!(segment_storage
+                        .get(namespace, shard, seq)
+                        .unwrap()
+                        .is_none());
                 }
             }
         }

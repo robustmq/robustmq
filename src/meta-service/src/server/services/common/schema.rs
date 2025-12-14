@@ -46,12 +46,7 @@ fn validate_non_empty(value: &str, field_name: &str) -> Result<(), MetaServiceEr
 }
 
 // Helper: Validate required fields for schema operations
-fn validate_schema_fields(
-    cluster_name: &str,
-    schema_name: &str,
-    schema: &[u8],
-) -> Result<(), MetaServiceError> {
-    validate_non_empty(cluster_name, "cluster_name")?;
+fn validate_schema_fields(schema_name: &str, schema: &[u8]) -> Result<(), MetaServiceError> {
     validate_non_empty(schema_name, "schema_name")?;
     if schema.is_empty() {
         return Err(MetaServiceError::RequestParamsNotEmpty(
@@ -63,11 +58,9 @@ fn validate_schema_fields(
 
 // Helper: Validate required fields for schema bind operations
 fn validate_bind_fields(
-    cluster_name: &str,
     schema_name: &str,
     resource_name: &str,
 ) -> Result<(), MetaServiceError> {
-    validate_non_empty(cluster_name, "cluster_name")?;
     validate_non_empty(schema_name, "schema_name")?;
     validate_non_empty(resource_name, "resource_name")?;
     Ok(())
@@ -78,19 +71,15 @@ pub fn list_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSchemaRequest,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
-    if req.cluster_name.is_empty() {
-        return Ok(Vec::new());
-    }
-
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     let list = if !req.schema_name.is_empty() {
-        if let Some(data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
+        if let Some(data) = schema_storage.get(&req.schema_name)? {
             vec![data]
         } else {
             vec![]
         }
     } else {
-        schema_storage.list(&req.cluster_name)?
+        schema_storage.list_all()?
     };
 
     let results = list
@@ -102,20 +91,17 @@ pub fn list_schema_req(
 
 pub async fn create_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), MetaServiceError> {
-    validate_schema_fields(&req.cluster_name, &req.schema_name, &req.schema)?;
+    validate_schema_fields(&req.schema_name, &req.schema)?;
 
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // Check if schema already exists
-    if schema_storage
-        .get(&req.cluster_name, &req.schema_name)?
-        .is_some()
-    {
+    if schema_storage.get(&req.schema_name)?.is_some() {
         return Err(MetaServiceError::SchemaAlreadyExist(
             req.schema_name.clone(),
         ));
@@ -124,8 +110,9 @@ pub async fn create_schema_req(
     let data = StorageData::new(StorageDataType::SchemaSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let schema = SchemaData::decode(&req.schema)?;
-    update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+    // TODO: Update cache after cluster_name removal
+    // let schema = SchemaData::decode(&req.schema)?;
+    // update_cache_by_add_schema(call_manager, client_pool, schema).await?;
 
     Ok(())
 }
@@ -133,24 +120,25 @@ pub async fn create_schema_req(
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
-    validate_schema_fields(&req.cluster_name, &req.schema_name, &req.schema)?;
+    validate_schema_fields(&req.schema_name, &req.schema)?;
 
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // Check if schema exists
-    if storage.get(&req.cluster_name, &req.schema_name)?.is_none() {
+    if storage.get(&req.schema_name)?.is_none() {
         return Err(MetaServiceError::SchemaNotFound(req.schema_name.clone()));
     }
 
     let data = StorageData::new(StorageDataType::SchemaSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let schema = SchemaData::decode(&req.schema)?;
-    update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+    // TODO: Update cache after cluster_name removal
+    // let schema = SchemaData::decode(&req.schema)?;
+    // update_cache_by_add_schema(call_manager, client_pool, schema).await?;
 
     Ok(())
 }
@@ -158,24 +146,24 @@ pub async fn update_schema_req(
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
-    validate_non_empty(&req.cluster_name, "cluster_name")?;
     validate_non_empty(&req.schema_name, "schema_name")?;
 
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // Get schema to delete (must exist)
-    let schema = storage
-        .get(&req.cluster_name, &req.schema_name)?
+    let _schema = storage
+        .get(&req.schema_name)?
         .ok_or_else(|| MetaServiceError::SchemaDoesNotExist(req.schema_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::SchemaDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    update_cache_by_delete_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+    // TODO: Update cache after cluster_name removal
+    // update_cache_by_delete_schema(call_manager, client_pool, schema).await?;
 
     Ok(())
 }
@@ -187,36 +175,31 @@ pub async fn list_bind_schema_req(
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
-    let has_cluster = !req.cluster_name.is_empty();
     let has_schema = !req.schema_name.is_empty();
     let has_resource = !req.resource_name.is_empty();
 
-    // Get specific schema bind (all three fields provided)
-    if has_cluster && has_schema && has_resource {
-        return match schema_storage.get_bind(
-            &req.cluster_name,
-            &req.schema_name,
-            &req.resource_name,
-        )? {
+    // Get specific schema bind (both fields provided)
+    if has_schema && has_resource {
+        return match schema_storage.get_bind(&req.schema_name, &req.resource_name)? {
             Some(bind) => Ok(vec![bind.encode()?]),
             None => Ok(Vec::new()),
         };
     }
 
-    // List by cluster only
-    if has_cluster && !has_schema && !has_resource {
+    // List all schema binds
+    if !has_schema && !has_resource {
         let results = schema_storage
-            .list_bind_by_cluster(&req.cluster_name)?
+            .list_all_binds()?
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?;
         return Ok(results);
     }
 
-    // List by cluster and resource
-    if has_cluster && !has_schema && has_resource {
+    // List by resource
+    if !has_schema && has_resource {
         let results = schema_storage
-            .list_bind_by_resource(&req.cluster_name, &req.resource_name)?
+            .list_bind_by_resource(&req.resource_name)?
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?;
@@ -228,46 +211,42 @@ pub async fn list_bind_schema_req(
 
 pub async fn bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
-    validate_bind_fields(&req.cluster_name, &req.schema_name, &req.resource_name)?;
+    validate_bind_fields(&req.schema_name, &req.resource_name)?;
 
     let data = StorageData::new(StorageDataType::SchemaBindSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let schema_data = SchemaResourceBind {
-        cluster_name: req.cluster_name.clone(),
-        schema_name: req.schema_name.clone(),
-        resource_name: req.resource_name.clone(),
-    };
-
-    update_cache_by_add_schema_bind(&req.cluster_name, call_manager, client_pool, schema_data)
-        .await?;
+    // TODO: Update cache after cluster_name removal
+    // let schema_data = SchemaResourceBind {
+    //     schema_name: req.schema_name.clone(),
+    //     resource_name: req.resource_name.clone(),
+    // };
+    // update_cache_by_add_schema_bind(call_manager, client_pool, schema_data).await?;
 
     Ok(())
 }
 
 pub async fn un_bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _call_manager: &Arc<MQTTInnerCallManager>,
+    _client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
-    validate_bind_fields(&req.cluster_name, &req.schema_name, &req.resource_name)?;
+    validate_bind_fields(&req.schema_name, &req.resource_name)?;
 
     let data = StorageData::new(StorageDataType::SchemaBindDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let schema_data = SchemaResourceBind {
-        cluster_name: req.cluster_name.clone(),
-        schema_name: req.schema_name.clone(),
-        resource_name: req.resource_name.clone(),
-    };
-
-    update_cache_by_delete_schema_bind(&req.cluster_name, call_manager, client_pool, schema_data)
-        .await?;
+    // TODO: Update cache after cluster_name removal
+    // let schema_data = SchemaResourceBind {
+    //     schema_name: req.schema_name.clone(),
+    //     resource_name: req.resource_name.clone(),
+    // };
+    // update_cache_by_delete_schema_bind(call_manager, client_pool, schema_data).await?;
 
     Ok(())
 }

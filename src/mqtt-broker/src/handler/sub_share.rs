@@ -86,7 +86,6 @@ async fn fetch_share_sub_leader(
 ) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_config();
     let req = GetShareSubLeaderRequest {
-        cluster_name: conf.cluster_name.to_owned(),
         group_name: group_name.to_owned(),
     };
     placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await

@@ -25,7 +25,6 @@ use tracing::{error, info};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct NodeHeartbeatData {
-    pub cluster_name: String,
     pub node_id: u64,
     pub time: u64,
 }

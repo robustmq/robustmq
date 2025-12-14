@@ -28,7 +28,6 @@ use crate::storage::ShardOffset;
 #[derive(Clone)]
 pub struct OffsetStorageManager {
     client_pool: Arc<ClientPool>,
-    cluster_name: String,
     addrs: Vec<String>,
 }
 
@@ -37,14 +36,12 @@ impl OffsetStorageManager {
         let conf = broker_config();
         OffsetStorageManager {
             client_pool,
-            cluster_name: conf.cluster_name.to_string(),
             addrs: conf.get_meta_service_addr(),
         }
     }
 
     pub async fn get_offset(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
         let request = GetOffsetDataRequest {
-            cluster_name: self.cluster_name.to_owned(),
             group: group.to_owned(),
         };
         let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
@@ -75,7 +72,6 @@ impl OffsetStorageManager {
             .collect();
 
         let request = SaveOffsetDataRequest {
-            cluster_name: self.cluster_name.clone(),
             offsets: vec![SaveOffsetData {
                 group: group_name.to_string(),
                 offsets,
@@ -106,10 +102,7 @@ impl OffsetStorageManager {
             });
         }
 
-        let request = SaveOffsetDataRequest {
-            cluster_name: self.cluster_name.clone(),
-            offsets,
-        };
+        let request = SaveOffsetDataRequest { offsets };
         save_offset_data(&self.client_pool, &self.addrs, request).await?;
         Ok(())
     }

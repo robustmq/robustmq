@@ -49,18 +49,13 @@ pub async fn list_segment_by_req(
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
     let binary_segments =
         if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            segment_storage.list_by_cluster(&req.cluster_name)?
+            segment_storage.all_segment()?
         } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            segment_storage.list_by_namespace(&req.cluster_name, &req.namespace)?
+            segment_storage.list_by_namespace(&req.namespace)?
         } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
-            segment_storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name)?
+            segment_storage.list_by_shard(&req.namespace, &req.shard_name)?
         } else {
-            match segment_storage.get(
-                &req.cluster_name,
-                &req.namespace,
-                &req.shard_name,
-                req.segment_no as u32,
-            )? {
+            match segment_storage.get(&req.namespace, &req.shard_name, req.segment_no as u32)? {
                 Some(segment) => vec![segment],
                 None => Vec::new(),
             }

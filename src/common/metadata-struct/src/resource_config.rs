@@ -15,17 +15,13 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use crate::adapter::serde_bytes_wrapper;
-
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct ClusterResourceConfig {
-    pub cluster_name: String,
+pub struct ResourceConfig {
     pub resource: String,
-    #[serde(with = "serde_bytes_wrapper")]
     pub config: Bytes,
 }
 
-impl ClusterResourceConfig {
+impl ResourceConfig {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }

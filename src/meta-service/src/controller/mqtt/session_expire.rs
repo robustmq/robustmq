@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
@@ -35,14 +34,12 @@ use tracing::{debug, error, warn};
 pub struct ExpireLastWill {
     pub client_id: String,
     pub delay_sec: u64,
-    pub cluster_name: String,
 }
 
 pub struct SessionExpire {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
-    cluster_name: String,
 }
 
 impl SessionExpire {
@@ -50,20 +47,17 @@ impl SessionExpire {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
-        cluster_name: String,
     ) -> Self {
         SessionExpire {
             rocksdb_engine_handler,
             cache_manager,
             client_pool,
-            cluster_name,
         }
     }
 
     pub async fn session_expire(&self) {
         let sessions = self.get_expire_session_list().await;
         delete_sessions(
-            &self.cluster_name,
             &self.cache_manager,
             &self.rocksdb_engine_handler,
             &self.client_pool,
@@ -179,7 +173,6 @@ impl SessionExpire {
 }
 
 pub async fn delete_sessions(
-    cluster_name: &str,
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     client_pool: &Arc<ClientPool>,
@@ -201,7 +194,6 @@ pub async fn delete_sessions(
         for addr in cache_manager.get_broker_node_addr_by_cluster(cluster_name) {
             let request = DeleteSessionRequest {
                 client_id: client_ids.clone(),
-                cluster_name: cluster_name.to_string(),
             };
             match broker_mqtt_delete_session(client_pool, &[addr], request).await {
                 Ok(_) => {}

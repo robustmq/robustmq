@@ -18,7 +18,7 @@ use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::{create_write_thread, write_data};
 use crate::segment::SegmentIdentity;
 use common_base::tools::{now_second, unique_id};
-use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
+use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
@@ -97,9 +97,7 @@ pub async fn test_init_segment() -> (
         .await
         .unwrap();
 
-    let conf = broker_config();
     let segment_meta = JournalSegmentMetadata {
-        cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment_seq,

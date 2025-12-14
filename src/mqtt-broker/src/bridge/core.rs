@@ -459,7 +459,6 @@ mod tests {
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
-            cluster_name: "test_cluster".to_string(),
             create_time: now_second(),
             update_time: now_second(),
         }

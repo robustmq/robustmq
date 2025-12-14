@@ -262,16 +262,13 @@ impl MQTTCacheManager {
 
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let key = self.topic_rewrite_rule_key(
-            &self.broker_cache.cluster_name,
-            &topic_rewrite_rule.action,
-            &topic_rewrite_rule.source_topic,
-        );
+        let key = self
+            .topic_rewrite_rule_key(&topic_rewrite_rule.action, &topic_rewrite_rule.source_topic);
         self.topic_rewrite_rule.insert(key, topic_rewrite_rule);
     }
 
-    pub fn delete_topic_rewrite_rule(&self, cluster: &str, action: &str, source_topic: &str) {
-        let key = self.topic_rewrite_rule_key(cluster, action, source_topic);
+    pub fn delete_topic_rewrite_rule(&self, action: &str, source_topic: &str) {
+        let key = self.topic_rewrite_rule_key(action, source_topic);
         self.topic_rewrite_rule.remove(&key);
     }
 
@@ -397,29 +394,17 @@ impl MQTTCacheManager {
     }
 
     // key
-    pub fn topic_rewrite_rule_key(
-        &self,
-        cluster: &str,
-        action: &str,
-        source_topic: &str,
-    ) -> String {
-        format!("{cluster}_{action}_{source_topic}")
-    }
-
-    // auto subscribe rule
-    pub fn auto_subscribe_rule_key(&self, cluster: &str, topic: &str) -> String {
-        format!("{cluster}_{topic}")
+    pub fn topic_rewrite_rule_key(&self, action: &str, source_topic: &str) -> String {
+        format!("{action}_{source_topic}")
     }
 
     pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
-        let key = self
-            .auto_subscribe_rule_key(&self.broker_cache.cluster_name, &auto_subscribe_rule.topic);
-        self.auto_subscribe_rule.insert(key, auto_subscribe_rule);
+        self.auto_subscribe_rule
+            .insert(auto_subscribe_rule.topic.clone(), auto_subscribe_rule);
     }
 
     pub fn delete_auto_subscribe_rule(&self, topic: &str) {
-        let key = self.auto_subscribe_rule_key(&self.broker_cache.cluster_name, topic);
-        self.auto_subscribe_rule.remove(&key);
+        self.auto_subscribe_rule.remove(topic);
     }
 }
 
@@ -657,7 +642,6 @@ mod tests {
     async fn topic_rewrite_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttTopicRewriteRule {
-            cluster: cache_manager.broker_cache.cluster_name.clone(),
             action: "publish".to_string(),
             source_topic: "source/topic".to_string(),
             dest_topic: "target/topic".to_string(),
@@ -674,7 +658,7 @@ mod tests {
         assert_eq!(rules[0].source_topic, rule.source_topic);
 
         // remove
-        cache_manager.delete_topic_rewrite_rule(&rule.cluster, &rule.action, &rule.source_topic);
+        cache_manager.delete_topic_rewrite_rule(&rule.action, &rule.source_topic);
 
         // get again
         let rules_after_remove = cache_manager.get_all_topic_rewrite_rule();
@@ -685,7 +669,6 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
-            cluster: cache_manager.broker_cache.cluster_name.clone(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
             no_local: false,
@@ -697,8 +680,7 @@ mod tests {
         cache_manager.add_auto_subscribe_rule(rule.clone());
 
         // get
-        let key = cache_manager.auto_subscribe_rule_key(&rule.cluster, &rule.topic);
-        let rule_info = cache_manager.auto_subscribe_rule.get(&key);
+        let rule_info = cache_manager.auto_subscribe_rule.get(&rule.topic);
         println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
@@ -707,7 +689,7 @@ mod tests {
         cache_manager.delete_auto_subscribe_rule(&rule.topic);
 
         // get again
-        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&key);
+        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&rule.topic);
         assert!(rule_info_after_remove.is_none());
     }
 

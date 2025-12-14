@@ -46,18 +46,13 @@ impl MqttConnectorStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn save(
-        &self,
-        cluster_name: &str,
-        connector_name: &str,
-        connector: &MQTTConnector,
-    ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_connector(cluster_name, connector_name);
+    pub fn save(&self, connector_name: &str, connector: &MQTTConnector) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_connector(connector_name);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, connector)
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTConnector>, CommonError> {
-        let prefix_key = storage_key_mqtt_connector_prefix(cluster_name);
+    pub fn list_all(&self) -> Result<Vec<MQTTConnector>, CommonError> {
+        let prefix_key = storage_key_mqtt_connector_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MQTTConnector>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -65,12 +60,8 @@ impl MqttConnectorStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(
-        &self,
-        cluster_name: &str,
-        connector_name: &str,
-    ) -> Result<Option<MQTTConnector>, CommonError> {
-        let key = storage_key_mqtt_connector(cluster_name, connector_name);
+    pub fn get(&self, connector_name: &str) -> Result<Option<MQTTConnector>, CommonError> {
+        let key = storage_key_mqtt_connector(connector_name);
         Ok(
             engine_get_by_meta_metadata::<MQTTConnector>(
                 self.rocksdb_engine_handler.clone(),
@@ -80,8 +71,8 @@ impl MqttConnectorStorage {
         )
     }
 
-    pub fn delete(&self, cluster_name: &str, connector_name: &str) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_connector(cluster_name, connector_name);
+    pub fn delete(&self, connector_name: &str) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_connector(connector_name);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 }
@@ -101,28 +92,27 @@ mod tests {
     #[test]
     fn test_connector_crud() {
         let storage = setup_storage();
-        let cluster = "test_cluster";
 
         // Save & Get
         let connector = MQTTConnector::default();
-        storage.save(cluster, "connector_a", &connector).unwrap();
-        assert!(storage.get(cluster, "connector_a").unwrap().is_some());
+        storage.save("connector_a", &connector).unwrap();
+        assert!(storage.get("connector_a").unwrap().is_some());
 
         // List
         storage
-            .save(cluster, "connector_b", &MQTTConnector::default())
+            .save("connector_b", &MQTTConnector::default())
             .unwrap();
-        assert_eq!(storage.list(cluster).unwrap().len(), 2);
+        assert_eq!(storage.list_all().unwrap().len(), 2);
 
         // Delete & Verify
-        storage.delete(cluster, "connector_b").unwrap();
-        assert!(storage.get(cluster, "connector_b").unwrap().is_none());
-        assert_eq!(storage.list(cluster).unwrap().len(), 1);
+        storage.delete("connector_b").unwrap();
+        assert!(storage.get("connector_b").unwrap().is_none());
+        assert_eq!(storage.list_all().unwrap().len(), 1);
     }
 
     #[test]
     fn test_get_nonexistent() {
         let storage = setup_storage();
-        assert!(storage.get("cluster1", "nonexistent").unwrap().is_none());
+        assert!(storage.get("nonexistent").unwrap().is_none());
     }
 }

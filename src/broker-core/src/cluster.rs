@@ -50,7 +50,6 @@ impl ClusterStorage {
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
         let conf = broker_config();
         let request = NodeListRequest {
-            cluster_name: conf.cluster_name.clone(),
         };
 
         let reply = node_list(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
@@ -82,7 +81,6 @@ impl ClusterStorage {
         };
 
         let node = BrokerNode {
-            cluster_name: config.cluster_name.clone(),
             roles: config.roles.clone(),
             node_ip: local_ip.clone(),
             node_id: config.broker_id,
@@ -106,7 +104,6 @@ impl ClusterStorage {
 
     pub async fn unregister_node(&self, config: &BrokerConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
-            cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
 
@@ -122,7 +119,6 @@ impl ClusterStorage {
     pub async fn heartbeat(&self) -> Result<(), CommonError> {
         let config = broker_config();
         let req = HeartbeatRequest {
-            cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
 
@@ -145,7 +141,6 @@ impl ClusterStorage {
         let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = SetResourceConfigRequest {
-            cluster_name: cluster_name.to_string(),
             resources,
             config: data,
         };
@@ -163,7 +158,6 @@ impl ClusterStorage {
         let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = DeleteResourceConfigRequest {
-            cluster_name: cluster_name.to_string(),
             resources,
         };
 
@@ -179,7 +173,6 @@ impl ClusterStorage {
         let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = GetResourceConfigRequest {
-            cluster_name: cluster_name.to_string(),
             resources,
         };
 

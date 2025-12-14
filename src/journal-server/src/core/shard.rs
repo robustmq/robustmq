@@ -117,7 +117,6 @@ pub async fn create_shard_to_place(
     };
     let conf = broker_config();
     let request = CreateShardRequest {
-        cluster_name: conf.cluster_name.to_string(),
         namespace: namespace.to_string(),
         shard_name: shard_name.to_string(),
         shard_config: config.encode()?,
@@ -159,7 +158,6 @@ pub async fn delete_shard_to_place(
 ) -> Result<(), JournalServerError> {
     let conf = broker_config();
     let request = DeleteShardRequest {
-        cluster_name: conf.cluster_name.clone(),
         namespace: namespace.to_string(),
         shard_name: shard_name.to_string(),
     };

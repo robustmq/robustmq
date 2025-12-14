@@ -44,7 +44,6 @@ impl TopicStorage {
     pub async fn save_topic(&self, topic: MQTTTopic) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name: topic.topic_name.clone(),
             content: topic.encode()?,
         };
@@ -55,7 +54,6 @@ impl TopicStorage {
     pub async fn delete_topic(&self, topic_name: &str) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteTopicRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name: topic_name.to_string(),
         };
         placement_delete_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -65,7 +63,6 @@ impl TopicStorage {
     pub async fn all(&self) -> Result<DashMap<String, MQTTTopic>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name: "".to_string(),
         };
         let mut data_stream =
@@ -84,7 +81,6 @@ impl TopicStorage {
     pub async fn get_topic(&self, topic_name: &str) -> Result<Option<MQTTTopic>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name: topic_name.to_owned(),
         };
 
@@ -108,7 +104,6 @@ impl TopicStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = SetTopicRetainMessageRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name,
             retain_message: Some(retain_message.encode()?.to_vec()),
             retain_message_expired_at,
@@ -125,7 +120,6 @@ impl TopicStorage {
     pub async fn delete_retain_message(&self, topic_name: String) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = SetTopicRetainMessageRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name,
             retain_message: None,
             retain_message_expired_at: 0,
@@ -145,7 +139,6 @@ impl TopicStorage {
     ) -> Result<(Option<MqttMessage>, Option<u64>), MqttBrokerError> {
         let config = broker_config();
         let request = GetTopicRetainMessageRequest {
-            cluster_name: config.cluster_name.clone(),
             topic_name: topic_name.to_owned(),
         };
 
@@ -171,7 +164,6 @@ impl TopicStorage {
     ) -> Result<Vec<MqttTopicRewriteRule>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRewriteRuleRequest {
-            cluster_name: config.cluster_name.clone(),
         };
         let reply = placement_list_topic_rewrite_rule(
             &self.client_pool,
@@ -193,7 +185,6 @@ impl TopicStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRewriteRuleRequest {
-            cluster_name: config.cluster_name.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
@@ -215,7 +206,6 @@ impl TopicStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteTopicRewriteRuleRequest {
-            cluster_name: config.cluster_name.clone(),
             action,
             source_topic,
         };

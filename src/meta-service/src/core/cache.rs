@@ -15,7 +15,6 @@
 use super::heartbeat::NodeHeartbeatData;
 use crate::core::error::MetaServiceError;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
-use crate::storage::common::cluster::ClusterStorage;
 use crate::storage::common::node::NodeStorage;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
@@ -30,7 +29,6 @@ use dashmap::DashMap;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -41,44 +39,48 @@ use std::sync::Arc;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CacheManager {
-    // (cluster_name, ClusterInfo)
-    pub cluster_list: DashMap<String, ClusterInfo>,
+    // (node_id, BrokerNode)
+    pub node_list: DashMap<u64, BrokerNode>,
 
-    // (cluster_name, (node_id, BrokerNode))
-    pub node_list: DashMap<String, DashMap<u64, BrokerNode>>,
-
-    // (cluster_name_node_id, NodeHeartbeatData)
-    pub node_heartbeat: DashMap<String, NodeHeartbeatData>,
+    // (node_id, NodeHeartbeatData)
+    pub node_heartbeat: DashMap<u64, NodeHeartbeatData>,
 
     // MQTT
-    // (cluster_name,(topic_name,topic))
+    // (username,(topic_name,topic))
     pub topic_list: DashMap<String, MQTTTopic>,
 
-    // (cluster_name,(username,user))
-    pub user_list: DashMap<String, DashMap<String, MqttUser>>,
+    // (username,user)
+    pub user_list: DashMap<String, MqttUser>,
 
-    // (cluster_name,(client_id,ExpireLastWill))
-    pub expire_last_wills: DashMap<String, DashMap<String, ExpireLastWill>>,
+    // (client_id, ExpireLastWill)
+    pub expire_last_wills: DashMap<String, ExpireLastWill>,
 
-    // (cluster_name,(client_id,MQTTConnector))
-    pub connector_list: DashMap<String, DashMap<String, MQTTConnector>>,
+    // (client_id,MQTTConnector)
+    pub connector_list: DashMap<String, MQTTConnector>,
 
-    //(cluster_connector_name, ConnectorHeartbeat)
+    //(connector_name, ConnectorHeartbeat)
     pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
 
     // Journal
-    //（cluster_name_namespace_shard_name, JournalShard）
+    //（shard_name, JournalShard）
     pub shard_list: DashMap<String, JournalShard>,
+
+    //（shard_name, (segment_no,JournalSegment))
     pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
+
+    //（shard_name, (segment_no,JournalSegmentMetadata))
     pub segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
+
+    //（shard_name, JournalShard）
     pub wait_delete_shard_list: DashMap<String, JournalShard>,
+
+    //（shard_name, JournalSegment)
     pub wait_delete_segment_list: DashMap<String, JournalSegment>,
 }
 
 impl CacheManager {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> CacheManager {
         let mut cache = CacheManager {
-            cluster_list: DashMap::with_capacity(2),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
             topic_list: DashMap::with_capacity(8),
@@ -96,39 +98,9 @@ impl CacheManager {
         cache
     }
 
-    // Cluster
-    pub fn add_broker_cluster(&self, cluster: &ClusterInfo) {
-        self.cluster_list
-            .insert(cluster.cluster_name.clone(), cluster.clone());
-    }
-
-    pub fn get_cluster(&self, cluster_name: &str) -> Option<ClusterInfo> {
-        if let Some(cluster) = self.cluster_list.get(cluster_name) {
-            return Some(cluster.clone());
-        }
-        None
-    }
-
-    pub fn get_all_cluster(&self) -> Vec<ClusterInfo> {
-        self.cluster_list.iter().map(|row| row.clone()).collect()
-    }
-
-    pub fn get_all_cluster_name(&self) -> Vec<String> {
-        self.cluster_list
-            .iter()
-            .map(|row| row.cluster_name.clone())
-            .collect()
-    }
-
     // Node
     pub fn add_broker_node(&self, node: BrokerNode) {
-        if let Some(data) = self.node_list.get_mut(&node.cluster_name) {
-            data.insert(node.node_id, node);
-        } else {
-            let data = DashMap::with_capacity(2);
-            data.insert(node.node_id, node.clone());
-            self.node_list.insert(node.cluster_name.clone(), data);
-        }
+        self.node_list.insert(node.node_id, node);
     }
 
     pub fn remove_broker_node(
@@ -136,92 +108,45 @@ impl CacheManager {
         cluster_name: &str,
         node_id: u64,
     ) -> Option<(u64, BrokerNode)> {
-        if let Some(data) = self.node_list.get_mut(cluster_name) {
-            return data.remove(&node_id);
-        }
-        self.remove_broker_heart(cluster_name, node_id);
+        self.node_list.remove(&node_id);
+        self.node_heartbeat.remove(&node_id);
         None
     }
 
-    pub fn get_broker_num(&self, cluster_name: &str) -> usize {
-        if let Some(data) = self.node_list.get(cluster_name) {
-            return data.len();
-        }
-        0
-    }
-
-    pub fn get_broker_node(&self, cluster_name: &str, node_id: u64) -> Option<BrokerNode> {
-        if let Some(data) = self.node_list.get(cluster_name) {
-            if let Some(value) = data.get(&node_id) {
-                return Some(value.clone());
-            }
+    pub fn get_broker_node(&self, node_id: u64) -> Option<BrokerNode> {
+        if let Some(data) = self.node_list.get(&node_id) {
+            return Some(data.clone());
         }
         None
-    }
-
-    pub fn get_broker_node_addr_by_cluster(&self, cluster_name: &str) -> Vec<String> {
-        if let Some(data) = self.node_list.get(cluster_name) {
-            return data.iter().map(|row| row.node_inner_addr.clone()).collect();
-        }
-        Vec::new()
-    }
-
-    pub fn get_broker_node_id_by_cluster(&self, cluster_name: &str) -> Vec<u64> {
-        if let Some(data) = self.node_list.get(cluster_name) {
-            return data.iter().map(|row| row.node_id).collect();
-        }
-        Vec::new()
-    }
-
-    pub fn get_broker_node_by_cluster(&self, cluster_name: &str) -> Vec<BrokerNode> {
-        if let Some(data) = self.node_list.get(cluster_name) {
-            return data.iter().map(|row| row.clone()).collect();
-        }
-        Vec::new()
     }
 
     // Heartbeat
-    pub fn report_broker_heart(&self, cluster_name: &str, node_id: u64) {
-        let key = self.node_key(cluster_name, node_id);
+    pub fn report_broker_heart(&self, node_id: u64) {
         let data = NodeHeartbeatData {
-            cluster_name: cluster_name.to_string(),
             node_id,
             time: now_second(),
         };
-        self.node_heartbeat.insert(key, data);
+        self.node_heartbeat.insert(node_id, data);
     }
 
-    fn remove_broker_heart(&self, cluster_name: &str, node_id: u64) {
-        let key = self.node_key(cluster_name, node_id);
-        self.node_heartbeat.remove(&key);
+    fn remove_broker_heart(&self, node_id: u64) {
+        self.node_heartbeat.remove(&node_id);
     }
 
-    pub fn get_broker_heart(&self, cluster_name: &str, node_id: u64) -> Option<NodeHeartbeatData> {
-        let key = self.node_key(cluster_name, node_id);
-        if let Some(heart) = self.node_heartbeat.get(&key) {
+    pub fn get_broker_heart(&self, node_id: u64) -> Option<NodeHeartbeatData> {
+        if let Some(heart) = self.node_heartbeat.get(&node_id) {
             return Some(heart.clone());
         }
         None
     }
 
     pub fn load_cache(&mut self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
-        let cluster = ClusterStorage::new(rocksdb_engine_handler.clone());
-        if let Ok(result) = cluster.list() {
-            for cluster in result {
-                self.add_broker_cluster(&cluster);
-            }
-        }
-
         let node = NodeStorage::new(rocksdb_engine_handler);
-        if let Ok(result) = node.list(None) {
+        if let Ok(result) = node.list() {
             for bn in result {
                 self.add_broker_node(bn);
             }
         }
-    }
-
-    fn node_key(&self, cluster_name: &str, node_id: u64) -> String {
-        format!("{cluster_name}_{node_id}")
     }
 }
 
@@ -250,28 +175,26 @@ pub fn load_cache(
         cache_manager.set_segment_meta(&meta);
     }
 
-    // mqtt
-    for cluster in cache_manager.get_all_cluster() {
-        // Topic
-        let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let data = topic.list()?;
-        for topic in data {
-            cache_manager.add_topic(topic);
-        }
-
-        // User
-        let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
-        let data = user.list_by_cluster(&cluster.cluster_name)?;
-        for user in data {
-            cache_manager.add_user(&cluster.cluster_name, user);
-        }
-
-        // connector
-        let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
-        let data = connector.list(&cluster.cluster_name)?;
-        for connector in data {
-            cache_manager.add_connector(&cluster.cluster_name, &connector);
-        }
+    // Topic
+    let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    let data = topic.list()?;
+    for topic in data {
+        cache_manager.add_topic(topic);
     }
+
+    // User
+    let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
+    let data = user.list_all()?;
+    for user in data {
+        cache_manager.add_user(user);
+    }
+
+    // connector
+    let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+    let data = connector.list(&cluster.cluster_name)?;
+    for connector in data {
+        cache_manager.add_connector(&cluster.cluster_name, &connector);
+    }
+
     Ok(())
 }

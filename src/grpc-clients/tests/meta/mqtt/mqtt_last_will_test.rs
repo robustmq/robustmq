@@ -29,7 +29,6 @@ mod tests {
     async fn mqtt_last_will_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = unique_id();
         let client_id: String = unique_id();
 
         let last_will_message = MqttLastWillData {
@@ -39,7 +38,6 @@ mod tests {
         };
 
         let request = SaveLastWillMessageRequest {
-            cluster_name: cluster_name.clone(),
             client_id: client_id.clone(),
             last_will_message: last_will_message.encode().unwrap(),
         };

@@ -27,11 +27,9 @@ mod tests {
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
         let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
-        let cluster_name = cluster_name();
         let node_id = node_id();
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),
             node_inner_addr: node_ip(),
@@ -48,9 +46,7 @@ mod tests {
             .unwrap();
         let start_time = now_second();
         loop {
-            let request = NodeListRequest {
-                cluster_name: cluster_name.clone(),
-            };
+            let request = NodeListRequest {};
             let resp = client.node_list(request).await.unwrap();
             let mut flag = false;
             let nodes = resp.into_inner().nodes;

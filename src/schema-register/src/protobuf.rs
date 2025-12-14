@@ -76,7 +76,6 @@ mod test {
         "#;
 
         let schema_data = SchemaData {
-            cluster_name: "test_cluster".to_string(),
             name: "Proto".to_string(),
             schema_type: SchemaType::PROTOBUF,
             desc: "".to_string(),
@@ -121,7 +120,6 @@ mod test {
         "#;
 
         let schema_data = SchemaData {
-            cluster_name: "test_cluster".to_string(),
             name: "MyPackage".to_string(),
             schema_type: SchemaType::PROTOBUF,
             desc: "".to_string(),

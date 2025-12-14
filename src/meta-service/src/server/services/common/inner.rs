@@ -24,7 +24,7 @@ use crate::storage::common::offset::OffsetStorage;
 use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::resource_config::ClusterResourceConfig;
+use metadata_struct::resource_config::ResourceConfig;
 use protocol::meta::meta_service_common::{
     ClusterStatusReply, DeleteResourceConfigReply, DeleteResourceConfigRequest, GetOffsetDataReply,
     GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
@@ -53,7 +53,7 @@ pub async fn node_list_by_req(
     req: &NodeListRequest,
 ) -> Result<NodeListReply, MetaServiceError> {
     let nodes = cluster_cache
-        .get_broker_node_by_cluster(&req.cluster_name)
+        .get_broker_node_by_cluster()
         .into_iter()
         .map(|broker_node| broker_node.encode())
         .collect::<Result<Vec<_>, _>>()?;
@@ -67,10 +67,7 @@ pub async fn heartbeat_by_req(
     req: &HeartbeatRequest,
 ) -> Result<HeartbeatReply, MetaServiceError> {
     // Check if node exists
-    if cluster_cache
-        .get_broker_node(&req.cluster_name, req.node_id)
-        .is_none()
-    {
+    if cluster_cache.get_broker_node(req.node_id).is_none() {
         return Err(MetaServiceError::NodeDoesNotExist(req.node_id));
     }
 
@@ -80,7 +77,7 @@ pub async fn heartbeat_by_req(
         now_second()
     );
 
-    cluster_cache.report_broker_heart(&req.cluster_name, req.node_id);
+    cluster_cache.report_broker_heart(req.node_id);
 
     Ok(HeartbeatReply::default())
 }
@@ -96,14 +93,12 @@ pub async fn set_resource_config_by_req(
 
     raft_manager.write_metadata(data).await?;
 
-    let config = ClusterResourceConfig {
-        cluster_name: req.cluster_name.clone(),
+    let config = ResourceConfig {
         resource: req.resources.join("/"),
         config: req.config.clone().into(),
     };
 
-    update_cache_by_set_resource_config(&req.cluster_name, call_manager, client_pool, config)
-        .await?;
+    update_cache_by_set_resource_config(call_manager, client_pool, config).await?;
 
     Ok(SetResourceConfigReply::default())
 }
@@ -115,7 +110,7 @@ pub async fn get_resource_config_by_req(
     let storage = ResourceConfigStorage::new(rocksdb_engine_handler.clone());
 
     let config = storage
-        .get(req.cluster_name, req.resources)
+        .get(req.resources)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
         .unwrap_or_default();
 
@@ -154,7 +149,7 @@ pub async fn get_offset_data_by_req(
     let offset_storage = OffsetStorage::new(rocksdb_engine_handler.clone());
 
     let offset_data = offset_storage
-        .group_offset(&req.cluster_name, &req.group)
+        .group_offset(&req.group)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
 
     let offsets = offset_data

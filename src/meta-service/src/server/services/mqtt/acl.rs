@@ -31,11 +31,11 @@ use std::sync::Arc;
 // ACL Operations
 pub fn list_acl_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &ListAclRequest,
+    _req: &ListAclRequest,
 ) -> Result<ListAclReply, MetaServiceError> {
     let acl_storage = AclStorage::new(rocksdb_engine_handler.clone());
     let acls = acl_storage
-        .list(&req.cluster_name)?
+        .list_all()?
         .into_iter()
         .map(|acl| acl.encode())
         .collect::<Result<Vec<_>, _>>()?;
@@ -66,11 +66,11 @@ pub async fn delete_acl_by_req(
 // Blacklist Operations
 pub fn list_blacklist_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &ListBlacklistRequest,
+    _req: &ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, MetaServiceError> {
     let blacklist_storage = MqttBlackListStorage::new(rocksdb_engine_handler.clone());
     let blacklists = blacklist_storage
-        .list(&req.cluster_name)?
+        .list_all()?
         .into_iter()
         .map(|item| item.encode())
         .collect::<Result<Vec<_>, _>>()?;
