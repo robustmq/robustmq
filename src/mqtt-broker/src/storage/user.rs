@@ -46,9 +46,7 @@ impl UserStorage {
 
     pub async fn delete_user(&self, user_name: String) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteUserRequest {
-            user_name,
-        };
+        let request = DeleteUserRequest { user_name };
         placement_delete_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }

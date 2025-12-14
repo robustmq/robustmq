@@ -41,8 +41,7 @@ impl AutoSubscribeStorage {
         &self,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MqttBrokerError> {
         let config = broker_config();
-        let request = ListAutoSubscribeRuleRequest {
-        };
+        let request = ListAutoSubscribeRuleRequest {};
         let reply = placement_list_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),
@@ -79,9 +78,7 @@ impl AutoSubscribeStorage {
 
     pub async fn delete_auto_subscribe_rule(&self, topic: String) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteAutoSubscribeRuleRequest {
-            topic,
-        };
+        let request = DeleteAutoSubscribeRuleRequest { topic };
         placement_delete_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

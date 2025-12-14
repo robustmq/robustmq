@@ -72,16 +72,6 @@ impl GrpcEngineService {
     fn to_status<E: ToString>(e: E) -> Status {
         Status::internal(e.to_string())
     }
-
-    // Helper: Validate non-empty string
-    fn validate_non_empty(&self, value: &str, field_name: &str) -> Result<(), Status> {
-        if value.is_empty() {
-            return Err(Self::to_status(MetaServiceError::RequestParamsNotEmpty(
-                field_name.to_string(),
-            )));
-        }
-        Ok(())
-    }
 }
 
 #[tonic::async_trait]

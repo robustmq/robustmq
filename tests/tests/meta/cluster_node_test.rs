@@ -67,8 +67,7 @@ mod tests {
             .await
             .unwrap();
 
-        let request = NodeListRequest {
-        };
+        let request = NodeListRequest {};
         match client.node_list(request).await {
             Ok(rep) => {
                 let mut flag = false;

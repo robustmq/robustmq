@@ -50,11 +50,11 @@ pub async fn cluster_status_by_req(
 // Node Management
 pub async fn node_list_by_req(
     cluster_cache: &Arc<CacheManager>,
-    req: &NodeListRequest,
+    _req: &NodeListRequest,
 ) -> Result<NodeListReply, MetaServiceError> {
     let nodes = cluster_cache
-        .get_broker_node_by_cluster()
-        .into_iter()
+        .node_list
+        .iter()
         .map(|broker_node| broker_node.encode())
         .collect::<Result<Vec<_>, _>>()?;
 

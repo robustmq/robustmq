@@ -36,7 +36,6 @@ use tracing::warn;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConnectorHeartbeat {
-    pub cluster_name: String,
     pub connector_name: String,
     pub last_heartbeat: u64,
 }
@@ -47,7 +46,7 @@ pub fn connector_heartbeat_by_req(
     req: &ConnectorHeartbeatRequest,
 ) -> Result<ConnectorHeartbeatReply, MetaServiceError> {
     for raw in &req.heatbeats {
-        if let Some(connector) = cache_manager.get_connector(&raw.connector_name) {
+        if let Some(connector) = cache_manager.connector_list.get(&raw.connector_name) {
             if connector.broker_id.is_none() {
                 warn!("connector:{} not register", raw.connector_name);
                 continue;
@@ -78,7 +77,7 @@ pub fn list_connectors_by_req(
         }
     } else {
         storage
-            .list_all()?
+            .list()?
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?
@@ -148,22 +147,21 @@ pub async fn update_connector_by_req(
 pub async fn delete_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    _mqtt_call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &DeleteConnectorRequest,
 ) -> Result<DeleteConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
 
     // Get connector to delete (must exist)
-    let _connector = storage
+    let connector = storage
         .get(&req.connector_name)?
         .ok_or_else(|| MetaServiceError::ConnectorNotFound(req.connector_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::MqttDeleteConnector, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // update_cache_by_delete_connector(mqtt_call_manager, client_pool, connector).await?;
+    update_cache_by_delete_connector(mqtt_call_manager, client_pool, connector).await?;
 
     Ok(DeleteConnectorReply {})
 }

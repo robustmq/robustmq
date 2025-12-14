@@ -262,9 +262,6 @@ mod tests {
     fn test_get_nonexistent() {
         let storage = setup_storage();
         assert!(storage.get("nonexistent").unwrap().is_none());
-        assert!(storage
-            .get_retain_message("nonexistent")
-            .unwrap()
-            .is_none());
+        assert!(storage.get_retain_message("nonexistent").unwrap().is_none());
     }
 }

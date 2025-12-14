@@ -78,9 +78,7 @@ impl SessionStorage {
 
     pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
         let config = broker_config();
-        let request = DeleteSessionRequest {
-            client_id,
-        };
+        let request = DeleteSessionRequest { client_id };
 
         placement_delete_session(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
@@ -89,9 +87,7 @@ impl SessionStorage {
 
     pub async fn get_session(&self, client_id: String) -> Result<Option<MqttSession>, CommonError> {
         let config = broker_config();
-        let request = ListSessionRequest {
-            client_id,
-        };
+        let request = ListSessionRequest { client_id };
 
         let reply =
             placement_list_session(&self.client_pool, &config.get_meta_service_addr(), request)
@@ -150,9 +146,7 @@ impl SessionStorage {
         client_id: String,
     ) -> Result<Option<MqttLastWillData>, CommonError> {
         let config = broker_config();
-        let request = GetLastWillMessageRequest {
-            client_id,
-        };
+        let request = GetLastWillMessageRequest { client_id };
 
         let reply = placement_get_last_will_message(
             &self.client_pool,

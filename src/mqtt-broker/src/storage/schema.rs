@@ -38,9 +38,7 @@ impl SchemaStorage {
 
     pub async fn list(&self, schema_name: String) -> Result<Vec<SchemaData>, CommonError> {
         let config = broker_config();
-        let request = ListSchemaRequest {
-            schema_name,
-        };
+        let request = ListSchemaRequest { schema_name };
 
         let reply =
             list_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -65,9 +63,7 @@ impl SchemaStorage {
 
     pub async fn delete(&self, schema_name: String) -> ResultCommonError {
         let config = broker_config();
-        let request = DeleteSchemaRequest {
-            schema_name,
-        };
+        let request = DeleteSchemaRequest { schema_name };
 
         delete_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 

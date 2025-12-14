@@ -162,9 +162,7 @@ mod tests {
 
         let node_id = 1235u64;
 
-        let request = UnRegisterNodeRequest {
-            node_id,
-        };
+        let request = UnRegisterNodeRequest { node_id };
         assert!(unregister_node(&client_pool, &addrs, request).await.is_ok());
     }
 
@@ -271,8 +269,10 @@ mod tests {
         let request_empty_resources = DeleteResourceConfigRequest {
             resources: Vec::new(),
         };
-        assert!(delete_resource_config(&client_pool, &addrs, request_empty_resources)
-            .await
-            .is_err());
+        assert!(
+            delete_resource_config(&client_pool, &addrs, request_empty_resources)
+                .await
+                .is_err()
+        );
     }
 }

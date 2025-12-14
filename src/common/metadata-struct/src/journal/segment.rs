@@ -47,7 +47,8 @@ impl JournalSegment {
 
     pub fn name(&self) -> String {
         format!(
-            "{},{},{}",self.namespace, self.shard_name, self.segment_seq
+            "{},{},{}",
+            self.namespace, self.shard_name, self.segment_seq
         )
     }
 

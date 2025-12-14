@@ -39,8 +39,8 @@ use std::sync::Arc;
 pub async fn delete_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _mqtt_call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &DeleteSubscribeRequest,
 ) -> Result<DeleteSubscribeReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
@@ -62,10 +62,9 @@ pub async fn delete_subscribe_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteSubscribe, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // for raw in subscribes {
-    //     update_cache_by_delete_subscribe(mqtt_call_manager, client_pool, raw).await?;
-    // }
+    for raw in subscribes {
+        update_cache_by_delete_subscribe(mqtt_call_manager, client_pool, raw).await?;
+    }
 
     Ok(DeleteSubscribeReply {})
 }
@@ -86,17 +85,16 @@ pub fn list_subscribe_by_req(
 
 pub async fn set_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _mqtt_call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
 ) -> Result<SetSubscribeReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetSubscribe, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let subscribe = MqttSubscribe::decode(&req.subscribe)
-    //     .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
-    // update_cache_by_add_subscribe(mqtt_call_manager, client_pool, subscribe).await?;
+    let subscribe = MqttSubscribe::decode(&req.subscribe)
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
+    update_cache_by_add_subscribe(mqtt_call_manager, client_pool, subscribe).await?;
 
     Ok(SetSubscribeReply {})
 }

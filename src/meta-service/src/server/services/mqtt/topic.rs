@@ -83,9 +83,8 @@ pub async fn create_topic_by_req(
     let data = StorageData::new(StorageDataType::MqttSetTopic, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let topic = MQTTTopic::decode(&req.content)?;
-    // update_cache_by_add_topic(call_manager, client_pool, topic).await?;
+    let topic = MQTTTopic::decode(&req.content)?;
+    update_cache_by_add_topic(call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})
 }
@@ -107,8 +106,7 @@ pub async fn delete_topic_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // update_cache_by_delete_topic(call_manager, client_pool, topic).await?;
+    update_cache_by_delete_topic(call_manager, client_pool, topic).await?;
 
     Ok(DeleteTopicReply {})
 }

@@ -104,9 +104,7 @@ impl ConnectorStorage {
         heatbeats: Vec<ConnectorHeartbeatRaw>,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = ConnectorHeartbeatRequest {
-            heatbeats,
-        };
+        let request = ConnectorHeartbeatRequest { heatbeats };
         placement_connector_heartbeat(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())

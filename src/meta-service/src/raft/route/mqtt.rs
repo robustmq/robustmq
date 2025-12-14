@@ -71,17 +71,16 @@ impl DataRouteMqtt {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = MqttUser::decode(&req.content)?;
-        storage.save(&req.cluster_name, &req.user_name, user.clone())?;
-        self.cache_manager.add_user(&req.cluster_name, user);
+        storage.save(&req.user_name, user.clone())?;
+        self.cache_manager.add_user(user);
         Ok(())
     }
 
     pub fn delete_user(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.cluster_name, &req.user_name)?;
-        self.cache_manager
-            .remove_user(&req.cluster_name, &req.user_name);
+        storage.delete(&req.user_name)?;
+        self.cache_manager.remove_user(&req.user_name);
         Ok(())
     }
 
@@ -116,7 +115,6 @@ impl DataRouteMqtt {
 
         if let Some(retain) = req.retain_message {
             let message = MQTTRetainMessage {
-                cluster_name: req.cluster_name.clone(),
                 topic_name: topic.topic_name,
                 retain_message: Bytes::copy_from_slice(&retain),
                 retain_message_expired_at: req.retain_message_expired_at,
@@ -138,7 +136,7 @@ impl DataRouteMqtt {
         } else {
             return Ok(());
         };
-        storage.delete_retain_message(&req.cluster_name, &topic.topic_name)?;
+        storage.delete_retain_message(&topic.topic_name)?;
         Ok(())
     }
 
@@ -147,7 +145,7 @@ impl DataRouteMqtt {
         let req = SaveLastWillMessageRequest::decode(value.as_ref())?;
         let storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
         let last_will_message = MqttLastWillData::decode(&req.last_will_message)?;
-        storage.save(&req.cluster_name, &req.client_id, last_will_message)?;
+        storage.save(&req.client_id, last_will_message)?;
         Ok(())
     }
 
@@ -156,7 +154,7 @@ impl DataRouteMqtt {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         let session = MqttSession::decode(&req.session)?;
-        storage.save(&req.cluster_name, &req.client_id, session)?;
+        storage.save(&req.client_id, session)?;
         Ok(())
     }
 
@@ -164,7 +162,7 @@ impl DataRouteMqtt {
         let req = UpdateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
 
-        if let Some(mut session) = storage.get(&req.cluster_name, &req.client_id)? {
+        if let Some(mut session) = storage.get(&req.client_id)? {
             if req.connection_id > 0 {
                 session.update_connnction_id(Some(req.connection_id));
             } else {
@@ -187,7 +185,7 @@ impl DataRouteMqtt {
                 session.distinct_time = None;
             }
 
-            storage.save(&req.cluster_name, &req.client_id, session)?;
+            storage.save(&req.client_id, session)?;
         }
 
         Ok(())
@@ -196,7 +194,7 @@ impl DataRouteMqtt {
     pub fn delete_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.cluster_name, &req.client_id)?;
+        storage.delete(&req.client_id)?;
         Ok(())
     }
 
@@ -205,25 +203,19 @@ impl DataRouteMqtt {
         let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         let topic_rewrite_rule = MqttTopicRewriteRule {
-            cluster: req.cluster_name.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
             regex: req.regex.clone(),
             timestamp: now_millis(),
         };
-        storage.save_topic_rewrite_rule(
-            &req.cluster_name,
-            &req.action,
-            &req.source_topic,
-            topic_rewrite_rule,
-        )
+        storage.save_topic_rewrite_rule(&req.action, &req.source_topic, topic_rewrite_rule)
     }
 
     pub fn delete_topic_rewrite_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_topic_rewrite_rule(&req.cluster_name, &req.action, &req.source_topic)
+        storage.delete_topic_rewrite_rule(&req.action, &req.source_topic)
     }
 
     // Subscribe
@@ -231,7 +223,7 @@ impl DataRouteMqtt {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = SetSubscribeRequest::decode(value.as_ref())?;
         let subscribe = MqttSubscribe::decode(&req.subscribe)?;
-        storage.save(&req.cluster_name, &req.client_id, &req.path, subscribe)?;
+        storage.save(&req.client_id, &req.path, subscribe)?;
         Ok(())
     }
 
@@ -239,9 +231,9 @@ impl DataRouteMqtt {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteSubscribeRequest::decode(value.as_ref())?;
         if !req.path.is_empty() {
-            storage.delete_by_path(&req.cluster_name, &req.client_id, &req.path)?;
+            storage.delete_by_path(&req.client_id, &req.path)?;
         } else {
-            storage.delete_by_client_id(&req.cluster_name, &req.client_id)?;
+            storage.delete_by_client_id(&req.client_id)?;
         }
         Ok(())
     }
@@ -251,18 +243,16 @@ impl DataRouteMqtt {
         let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
         let req = CreateConnectorRequest::decode(value.as_ref())?;
         let connector = MQTTConnector::decode(&req.connector)?;
-        storage.save(&req.cluster_name, &req.connector_name, &connector)?;
-        self.cache_manager
-            .add_connector(&req.cluster_name, &connector);
+        storage.save(&req.connector_name, &connector)?;
+        self.cache_manager.add_connector(&connector);
         Ok(())
     }
 
     pub fn delete_connector(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteConnectorRequest::decode(value.as_ref())?;
-        storage.delete(&req.cluster_name, &req.connector_name)?;
-        self.cache_manager
-            .remove_connector(&req.cluster_name, &req.connector_name);
+        storage.delete(&req.connector_name)?;
+        self.cache_manager.remove_connector(&req.connector_name);
         Ok(())
     }
 
@@ -271,7 +261,7 @@ impl DataRouteMqtt {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = MqttAcl::decode(&req.acl)?;
-        acl_storage.save(&req.cluster_name, acl)?;
+        acl_storage.save(acl)?;
         Ok(())
     }
 
@@ -279,7 +269,7 @@ impl DataRouteMqtt {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = MqttAcl::decode(&req.acl)?;
-        acl_storage.delete(&req.cluster_name, &acl)?;
+        acl_storage.delete(&acl)?;
         Ok(())
     }
 
@@ -288,14 +278,14 @@ impl DataRouteMqtt {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         let blacklist = MqttAclBlackList::decode(&req.blacklist)?;
-        blacklist_storage.save(&req.cluster_name, blacklist)?;
+        blacklist_storage.save(blacklist)?;
         Ok(())
     }
 
     pub fn delete_blacklist(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)?;
+        blacklist_storage.delete(&req.blacklist_type, &req.resource_name)?;
         Ok(())
     }
 
@@ -323,7 +313,6 @@ impl DataRouteMqtt {
         };
 
         let auto_subscribe_rule: MqttAutoSubscribeRule = MqttAutoSubscribeRule {
-            cluster: req.cluster_name.clone(),
             topic: req.topic.clone(),
             qos: _qos.ok_or(MetaServiceError::CommonError(
                 MQTTProtocolError::InvalidQoS(req.qos as u8).to_string(),
@@ -335,12 +324,12 @@ impl DataRouteMqtt {
                     .to_string(),
             ))?,
         };
-        storage.save_auto_subscribe_rule(&req.cluster_name, &req.topic, auto_subscribe_rule)
+        storage.save_auto_subscribe_rule(&req.topic, auto_subscribe_rule)
     }
 
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_auto_subscribe_rule(&req.cluster_name, &req.topic)
+        storage.delete_auto_subscribe_rule(&req.topic)
     }
 }

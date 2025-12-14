@@ -163,8 +163,7 @@ impl TopicStorage {
         &self,
     ) -> Result<Vec<MqttTopicRewriteRule>, MqttBrokerError> {
         let config = broker_config();
-        let request = ListTopicRewriteRuleRequest {
-        };
+        let request = ListTopicRewriteRuleRequest {};
         let reply = placement_list_topic_rewrite_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

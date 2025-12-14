@@ -344,11 +344,10 @@ pub async fn topic_rewrite_delete(
     {
         return error_response(e.to_string());
     }
-    state.mqtt_context.cache_manager.delete_topic_rewrite_rule(
-        &state.broker_cache.cluster_name,
-        &params.action,
-        &params.source_topic,
-    );
+    state
+        .mqtt_context
+        .cache_manager
+        .delete_topic_rewrite_rule(&params.action, &params.source_topic);
     state
         .mqtt_context
         .cache_manager

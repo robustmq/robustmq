@@ -81,9 +81,7 @@ mod tests {
         mqtt_topic: MQTTTopic,
         contain: bool,
     ) {
-        let request = ListTopicRequest {
-            topic_name,
-        };
+        let request = ListTopicRequest { topic_name };
         let mut data_stream = placement_list_topic(client_pool, addrs, request)
             .await
             .unwrap();

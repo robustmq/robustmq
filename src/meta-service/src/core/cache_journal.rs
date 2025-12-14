@@ -20,37 +20,31 @@ use metadata_struct::journal::shard::JournalShard;
 
 impl CacheManager {
     // Shard
-    pub fn get_shard(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Option<JournalShard> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+    pub fn get_shard(&self, namespace: &str, shard_name: &str) -> Option<JournalShard> {
+        let key = self.shard_key(namespace, shard_name);
         let res = self.shard_list.get(&key)?;
         Some(res.clone())
     }
 
     pub fn set_shard(&self, shard: &JournalShard) {
         self.shard_list.insert(
-            self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
+            self.shard_key(&shard.namespace, &shard.shard_name),
             shard.clone(),
         );
     }
 
-    pub fn remove_shard(&self, cluster_name: &str, namespace: &str, shard_name: &str) {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+    pub fn remove_shard(&self, namespace: &str, shard_name: &str) {
+        let key = self.shard_key(namespace, shard_name);
         self.shard_list.remove(&key);
         self.segment_list.remove(&key);
     }
 
     pub fn get_segment_list_by_shard(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
     ) -> Vec<JournalSegment> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let key = self.shard_key(namespace, shard_name);
         let mut results = Vec::new();
         if let Some(segment_list) = self.segment_list.get(&key) {
             for raw in segment_list.iter() {
@@ -62,11 +56,10 @@ impl CacheManager {
 
     pub fn get_segment_meta_list_by_shard(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
     ) -> Vec<JournalSegmentMetadata> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let key = self.shard_key(namespace, shard_name);
         let mut results = Vec::new();
         if let Some(segment_list) = self.segment_meta_list.get(&key) {
             for raw in segment_list.iter() {
@@ -76,26 +69,16 @@ impl CacheManager {
         results
     }
 
-    pub fn next_segment_seq(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Option<u32> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+    pub fn next_segment_seq(&self, namespace: &str, shard_name: &str) -> Option<u32> {
+        let key = self.shard_key(namespace, shard_name);
         if let Some(shard) = self.shard_list.get(&key) {
             return Some(shard.last_segment_seq + 1);
         }
         None
     }
 
-    pub fn shard_idle_segment_num(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-    ) -> u32 {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+    pub fn shard_idle_segment_num(&self, namespace: &str, shard_name: &str) -> u32 {
+        let key = self.shard_key(namespace, shard_name);
         let mut num = 0;
         if let Some(segment_list) = self.segment_list.get(&key) {
             for segment in segment_list.iter() {
@@ -109,12 +92,11 @@ impl CacheManager {
 
     pub fn get_segment(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
         segment_seq: u32,
     ) -> Option<JournalSegment> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let key = self.shard_key(namespace, shard_name);
         if let Some(segment_list) = self.segment_list.get(&key) {
             let res = segment_list.get(&segment_seq)?;
             return Some(res.clone());
@@ -123,11 +105,7 @@ impl CacheManager {
     }
 
     pub fn set_segment(&self, segment: &JournalSegment) {
-        let key = self.shard_key(
-            &segment.cluster_name,
-            &segment.namespace,
-            &segment.shard_name,
-        );
+        let key = self.shard_key(&segment.namespace, &segment.shard_name);
         if let Some(shard_list) = self.segment_list.get(&key) {
             shard_list.insert(segment.segment_seq, segment.clone());
         } else {
@@ -137,14 +115,8 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_segment(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-        segment_seq: u32,
-    ) {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+    pub fn remove_segment(&self, namespace: &str, shard_name: &str, segment_seq: u32) {
+        let key = self.shard_key(namespace, shard_name);
         if let Some(segment_list) = self.segment_list.get(&key) {
             segment_list.remove(&segment_seq);
         }
@@ -152,12 +124,11 @@ impl CacheManager {
 
     pub fn get_segment_meta(
         &self,
-        cluster_name: &str,
         namespace: &str,
         shard_name: &str,
         segment_seq: u32,
     ) -> Option<JournalSegmentMetadata> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let key = self.shard_key(namespace, shard_name);
         if let Some(list) = self.segment_meta_list.get(&key) {
             let res = list.get(&segment_seq)?;
             return Some(res.clone());
@@ -166,7 +137,7 @@ impl CacheManager {
     }
 
     pub fn set_segment_meta(&self, meta: &JournalSegmentMetadata) {
-        let key = self.shard_key(&meta.cluster_name, &meta.namespace, &meta.shard_name);
+        let key = self.shard_key(&meta.namespace, &meta.shard_name);
         if let Some(list) = self.segment_meta_list.get(&key) {
             list.insert(meta.segment_seq, meta.clone());
         } else {
@@ -176,14 +147,8 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_segment_meta(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-        segment_seq: u32,
-    ) {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
+    pub fn remove_segment_meta(&self, namespace: &str, shard_name: &str, segment_seq: u32) {
+        let key = self.shard_key(namespace, shard_name);
         if let Some(list) = self.segment_meta_list.get(&key) {
             list.remove(&segment_seq);
         }
@@ -191,38 +156,28 @@ impl CacheManager {
 
     pub fn add_wait_delete_shard(&self, shard: &JournalShard) {
         self.wait_delete_shard_list.insert(
-            self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
+            self.shard_key(&shard.namespace, &shard.shard_name),
             shard.clone(),
         );
     }
 
     pub fn remove_wait_delete_shard(&self, shard: &JournalShard) {
         self.wait_delete_shard_list.insert(
-            self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
+            self.shard_key(&shard.namespace, &shard.shard_name),
             shard.clone(),
         );
     }
 
     pub fn add_wait_delete_segment(&self, segment: &JournalSegment) {
         self.wait_delete_segment_list.insert(
-            self.segment_key(
-                &segment.cluster_name,
-                &segment.namespace,
-                &segment.shard_name,
-                segment.segment_seq,
-            ),
+            self.segment_key(&segment.namespace, &segment.shard_name, segment.segment_seq),
             segment.clone(),
         );
     }
 
     pub fn remove_wait_delete_segment(&self, segment: &JournalSegment) {
         self.wait_delete_segment_list.insert(
-            self.segment_key(
-                &segment.cluster_name,
-                &segment.namespace,
-                &segment.shard_name,
-                segment.segment_seq,
-            ),
+            self.segment_key(&segment.namespace, &segment.shard_name, segment.segment_seq),
             segment.clone(),
         );
     }
@@ -243,17 +198,11 @@ impl CacheManager {
         results
     }
 
-    fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
-        format!("{cluster_name}_{namespace}_{shard_name}")
+    fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
+        format!("{namespace}_{shard_name}")
     }
 
-    fn segment_key(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-        segment_seq: u32,
-    ) -> String {
-        format!("{cluster_name}_{namespace}_{shard_name}_{segment_seq}")
+    fn segment_key(&self, namespace: &str, shard_name: &str, segment_seq: u32) -> String {
+        format!("{namespace}_{shard_name}_{segment_seq}")
     }
 }

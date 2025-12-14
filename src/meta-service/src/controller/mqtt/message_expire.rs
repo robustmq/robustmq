@@ -27,14 +27,12 @@ use std::sync::Arc;
 use tracing::error;
 
 pub struct MessageExpire {
-    cluster_name: String,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl MessageExpire {
-    pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
+    pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
         MessageExpire {
-            cluster_name,
             rocksdb_engine_handler,
         }
     }
@@ -84,9 +82,7 @@ impl MessageExpire {
             let value = data.data;
             let delete = now_second() >= (value.create_time + value.retain_message_expired_at);
             if delete {
-                if let Err(e) =
-                    topic_storage.delete_retain_message(&self.cluster_name, &value.topic_name)
-                {
+                if let Err(e) = topic_storage.delete_retain_message(&value.topic_name) {
                     error!("{}", e);
                 }
             }
@@ -96,7 +92,7 @@ impl MessageExpire {
     }
 
     pub async fn last_will_message_expire(&self) {
-        let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
+        let search_key = storage_key_mqtt_last_will_prefix();
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
         let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
@@ -147,7 +143,7 @@ impl MessageExpire {
                 };
 
                 if delete {
-                    if let Err(e) = lastwill_storage.delete(&self.cluster_name, &value.client_id) {
+                    if let Err(e) = lastwill_storage.delete(&value.client_id) {
                         error!("{}", e);
                     }
                 }
@@ -180,19 +176,16 @@ mod tests {
 
     #[tokio::test]
     async fn retain_message_expire_test() {
-        let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
             1000,
             column_family_list(),
         ));
-        let message_expire =
-            MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
+        let message_expire = MessageExpire::new(rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
         let topic_name = unique_id();
         let expired = 10;
         let retain_message = MQTTRetainMessage {
-            cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
             retain_message: Bytes::from("message1"),
             retain_message_expired_at: expired,
@@ -211,9 +204,7 @@ mod tests {
         let start = now_second();
 
         loop {
-            let res = topic_storage
-                .get_retain_message(&cluster_name, &topic_name)
-                .unwrap();
+            let res = topic_storage.get_retain_message(&topic_name).unwrap();
 
             if res.is_none() {
                 break;
@@ -228,7 +219,6 @@ mod tests {
 
     #[tokio::test]
     async fn last_will_message_expire_test() {
-        let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
             1000,
@@ -247,8 +237,7 @@ mod tests {
             last_will: None,
             last_will_properties: Some(last_will_properties),
         };
-        let message_expire =
-            MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
+        let message_expire = MessageExpire::new(rocksdb_engine_handler.clone());
         tokio::spawn(async move {
             loop {
                 message_expire.last_will_message_expire().await;
@@ -260,16 +249,14 @@ mod tests {
             client_id: client_id.clone(),
             ..Default::default()
         };
-        session_storage
-            .save(&cluster_name, &client_id, session)
-            .unwrap();
+        session_storage.save(&client_id, session).unwrap();
         lastwill_storage
-            .save(&cluster_name, &client_id, last_will_message)
+            .save(&client_id, last_will_message)
             .unwrap();
 
         let start = now_second();
         loop {
-            let res = lastwill_storage.get(&cluster_name, &client_id).unwrap();
+            let res = lastwill_storage.get(&client_id).unwrap();
             if res.is_none() {
                 break;
             }

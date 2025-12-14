@@ -136,19 +136,18 @@ impl ConnectorScheduler {
             // Check if connector still exists
             let connector = match self
                 .cache_manager
-                .get_connector(&heartbeat.cluster_name, &heartbeat.connector_name)
+                .connector_list
+                .get(&heartbeat.connector_name)
             {
                 Some(c) => c,
                 None => {
                     // Connector was deleted, clean up orphaned heartbeat
                     warn!(
-                        "Removing orphaned heartbeat for non-existent connector: cluster={}, name={}",
-                        heartbeat.cluster_name, heartbeat.connector_name
+                        "Removing orphaned heartbeat for non-existent connector:name={}",
+                        heartbeat.connector_name
                     );
-                    self.cache_manager.remove_connector_heartbeat(
-                        &heartbeat.cluster_name,
-                        &heartbeat.connector_name,
-                    );
+                    self.cache_manager
+                        .remove_connector_heartbeat(&heartbeat.connector_name);
                     orphaned_count += 1;
                     continue;
                 }
@@ -158,8 +157,7 @@ impl ConnectorScheduler {
             let elapsed_time = current_time - heartbeat.last_heartbeat;
             if elapsed_time > self.heartbeat_timeout_sec {
                 warn!(
-                    "Connector heartbeat expired: cluster={}, name={}, broker_id={:?}, elapsed={}s, timeout={}s",
-                    connector.cluster_name,
+                    "Connector heartbeat expired:  name={}, broker_id={:?}, elapsed={}s, timeout={}s",
                     connector.connector_name,
                     connector.broker_id,
                     elapsed_time,
@@ -169,7 +167,7 @@ impl ConnectorScheduler {
                 // Reset connector to Idle for rescheduling
                 if let Err(e) = self
                     .connector_context
-                    .update_status_to_idle(&heartbeat.cluster_name, &heartbeat.connector_name)
+                    .update_status_to_idle(&heartbeat.connector_name)
                     .await
                 {
                     warn!(
@@ -194,7 +192,6 @@ impl ConnectorScheduler {
 
     async fn start_stop_connector_thread(&self) -> Result<(), MetaServiceError> {
         // Step 1: Group connectors by cluster for batch broker assignment
-        let mut unassigned_connectors_by_cluster: HashMap<String, Vec<_>> = HashMap::new();
         let mut connectors_to_process = Vec::new();
 
         for connector in self.cache_manager.get_all_connector() {
@@ -206,7 +203,7 @@ impl ConnectorScheduler {
                 );
                 if let Err(e) = self
                     .connector_context
-                    .update_status_to_idle(&connector.cluster_name, &connector.connector_name)
+                    .update_status_to_idle(&connector.connector_name)
                     .await
                 {
                     warn!(
@@ -217,24 +214,12 @@ impl ConnectorScheduler {
                 continue;
             }
 
-            if connector.broker_id.is_none() {
-                unassigned_connectors_by_cluster
-                    .entry(connector.cluster_name.clone())
-                    .or_default()
-                    .push(connector);
-            } else {
-                connectors_to_process.push(connector);
-            }
+            connectors_to_process.push(connector);
         }
 
         // Step 2: Batch assign brokers for unassigned connectors
-        for (cluster_name, connectors) in unassigned_connectors_by_cluster {
-            if let Err(e) = self.assign_brokers_batch(&cluster_name, connectors).await {
-                warn!(
-                    "Failed to assign brokers for cluster {}: {:?}",
-                    cluster_name, e
-                );
-            }
+        if let Err(e) = self.assign_brokers_batch(&connectors_to_process).await {
+            warn!("Failed to assign brokers for  {:?}", e);
         }
 
         // Step 3: Process connectors with assigned brokers
@@ -250,18 +235,17 @@ impl ConnectorScheduler {
 
     async fn assign_brokers_batch(
         &self,
-        cluster_name: &str,
-        connectors: Vec<MQTTConnector>,
+        connectors: &Vec<MQTTConnector>,
     ) -> Result<(), MetaServiceError> {
         if connectors.is_empty() {
             return Ok(());
         }
 
         // Step 1: Calculate initial broker load (once for all connectors)
-        let mut broker_load = calculate_broker_load_internal(&self.cache_manager, cluster_name)?;
+        let mut broker_load = calculate_broker_load_internal(&self.cache_manager)?;
 
         // Step 2: Assign each connector to the broker with minimum load
-        for mut connector in connectors {
+        for mut connector in connectors.clone() {
             // Select broker with minimum load
             let broker_id = match broker_load
                 .iter()
@@ -321,7 +305,7 @@ impl ConnectorScheduler {
             }
             MQTTStatus::Idle => {
                 self.connector_context
-                    .update_status_to_running(&connector.cluster_name, &connector.connector_name)
+                    .update_status_to_running(&connector.connector_name)
                     .await
             }
         }
@@ -331,13 +315,12 @@ impl ConnectorScheduler {
 /// Calculate broker load - extracted for testing
 fn calculate_broker_load_internal(
     cache_manager: &CacheManager,
-    cluster_name: &str,
 ) -> Result<HashMap<u64, usize>, MetaServiceError> {
     // Step 1: Initialize all brokers with 0 load
     let mut broker_load: HashMap<u64, usize> = cache_manager
-        .get_broker_node_id_by_cluster(cluster_name)
-        .into_iter()
-        .map(|broker_id| (broker_id, 0))
+        .node_list
+        .iter()
+        .map(|node| (node.node_id, 0))
         .collect();
 
     if broker_load.is_empty() {
@@ -369,14 +352,12 @@ mod tests {
     fn setup_test_cluster(
         broker_count: usize,
         connector_distribution: Vec<usize>, // connectors per broker
-    ) -> (Arc<CacheManager>, String) {
+    ) -> Arc<CacheManager> {
         let cache_manager = Arc::new(CacheManager::new(test_rocksdb_instance()));
-        let cluster_name = "test_cluster".to_string();
 
         // Add brokers
         for i in 1..=broker_count {
             cache_manager.add_broker_node(BrokerNode {
-                cluster_name: cluster_name.clone(),
                 node_id: i as u64,
                 node_ip: format!("127.0.0.{}", i),
                 node_inner_addr: format!("127.0.0.{}:9000", i),
@@ -392,9 +373,7 @@ mod tests {
             let broker_id = (broker_idx + 1) as u64;
             for j in 0..connector_count {
                 cache_manager.add_connector(
-                    &cluster_name,
                     &MQTTConnector {
-                        cluster_name: cluster_name.clone(),
                         connector_name: format!("conn_b{}_n{}", broker_id, j),
                         connector_type: ConnectorType::LocalFile,
                         topic_name: "test_topic".to_string(),
@@ -411,14 +390,13 @@ mod tests {
             }
         }
 
-        (cache_manager, cluster_name)
+        cache_manager
     }
 
     #[test]
     fn test_calculate_broker_load_normal_distribution() {
-        let (cache_manager, cluster_name) = setup_test_cluster(3, vec![2, 3, 1]);
-
-        let broker_load = calculate_broker_load_internal(&cache_manager, &cluster_name).unwrap();
+        let cache_manager = setup_test_cluster(3, vec![2, 3, 1]);
+        let broker_load = calculate_broker_load_internal(&cache_manager).unwrap();
 
         assert_eq!(broker_load.len(), 3, "Should have 3 brokers");
         assert_eq!(
@@ -440,9 +418,9 @@ mod tests {
 
     #[test]
     fn test_calculate_broker_load_all_brokers_idle() {
-        let (cache_manager, cluster_name) = setup_test_cluster(3, vec![0, 0, 0]);
+        let cache_manager = setup_test_cluster(3, vec![0, 0, 0]);
 
-        let broker_load = calculate_broker_load_internal(&cache_manager, &cluster_name).unwrap();
+        let broker_load = calculate_broker_load_internal(&cache_manager).unwrap();
 
         assert_eq!(broker_load.len(), 3, "Should have 3 brokers");
         assert_eq!(broker_load.get(&1), Some(&0), "Broker 1 should be idle");
@@ -452,9 +430,9 @@ mod tests {
 
     #[test]
     fn test_calculate_broker_load_more_brokers_than_connectors() {
-        let (cache_manager, cluster_name) = setup_test_cluster(5, vec![1, 0, 2, 0, 1]);
+        let cache_manager = setup_test_cluster(5, vec![1, 0, 2, 0, 1]);
 
-        let broker_load = calculate_broker_load_internal(&cache_manager, &cluster_name).unwrap();
+        let broker_load = calculate_broker_load_internal(&cache_manager).unwrap();
 
         assert_eq!(broker_load.len(), 5, "Should have 5 brokers");
         assert_eq!(
@@ -478,14 +456,12 @@ mod tests {
 
     #[test]
     fn test_calculate_broker_load_ignores_unassigned_connectors() {
-        let (cache_manager, cluster_name) = setup_test_cluster(2, vec![2, 1]);
+        let cache_manager = setup_test_cluster(2, vec![2, 1]);
 
         // Add unassigned connectors
         for i in 0..3 {
             cache_manager.add_connector(
-                &cluster_name,
                 &MQTTConnector {
-                    cluster_name: cluster_name.clone(),
                     connector_name: format!("unassigned_{}", i),
                     connector_type: ConnectorType::LocalFile,
                     topic_name: "test_topic".to_string(),
@@ -501,7 +477,7 @@ mod tests {
             );
         }
 
-        let broker_load = calculate_broker_load_internal(&cache_manager, &cluster_name).unwrap();
+        let broker_load = calculate_broker_load_internal(&cache_manager).unwrap();
 
         assert_eq!(broker_load.len(), 2, "Should have 2 brokers");
         assert_eq!(
@@ -520,7 +496,7 @@ mod tests {
     fn test_calculate_broker_load_empty_cluster_returns_error() {
         let empty_cache = Arc::new(CacheManager::new(test_rocksdb_instance()));
 
-        let result = calculate_broker_load_internal(&empty_cache, "nonexistent_cluster");
+        let result = calculate_broker_load_internal(&empty_cache);
 
         assert!(result.is_err(), "Should return error for empty cluster");
         assert!(
@@ -531,9 +507,9 @@ mod tests {
 
     #[test]
     fn test_calculate_broker_load_single_broker_multiple_connectors() {
-        let (cache_manager, cluster_name) = setup_test_cluster(1, vec![10]);
+        let cache_manager = setup_test_cluster(1, vec![10]);
 
-        let broker_load = calculate_broker_load_internal(&cache_manager, &cluster_name).unwrap();
+        let broker_load = calculate_broker_load_internal(&cache_manager).unwrap();
 
         assert_eq!(broker_load.len(), 1, "Should have 1 broker");
         assert_eq!(

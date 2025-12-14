@@ -103,11 +103,7 @@ impl CacheManager {
         self.node_list.insert(node.node_id, node);
     }
 
-    pub fn remove_broker_node(
-        &self,
-        cluster_name: &str,
-        node_id: u64,
-    ) -> Option<(u64, BrokerNode)> {
+    pub fn remove_broker_node(&self, node_id: u64) -> Option<(u64, BrokerNode)> {
         self.node_list.remove(&node_id);
         self.node_heartbeat.remove(&node_id);
         None
@@ -127,10 +123,6 @@ impl CacheManager {
             time: now_second(),
         };
         self.node_heartbeat.insert(node_id, data);
-    }
-
-    fn remove_broker_heart(&self, node_id: u64) {
-        self.node_heartbeat.remove(&node_id);
     }
 
     pub fn get_broker_heart(&self, node_id: u64) -> Option<NodeHeartbeatData> {
@@ -184,16 +176,16 @@ pub fn load_cache(
 
     // User
     let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
-    let data = user.list_all()?;
+    let data = user.list()?;
     for user in data {
         cache_manager.add_user(user);
     }
 
     // connector
     let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
-    let data = connector.list(&cluster.cluster_name)?;
+    let data = connector.list()?;
     for connector in data {
-        cache_manager.add_connector(&cluster.cluster_name, &connector);
+        cache_manager.add_connector(&connector);
     }
 
     Ok(())

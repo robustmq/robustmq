@@ -44,8 +44,7 @@ mod tests {
         };
         create_acl(&client_pool, &addrs, request).await.unwrap();
 
-        let request = ListAclRequest {
-        };
+        let request = ListAclRequest {};
 
         match list_acl(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -79,8 +78,7 @@ mod tests {
             }
         }
 
-        let request = ListAclRequest {
-        };
+        let request = ListAclRequest {};
 
         match list_acl(&client_pool, &addrs, request).await {
             Ok(data) => {

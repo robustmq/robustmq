@@ -49,8 +49,7 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
-        };
+        let request = ListBlacklistRequest {};
 
         match list_blacklist(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -83,8 +82,7 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
-        };
+        let request = ListBlacklistRequest {};
 
         match list_blacklist(&client_pool, &addrs, request).await {
             Ok(data) => {

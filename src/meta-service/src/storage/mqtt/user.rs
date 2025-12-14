@@ -40,7 +40,7 @@ impl MqttUserStorage {
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, user)
     }
 
-    pub fn list_all(&self) -> Result<Vec<MqttUser>, CommonError> {
+    pub fn list(&self) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttUser>(
             self.rocksdb_engine_handler.clone(),
@@ -105,14 +105,14 @@ mod tests {
         let user2 = create_user("bob", "pass456", false);
         storage.save("bob", user2).unwrap();
 
-        let all_users = storage.list_all().unwrap();
+        let all_users = storage.list().unwrap();
         assert_eq!(all_users.len(), 2);
 
         // Test: Delete and verify
         storage.delete("bob").unwrap();
         assert!(storage.get("bob").unwrap().is_none());
 
-        let remaining = storage.list_all().unwrap();
+        let remaining = storage.list().unwrap();
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].username, "alice");
     }

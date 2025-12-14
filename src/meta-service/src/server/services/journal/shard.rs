@@ -73,7 +73,7 @@ pub async fn create_shard_by_req(
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
     // Check that the number of available nodes is sufficient
-    let num = cache_manager.get_broker_num() as u32;
+    let num = cache_manager.node_list.len() as u32;
     let shard_config: JournalShardConfig = JournalShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
         return Err(MetaServiceError::NotEnoughNodes(
@@ -87,7 +87,6 @@ pub async fn create_shard_by_req(
     } else {
         let shard = JournalShard {
             shard_uid: unique_id(),
-            cluster_name: String::new(), // TODO: Remove cluster_name from JournalShard
             namespace: req.namespace.clone(),
             shard_name: req.shard_name.clone(),
             start_segment_seq: 0,
@@ -103,9 +102,11 @@ pub async fn create_shard_by_req(
         shard
     };
 
-    let mut segment = if let Some(segment) =
-        cache_manager.get_segment(&shard.namespace, &shard.shard_name, shard.active_segment_seq)
-    {
+    let mut segment = if let Some(segment) = cache_manager.get_segment(
+        &shard.namespace,
+        &shard.shard_name,
+        shard.active_segment_seq,
+    ) {
         segment
     } else {
         let segment = build_segment(&shard, cache_manager, 0).await?;
@@ -113,7 +114,6 @@ pub async fn create_shard_by_req(
         sync_save_segment_info(raft_manager, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
-            cluster_name: segment.cluster_name.clone(),
             namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
@@ -124,8 +124,7 @@ pub async fn create_shard_by_req(
         };
 
         sync_save_segment_metadata_info(raft_manager, &metadata).await?;
-        // TODO: Update cache after cluster_name removal
-        // update_cache_by_set_segment_meta(call_manager, client_pool, metadata).await?;
+        update_cache_by_set_segment_meta(call_manager, client_pool, metadata).await?;
 
         segment
     };
@@ -133,9 +132,8 @@ pub async fn create_shard_by_req(
     update_segment_status(cache_manager, raft_manager, &segment, SegmentStatus::Write).await?;
     segment.status = SegmentStatus::Write;
 
-    // TODO: Update cache after cluster_name removal
-    // update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
-    // update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
+    update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
 
     let replica: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
     Ok(CreateShardReply {
@@ -147,8 +145,8 @@ pub async fn create_shard_by_req(
 pub async fn delete_shard_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    _call_manager: &Arc<JournalInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<JournalInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, MetaServiceError> {
     let mut shard = if let Some(shard) = cache_manager.get_shard(&req.namespace, &req.shard_name) {
@@ -168,8 +166,7 @@ pub async fn delete_shard_by_req(
     shard.status = JournalShardStatus::PrepareDelete;
     cache_manager.add_wait_delete_shard(&shard);
 
-    // TODO: Update cache after cluster_name removal
-    // update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
 
     Ok(DeleteShardReply::default())
 }

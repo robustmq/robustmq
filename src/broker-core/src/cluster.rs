@@ -49,8 +49,7 @@ impl ClusterStorage {
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
         let conf = broker_config();
-        let request = NodeListRequest {
-        };
+        let request = NodeListRequest {};
 
         let reply = node_list(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
 
@@ -157,9 +156,7 @@ impl ClusterStorage {
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
-        let request = DeleteResourceConfigRequest {
-            resources,
-        };
+        let request = DeleteResourceConfigRequest { resources };
 
         delete_resource_config(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
@@ -172,9 +169,7 @@ impl ClusterStorage {
     ) -> Result<Vec<u8>, CommonError> {
         let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
-        let request = GetResourceConfigRequest {
-            resources,
-        };
+        let request = GetResourceConfigRequest { resources };
 
         let reply =
             get_resource_config(&self.client_pool, &config.get_meta_service_addr(), request)

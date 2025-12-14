@@ -48,7 +48,7 @@ impl DataRouteCluster {
             cluster_cache,
         }
     }
-    
+
     // Node
     pub async fn add_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = RegisterNodeRequest::decode(value.as_ref())?;
@@ -116,7 +116,7 @@ impl DataRouteCluster {
     pub fn delete_schema(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        schema_storage.delete(&req.cluster_name, &req.schema_name)?;
+        schema_storage.delete(&req.schema_name)?;
         Ok(())
     }
 
@@ -125,18 +125,17 @@ impl DataRouteCluster {
         let req = BindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let bind_data = SchemaResourceBind {
-            cluster_name: req.cluster_name.clone(),
             resource_name: req.resource_name.clone(),
             schema_name: req.schema_name.clone(),
         };
-        schema_storage.save_bind(&req.cluster_name, &bind_data)?;
+        schema_storage.save_bind(&bind_data)?;
         Ok(())
     }
 
     pub fn delete_schema_bind(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = UnBindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        schema_storage.delete_bind(&req.cluster_name, &req.resource_name, &req.schema_name)?;
+        schema_storage.delete_bind(&req.resource_name, &req.schema_name)?;
         Ok(())
     }
 
@@ -166,13 +165,10 @@ mod tests {
     #[tokio::test]
     async fn register_unregister_node() {
         let config = default_broker_config();
-
-        let cluster_name = unique_id();
         let node_id = 999;
         let node_ip = "127.0.0.1".to_string();
 
         let node = BrokerNode {
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip.clone(),
             roles: Vec::new(),
@@ -192,13 +188,13 @@ mod tests {
         route.add_node(data).await.unwrap();
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
-        let node = node_storage.get(&cluster_name, node_id).unwrap();
+        let node = node_storage.get(node_id).unwrap();
         let broker_node = node.unwrap();
         assert_eq!(broker_node.node_id, node_id);
         assert_eq!(broker_node.node_ip, node_ip);
 
-        let _ = node_storage.delete(&cluster_name, node_id);
-        let res = node_storage.get(&cluster_name, node_id).unwrap();
+        let _ = node_storage.delete(node_id);
+        let res = node_storage.get(node_id).unwrap();
         assert!(res.is_none());
     }
 }

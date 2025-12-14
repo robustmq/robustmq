@@ -110,10 +110,6 @@ impl MQTTConnector {
         self.broker_id.is_some()
     }
 
-    pub fn unique_key(&self) -> String {
-        format!("{}", self.connector_name)
-    }
-
     pub fn validate(&self) -> Result<(), CommonError> {
         if self.connector_name.is_empty() {
             return Err(CommonError::CommonError(

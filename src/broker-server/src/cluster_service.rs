@@ -37,13 +37,11 @@ impl ClusterService for ClusterInnerService {
         &self,
         _request: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        let config = broker_config();
         let node_list = self.cache_manager.node_list();
         let uptime = now_second() - self.cache_manager.get_start_time();
 
         let reply = ClusterStatusReply {
             node_count: node_list.len() as u32,
-            cluster_name: config.cluster_name.clone(),
             uptime,
             version: env!("CARGO_PKG_VERSION").to_string(),
             active_nodes: node_list.iter().map(|n| n.node_id).collect(),

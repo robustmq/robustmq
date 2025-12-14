@@ -89,14 +89,6 @@ impl DataRoute {
                 Ok(None)
             }
 
-            StorageDataType::ClusterAddCluster => {
-                self.route_cluster
-                    .add_cluster(storage_data.value.clone())
-                    .await?;
-                Ok(None)
-            }
-            StorageDataType::ClusterDeleteCluster => Ok(None),
-
             StorageDataType::ResourceConfigSet => {
                 self.route_cluster
                     .set_resource_config(storage_data.value.clone())?;

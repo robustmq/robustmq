@@ -389,8 +389,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
     }
 
     // load node
-    let request = NodeListRequest {
-    };
+    let request = NodeListRequest {};
     match node_list(client_pool, &conf.get_meta_service_addr(), request).await {
         Ok(list) => {
             info!(

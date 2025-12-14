@@ -58,21 +58,16 @@ pub struct MQTTInnerCallNodeSender {
 pub struct MQTTInnerCallManager {
     node_sender: DashMap<u64, MQTTInnerCallNodeSender>,
     node_stop_sender: DashMap<u64, Sender<bool>>,
-    placement_cache_manager: Arc<CacheManager>,
     broker_cache: Arc<BrokerCacheManager>,
 }
 
 impl MQTTInnerCallManager {
-    pub fn new(
-        placement_cache_manager: Arc<CacheManager>,
-        broker_cache: Arc<BrokerCacheManager>,
-    ) -> Self {
+    pub fn new(broker_cache: Arc<BrokerCacheManager>) -> Self {
         let node_sender = DashMap::with_capacity(2);
-        let node_sender_thread = DashMap::with_capacity(2);
+        let node_stop_sender = DashMap::with_capacity(2);
         MQTTInnerCallManager {
             node_sender,
-            node_stop_sender: node_sender_thread,
-            placement_cache_manager,
+            node_stop_sender,
             broker_cache,
         }
     }
@@ -113,8 +108,7 @@ pub async fn mqtt_call_thread_manager(
             if !call_manager.node_stop_sender.contains_key(&key) {
                 let (stop_send, _) = broadcast::channel(2);
                 start_call_thread(
-                    key.clone(),
-                    node_sender.node,
+                    node_sender.node.clone(),
                     call_manager.clone(),
                     client_pool.clone(),
                     stop_send.clone(),
@@ -466,7 +460,6 @@ async fn call_mqtt_update_cache(
     data: &MQTTInnerCallMessage,
 ) {
     let request = UpdateMqttCacheRequest {
-        
         action_type: data.action_type.into(),
         resource_type: data.resource_type.into(),
         data: data.data.clone(),
@@ -476,7 +469,10 @@ async fn call_mqtt_update_cache(
         if broker_cache.is_stop().await {
             return;
         }
-        error!("Calling MQTT Broker to update cache failed,{},cluster_name:{},action_type:{},resource_type:{}", e,request.cluster_name,request.action_type,request.resource_type);
+        error!(
+            "Calling MQTT Broker to update cache failed,{},action_type:{},resource_type:{}",
+            e, request.action_type, request.resource_type
+        );
     };
 }
 
@@ -486,12 +482,9 @@ async fn add_call_message(
     client_pool: &Arc<ClientPool>,
     message: MQTTInnerCallMessage,
 ) -> Result<(), MetaServiceError> {
-    for node in call_manager
-        .placement_cache_manager
-        .get_broker_node_by_cluster(cluster_name)
-    {
+    for raw in call_manager.node_sender.iter() {
         // todo Check whether the node is of the mqtt role
-        if let Some(node_sender) = call_manager.get_node_sender(node.node_id) {
+        if let Some(node_sender) = call_manager.get_node_sender(raw.node.node_id) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}
                 Err(e) => {
@@ -502,25 +495,23 @@ async fn add_call_message(
             // add sender
             let (sx, _) = broadcast::channel::<MQTTInnerCallMessage>(1000);
             call_manager.add_node_sender(
-                cluster_name,
-                node.node_id,
+                raw.node.node_id,
                 MQTTInnerCallNodeSender {
                     sender: sx.clone(),
-                    node: node.clone(),
+                    node: raw.node.clone(),
                 },
             );
 
             // start thread
             let (stop_send, _) = broadcast::channel(2);
             start_call_thread(
-                cluster_name.to_string(),
-                node.clone(),
+                raw.node.clone(),
                 call_manager.clone(),
                 client_pool.clone(),
                 stop_send.clone(),
             )
             .await;
-            call_manager.add_node_stop_sender(node.node_id, stop_send);
+            call_manager.add_node_stop_sender(raw.node.node_id, stop_send);
 
             // Wait 2s for the "broadcast rx" thread to start, otherwise the send message will report a "channel closed" error
             sleep(Duration::from_secs(2)).await;

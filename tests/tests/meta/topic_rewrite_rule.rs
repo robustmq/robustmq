@@ -14,7 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use grpc_clients::meta::mqtt::call::{
         placement_create_topic_rewrite_rule, placement_delete_topic_rewrite_rule,
         placement_list_topic_rewrite_rule,
@@ -23,6 +22,7 @@ mod tests {
     use protocol::meta::meta_service_mqtt::{
         CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRewriteRuleRequest,
     };
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_topic_rewrite_rule() {

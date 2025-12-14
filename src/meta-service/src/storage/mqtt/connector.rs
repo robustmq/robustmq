@@ -51,7 +51,7 @@ impl MqttConnectorStorage {
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, connector)
     }
 
-    pub fn list_all(&self) -> Result<Vec<MQTTConnector>, CommonError> {
+    pub fn list(&self) -> Result<Vec<MQTTConnector>, CommonError> {
         let prefix_key = storage_key_mqtt_connector_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MQTTConnector>(
             self.rocksdb_engine_handler.clone(),
@@ -102,12 +102,12 @@ mod tests {
         storage
             .save("connector_b", &MQTTConnector::default())
             .unwrap();
-        assert_eq!(storage.list_all().unwrap().len(), 2);
+        assert_eq!(storage.list().unwrap().len(), 2);
 
         // Delete & Verify
         storage.delete("connector_b").unwrap();
         assert!(storage.get("connector_b").unwrap().is_none());
-        assert_eq!(storage.list_all().unwrap().len(), 1);
+        assert_eq!(storage.list().unwrap().len(), 1);
     }
 
     #[test]

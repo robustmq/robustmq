@@ -54,48 +54,40 @@ impl ConnectorContext {
     /// Update connector status to Idle and clear broker assignment
     pub async fn update_status_to_idle(
         &self,
-        cluster_name: &str,
         connector_name: &str,
     ) -> Result<(), MetaServiceError> {
-        info!(
-            "Updating connector {} status to Idle in cluster {}",
-            connector_name, cluster_name
-        );
-        self.update_status(cluster_name, connector_name, MQTTStatus::Idle)
-            .await
+        info!("Updating connector {} status to Idle", connector_name);
+        self.update_status(connector_name, MQTTStatus::Idle).await
     }
 
     /// Update connector status to Running
     pub async fn update_status_to_running(
         &self,
-        cluster_name: &str,
         connector_name: &str,
     ) -> Result<(), MetaServiceError> {
-        info!(
-            "Updating connector {} status to Running in cluster {}",
-            connector_name, cluster_name
-        );
-        self.update_status(cluster_name, connector_name, MQTTStatus::Running)
+        info!("Updating connector {} status to Running", connector_name);
+        self.update_status(connector_name, MQTTStatus::Running)
             .await
     }
 
     /// Update connector status to the specified value
     async fn update_status(
         &self,
-        cluster_name: &str,
         connector_name: &str,
         status: MQTTStatus,
     ) -> Result<(), MetaServiceError> {
         let mut connector = self
             .cache_manager
-            .get_connector(cluster_name, connector_name)
+            .connector_list
+            .get(connector_name)
             .ok_or_else(|| {
                 warn!(
-                    "Connector {} not found in cluster {} during status update",
-                    connector_name, cluster_name
+                    "Connector {} not found during status update",
+                    connector_name
                 );
                 MetaServiceError::ConnectorNotFound(connector_name.to_string())
-            })?;
+            })?
+            .clone();
 
         let old_status = connector.status.clone();
         let new_status = status.clone();
@@ -131,7 +123,6 @@ impl ConnectorContext {
         connector: MQTTConnector,
     ) -> Result<(), MetaServiceError> {
         let req = CreateConnectorRequest {
-            cluster_name: connector.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
             connector: connector.encode()?,
         };
@@ -144,13 +135,7 @@ impl ConnectorContext {
         self.raft_manager.write_metadata(data).await?;
 
         // Update cache across all brokers
-        update_cache_by_add_connector(
-            &req.cluster_name,
-            &self.call_manager,
-            &self.client_pool,
-            connector,
-        )
-        .await?;
+        update_cache_by_add_connector(&self.call_manager, &self.client_pool, connector).await?;
 
         Ok(())
     }

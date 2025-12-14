@@ -61,24 +61,23 @@ pub fn list_session_by_req(
 
 pub async fn create_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetSession, encode_to_bytes(req));
     raft_manager.write_mqtt(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let session = MqttSession::decode(&req.session)?;
-    // update_cache_by_add_session(call_manager, client_pool, session).await?;
+    let session = MqttSession::decode(&req.session)?;
+    update_cache_by_add_session(call_manager, client_pool, session).await?;
 
     Ok(CreateSessionReply {})
 }
 
 pub async fn update_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &UpdateSessionRequest,
 ) -> Result<UpdateSessionReply, MetaServiceError> {
@@ -86,9 +85,8 @@ pub async fn update_session_by_req(
     raft_manager.write_mqtt(data).await?;
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
-    if let Some(_session) = storage.get(&req.client_id)? {
-        // TODO: Update cache after cluster_name removal
-        // update_cache_by_add_session(call_manager, client_pool, session).await?;
+    if let Some(session) = storage.get(&req.client_id)? {
+        update_cache_by_add_session(call_manager, client_pool, session).await?;
     }
 
     Ok(UpdateSessionReply {})
@@ -96,8 +94,8 @@ pub async fn update_session_by_req(
 
 pub async fn delete_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<CacheManager>,
     req: &DeleteSessionRequest,
@@ -114,15 +112,13 @@ pub async fn delete_session_by_req(
         cache_manager.add_expire_last_will(ExpireLastWill {
             client_id: will_message.client_id,
             delay_sec: now_second() + delay,
-            cluster_name: String::new(), // TODO: Remove cluster_name from ExpireLastWill
         });
     }
 
     let data = StorageData::new(StorageDataType::MqttDeleteSession, encode_to_bytes(req));
     raft_manager.write_mqtt(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // update_cache_by_delete_session(call_manager, client_pool, session.clone()).await?;
+    update_cache_by_delete_session(call_manager, client_pool, session.clone()).await?;
 
     Ok(DeleteSessionReply {})
 }

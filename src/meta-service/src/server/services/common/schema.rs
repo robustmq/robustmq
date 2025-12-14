@@ -57,10 +57,7 @@ fn validate_schema_fields(schema_name: &str, schema: &[u8]) -> Result<(), MetaSe
 }
 
 // Helper: Validate required fields for schema bind operations
-fn validate_bind_fields(
-    schema_name: &str,
-    resource_name: &str,
-) -> Result<(), MetaServiceError> {
+fn validate_bind_fields(schema_name: &str, resource_name: &str) -> Result<(), MetaServiceError> {
     validate_non_empty(schema_name, "schema_name")?;
     validate_non_empty(resource_name, "resource_name")?;
     Ok(())
@@ -79,7 +76,7 @@ pub fn list_schema_req(
             vec![]
         }
     } else {
-        schema_storage.list_all()?
+        schema_storage.list()?
     };
 
     let results = list
@@ -91,8 +88,8 @@ pub fn list_schema_req(
 
 pub async fn create_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), MetaServiceError> {
@@ -110,9 +107,8 @@ pub async fn create_schema_req(
     let data = StorageData::new(StorageDataType::SchemaSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let schema = SchemaData::decode(&req.schema)?;
-    // update_cache_by_add_schema(call_manager, client_pool, schema).await?;
+    let schema = SchemaData::decode(&req.schema)?;
+    update_cache_by_add_schema(call_manager, client_pool, schema).await?;
 
     Ok(())
 }
@@ -120,8 +116,8 @@ pub async fn create_schema_req(
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_schema_fields(&req.schema_name, &req.schema)?;
@@ -136,9 +132,8 @@ pub async fn update_schema_req(
     let data = StorageData::new(StorageDataType::SchemaSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let schema = SchemaData::decode(&req.schema)?;
-    // update_cache_by_add_schema(call_manager, client_pool, schema).await?;
+    let schema = SchemaData::decode(&req.schema)?;
+    update_cache_by_add_schema(call_manager, client_pool, schema).await?;
 
     Ok(())
 }
@@ -146,8 +141,8 @@ pub async fn update_schema_req(
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_non_empty(&req.schema_name, "schema_name")?;
@@ -155,15 +150,14 @@ pub async fn delete_schema_req(
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // Get schema to delete (must exist)
-    let _schema = storage
+    let schema = storage
         .get(&req.schema_name)?
         .ok_or_else(|| MetaServiceError::SchemaDoesNotExist(req.schema_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::SchemaDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // update_cache_by_delete_schema(call_manager, client_pool, schema).await?;
+    update_cache_by_delete_schema(call_manager, client_pool, schema).await?;
 
     Ok(())
 }
@@ -189,7 +183,7 @@ pub async fn list_bind_schema_req(
     // List all schema binds
     if !has_schema && !has_resource {
         let results = schema_storage
-            .list_all_binds()?
+            .list()?
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?;
@@ -211,8 +205,8 @@ pub async fn list_bind_schema_req(
 
 pub async fn bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_bind_fields(&req.schema_name, &req.resource_name)?;
@@ -220,20 +214,19 @@ pub async fn bind_schema_req(
     let data = StorageData::new(StorageDataType::SchemaBindSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let schema_data = SchemaResourceBind {
-    //     schema_name: req.schema_name.clone(),
-    //     resource_name: req.resource_name.clone(),
-    // };
-    // update_cache_by_add_schema_bind(call_manager, client_pool, schema_data).await?;
+    let schema_data = SchemaResourceBind {
+        schema_name: req.schema_name.clone(),
+        resource_name: req.resource_name.clone(),
+    };
+    update_cache_by_add_schema_bind(call_manager, client_pool, schema_data).await?;
 
     Ok(())
 }
 
 pub async fn un_bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    _call_manager: &Arc<MQTTInnerCallManager>,
-    _client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_bind_fields(&req.schema_name, &req.resource_name)?;
@@ -241,12 +234,11 @@ pub async fn un_bind_schema_req(
     let data = StorageData::new(StorageDataType::SchemaBindDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    // TODO: Update cache after cluster_name removal
-    // let schema_data = SchemaResourceBind {
-    //     schema_name: req.schema_name.clone(),
-    //     resource_name: req.resource_name.clone(),
-    // };
-    // update_cache_by_delete_schema_bind(call_manager, client_pool, schema_data).await?;
+    let schema_data = SchemaResourceBind {
+        schema_name: req.schema_name.clone(),
+        resource_name: req.resource_name.clone(),
+    };
+    update_cache_by_delete_schema_bind(call_manager, client_pool, schema_data).await?;
 
     Ok(())
 }

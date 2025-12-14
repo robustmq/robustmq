@@ -305,7 +305,6 @@ pub async fn schema_bind_create(
         return error_response(e.to_string());
     }
 
-    let config = broker_config();
     let bind = SchemaResourceBind {
         schema_name: params.schema_name,
         resource_name: params.resource_name,
@@ -326,7 +325,6 @@ pub async fn schema_bind_delete(
         return error_response(e.to_string());
     }
 
-    let config = broker_config();
     let bind = SchemaResourceBind {
         schema_name: params.schema_name,
         resource_name: params.resource_name,

@@ -53,9 +53,7 @@ mod tests {
         info!("{:?}", res);
 
         let group_name = "test".to_string();
-        let req = GetShareSubLeaderRequest {
-            group_name,
-        };
+        let req = GetShareSubLeaderRequest { group_name };
 
         let resp = placement_get_share_sub_leader(&client_pool, &addrs, req)
             .await
@@ -94,9 +92,7 @@ mod tests {
         info!("{:?}", res);
 
         let group_name = "$queue/topic1".to_string();
-        let req = GetShareSubLeaderRequest {
-            group_name,
-        };
+        let req = GetShareSubLeaderRequest { group_name };
 
         let resp = placement_get_share_sub_leader(&client_pool, &addrs, req)
             .await

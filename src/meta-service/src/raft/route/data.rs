@@ -40,8 +40,6 @@ pub enum StorageDataType {
     // Cluster
     ClusterAddNode,
     ClusterDeleteNode,
-    ClusterAddCluster,
-    ClusterDeleteCluster,
 
     // KV
     KvSet,
@@ -95,8 +93,6 @@ impl fmt::Display for StorageDataType {
         match self {
             StorageDataType::ClusterAddNode => write!(f, "ClusterAddNode"),
             StorageDataType::ClusterDeleteNode => write!(f, "ClusterDeleteNode"),
-            StorageDataType::ClusterAddCluster => write!(f, "ClusterAddCluster"),
-            StorageDataType::ClusterDeleteCluster => write!(f, "ClusterDeleteCluster"),
 
             StorageDataType::KvSet => write!(f, "KvSet"),
             StorageDataType::KvDelete => write!(f, "KvDelete"),
