@@ -117,35 +117,19 @@ impl SegmentStorage {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
+    use super::SegmentStorage;
     use common_base::tools::unique_id;
     use metadata_struct::journal::segment::JournalSegment;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use tempfile::tempdir;
-
-    use super::SegmentStorage;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[test]
     fn segment_store_test() {
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            column_family_list(),
-        ));
-
+        let rocksdb_engine = test_rocksdb_instance();
         let segs_per_shard = 5;
-        let num_clusters = 5;
         let num_namespace_per_cluster = 5;
         let num_shards_per_namespace = 10;
 
         let segment_storage = SegmentStorage::new(rocksdb_engine.clone());
-
-        let clusters = (0..num_clusters)
-            .map(|i| format!("cluster_{i}"))
-            .collect::<Vec<_>>();
-
         let namespaces = (0..num_namespace_per_cluster)
             .map(|_| unique_id())
             .collect::<Vec<_>>();
@@ -154,20 +138,18 @@ mod test {
             .map(|i| format!("shard_{i}"))
             .collect::<Vec<_>>();
 
-        for _cluster in clusters.iter() {
-            for namespace in namespaces.iter() {
-                for shard in shards.iter() {
-                    // 5 segments per shard
-                    for seq in 0..segs_per_shard {
-                        let segment = JournalSegment {
-                            namespace: namespace.clone(),
-                            shard_name: shard.clone(),
-                            segment_seq: seq,
-                            ..Default::default()
-                        };
+        for namespace in namespaces.iter() {
+            for shard in shards.iter() {
+                // 5 segments per shard
+                for seq in 0..segs_per_shard {
+                    let segment = JournalSegment {
+                        namespace: namespace.clone(),
+                        shard_name: shard.clone(),
+                        segment_seq: seq,
+                        ..Default::default()
+                    };
 
-                        segment_storage.save(segment.clone()).unwrap();
-                    }
+                    segment_storage.save(segment.clone()).unwrap();
                 }
             }
         }
@@ -176,19 +158,19 @@ mod test {
 
         assert_eq!(
             all_segs.len() as u32,
-            num_clusters * num_namespace_per_cluster * num_shards_per_namespace * segs_per_shard
+            num_namespace_per_cluster * num_shards_per_namespace * segs_per_shard
         );
 
         for namespace in namespaces.iter() {
             let namespace_segs = segment_storage.list_by_namespace(namespace).unwrap();
             assert_eq!(
                 namespace_segs.len() as u32,
-                num_clusters * num_shards_per_namespace * segs_per_shard
+                num_shards_per_namespace * segs_per_shard
             );
 
             for shard in shards.iter() {
                 let shard_segs = segment_storage.list_by_shard(namespace, shard).unwrap();
-                assert_eq!(shard_segs.len() as u32, num_clusters * segs_per_shard);
+                assert_eq!(shard_segs.len() as u32, segs_per_shard);
 
                 for seq in 0..segs_per_shard {
                     let seg = segment_storage.get(namespace, shard, seq).unwrap().unwrap();

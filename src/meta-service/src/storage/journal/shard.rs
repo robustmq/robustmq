@@ -91,33 +91,19 @@ impl ShardStorage {
 
 #[cfg(test)]
 mod tests {
+    use super::ShardStorage;
     use common_base::tools::unique_id;
     use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use std::sync::Arc;
-    use tempfile::tempdir;
-
-    use super::ShardStorage;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[test]
     fn shard_storage_test() {
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            column_family_list(),
-        ));
+        let rocksdb_engine = test_rocksdb_instance();
 
-        let num_clusters = 5;
         let num_namespace_per_cluster = 5;
         let num_shards_per_namespace = 10;
 
         let shard_storage = ShardStorage::new(rocksdb_engine.clone());
-
-        let clusters = (0..num_clusters)
-            .map(|i| format!("cluster_{i}"))
-            .collect::<Vec<_>>();
-
         let namespaces = (0..num_namespace_per_cluster)
             .map(|_| unique_id())
             .collect::<Vec<_>>();
@@ -126,36 +112,32 @@ mod tests {
             .map(|i| format!("shard_{i}"))
             .collect::<Vec<_>>();
 
-        for _cluster in clusters.iter() {
-            for namespace in namespaces.iter() {
-                for shard in shards.iter() {
-                    let segment = JournalShard {
-                        shard_uid: unique_id(),
-                        namespace: namespace.clone(),
-                        shard_name: shard.clone(),
-                        start_segment_seq: 0,
-                        active_segment_seq: 0,
-                        last_segment_seq: 0,
-                        status: JournalShardStatus::Run,
-                        ..Default::default()
-                    };
+        for namespace in namespaces.iter() {
+            for shard in shards.iter() {
+                let segment = JournalShard {
+                    shard_uid: unique_id(),
+                    namespace: namespace.clone(),
+                    shard_name: shard.clone(),
+                    start_segment_seq: 0,
+                    active_segment_seq: 0,
+                    last_segment_seq: 0,
+                    status: JournalShardStatus::Run,
+                    ..Default::default()
+                };
 
-                    shard_storage.save(&segment.clone()).unwrap();
-                }
+                shard_storage.save(&segment.clone()).unwrap();
             }
         }
+
         let all_segs = shard_storage.all_shard().unwrap();
         assert_eq!(
             all_segs.len() as u32,
-            num_clusters * num_namespace_per_cluster * num_shards_per_namespace
+            num_namespace_per_cluster * num_shards_per_namespace
         );
 
         for namespace in namespaces.iter() {
             let namespace_segs = shard_storage.list_by_namespace(namespace).unwrap();
-            assert_eq!(
-                namespace_segs.len() as u32,
-                num_clusters * num_shards_per_namespace
-            );
+            assert_eq!(namespace_segs.len() as u32, num_shards_per_namespace);
             for shard in shards.iter() {
                 let shard_segs = shard_storage.get(namespace, shard).unwrap().unwrap();
                 assert_eq!(shard_segs.namespace, *namespace);
@@ -168,7 +150,7 @@ mod tests {
         let all_segs = shard_storage.all_shard().unwrap();
         assert_eq!(
             all_segs.len() as u32,
-            num_clusters * num_namespace_per_cluster * num_shards_per_namespace - 1
+            num_namespace_per_cluster * num_shards_per_namespace - 1
         );
     }
 }

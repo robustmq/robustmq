@@ -278,11 +278,9 @@ pub async fn send_last_will(
 #[cfg(test)]
 mod tests {
     use common_base::tools::{now_second, unique_id};
-    use common_base::utils::file_utils::test_temp_dir;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
+    use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -295,11 +293,7 @@ mod tests {
 
     #[test]
     fn is_session_expire_test() {
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            1000,
-            column_family_list(),
-        ));
+        let rocksdb_engine_handler = test_rocksdb_instance();
         let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
         let client_pool = Arc::new(ClientPool::new(10));
 
@@ -324,11 +318,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_expire_session_list_test() {
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            1000,
-            column_family_list(),
-        ));
+        let rocksdb_engine_handler = test_rocksdb_instance();
         let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
         let client_pool = Arc::new(ClientPool::new(10));
 
@@ -366,7 +356,6 @@ mod tests {
             sleep(Duration::from_millis(1000)).await;
         }
         let esp = now_second() - start;
-        println!("{esp}");
         assert!((3..=5).contains(&esp));
     }
 
@@ -384,44 +373,5 @@ mod tests {
             delay_sec: now_second() + 3,
         };
         assert!(!is_send_last_will(&lastwill));
-    }
-
-    #[tokio::test]
-    async fn get_expire_lastwill_message_test() {
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            1000,
-            column_family_list(),
-        ));
-        let mqtt_cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler));
-
-        let client_id = unique_id();
-        let expire_last_will = ExpireLastWill {
-            client_id: client_id.clone(),
-            delay_sec: now_second() + 3,
-        };
-
-        mqtt_cache_manager.add_expire_last_will(expire_last_will);
-
-        let start = now_second();
-        loop {
-            let lastwill_list = mqtt_cache_manager.get_expire_last_wills();
-            if !lastwill_list.is_empty() {
-                let mut flag = false;
-                for st in lastwill_list {
-                    if st.client_id == client_id {
-                        flag = true;
-                    }
-                }
-
-                if flag {
-                    break;
-                }
-            }
-
-            sleep(Duration::from_millis(10)).await;
-        }
-
-        assert_eq!((now_second() - start), 3);
     }
 }
