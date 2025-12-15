@@ -14,18 +14,16 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::meta::common::{extend_info, namespace, node_id, node_ip, pc_addr, shard_name};
+    use std::time::Duration;
+
+    use crate::meta::common::{extend_info, node_id, node_ip, pc_addr};
     use common_base::tools::now_second;
-    use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::meta::node::BrokerNode;
     use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
     use protocol::meta::meta_service_common::{
-        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        HeartbeatRequest, NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
-    use protocol::meta::meta_service_journal::engine_service_client::EngineServiceClient;
-    use protocol::meta::meta_service_journal::{
-        CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
-    };
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn test_register_node_method_is_ok() {
@@ -46,6 +44,20 @@ mod tests {
             .register_node(tonic::Request::new(valid_request.clone()))
             .await;
         assert!(response.is_ok());
+
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
+
+        let request = HeartbeatRequest { node_id: node_id() };
+        let res = client.heartbeat(tonic::Request::new(request)).await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
+
+        let request = UnRegisterNodeRequest { node_id: node_id() };
+        client
+            .un_register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -110,97 +122,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_heartbeat() {
+    async fn heartbeat_keep_alive_test() {
         let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
-
-        let request = HeartbeatRequest { node_id: node_id() };
-        let res = client.heartbeat(tonic::Request::new(request)).await;
-        assert!(res.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_unregister_node() {
-        let mut client = MetaServiceServiceClient::connect(pc_addr()).await.unwrap();
-
-        let request = UnRegisterNodeRequest { node_id: node_id() };
+        let node_id = node_id();
+        let node = BrokerNode {
+            roles: Vec::new(),
+            node_id,
+            node_ip: node_ip(),
+            node_inner_addr: node_ip(),
+            extend: extend_info(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let request = RegisterNodeRequest {
+            node: node.encode().unwrap(),
+        };
         client
-            .un_register_node(tonic::Request::new(request))
+            .register_node(tonic::Request::new(request))
             .await
             .unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_create_shard() {
-        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
-
-        let config = JournalShardConfig {
-            max_segment_size: 1024 * 1024 * 10,
-            replica_num: 1,
-        };
-
-        let request = CreateShardRequest {
-            namespace: namespace(),
-            shard_name: shard_name(),
-            shard_config: config.encode().unwrap(),
-        };
-
-        match client.create_shard(tonic::Request::new(request)).await {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{e}");
+        let start_time = now_second();
+        loop {
+            let request = NodeListRequest {};
+            let resp = client.node_list(request).await.unwrap();
+            let mut flag = false;
+            let nodes = resp.into_inner().nodes;
+            for raw in nodes {
+                let node = BrokerNode::decode(&raw).unwrap();
+                if node.node_id == node_id {
+                    flag = true;
+                }
             }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_delete_shard() {
-        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
-
-        let request = DeleteShardRequest {
-            namespace: namespace(),
-            shard_name: shard_name(),
-        };
-        match client.delete_shard(tonic::Request::new(request)).await {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{e}");
+            if !flag {
+                break;
             }
+            sleep(Duration::from_millis(100)).await;
         }
-    }
-
-    #[tokio::test]
-    async fn test_create_segment() {
-        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
-
-        let request = CreateNextSegmentRequest {
-            namespace: namespace(),
-            shard_name: shard_name(),
-        };
-        match client
-            .create_next_segment(tonic::Request::new(request))
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{e}");
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_delete_segment() {
-        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
-
-        let request = DeleteSegmentRequest {
-            namespace: namespace(),
-            shard_name: shard_name(),
-            segment_seq: 1,
-        };
-        match client.delete_segment(tonic::Request::new(request)).await {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{e}");
-            }
-        }
+        let total_ms = now_second() - start_time;
+        println!("{total_ms}");
+        assert!((28..=31).contains(&total_ms));
     }
 }

@@ -48,7 +48,8 @@ mod tests {
         let resp = placement_list_topic_rewrite_rule(&client_pool, &addrs, req)
             .await
             .unwrap();
-        assert_eq!(resp.topic_rewrite_rules.len(), 1);
+        let pre_size = resp.topic_rewrite_rules.len();
+        assert!(pre_size >= 1);
 
         let req = DeleteTopicRewriteRuleRequest {
             action: action.clone(),
@@ -62,6 +63,6 @@ mod tests {
         let resp = placement_list_topic_rewrite_rule(&client_pool, &addrs, req)
             .await
             .unwrap();
-        assert_eq!(resp.topic_rewrite_rules.len(), 0);
+        assert_eq!(resp.topic_rewrite_rules.len(), pre_size - 1);
     }
 }

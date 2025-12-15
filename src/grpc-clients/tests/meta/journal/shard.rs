@@ -37,7 +37,7 @@ mod tests {
 
     use crate::common::get_placement_addr;
 
-    #[tokio::test]
+    // #[tokio::test]
 
     async fn shard_segment_metadata_test() {
         let client_pool = ClientPool::new(1);

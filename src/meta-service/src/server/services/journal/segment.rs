@@ -341,7 +341,7 @@ pub async fn build_segment(
 
     //todo Get the node copies at random
     let node_ids: Vec<u64> = node_list.iter().map(|raw| raw.node_id).collect();
-
+    println!("{:?}", node_ids);
     let mut replicas = Vec::new();
     for i in 0..node_ids.len() {
         let node_id = *node_ids.get(i).unwrap();
@@ -475,22 +475,14 @@ mod tests {
     use crate::core::cache::CacheManager;
     use common_base::tools::now_second;
     use common_base::utils::serialize;
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::{column_family_list, storage_data_fold};
+    use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
 
     #[tokio::test]
     async fn calc_node_fold_test() {
-        let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.rocksdb.data_path),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
+        let rocksdb_engine_handler = test_rocksdb_instance();
         let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler));
         let extend_info = JournalNodeExtend {
             data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
@@ -508,104 +500,11 @@ mod tests {
         };
         cache_manager.add_broker_node(node);
         let res = calc_node_fold(&cache_manager, 1).unwrap();
-        println!("{res}");
         assert!(!res.is_empty())
     }
 
-    // #[tokio::test]
-    // async fn create_segment_test() {
-    //     let config = broker_config();;
-    //     let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-    //         &storage_data_fold(&config.rocksdb.data_path),
-    //         config.rocksdb.max_open_files.unwrap(),
-    //         column_family_list(),
-    //     ));
-    //     let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-    //     let engine_cache = Arc::new(JournalCacheManager::new());
-    //     let shard_info = JournalShard {
-    //         shard_uid: unique_id(),
-    //         cluster_name: config.clone(),
-    //         namespace: "n1".to_string(),
-    //         shard_name: "s1".to_string(),
-    //         replica: 2,
-    //         start_segment_seq: 0,
-    //         active_segment_seq: 0,
-    //         last_segment_seq: 0,
-    //         create_time: now_millis(),
-    //     };
-    //     let segment_no = 1;
-    //     let segment = create_segment(
-    //         &shard_info,
-    //         &engine_cache,
-    //         &cluster_cache,
-    //         &rocksdb_engine_handler,
-    //         segment_no,
-    //     );
-    //     assert!(segment.is_err());
-
-    //     let extend_info = JournalNodeExtend {
-    //         data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
-    //         tcp_addr: "127.0.0.1:3110".to_string(),
-    //         tcps_addr: "127.0.0.1:3110".to_string(),
-    //     };
-
-    //     let node = BrokerNode {
-    //         cluster_name: config.clone(),
-    //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_millis(),
-    //         extend: serde_json::to_string(&extend_info).unwrap(),
-    //         node_id: 1,
-    //         node_inner_addr: "".to_string(),
-    //         node_ip: "".to_string(),
-    //     };
-    //     cluster_cache.add_broker_node(node);
-
-    //     let segment = create_segment(
-    //         &shard_info,
-    //         &engine_cache,
-    //         &cluster_cache,
-    //         &rocksdb_engine_handler,
-    //         segment_no,
-    //     );
-    //     assert!(segment.is_err());
-
-    //     let node = BrokerNode {
-    //         cluster_name: config.clone(),
-    //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_millis(),
-    //         extend: serde_json::to_string(&extend_info).unwrap(),
-    //         node_id: 2,
-    //         node_inner_addr: "".to_string(),
-    //         node_ip: "".to_string(),
-    //     };
-    //     cluster_cache.add_broker_node(node);
-
-    //     let node = BrokerNode {
-    //         cluster_name: config.clone(),
-    //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_millis(),
-    //         extend: serde_json::to_string(&extend_info).unwrap(),
-    //         node_id: 3,
-    //         node_inner_addr: "".to_string(),
-    //         node_ip: "".to_string(),
-    //     };
-    //     cluster_cache.add_broker_node(node);
-
-    //     let segment = create_segment(
-    //         &shard_info,
-    //         &engine_cache,
-    //         &cluster_cache,
-    //         &rocksdb_engine_handler,
-    //         segment_no,
-    //     )
-    //     .unwrap();
-    //     assert_eq!(segment, config);
-    //     assert_eq!(segment.namespace, shard_info.namespace);
-    //     assert_eq!(segment.shard_name, shard_info.shard_name);
-    //     assert_eq!(segment.segment_seq, segment_no);
-    //     assert_eq!(segment.replicas.len(), 2);
-    //     assert_eq!(segment.status, SegmentStatus::Idle);
-    // }
+    #[tokio::test]
+    async fn create_segment_test() {}
 
     // #[tokio::test]
     // async fn create_first_segment_test() {

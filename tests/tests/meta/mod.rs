@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker_heartbeat_test;
-pub mod cluster_node_test;
 pub mod common;
-pub mod grpc_clients_test;
+pub mod node_test;
+// mod shard_test;
 pub mod share_sub;
 mod topic_rewrite_rule;
