@@ -38,7 +38,7 @@ members = [
     "src/common/security",
     "src/common/rate-limit",
     "src/protocol",
-    "src/journal-server",
+    "src/storage-engine",
     "src/journal-client",
     "src/rule-engine",
     "src/storage-adapter",
@@ -251,7 +251,7 @@ broker-core = { path = "src/broker-core" }
 
 # Meta & Journal Services
 meta-service = { path = "src/meta-service" }
-journal-server = { path = "src/journal-server" }
+storage-engine = { path = "src/storage-engine" }
 journal-client = { path = "src/journal-client" }
 
 # Message Processing
