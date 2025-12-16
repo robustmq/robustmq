@@ -21,7 +21,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::select;
 use tokio::sync::broadcast;
 use tonic::Status;
-use tracing::warn;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::enum_type::time_unit_enum::TimeUnit;
@@ -95,7 +95,7 @@ pub fn get_local_ip() -> String {
     match get_local_ip_smart() {
         Ok(ip) => ip,
         Err(e) => {
-            warn!(
+            debug!(
                 "Smart IP detection failed: {}, falling back to 127.0.0.1",
                 e
             );

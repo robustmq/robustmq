@@ -33,7 +33,6 @@ use crate::index::time::TimestampIndexManager;
 /// struct that stores the metadata of a segment file.
 #[derive(Clone, Default, Debug)]
 pub struct SegmentFileMetadata {
-    pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,
     pub start_offset: i64,
@@ -58,11 +57,7 @@ impl SegmentFileManager {
     }
 
     pub fn add_segment_file(&self, segment_file: SegmentFileMetadata) {
-        let key = segment_name(
-            &segment_file.namespace,
-            &segment_file.shard_name,
-            segment_file.segment_no,
-        );
+        let key = segment_name(&segment_file.shard_name, segment_file.segment_no);
         self.segment_files.insert(key, segment_file);
     }
 
@@ -182,8 +177,7 @@ pub fn load_local_segment_cache(
                 );
                 continue;
             }
-            let namespace = tmp_dir_slice.first().unwrap();
-            let shard_name = tmp_dir_slice.get(1).unwrap();
+            let shard_name = tmp_dir_slice.first().unwrap();
 
             let file_path = path.display().to_string();
             let segment_file = file_path.split("/").last().unwrap();
@@ -191,7 +185,6 @@ pub fn load_local_segment_cache(
             let segment_no = segment.parse::<u32>()?;
 
             let segment_iden = SegmentIdentity {
-                namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_seq: segment_no,
             };
@@ -202,7 +195,6 @@ pub fn load_local_segment_cache(
             let end_timestamp = timestamp_manager.get_end_timestamp(&segment_iden)?;
 
             let metadata = SegmentFileMetadata {
-                namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_no,
                 start_offset,
@@ -228,7 +220,6 @@ pub async fn create_local_segment(
     segment: &JournalSegment,
 ) -> Result<(), JournalServerError> {
     let segment_iden = SegmentIdentity {
-        namespace: segment.namespace.clone(),
         shard_name: segment.shard_name.clone(),
         segment_seq: segment.segment_seq,
     };
@@ -248,17 +239,11 @@ pub async fn create_local_segment(
     };
 
     // create segment file
-    let segment_file = SegmentFile::new(
-        segment.namespace.clone(),
-        segment.shard_name.clone(),
-        segment.segment_seq,
-        fold,
-    );
+    let segment_file = SegmentFile::new(segment.shard_name.clone(), segment.segment_seq, fold);
     segment_file.try_create().await?;
 
     // add segment file manager
     let segment_metadata = SegmentFileMetadata {
-        namespace: segment.namespace.clone(),
         shard_name: segment.shard_name.clone(),
         segment_no: segment.segment_seq,
         start_offset: -1,
@@ -294,7 +279,6 @@ mod tests {
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
         let segment_file = SegmentFileMetadata {
-            namespace: segment_iden.namespace.to_string(),
             shard_name: segment_iden.shard_name.to_string(),
             segment_no: segment_iden.segment_seq,
             ..Default::default()
@@ -347,7 +331,6 @@ mod tests {
         assert_eq!(data.end_timestamp, -1);
 
         let segment_write = SegmentFile::new(
-            segment_iden.namespace.clone(),
             segment_iden.shard_name.clone(),
             segment_iden.segment_seq,
             fold,

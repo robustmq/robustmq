@@ -47,19 +47,16 @@ pub async fn list_segment_by_req(
     req: &ListSegmentRequest,
 ) -> Result<ListSegmentReply, MetaServiceError> {
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-    let binary_segments =
-        if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            segment_storage.all_segment()?
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            segment_storage.list_by_namespace(&req.namespace)?
-        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
-            segment_storage.list_by_shard(&req.namespace, &req.shard_name)?
-        } else {
-            match segment_storage.get(&req.namespace, &req.shard_name, req.segment_no as u32)? {
-                Some(segment) => vec![segment],
-                None => Vec::new(),
-            }
-        };
+    let binary_segments = if req.shard_name.is_empty() && req.segment_no == -1 {
+        segment_storage.all_segment()?
+    } else if !req.shard_name.is_empty() && req.segment_no == -1 {
+        segment_storage.list_by_shard(&req.shard_name)?
+    } else {
+        match segment_storage.get(&req.shard_name, req.segment_no as u32)? {
+            Some(segment) => vec![segment],
+            None => Vec::new(),
+        }
+    };
 
     let segments_data = binary_segments
         .into_iter()
@@ -78,34 +75,33 @@ pub async fn create_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
-    let mut shard = if let Some(shard) = cache_manager.get_shard(&req.namespace, &req.shard_name) {
+    let mut shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
         shard
     } else {
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
     };
 
-    let next_segment_no =
-        if let Some(segment_no) = cache_manager.next_segment_seq(&req.namespace, &req.shard_name) {
-            segment_no
-        } else {
-            return Err(MetaServiceError::ShardDoesNotExist(shard.name()));
-        };
+    let next_segment_no = if let Some(segment_no) = cache_manager.next_segment_seq(&req.shard_name)
+    {
+        segment_no
+    } else {
+        return Err(MetaServiceError::ShardDoesNotExist(shard.shard_name));
+    };
 
-    if cache_manager.shard_idle_segment_num(&req.namespace, &req.shard_name) >= 1 {
+    if cache_manager.shard_idle_segment_num(&req.shard_name) >= 1 {
         return Ok(CreateNextSegmentReply {});
     }
 
     let mut shard_notice = false;
     // If the next Segment hasn't already been created, it triggers the creation of the next Segment
     if cache_manager
-        .get_segment(&req.namespace, &req.shard_name, next_segment_no)
+        .get_segment(&req.shard_name, next_segment_no)
         .is_none()
     {
         let segment = build_segment(&shard, cache_manager, next_segment_no).await?;
         sync_save_segment_info(raft_manager, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
-            namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
             start_offset: if segment.segment_seq == 0 { 0 } else { -1 },
@@ -125,11 +121,11 @@ pub async fn create_segment_by_req(
     }
 
     let active_segment = if let Some(segment) =
-        cache_manager.get_segment(&req.namespace, &req.shard_name, shard.active_segment_seq)
+        cache_manager.get_segment(&req.shard_name, shard.active_segment_seq)
     {
         segment
     } else {
-        return Err(MetaServiceError::SegmentDoesNotExist(shard.name()));
+        return Err(MetaServiceError::SegmentDoesNotExist(shard.shard_name));
     };
 
     // try fixed segment status
@@ -154,23 +150,19 @@ pub async fn delete_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
-    if cache_manager
-        .get_shard(&req.namespace, &req.shard_name)
-        .is_none()
-    {
+    if cache_manager.get_shard(&req.shard_name).is_none() {
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
     };
 
-    let mut segment = if let Some(segment) =
-        cache_manager.get_segment(&req.namespace, &req.shard_name, req.segment_seq)
-    {
-        segment
-    } else {
-        return Err(MetaServiceError::SegmentDoesNotExist(format!(
-            "{}-{}",
-            req.shard_name, req.segment_seq
-        )));
-    };
+    let mut segment =
+        if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq) {
+            segment
+        } else {
+            return Err(MetaServiceError::SegmentDoesNotExist(format!(
+                "{}-{}",
+                req.shard_name, req.segment_seq
+            )));
+        };
 
     if segment.status != SegmentStatus::SealUp {
         return Err(MetaServiceError::NoAllowDeleteSegment(
@@ -202,16 +194,15 @@ pub async fn update_segment_status_req(
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentStatusRequest,
 ) -> Result<UpdateSegmentStatusReply, MetaServiceError> {
-    let mut segment = if let Some(segment) =
-        cache_manager.get_segment(&req.namespace, &req.shard_name, req.segment_seq)
-    {
-        segment
-    } else {
-        return Err(MetaServiceError::SegmentDoesNotExist(format!(
-            "{}_{}",
-            req.shard_name, req.segment_seq
-        )));
-    };
+    let mut segment =
+        if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq) {
+            segment
+        } else {
+            return Err(MetaServiceError::SegmentDoesNotExist(format!(
+                "{}_{}",
+                req.shard_name, req.segment_seq
+            )));
+        };
 
     if segment.status.to_string() != req.cur_status {
         return Err(MetaServiceError::SegmentStateError(
@@ -234,19 +225,16 @@ pub async fn list_segment_meta_by_req(
     req: &ListSegmentMetaRequest,
 ) -> Result<ListSegmentMetaReply, MetaServiceError> {
     let storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
-    let binary_segments =
-        if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            storage.all_segment()?
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            storage.list_by_namespace(&req.namespace)?
-        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
-            storage.list_by_shard(&req.namespace, &req.shard_name)?
-        } else {
-            match storage.get(&req.namespace, &req.shard_name, req.segment_no as u32)? {
-                Some(segment_meta) => vec![segment_meta],
-                None => Vec::new(),
-            }
-        };
+    let binary_segments = if req.shard_name.is_empty() && req.segment_no == -1 {
+        storage.all_segment()?
+    } else if !req.shard_name.is_empty() && req.segment_no == -1 {
+        storage.list_by_shard(&req.shard_name)?
+    } else {
+        match storage.get(&req.shard_name, req.segment_no as u32)? {
+            Some(segment_meta) => vec![segment_meta],
+            None => Vec::new(),
+        }
+    };
 
     let segments_data = binary_segments
         .into_iter()
@@ -265,14 +253,14 @@ pub async fn update_segment_meta_by_req(
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentMetaRequest,
 ) -> Result<UpdateSegmentMetaReply, MetaServiceError> {
-    if req.namespace.is_empty() || req.shard_name.is_empty() {
+    if req.shard_name.is_empty() {
         return Err(MetaServiceError::RequestParamsNotEmpty(
-            "namespace or shard_name".to_string(),
+            " shard_name".to_string(),
         ));
     }
 
     if cache_manager
-        .get_segment(&req.namespace, &req.shard_name, req.segment_no)
+        .get_segment(&req.shard_name, req.segment_no)
         .is_none()
     {
         return Err(MetaServiceError::SegmentDoesNotExist(format!(
@@ -281,16 +269,15 @@ pub async fn update_segment_meta_by_req(
         )));
     };
 
-    let mut segment_meta = if let Some(meta) =
-        cache_manager.get_segment_meta(&req.namespace, &req.shard_name, req.segment_no)
-    {
-        meta
-    } else {
-        return Err(MetaServiceError::SegmentMetaDoesNotExist(format!(
-            "{}_{}",
-            req.shard_name, req.segment_no
-        )));
-    };
+    let mut segment_meta =
+        if let Some(meta) = cache_manager.get_segment_meta(&req.shard_name, req.segment_no) {
+            meta
+        } else {
+            return Err(MetaServiceError::SegmentMetaDoesNotExist(format!(
+                "{}_{}",
+                req.shard_name, req.segment_no
+            )));
+        };
 
     if req.start_offset > 0 {
         segment_meta.start_offset = req.start_offset;
@@ -320,9 +307,7 @@ pub async fn build_segment(
     cache_manager: &Arc<CacheManager>,
     segment_no: u32,
 ) -> Result<JournalSegment, MetaServiceError> {
-    if let Some(segment) =
-        cache_manager.get_segment(&shard_info.namespace, &shard_info.shard_name, segment_no)
-    {
+    if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_no) {
         return Ok(segment);
     }
 
@@ -361,7 +346,6 @@ pub async fn build_segment(
     }
 
     Ok(JournalSegment {
-        namespace: shard_info.namespace.clone(),
         shard_name: shard_info.shard_name.clone(),
         leader_epoch: 0,
         status: SegmentStatus::Idle,

@@ -42,12 +42,10 @@ pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
 
 #[allow(dead_code)]
 pub fn test_build_segment() -> SegmentIdentity {
-    let namespace = unique_id();
     let shard_name = "s1".to_string();
     let segment_no = 10;
 
     SegmentIdentity {
-        namespace,
         shard_name,
         segment_seq: segment_no,
     }
@@ -78,7 +76,6 @@ pub async fn test_init_segment() -> (
     let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
     let segment = JournalSegment {
-        namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment_seq,
         replicas: vec![Replica {
@@ -98,7 +95,6 @@ pub async fn test_init_segment() -> (
         .unwrap();
 
     let segment_meta = JournalSegmentMetadata {
-        namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment_seq,
         ..Default::default()
@@ -146,7 +142,6 @@ pub async fn test_base_write_data(
     let producer_id = unique_id();
     for i in 0..len {
         data_list.push(JournalRecord {
-            namespace: segment_iden.namespace.clone(),
             shard_name: segment_iden.shard_name.clone(),
             segment: segment_iden.segment_seq,
             content: format!("data-{i}").encode_to_vec(),

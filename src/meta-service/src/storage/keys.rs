@@ -29,8 +29,8 @@ pub fn key_resource_config(resource_key: &str) -> String {
 }
 
 #[inline]
-pub fn key_offset(group: &str, namespace: &str, shard_name: &str) -> String {
-    format!("/meta/offset/{group}/{namespace}/{shard_name}")
+pub fn key_offset(group: &str, shard_name: &str) -> String {
+    format!("/meta/offset/{group}/{shard_name}")
 }
 
 #[inline]
@@ -40,13 +40,8 @@ pub fn key_offset_by_group(group: &str) -> String {
 
 /** ===========Journal========== */
 #[inline]
-pub fn key_shard(namespace: &str, shard_name: &str) -> String {
-    format!("/meta/journal/shard/{namespace}/{shard_name}")
-}
-
-#[inline]
-pub fn key_shard_namespace_prefix(namespace: &str) -> String {
-    format!("/meta/journal/shard/{namespace}/")
+pub fn key_shard(shard_name: &str) -> String {
+    format!("/meta/journal/shard/{shard_name}")
 }
 
 #[inline]
@@ -55,8 +50,8 @@ pub fn key_all_shard() -> &'static str {
 }
 
 #[inline]
-pub fn key_segment(namespace: &str, shard_name: &str, segment_seq: u32) -> String {
-    format!("/meta/journal/segment/{namespace}/{shard_name}/{segment_seq}")
+pub fn key_segment(shard_name: &str, segment_seq: u32) -> String {
+    format!("/meta/journal/segment/{shard_name}/{segment_seq}")
 }
 
 #[inline]
@@ -65,18 +60,13 @@ pub fn key_all_segment() -> &'static str {
 }
 
 #[inline]
-pub fn key_segment_namespace_prefix(namespace: &str) -> String {
-    format!("/meta/journal/segment/{namespace}/")
+pub fn key_segment_shard_prefix(shard_name: &str) -> String {
+    format!("/meta/journal/segment/{shard_name}/")
 }
 
 #[inline]
-pub fn key_segment_shard_prefix(namespace: &str, shard_name: &str) -> String {
-    format!("/meta/journal/segment/{namespace}/{shard_name}/")
-}
-
-#[inline]
-pub fn key_segment_metadata(namespace: &str, shard_name: &str, segment_seq: u32) -> String {
-    format!("/meta/journal/segmentmeta/{namespace}/{shard_name}/{segment_seq}")
+pub fn key_segment_metadata(shard_name: &str, segment_seq: u32) -> String {
+    format!("/meta/journal/segmentmeta/{shard_name}/{segment_seq}")
 }
 
 #[inline]
@@ -85,13 +75,8 @@ pub fn key_all_segment_metadata() -> &'static str {
 }
 
 #[inline]
-pub fn key_segment_metadata_namespace_prefix(namespace: &str) -> String {
-    format!("/meta/journal/segmentmeta/{namespace}/")
-}
-
-#[inline]
-pub fn key_segment_metadata_shard_prefix(namespace: &str, shard_name: &str) -> String {
-    format!("/meta/journal/segmentmeta/{namespace}/{shard_name}/")
+pub fn key_segment_metadata_shard_prefix(shard_name: &str) -> String {
+    format!("/meta/journal/segmentmeta/{shard_name}/")
 }
 
 /** ===========MQTT========== */

@@ -15,5 +15,7 @@
 pub mod common;
 pub mod node_test;
 // mod shard_test;
+mod config_test;
+mod offset_test;
 pub mod share_sub;
 mod topic_rewrite_rule;

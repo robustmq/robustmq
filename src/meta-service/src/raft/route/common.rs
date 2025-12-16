@@ -91,7 +91,6 @@ impl DataRouteCluster {
                 .offsets
                 .iter()
                 .map(|raw| OffsetData {
-                    namespace: raw.namespace.clone(),
                     group: offset_data.group.clone(),
                     shard_name: raw.shard_name.clone(),
                     offset: raw.offset,

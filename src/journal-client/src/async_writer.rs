@@ -156,7 +156,6 @@ impl AsyncWriter {
         let leader = get_segment_leader(
             &self.metadata_cache,
             &self.connection_manager,
-            &message.namespace,
             &message.shard_name,
         )
         .await;
@@ -301,11 +300,7 @@ fn build_send_data(
     // build data by namespace&shard_name&segment
     let mut segment_data_list: HashMap<String, Vec<DataSenderPkg>> = HashMap::new();
     for pkg in messages.iter() {
-        let key = segment_name(
-            &pkg.message.namespace,
-            &pkg.message.shard_name,
-            pkg.message.segment,
-        );
+        let key = segment_name(&pkg.message.shard_name, pkg.message.segment);
         if let Some(list) = segment_data_list.get_mut(&key) {
             list.push(pkg.to_owned());
         } else {
@@ -348,7 +343,6 @@ fn build_send_data(
         }
 
         let msg = WriteReqSegmentMessages {
-            namespace,
             shard_name,
             segment,
             messages: write_req_segment_messages,

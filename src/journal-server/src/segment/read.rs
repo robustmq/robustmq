@@ -38,14 +38,12 @@ pub async fn read_data_req(
     let mut results = Vec::new();
     for raw in req_body.messages.iter() {
         let mut shard_message = ReadRespSegmentMessage {
-            namespace: raw.namespace.to_string(),
             shard_name: raw.shard_name.to_string(),
             segment: raw.segment,
             ..Default::default()
         };
 
         let segment_iden = SegmentIdentity {
-            namespace: raw.namespace.to_string(),
             shard_name: raw.shard_name.to_string(),
             segment_seq: raw.segment,
         };
@@ -66,7 +64,6 @@ pub async fn read_data_req(
         };
 
         let segment_file = SegmentFile::new(
-            segment_iden.namespace.clone(),
             segment_iden.shard_name.clone(),
             segment_iden.segment_seq,
             fold,
@@ -243,7 +240,6 @@ mod tests {
         let (segment_iden, _, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
 
         let segment_file = SegmentFile::new(
-            segment_iden.namespace.clone(),
             segment_iden.shard_name.clone(),
             segment_iden.segment_seq,
             fold,
@@ -321,7 +317,6 @@ mod tests {
         sleep(Duration::from_secs(10)).await;
 
         let segment_file = SegmentFile::new(
-            segment_iden.namespace.clone(),
             segment_iden.shard_name.clone(),
             segment_iden.segment_seq,
             fold,
@@ -370,7 +365,6 @@ mod tests {
         sleep(Duration::from_secs(10)).await;
 
         let segment_file = SegmentFile::new(
-            segment_iden.namespace.clone(),
             segment_iden.shard_name.clone(),
             segment_iden.segment_seq,
             fold,
@@ -421,7 +415,6 @@ mod tests {
         // offset
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
-                namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 ready_type: ReadType::Offset.into(),
@@ -460,7 +453,6 @@ mod tests {
         let key = format!("key-{}", 1);
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
-                namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 ready_type: ReadType::Key.into(),
@@ -496,7 +488,6 @@ mod tests {
         let tag = format!("tag-{}", 1);
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
-                namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 ready_type: ReadType::Tag.into(),

@@ -155,7 +155,6 @@ pub async fn get_offset_data_by_req(
     let offsets = offset_data
         .into_iter()
         .map(|offset| GetOffsetDataReplyOffset {
-            namespace: offset.namespace,
             shard_name: offset.shard_name,
             offset: offset.offset,
         })

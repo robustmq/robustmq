@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::storage::ShardOffset;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
@@ -22,8 +23,6 @@ use protocol::meta::meta_service_common::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-
-use crate::storage::ShardOffset;
 
 #[derive(Clone)]
 pub struct OffsetStorageManager {
@@ -65,7 +64,6 @@ impl OffsetStorageManager {
         let offsets = offset
             .iter()
             .map(|(key, value)| SaveOffsetDataRequestOffset {
-                namespace: "".to_string(),
                 shard_name: key.to_string(),
                 offset: *value,
             })
@@ -91,7 +89,6 @@ impl OffsetStorageManager {
                 .value()
                 .iter()
                 .map(|shard_offset| SaveOffsetDataRequestOffset {
-                    namespace: "".to_string(),
                     shard_name: shard_offset.shard_name.to_string(),
                     offset: shard_offset.offset,
                 })

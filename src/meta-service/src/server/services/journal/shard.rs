@@ -42,12 +42,10 @@ pub async fn list_shard_by_req(
     req: &ListShardRequest,
 ) -> Result<ListShardReply, MetaServiceError> {
     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
-    let binary_shards = if req.namespace.is_empty() && req.shard_name.is_empty() {
+    let binary_shards = if req.shard_name.is_empty() {
         shard_storage.all_shard()?
-    } else if !req.namespace.is_empty() && req.shard_name.is_empty() {
-        shard_storage.list_by_namespace(&req.namespace)?
     } else {
-        match shard_storage.get(&req.namespace, &req.shard_name)? {
+        match shard_storage.get(&req.shard_name)? {
             Some(shard) => vec![shard],
             None => Vec::new(),
         }
@@ -83,12 +81,11 @@ pub async fn create_shard_by_req(
         ));
     }
 
-    let shard = if let Some(shard) = cache_manager.get_shard(&req.namespace, &req.shard_name) {
+    let shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
         shard
     } else {
         let shard = JournalShard {
             shard_uid: unique_id(),
-            namespace: req.namespace.clone(),
             shard_name: req.shard_name.clone(),
             start_segment_seq: 0,
             active_segment_seq: 0,
@@ -103,11 +100,9 @@ pub async fn create_shard_by_req(
         shard
     };
 
-    let mut segment = if let Some(segment) = cache_manager.get_segment(
-        &shard.namespace,
-        &shard.shard_name,
-        shard.active_segment_seq,
-    ) {
+    let mut segment = if let Some(segment) =
+        cache_manager.get_segment(&shard.shard_name, shard.active_segment_seq)
+    {
         segment
     } else {
         let segment = build_segment(&shard, cache_manager, 0).await?;
@@ -115,7 +110,6 @@ pub async fn create_shard_by_req(
         sync_save_segment_info(raft_manager, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
-            namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
             start_offset: 0,
@@ -150,7 +144,7 @@ pub async fn delete_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, MetaServiceError> {
-    let mut shard = if let Some(shard) = cache_manager.get_shard(&req.namespace, &req.shard_name) {
+    let mut shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
         shard
     } else {
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));

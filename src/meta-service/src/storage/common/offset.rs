@@ -27,7 +27,6 @@ use std::sync::Arc;
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct OffsetData {
     pub group: String,
-    pub namespace: String,
     pub shard_name: String,
     pub offset: u64,
     pub timestamp: u64,
@@ -51,11 +50,10 @@ impl OffsetStorage {
         let mut batch = rocksdb::WriteBatch::default();
         let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_META_DATA)?;
         for offset in offsets {
-            let key = key_offset(&offset.group, &offset.namespace, &offset.shard_name);
+            let key = key_offset(&offset.group, &offset.shard_name);
 
             let offset_data = OffsetData {
                 group: offset.group.clone(),
-                namespace: offset.namespace.clone(),
                 shard_name: offset.shard_name.clone(),
                 offset: offset.offset,
                 timestamp: now_second(),
@@ -66,13 +64,8 @@ impl OffsetStorage {
         Ok(())
     }
 
-    pub fn delete(
-        &self,
-        group: &str,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Result<(), CommonError> {
-        let key = key_offset(group, namespace, shard_name);
+    pub fn delete(&self, group: &str, shard_name: &str) -> Result<(), CommonError> {
+        let key = key_offset(group, shard_name);
         engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)
     }
 
@@ -93,10 +86,9 @@ mod tests {
     use super::*;
     use rocksdb_engine::test::test_rocksdb_instance;
 
-    fn create_offset_data(group: &str, namespace: &str, shard: &str, offset: u64) -> OffsetData {
+    fn create_offset_data(group: &str, shard: &str, offset: u64) -> OffsetData {
         OffsetData {
             group: group.to_string(),
-            namespace: namespace.to_string(),
             shard_name: shard.to_string(),
             offset,
             timestamp: now_second(),
@@ -110,8 +102,8 @@ mod tests {
 
         // Batch save two offsets
         let offsets = vec![
-            create_offset_data(group, "namespace1", "shard1", 100),
-            create_offset_data(group, "namespace2", "shard1", 200),
+            create_offset_data(group, "shard1", 100),
+            create_offset_data(group, "shard1", 200),
         ];
         storage.save(&offsets).unwrap();
 
@@ -129,14 +121,14 @@ mod tests {
 
         // Save
         let offsets = vec![
-            create_offset_data(group, "namespace1", "shard1", 100),
-            create_offset_data(group, "namespace2", "shard1", 200),
+            create_offset_data(group, "shard1", 100),
+            create_offset_data(group, "shard1", 200),
         ];
         storage.save(&offsets).unwrap();
         assert_eq!(storage.group_offset(group).unwrap().len(), 2);
 
         // Delete one
-        storage.delete(group, "namespace2", "shard1").unwrap();
+        storage.delete(group, "shard1").unwrap();
 
         let remaining = storage.group_offset(group).unwrap();
         assert_eq!(remaining.len(), 1);

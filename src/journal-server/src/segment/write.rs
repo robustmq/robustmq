@@ -67,17 +67,12 @@ pub async fn write_data_req(
     let mut results = Vec::new();
     for shard_data in req_body.data.clone() {
         let mut resp_message = WriteRespMessage {
-            namespace: shard_data.namespace.clone(),
             shard_name: shard_data.shard_name.clone(),
             segment: shard_data.segment,
             ..Default::default()
         };
 
-        let segment_iden = SegmentIdentity::new(
-            &shard_data.namespace,
-            &shard_data.shard_name,
-            shard_data.segment,
-        );
+        let segment_iden = SegmentIdentity::new(&shard_data.shard_name, shard_data.segment);
 
         let mut record_list = Vec::new();
         for message in shard_data.messages.iter() {
@@ -86,7 +81,6 @@ pub async fn write_data_req(
                 content: message.value.clone(),
                 create_time: now_second(),
                 key: message.key.clone(),
-                namespace: shard_data.namespace.clone(),
                 shard_name: shard_data.shard_name.clone(),
                 segment: shard_data.segment,
                 tags: message.tags.clone(),
@@ -445,11 +439,7 @@ async fn write_validator(
     local_segment_end_offset: u64,
     packet_len: u64,
 ) -> Result<(), JournalServerError> {
-    let segment_iden = SegmentIdentity::new(
-        &segment_write.namespace,
-        &segment_write.shard_name,
-        segment_write.segment_no,
-    );
+    let segment_iden = SegmentIdentity::new(&segment_write.shard_name, segment_write.segment_no);
 
     let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
         segment
@@ -530,7 +520,6 @@ mod tests {
         let producer_id = unique_id();
         for i in 0..10 {
             data_list.push(JournalRecord {
-                namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 content: format!("data-{i}").encode_to_vec(),
@@ -559,7 +548,6 @@ mod tests {
         let mut data_list = Vec::new();
         for i in 10..20 {
             data_list.push(JournalRecord {
-                namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 content: format!("data-{i}").encode_to_vec(),

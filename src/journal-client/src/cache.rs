@@ -12,25 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::connection::ConnectionManager;
+use crate::error::JournalClientError;
+use crate::service::{get_cluster_metadata, get_shard_metadata};
 use dashmap::DashMap;
 use metadata_struct::journal::segment::segment_name;
-use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal::journal_engine::{
     ClientSegmentMetadata, GetClusterMetadataNode, GetShardMetadataReqShard,
     GetShardMetadataRespShard,
 };
 use rand::Rng;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 use tracing::error;
-
-use crate::connection::ConnectionManager;
-use crate::error::JournalClientError;
-use crate::service::{get_cluster_metadata, get_shard_metadata};
 
 #[derive(Default, Debug)]
 pub struct MetadataCache {
@@ -65,36 +62,32 @@ impl MetadataCache {
         self.addrs[rng.gen_range(0..self.addrs.len())].clone()
     }
 
-    pub fn get_shard(&self, namespace: &str, shard: &str) -> Option<GetShardMetadataRespShard> {
-        if let Some(shard) = self.shards.get(&shard_name_iden(namespace, shard)) {
+    pub fn get_shard(&self, shard: &str) -> Option<GetShardMetadataRespShard> {
+        if let Some(shard) = self.shards.get(shard) {
             return Some(shard.clone());
         }
         None
     }
     pub fn add_shard(&self, shard: GetShardMetadataRespShard) {
-        self.shards
-            .insert(shard_name_iden(&shard.namespace, &shard.shard), shard);
+        self.shards.insert(shard.shard.clone(), shard);
     }
 
-    pub fn get_active_segment(&self, namespace: &str, shard: &str) -> Option<u32> {
-        let key = shard_name_iden(namespace, shard);
-        if let Some(shard) = self.shards.get(&key) {
+    pub fn get_active_segment(&self, shard: &str) -> Option<u32> {
+        if let Some(shard) = self.shards.get(shard) {
             return Some(shard.active_segment as u32);
         }
         None
     }
 
-    pub fn get_segment_leader(&self, namespace: &str, shard: &str) -> Option<u32> {
-        let key = shard_name_iden(namespace, shard);
-        if let Some(shard) = self.shards.get(&key) {
+    pub fn get_segment_leader(&self, shard: &str) -> Option<u32> {
+        if let Some(shard) = self.shards.get(shard) {
             return Some(shard.active_segment_leader as u32);
         }
         None
     }
 
-    pub fn get_leader_by_segment(&self, namespace: &str, shard: &str, segment: u32) -> Option<u64> {
-        let key = shard_name_iden(namespace, shard);
-        if let Some(shard) = self.shards.get(&key) {
+    pub fn get_leader_by_segment(&self, shard: &str, segment: u32) -> Option<u64> {
+        if let Some(shard) = self.shards.get(shard) {
             for meta in shard.segments.iter() {
                 if meta.segment_no == segment {
                     return Some(meta.leader);
@@ -104,8 +97,8 @@ impl MetadataCache {
         None
     }
 
-    pub fn remove_shard(&self, namespace: &str, shard: &str) {
-        self.shards.remove(&shard_name_iden(namespace, shard));
+    pub fn remove_shard(&self, shard: &str) {
+        self.shards.remove(shard);
     }
 
     pub fn add_node(&self, node: GetClusterMetadataNode) {
@@ -122,7 +115,6 @@ impl MetadataCache {
         let mut results = Vec::new();
         for raw in self.shards.iter() {
             results.push(GetShardMetadataRespShard {
-                namespace: raw.namespace.clone(),
                 shard: raw.shard.clone(),
                 ..Default::default()
             });
@@ -140,11 +132,9 @@ impl MetadataCache {
 pub async fn load_shards_cache(
     metadata_cache: &Arc<MetadataCache>,
     connection_manager: &Arc<ConnectionManager>,
-    namespace: &str,
     shard_name: &str,
 ) -> Result<(), JournalClientError> {
     let shards = vec![GetShardMetadataReqShard {
-        namespace: namespace.to_owned(),
         shard_name: shard_name.to_owned(),
     }];
     let resp = get_shard_metadata(connection_manager, shards).await?;
@@ -200,16 +190,10 @@ async fn update_cache(
 
     // update shard cache
     for shard in metadata_cache.all_shards() {
-        if let Err(e) = load_shards_cache(
-            &metadata_cache,
-            &connection_manager,
-            &shard.namespace,
-            &shard.shard,
-        )
-        .await
+        if let Err(e) = load_shards_cache(&metadata_cache, &connection_manager, &shard.shard).await
         {
             if e.to_string().contains("does not exist") && e.to_string().contains("Shard") {
-                metadata_cache.remove_shard(&shard.namespace, &shard.shard);
+                metadata_cache.remove_shard(&shard.shard);
             } else {
                 error!(
                     "Failed to update shard cache periodically with error message :{}",
@@ -223,28 +207,22 @@ async fn update_cache(
 pub async fn get_active_segment(
     metadata_cache: &Arc<MetadataCache>,
     connection_manager: &Arc<ConnectionManager>,
-    namespace: &str,
     shard_name: &str,
 ) -> u32 {
     loop {
-        let active_segment = if let Some(segment) =
-            metadata_cache.get_active_segment(namespace, shard_name)
-        {
+        let active_segment = if let Some(segment) = metadata_cache.get_active_segment(shard_name) {
             segment
         } else {
-            if let Err(e) =
-                load_shards_cache(metadata_cache, connection_manager, namespace, shard_name).await
+            if let Err(e) = load_shards_cache(metadata_cache, connection_manager, shard_name).await
             {
                 error!(
                     "Loading Shard {} Metadata info failed, error message :{}",
-                    shard_name_iden(namespace, shard_name,),
-                    e
+                    shard_name, e
                 );
             }
             error!(
                 "{}",
-                JournalClientError::NotActiveSegment(shard_name_iden(namespace, shard_name))
-                    .to_string()
+                JournalClientError::NotActiveSegment(shard_name.to_string()).to_string()
             );
             sleep(Duration::from_millis(100)).await;
             continue;
@@ -256,30 +234,24 @@ pub async fn get_active_segment(
 pub async fn get_segment_leader(
     metadata_cache: &Arc<MetadataCache>,
     connection_manager: &Arc<ConnectionManager>,
-    namespace: &str,
     shard_name: &str,
 ) -> u64 {
-    let active_segment =
-        get_active_segment(metadata_cache, connection_manager, namespace, shard_name).await;
+    let active_segment = get_active_segment(metadata_cache, connection_manager, shard_name).await;
 
     loop {
-        let leader = if let Some(leader) = metadata_cache.get_segment_leader(namespace, shard_name)
-        {
+        let leader = if let Some(leader) = metadata_cache.get_segment_leader(shard_name) {
             leader
         } else {
-            if let Err(e) =
-                load_shards_cache(metadata_cache, connection_manager, namespace, shard_name).await
+            if let Err(e) = load_shards_cache(metadata_cache, connection_manager, shard_name).await
             {
                 error!(
                     "Loading Shard {} Metadata info failed, error message :{}",
-                    shard_name_iden(namespace, shard_name),
-                    e
+                    shard_name, e
                 );
             }
             error!(
                 "{}",
-                JournalClientError::NotLeader(segment_name(namespace, shard_name, active_segment))
-                    .to_string()
+                JournalClientError::NotLeader(segment_name(shard_name, active_segment)).to_string()
             );
             sleep(Duration::from_millis(100)).await;
             continue;
@@ -291,28 +263,24 @@ pub async fn get_segment_leader(
 pub async fn get_metadata_by_shard(
     metadata_cache: &Arc<MetadataCache>,
     connection_manager: &Arc<ConnectionManager>,
-    namespace: &str,
     shard_name: &str,
 ) -> Vec<ClientSegmentMetadata> {
     loop {
         let shard: GetShardMetadataRespShard = if let Some(shard) =
-            metadata_cache.get_shard(namespace, shard_name)
+            metadata_cache.get_shard(shard_name)
         {
             shard
         } else {
-            if let Err(e) =
-                load_shards_cache(metadata_cache, connection_manager, namespace, shard_name).await
+            if let Err(e) = load_shards_cache(metadata_cache, connection_manager, shard_name).await
             {
                 error!(
                     "Loading Shard {} Metadata info failed, error message :{}",
-                    shard_name_iden(namespace, shard_name),
-                    e
+                    shard_name, e
                 );
             }
             error!(
                 "{}",
-                JournalClientError::NotShardMetadata(shard_name_iden(namespace, shard_name,))
-                    .to_string()
+                JournalClientError::NotShardMetadata(shard_name.to_string()).to_string()
             );
             sleep(Duration::from_millis(100)).await;
             continue;

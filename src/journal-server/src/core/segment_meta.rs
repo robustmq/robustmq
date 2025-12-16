@@ -48,7 +48,6 @@ pub async fn update_meta_start_timestamp(
     let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
-        namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
         start_offset: -1,
@@ -71,7 +70,6 @@ pub async fn update_meta_end_timestamp(
 
         if file.end_timestamp > 0 {
             let request = UpdateSegmentMetaRequest {
-                namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment_no: next_segment_no,
                 start_offset: -1,
@@ -95,7 +93,6 @@ async fn update_meta_start_offset(
     let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
-        namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
         start_offset,
@@ -115,7 +112,6 @@ async fn update_meta_end_offset(
     let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
-        namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
         start_offset: -1,

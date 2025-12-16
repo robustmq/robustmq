@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::cluster_config::JournalEngineClusterConfig;
+use crate::index::build::IndexBuildThreadData;
+use crate::segment::write::SegmentWrite;
+use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
@@ -22,18 +24,14 @@ use grpc_clients::meta::journal::call::{list_segment, list_segment_meta, list_sh
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::{shard_name_iden, JournalShard};
+use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::meta::node::BrokerNode;
 use protocol::meta::meta_service_common::NodeListRequest;
 use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
+use std::sync::Arc;
 use tracing::{error, info};
-
-use super::cluster_config::JournalEngineClusterConfig;
-use crate::index::build::IndexBuildThreadData;
-use crate::segment::write::SegmentWrite;
-use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct CacheManager {
@@ -140,28 +138,22 @@ impl CacheManager {
 
     // Shard
     pub fn set_shard(&self, shard: JournalShard) {
-        let key = shard_name_iden(&shard.namespace, &shard.shard_name);
-        self.shards.insert(key, shard);
+        self.shards.insert(shard.shard_name.clone(), shard);
     }
 
-    pub fn get_shard(&self, namespace: &str, shard_name: &str) -> Option<JournalShard> {
-        let key = shard_name_iden(namespace, shard_name);
-        if let Some(shard) = self.shards.get(&key) {
+    pub fn get_shard(&self, shard_name: &str) -> Option<JournalShard> {
+        if let Some(shard) = self.shards.get(shard_name) {
             return Some(shard.clone());
         }
         None
     }
 
-    pub fn delete_shard(&self, namespace: &str, shard_name: &str) {
-        self.shards.remove(&shard_name_iden(namespace, shard_name));
+    pub fn delete_shard(&self, shard_name: &str) {
+        self.shards.remove(shard_name);
     }
 
     pub fn get_shards(&self) -> Vec<JournalShard> {
-        let mut results = Vec::new();
-        for raw in self.shards.iter() {
-            results.push(raw.value().clone());
-        }
-        results
+        self.shards.iter().map(|raw| raw.value().clone()).collect()
     }
 
     pub fn get_shards_by_namespace(&self, namespace: &str) -> Vec<JournalShard> {
@@ -175,11 +167,9 @@ impl CacheManager {
         results
     }
 
-    pub fn get_active_segment(&self, namespace: &str, shard_name: &str) -> Option<JournalSegment> {
-        let key = shard_name_iden(namespace, shard_name);
-        if let Some(shard) = self.shards.get(&key) {
+    pub fn get_active_segment(&self, shard_name: &str) -> Option<JournalSegment> {
+        if let Some(shard) = self.shards.get(shard_name) {
             let segment_iden = SegmentIdentity {
-                namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_seq: shard.active_segment_seq,
             };
@@ -193,21 +183,18 @@ impl CacheManager {
 
     // Segment
     pub fn set_segment(&self, segment: JournalSegment) {
-        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
-
-        if let Some(segment_list) = self.segments.get(&key) {
+        if let Some(segment_list) = self.segments.get(&segment.shard_name) {
             segment_list.insert(segment.segment_seq, segment.clone());
         } else {
             let data = DashMap::with_capacity(2);
             data.insert(segment.segment_seq, segment.clone());
-            self.segments.insert(key, data);
+            self.segments.insert(segment.shard_name.clone(), data);
         }
 
         // add to leader
         let conf = broker_config();
         if segment.leader == conf.broker_id {
             self.add_leader_segment(&SegmentIdentity {
-                namespace: segment.namespace,
                 shard_name: segment.shard_name,
                 segment_seq: segment.segment_seq,
             });
@@ -216,13 +203,12 @@ impl CacheManager {
 
     pub fn delete_segment(&self, segment: &SegmentIdentity) {
         // delete segment
-        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
-        if let Some(list) = self.segments.get(&key) {
+        if let Some(list) = self.segments.get(&segment.shard_name) {
             list.remove(&segment.segment_seq);
         }
 
         // delete segment_metadatas
-        if let Some(list) = self.segment_metadatas.get(&key) {
+        if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
             list.remove(&segment.segment_seq);
         }
 
@@ -230,14 +216,14 @@ impl CacheManager {
         self.remove_leader_segment(segment);
 
         // delete index build thread by segment
-        if let Some(data) = self.segment_index_build_thread.get(&key) {
+        if let Some(data) = self.segment_index_build_thread.get(&segment.shard_name) {
             if let Err(e) = data.stop_send.send(true) {
                 error!("Trying to stop the index building thread for segment {} failed with error message:{}", segment.name(),e);
             }
         }
 
         // delete write thread by segment
-        if let Some(write) = self.segment_writes.get(&key) {
+        if let Some(write) = self.segment_writes.get(&segment.shard_name) {
             if let Err(e) = write.stop_sender.send(true) {
                 error!("Trying to stop the segment write thread for segment {} failed with error message:{}", segment.name(),e);
             }
@@ -245,8 +231,7 @@ impl CacheManager {
     }
 
     pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<JournalSegment> {
-        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
-        if let Some(sgement_list) = self.segments.get(&key) {
+        if let Some(sgement_list) = self.segments.get(&segment.shard_name) {
             if let Some(segment) = sgement_list.get(&segment.segment_seq) {
                 return Some(segment.clone());
             }
@@ -254,13 +239,9 @@ impl CacheManager {
         None
     }
 
-    pub fn get_segments_list_by_shard(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Vec<JournalSegment> {
+    pub fn get_segments_list_by_shard(&self, shard_name: &str) -> Vec<JournalSegment> {
         let mut results = Vec::new();
-        if let Some(sgement_list) = self.segments.get(&shard_name_iden(namespace, shard_name)) {
+        if let Some(sgement_list) = self.segments.get(shard_name) {
             for raw in sgement_list.iter() {
                 results.push(raw.value().clone());
             }
@@ -269,10 +250,7 @@ impl CacheManager {
     }
 
     pub fn update_segment_status(&self, segment_iden: &SegmentIdentity, status: SegmentStatus) {
-        if let Some(sgement_list) = self.segments.get(&shard_name_iden(
-            &segment_iden.namespace,
-            &segment_iden.shard_name,
-        )) {
+        if let Some(sgement_list) = self.segments.get(&segment_iden.shard_name) {
             if let Some(mut segment) = sgement_list.get_mut(&segment_iden.segment_seq) {
                 segment.status = status;
             }
@@ -281,13 +259,13 @@ impl CacheManager {
 
     // Segment Meta
     pub fn set_segment_meta(&self, segment: JournalSegmentMetadata) {
-        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
-        if let Some(list) = self.segment_metadatas.get(&key) {
+        if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
             list.insert(segment.segment_seq, segment);
         } else {
             let data = DashMap::with_capacity(2);
-            data.insert(segment.segment_seq, segment);
-            self.segment_metadatas.insert(key, data);
+            data.insert(segment.segment_seq, segment.clone());
+            self.segment_metadatas
+                .insert(segment.shard_name.clone(), data);
         }
     }
 
@@ -295,8 +273,7 @@ impl CacheManager {
         &self,
         segment_iden: &SegmentIdentity,
     ) -> Option<JournalSegmentMetadata> {
-        let key = shard_name_iden(&segment_iden.namespace, &segment_iden.shard_name);
-        if let Some(list) = self.segment_metadatas.get(&key) {
+        if let Some(list) = self.segment_metadatas.get(&segment_iden.shard_name) {
             if let Some(segment) = list.get(&segment_iden.segment_seq) {
                 return Some(segment.clone());
             }

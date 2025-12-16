@@ -19,7 +19,6 @@ use common_base::tools::now_millis;
 use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::journal::segment::segment_name;
-use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal::journal_engine::{
     FetchOffsetReqBody, FetchOffsetShard, ReadReqBody, ReadReqFilter, ReadReqMessage,
     ReadReqOptions, ReadType,
@@ -36,14 +35,12 @@ use crate::service::{batch_read, fetch_offset};
 
 #[derive(Clone)]
 pub struct ReadShardByOffset {
-    pub namespace: String,
     pub shard_name: String,
     pub offset: u64,
 }
 
 #[derive(Clone)]
 pub struct ReadMessageData {
-    pub namespace: String,
     pub shard_name: String,
     pub segment: u32,
     pub offset: u64,
@@ -166,7 +163,6 @@ pub async fn async_read_data_by_offset(
         let mut messages = Vec::new();
         for raw in shards {
             messages.push(ReadReqMessage {
-                namespace: raw.1.namespace,
                 shard_name: raw.1.shard_name,
                 segment: raw.0,
                 ready_type: ReadType::Offset.into(),
@@ -186,7 +182,6 @@ pub async fn async_read_data_by_offset(
         for shard_data in result.messages {
             for message in shard_data.messages {
                 let val = ReadMessageData {
-                    namespace: shard_data.namespace.clone(),
                     shard_name: shard_data.shard_name.clone(),
                     segment: shard_data.segment,
                     offset: message.offset,
@@ -215,7 +210,6 @@ pub async fn async_read_data_by_key(
         let mut messages = Vec::new();
         for raw in shards {
             messages.push(ReadReqMessage {
-                namespace: raw.1.namespace,
                 shard_name: raw.1.shard_name,
                 segment: raw.0,
                 ready_type: ReadType::Key.into(),
@@ -236,7 +230,6 @@ pub async fn async_read_data_by_key(
         for shard_data in result.messages {
             for message in shard_data.messages {
                 let val = ReadMessageData {
-                    namespace: shard_data.namespace.clone(),
                     shard_name: shard_data.shard_name.clone(),
                     segment: shard_data.segment,
                     offset: message.offset,
@@ -265,7 +258,6 @@ pub async fn async_read_data_by_tag(
         let mut messages = Vec::new();
         for raw in shards {
             messages.push(ReadReqMessage {
-                namespace: raw.1.namespace,
                 shard_name: raw.1.shard_name,
                 segment: raw.0,
                 ready_type: ReadType::Tag.into(),
@@ -286,7 +278,6 @@ pub async fn async_read_data_by_tag(
         for shard_data in result.messages {
             for message in shard_data.messages {
                 let val = ReadMessageData {
-                    namespace: shard_data.namespace.clone(),
                     shard_name: shard_data.shard_name.clone(),
                     segment: shard_data.segment,
                     offset: message.offset,
@@ -309,20 +300,10 @@ async fn group_by_reader_leader(
 ) -> DashMap<u64, Vec<(u32, ReadShardByOffset)>> {
     let result: DashMap<u64, Vec<(u32, ReadShardByOffset)>> = DashMap::with_capacity(2);
     for shard in shards {
-        let segment = get_active_segment(
-            metadata_cache,
-            connection_manager,
-            &shard.namespace,
-            &shard.shard_name,
-        )
-        .await;
-        let leader = get_segment_leader(
-            metadata_cache,
-            connection_manager,
-            &shard.namespace,
-            &shard.shard_name,
-        )
-        .await;
+        let segment =
+            get_active_segment(metadata_cache, connection_manager, &shard.shard_name).await;
+        let leader =
+            get_segment_leader(metadata_cache, connection_manager, &shard.shard_name).await;
         if let Some(mut node) = result.get_mut(&leader) {
             node.push((segment, shard.to_owned()));
         } else {
@@ -335,17 +316,13 @@ async fn group_by_reader_leader(
 pub async fn fetch_offset_by_timestamp(
     connection_manager: &Arc<ConnectionManager>,
     metadata_cache: &Arc<MetadataCache>,
-    namespace: &str,
     shard_name: &str,
     timestamp: u64,
 ) -> Result<(u32, u64), JournalClientError> {
-    let metadatas =
-        get_metadata_by_shard(metadata_cache, connection_manager, namespace, shard_name).await;
+    let metadatas = get_metadata_by_shard(metadata_cache, connection_manager, shard_name).await;
 
     if metadatas.is_empty() {
-        return Err(JournalClientError::NotShardMetadata(shard_name_iden(
-            namespace, shard_name,
-        )));
+        return Err(JournalClientError::NotShardMetadata(shard_name.to_string()));
     }
 
     let first = metadatas.first().unwrap();
@@ -369,19 +346,16 @@ pub async fn fetch_offset_by_timestamp(
         }
     };
 
-    let node_id = if let Some(node_id) =
-        metadata_cache.get_leader_by_segment(namespace, shard_name, segment)
-    {
+    let node_id = if let Some(node_id) = metadata_cache.get_leader_by_segment(shard_name, segment) {
         node_id
     } else {
         return Err(JournalClientError::NotLeader(segment_name(
-            namespace, shard_name, segment,
+            shard_name, segment,
         )));
     };
 
     let body = FetchOffsetReqBody {
         shards: vec![FetchOffsetShard {
-            namespace: namespace.to_owned(),
             shard_name: shard_name.to_owned(),
             segment_no: segment,
             timestamp,

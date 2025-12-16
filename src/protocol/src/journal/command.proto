@@ -22,7 +22,7 @@ service JournalServerAdminService {
 }
 
 message ListShardRequest {
-  string namespace = 1;
+
   string shard_name = 2;
 }
 
@@ -31,7 +31,7 @@ message ListShardReply {
 }
 
 message ListSegmentRequest {
-  string namespace = 1;
+
   string shard_name = 2;
   int32 segment_no = 3;
 }

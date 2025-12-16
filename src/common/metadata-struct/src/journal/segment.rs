@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 /// A struct used for segment status transition in the meta service.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct JournalSegment {
-    pub namespace: String,
     pub shard_name: String,
     pub segment_seq: u32,
     pub replicas: Vec<Replica>,
@@ -46,10 +45,7 @@ impl JournalSegment {
     }
 
     pub fn name(&self) -> String {
-        format!(
-            "{},{},{}",
-            self.namespace, self.shard_name, self.segment_seq
-        )
+        format!("{},{}", self.shard_name, self.segment_seq)
     }
 
     pub fn encode(&self) -> Result<Vec<u8>, common_base::error::common::CommonError> {
@@ -61,8 +57,8 @@ impl JournalSegment {
     }
 }
 
-pub fn segment_name(namespace: &str, shard_name: &str, segment_no: u32) -> String {
-    format!("{namespace},{shard_name},{segment_no}")
+pub fn segment_name(shard_name: &str, segment_no: u32) -> String {
+    format!("{shard_name},{segment_no}")
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]

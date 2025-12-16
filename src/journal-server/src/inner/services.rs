@@ -79,8 +79,7 @@ pub async fn delete_segment_file_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, JournalServerError> {
-    let segment_iden =
-        SegmentIdentity::new(&request.namespace, &request.shard_name, request.segment);
+    let segment_iden = SegmentIdentity::new(&request.shard_name, request.segment);
     delete_local_segment(
         cache_manager,
         rocksdb_engine_handler,

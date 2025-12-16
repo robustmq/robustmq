@@ -34,14 +34,14 @@ message UpdateJournalCacheRequest {
 message UpdateJournalCacheReply {}
 
 message DeleteShardFileRequest {
-  string namespace = 2;
+
   string shard_name = 3;
 }
 
 message DeleteShardFileReply {}
 
 message GetShardDeleteStatusRequest {
-  string namespace = 2;
+
   string shard_name = 3;
 }
 
@@ -50,7 +50,7 @@ message GetShardDeleteStatusReply {
 }
 
 message DeleteSegmentFileRequest {
-  string namespace = 2;
+
   string shard_name = 3;
   uint32 segment = 4;
 }
@@ -58,7 +58,7 @@ message DeleteSegmentFileRequest {
 message DeleteSegmentFileReply {}
 
 message GetSegmentDeleteStatusRequest {
-  string namespace = 2;
+
   string shard_name = 3;
   uint32 segment = 4;
 }

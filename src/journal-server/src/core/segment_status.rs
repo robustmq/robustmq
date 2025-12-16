@@ -71,7 +71,6 @@ async fn update_segment_status_to_pre_write(
 
         // update meta status
         let request = UpdateSegmentStatusRequest {
-            namespace: segment_iden.namespace.to_string(),
             shard_name: segment_iden.shard_name.to_string(),
             segment_seq: segment_iden.segment_seq,
             cur_status: segment.status.to_string(),
@@ -98,7 +97,6 @@ async fn update_segment_status_to_write(
 
         // update meta status
         let request = UpdateSegmentStatusRequest {
-            namespace: segment_iden.namespace.to_string(),
             shard_name: segment_iden.shard_name.to_string(),
             segment_seq: segment_iden.segment_seq,
             cur_status: segment.status.to_string(),
@@ -127,7 +125,6 @@ async fn update_segment_status_to_pre_seal_up(
 
         // update meta status
         let request = UpdateSegmentStatusRequest {
-            namespace: segment_iden.namespace.to_string(),
             shard_name: segment_iden.shard_name.to_string(),
             segment_seq: segment_iden.segment_seq,
             cur_status: segment.status.to_string(),
@@ -157,7 +154,6 @@ async fn update_segment_status_to_seal_up(
 
         // update meta status
         let request = UpdateSegmentStatusRequest {
-            namespace: segment_iden.namespace.to_string(),
             shard_name: segment_iden.shard_name.to_string(),
             segment_seq: segment_iden.segment_seq,
             cur_status: segment.status.to_string(),

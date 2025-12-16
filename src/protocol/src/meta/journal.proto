@@ -38,7 +38,6 @@ service EngineService {
 }
 
 message ListShardRequest {
-  string namespace = 2;
   string shard_name = 3;
 }
 
@@ -47,7 +46,6 @@ message ListShardReply {
 }
 
 message CreateShardRequest {
-  string namespace = 2;
   string shard_name = 3;
   bytes shard_config = 4;
 }
@@ -58,14 +56,12 @@ message CreateShardReply {
 }
 
 message DeleteShardRequest {
-  string namespace = 2;
   string shard_name = 3;
 }
 
 message DeleteShardReply {}
 
 message ListSegmentRequest {
-  string namespace = 2;
   string shard_name = 3;
   int32 segment_no = 4;
 }
@@ -75,14 +71,12 @@ message ListSegmentReply {
 }
 
 message CreateNextSegmentRequest {
-  string namespace = 2;
   string shard_name = 3;
 }
 
 message CreateNextSegmentReply {}
 
 message DeleteSegmentRequest {
-  string namespace = 2;
   string shard_name = 3;
   uint32 segment_seq = 4;
 }
@@ -90,7 +84,6 @@ message DeleteSegmentRequest {
 message DeleteSegmentReply {}
 
 message UpdateSegmentStatusRequest {
-  string namespace = 2;
   string shard_name = 3;
   uint32 segment_seq = 4;
   string cur_status = 5;
@@ -100,7 +93,6 @@ message UpdateSegmentStatusRequest {
 message UpdateSegmentStatusReply {}
 
 message ListSegmentMetaRequest {
-  string namespace = 2;
   string shard_name = 3;
   int32 segment_no = 4;
 }
@@ -110,7 +102,6 @@ message ListSegmentMetaReply {
 }
 
 message UpdateSegmentMetaRequest {
-  string namespace = 2;
   string shard_name = 3;
   uint32 segment_no = 4;
   int64 start_offset = 5;

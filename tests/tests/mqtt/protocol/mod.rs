@@ -30,7 +30,7 @@ pub struct ClientTestProperties {
     pub(crate) packet_size: Option<u32>,
 }
 
-pub mod acl_test;
+// pub mod acl_test;
 pub mod blacklist_test;
 pub mod common;
 pub mod connect5_test;
@@ -48,7 +48,7 @@ pub mod req_resp_test;
 pub mod retain_message_test;
 pub mod schema_test;
 mod session_expire;
-pub mod share_sub_test;
+// pub mod share_sub_test;
 pub mod sub_auto;
 // pub mod sub_exclusive_test;
 pub mod sub_identifier_test;

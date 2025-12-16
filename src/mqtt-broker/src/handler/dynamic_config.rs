@@ -214,10 +214,9 @@ pub async fn save_cluster_dynamic_config(
     resource_config: ClusterDynamicConfig,
     data: Vec<u8>,
 ) -> ResultMqttBrokerError {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     cluster_storage
-        .set_dynamic_config(&conf.cluster_name, &resource_config.to_string(), data)
+        .set_dynamic_config(&resource_config.to_string(), data)
         .await?;
     Ok(())
 }
@@ -225,13 +224,9 @@ pub async fn save_cluster_dynamic_config(
 async fn get_mqtt_protocol_config(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttProtocolConfig>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttProtocol.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttProtocol.to_string())
         .await?;
 
     if !data.is_empty() {
@@ -244,13 +239,9 @@ async fn get_mqtt_protocol_config(
 async fn get_security_config(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttSecurity>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttSecurity.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttSecurity.to_string())
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<MqttSecurity>(&data)?));
@@ -261,13 +252,9 @@ async fn get_security_config(
 async fn get_slow_subscribe_config(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttSlowSubscribeConfig>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttSlowSubscribeConfig.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttSlowSubscribeConfig.to_string())
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<MqttSlowSubscribeConfig>(
@@ -280,13 +267,9 @@ async fn get_slow_subscribe_config(
 async fn get_flapping_detect(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttFlappingDetect>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttFlappingDetect.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttFlappingDetect.to_string())
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<MqttFlappingDetect>(&data)?));
@@ -297,13 +280,9 @@ async fn get_flapping_detect(
 async fn get_offline_message(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttOfflineMessage>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttOfflineMessage.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttOfflineMessage.to_string())
         .await?;
 
     if !data.is_empty() {
@@ -314,13 +293,9 @@ async fn get_offline_message(
 }
 
 async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<MqttSchema>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttSchema.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttSchema.to_string())
         .await?;
 
     if !data.is_empty() {
@@ -333,13 +308,9 @@ async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<MqttSchema>,
 async fn get_system_monitor(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttSystemMonitor>, MqttBrokerError> {
-    let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(
-            &conf.cluster_name,
-            &ClusterDynamicConfig::MqttSystemMonitor.to_string(),
-        )
+        .get_dynamic_config(&ClusterDynamicConfig::MqttSystemMonitor.to_string())
         .await?;
 
     if !data.is_empty() {

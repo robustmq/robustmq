@@ -96,7 +96,6 @@ impl SegmentScrollManager {
                 // create next segment when the file size is greater than 50%
                 if self.percentage50_cache.get(&key).is_none() && file_size / max_size as u64 > 50 {
                     let request = CreateNextSegmentRequest {
-                        namespace: segment_iden.namespace.clone(),
                         shard_name: segment_iden.shard_name.clone(),
                     };
 

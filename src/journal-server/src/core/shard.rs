@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
+use metadata_struct::journal::shard::JournalShardConfig;
 use protocol::journal::journal_inner::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -39,18 +39,14 @@ pub fn delete_local_shard(
     segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteShardFileRequest,
 ) {
-    if cache_manager
-        .get_shard(&req.namespace, &req.shard_name)
-        .is_none()
-    {
+    if cache_manager.get_shard(&req.shard_name).is_none() {
         return;
     }
 
     tokio::spawn(async move {
         // delete segment
-        for segment in cache_manager.get_segments_list_by_shard(&req.namespace, &req.shard_name) {
-            let segment_iden =
-                SegmentIdentity::new(&req.namespace, &req.shard_name, segment.segment_seq);
+        for segment in cache_manager.get_segments_list_by_shard(&req.shard_name) {
+            let segment_iden = SegmentIdentity::new(&req.shard_name, segment.segment_seq);
             if let Err(e) = delete_local_segment(
                 &cache_manager,
                 &rocksdb_engine_handler,
@@ -65,12 +61,12 @@ pub fn delete_local_shard(
         }
 
         // delete shard
-        cache_manager.delete_shard(&req.namespace, &req.shard_name);
+        cache_manager.delete_shard(&req.shard_name);
 
         // delete file
         let conf = broker_config();
         for data_fold in conf.journal_storage.data_path.iter() {
-            let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
+            let shard_fold_name = data_fold_shard(&req.shard_name, data_fold);
             if Path::new(&shard_fold_name).exists() {
                 match remove_dir_all(shard_fold_name) {
                     Ok(()) => {}
@@ -80,17 +76,14 @@ pub fn delete_local_shard(
                 }
             }
         }
-        info!(
-            "Shard {} deleted successfully",
-            shard_name_iden(&req.namespace, &req.shard_name)
-        );
+        info!("Shard {} deleted successfully", req.shard_name);
     });
 }
 
 pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, JournalServerError> {
     let conf = broker_config();
     for data_fold in conf.journal_storage.data_path.iter() {
-        let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
+        let shard_fold_name = data_fold_shard(&req.shard_name, data_fold);
         if Path::new(&shard_fold_name).exists() {
             return Ok(false);
         }
@@ -107,7 +100,6 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Jou
 pub async fn create_shard_to_place(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    namespace: &str,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {
     let cluster_config = cache_manager.get_cluster();
@@ -117,7 +109,6 @@ pub async fn create_shard_to_place(
     };
     let conf = broker_config();
     let request = CreateShardRequest {
-        namespace: namespace.to_string(),
         shard_name: shard_name.to_string(),
         shard_config: config.encode()?,
     };
@@ -130,11 +121,8 @@ pub async fn create_shard_to_place(
 
     let start = Instant::now();
     loop {
-        if cache_manager.get_shard(namespace, shard_name).is_some() {
-            info!(
-                "Shard {} created successfully",
-                shard_name_iden(namespace, shard_name)
-            );
+        if cache_manager.get_shard(shard_name).is_some() {
+            info!("Shard {} created successfully", shard_name);
             return Ok(());
         }
         if start.elapsed().as_millis() >= 3000 {
@@ -153,12 +141,10 @@ pub async fn create_shard_to_place(
 /// A background thread will delete the shard and its segments. No need to wait for the deletion to complete
 pub async fn delete_shard_to_place(
     client_pool: Arc<ClientPool>,
-    namespace: &str,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {
     let conf = broker_config();
     let request = DeleteShardRequest {
-        namespace: namespace.to_string(),
         shard_name: shard_name.to_string(),
     };
 
@@ -174,33 +160,28 @@ pub async fn delete_shard_to_place(
 pub async fn try_auto_create_shard(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    namespace: &str,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {
-    if cache_manager.get_shard(namespace, shard_name).is_some() {
+    if cache_manager.get_shard(shard_name).is_some() {
         return Ok(());
     }
 
     if !cache_manager.get_cluster().enable_auto_create_shard {
-        return Err(JournalServerError::ShardNotExist(shard_name_iden(
-            namespace, shard_name,
-        )));
+        return Err(JournalServerError::ShardNotExist(shard_name.to_string()));
     }
 
-    create_shard_to_place(cache_manager, client_pool, namespace, shard_name).await?;
+    create_shard_to_place(cache_manager, client_pool, shard_name).await?;
     let mut i = 0;
     loop {
         if i >= 30 {
             break;
         }
-        if cache_manager.get_shard(namespace, shard_name).is_some() {
+        if cache_manager.get_shard(shard_name).is_some() {
             return Ok(());
         }
         i += 1;
         sleep(Duration::from_secs(1)).await;
     }
 
-    Err(JournalServerError::ShardNotExist(shard_name_iden(
-        namespace, shard_name,
-    )))
+    Err(JournalServerError::ShardNotExist(shard_name.to_string()))
 }

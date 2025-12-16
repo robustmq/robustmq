@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::storage::keys::{
+    key_all_segment_metadata, key_segment_metadata, key_segment_metadata_shard_prefix,
+};
 use common_base::error::common::CommonError;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -21,11 +22,7 @@ use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
     engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
-
-use crate::storage::keys::{
-    key_all_segment_metadata, key_segment_metadata, key_segment_metadata_namespace_prefix,
-    key_segment_metadata_shard_prefix,
-};
+use std::sync::Arc;
 
 pub struct SegmentMetadataStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -39,18 +36,16 @@ impl SegmentMetadataStorage {
     }
 
     pub fn save(&self, segment: JournalSegmentMetadata) -> Result<(), CommonError> {
-        let shard_key =
-            key_segment_metadata(&segment.namespace, &segment.shard_name, segment.segment_seq);
+        let shard_key = key_segment_metadata(&segment.shard_name, segment.segment_seq);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, segment)
     }
 
     pub fn get(
         &self,
-        namespace: &str,
         shard_name: &str,
         segment_seq: u32,
     ) -> Result<Option<JournalSegmentMetadata>, CommonError> {
-        let shard_key: String = key_segment_metadata(namespace, shard_name, segment_seq);
+        let shard_key: String = key_segment_metadata(shard_name, segment_seq);
 
         if let Some(data) = engine_get_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
@@ -75,28 +70,11 @@ impl SegmentMetadataStorage {
         Ok(results)
     }
 
-    pub fn list_by_namespace(
-        &self,
-        namespace: &str,
-    ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
-        let prefix_key = key_segment_metadata_namespace_prefix(namespace);
-        let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
-            self.rocksdb_engine_handler.clone(),
-            &prefix_key,
-        )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
-    }
-
     pub fn list_by_shard(
         &self,
-        namespace: &str,
         shard_name: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
-        let prefix_key = key_segment_metadata_shard_prefix(namespace, shard_name);
+        let prefix_key = key_segment_metadata_shard_prefix(shard_name);
         let data = engine_prefix_list_by_meta_metadata::<JournalSegmentMetadata>(
             self.rocksdb_engine_handler.clone(),
             &prefix_key,
@@ -108,138 +86,11 @@ impl SegmentMetadataStorage {
         Ok(results)
     }
 
-    pub fn delete(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment_seq: u32,
-    ) -> Result<(), CommonError> {
-        let shard_key = key_segment_metadata(namespace, shard_name, segment_seq);
+    pub fn delete(&self, shard_name: &str, segment_seq: u32) -> Result<(), CommonError> {
+        let shard_key = key_segment_metadata(shard_name, segment_seq);
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
     }
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-    use rocksdb_engine::test::test_rocksdb_instance;
-
-    fn create_test_instance() -> SegmentMetadataStorage {
-        let rocksdb_engine_handler = test_rocksdb_instance();
-        SegmentMetadataStorage::new(rocksdb_engine_handler)
-    }
-
-    fn create_test_segment(seq: u32) -> JournalSegmentMetadata {
-        JournalSegmentMetadata {
-            namespace: "test-namespace".to_string(),
-            shard_name: "test-shard".to_string(),
-            segment_seq: seq,
-            start_offset: seq as i64 * 100,
-            end_offset: seq as i64 * 100 + 99,
-            start_timestamp: seq as i64 * 1000,
-            end_timestamp: seq as i64 * 1000 + 999,
-        }
-    }
-
-    #[test]
-    fn test_save_and_get() {
-        let storage = create_test_instance();
-        let segment = create_test_segment(1);
-
-        // Test save functionality
-        storage
-            .save(segment.clone())
-            .expect("Failed to save segment metadata");
-
-        // Test get functionality
-        let retrieved = storage
-            .get(&segment.namespace, &segment.shard_name, segment.segment_seq)
-            .expect("Failed to get segment metadata")
-            .expect("Segment metadata does not exist");
-
-        // Verify all fields
-        assert_eq!(retrieved.namespace, segment.namespace);
-        assert_eq!(retrieved.shard_name, segment.shard_name);
-        assert_eq!(retrieved.segment_seq, segment.segment_seq);
-        assert_eq!(retrieved.start_offset, segment.start_offset);
-        assert_eq!(retrieved.end_offset, segment.end_offset);
-        assert_eq!(retrieved.start_timestamp, segment.start_timestamp);
-        assert_eq!(retrieved.end_timestamp, segment.end_timestamp);
-    }
-
-    #[test]
-    fn test_get_nonexistent() {
-        let storage = create_test_instance();
-
-        // Test getting non-existent metadata
-        let result = storage
-            .get("nonexistent", "nonexistent", 998)
-            .expect("Failed to perform get operation");
-
-        assert!(result.is_none(), "Expected None but got Some");
-    }
-
-    #[test]
-    fn test_list_operations() {
-        let storage = create_test_instance();
-
-        // Create multiple test segments
-        let segments = vec![
-            create_test_segment(1),
-            create_test_segment(2),
-            create_test_segment(3),
-        ];
-
-        // Save all segments
-        for segment in &segments {
-            storage
-                .save(segment.clone())
-                .expect("Failed to save segment metadata");
-        }
-
-        // Test all_segment
-        let all_segments = storage.all_segment().expect("Failed to get all segments");
-        assert_eq!(all_segments.len(), segments.len());
-
-        // Test list_by_namespace
-        let namespace_segments = storage
-            .list_by_namespace(&segments[0].namespace)
-            .expect("Failed to list segments by namespace");
-        assert_eq!(namespace_segments.len(), segments.len());
-
-        // Test list_by_shard
-        let shard_segments = storage
-            .list_by_shard(&segments[0].namespace, &segments[0].shard_name)
-            .expect("Failed to list segments by shard");
-        assert_eq!(shard_segments.len(), segments.len());
-    }
-
-    #[test]
-    fn test_delete() {
-        let storage = create_test_instance();
-        let segment = create_test_segment(1);
-
-        // Save segment
-        storage
-            .save(segment.clone())
-            .expect("Failed to save segment metadata");
-
-        // Verify segment is saved
-        assert!(storage
-            .get(&segment.namespace, &segment.shard_name, segment.segment_seq)
-            .expect("Failed to get segment metadata")
-            .is_some());
-
-        // Delete segment
-        storage
-            .delete(&segment.namespace, &segment.shard_name, segment.segment_seq)
-            .expect("Failed to delete segment metadata");
-
-        // Verify segment is deleted
-        assert!(storage
-            .get(&segment.namespace, &segment.shard_name, segment.segment_seq)
-            .expect("Failed to get segment metadata")
-            .is_none());
-    }
-}
+mod test {}

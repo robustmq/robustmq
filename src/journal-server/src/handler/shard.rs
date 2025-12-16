@@ -51,18 +51,9 @@ impl ShardHandler {
         }
         let req_body = request.body.unwrap();
 
-        if self
-            .cache_manager
-            .get_shard(&req_body.namespace, &req_body.shard_name)
-            .is_none()
-        {
-            create_shard_to_place(
-                &self.cache_manager,
-                &self.client_pool,
-                &req_body.namespace,
-                &req_body.shard_name,
-            )
-            .await?;
+        if self.cache_manager.get_shard(&req_body.shard_name).is_none() {
+            create_shard_to_place(&self.cache_manager, &self.client_pool, &req_body.shard_name)
+                .await?;
         };
         Ok(())
     }
@@ -75,20 +66,11 @@ impl ShardHandler {
         }
         let req_body = request.body.unwrap();
 
-        if self
-            .cache_manager
-            .get_shard(&req_body.namespace, &req_body.shard_name)
-            .is_none()
-        {
+        if self.cache_manager.get_shard(&req_body.shard_name).is_none() {
             return Err(JournalServerError::ShardNotExist(req_body.shard_name));
         }
 
-        delete_shard_to_place(
-            self.client_pool.clone(),
-            &req_body.namespace,
-            &req_body.shard_name,
-        )
-        .await?;
+        delete_shard_to_place(self.client_pool.clone(), &req_body.shard_name).await?;
 
         Ok(())
     }
@@ -106,15 +88,9 @@ impl ShardHandler {
         let req_body = request.body.unwrap();
 
         // directly get from cache
-        let shards = if req_body.namespace.is_empty() {
+        let shards = if req_body.shard_name.is_empty() {
             self.cache_manager.get_shards()
-        } else if req_body.shard_name.is_empty() {
-            self.cache_manager
-                .get_shards_by_namespace(&req_body.namespace)
-        } else if let Some(shard_info) = self
-            .cache_manager
-            .get_shard(&req_body.namespace, &req_body.shard_name)
-        {
+        } else if let Some(shard_info) = self.cache_manager.get_shard(&req_body.shard_name) {
             vec![shard_info]
         } else {
             vec![]
@@ -143,10 +119,7 @@ impl ShardHandler {
         let mut results = Vec::new();
 
         for raw in req_body.shards {
-            let shard = if let Some(shard) = self
-                .cache_manager
-                .get_shard(&raw.namespace, &raw.shard_name)
-            {
+            let shard = if let Some(shard) = self.cache_manager.get_shard(&raw.shard_name) {
                 shard
             } else {
                 // todo Is enable auto create shard
@@ -155,30 +128,23 @@ impl ShardHandler {
 
             // If the Shard has an active Segment,
             // it returns an error, triggers the client to retry, and triggers the server to create the next Segment.
-            let active_segment = if let Some(segment) = self
-                .cache_manager
-                .get_active_segment(&raw.namespace, &raw.shard_name)
-            {
-                segment
-            } else {
-                // Active Segment does not exist, try to update cache.
-                // The Active Segment will only be updated if the Segment is successfully created
-                load_metadata_cache(&self.cache_manager, &self.client_pool).await;
-                return Err(JournalServerError::NotActiveSegment(shard.name()));
-            };
+            let active_segment =
+                if let Some(segment) = self.cache_manager.get_active_segment(&raw.shard_name) {
+                    segment
+                } else {
+                    // Active Segment does not exist, try to update cache.
+                    // The Active Segment will only be updated if the Segment is successfully created
+                    load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+                    return Err(JournalServerError::NotActiveSegment(shard.shard_name));
+                };
 
             // Try to transition the Segment state
-            self.try_tranf_segment_status(
-                &raw.namespace,
-                &raw.shard_name,
-                &active_segment,
-                &self.client_pool,
-            )
-            .await?;
+            self.try_tranf_segment_status(&raw.shard_name, &active_segment, &self.client_pool)
+                .await?;
 
             let segments = self
                 .cache_manager
-                .get_segments_list_by_shard(&raw.namespace, &raw.shard_name);
+                .get_segments_list_by_shard(&raw.shard_name);
 
             if segments.is_empty() {
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
@@ -213,7 +179,6 @@ impl ShardHandler {
             }
 
             let resp_shard = GetShardMetadataRespShard {
-                namespace: raw.namespace,
                 shard: raw.shard_name,
                 active_segment: shard.active_segment_seq as i32,
                 active_segment_leader,
@@ -228,12 +193,10 @@ impl ShardHandler {
 
     async fn trigger_create_next_segment(
         &self,
-        namespace: &str,
         shard_name: &str,
     ) -> Result<(), JournalServerError> {
         let conf = broker_config();
         let request = CreateNextSegmentRequest {
-            namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
         };
         grpc_clients::meta::journal::call::create_next_segment(
@@ -247,7 +210,6 @@ impl ShardHandler {
 
     async fn try_tranf_segment_status(
         &self,
-        namespace: &str,
         shard_name: &str,
         segment: &JournalSegment,
         client_pool: &Arc<ClientPool>,
@@ -256,7 +218,6 @@ impl ShardHandler {
         // When the state is Idle, reverse the state to PreWrite
         if segment.status == SegmentStatus::Idle {
             let request = UpdateSegmentStatusRequest {
-                namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_seq: segment.segment_seq,
                 cur_status: segment.status.to_string(),
@@ -271,8 +232,7 @@ impl ShardHandler {
             || segment.status == SegmentStatus::PreDelete
             || segment.status == SegmentStatus::Deleting
         {
-            self.trigger_create_next_segment(namespace, shard_name)
-                .await?;
+            self.trigger_create_next_segment(shard_name).await?;
         }
 
         // There is no need to handle an Active Segment in the PreWrite & Write && PreSealUp state, where the Active Segment allows state writing.
