@@ -113,7 +113,6 @@ pub async fn run_connector_loop<S: ConnectorSink>(
         let offset = message_storage
             .get_group_offset(&group_name, &config.topic_name)
             .await?;
-
         select! {
             val = stop_recv.recv() => {
                 if let Ok(flag) = val {
@@ -127,6 +126,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
             val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
                 match val {
                     Ok(data) => {
+                        println!("offset:{}",data.len());
                         connector_manager.report_heartbeat(&connector_name);
 
                         if data.is_empty() {

@@ -57,11 +57,10 @@ impl ConnectorManager {
     }
 
     pub fn get_all_connector(&self) -> Vec<MQTTConnector> {
-        let mut results = Vec::new();
-        for (_, raw) in self.connector_list.clone() {
-            results.push(raw);
-        }
-        results
+        self.connector_list
+            .iter()
+            .map(|connector| connector.clone())
+            .collect()
     }
 
     pub fn remove_connector(&self, connector_name: &str) {

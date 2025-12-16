@@ -477,13 +477,12 @@ async fn call_mqtt_update_cache(
 
 async fn add_call_message(
     call_manager: &Arc<MQTTInnerCallManager>,
-
     client_pool: &Arc<ClientPool>,
     message: MQTTInnerCallMessage,
 ) -> Result<(), MetaServiceError> {
-    for raw in call_manager.node_sender.iter() {
+    for raw in call_manager.broker_cache.node_list().iter() {
         // todo Check whether the node is of the mqtt role
-        if let Some(node_sender) = call_manager.get_node_sender(raw.node.node_id) {
+        if let Some(node_sender) = call_manager.get_node_sender(raw.node_id) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}
                 Err(e) => {
@@ -494,23 +493,23 @@ async fn add_call_message(
             // add sender
             let (sx, _) = broadcast::channel::<MQTTInnerCallMessage>(1000);
             call_manager.add_node_sender(
-                raw.node.node_id,
+                raw.node_id,
                 MQTTInnerCallNodeSender {
                     sender: sx.clone(),
-                    node: raw.node.clone(),
+                    node: raw.clone(),
                 },
             );
 
             // start thread
             let (stop_send, _) = broadcast::channel(2);
             start_call_thread(
-                raw.node.clone(),
+                raw.clone(),
                 call_manager.clone(),
                 client_pool.clone(),
                 stop_send.clone(),
             )
             .await;
-            call_manager.add_node_stop_sender(raw.node.node_id, stop_send);
+            call_manager.add_node_stop_sender(raw.node_id, stop_send);
 
             // Wait 2s for the "broadcast rx" thread to start, otherwise the send message will report a "channel closed" error
             sleep(Duration::from_secs(2)).await;

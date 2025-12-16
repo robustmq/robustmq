@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use dashmap::DashMap;
@@ -49,17 +49,17 @@ pub struct JournalInnerCallNodeSender {
 pub struct JournalInnerCallManager {
     node_sender: DashMap<u64, JournalInnerCallNodeSender>,
     node_stop_sender: DashMap<u64, Sender<bool>>,
-    placement_cache_manager: Arc<CacheManager>,
+    broker_cache: Arc<BrokerCacheManager>,
 }
 
 impl JournalInnerCallManager {
-    pub fn new(placement_cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(broker_cache: Arc<BrokerCacheManager>) -> Self {
         let node_sender = DashMap::with_capacity(2);
         let node_sender_thread = DashMap::with_capacity(2);
         JournalInnerCallManager {
             node_sender,
             node_stop_sender: node_sender_thread,
-            placement_cache_manager,
+            broker_cache,
         }
     }
 
@@ -231,7 +231,7 @@ async fn add_call_message(
     client_pool: &Arc<ClientPool>,
     message: JournalInnerCallMessage,
 ) -> Result<(), MetaServiceError> {
-    for node in call_manager.placement_cache_manager.node_list.iter() {
+    for node in call_manager.broker_cache.node_list().iter() {
         // todo Check whether the node is of the journal role
         if let Some(node_sender) = call_manager.get_node_sender(node.node_id) {
             match node_sender.sender.send(message.clone()) {

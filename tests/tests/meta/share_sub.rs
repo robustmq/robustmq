@@ -62,5 +62,4 @@ mod tests {
         println!("node_id:{node_id}");
         assert_eq!(resp.broker_id, node_id);
     }
-
 }
