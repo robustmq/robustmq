@@ -74,10 +74,7 @@ impl ClusterCommand {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
-        // Create empty request for get cluster config
-        let request = serde_json::json!({});
-
-        match admin_client.get_cluster_config(&request).await {
+        match admin_client.get_cluster_config().await {
             Ok(response_text) => {
                 // Try to parse the response as BrokerConfig
                 match serde_json::from_str::<BrokerConfig>(&response_text) {
