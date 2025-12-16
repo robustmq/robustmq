@@ -35,7 +35,7 @@ pub fn key_offset(group: &str, shard_name: &str) -> String {
 
 #[inline]
 pub fn key_offset_by_group(group: &str) -> String {
-    format!("/meta/offset/{group}")
+    format!("/meta/offset/{group}/")
 }
 
 /** ===========Journal========== */

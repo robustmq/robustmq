@@ -103,7 +103,7 @@ mod tests {
         // Batch save two offsets
         let offsets = vec![
             create_offset_data(group, "shard1", 100),
-            create_offset_data(group, "shard1", 200),
+            create_offset_data(group, "shard2", 200),
         ];
         storage.save(&offsets).unwrap();
 
@@ -122,7 +122,7 @@ mod tests {
         // Save
         let offsets = vec![
             create_offset_data(group, "shard1", 100),
-            create_offset_data(group, "shard1", 200),
+            create_offset_data(group, "shard2", 200),
         ];
         storage.save(&offsets).unwrap();
         assert_eq!(storage.group_offset(group).unwrap().len(), 2);
@@ -132,14 +132,7 @@ mod tests {
 
         let remaining = storage.group_offset(group).unwrap();
         assert_eq!(remaining.len(), 1);
-        assert_eq!(remaining[0].offset, 100);
-    }
-
-    #[test]
-    fn test_empty_save() {
-        let storage = OffsetStorage::new(test_rocksdb_instance());
-        let empty: Vec<OffsetData> = vec![];
-        storage.save(&empty).unwrap();
+        assert_eq!(remaining[0].offset, 200);
     }
 
     #[test]
@@ -147,5 +140,8 @@ mod tests {
         let storage = OffsetStorage::new(test_rocksdb_instance());
         let list = storage.group_offset("group1").unwrap();
         assert!(list.is_empty());
+
+        let empty: Vec<OffsetData> = vec![];
+        storage.save(&empty).unwrap();
     }
 }

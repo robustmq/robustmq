@@ -386,7 +386,7 @@ mod tests {
             segment_iden.segment_seq,
             data_fold.first().unwrap().to_string(),
         );
-
+        println!("{}", segment.data_fold);
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{i}");
@@ -396,25 +396,21 @@ mod tests {
                 key: format!("k{i}"),
                 shard_name: "s1".to_string(),
                 offset: 1000 + i,
-                segment: 1,
+                segment: segment.segment_no,
                 tags: vec![],
                 ..Default::default()
             };
-            match segment.write(std::slice::from_ref(&record)).await {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!("{e:?}");
-                }
-            }
+            segment.write(std::slice::from_ref(&record)).await.unwrap();
         }
 
         let res = segment.read_by_positions(vec![0]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![45]).await.unwrap();
+        // data len = 41
+        let res = segment.read_by_positions(vec![41]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![0, 45, 90]).await.unwrap();
+        let res = segment.read_by_positions(vec![0, 41, 82]).await.unwrap();
         assert_eq!(res.len(), 3);
 
         let size = segment.size().await.unwrap();
