@@ -14,8 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use crate::meta::common::{extend_info, node_id, node_ip, pc_addr};
     use common_base::tools::now_second;
     use metadata_struct::meta::node::BrokerNode;
@@ -23,6 +21,7 @@ mod tests {
     use protocol::meta::meta_service_common::{
         HeartbeatRequest, NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
+    use std::time::Duration;
     use tokio::time::sleep;
 
     #[tokio::test]
