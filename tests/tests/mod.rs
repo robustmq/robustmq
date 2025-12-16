@@ -15,5 +15,4 @@
 pub mod common;
 pub mod journal;
 pub mod mqtt;
-pub mod node_test;
 pub mod offset_test;

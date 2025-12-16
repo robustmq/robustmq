@@ -32,15 +32,8 @@ mod tests {
     async fn register_node_test_is_normal() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
-
         let request = ClusterStatusRequest::default();
-
-        match cluster_status(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        cluster_status(&client_pool, &addrs, request).await.unwrap();
 
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1;
@@ -60,12 +53,7 @@ mod tests {
             node: node.encode().unwrap(),
         };
 
-        match register_node(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        register_node(&client_pool, &addrs, request).await.unwrap();
     }
 
     #[tokio::test]
