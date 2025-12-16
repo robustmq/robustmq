@@ -113,7 +113,7 @@ impl AdminServer {
             .route(STATUS_PATH, get(cluster_info))
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
-            .route(CLUSTER_CONFIG_GET_PATH, post(cluster_config_get))
+            .route(CLUSTER_CONFIG_GET_PATH, get(cluster_config_get))
             .route("/", get(index))
     }
 

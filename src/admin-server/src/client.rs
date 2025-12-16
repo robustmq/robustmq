@@ -473,12 +473,8 @@ impl AdminHttpClient {
     }
 
     /// Set cluster configuration
-    pub async fn get_cluster_config<T>(&self, request: &T) -> Result<String, HttpClientError>
-    where
-        T: Serialize,
-    {
-        self.post_raw(&api_path(CLUSTER_CONFIG_GET_PATH), request)
-            .await
+    pub async fn get_cluster_config(&self) -> Result<String, HttpClientError> {
+        self.get(&api_path(CLUSTER_CONFIG_GET_PATH)).await
     }
 
     /// Get flapping detection list
