@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::core::cache::CacheManager;
+use crate::raft::manager::MultiRaftManager;
+use crate::server::services::journal::segment::{
+    create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
+    update_segment_meta_by_req, update_segment_status_req,
+};
+use crate::server::services::journal::shard::{
+    create_shard_by_req, delete_shard_by_req, list_shard_by_req,
+};
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
 use protocol::meta::meta_service_journal::engine_service_server::EngineService;
@@ -25,18 +35,6 @@ use protocol::meta::meta_service_journal::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-
-use crate::controller::journal::call_node::JournalInnerCallManager;
-use crate::core::cache::CacheManager;
-use crate::core::error::MetaServiceError;
-use crate::raft::manager::MultiRaftManager;
-use crate::server::services::journal::segment::{
-    create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
-    update_segment_meta_by_req, update_segment_status_req,
-};
-use crate::server::services::journal::shard::{
-    create_shard_by_req, delete_shard_by_req, list_shard_by_req,
-};
 
 pub struct GrpcEngineService {
     raft_manager: Arc<MultiRaftManager>,
@@ -72,26 +70,6 @@ impl GrpcEngineService {
     // Helper: Convert MetaServiceError to Status
     fn to_status<E: ToString>(e: E) -> Status {
         Status::internal(e.to_string())
-    }
-
-    // Helper: Check if cluster exists
-    fn validate_cluster_exists(&self, cluster_name: &str) -> Result<(), Status> {
-        if self.cache_manager.get_cluster(cluster_name).is_none() {
-            return Err(Self::to_status(MetaServiceError::ClusterDoesNotExist(
-                cluster_name.to_string(),
-            )));
-        }
-        Ok(())
-    }
-
-    // Helper: Validate non-empty string
-    fn validate_non_empty(&self, value: &str, field_name: &str) -> Result<(), Status> {
-        if value.is_empty() {
-            return Err(Self::to_status(MetaServiceError::RequestParamsNotEmpty(
-                field_name.to_string(),
-            )));
-        }
-        Ok(())
     }
 }
 
@@ -136,7 +114,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<DeleteShardReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        self.validate_cluster_exists(&req.cluster_name)?;
 
         delete_shard_by_req(
             &self.raft_manager,
@@ -157,7 +134,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<ListSegmentReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        self.validate_non_empty(&req.cluster_name, "cluster_name")?;
 
         list_segment_by_req(&self.rocksdb_engine_handler, &req)
             .await
@@ -171,7 +147,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<CreateNextSegmentReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        self.validate_cluster_exists(&req.cluster_name)?;
 
         create_segment_by_req(
             &self.cache_manager,
@@ -191,7 +166,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<DeleteSegmentReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        self.validate_cluster_exists(&req.cluster_name)?;
 
         delete_segment_by_req(
             &self.cache_manager,
@@ -211,7 +185,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<UpdateSegmentStatusReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        self.validate_non_empty(&req.cluster_name, "cluster_name")?;
 
         update_segment_status_req(
             &self.cache_manager,
@@ -232,7 +205,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<ListSegmentMetaReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        self.validate_non_empty(&req.cluster_name, "cluster_name")?;
 
         list_segment_meta_by_req(&self.rocksdb_engine_handler, &req)
             .await

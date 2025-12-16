@@ -25,7 +25,6 @@ message JournalRecord {
   uint64 create_time = 5;
   repeated string tags = 6;
   int64 offset = 7;
-  string namespace = 8;
   string shard_name = 9;
   uint32 segment = 10;
 }

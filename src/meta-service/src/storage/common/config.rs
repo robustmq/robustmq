@@ -30,31 +30,18 @@ impl ResourceConfigStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn save(
-        &self,
-        cluster_name: String,
-        resource_key: Vec<String>,
-        config: Vec<u8>,
-    ) -> Result<(), CommonError> {
-        let key = key_resource_config(&cluster_name, &resource_key.join("/"));
+    pub fn save(&self, resource_key: Vec<String>, config: Vec<u8>) -> Result<(), CommonError> {
+        let key = key_resource_config(&resource_key.join("/"));
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, config)
     }
 
-    pub fn delete(
-        &self,
-        cluster_name: String,
-        resource_key: Vec<String>,
-    ) -> Result<(), CommonError> {
-        let key = key_resource_config(&cluster_name, &resource_key.join("/"));
+    pub fn delete(&self, resource_key: Vec<String>) -> Result<(), CommonError> {
+        let key = key_resource_config(&resource_key.join("/"));
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
     }
 
-    pub fn get(
-        &self,
-        cluster_name: String,
-        resource_key: Vec<String>,
-    ) -> Result<Option<Vec<u8>>, CommonError> {
-        let key = key_resource_config(&cluster_name, &resource_key.join("/"));
+    pub fn get(&self, resource_key: Vec<String>) -> Result<Option<Vec<u8>>, CommonError> {
+        let key = key_resource_config(&resource_key.join("/"));
 
         if let Some(data) = engine_get_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?
         {
@@ -80,39 +67,24 @@ mod test {
             column_family_list(),
         ));
         let resource_storage = ResourceConfigStorage::new(rocksdb_engine);
-
-        let cluster_name = "cluster1".to_string();
         let resource_key = vec!["config".to_string(), "sub_config".to_string()];
         let config_data = vec![1, 2, 3, 4, 5];
 
         assert!(resource_storage
-            .save(
-                cluster_name.clone(),
-                resource_key.clone(),
-                config_data.clone()
-            )
+            .save(resource_key.clone(), config_data.clone())
             .is_ok());
 
-        let retrieved_config = resource_storage
-            .get(cluster_name.clone(), resource_key.clone())
-            .unwrap();
+        let retrieved_config = resource_storage.get(resource_key.clone()).unwrap();
         assert!(retrieved_config.is_some());
         assert_eq!(retrieved_config.unwrap(), config_data);
 
-        assert!(resource_storage
-            .delete(cluster_name.clone(), resource_key.clone())
-            .is_ok());
+        assert!(resource_storage.delete(resource_key.clone()).is_ok());
 
-        let deleted_config = resource_storage
-            .get(cluster_name.clone(), resource_key.clone())
-            .unwrap();
+        let deleted_config = resource_storage.get(resource_key.clone()).unwrap();
         assert!(deleted_config.is_none());
 
         let nonexistent_config = resource_storage
-            .get(
-                "nonexistent_cluster".to_string(),
-                vec!["nonexistent".to_string()],
-            )
+            .get(vec!["nonexistent".to_string()])
             .unwrap();
         assert!(nonexistent_config.is_none());
     }

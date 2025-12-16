@@ -101,7 +101,7 @@ message GetClusterMetadataResp {
 
 /**  Create Shard **/
 message CreateShardReqBody {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 replica_num = 3;
 }
@@ -120,7 +120,7 @@ message CreateShardResp {
 
 /**  Delete Shard **/
 message DeleteShardReqBody {
-  string namespace = 1;
+
   string shard_name = 2;
 }
 
@@ -138,7 +138,7 @@ message DeleteShardResp {
 
 /** List Shard **/
 message ListShardReqBody {
-  string namespace = 1;
+
   string shard_name = 2;
 }
 
@@ -162,7 +162,7 @@ message GetShardMetadataReqBody {
 }
 
 message GetShardMetadataReqShard {
-  string namespace = 1;
+
   string shard_name = 2;
 }
 
@@ -176,7 +176,7 @@ message GetShardMetadataRespBody {
 }
 
 message GetShardMetadataRespShard {
-  string namespace = 1;
+
   string shard = 2;
   int32 active_segment = 3;
   int64 active_segment_leader = 4;
@@ -194,7 +194,7 @@ message WriteReqBody {
 }
 
 message WriteReqSegmentMessages {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 segment = 3;
   repeated WriteReqMessages messages = 4;
@@ -212,7 +212,7 @@ message WriteRespBody {
 }
 
 message WriteRespMessage {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 segment = 3;
   repeated WriteRespMessageStatus messages = 4;
@@ -240,7 +240,7 @@ message ReadReqBody {
 }
 
 message ReadReqMessage {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 segment = 3;
   ReadType ready_type = 4;
@@ -265,7 +265,7 @@ message ReadRespBody {
 }
 
 message ReadRespSegmentMessage {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 segment = 3;
   repeated ReadRespMessage messages = 4;
@@ -295,7 +295,7 @@ message FetchOffsetReqBody {
 }
 
 message FetchOffsetShard {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 segment_no = 3;
   uint64 timestamp = 4;
@@ -311,7 +311,7 @@ message FetchOffsetRespBody {
 }
 
 message FetchOffsetShardMeta {
-  string namespace = 1;
+
   string shard_name = 2;
   uint32 segment_no = 3;
   int64 offset = 4;

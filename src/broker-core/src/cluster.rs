@@ -49,9 +49,7 @@ impl ClusterStorage {
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
         let conf = broker_config();
-        let request = NodeListRequest {
-            cluster_name: conf.cluster_name.clone(),
-        };
+        let request = NodeListRequest {};
 
         let reply = node_list(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
 
@@ -82,7 +80,6 @@ impl ClusterStorage {
         };
 
         let node = BrokerNode {
-            cluster_name: config.cluster_name.clone(),
             roles: config.roles.clone(),
             node_ip: local_ip.clone(),
             node_id: config.broker_id,
@@ -106,46 +103,32 @@ impl ClusterStorage {
 
     pub async fn unregister_node(&self, config: &BrokerConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
-            cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
 
-        unregister_node(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            req.clone(),
-        )
-        .await?;
+        unregister_node(&self.client_pool, &config.get_meta_service_addr(), req).await?;
         Ok(())
     }
 
     pub async fn heartbeat(&self) -> Result<(), CommonError> {
         let config = broker_config();
         let req = HeartbeatRequest {
-            cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
 
-        heartbeat(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            req.clone(),
-        )
-        .await?;
+        heartbeat(&self.client_pool, &config.get_meta_service_addr(), req).await?;
 
         Ok(())
     }
 
     pub async fn set_dynamic_config(
         &self,
-        cluster_name: &str,
         resource: &str,
         data: Vec<u8>,
     ) -> Result<(), CommonError> {
         let config = broker_config();
-        let resources = self.dynamic_config_resources(cluster_name, resource);
+        let resources = self.dynamic_config_resources(resource);
         let request = SetResourceConfigRequest {
-            cluster_name: cluster_name.to_string(),
             resources,
             config: data,
         };
@@ -155,33 +138,19 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn delete_dynamic_config(
-        &self,
-        cluster_name: &str,
-        resource: &str,
-    ) -> Result<(), CommonError> {
+    pub async fn delete_dynamic_config(&self, resource: &str) -> Result<(), CommonError> {
         let config = broker_config();
-        let resources = self.dynamic_config_resources(cluster_name, resource);
-        let request = DeleteResourceConfigRequest {
-            cluster_name: cluster_name.to_string(),
-            resources,
-        };
+        let resources = self.dynamic_config_resources(resource);
+        let request = DeleteResourceConfigRequest { resources };
 
         delete_resource_config(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
-    pub async fn get_dynamic_config(
-        &self,
-        cluster_name: &str,
-        resource: &str,
-    ) -> Result<Vec<u8>, CommonError> {
+    pub async fn get_dynamic_config(&self, resource: &str) -> Result<Vec<u8>, CommonError> {
         let config = broker_config();
-        let resources = self.dynamic_config_resources(cluster_name, resource);
-        let request = GetResourceConfigRequest {
-            cluster_name: cluster_name.to_string(),
-            resources,
-        };
+        let resources = self.dynamic_config_resources(resource);
+        let request = GetResourceConfigRequest { resources };
 
         let reply =
             get_resource_config(&self.client_pool, &config.get_meta_service_addr(), request)
@@ -189,11 +158,7 @@ impl ClusterStorage {
         Ok(reply.config)
     }
 
-    fn dynamic_config_resources(&self, cluster_name: &str, resource: &str) -> Vec<String> {
-        vec![
-            "cluster".to_string(),
-            cluster_name.to_string(),
-            resource.to_string(),
-        ]
+    fn dynamic_config_resources(&self, resource: &str) -> Vec<String> {
+        vec!["cluster".to_string(), resource.to_string()]
     }
 }

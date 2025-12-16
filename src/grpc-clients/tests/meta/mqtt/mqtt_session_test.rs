@@ -33,7 +33,6 @@ mod tests {
     async fn mqtt_session_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = "test_cluster".to_string();
         let client_id: String = "test_client_id".to_string();
         let connection_id: u64 = 1;
         let broker_id: u64 = 1;
@@ -51,7 +50,6 @@ mod tests {
         mqtt_session.update_connnction_id(Some(connection_id));
 
         let request = CreateSessionRequest {
-            cluster_name: cluster_name.clone(),
             client_id: client_id.clone(),
             session: mqtt_session.encode().unwrap(),
         };
@@ -64,7 +62,6 @@ mod tests {
         }
 
         let request = ListSessionRequest {
-            cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
         };
 
@@ -89,7 +86,6 @@ mod tests {
         mqtt_session.update_distinct_time();
 
         let request = UpdateSessionRequest {
-            cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
             connection_id: mqtt_session.connection_id.unwrap(),
             broker_id: mqtt_session.broker_id.unwrap_or(1100),
@@ -105,7 +101,6 @@ mod tests {
         }
 
         let request = ListSessionRequest {
-            cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
         };
 
@@ -126,7 +121,6 @@ mod tests {
         }
 
         let request = DeleteSessionRequest {
-            cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
         };
 
@@ -138,7 +132,6 @@ mod tests {
         }
 
         let request = ListSessionRequest {
-            cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
         };
 

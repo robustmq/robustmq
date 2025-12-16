@@ -17,7 +17,6 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-    use common_base::tools::unique_id;
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -30,7 +29,6 @@ mod tests {
     async fn mqtt_acl_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = format!("test_cluster_{}", unique_id());
 
         let acl = MqttAcl {
             resource_type: MqttAclResourceType::User,
@@ -42,14 +40,11 @@ mod tests {
         };
 
         let request = CreateAclRequest {
-            cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
         create_acl(&client_pool, &addrs, request).await.unwrap();
 
-        let request = ListAclRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let request = ListAclRequest {};
 
         match list_acl(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -74,7 +69,6 @@ mod tests {
         }
 
         let request = DeleteAclRequest {
-            cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
         match delete_acl(&client_pool, &addrs, request).await {
@@ -84,9 +78,7 @@ mod tests {
             }
         }
 
-        let request = ListAclRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let request = ListAclRequest {};
 
         match list_acl(&client_pool, &addrs, request).await {
             Ok(data) => {

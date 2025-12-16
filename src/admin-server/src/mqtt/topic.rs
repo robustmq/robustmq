@@ -308,7 +308,6 @@ pub async fn topic_rewrite_create(
     ValidatedJson(params): ValidatedJson<CreateTopicRewriteReq>,
 ) -> String {
     let rule = MqttTopicRewriteRule {
-        cluster: state.broker_cache.cluster_name.clone(),
         action: params.action.clone(),
         source_topic: params.source_topic.clone(),
         dest_topic: params.dest_topic.clone(),
@@ -345,11 +344,10 @@ pub async fn topic_rewrite_delete(
     {
         return error_response(e.to_string());
     }
-    state.mqtt_context.cache_manager.delete_topic_rewrite_rule(
-        &state.broker_cache.cluster_name,
-        &params.action,
-        &params.source_topic,
-    );
+    state
+        .mqtt_context
+        .cache_manager
+        .delete_topic_rewrite_rule(&params.action, &params.source_topic);
     state
         .mqtt_context
         .cache_manager

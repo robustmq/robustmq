@@ -90,7 +90,6 @@ impl JournalClient {
         replica_num: u32,
     ) -> Result<(), JournalClientError> {
         let body = CreateShardReqBody {
-            namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
             replica_num,
         };
@@ -104,7 +103,6 @@ impl JournalClient {
         shard_name: &str,
     ) -> Result<(), JournalClientError> {
         let body = DeleteShardReqBody {
-            namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
         };
         let _ = delete_shard(&self.connection_manager, body).await?;
@@ -117,7 +115,6 @@ impl JournalClient {
         shard_name: &str,
     ) -> Result<Vec<JournalShard>, JournalClientError> {
         let body = ListShardReqBody {
-            namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
         };
 
@@ -139,13 +136,8 @@ impl JournalClient {
         shard_name: &str,
         data: Vec<JournalClientWriteData>,
     ) -> Result<Vec<SenderMessageResp>, JournalClientError> {
-        let active_segment = get_active_segment(
-            &self.metadata_cache,
-            &self.connection_manager,
-            namespace,
-            shard_name,
-        )
-        .await;
+        let active_segment =
+            get_active_segment(&self.metadata_cache, &self.connection_manager, shard_name).await;
 
         let message = SenderMessage::build(namespace, shard_name, active_segment, data.clone());
         self.writer.send(&message).await
@@ -172,7 +164,6 @@ impl JournalClient {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
         let shards = vec![ReadShardByOffset {
-            namespace: namespace.to_owned(),
             shard_name: shard_name.to_owned(),
             offset,
         }];
@@ -217,7 +208,6 @@ impl JournalClient {
         let (segment, offset) = fetch_offset_by_timestamp(
             &self.connection_manager,
             &self.metadata_cache,
-            namespace,
             shard_name,
             timestamp,
         )
@@ -235,7 +225,6 @@ impl JournalClient {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
         let shards = vec![ReadShardByOffset {
-            namespace: namespace.to_owned(),
             shard_name: shard_name.to_owned(),
             offset,
         }];
@@ -281,7 +270,6 @@ impl JournalClient {
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
         let shards = vec![ReadShardByOffset {
-            namespace: namespace.to_owned(),
             shard_name: shard_name.to_owned(),
             offset,
         }];

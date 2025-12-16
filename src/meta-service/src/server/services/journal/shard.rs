@@ -41,19 +41,11 @@ pub async fn list_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListShardRequest,
 ) -> Result<ListShardReply, MetaServiceError> {
-    if req.cluster_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            req.cluster_name.clone(),
-        ));
-    }
-
     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
-    let binary_shards = if req.namespace.is_empty() && req.shard_name.is_empty() {
-        shard_storage.list_by_cluster(&req.cluster_name)?
-    } else if !req.namespace.is_empty() && req.shard_name.is_empty() {
-        shard_storage.list_by_cluster_namespace(&req.cluster_name, &req.namespace)?
+    let binary_shards = if req.shard_name.is_empty() {
+        shard_storage.all_shard()?
     } else {
-        match shard_storage.get(&req.cluster_name, &req.namespace, &req.shard_name)? {
+        match shard_storage.get(&req.shard_name)? {
             Some(shard) => vec![shard],
             None => Vec::new(),
         }
@@ -78,14 +70,9 @@ pub async fn create_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
-    if cache_manager.get_cluster(&req.cluster_name).is_none() {
-        return Err(MetaServiceError::ClusterDoesNotExist(
-            req.cluster_name.clone(),
-        ));
-    }
+    // Check that the number of available nodes is sufficient
+    let num = cache_manager.node_list.len() as u32;
 
-    // Check that the number of available nodes in the cluster is sufficient
-    let num = cache_manager.get_broker_num(&req.cluster_name) as u32;
     let shard_config: JournalShardConfig = JournalShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
         return Err(MetaServiceError::NotEnoughNodes(
@@ -94,15 +81,11 @@ pub async fn create_shard_by_req(
         ));
     }
 
-    let shard = if let Some(shard) =
-        cache_manager.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
-    {
+    let shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
         shard
     } else {
         let shard = JournalShard {
             shard_uid: unique_id(),
-            cluster_name: req.cluster_name.clone(),
-            namespace: req.namespace.clone(),
             shard_name: req.shard_name.clone(),
             start_segment_seq: 0,
             active_segment_seq: 0,
@@ -117,12 +100,9 @@ pub async fn create_shard_by_req(
         shard
     };
 
-    let mut segment = if let Some(segment) = cache_manager.get_segment(
-        &shard.cluster_name,
-        &shard.namespace,
-        &shard.shard_name,
-        shard.active_segment_seq,
-    ) {
+    let mut segment = if let Some(segment) =
+        cache_manager.get_segment(&shard.shard_name, shard.active_segment_seq)
+    {
         segment
     } else {
         let segment = build_segment(&shard, cache_manager, 0).await?;
@@ -130,8 +110,6 @@ pub async fn create_shard_by_req(
         sync_save_segment_info(raft_manager, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
-            cluster_name: segment.cluster_name.clone(),
-            namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
             start_offset: 0,
@@ -141,8 +119,7 @@ pub async fn create_shard_by_req(
         };
 
         sync_save_segment_metadata_info(raft_manager, &metadata).await?;
-        update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
-            .await?;
+        update_cache_by_set_segment_meta(call_manager, client_pool, metadata).await?;
 
         segment
     };
@@ -150,16 +127,8 @@ pub async fn create_shard_by_req(
     update_segment_status(cache_manager, raft_manager, &segment, SegmentStatus::Write).await?;
     segment.status = SegmentStatus::Write;
 
-    // update segment cache
-    update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard.clone()).await?;
-
-    update_cache_by_set_segment(
-        &segment.cluster_name,
-        call_manager,
-        client_pool,
-        segment.clone(),
-    )
-    .await?;
+    update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
 
     let replica: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
     Ok(CreateShardReply {
@@ -175,14 +144,10 @@ pub async fn delete_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, MetaServiceError> {
-    let mut shard = if let Some(shard) =
-        cache_manager.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
-    {
+    let mut shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
         shard
     } else {
-        return Err(MetaServiceError::ShardDoesNotExist(
-            req.cluster_name.clone(),
-        ));
+        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
     };
 
     update_shard_status(
@@ -196,7 +161,7 @@ pub async fn delete_shard_by_req(
     shard.status = JournalShardStatus::PrepareDelete;
     cache_manager.add_wait_delete_shard(&shard);
 
-    update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard.clone()).await?;
+    update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
 
     Ok(DeleteShardReply::default())
 }

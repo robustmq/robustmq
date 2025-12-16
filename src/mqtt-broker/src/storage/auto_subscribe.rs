@@ -41,9 +41,7 @@ impl AutoSubscribeStorage {
         &self,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MqttBrokerError> {
         let config = broker_config();
-        let request = ListAutoSubscribeRuleRequest {
-            cluster_name: config.cluster_name.clone(),
-        };
+        let request = ListAutoSubscribeRuleRequest {};
         let reply = placement_list_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),
@@ -63,7 +61,6 @@ impl AutoSubscribeStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = SetAutoSubscribeRuleRequest {
-            cluster_name: config.cluster_name.clone(),
             topic: auto_subscribe_rule.topic.clone(),
             qos: Into::<u8>::into(auto_subscribe_rule.qos) as u32,
             no_local: auto_subscribe_rule.no_local,
@@ -81,10 +78,7 @@ impl AutoSubscribeStorage {
 
     pub async fn delete_auto_subscribe_rule(&self, topic: String) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteAutoSubscribeRuleRequest {
-            cluster_name: config.cluster_name.clone(),
-            topic,
-        };
+        let request = DeleteAutoSubscribeRuleRequest { topic };
         placement_delete_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

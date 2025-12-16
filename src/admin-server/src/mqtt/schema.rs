@@ -14,7 +14,6 @@
 
 use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
-use common_config::broker::broker_config;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
 use mqtt_broker::{handler::error::MqttBrokerError, storage::schema::SchemaStorage};
 use serde::{Deserialize, Serialize};
@@ -211,7 +210,6 @@ pub async fn schema_create_inner(
     };
 
     let schema_data = SchemaData {
-        cluster_name: state.broker_cache.cluster_name.clone(),
         name: req.schema_name.clone(),
         schema_type,
         schema: req.schema.clone(),
@@ -306,9 +304,7 @@ pub async fn schema_bind_create(
         return error_response(e.to_string());
     }
 
-    let config = broker_config();
     let bind = SchemaResourceBind {
-        cluster_name: config.cluster_name.clone(),
         schema_name: params.schema_name,
         resource_name: params.resource_name,
     };
@@ -328,9 +324,7 @@ pub async fn schema_bind_delete(
         return error_response(e.to_string());
     }
 
-    let config = broker_config();
     let bind = SchemaResourceBind {
-        cluster_name: config.cluster_name.clone(),
         schema_name: params.schema_name,
         resource_name: params.resource_name,
     };

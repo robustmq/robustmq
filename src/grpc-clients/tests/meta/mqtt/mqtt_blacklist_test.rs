@@ -31,7 +31,6 @@ mod tests {
     async fn mqtt_blacklist_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = "test_cluster".to_string();
 
         let blacklist = MqttAclBlackList {
             blacklist_type: MqttAclBlackListType::User,
@@ -41,7 +40,6 @@ mod tests {
         };
 
         let request = CreateBlacklistRequest {
-            cluster_name: cluster_name.clone(),
             blacklist: blacklist.encode().unwrap(),
         };
         match create_blacklist(&client_pool, &addrs, request).await {
@@ -51,9 +49,7 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let request = ListBlacklistRequest {};
 
         match list_blacklist(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -76,7 +72,6 @@ mod tests {
         }
 
         let request = DeleteBlacklistRequest {
-            cluster_name: cluster_name.clone(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name.clone(),
         };
@@ -87,9 +82,7 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
-            cluster_name: cluster_name.clone(),
-        };
+        let request = ListBlacklistRequest {};
 
         match list_blacklist(&client_pool, &addrs, request).await {
             Ok(data) => {

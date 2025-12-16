@@ -47,7 +47,6 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
         let subscribe_data = MqttSubscribe {
             client_id: context.client_id.to_owned(),
             path: filter.path.clone(),
-            cluster_name: conf.cluster_name.to_owned(),
             broker_id: conf.broker_id,
             filter: filter.clone(),
             pkid: context.subscribe.packet_identifier,
@@ -57,7 +56,6 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
         };
 
         let request = SetSubscribeRequest {
-            cluster_name: conf.cluster_name.to_owned(),
             client_id: context.client_id.to_owned(),
             path: filter.path.clone(),
             subscribe: subscribe_data.encode()?,
@@ -85,7 +83,6 @@ pub async fn remove_subscribe(
     let conf = broker_config();
     for path in un_subscribe.filters.clone() {
         let request = DeleteSubscribeRequest {
-            cluster_name: conf.cluster_name.to_owned(),
             client_id: client_id.to_owned(),
             path: path.clone(),
         };

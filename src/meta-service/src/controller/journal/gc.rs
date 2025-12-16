@@ -43,8 +43,7 @@ pub async fn gc_shard_thread(
         if shard.status != JournalShardStatus::PrepareDelete {
             warn!(
                 "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
-                shard.name(),
-                shard.status
+                shard.shard_name, shard.status
             );
             continue;
         }
@@ -62,7 +61,7 @@ pub async fn gc_shard_thread(
             if e.to_string().contains("raft stopped") {
                 info!(
                     "Raft stopped during shutdown, skipping Shard {} GC operation",
-                    shard.name()
+                    shard.shard_name
                 );
                 return;
             }
@@ -73,14 +72,16 @@ pub async fn gc_shard_thread(
             continue;
         }
 
-        let node_addrs = cache_manager.get_broker_node_addr_by_cluster(&shard.cluster_name);
+        let node_addrs: Vec<String> = cache_manager
+            .node_list
+            .iter()
+            .map(|raw| raw.node_inner_addr.clone())
+            .collect();
 
         // call all jen delete shard
         for node_addr in node_addrs.iter() {
             let addrs = vec![node_addr.to_string()];
             let request = DeleteShardFileRequest {
-                cluster_name: shard.cluster_name.clone(),
-                namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
             if let Err(e) = journal_inner_delete_shard_file(client_pool, &addrs, request).await {
@@ -96,8 +97,6 @@ pub async fn gc_shard_thread(
         for node_addr in node_addrs {
             let addrs = vec![node_addr.to_string()];
             let request = GetShardDeleteStatusRequest {
-                cluster_name: shard.cluster_name.clone(),
-                namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
             match journal_inner_get_shard_delete_status(client_pool, &addrs, request).await {
@@ -115,11 +114,7 @@ pub async fn gc_shard_thread(
         // delete shard/segment by storage/cache
         if !flag {
             // delete segment
-            for segment in cache_manager.get_segment_list_by_shard(
-                &shard.cluster_name,
-                &shard.namespace,
-                &shard.shard_name,
-            ) {
+            for segment in cache_manager.get_segment_list_by_shard(&shard.shard_name) {
                 if let Err(e) = sync_delete_segment_info(raft_manager, &segment.clone()).await {
                     if e.to_string().contains("raft stopped") {
                         info!("Raft stopped during shutdown, skipping remaining GC operations");
@@ -134,11 +129,7 @@ pub async fn gc_shard_thread(
             }
 
             // delete segment meta
-            for segment in cache_manager.get_segment_meta_list_by_shard(
-                &shard.cluster_name,
-                &shard.namespace,
-                &shard.shard_name,
-            ) {
+            for segment in cache_manager.get_segment_meta_list_by_shard(&shard.shard_name) {
                 if let Err(e) =
                     sync_delete_segment_metadata_info(raft_manager, &segment.clone()).await
                 {
@@ -162,8 +153,7 @@ pub async fn gc_shard_thread(
                 }
                 error!(
                     "Failed to delete Shard {} data with error message :{}",
-                    shard.name(),
-                    e
+                    shard.shard_name, e
                 );
             };
 
@@ -187,11 +177,7 @@ pub async fn gc_segment_thread(
             continue;
         }
 
-        let mut shard = if let Some(shard) = cache_manager.get_shard(
-            &segment.cluster_name,
-            &segment.namespace,
-            &segment.shard_name,
-        ) {
+        let mut shard = if let Some(shard) = cache_manager.get_shard(&segment.shard_name) {
             shard
         } else {
             cache_manager.remove_wait_delete_segment(&segment);
@@ -225,11 +211,9 @@ pub async fn gc_segment_thread(
 
         // call all jen delete segment
         for node_id in node_ids.iter() {
-            if let Some(node) = cache_manager.get_broker_node(&segment.cluster_name, *node_id) {
+            if let Some(node) = cache_manager.get_broker_node(*node_id) {
                 let addrs = vec![node.node_inner_addr.clone()];
                 let request = DeleteSegmentFileRequest {
-                    cluster_name: segment.cluster_name.clone(),
-                    namespace: segment.namespace.clone(),
                     shard_name: segment.shard_name.clone(),
                     segment: segment.segment_seq,
                 };
@@ -247,11 +231,9 @@ pub async fn gc_segment_thread(
         // get delete segment file status
         let mut flag = true;
         for node_id in node_ids.iter() {
-            if let Some(node) = cache_manager.get_broker_node(&segment.cluster_name, *node_id) {
+            if let Some(node) = cache_manager.get_broker_node(*node_id) {
                 let addrs = vec![node.node_inner_addr.clone()];
                 let request = GetSegmentDeleteStatusRequest {
-                    cluster_name: segment.cluster_name.clone(),
-                    namespace: segment.namespace.clone(),
                     shard_name: segment.shard_name.clone(),
                     segment: segment.segment_seq,
                 };
@@ -284,12 +266,9 @@ pub async fn gc_segment_thread(
             };
 
             // delete segment meta
-            if let Some(meta) = cache_manager.get_segment_meta(
-                &segment.cluster_name,
-                &segment.namespace,
-                &segment.shard_name,
-                segment.segment_seq,
-            ) {
+            if let Some(meta) =
+                cache_manager.get_segment_meta(&segment.shard_name, segment.segment_seq)
+            {
                 if let Err(e) = sync_delete_segment_metadata_info(raft_manager, &meta).await {
                     if e.to_string().contains("raft stopped") {
                         info!("Raft stopped during shutdown, skipping remaining GC operations");
@@ -318,8 +297,7 @@ pub async fn gc_segment_thread(
                 }
                 error!(
                     "Updating the Shard {} start segment information failed with error message {}",
-                    shard.name(),
-                    e
+                    shard.shard_name, e
                 );
             }
 

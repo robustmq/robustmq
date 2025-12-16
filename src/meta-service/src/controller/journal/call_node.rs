@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use dashmap::DashMap;
@@ -37,7 +37,6 @@ use tracing::{debug, error, info, warn};
 pub struct JournalInnerCallMessage {
     action_type: JournalUpdateCacheActionType,
     resource_type: JournalUpdateCacheResourceType,
-    cluster_name: String,
     data: Vec<u8>,
 }
 
@@ -48,56 +47,44 @@ pub struct JournalInnerCallNodeSender {
 }
 
 pub struct JournalInnerCallManager {
-    node_sender: DashMap<String, JournalInnerCallNodeSender>,
-    node_stop_sender: DashMap<String, Sender<bool>>,
-    placement_cache_manager: Arc<CacheManager>,
+    node_sender: DashMap<u64, JournalInnerCallNodeSender>,
+    node_stop_sender: DashMap<u64, Sender<bool>>,
+    broker_cache: Arc<BrokerCacheManager>,
 }
 
 impl JournalInnerCallManager {
-    pub fn new(placement_cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(broker_cache: Arc<BrokerCacheManager>) -> Self {
         let node_sender = DashMap::with_capacity(2);
         let node_sender_thread = DashMap::with_capacity(2);
         JournalInnerCallManager {
             node_sender,
             node_stop_sender: node_sender_thread,
-            placement_cache_manager,
+            broker_cache,
         }
     }
 
-    pub fn get_node_sender(
-        &self,
-        cluster: &str,
-        node_id: u64,
-    ) -> Option<JournalInnerCallNodeSender> {
-        let key = self.node_key(cluster, node_id);
-        if let Some(sender) = self.node_sender.get(&key) {
+    pub fn get_node_sender(&self, node_id: u64) -> Option<JournalInnerCallNodeSender> {
+        if let Some(sender) = self.node_sender.get(&node_id) {
             return Some(sender.clone());
         }
         None
     }
 
-    pub fn add_node_sender(&self, cluster: &str, node_id: u64, sender: JournalInnerCallNodeSender) {
-        let key = self.node_key(cluster, node_id);
-        self.node_sender.insert(key, sender);
+    pub fn add_node_sender(&self, node_id: u64, sender: JournalInnerCallNodeSender) {
+        self.node_sender.insert(node_id, sender);
     }
 
-    pub fn remove_node(&self, cluster: &str, node_id: u64) {
-        let key = self.node_key(cluster, node_id);
-        self.node_sender.remove(&key);
-        if let Some((_, send)) = self.node_stop_sender.remove(&key) {
+    pub fn remove_node(&self, node_id: u64) {
+        self.node_sender.remove(&node_id);
+        if let Some((_, send)) = self.node_stop_sender.remove(&node_id) {
             if let Err(e) = send.send(true) {
                 warn!("{}", e);
             }
         }
     }
 
-    pub fn add_node_stop_sender(&self, cluster: &str, node_id: u64, sender: Sender<bool>) {
-        let key = self.node_key(cluster, node_id);
-        self.node_stop_sender.insert(key, sender);
-    }
-
-    fn node_key(&self, cluster: &str, node_id: u64) -> String {
-        format!("{cluster}_{node_id}")
+    pub fn add_node_stop_sender(&self, node_id: u64, sender: Sender<bool>) {
+        self.node_stop_sender.insert(node_id, sender);
     }
 }
 
@@ -112,7 +99,6 @@ pub async fn journal_call_thread_manager(
             if !call_manager.node_stop_sender.contains_key(&key) {
                 let (stop_send, _) = broadcast::channel(2);
                 start_call_thread(
-                    key.clone(),
                     node_sender.node,
                     call_manager.clone(),
                     client_pool.clone(),
@@ -140,7 +126,6 @@ pub async fn journal_call_thread_manager(
 }
 
 pub async fn update_cache_by_set_shard(
-    cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_info: JournalShard,
@@ -149,15 +134,13 @@ pub async fn update_cache_by_set_shard(
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Shard,
-        cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_set_segment(
-    cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     segment_info: JournalSegment,
@@ -166,15 +149,13 @@ pub async fn update_cache_by_set_segment(
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Segment,
-        cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_set_segment_meta(
-    cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     segment_info: JournalSegmentMetadata,
@@ -183,15 +164,13 @@ pub async fn update_cache_by_set_segment_meta(
     let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::SegmentMeta,
-        cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    add_call_message(call_manager, client_pool, message).await?;
     Ok(())
 }
 
 async fn start_call_thread(
-    cluster_name: String,
     node: BrokerNode,
     call_manager: Arc<JournalInnerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -199,7 +178,7 @@ async fn start_call_thread(
 ) {
     tokio::spawn(async move {
         let mut raw_stop_rx = stop_send.subscribe();
-        if let Some(node_send) = call_manager.get_node_sender(&cluster_name, node.node_id) {
+        if let Some(node_send) = call_manager.get_node_sender(node.node_id) {
             let mut data_recv = node_send.sender.subscribe();
             info!(
                 "Inner communication between Meta Service and Journal Engine node [{:?}].",
@@ -232,7 +211,6 @@ async fn call_journal_update_cache(
     data: JournalInnerCallMessage,
 ) {
     let request = UpdateJournalCacheRequest {
-        cluster_name: data.cluster_name.to_string(),
         action_type: data.action_type.into(),
         resource_type: data.resource_type.into(),
         data: data.data.clone(),
@@ -250,16 +228,12 @@ async fn call_journal_update_cache(
 
 async fn add_call_message(
     call_manager: &Arc<JournalInnerCallManager>,
-    cluster_name: &str,
     client_pool: &Arc<ClientPool>,
     message: JournalInnerCallMessage,
 ) -> Result<(), MetaServiceError> {
-    for node in call_manager
-        .placement_cache_manager
-        .get_broker_node_by_cluster(cluster_name)
-    {
+    for node in call_manager.broker_cache.node_list().iter() {
         // todo Check whether the node is of the journal role
-        if let Some(node_sender) = call_manager.get_node_sender(cluster_name, node.node_id) {
+        if let Some(node_sender) = call_manager.get_node_sender(node.node_id) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}
                 Err(e) => {
@@ -270,7 +244,6 @@ async fn add_call_message(
             // add sender
             let (sx, _) = broadcast::channel::<JournalInnerCallMessage>(1000);
             call_manager.add_node_sender(
-                cluster_name,
                 node.node_id,
                 JournalInnerCallNodeSender {
                     sender: sx.clone(),
@@ -281,14 +254,13 @@ async fn add_call_message(
             // start thread
             let (stop_send, _) = broadcast::channel(2);
             start_call_thread(
-                cluster_name.to_string(),
                 node.clone(),
                 call_manager.clone(),
                 client_pool.clone(),
                 stop_send.clone(),
             )
             .await;
-            call_manager.add_node_stop_sender(cluster_name, node.node_id, stop_send);
+            call_manager.add_node_stop_sender(node.node_id, stop_send);
 
             // Wait 2s for the "broadcast rx" thread to start, otherwise the send message will report a "channel closed" error
             sleep(Duration::from_secs(2)).await;

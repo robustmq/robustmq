@@ -38,10 +38,7 @@ impl SchemaStorage {
 
     pub async fn list(&self, schema_name: String) -> Result<Vec<SchemaData>, CommonError> {
         let config = broker_config();
-        let request = ListSchemaRequest {
-            cluster_name: config.cluster_name.clone(),
-            schema_name,
-        };
+        let request = ListSchemaRequest { schema_name };
 
         let reply =
             list_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -55,7 +52,6 @@ impl SchemaStorage {
     pub async fn create(&self, schema_data: SchemaData) -> ResultCommonError {
         let config = broker_config();
         let request = CreateSchemaRequest {
-            cluster_name: config.cluster_name.clone(),
             schema_name: schema_data.name.clone(),
             schema: schema_data.encode()?,
         };
@@ -67,10 +63,7 @@ impl SchemaStorage {
 
     pub async fn delete(&self, schema_name: String) -> ResultCommonError {
         let config = broker_config();
-        let request = DeleteSchemaRequest {
-            cluster_name: config.cluster_name.clone(),
-            schema_name,
-        };
+        let request = DeleteSchemaRequest { schema_name };
 
         delete_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
@@ -80,7 +73,6 @@ impl SchemaStorage {
     pub async fn create_bind(&self, schema_name: &str, resource_name: &str) -> ResultCommonError {
         let config = broker_config();
         let request = BindSchemaRequest {
-            cluster_name: config.cluster_name.clone(),
             schema_name: schema_name.to_string(),
             resource_name: resource_name.to_string(),
         };
@@ -92,7 +84,6 @@ impl SchemaStorage {
     pub async fn delete_bind(&self, schema_name: &str, resource_name: &str) -> ResultCommonError {
         let config = broker_config();
         let request = UnBindSchemaRequest {
-            cluster_name: config.cluster_name.clone(),
             schema_name: schema_name.to_string(),
             resource_name: resource_name.to_string(),
         };
@@ -105,7 +96,6 @@ impl SchemaStorage {
     pub async fn list_bind(&self) -> Result<Vec<SchemaResourceBind>, CommonError> {
         let config = broker_config();
         let request = ListBindSchemaRequest {
-            cluster_name: config.cluster_name.clone(),
             schema_name: "".to_string(),
             resource_name: "".to_string(),
         };

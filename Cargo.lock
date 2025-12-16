@@ -2916,11 +2916,14 @@ name = "grpc-clients"
 version = "0.2.7"
 dependencies = [
  "common-base",
+ "common-config",
  "dashmap",
  "metadata-struct",
  "mobc",
  "protocol",
  "regex",
+ "serde",
+ "serde_json",
  "tokio",
  "tonic",
  "tracing",

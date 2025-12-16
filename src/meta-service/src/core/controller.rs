@@ -53,7 +53,6 @@ impl ClusterController {
         }
     }
 
-    // Start the heartbeat detection thread of the Storage Engine node
     pub async fn start_node_heartbeat_check(&self) {
         let config = broker_config();
         let heartbeat = BrokerHeartbeat::new(

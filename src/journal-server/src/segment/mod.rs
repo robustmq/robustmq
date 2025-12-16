@@ -23,19 +23,17 @@ pub mod write;
 /// A unique identifier for a segment, used to get segment metadata or segment file.
 #[derive(Clone, Debug)]
 pub struct SegmentIdentity {
-    pub namespace: String,
     pub shard_name: String,
     pub segment_seq: u32,
 }
 
 impl SegmentIdentity {
     pub fn name(&self) -> String {
-        segment_name(&self.namespace, &self.shard_name, self.segment_seq)
+        segment_name(&self.shard_name, self.segment_seq)
     }
 
-    pub fn new(namespace: &str, shard_name: &str, segment_seq: u32) -> Self {
+    pub fn new(shard_name: &str, segment_seq: u32) -> Self {
         SegmentIdentity {
-            namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
             segment_seq,
         }
@@ -43,7 +41,6 @@ impl SegmentIdentity {
 
     pub fn from_journal_segment(segment: &JournalSegment) -> Self {
         SegmentIdentity {
-            namespace: segment.namespace.to_string(),
             shard_name: segment.shard_name.to_string(),
             segment_seq: segment.segment_seq,
         }

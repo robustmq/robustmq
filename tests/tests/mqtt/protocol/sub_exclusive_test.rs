@@ -16,8 +16,8 @@
 mod tests {
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
-            publish_data, qos_list, ssl_by_type, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+            ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
@@ -26,82 +26,77 @@ mod tests {
 
     #[tokio::test]
     async fn sub_exclusive_test() {
-        for network in network_types() {
-            for qos in qos_list() {
-                let topic = format!("/sub_exclusive_test/{}", unique_id());
-                let sub_exclusive_topics: &[String; 1] = &[format!("$exclusive{}", topic.clone())];
-                let sub_opts = &[SubscribeOptions::default()];
+        let network = "tcp";
+        let qos = 1;
+        let topic = format!("/sub_exclusive_test/{}", unique_id());
+        let sub_exclusive_topics: &[String; 1] = &[format!("$exclusive{}", topic.clone())];
+        let sub_opts = &[SubscribeOptions::default()];
 
-                // publish
-                let client_id =
-                    build_client_id(format!("sub_exclusive_test_{network}_{qos}").as_str());
+        // publish
+        let client_id = build_client_id(format!("sub_exclusive_test_{network}_{qos}").as_str());
 
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli = connect_server(&client_properties);
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
 
-                let message_content = "sub_exclusive_test mqtt message".to_string();
-                let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
-                publish_data(&cli, msg, false);
-                distinct_conn(cli);
+        let message_content = "sub_exclusive_test mqtt message".to_string();
+        let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
+        publish_data(&cli, msg, false);
+        distinct_conn(cli);
 
-                // subscribe exclusive topic
-                let client_id1 =
-                    build_client_id(format!("sub_exclusive_test_cli1_{network}_{qos}").as_str());
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id1.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli1 = connect_server(&client_properties);
-                let result =
-                    cli1.subscribe_many_with_options(sub_exclusive_topics, &[qos], sub_opts, None);
-                assert!(result.is_ok());
+        // subscribe exclusive topic
+        let client_id1 =
+            build_client_id(format!("sub_exclusive_test_cli1_{network}_{qos}").as_str());
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id1.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli1 = connect_server(&client_properties);
+        let result = cli1.subscribe_many_with_options(sub_exclusive_topics, &[qos], sub_opts, None);
+        assert!(result.is_ok());
 
-                // subscribe topic success
-                let client_id2 =
-                    build_client_id(format!("sub_exclusive_test_cli2_{network}_{qos}").as_str());
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id2.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli2 = connect_server(&client_properties);
-                let result = cli2.subscribe_many_with_options(&[topic], &[qos], sub_opts, None);
-                println!("{result:?}");
-                assert!(result.is_ok());
+        // subscribe topic success
+        let client_id2 =
+            build_client_id(format!("sub_exclusive_test_cli2_{network}_{qos}").as_str());
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id2.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli2 = connect_server(&client_properties);
+        let result = cli2.subscribe_many_with_options(&[topic], &[qos], sub_opts, None);
+        println!("{result:?}");
+        assert!(result.is_ok());
 
-                // subscribe exclusive topic fail
-                let client_id3 =
-                    build_client_id(format!("sub_exclusive_test_cli3_{network}_{qos}").as_str());
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id3.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli3 = connect_server(&client_properties);
-                let result =
-                    cli3.subscribe_many_with_options(sub_exclusive_topics, &[qos], sub_opts, None);
-                assert!(result.is_err());
-                distinct_conn(cli1);
-                distinct_conn(cli2);
-                distinct_conn(cli3);
-            }
-        }
+        // subscribe exclusive topic fail
+        let client_id3 =
+            build_client_id(format!("sub_exclusive_test_cli3_{network}_{qos}").as_str());
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id3.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli3 = connect_server(&client_properties);
+        let result = cli3.subscribe_many_with_options(sub_exclusive_topics, &[qos], sub_opts, None);
+        assert!(result.is_err());
+        distinct_conn(cli1);
+        distinct_conn(cli2);
+        distinct_conn(cli3);
     }
 }

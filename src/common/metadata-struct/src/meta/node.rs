@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct BrokerNode {
-    pub cluster_name: String,
     pub roles: Vec<String>,
     pub extend: Vec<u8>,
     pub node_id: u64,

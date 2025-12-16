@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 pub struct MqttSubscribe {
     pub client_id: String,
     pub path: String,
-    pub cluster_name: String,
     pub broker_id: u64,
     pub protocol: MqttProtocol,
     pub filter: Filter,

@@ -70,7 +70,6 @@ pub async fn segment_already_delete(
     req: &GetSegmentDeleteStatusRequest,
 ) -> Result<bool, JournalServerError> {
     let segment_iden = SegmentIdentity {
-        namespace: req.namespace.clone(),
         shard_name: req.shard_name.clone(),
         segment_seq: req.segment,
     };

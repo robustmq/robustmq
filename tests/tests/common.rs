@@ -63,3 +63,7 @@ pub fn producer_id() -> String {
 pub fn seq_num() -> u64 {
     4
 }
+
+pub fn get_placement_addr() -> String {
+    "127.0.0.1:1228".to_string()
+}

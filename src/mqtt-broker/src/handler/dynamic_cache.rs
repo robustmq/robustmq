@@ -15,7 +15,6 @@
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
-use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::tool::ResultMqttBrokerError;
 use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
@@ -32,7 +31,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use metadata_struct::resource_config::ClusterResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
@@ -276,9 +274,9 @@ pub async fn update_cache_metadata(
 
         MqttBrokerUpdateCacheResourceType::ClusterResourceConfig => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                let data = serialize::deserialize::<ClusterResourceConfig>(&request.data)?;
-                let config = data.resource.parse::<ClusterDynamicConfig>()?;
-                update_cluster_dynamic_config(cache_manager, config, data.config).await?;
+                // let data = serialize::deserialize::<ResourceConfig>(&request.data)?;
+                // let config = data.resource.parse::<ClusterDynamicConfig>()?;
+                // update_cluster_dynamic_config(cache_manager, config, data.config).await?;
             }
             MqttBrokerUpdateCacheActionType::Delete => {}
         },

@@ -155,7 +155,6 @@ mod test {
     #[test]
     pub fn json_schema_test() {
         let schema_manager = SchemaRegisterManager::new();
-        let cluster_name = "test1".to_string();
         let schema_name = "schema1".to_string();
         let schema_json_content = r#"{
             "type": "object",
@@ -166,7 +165,6 @@ mod test {
             "required": ["name"]
         }"#;
         schema_manager.add_schema(SchemaData {
-            cluster_name: cluster_name.clone(),
             name: schema_name.clone(),
             schema: schema_json_content.to_string(),
             schema_type: SchemaType::JSON,
@@ -175,7 +173,6 @@ mod test {
 
         let topic_name = "t1".to_string();
         let bind_schema = SchemaResourceBind {
-            cluster_name: cluster_name.clone(),
             resource_name: topic_name.clone(),
             schema_name: schema_name.clone(),
         };
@@ -223,7 +220,6 @@ mod test {
     #[test]
     pub fn avro_schema_test() {
         let schema_manager = SchemaRegisterManager::new();
-        let cluster_name = "test1".to_string();
         let schema_name = "schema1".to_string();
         let schema_avro_content = r#"
         {
@@ -237,7 +233,6 @@ mod test {
         "#;
 
         schema_manager.add_schema(SchemaData {
-            cluster_name: cluster_name.clone(),
             name: schema_name.clone(),
             schema: schema_avro_content.to_string(),
             schema_type: SchemaType::AVRO,
@@ -246,7 +241,6 @@ mod test {
 
         let topic_name = "t1".to_string();
         let bind_schema = SchemaResourceBind {
-            cluster_name: cluster_name.clone(),
             resource_name: topic_name.clone(),
             schema_name: schema_name.clone(),
         };

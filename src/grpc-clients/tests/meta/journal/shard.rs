@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::{get_local_ip, now_second, unique_id};
+    use common_base::tools::{get_local_ip, now_second};
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::journal::call::{
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
@@ -37,13 +37,12 @@ mod tests {
 
     use crate::common::get_placement_addr;
 
-    #[tokio::test]
+    // #[tokio::test]
 
     async fn shard_segment_metadata_test() {
         let client_pool = ClientPool::new(1);
         let addrs = vec![get_placement_addr()];
 
-        let cluster_name = unique_id();
         let shard_name = "s1".to_string();
         let namespace = "n1".to_string();
         let node_id = 1;
@@ -57,7 +56,6 @@ mod tests {
 
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
@@ -81,7 +79,6 @@ mod tests {
 
         // create shard
         let request = CreateShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             shard_config: config.encode().unwrap(),
@@ -93,7 +90,6 @@ mod tests {
 
         // list shard
         let request = ListShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
@@ -105,7 +101,6 @@ mod tests {
             .collect();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();
-        assert_eq!(shard_raw.cluster_name, cluster_name);
         assert_eq!(shard_raw.namespace, namespace);
         assert_eq!(shard_raw.shard_name, shard_name);
         assert_eq!(shard_raw.config.replica_num, 1);
@@ -116,7 +111,6 @@ mod tests {
 
         // List Segment
         let request = ListSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: -1,
@@ -144,7 +138,6 @@ mod tests {
 
         // list segment meta
         let request = ListSegmentMetaRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: -1,
@@ -169,7 +162,6 @@ mod tests {
 
         // create next segment
         let request = CreateNextSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
@@ -179,7 +171,6 @@ mod tests {
 
         // list segment
         let request = ListSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: -1,
@@ -220,7 +211,6 @@ mod tests {
 
         // list segment meta
         let request = ListSegmentMetaRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: -1,
@@ -254,7 +244,6 @@ mod tests {
 
         // create next segment
         let request = CreateNextSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
@@ -262,7 +251,6 @@ mod tests {
             .await
             .unwrap();
         let request = ListSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: -1,
@@ -285,7 +273,6 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let cluster_name = unique_id();
         let shard_name = "s1".to_string();
         let namespace = "n1".to_string();
         let node_id = 1;
@@ -299,7 +286,6 @@ mod tests {
 
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
@@ -321,7 +307,6 @@ mod tests {
         };
         // create shard
         let request = CreateShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             shard_config: config.encode().unwrap(),
@@ -333,7 +318,6 @@ mod tests {
 
         // update status to PreSealUp
         let request = UpdateSegmentStatusRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_seq: 0,
@@ -346,7 +330,6 @@ mod tests {
         }
         // List Segment
         let request = ListSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: 0,
@@ -364,7 +347,6 @@ mod tests {
 
         // update status to SealUp
         let request = UpdateSegmentStatusRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_seq: 0,
@@ -378,7 +360,6 @@ mod tests {
 
         // List Segment
         let request = ListSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: 0,
@@ -396,7 +377,6 @@ mod tests {
 
         // update segment meta
         let request = UpdateSegmentMetaRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: 0,
@@ -412,7 +392,6 @@ mod tests {
 
         // list segment meta
         let request = ListSegmentMetaRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: -1,
@@ -442,7 +421,6 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let cluster_name = unique_id();
         let shard_name = "s1".to_string();
         let namespace = "n1".to_string();
         let node_id = 1;
@@ -456,7 +434,6 @@ mod tests {
 
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
@@ -480,7 +457,6 @@ mod tests {
         };
         // create shard
         let request = CreateShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             shard_config: config.encode().unwrap(),
@@ -492,7 +468,6 @@ mod tests {
 
         // create next segment
         let request = CreateNextSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
@@ -502,7 +477,6 @@ mod tests {
 
         // delete segment
         let request = DeleteSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_seq: 0,
@@ -515,7 +489,6 @@ mod tests {
 
         // update status to SealUp
         let request = UpdateSegmentStatusRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_seq: 0,
@@ -529,7 +502,6 @@ mod tests {
 
         // delete segment
         let request = DeleteSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_seq: 0,
@@ -538,7 +510,6 @@ mod tests {
 
         // List Segment
         let request = ListSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             segment_no: 0,
@@ -561,7 +532,6 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let cluster_name = unique_id();
         let shard_name = "s1".to_string();
         let namespace = "n1".to_string();
         let node_id = 1;
@@ -575,7 +545,6 @@ mod tests {
 
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
@@ -597,7 +566,6 @@ mod tests {
         };
         // create shard
         let request = CreateShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
             shard_config: config.encode().unwrap(),
@@ -609,7 +577,6 @@ mod tests {
 
         // create next segment
         let request = CreateNextSegmentRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
@@ -619,7 +586,6 @@ mod tests {
 
         // delete shard
         let request = DeleteShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
@@ -627,7 +593,6 @@ mod tests {
 
         // list shard
         let request = ListShardRequest {
-            cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };

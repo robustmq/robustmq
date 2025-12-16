@@ -19,8 +19,6 @@ use serde::{Deserialize, Serialize};
 
 pub struct JournalShard {
     pub shard_uid: String,
-    pub cluster_name: String,
-    pub namespace: String,
     pub shard_name: String,
     pub start_segment_seq: u32,
     pub active_segment_seq: u32,
@@ -31,10 +29,6 @@ pub struct JournalShard {
 }
 
 impl JournalShard {
-    pub fn name(&self) -> String {
-        shard_name_iden(&self.namespace, &self.shard_name)
-    }
-
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }
@@ -42,10 +36,6 @@ impl JournalShard {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
-}
-
-pub fn shard_name_iden(namespace: &str, shard_name: &str) -> String {
-    format!("{namespace},{shard_name}")
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

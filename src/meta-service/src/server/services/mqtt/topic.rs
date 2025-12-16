@@ -84,7 +84,7 @@ pub async fn create_topic_by_req(
     raft_manager.write_metadata(data).await?;
 
     let topic = MQTTTopic::decode(&req.content)?;
-    update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
+    update_cache_by_add_topic(call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})
 }
@@ -106,7 +106,7 @@ pub async fn delete_topic_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    update_cache_by_delete_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
+    update_cache_by_delete_topic(call_manager, client_pool, topic).await?;
 
     Ok(DeleteTopicReply {})
 }
@@ -146,7 +146,7 @@ pub async fn get_topic_retain_message_by_req(
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let (retain_message, retain_message_expired_at) =
-        match topic_storage.get_retain_message(&req.cluster_name, &req.topic_name)? {
+        match topic_storage.get_retain_message(&req.topic_name)? {
             Some(message) => (
                 Some(message.retain_message.to_vec()),
                 message.retain_message_expired_at,
@@ -189,10 +189,10 @@ pub async fn delete_topic_rewrite_rule_by_req(
 
 pub fn list_topic_rewrite_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &ListTopicRewriteRuleRequest,
+    _req: &ListTopicRewriteRuleRequest,
 ) -> Result<ListTopicRewriteRuleReply, MetaServiceError> {
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    let data = storage.list_topic_rewrite_rule(&req.cluster_name)?;
+    let data = storage.list_all_topic_rewrite_rules()?;
 
     let rules = data
         .into_iter()

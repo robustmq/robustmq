@@ -321,11 +321,8 @@ impl BrokerServer {
         broker_cache: Arc<BrokerCacheManager>,
     ) -> MetaServiceServerParams {
         let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let journal_call_manager = Arc::new(JournalInnerCallManager::new(cache_manager.clone()));
-        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(
-            cache_manager.clone(),
-            broker_cache,
-        ));
+        let journal_call_manager = Arc::new(JournalInnerCallManager::new(broker_cache.clone()));
+        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(broker_cache));
 
         let data_route = Arc::new(DataRoute::new(
             rocksdb_engine_handler.clone(),

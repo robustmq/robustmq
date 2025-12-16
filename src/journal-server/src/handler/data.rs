@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal::journal_engine::{
     FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShardMeta, JournalEngineError, ReadReq,
     ReadRespSegmentMessage, WriteReq, WriteRespMessage,
@@ -65,16 +64,10 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         for message in req_body.data.iter() {
-            try_auto_create_shard(
-                &self.cache_manager,
-                &self.client_pool,
-                &message.namespace,
-                &message.shard_name,
-            )
-            .await?;
+            try_auto_create_shard(&self.cache_manager, &self.client_pool, &message.shard_name)
+                .await?;
 
             let segment_identity = SegmentIdentity {
-                namespace: message.namespace.to_string(),
                 shard_name: message.shard_name.to_string(),
                 segment_seq: message.segment,
             };
@@ -102,16 +95,9 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         for row in req_body.messages.clone() {
-            try_auto_create_shard(
-                &self.cache_manager,
-                &self.client_pool,
-                &row.namespace,
-                &row.shard_name,
-            )
-            .await?;
+            try_auto_create_shard(&self.cache_manager, &self.client_pool, &row.shard_name).await?;
 
             let segment_identity = SegmentIdentity {
-                namespace: row.namespace.to_string(),
                 shard_name: row.shard_name.to_string(),
                 segment_seq: row.segment,
             };
@@ -143,20 +129,12 @@ impl DataHandler {
         let mut meta_list: Vec<FetchOffsetShardMeta> = Vec::new();
 
         for shard in req_body.shards {
-            try_auto_create_shard(
-                &self.cache_manager,
-                &self.client_pool,
-                &shard.namespace,
-                &shard.shard_name,
-            )
-            .await?;
+            try_auto_create_shard(&self.cache_manager, &self.client_pool, &shard.shard_name)
+                .await?;
             let segment_iden = SegmentIdentity {
-                namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
                 segment_seq: shard.segment_no,
             };
-
-            let shard_iden = shard_name_iden(&shard.namespace, &shard.shard_name);
 
             let file_metadata = self.cache_manager.get_segment_meta(&segment_iden);
             let segment_meta = if let Some(meta) = file_metadata {
@@ -173,22 +151,20 @@ impl DataHandler {
                 continue;
             };
 
-            let active_segment = if let Some(segment) = self
-                .cache_manager
-                .get_active_segment(&shard.namespace, &shard.shard_name)
-            {
-                segment.segment_seq
-            } else {
-                let e = &JournalServerError::NotActiveSegment(shard_iden);
-                meta_list.push(FetchOffsetShardMeta {
-                    error: Some(JournalEngineError {
-                        code: get_journal_server_code(e),
-                        error: e.to_string(),
-                    }),
-                    ..Default::default()
-                });
-                continue;
-            };
+            let active_segment =
+                if let Some(segment) = self.cache_manager.get_active_segment(&shard.shard_name) {
+                    segment.segment_seq
+                } else {
+                    let e = &JournalServerError::NotActiveSegment(shard.shard_name);
+                    meta_list.push(FetchOffsetShardMeta {
+                        error: Some(JournalEngineError {
+                            code: get_journal_server_code(e),
+                            error: e.to_string(),
+                        }),
+                        ..Default::default()
+                    });
+                    continue;
+                };
 
             let is_active_segment = active_segment == shard.segment_no;
 
@@ -196,7 +172,7 @@ impl DataHandler {
                 let e = &JournalServerError::TimestampBelongToPreviousSegment(
                     shard.timestamp,
                     segment_meta.start_offset,
-                    shard_iden,
+                    shard.shard_name,
                 );
                 meta_list.push(FetchOffsetShardMeta {
                     error: Some(JournalEngineError {
@@ -211,7 +187,6 @@ impl DataHandler {
             if shard.timestamp > segment_meta.end_timestamp as u64 {
                 if is_active_segment {
                     let meta = FetchOffsetShardMeta {
-                        namespace: shard.namespace,
                         shard_name: shard.shard_name,
                         segment_no: shard.segment_no,
                         offset: segment_meta.end_offset,
@@ -224,7 +199,7 @@ impl DataHandler {
                     let e = &JournalServerError::TimestampBelongToNextSegment(
                         shard.timestamp,
                         segment_meta.start_offset,
-                        shard_iden,
+                        shard.shard_name,
                     );
                     meta_list.push(FetchOffsetShardMeta {
                         error: Some(JournalEngineError {
@@ -244,8 +219,10 @@ impl DataHandler {
             {
                 index_data.offset
             } else {
-                let e =
-                    &JournalServerError::NotAvailableOffsetByTimestamp(shard.timestamp, shard_iden);
+                let e = &JournalServerError::NotAvailableOffsetByTimestamp(
+                    shard.timestamp,
+                    shard.shard_name,
+                );
                 meta_list.push(FetchOffsetShardMeta {
                     error: Some(JournalEngineError {
                         code: get_journal_server_code(e),
@@ -257,7 +234,6 @@ impl DataHandler {
             };
 
             let meta = FetchOffsetShardMeta {
-                namespace: shard.namespace,
                 shard_name: shard.shard_name,
                 segment_no: shard.segment_no,
                 offset: offset as i64,
@@ -275,7 +251,7 @@ impl DataHandler {
     fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), JournalServerError> {
         if self
             .cache_manager
-            .get_shard(&segment_identity.namespace, &segment_identity.shard_name)
+            .get_shard(&segment_identity.shard_name)
             .is_none()
         {
             return Err(JournalServerError::ShardNotExist(

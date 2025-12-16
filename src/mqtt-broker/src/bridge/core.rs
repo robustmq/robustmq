@@ -113,7 +113,6 @@ pub async fn run_connector_loop<S: ConnectorSink>(
         let offset = message_storage
             .get_group_offset(&group_name, &config.topic_name)
             .await?;
-
         select! {
             val = stop_recv.recv() => {
                 if let Ok(flag) = val {
@@ -459,7 +458,6 @@ mod tests {
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
-            cluster_name: "test_cluster".to_string(),
             create_time: now_second(),
             update_time: now_second(),
         }

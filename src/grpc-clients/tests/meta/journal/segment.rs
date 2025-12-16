@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
 
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::journal::call::{create_next_segment, create_shard};
     use grpc_clients::pool::ClientPool;
@@ -31,7 +31,6 @@ mod tests {
         let client_pool = ClientPool::new(1);
         let addrs = vec![get_placement_addr()];
 
-        let cluster = unique_id();
         let namespace = "n1".to_string();
         let shard_name = "s1".to_string();
 
@@ -43,7 +42,6 @@ mod tests {
 
         let node = BrokerNode {
             roles: Vec::new(),
-            cluster_name: cluster.clone(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
@@ -64,7 +62,6 @@ mod tests {
         };
         //  create shard
         let request = CreateShardRequest {
-            cluster_name: cluster.clone(),
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
             shard_config: config.encode().unwrap(),
@@ -74,7 +71,6 @@ mod tests {
         assert_eq!(res.segment_no, 0);
 
         let request = CreateNextSegmentRequest {
-            cluster_name: cluster.clone(),
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
         };

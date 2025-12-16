@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::remove_file;
-use std::io::ErrorKind;
-use std::path::Path;
-use std::sync::Arc;
-
+use super::SegmentIdentity;
+use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
 use prost::Message;
 use protocol::journal::journal_record::JournalRecord;
+use std::fs::remove_file;
+use std::io::ErrorKind;
+use std::path::Path;
+use std::sync::Arc;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-
-use super::SegmentIdentity;
-use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
 
 /// The record read from the segment file
 #[derive(Debug, Clone)]
@@ -59,7 +57,6 @@ pub async fn open_segment_write(
 
     Ok((
         SegmentFile::new(
-            segment_iden.namespace.to_string(),
             segment_iden.shard_name.to_string(),
             segment_iden.segment_seq,
             fold,
@@ -71,17 +68,15 @@ pub async fn open_segment_write(
 /// Represent a segment file, providing methods for reading and writing records.
 #[derive(Default)]
 pub struct SegmentFile {
-    pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,
     pub data_fold: String,
 }
 
 impl SegmentFile {
-    pub fn new(namespace: String, shard_name: String, segment_no: u32, data_fold: String) -> Self {
-        let data_fold = data_fold_shard(&namespace, &shard_name, &data_fold);
+    pub fn new(shard_name: String, segment_no: u32, data_fold: String) -> Self {
+        let data_fold = data_fold_shard(&shard_name, &data_fold);
         SegmentFile {
-            namespace,
             shard_name,
             segment_no,
             data_fold,
@@ -260,9 +255,8 @@ impl SegmentFile {
     }
 }
 
-pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
-    let file_name = format!("{namespace}/{shard_name}");
-    format!("{data_fold}/{file_name}")
+pub fn data_fold_shard(shard_name: &str, data_fold: &str) -> String {
+    format!("{data_fold}/{shard_name}")
 }
 
 pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
@@ -271,26 +265,23 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_base::tools::{now_second, unique_id};
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
-    use protocol::journal::journal_record::JournalRecord;
-
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::CacheManager;
     use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
+    use common_base::tools::now_second;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
+    use protocol::journal::journal_record::JournalRecord;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn data_fold_shard_test() {
-        let namespace = unique_id();
         let shard_name = "s1".to_string();
         let data_fold = "/tmp/d1".to_string();
         let segment_no = 10;
-        let fold = data_fold_shard(&namespace, &shard_name, &data_fold);
-        assert_eq!(fold, format!("{data_fold}/{namespace}/{shard_name}"));
+        let fold = data_fold_shard(&shard_name, &data_fold);
+        assert_eq!(fold, format!("{data_fold}/{shard_name}"));
         let file = data_file_segment(&fold, segment_no);
         assert_eq!(file, format!("{fold}/{segment_no}.msg"));
     }
@@ -298,18 +289,13 @@ mod tests {
     #[tokio::test]
     async fn open_segment_write_test() {
         init_broker_conf_by_config(default_broker_config());
-        let cluster_name = "c1".to_string();
-        let namespace = unique_id();
         let shard_name = "s1".to_string();
         let segment_no = 10;
         let segment_iden = SegmentIdentity {
-            namespace: namespace.clone(),
             shard_name: shard_name.clone(),
             segment_seq: segment_no,
         };
         let segment = JournalSegment {
-            cluster_name,
-            namespace,
             shard_name,
             segment_seq: segment_no,
             replicas: vec![Replica {
@@ -339,7 +325,6 @@ mod tests {
         let segment_iden = test_build_segment();
 
         let segment = SegmentFile::new(
-            segment_iden.namespace.to_string(),
             segment_iden.shard_name.to_string(),
             segment_iden.segment_seq,
             data_fold.first().unwrap().to_string(),
@@ -358,7 +343,6 @@ mod tests {
         let segment_iden = test_build_segment();
 
         let segment = SegmentFile::new(
-            segment_iden.namespace.to_string(),
             segment_iden.shard_name.to_string(),
             segment_iden.segment_seq,
             data_fold.first().unwrap().to_string(),
@@ -371,7 +355,6 @@ mod tests {
                 content: value.as_bytes().to_vec(),
                 create_time: now_second(),
                 key: format!("k{i}"),
-                namespace: "n1".to_string(),
                 shard_name: "s1".to_string(),
                 offset: 1000 + i,
                 segment: 1,
@@ -399,12 +382,11 @@ mod tests {
         let segment_iden = test_build_segment();
 
         let segment = SegmentFile::new(
-            segment_iden.namespace.to_string(),
             segment_iden.shard_name.to_string(),
             segment_iden.segment_seq,
             data_fold.first().unwrap().to_string(),
         );
-
+        println!("{}", segment.data_fold);
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{i}");
@@ -412,28 +394,23 @@ mod tests {
                 content: value.as_bytes().to_vec(),
                 create_time: now_second(),
                 key: format!("k{i}"),
-                namespace: "n1".to_string(),
                 shard_name: "s1".to_string(),
                 offset: 1000 + i,
-                segment: 1,
+                segment: segment.segment_no,
                 tags: vec![],
                 ..Default::default()
             };
-            match segment.write(std::slice::from_ref(&record)).await {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!("{e:?}");
-                }
-            }
+            segment.write(std::slice::from_ref(&record)).await.unwrap();
         }
 
         let res = segment.read_by_positions(vec![0]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![45]).await.unwrap();
+        // data len = 41
+        let res = segment.read_by_positions(vec![41]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![0, 45, 90]).await.unwrap();
+        let res = segment.read_by_positions(vec![0, 41, 82]).await.unwrap();
         assert_eq!(res.len(), 3);
 
         let size = segment.size().await.unwrap();

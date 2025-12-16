@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use common_config::broker::broker_config;
 use protocol::journal::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
@@ -36,11 +35,6 @@ pub async fn update_cache_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, JournalServerError> {
-    let conf = broker_config();
-    if request.cluster_name != conf.cluster_name {
-        return Ok(UpdateJournalCacheReply::default());
-    }
-
     parse_notification(
         cache_manager,
         segment_file_manager,
@@ -60,11 +54,6 @@ pub async fn delete_shard_file_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteShardFileRequest,
 ) -> Result<DeleteShardFileReply, JournalServerError> {
-    let conf = broker_config();
-    if request.cluster_name != conf.cluster_name {
-        return Ok(DeleteShardFileReply::default());
-    }
-
     delete_local_shard(
         cache_manager.clone(),
         rocksdb_engine_handler.clone(),
@@ -79,11 +68,6 @@ pub async fn delete_shard_file_by_req(
 pub async fn get_shard_delete_status_by_req(
     request: &GetShardDeleteStatusRequest,
 ) -> Result<GetShardDeleteStatusReply, JournalServerError> {
-    let conf = broker_config();
-    if request.cluster_name != conf.cluster_name {
-        return Ok(GetShardDeleteStatusReply::default());
-    }
-
     let flag = is_delete_by_shard(request)?;
     Ok(GetShardDeleteStatusReply { status: flag })
 }
@@ -95,13 +79,7 @@ pub async fn delete_segment_file_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, JournalServerError> {
-    let conf = broker_config();
-    if request.cluster_name != conf.cluster_name {
-        return Ok(DeleteSegmentFileReply::default());
-    }
-
-    let segment_iden =
-        SegmentIdentity::new(&request.namespace, &request.shard_name, request.segment);
+    let segment_iden = SegmentIdentity::new(&request.shard_name, request.segment);
     delete_local_segment(
         cache_manager,
         rocksdb_engine_handler,
@@ -118,11 +96,6 @@ pub async fn get_segment_delete_status_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &GetSegmentDeleteStatusRequest,
 ) -> Result<GetSegmentDeleteStatusReply, JournalServerError> {
-    let conf = broker_config();
-    if request.cluster_name != conf.cluster_name {
-        return Ok(GetSegmentDeleteStatusReply::default());
-    }
-
     let flag = segment_already_delete(cache_manager, request).await?;
     Ok(GetSegmentDeleteStatusReply { status: flag })
 }

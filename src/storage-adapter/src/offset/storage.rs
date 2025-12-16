@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::storage::ShardOffset;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
@@ -23,12 +24,9 @@ use protocol::meta::meta_service_common::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::storage::ShardOffset;
-
 #[derive(Clone)]
 pub struct OffsetStorageManager {
     client_pool: Arc<ClientPool>,
-    cluster_name: String,
     addrs: Vec<String>,
 }
 
@@ -37,14 +35,12 @@ impl OffsetStorageManager {
         let conf = broker_config();
         OffsetStorageManager {
             client_pool,
-            cluster_name: conf.cluster_name.to_string(),
             addrs: conf.get_meta_service_addr(),
         }
     }
 
     pub async fn get_offset(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
         let request = GetOffsetDataRequest {
-            cluster_name: self.cluster_name.to_owned(),
             group: group.to_owned(),
         };
         let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
@@ -68,14 +64,12 @@ impl OffsetStorageManager {
         let offsets = offset
             .iter()
             .map(|(key, value)| SaveOffsetDataRequestOffset {
-                namespace: "".to_string(),
                 shard_name: key.to_string(),
                 offset: *value,
             })
             .collect();
 
         let request = SaveOffsetDataRequest {
-            cluster_name: self.cluster_name.clone(),
             offsets: vec![SaveOffsetData {
                 group: group_name.to_string(),
                 offsets,
@@ -95,7 +89,6 @@ impl OffsetStorageManager {
                 .value()
                 .iter()
                 .map(|shard_offset| SaveOffsetDataRequestOffset {
-                    namespace: "".to_string(),
                     shard_name: shard_offset.shard_name.to_string(),
                     offset: shard_offset.offset,
                 })
@@ -106,10 +99,7 @@ impl OffsetStorageManager {
             });
         }
 
-        let request = SaveOffsetDataRequest {
-            cluster_name: self.cluster_name.clone(),
-            offsets,
-        };
+        let request = SaveOffsetDataRequest { offsets };
         save_offset_data(&self.client_pool, &self.addrs, request).await?;
         Ok(())
     }

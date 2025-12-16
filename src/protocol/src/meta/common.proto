@@ -93,7 +93,6 @@ message ClusterStatusReply {
 }
 
 message NodeListRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
 }
 
 message NodeListReply {
@@ -101,27 +100,24 @@ message NodeListReply {
 }
 
 message RegisterNodeRequest {
-  bytes node = 1;
+  bytes node = 1 [(validate.rules).bytes.min_len = 1];
 }
 
 message RegisterNodeReply {}
 
 message UnRegisterNodeRequest {
-  string cluster_name = 2 [(validate.rules).string.min_len = 1];
   uint64 node_id = 3 [(validate.rules).uint64.gte = 0];
 }
 
 message UnRegisterNodeReply {}
 
 message HeartbeatRequest {
-  string cluster_name = 2 [(validate.rules).string.min_len = 1];
   uint64 node_id = 4 [(validate.rules).uint64.gte = 0];
 }
 
 message HeartbeatReply {}
 
 message ReportMonitorRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   uint64 node_id = 2 [(validate.rules).uint64.gte = 0];
   float cpu_rate = 3 [(validate.rules).float.gt = 0];
   float memory_rate = 4 [(validate.rules).float.gt = 0];
@@ -132,28 +128,26 @@ message ReportMonitorRequest {
 message ReportMonitorReply {}
 
 message SendRaftMessageRequest {
-  bytes message = 1;
+  bytes message = 1 [(validate.rules).bytes.min_len = 1];
 }
 
 message SendRaftMessageReply {}
 
 message SendRaftConfChangeRequest {
-  bytes message = 1;
+  bytes message = 1 [(validate.rules).bytes.min_len = 1];
 }
 
 message SendRaftConfChangeReply {}
 
 message SetResourceConfigRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  repeated string resources = 2;
-  bytes config = 3;
+  repeated string resources = 2 [(validate.rules).repeated.min_items = 1];
+  bytes config = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message SetResourceConfigReply {}
 
 message GetResourceConfigRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  repeated string resources = 2;
+  repeated string resources = 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message GetResourceConfigReply {
@@ -161,32 +155,28 @@ message GetResourceConfigReply {
 }
 
 message DeleteResourceConfigRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  repeated string resources = 2;
+  repeated string resources = 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message DeleteResourceConfigReply {}
 
 message SaveOffsetDataRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
-  repeated SaveOffsetData offsets= 2;
+  repeated SaveOffsetData offsets= 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message SaveOffsetData {
-  string group = 1;
-  repeated SaveOffsetDataRequestOffset offsets = 2;
+  string group = 1 [(validate.rules).string.min_len = 1];
+  repeated SaveOffsetDataRequestOffset offsets = 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message SaveOffsetDataRequestOffset {
-  string namespace = 1;
-  string shard_name = 2;
-  uint64 offset = 3;
+  string shard_name = 2 [(validate.rules).string.min_len = 1];
+  uint64 offset = 3 [(validate.rules).uint64.gte = 0];
 }
 
 message SaveOffsetDataReply {}
 
 message GetOffsetDataRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string group = 2 [(validate.rules).string.min_len = 1];
 }
 
@@ -195,13 +185,11 @@ message GetOffsetDataReply {
 }
 
 message GetOffsetDataReplyOffset {
-  string namespace = 1;
   string shard_name = 2;
   uint64 offset = 3;
 }
 
 message ListSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2;
 }
 
@@ -210,7 +198,6 @@ message ListSchemaReply {
 }
 
 message CreateSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   bytes schema = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -218,7 +205,6 @@ message CreateSchemaRequest {
 message CreateSchemaReply {}
 
 message UpdateSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   bytes schema = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -226,14 +212,12 @@ message UpdateSchemaRequest {
 message UpdateSchemaReply {}
 
 message DeleteSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteSchemaReply {}
 
 message ListBindSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2;
   string resource_name = 3;
 }
@@ -243,7 +227,6 @@ message ListBindSchemaReply {
 }
 
 message BindSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   string resource_name = 3 [(validate.rules).string.min_len = 1];
 }
@@ -251,7 +234,6 @@ message BindSchemaRequest {
 message BindSchemaReply {}
 
 message UnBindSchemaRequest {
-  string cluster_name = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   string resource_name = 3 [(validate.rules).string.min_len = 1];
 }
@@ -296,8 +278,8 @@ message GetPrefixReply {
 }
 
 message VoteRequest {
-  string machine = 1;
-  bytes value = 2;
+  string machine = 1 [(validate.rules).string.min_len = 1];
+  bytes value = 2 [(validate.rules).bytes.min_len = 1];
 }
 
 message VoteReply {
@@ -305,8 +287,8 @@ message VoteReply {
 }
 
 message AppendRequest {
-  string machine = 1;
-  bytes value = 2;
+  string machine = 1 [(validate.rules).string.min_len = 1];
+  bytes value = 2 [(validate.rules).bytes.min_len = 1];
 }
 
 message AppendReply {
@@ -314,8 +296,8 @@ message AppendReply {
 }
 
 message SnapshotRequest {
-  string machine = 1;
-  bytes value = 2;
+  string machine = 1 [(validate.rules).string.min_len = 1];
+  bytes value = 2 [(validate.rules).bytes.min_len = 1];
 }
 
 message SnapshotReply {
@@ -323,14 +305,14 @@ message SnapshotReply {
 }
 
 message AddLearnerRequest {
-  uint64 node_id = 1;
-  Node node = 2;
+  uint64 node_id = 1 [(validate.rules).uint64.gte = 0];
+  Node node = 2 [(validate.rules).message.required = true];
   bool blocking = 3;
 }
 
 message Node {
-  string rpc_addr = 1;
-  uint64 node_id = 2;
+  string rpc_addr = 1 [(validate.rules).string.min_len = 1];
+  uint64 node_id = 2 [(validate.rules).uint64.gte = 0];
 }
 
 message AddLearnerReply {
@@ -338,8 +320,8 @@ message AddLearnerReply {
 }
 
 message ChangeMembershipRequest {
-  string machine = 1;
-  repeated uint64 members = 2;
+  string machine = 1 [(validate.rules).string.min_len = 1];
+  repeated uint64 members = 2 [(validate.rules).repeated.min_items = 1];
   bool retain = 3;
 }
 

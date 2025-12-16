@@ -64,7 +64,6 @@ service MqttService {
 
 message GetShareSubLeaderRequest {
   string group_name = 1 [(validate.rules).string.min_len = 1];
-  string cluster_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message GetShareSubLeaderReply {
@@ -74,7 +73,6 @@ message GetShareSubLeaderReply {
 }
 
 message ListUserRequest {
-  string cluster_name = 1;
   string user_name = 2;
 }
 
@@ -83,7 +81,6 @@ message ListUserReply {
 }
 
 message CreateUserRequest {
-  string cluster_name = 1;
   string user_name = 2;
   bytes content = 3;
 }
@@ -91,14 +88,12 @@ message CreateUserRequest {
 message CreateUserReply {}
 
 message DeleteUserRequest {
-  string cluster_name = 1;
   string user_name = 2;
 }
 
 message DeleteUserReply {}
 
 message ListTopicRequest {
-  string cluster_name = 1;
   string topic_name = 2;
 }
 
@@ -107,7 +102,6 @@ message ListTopicReply {
 }
 
 message CreateTopicRequest {
-  string cluster_name = 1;
   string topic_name = 2;
   bytes content = 3;
 }
@@ -115,14 +109,12 @@ message CreateTopicRequest {
 message CreateTopicReply {}
 
 message DeleteTopicRequest {
-  string cluster_name = 1;
   string topic_name = 2;
 }
 
 message DeleteTopicReply {}
 
 message SetTopicRetainMessageRequest {
-  string cluster_name = 1;
   string topic_name = 2;
   optional bytes retain_message = 3;
   uint64 retain_message_expired_at = 4;
@@ -131,7 +123,6 @@ message SetTopicRetainMessageRequest {
 message SetTopicRetainMessageReply {}
 
 message GetTopicRetainMessageRequest {
-  string cluster_name = 1;
   string topic_name = 2;
 }
 
@@ -141,7 +132,6 @@ message GetTopicRetainMessageReply {
 }
 
 message ListSessionRequest {
-  string cluster_name = 1;
   string client_id = 2;
 }
 
@@ -150,7 +140,6 @@ message ListSessionReply {
 }
 
 message CreateSessionRequest {
-  string cluster_name = 1;
   string client_id = 2;
   bytes session = 3;
 }
@@ -158,7 +147,6 @@ message CreateSessionRequest {
 message CreateSessionReply {}
 
 message UpdateSessionRequest {
-  string cluster_name = 1;
   string client_id = 2;
   uint64 connection_id = 3;
   uint64 broker_id = 4;
@@ -169,14 +157,12 @@ message UpdateSessionRequest {
 message UpdateSessionReply {}
 
 message DeleteSessionRequest {
-  string cluster_name = 1;
   string client_id = 2;
 }
 
 message DeleteSessionReply {}
 
 message SaveLastWillMessageRequest {
-  string cluster_name = 1;
   string client_id = 2;
   bytes last_will_message = 3;
 }
@@ -184,7 +170,6 @@ message SaveLastWillMessageRequest {
 message SaveLastWillMessageReply {}
 
 message GetLastWillMessageRequest {
-  string cluster_name = 1;
   string client_id = 2;
 }
 
@@ -193,7 +178,6 @@ message GetLastWillMessageReply {
 }
 
 message ListAclRequest {
-  string cluster_name = 1;
 }
 
 message ListAclReply {
@@ -201,21 +185,18 @@ message ListAclReply {
 }
 
 message DeleteAclRequest {
-  string cluster_name = 1;
   bytes acl = 2;
 }
 
 message DeleteAclReply {}
 
 message CreateAclRequest {
-  string cluster_name = 1;
   bytes acl = 2;
 }
 
 message CreateAclReply {}
 
 message ListBlacklistRequest {
-  string cluster_name = 1;
 }
 
 message ListBlacklistReply {
@@ -223,14 +204,12 @@ message ListBlacklistReply {
 }
 
 message CreateBlacklistRequest {
-  string cluster_name = 1;
   bytes blacklist = 2;
 }
 
 message CreateBlacklistReply {}
 
 message DeleteBlacklistRequest {
-  string cluster_name = 1;
   string blacklist_type = 2;
   string resource_name = 3;
 }
@@ -238,7 +217,6 @@ message DeleteBlacklistRequest {
 message DeleteBlacklistReply {}
 
 message CreateTopicRewriteRuleRequest {
-  string cluster_name = 1;
   string action = 2;
   string source_topic = 3;
   string dest_topic = 4;
@@ -248,7 +226,6 @@ message CreateTopicRewriteRuleRequest {
 message CreateTopicRewriteRuleReply {}
 
 message DeleteTopicRewriteRuleRequest {
-  string cluster_name = 1;
   string action = 2;
   string source_topic = 3;
 }
@@ -256,7 +233,6 @@ message DeleteTopicRewriteRuleRequest {
 message DeleteTopicRewriteRuleReply {}
 
 message ListTopicRewriteRuleRequest {
-  string cluster_name = 1;
 }
 
 message ListTopicRewriteRuleReply {
@@ -264,7 +240,6 @@ message ListTopicRewriteRuleReply {
 }
 
 message SetSubscribeRequest {
-  string cluster_name = 1;
   string client_id = 3;
   string path = 4;
   bytes subscribe = 5;
@@ -273,7 +248,6 @@ message SetSubscribeRequest {
 message SetSubscribeReply {}
 
 message DeleteSubscribeRequest {
-  string cluster_name = 1;
   string client_id = 2;
   string path = 3;
 }
@@ -281,7 +255,6 @@ message DeleteSubscribeRequest {
 message DeleteSubscribeReply {}
 
 message ListSubscribeRequest {
-  string cluster_name = 1;
 }
 
 message ListSubscribeReply {
@@ -289,7 +262,6 @@ message ListSubscribeReply {
 }
 
 message ListConnectorRequest {
-  string cluster_name = 1;
   string connector_name = 2;
 }
 
@@ -298,7 +270,6 @@ message ListConnectorReply {
 }
 
 message CreateConnectorRequest {
-  string cluster_name = 1;
   string connector_name = 2;
   bytes connector = 3;
 }
@@ -306,7 +277,6 @@ message CreateConnectorRequest {
 message CreateConnectorReply {}
 
 message UpdateConnectorRequest {
-  string cluster_name = 1;
   string connector_name = 2;
   bytes connector = 3;
 }
@@ -314,14 +284,12 @@ message UpdateConnectorRequest {
 message UpdateConnectorReply {}
 
 message DeleteConnectorRequest {
-  string cluster_name = 1;
   string connector_name = 2;
 }
 
 message DeleteConnectorReply {}
 
 message ConnectorHeartbeatRequest {
-  string cluster_name = 1;
   repeated ConnectorHeartbeatRaw heatbeats = 2;
 }
 
@@ -334,7 +302,6 @@ message ConnectorHeartbeatRaw {
 message ConnectorHeartbeatReply {}
 
 message SetAutoSubscribeRuleRequest {
-  string cluster_name = 1;
   string topic = 2;
   uint32 qos = 3;
   bool no_local = 4;
@@ -345,14 +312,12 @@ message SetAutoSubscribeRuleRequest {
 message SetAutoSubscribeRuleReply {}
 
 message DeleteAutoSubscribeRuleRequest {
-  string cluster_name = 1;
   string topic = 2;
 }
 
 message DeleteAutoSubscribeRuleReply {}
 
 message ListAutoSubscribeRuleRequest {
-  string cluster_name = 1;
 }
 
 message ListAutoSubscribeRuleReply {

@@ -233,10 +233,7 @@ pub async fn connector_delete(
     ValidatedJson(params): ValidatedJson<DeleteConnectorReq>,
 ) -> String {
     let storage = ConnectorStorage::new(state.client_pool.clone());
-    if let Err(e) = storage
-        .delete_connector(&state.broker_cache.cluster_name, &params.connector_name)
-        .await
-    {
+    if let Err(e) = storage.delete_connector(&params.connector_name).await {
         return error_response(e.to_string());
     }
 
@@ -252,7 +249,6 @@ async fn connector_create_inner(
 
     let storage = ConnectorStorage::new(state.client_pool.clone());
     let connector = MQTTConnector {
-        cluster_name: state.broker_cache.cluster_name.clone(),
         connector_name: params.connector_name.clone(),
         connector_type,
         config: connector_config,

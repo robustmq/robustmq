@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 /// Segment metadata in the meta service.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct JournalSegmentMetadata {
-    pub cluster_name: String,
-    pub namespace: String,
     pub shard_name: String,
     pub segment_seq: u32,
     pub start_offset: i64,
@@ -30,10 +28,7 @@ pub struct JournalSegmentMetadata {
 
 impl JournalSegmentMetadata {
     pub fn name(&self) -> String {
-        format!(
-            "{},{},{},{}",
-            self.cluster_name, self.namespace, self.shard_name, self.segment_seq
-        )
+        format!("{},{}", self.shard_name, self.segment_seq)
     }
 
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {

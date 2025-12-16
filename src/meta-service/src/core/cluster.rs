@@ -21,9 +21,7 @@ use crate::controller::mqtt::call_broker::{
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
-use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
@@ -40,24 +38,10 @@ pub async fn register_node_by_req(
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = BrokerNode::decode(&req.node)?;
-    cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
+    cluster_cache.report_broker_heart(node.node_id);
     sync_save_node(raft_manager, &node).await?;
 
-    if cluster_cache.get_cluster(&node.cluster_name).is_none() {
-        let cluster = ClusterInfo {
-            cluster_name: node.cluster_name.clone(),
-            create_time: now_millis(),
-        };
-        sync_save_cluster(raft_manager, &cluster).await?;
-    }
-
-    update_cache_by_add_node(
-        &node.cluster_name,
-        mqtt_call_manager,
-        client_pool,
-        node.clone(),
-    )
-    .await?;
+    update_cache_by_add_node(mqtt_call_manager, client_pool, node.clone()).await?;
 
     Ok(RegisterNodeReply::default())
 }
@@ -70,16 +54,10 @@ pub async fn un_register_node_by_req(
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
-    if let Some(node) = cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
+    if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
         sync_delete_node(raft_manager, &req).await?;
-        update_cache_by_delete_node(
-            &req.cluster_name,
-            mqtt_call_manager,
-            client_pool,
-            node.clone(),
-        )
-        .await?;
-        mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
+        update_cache_by_delete_node(mqtt_call_manager, client_pool, node.clone()).await?;
+        mqtt_call_manager.remove_node(req.node_id);
     }
     Ok(UnRegisterNodeReply::default())
 }
@@ -108,20 +86,6 @@ pub async fn sync_delete_node(
     let data = StorageData::new(
         StorageDataType::ClusterDeleteNode,
         Bytes::copy_from_slice(&UnRegisterNodeRequest::encode_to_vec(req)),
-    );
-    if raft_manager.write_metadata(data).await?.is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-async fn sync_save_cluster(
-    raft_manager: &Arc<MultiRaftManager>,
-    cluster: &ClusterInfo,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::ClusterAddCluster,
-        Bytes::copy_from_slice(&cluster.encode()?),
     );
     if raft_manager.write_metadata(data).await?.is_some() {
         return Ok(());

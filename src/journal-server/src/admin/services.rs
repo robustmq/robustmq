@@ -36,7 +36,7 @@ pub async fn list_shard_by_req(
         }
     } else {
         // Get shard by name
-        if let Some(shard) = cache_manager.get_shard(&request.namespace, &request.shard_name) {
+        if let Some(shard) = cache_manager.get_shard(&request.shard_name) {
             let data = serde_json::to_string(&shard)?;
             shards.push(data);
         }
@@ -54,16 +54,13 @@ pub async fn list_segment_by_req(
 
     if request.segment_no == -1 {
         // Get all segments by shard
-        for segment in
-            cache_manager.get_segments_list_by_shard(&request.namespace, &request.shard_name)
-        {
+        for segment in cache_manager.get_segments_list_by_shard(&request.shard_name) {
             let data = serde_json::to_string(&segment)?;
             segments.push(data);
         }
     } else {
         // Get specific segment
         let segment_iden = SegmentIdentity {
-            namespace: request.namespace.clone(),
             shard_name: request.shard_name.clone(),
             segment_seq: request.segment_no as u32,
         };

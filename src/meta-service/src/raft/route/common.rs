@@ -14,7 +14,6 @@
 
 use bytes::Bytes;
 use common_base::tools::now_second;
-use metadata_struct::meta::cluster::ClusterInfo;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message as _;
@@ -28,7 +27,6 @@ use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::storage::common::cluster::ClusterStorage;
 use crate::storage::common::config::ResourceConfigStorage;
 use crate::storage::common::node::NodeStorage;
 use crate::storage::common::offset::{OffsetData, OffsetStorage};
@@ -51,15 +49,6 @@ impl DataRouteCluster {
         }
     }
 
-    // Cluster
-    pub async fn add_cluster(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let cluster = ClusterInfo::decode(&value)?;
-        let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-        cluster_storage.save(&cluster)?;
-        self.cluster_cache.add_broker_cluster(&cluster);
-        Ok(())
-    }
-
     // Node
     pub async fn add_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = RegisterNodeRequest::decode(value.as_ref())?;
@@ -73,9 +62,8 @@ impl DataRouteCluster {
     pub async fn delete_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        node_storage.delete(&req.cluster_name, req.node_id)?;
-        self.cluster_cache
-            .remove_broker_node(&req.cluster_name, req.node_id);
+        node_storage.delete(req.node_id)?;
+        self.cluster_cache.remove_broker_node(req.node_id);
         Ok(())
     }
 
@@ -83,14 +71,14 @@ impl DataRouteCluster {
     pub fn set_resource_config(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
-        config_storage.save(req.cluster_name, req.resources, req.config)?;
+        config_storage.save(req.resources, req.config)?;
         Ok(())
     }
 
     pub fn delete_resource_config(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
-        config_storage.delete(req.cluster_name, req.resources)?;
+        config_storage.delete(req.resources)?;
         Ok(())
     }
 
@@ -103,8 +91,6 @@ impl DataRouteCluster {
                 .offsets
                 .iter()
                 .map(|raw| OffsetData {
-                    cluster_name: req.cluster_name.clone(),
-                    namespace: raw.namespace.clone(),
                     group: offset_data.group.clone(),
                     shard_name: raw.shard_name.clone(),
                     offset: raw.offset,
@@ -122,14 +108,14 @@ impl DataRouteCluster {
         let req = CreateSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let schema = SchemaData::decode(&req.schema)?;
-        schema_storage.save(&req.cluster_name, &req.schema_name, &schema)?;
+        schema_storage.save(&req.schema_name, &schema)?;
         Ok(())
     }
 
     pub fn delete_schema(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        schema_storage.delete(&req.cluster_name, &req.schema_name)?;
+        schema_storage.delete(&req.schema_name)?;
         Ok(())
     }
 
@@ -138,18 +124,17 @@ impl DataRouteCluster {
         let req = BindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let bind_data = SchemaResourceBind {
-            cluster_name: req.cluster_name.clone(),
             resource_name: req.resource_name.clone(),
             schema_name: req.schema_name.clone(),
         };
-        schema_storage.save_bind(&req.cluster_name, &bind_data)?;
+        schema_storage.save_bind(&bind_data)?;
         Ok(())
     }
 
     pub fn delete_schema_bind(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = UnBindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        schema_storage.delete_bind(&req.cluster_name, &req.resource_name, &req.schema_name)?;
+        schema_storage.delete_bind(&req.resource_name, &req.schema_name)?;
         Ok(())
     }
 
@@ -163,7 +148,6 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;
@@ -179,13 +163,10 @@ mod tests {
     #[tokio::test]
     async fn register_unregister_node() {
         let config = default_broker_config();
-
-        let cluster_name = unique_id();
         let node_id = 999;
         let node_ip = "127.0.0.1".to_string();
 
         let node = BrokerNode {
-            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip.clone(),
             roles: Vec::new(),
@@ -205,13 +186,13 @@ mod tests {
         route.add_node(data).await.unwrap();
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
-        let node = node_storage.get(&cluster_name, node_id).unwrap();
+        let node = node_storage.get(node_id).unwrap();
         let broker_node = node.unwrap();
         assert_eq!(broker_node.node_id, node_id);
         assert_eq!(broker_node.node_ip, node_ip);
 
-        let _ = node_storage.delete(&cluster_name, node_id);
-        let res = node_storage.get(&cluster_name, node_id).unwrap();
+        let _ = node_storage.delete(node_id);
+        let res = node_storage.get(node_id).unwrap();
         assert!(res.is_none());
     }
 }
