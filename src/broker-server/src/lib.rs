@@ -144,13 +144,14 @@ impl BrokerServer {
             broker_cache.clone(),
             rocksdb_engine_handler.clone(),
             connection_manager.clone(),
-            message_storage_adapter,
+            message_storage_adapter.clone(),
         );
 
         let kafka_params = BrokerServer::build_kafka_server_params(
             client_pool.clone(),
             broker_cache.clone(),
             connection_manager.clone(),
+            message_storage_adapter.clone(),
         );
 
         let journal_params = BrokerServer::build_journal_server(client_pool.clone());
@@ -404,6 +405,7 @@ impl BrokerServer {
         client_pool: Arc<ClientPool>,
         broker_cache: Arc<BrokerCacheManager>,
         connection_manager: Arc<NetworkConnectionManager>,
+        message_storage_adapter: ArcStorageAdapter,
     ) -> KafkaBrokerServerParams {
         let conf = broker_config();
         let proc_config = ProcessorConfig {
@@ -414,6 +416,7 @@ impl BrokerServer {
         };
         KafkaBrokerServerParams {
             connection_manager,
+            message_storage_adapter,
             client_pool,
             proc_config,
             broker_cache,

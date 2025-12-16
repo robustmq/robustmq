@@ -21,6 +21,7 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
+common-base.workspace = true
 common-config.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
@@ -32,3 +33,6 @@ tracing.workspace = true
 protocol.workspace = true
 kafka-protocol.workspace = true
 thiserror.workspace = true
+storage-adapter.workspace = true
+bytes = "1.10.1"
+serde = { version = "1.0.228", features = ["derive"] }

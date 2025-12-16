@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use thiserror::Error;
+pub mod message;
+pub mod log_reader;
+pub mod log_writer;
 
-#[derive(Error, Debug)]
-pub enum KafkaBrokerError {}
-
-pub type ResultKafkaBrokerError = Result<()>;
-
-pub type Result<T> = std::result::Result<T, KafkaBrokerError>;

@@ -12,11 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use thiserror::Error;
+use common_base::error::common::CommonError;
+use storage_adapter::storage::ArcStorageAdapter;
 
-#[derive(Error, Debug)]
-pub enum KafkaBrokerError {}
+#[derive(Clone, Default)]
+pub struct Reader {
+    storage_adapter: ArcStorageAdapter,
+}
 
-pub type ResultKafkaBrokerError = Result<()>;
+impl Reader {
+    pub fn new(storage_adapter: ArcStorageAdapter) -> Self {
+        Reader {
+            storage_adapter
+        }
+    }
 
-pub type Result<T> = std::result::Result<T, KafkaBrokerError>;
+    async fn read_logs(
+        &self,
+        topic: &str,
+        partition: i32,
+        start_offset: i64,
+        max_size: usize,
+    ) -> Result<Vec<u64>, CommonError> {
+        // Implementation for reading logs from storage
+        Ok(vec![])
+    }
+
+}

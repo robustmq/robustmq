@@ -24,10 +24,12 @@ use network_server::tcp::server::TcpServer;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self};
 use tracing::{error, info};
+use storage_adapter::storage::ArcStorageAdapter;
 
 #[derive(Clone)]
 pub struct KafkaBrokerServerParams {
     pub connection_manager: Arc<ConnectionManager>,
+    pub message_storage_adapter: ArcStorageAdapter,
     pub client_pool: Arc<ClientPool>,
     pub proc_config: ProcessorConfig,
     pub broker_cache: Arc<BrokerCacheManager>,
@@ -43,7 +45,7 @@ pub struct KafkaBrokerServer {
 impl KafkaBrokerServer {
     pub fn new(params: KafkaBrokerServerParams, main_stop: broadcast::Sender<bool>) -> Self {
         let (inner_stop, _) = broadcast::channel(2);
-        let command = create_command();
+        let command = create_command(params.message_storage_adapter);
         let context = ServerContext {
             connection_manager: params.connection_manager.clone(),
             client_pool: params.client_pool.clone(),
