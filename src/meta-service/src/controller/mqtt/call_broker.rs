@@ -469,8 +469,8 @@ async fn call_mqtt_update_cache(
             return;
         }
         error!(
-            "Calling MQTT Broker to update cache failed,{},action_type:{},resource_type:{}",
-            e, request.action_type, request.resource_type
+            "Calling MQTT Broker to update cache failed,{},action_type:{:?},resource_type:{:?},addr:{}",
+            e, request.action_type(), request.resource_type(), addr
         );
     };
 }

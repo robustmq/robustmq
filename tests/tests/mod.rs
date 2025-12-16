@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod common;
 pub mod journal;
-pub mod meta;
 pub mod mqtt;
+pub mod node_test;
+pub mod offset_test;

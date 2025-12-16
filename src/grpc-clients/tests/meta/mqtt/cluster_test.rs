@@ -43,8 +43,8 @@ mod tests {
         }
 
         let node_ip = "127.0.0.1".to_string();
-        let node_id = 1235u64;
-        let node_inner_addr = node_ip.clone();
+        let node_id = 1;
+        let node_inner_addr = "127.0.0.1:1228".to_string();
         let extend_info = Vec::new();
 
         let node = BrokerNode {
@@ -76,7 +76,7 @@ mod tests {
         let request = ClusterStatusRequest::default();
         assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
 
-        let node_id = 1235u64;
+        let node_id = 1;
 
         let request = UnRegisterNodeRequest { node_id };
         assert!(unregister_node(&client_pool, &addrs, request).await.is_ok());
