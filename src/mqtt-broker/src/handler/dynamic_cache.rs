@@ -272,12 +272,23 @@ pub async fn update_cache_metadata(
             }
         },
 
+        MqttBrokerUpdateCacheResourceType::Shard => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {}
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
+
+        MqttBrokerUpdateCacheResourceType::Segment => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {}
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
+
+        MqttBrokerUpdateCacheResourceType::SegmentMeta => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {}
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
+
         MqttBrokerUpdateCacheResourceType::ClusterResourceConfig => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Set => {
-                // let data = serialize::deserialize::<ResourceConfig>(&request.data)?;
-                // let config = data.resource.parse::<ClusterDynamicConfig>()?;
-                // update_cluster_dynamic_config(cache_manager, config, data.config).await?;
-            }
+            MqttBrokerUpdateCacheActionType::Set => {}
             MqttBrokerUpdateCacheActionType::Delete => {}
         },
     }

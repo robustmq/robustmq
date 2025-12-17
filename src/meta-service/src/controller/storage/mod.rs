@@ -22,7 +22,7 @@ use tokio::sync::broadcast;
 use tracing::info;
 
 pub mod call_node;
-pub mod gc;
+// pub mod gc;
 
 pub struct StorageEngineController {
     raft_manager: Arc<MultiRaftManager>,

@@ -27,9 +27,7 @@ use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use meta_service::{
-    controller::{
-        storage::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
-    },
+    controller::call_broker::mqtt::BrokerCallManager,
     core::cache::CacheManager as PlacementCacheManager,
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
@@ -65,7 +63,7 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core1::cache::CacheManager as JournalCacheManager, segment::manager::SegmentFileManager,
+    core::cache::CacheManager, segment::manager::SegmentFileManager,
     server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
     JournalServerParams,
 };
@@ -321,8 +319,7 @@ impl BrokerServer {
         broker_cache: Arc<BrokerCacheManager>,
     ) -> MetaServiceServerParams {
         let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let journal_call_manager = Arc::new(JournalInnerCallManager::new(broker_cache.clone()));
-        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(broker_cache));
+        let call_manager = Arc::new(BrokerCallManager::new(broker_cache));
 
         let data_route = Arc::new(DataRoute::new(
             rocksdb_engine_handler.clone(),
@@ -347,8 +344,7 @@ impl BrokerServer {
             cache_manager,
             rocksdb_engine_handler,
             client_pool,
-            journal_call_manager,
-            mqtt_call_manager,
+            call_manager,
             raft_manager,
         }
     }
@@ -393,7 +389,7 @@ impl BrokerServer {
     fn build_journal_server(client_pool: Arc<ClientPool>) -> JournalServerParams {
         let config = broker_config();
         let connection_manager = Arc::new(JournalConnectionManager::new());
-        let cache_manager = Arc::new(JournalCacheManager::new());
+        let cache_manager = Arc::new(CacheManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_engine::index::engine::storage_data_fold(&config.journal_storage.data_path),
             10000,

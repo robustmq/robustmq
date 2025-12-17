@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::mqtt::call_broker::{
-    update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
+use crate::controller::call_broker::mqtt::{
+    update_cache_by_add_topic, update_cache_by_delete_topic, BrokerCallManager,
 };
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
@@ -68,7 +68,7 @@ pub async fn list_topic_by_req(
 
 pub async fn create_topic_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateTopicRequest,
@@ -92,7 +92,7 @@ pub async fn create_topic_by_req(
 pub async fn delete_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteTopicRequest,
 ) -> Result<DeleteTopicReply, MetaServiceError> {

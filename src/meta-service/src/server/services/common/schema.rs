@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    controller::mqtt::call_broker::{
+    controller::call_broker::mqtt::{
         update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
-        update_cache_by_delete_schema_bind, MQTTInnerCallManager,
+        update_cache_by_delete_schema_bind, BrokerCallManager,
     },
     core::error::MetaServiceError,
     raft::{
@@ -88,7 +88,7 @@ pub fn list_schema_req(
 
 pub async fn create_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -116,7 +116,7 @@ pub async fn create_schema_req(
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -141,7 +141,7 @@ pub async fn update_schema_req(
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -203,7 +203,7 @@ pub async fn list_bind_schema_req(
 
 pub async fn bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -223,7 +223,7 @@ pub async fn bind_schema_req(
 
 pub async fn un_bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {

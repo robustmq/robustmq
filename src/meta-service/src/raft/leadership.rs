@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::{storage::StorageEngineController, mqtt::MqttController},
-    core::cache::CacheManager,
-    raft::manager::MultiRaftManager,
+    controller::MqttController, core::cache::CacheManager, raft::manager::MultiRaftManager,
 };
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -101,16 +99,6 @@ pub fn start_controller(
     );
     tokio::spawn(async move {
         mqtt_controller.start().await;
-    });
-
-    let journal_controller = StorageEngineController::new(
-        raft_manager.clone(),
-        cache_manager.clone(),
-        client_pool.clone(),
-        stop_send,
-    );
-    tokio::spawn(async move {
-        journal_controller.start().await;
     });
 }
 

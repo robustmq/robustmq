@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use super::shard::update_last_segment_by_shard;
-use crate::controller::storage::call_node::{
+use crate::controller::call_broker::mqtt::BrokerCallManager;
+use crate::controller::call_broker::storage::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
-    JournalInnerCallManager,
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
@@ -71,7 +71,7 @@ pub async fn list_segment_by_req(
 pub async fn create_segment_by_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
@@ -146,7 +146,7 @@ pub async fn create_segment_by_req(
 pub async fn delete_segment_by_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
@@ -190,7 +190,7 @@ pub async fn delete_segment_by_req(
 pub async fn update_segment_status_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentStatusRequest,
 ) -> Result<UpdateSegmentStatusReply, MetaServiceError> {
@@ -249,7 +249,7 @@ pub async fn list_segment_meta_by_req(
 pub async fn update_segment_meta_by_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentMetaRequest,
 ) -> Result<UpdateSegmentMetaReply, MetaServiceError> {

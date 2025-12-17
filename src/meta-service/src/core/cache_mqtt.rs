@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::mqtt::session_expire::ExpireLastWill;
+use crate::controller::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;

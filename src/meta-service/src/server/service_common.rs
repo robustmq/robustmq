@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::storage::call_node::JournalInnerCallManager;
-use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::controller::call_broker::mqtt::BrokerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::raft::manager::MultiRaftManager;
@@ -58,8 +57,7 @@ pub struct GrpcPlacementService {
     cluster_cache: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
-    journal_call_manager: Arc<JournalInnerCallManager>,
-    mqtt_call_manager: Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: Arc<BrokerCallManager>,
 }
 
 impl GrpcPlacementService {
@@ -68,15 +66,13 @@ impl GrpcPlacementService {
         cluster_cache: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
-        journal_call_manager: Arc<JournalInnerCallManager>,
-        mqtt_call_manager: Arc<MQTTInnerCallManager>,
+        mqtt_call_manager: Arc<BrokerCallManager>,
     ) -> Self {
         GrpcPlacementService {
             raft_manager,
             cluster_cache,
             rocksdb_engine_handler,
             client_pool,
-            journal_call_manager,
             mqtt_call_manager,
         }
     }
@@ -134,7 +130,6 @@ impl MetaServiceService for GrpcPlacementService {
             &self.cluster_cache,
             &self.raft_manager,
             &self.client_pool,
-            &self.journal_call_manager,
             &self.mqtt_call_manager,
             req,
         )
@@ -154,7 +149,6 @@ impl MetaServiceService for GrpcPlacementService {
             &self.cluster_cache,
             &self.raft_manager,
             &self.client_pool,
-            &self.journal_call_manager,
             &self.mqtt_call_manager,
             req,
         )

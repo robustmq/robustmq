@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::mqtt::call_broker::{update_cache_by_add_connector, MQTTInnerCallManager},
+    controller::call_broker::mqtt::{update_cache_by_add_connector, BrokerCallManager},
     core::{cache::CacheManager, error::MetaServiceError},
     raft::{
         manager::MultiRaftManager,
@@ -31,7 +31,7 @@ use tracing::{info, warn};
 /// Connector status management context - encapsulates shared dependencies
 pub struct ConnectorContext {
     raft_manager: Arc<MultiRaftManager>,
-    call_manager: Arc<MQTTInnerCallManager>,
+    call_manager: Arc<BrokerCallManager>,
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
 }
@@ -39,7 +39,7 @@ pub struct ConnectorContext {
 impl ConnectorContext {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
-        call_manager: Arc<MQTTInnerCallManager>,
+        call_manager: Arc<BrokerCallManager>,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {

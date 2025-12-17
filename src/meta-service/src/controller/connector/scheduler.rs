@@ -14,7 +14,7 @@
 
 use super::status::ConnectorContext;
 use crate::{
-    controller::mqtt::call_broker::MQTTInnerCallManager,
+    controller::call_broker::mqtt::BrokerCallManager,
     core::{cache::CacheManager, error::MetaServiceError},
     raft::manager::MultiRaftManager,
 };
@@ -39,7 +39,7 @@ pub struct ConnectorScheduler {
 impl ConnectorScheduler {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
-        call_manager: Arc<MQTTInnerCallManager>,
+        call_manager: Arc<BrokerCallManager>,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {
@@ -71,7 +71,7 @@ impl ConnectorScheduler {
 pub async fn start_connector_scheduler(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) {

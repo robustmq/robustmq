@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    controller::mqtt::call_broker::{
-        update_cache_by_add_user, update_cache_by_delete_user, MQTTInnerCallManager,
+    controller::call_broker::mqtt::{
+        update_cache_by_add_user, update_cache_by_delete_user, BrokerCallManager,
     },
     core::error::MetaServiceError,
     raft::{
@@ -58,7 +58,7 @@ pub fn list_user_by_req(
 
 pub async fn create_user_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateUserRequest,
@@ -81,7 +81,7 @@ pub async fn create_user_by_req(
 
 pub async fn delete_user_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &DeleteUserRequest,

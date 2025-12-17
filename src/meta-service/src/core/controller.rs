@@ -13,11 +13,9 @@
 // limitations under the License.
 
 use super::heartbeat::BrokerHeartbeat;
-use crate::controller::storage::call_node::JournalInnerCallManager;
-use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::controller::call_broker::mqtt::BrokerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
-
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
@@ -30,8 +28,7 @@ pub struct ClusterController {
     raft_manager: Arc<MultiRaftManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
-    journal_call_manager: Arc<JournalInnerCallManager>,
-    mqtt_call_manager: Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: Arc<BrokerCallManager>,
 }
 
 impl ClusterController {
@@ -40,15 +37,13 @@ impl ClusterController {
         raft_manager: Arc<MultiRaftManager>,
         stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,
-        journal_call_manager: Arc<JournalInnerCallManager>,
-        mqtt_call_manager: Arc<MQTTInnerCallManager>,
+        mqtt_call_manager: Arc<BrokerCallManager>,
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
             raft_manager,
             stop_send,
             client_pool,
-            journal_call_manager,
             mqtt_call_manager,
         }
     }
@@ -60,7 +55,6 @@ impl ClusterController {
             self.cluster_cache.clone(),
             self.raft_manager.clone(),
             self.client_pool.clone(),
-            self.journal_call_manager.clone(),
             self.mqtt_call_manager.clone(),
         );
 

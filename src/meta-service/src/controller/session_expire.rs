@@ -279,6 +279,10 @@ pub async fn send_last_will(
 
 #[cfg(test)]
 mod tests {
+    use super::{ExpireLastWill, SessionExpire};
+    use crate::controller::is_send_last_will;
+    use crate::core::cache::CacheManager;
+    use crate::storage::mqtt::session::MqttSessionStorage;
     use common_base::tools::{now_second, unique_id};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
@@ -286,12 +290,6 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
-
-    use super::{ExpireLastWill, SessionExpire};
-    use crate::controller::mqtt::is_send_last_will;
-    use crate::core::cache::CacheManager;
-
-    use crate::storage::mqtt::session::MqttSessionStorage;
 
     #[test]
     fn is_session_expire_test() {

@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::mqtt::call_broker::{
-    update_cache_by_delete_connector, MQTTInnerCallManager,
-};
-use crate::controller::mqtt::connector::status::ConnectorContext;
+use crate::controller::call_broker::mqtt::{update_cache_by_delete_connector, BrokerCallManager};
+use crate::controller::connector::status::ConnectorContext;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
@@ -89,7 +87,7 @@ pub fn list_connectors_by_req(
 pub async fn create_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     req: &CreateConnectorRequest,
@@ -118,7 +116,7 @@ pub async fn create_connector_by_req(
 pub async fn update_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     req: &UpdateConnectorRequest,
@@ -147,7 +145,7 @@ pub async fn update_connector_by_req(
 pub async fn delete_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteConnectorRequest,
 ) -> Result<DeleteConnectorReply, MetaServiceError> {

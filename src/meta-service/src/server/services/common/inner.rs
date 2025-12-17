@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::mqtt::call_broker::{
-    update_cache_by_set_resource_config, MQTTInnerCallManager,
+use crate::controller::call_broker::mqtt::{
+    update_cache_by_set_resource_config, BrokerCallManager,
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
@@ -85,7 +85,7 @@ pub async fn heartbeat_by_req(
 // Resource Config
 pub async fn set_resource_config_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
 ) -> Result<SetResourceConfigReply, MetaServiceError> {

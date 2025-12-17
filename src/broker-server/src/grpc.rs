@@ -24,10 +24,7 @@ use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::inner::GrpcInnerServices;
-use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
 use protocol::cluster::cluster_status::cluster_service_server::ClusterServiceServer;
-use protocol::storage::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
-use protocol::storage::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceServiceServer;
 use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
@@ -104,8 +101,7 @@ fn get_place_inner_handler(place_params: &MetaServiceServerParams) -> GrpcPlacem
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.client_pool.clone(),
-        place_params.journal_call_manager.clone(),
-        place_params.mqtt_call_manager.clone(),
+        place_params.call_manager.clone(),
     )
 }
 
@@ -114,7 +110,7 @@ fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttSer
         place_params.cache_manager.clone(),
         place_params.raft_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
-        place_params.mqtt_call_manager.clone(),
+        place_params.call_manager.clone(),
         place_params.client_pool.clone(),
     )
 }
@@ -124,7 +120,7 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
         place_params.raft_manager.clone(),
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
-        place_params.journal_call_manager.clone(),
+        place_params.call_manager.clone(),
         place_params.client_pool.clone(),
     )
 }

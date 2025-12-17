@@ -22,7 +22,7 @@ use crate::storage::journal::shard::ShardStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::{
-    controller::mqtt::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
+    controller::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;

@@ -62,6 +62,9 @@ enum MQTTBrokerUpdateCacheResourceType {
   SchemaResource = 6;
   ClusterResourceConfig = 7;
   Node = 8;
+  Shard = 9;
+  Segment = 10;
+  SegmentMeta = 11;
 }
 
 message SendLastWillMessageRequest {

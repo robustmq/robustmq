@@ -12,5 +12,103 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod storage;
-pub mod mqtt;
+use crate::controller::session_expire::ExpireLastWill;
+use crate::core::cache::CacheManager;
+use common_base::error::ResultCommonError;
+use common_base::tools::{loop_select_ticket, now_second};
+use grpc_clients::pool::ClientPool;
+use message_expire::MessageExpire;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use session_expire::SessionExpire;
+use std::sync::Arc;
+use tokio::sync::broadcast;
+
+pub mod call_broker;
+pub mod connector;
+pub mod message_expire;
+pub mod session_expire;
+
+pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
+    if now_second() >= lastwill.delay_sec {
+        return true;
+    }
+    false
+}
+
+pub struct MqttController {
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    cache_manager: Arc<CacheManager>,
+    client_pool: Arc<ClientPool>,
+    stop_send: broadcast::Sender<bool>,
+}
+
+impl MqttController {
+    pub fn new(
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
+        cache_manager: Arc<CacheManager>,
+        client_pool: Arc<ClientPool>,
+        stop_send: broadcast::Sender<bool>,
+    ) -> MqttController {
+        MqttController {
+            rocksdb_engine_handler,
+            cache_manager,
+            client_pool,
+            stop_send,
+        }
+    }
+
+    pub async fn start(&self) {
+        // Periodically check if the session has expired
+        let session = SessionExpire::new(
+            self.rocksdb_engine_handler.clone(),
+            self.cache_manager.clone(),
+            self.client_pool.clone(),
+        );
+        let stop_send = self.stop_send.clone();
+        tokio::spawn(async move {
+            let ac_fn = async || -> ResultCommonError {
+                session.session_expire().await;
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        });
+
+        // Periodically check if the session has expired
+        let session = SessionExpire::new(
+            self.rocksdb_engine_handler.clone(),
+            self.cache_manager.clone(),
+            self.client_pool.clone(),
+        );
+
+        let stop_send = self.stop_send.clone();
+        tokio::spawn(async move {
+            let ac_fn = async || -> ResultCommonError {
+                session.last_will_expire_send().await;
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        });
+
+        // Whether the timed message expires
+        let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
+        let stop_send = self.stop_send.clone();
+        tokio::spawn(async move {
+            let ac_fn = async || -> ResultCommonError {
+                message.retain_message_expire().await;
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        });
+
+        // Periodically detects whether a will message is sent
+        let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
+        let stop_send = self.stop_send.clone();
+        tokio::spawn(async move {
+            let ac_fn = async || -> ResultCommonError {
+                message.last_will_message_expire().await;
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        });
+    }
+}
