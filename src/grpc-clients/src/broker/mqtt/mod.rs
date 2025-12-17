@@ -27,17 +27,17 @@ use crate::macros::impl_retriable_request;
 pub mod call;
 
 #[derive(Clone)]
-pub struct MqttBrokerPlacementServiceManager {
+pub struct BrokerMQTTServiceManager {
     pub addr: String,
 }
 
-impl MqttBrokerPlacementServiceManager {
+impl BrokerMQTTServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }
 #[tonic::async_trait]
-impl Manager for MqttBrokerPlacementServiceManager {
+impl Manager for BrokerMQTTServiceManager {
     type Connection = MqttBrokerInnerServiceClient<Channel>;
     type Error = CommonError;
 

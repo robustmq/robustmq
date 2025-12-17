@@ -15,7 +15,7 @@
 use crate::meta::journal::JournalServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
 use crate::{
-    broker::mqtt::MqttBrokerPlacementServiceManager, meta::common::PlacementServiceManager,
+    broker::mqtt::BrokerMQTTServiceManager, meta::common::PlacementServiceManager,
 };
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
@@ -100,7 +100,7 @@ pub struct ClientPool {
     meta_service_leader_addr_caches: DashMap<String, String>,
 
     // modules: broker co
-    mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
+    mqtt_broker_placement_service_pools: DashMap<String, Pool<BrokerMQTTServiceManager>>,
 }
 
 impl ClientPool {
@@ -151,7 +151,7 @@ impl ClientPool {
     define_client_method!(
         mqtt_broker_mqtt_services_client,
         mqtt_broker_placement_service_pools,
-        MqttBrokerPlacementServiceManager,
+        BrokerMQTTServiceManager,
         "MQTTBrokerPlacementService"
     );
 
