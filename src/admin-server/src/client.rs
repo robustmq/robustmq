@@ -232,7 +232,8 @@ impl AdminHttpClient {
 
     /// Get cluster overview
     pub async fn get_cluster_overview<R>(&self) -> Result<AdminServerResponse<R>, HttpClientError>
-    where R: for<'de> Deserialize<'de>,
+    where
+        R: for<'de> Deserialize<'de>,
     {
         self.get(&api_path(MQTT_OVERVIEW_PATH)).await
     }
