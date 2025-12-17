@@ -14,9 +14,8 @@
 
 use super::cache::CacheManager;
 use super::error::MetaServiceError;
-use crate::controller::journal::call_node::JournalInnerCallManager;
-use crate::controller::mqtt::call_broker::{
-    update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
+use crate::controller::call_broker::mqtt::{
+    update_cache_by_add_node, update_cache_by_delete_node, BrokerCallManager,
 };
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -33,8 +32,7 @@ pub async fn register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     client_pool: &Arc<ClientPool>,
-    _journal_call_manager: &Arc<JournalInnerCallManager>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: &Arc<BrokerCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = BrokerNode::decode(&req.node)?;
@@ -50,8 +48,7 @@ pub async fn un_register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     client_pool: &Arc<ClientPool>,
-    _journal_call_manager: &Arc<JournalInnerCallManager>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: &Arc<BrokerCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
     if let Some(node) = cluster_cache.get_broker_node(req.node_id) {

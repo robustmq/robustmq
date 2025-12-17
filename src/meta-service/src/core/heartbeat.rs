@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use super::cluster::un_register_node_by_req;
-use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::raft::manager::MultiRaftManager;
-use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::CacheManager};
+use crate::{controller::call_broker::mqtt::BrokerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_common::UnRegisterNodeRequest;
@@ -34,8 +33,7 @@ pub struct BrokerHeartbeat {
     cluster_cache: Arc<CacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     client_pool: Arc<ClientPool>,
-    journal_call_manager: Arc<JournalInnerCallManager>,
-    mqtt_call_manager: Arc<MQTTInnerCallManager>,
+    mqtt_call_manager: Arc<BrokerCallManager>,
 }
 
 impl BrokerHeartbeat {
@@ -44,15 +42,13 @@ impl BrokerHeartbeat {
         cluster_cache: Arc<CacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         client_pool: Arc<ClientPool>,
-        journal_call_manager: Arc<JournalInnerCallManager>,
-        mqtt_call_manager: Arc<MQTTInnerCallManager>,
+        mqtt_call_manager: Arc<BrokerCallManager>,
     ) -> Self {
         BrokerHeartbeat {
             timeout_ms,
             cluster_cache,
             raft_manager,
             client_pool,
-            journal_call_manager,
             mqtt_call_manager,
         }
     }
@@ -70,7 +66,6 @@ impl BrokerHeartbeat {
                         &self.cluster_cache,
                         &self.raft_manager,
                         &self.client_pool,
-                        &self.journal_call_manager,
                         &self.mqtt_call_manager,
                         req,
                     )

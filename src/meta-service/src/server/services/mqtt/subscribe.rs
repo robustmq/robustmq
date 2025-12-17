@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    controller::mqtt::call_broker::{
-        update_cache_by_add_subscribe, update_cache_by_delete_subscribe, MQTTInnerCallManager,
+    controller::call_broker::mqtt::{
+        update_cache_by_add_subscribe, update_cache_by_delete_subscribe, BrokerCallManager,
     },
     core::error::MetaServiceError,
     raft::{
@@ -39,7 +39,7 @@ use std::sync::Arc;
 pub async fn delete_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSubscribeRequest,
 ) -> Result<DeleteSubscribeReply, MetaServiceError> {
@@ -63,7 +63,7 @@ pub async fn delete_subscribe_by_req(
     raft_manager.write_metadata(data).await?;
 
     for raw in subscribes {
-        update_cache_by_delete_subscribe(mqtt_call_manager, client_pool, raw).await?;
+        update_cache_by_delete_subscribe(call_manager, client_pool, raw).await?;
     }
 
     Ok(DeleteSubscribeReply {})
@@ -85,7 +85,7 @@ pub fn list_subscribe_by_req(
 
 pub async fn set_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
 ) -> Result<SetSubscribeReply, MetaServiceError> {
@@ -94,7 +94,7 @@ pub async fn set_subscribe_by_req(
 
     let subscribe = MqttSubscribe::decode(&req.subscribe)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
-    update_cache_by_add_subscribe(mqtt_call_manager, client_pool, subscribe).await?;
+    update_cache_by_add_subscribe(call_manager, client_pool, subscribe).await?;
 
     Ok(SetSubscribeReply {})
 }

@@ -19,7 +19,7 @@ use common_base::tools::now_millis;
 use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::journal::segment::segment_name;
-use protocol::journal::journal_engine::{
+use protocol::storage::journal_engine::{
     FetchOffsetReqBody, FetchOffsetShard, ReadReqBody, ReadReqFilter, ReadReqMessage,
     ReadReqOptions, ReadType,
 };

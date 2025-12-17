@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::controller::call_broker::mqtt::BrokerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::mqtt::acl::{
@@ -74,7 +74,7 @@ pub struct GrpcMqttService {
     cache_manager: Arc<CacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    mqtt_call_manager: Arc<MQTTInnerCallManager>,
+    call_manager: Arc<BrokerCallManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -83,14 +83,14 @@ impl GrpcMqttService {
         cache_manager: Arc<CacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        mqtt_call_manager: Arc<MQTTInnerCallManager>,
+        call_manager: Arc<BrokerCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
             cache_manager,
             raft_manager,
             rocksdb_engine_handler,
-            mqtt_call_manager,
+            call_manager,
             client_pool,
         }
     }
@@ -131,7 +131,7 @@ impl MqttService for GrpcMqttService {
 
         create_user_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
@@ -150,7 +150,7 @@ impl MqttService for GrpcMqttService {
 
         delete_user_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
@@ -182,7 +182,7 @@ impl MqttService for GrpcMqttService {
 
         create_session_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &req,
         )
@@ -200,7 +200,7 @@ impl MqttService for GrpcMqttService {
 
         update_session_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
@@ -219,7 +219,7 @@ impl MqttService for GrpcMqttService {
 
         delete_session_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &self.cache_manager,
@@ -255,7 +255,7 @@ impl MqttService for GrpcMqttService {
 
         create_topic_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
@@ -275,7 +275,7 @@ impl MqttService for GrpcMqttService {
         delete_topic_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &req,
         )
@@ -489,7 +489,7 @@ impl MqttService for GrpcMqttService {
 
         set_subscribe_by_req(
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &req,
         )
@@ -508,7 +508,7 @@ impl MqttService for GrpcMqttService {
         delete_subscribe_by_req(
             &self.raft_manager,
             &self.rocksdb_engine_handler,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &req,
         )
@@ -540,7 +540,7 @@ impl MqttService for GrpcMqttService {
         create_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.cache_manager,
             &req,
@@ -560,7 +560,7 @@ impl MqttService for GrpcMqttService {
         update_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &self.cache_manager,
             &req,
@@ -580,7 +580,7 @@ impl MqttService for GrpcMqttService {
         delete_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_manager,
-            &self.mqtt_call_manager,
+            &self.call_manager,
             &self.client_pool,
             &req,
         )

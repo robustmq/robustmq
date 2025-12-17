@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::mqtt::call_broker::{
-    update_cache_by_add_session, update_cache_by_delete_session, MQTTInnerCallManager,
+use crate::controller::call_broker::mqtt::{
+    update_cache_by_add_session, update_cache_by_delete_session, BrokerCallManager,
 };
-use crate::controller::mqtt::session_expire::ExpireLastWill;
+use crate::controller::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
@@ -61,7 +61,7 @@ pub fn list_session_by_req(
 
 pub async fn create_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
@@ -76,7 +76,7 @@ pub async fn create_session_by_req(
 
 pub async fn update_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &UpdateSessionRequest,
@@ -94,7 +94,7 @@ pub async fn update_session_by_req(
 
 pub async fn delete_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<MQTTInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<CacheManager>,

@@ -19,7 +19,7 @@ use common_base::utils::crc::calc_crc32;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::journal::shard::JournalShard;
-use protocol::journal::journal_engine::{
+use protocol::storage::journal_engine::{
     CreateShardReqBody, DeleteShardReqBody, GetClusterMetadataNode, GetShardMetadataRespShard,
     ListShardReqBody,
 };

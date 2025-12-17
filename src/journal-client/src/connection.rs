@@ -19,7 +19,7 @@ use std::time::Duration;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
-use protocol::journal::codec::{JournalEnginePacket, JournalServerCodec};
+use protocol::storage::codec::{JournalEnginePacket, JournalServerCodec};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;

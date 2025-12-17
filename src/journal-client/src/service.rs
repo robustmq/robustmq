@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use protocol::journal::codec::JournalEnginePacket;
-use protocol::journal::journal_engine::{
+use protocol::storage::codec::JournalEnginePacket;
+use protocol::storage::journal_engine::{
     ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, CreateShardRespBody, DeleteShardReq,
     DeleteShardReqBody, DeleteShardRespBody, FetchOffsetReq, FetchOffsetReqBody,
     FetchOffsetRespBody, GetClusterMetadataReq, GetClusterMetadataRespBody, GetShardMetadataReq,

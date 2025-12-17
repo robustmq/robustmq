@@ -17,7 +17,7 @@ use crate::error::JournalClientError;
 use crate::service::{get_cluster_metadata, get_shard_metadata};
 use dashmap::DashMap;
 use metadata_struct::journal::segment::segment_name;
-use protocol::journal::journal_engine::{
+use protocol::storage::journal_engine::{
     ClientSegmentMetadata, GetClusterMetadataNode, GetShardMetadataReqShard,
     GetShardMetadataRespShard,
 };

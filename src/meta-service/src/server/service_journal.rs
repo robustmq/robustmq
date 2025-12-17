@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::call_broker::mqtt::BrokerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::journal::segment::{
@@ -40,7 +40,7 @@ pub struct GrpcEngineService {
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    call_manager: Arc<JournalInnerCallManager>,
+    call_manager: Arc<BrokerCallManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -49,7 +49,7 @@ impl GrpcEngineService {
         raft_manager: Arc<MultiRaftManager>,
         cache_manager: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        call_manager: Arc<JournalInnerCallManager>,
+        call_manager: Arc<BrokerCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {

@@ -15,9 +15,9 @@
 use super::segment::{
     build_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
 };
-use crate::controller::journal::call_node::{
+use crate::controller::call_broker::mqtt::BrokerCallManager;
+use crate::controller::call_broker::storage::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
-    JournalInnerCallManager,
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
@@ -66,7 +66,7 @@ pub async fn list_shard_by_req(
 pub async fn create_shard_by_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
@@ -140,7 +140,7 @@ pub async fn create_shard_by_req(
 pub async fn delete_shard_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, MetaServiceError> {
