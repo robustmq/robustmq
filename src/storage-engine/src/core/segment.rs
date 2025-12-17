@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::StorageCacheManager;
 use super::error::JournalServerError;
 use crate::index::build::delete_segment_index;
 use crate::segment::file::open_segment_write;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 pub async fn delete_local_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
@@ -64,7 +64,7 @@ pub async fn delete_local_segment(
 }
 
 pub async fn segment_already_delete(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     req: &GetSegmentDeleteStatusRequest,
 ) -> Result<bool, JournalServerError> {
     let segment_iden = SegmentIdentity {

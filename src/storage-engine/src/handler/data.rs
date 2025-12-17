@@ -22,7 +22,7 @@ use protocol::storage::journal_engine::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::shard::try_auto_create_shard;
 use crate::index::time::TimestampIndexManager;
@@ -33,7 +33,7 @@ use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct DataHandler {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
@@ -41,7 +41,7 @@ pub struct DataHandler {
 
 impl DataHandler {
     pub fn new(
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,

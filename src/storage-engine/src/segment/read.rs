@@ -21,7 +21,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use super::file::{ReadData, SegmentFile};
 use super::SegmentIdentity;
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::JournalServerError;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::tag::TagIndexManager;
@@ -30,7 +30,7 @@ use crate::index::tag::TagIndexManager;
 ///
 /// Redirect read requests to the corresponding handler according to the read type
 pub async fn read_data_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req_body: &ReadReqBody,
     node_id: u64,

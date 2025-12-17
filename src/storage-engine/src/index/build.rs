@@ -31,7 +31,7 @@ use super::keys::{finish_build_index, last_offset_build_index, segment_index_pre
 use super::offset::OffsetIndexManager;
 use super::tag::TagIndexManager;
 use super::time::TimestampIndexManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
 use crate::core::error::JournalServerError;
 use crate::index::IndexData;
@@ -45,7 +45,7 @@ pub struct IndexBuildThreadData {
 }
 
 pub async fn try_trigger_build_index(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
@@ -104,7 +104,7 @@ pub async fn try_trigger_build_index(
 }
 
 async fn start_segment_build_index_thread(
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_iden: SegmentIdentity,
     start_offset: u64,
@@ -202,7 +202,7 @@ async fn start_segment_build_index_thread(
 
 fn try_finish_segment_index_build(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
 ) {
     if let Some(segment) = cache_manager.get_segment(segment_iden) {

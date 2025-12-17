@@ -21,7 +21,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::{debug, error};
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 
@@ -29,7 +29,7 @@ use crate::server::packet::ResponsePackage;
 pub(crate) async fn response_process(
     response_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     mut response_queue_rx: Receiver<ResponsePackage>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
@@ -95,7 +95,7 @@ pub(crate) fn response_child_process(
     process_handler: &mut HashMap<usize, Sender<ResponsePackage>>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
-    _cache_manager: Arc<CacheManager>,
+    _cache_manager: Arc<StorageCacheManager>,
     _client_pool: Arc<ClientPool>,
 ) {
     for index in 1..=response_process_num {

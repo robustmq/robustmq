@@ -63,7 +63,7 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core::cache::CacheManager, segment::manager::SegmentFileManager,
+    core::cache::StorageCacheManager, segment::manager::SegmentFileManager,
     server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
     JournalServerParams,
 };
@@ -389,7 +389,7 @@ impl BrokerServer {
     fn build_journal_server(client_pool: Arc<ClientPool>) -> JournalServerParams {
         let config = broker_config();
         let connection_manager = Arc::new(JournalConnectionManager::new());
-        let cache_manager = Arc::new(CacheManager::new());
+        let cache_manager = Arc::new(StorageCacheManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_engine::index::engine::storage_data_fold(&config.journal_storage.data_path),
             10000,

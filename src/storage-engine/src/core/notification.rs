@@ -17,24 +17,22 @@ use std::sync::Arc;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use metadata_struct::meta::node::BrokerNode;
 use protocol::broker::broker_storage::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
 };
 use tracing::{error, info};
 
-use super::cache::CacheManager;
+use super::cache::StorageCacheManager;
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
 
 pub async fn parse_notification(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     action_type: JournalUpdateCacheActionType,
     resource_type: JournalUpdateCacheResourceType,
     data: &[u8],
 ) {
     match resource_type {
-        JournalUpdateCacheResourceType::JournalNode => parse_node(cache_manager, action_type, data),
         JournalUpdateCacheResourceType::Shard => parse_shard(cache_manager, action_type, data),
         JournalUpdateCacheResourceType::Segment => {
             parse_segment(cache_manager, segment_file_manager, action_type, data).await
@@ -45,42 +43,8 @@ pub async fn parse_notification(
     }
 }
 
-fn parse_node(
-    cache_manager: &Arc<CacheManager>,
-    action_type: JournalUpdateCacheActionType,
-    data: &[u8],
-) {
-    match action_type {
-        JournalUpdateCacheActionType::Set => match BrokerNode::decode(data) {
-            Ok(node) => {
-                info!("Update the cache, Set node, node: {:?}", node.node_id);
-                cache_manager.add_node(node);
-            }
-            Err(e) => {
-                error!(
-                    "Set node information failed to parse with error message :{}",
-                    e
-                );
-            }
-        },
-
-        JournalUpdateCacheActionType::Delete => match BrokerNode::decode(data) {
-            Ok(node) => {
-                info!("Update the cache, remove node, node id: {}", node.node_id);
-                cache_manager.delete_node(node.node_id);
-            }
-            Err(e) => {
-                error!(
-                    "Remove node information failed to parse with error message :{}",
-                    e
-                );
-            }
-        },
-    }
-}
-
 fn parse_shard(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     action_type: JournalUpdateCacheActionType,
     data: &[u8],
 ) {
@@ -108,7 +72,7 @@ fn parse_shard(
 }
 
 async fn parse_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     action_type: JournalUpdateCacheActionType,
     data: &[u8],
@@ -141,7 +105,7 @@ async fn parse_segment(
 }
 
 async fn parse_segment_meta(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     action_type: JournalUpdateCacheActionType,
     data: &[u8],
 ) {

@@ -24,7 +24,7 @@ use tracing::{error, info};
 
 use super::file::SegmentFile;
 use super::SegmentIdentity;
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::JournalServerError;
 use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
@@ -215,7 +215,7 @@ pub fn metadata_and_local_segment_diff_check() {
 
 /// Create a new local segment file from `JournalSegment`.
 pub async fn create_local_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment: &JournalSegment,
 ) -> Result<(), JournalServerError> {

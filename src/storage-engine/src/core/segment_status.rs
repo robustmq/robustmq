@@ -21,12 +21,12 @@ use metadata_struct::journal::segment::SegmentStatus;
 use protocol::meta::meta_service_journal::UpdateSegmentStatusRequest;
 use tracing::warn;
 
-use super::cache::CacheManager;
+use super::cache::StorageCacheManager;
 use super::error::JournalServerError;
 use crate::segment::SegmentIdentity;
 
 pub async fn pre_sealup_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
@@ -40,7 +40,7 @@ pub async fn pre_sealup_segment(
 }
 
 pub async fn sealup_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
@@ -54,7 +54,7 @@ pub async fn sealup_segment(
 }
 
 async fn update_segment_status_to_pre_write(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
@@ -82,7 +82,7 @@ async fn update_segment_status_to_pre_write(
 }
 
 async fn update_segment_status_to_write(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
@@ -108,7 +108,7 @@ async fn update_segment_status_to_write(
 }
 
 async fn update_segment_status_to_pre_seal_up(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
@@ -137,7 +137,7 @@ async fn update_segment_status_to_pre_seal_up(
 }
 
 async fn update_segment_status_to_seal_up(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {

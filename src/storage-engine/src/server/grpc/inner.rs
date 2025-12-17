@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::inner::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
     get_shard_delete_status_by_req, update_cache_by_req,
@@ -29,14 +29,14 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcJournalServerInnerService {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcJournalServerInnerService {
     pub fn new(
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {

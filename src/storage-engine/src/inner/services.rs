@@ -21,7 +21,7 @@ use protocol::broker::broker_storage::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::notification::parse_notification;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
@@ -31,7 +31,7 @@ use crate::segment::SegmentIdentity;
 
 /// Update journal cache based on the request
 pub async fn update_cache_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, JournalServerError> {
@@ -49,7 +49,7 @@ pub async fn update_cache_by_req(
 
 /// Delete shard file based on the request
 pub async fn delete_shard_file_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteShardFileRequest,
@@ -74,7 +74,7 @@ pub async fn get_shard_delete_status_by_req(
 
 /// Delete segment file based on the request
 pub async fn delete_segment_file_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
@@ -93,7 +93,7 @@ pub async fn delete_segment_file_by_req(
 
 /// Get segment delete status based on the request
 pub async fn get_segment_delete_status_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     request: &GetSegmentDeleteStatusRequest,
 ) -> Result<GetSegmentDeleteStatusReply, JournalServerError> {
     let flag = segment_already_delete(cache_manager, request).await?;

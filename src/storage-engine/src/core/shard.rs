@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::StorageCacheManager;
 use super::error::JournalServerError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
@@ -32,7 +32,7 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 pub fn delete_local_shard(
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteShardFileRequest,
@@ -96,7 +96,7 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Jou
 ///
 /// Will wait for 3s for the cache update to take effect
 pub async fn create_shard_to_place(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {
@@ -156,7 +156,7 @@ pub async fn delete_shard_to_place(
 }
 
 pub async fn try_auto_create_shard(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {

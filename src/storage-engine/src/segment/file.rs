@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::SegmentIdentity;
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::JournalServerError;
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
@@ -36,7 +36,7 @@ pub struct ReadData {
 
 /// Given a segment identity, open a segment file for reading and writing.
 pub async fn open_segment_write(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(SegmentFile, u32), JournalServerError> {
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
@@ -266,7 +266,7 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
-    use crate::core::cache::CacheManager;
+    use crate::core::cache::StorageCacheManager;
     use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
     use common_base::tools::now_second;
@@ -308,7 +308,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let cache_manager = Arc::new(CacheManager::new());
+        let cache_manager = Arc::new(StorageCacheManager::new());
 
         let res = open_segment_write(&cache_manager, &segment_iden).await;
         assert!(res.is_err());

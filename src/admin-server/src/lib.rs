@@ -16,7 +16,7 @@
 pub mod client;
 pub mod cluster;
 pub mod extractor;
-pub mod journal;
+pub mod storage;
 pub mod meta;
 pub mod mqtt;
 pub mod path;

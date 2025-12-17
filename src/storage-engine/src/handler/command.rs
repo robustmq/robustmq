@@ -15,6 +15,13 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use super::data::DataHandler;
+use super::shard::ShardHandler;
+use crate::core::cache::StorageCacheManager;
+use crate::core::error::get_journal_server_code;
+use crate::segment::manager::SegmentFileManager;
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
 use grpc_clients::pool::ClientPool;
 use protocol::storage::codec::JournalEnginePacket;
 use protocol::storage::journal_engine::{
@@ -25,15 +32,6 @@ use protocol::storage::journal_engine::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use tracing::{debug, error, info};
-
-use super::cluster::ClusterHandler;
-use super::data::DataHandler;
-use super::shard::ShardHandler;
-use crate::core::cache::CacheManager;
-use crate::core::error::get_journal_server_code;
-use crate::segment::manager::SegmentFileManager;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
 
 /// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
@@ -46,7 +44,7 @@ pub struct Command {
 impl Command {
     pub fn new(
         client_pool: Arc<ClientPool>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {

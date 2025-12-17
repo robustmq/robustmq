@@ -24,19 +24,19 @@ use protocol::storage::journal_engine::{
     GetShardMetadataRespShard, ListShardReq,
 };
 
-use crate::core::cache::{load_metadata_cache, CacheManager};
+use crate::core::cache::{load_metadata_cache, StorageCacheManager};
 use crate::core::error::JournalServerError;
 use crate::core::shard::{create_shard_to_place, delete_shard_to_place};
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct ShardHandler {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
 impl ShardHandler {
-    pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> ShardHandler {
+    pub fn new(cache_manager: Arc<StorageCacheManager>, client_pool: Arc<ClientPool>) -> ShardHandler {
         ShardHandler {
             cache_manager,
             client_pool,
