@@ -120,7 +120,7 @@ impl AdminServer {
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
             // overview
-            .route(MQTT_OVERVIEW_PATH, post(overview))
+            .route(MQTT_OVERVIEW_PATH, get(overview))
             // monitor
             .route(MQTT_MONITOR_PATH, post(monitor_data))
             // client

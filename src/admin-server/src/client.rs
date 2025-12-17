@@ -139,7 +139,7 @@ impl AdminHttpClient {
     }
 
     /// Make a GET request (for the root endpoint)
-    pub async fn get(&self, endpoint: &str) -> Result<String, HttpClientError> {
+    pub async fn get_raw(&self, endpoint: &str) -> Result<String, HttpClientError> {
         let url = self.build_url(endpoint)?;
 
         let response = self.client.get(&url).send().await?;
@@ -155,6 +155,44 @@ impl AdminHttpClient {
         }
 
         Ok(response_text)
+    }
+
+    pub async fn get<R>(&self, endpoint: &str) -> Result<R, HttpClientError>
+    where
+        R: for<'de> Deserialize<'de>,
+    {
+        let url = self.build_url(endpoint)?;
+
+        let response = self.client.get(&url).send().await?;
+
+        let status = response.status();
+        let response_text = response.text().await?;
+
+        if !status.is_success() {
+            return Err(HttpClientError::ServerError {
+                code: status.as_u16() as u64,
+                message: response_text,
+            });
+        }
+
+        // Try to parse as AdminServerResponse first
+        match serde_json::from_str::<AdminServerResponse<R>>(&response_text) {
+            Ok(api_response) => {
+                if api_response.code == 0 {
+                    Ok(api_response.data)
+                } else {
+                    Err(HttpClientError::ServerError {
+                        code: api_response.code,
+                        message: format!("Server error code: {}", api_response.code),
+                    })
+                }
+            }
+            Err(_) => {
+                // If not ApiResponse format, try to parse directly as the expected type
+                serde_json::from_str::<R>(&response_text)
+                    .map_err(HttpClientError::JsonSerializationFailed)
+            }
+        }
     }
 
     /// Build full URL from endpoint
@@ -184,22 +222,19 @@ impl AdminHttpClient {
     /// Get service version information
     pub async fn get_version(&self) -> Result<String, HttpClientError> {
         // Use "/api" (no trailing slash) to avoid static file route conflict
-        self.get(&api_path("")).await
+        self.get_raw(&api_path("")).await
     }
 
     /// Get cluster status information
     pub async fn get_status(&self) -> Result<String, HttpClientError> {
-        self.get(&api_path(STATUS_PATH)).await
+        self.get_raw(&api_path(STATUS_PATH)).await
     }
 
     /// Get cluster overview
-    pub async fn get_cluster_overview<T>(&self) -> Result<T, HttpClientError>
-    where
-        T: for<'de> Deserialize<'de>,
+    pub async fn get_cluster_overview<R>(&self) -> Result<AdminServerResponse<R>, HttpClientError>
+    where R: for<'de> Deserialize<'de>,
     {
-        let empty_request = serde_json::json!({});
-        self.post(&api_path(MQTT_OVERVIEW_PATH), &empty_request)
-            .await
+        self.get(&api_path(MQTT_OVERVIEW_PATH)).await
     }
 
     /// Get client list
@@ -474,7 +509,7 @@ impl AdminHttpClient {
 
     /// Set cluster configuration
     pub async fn get_cluster_config(&self) -> Result<String, HttpClientError> {
-        self.get(&api_path(CLUSTER_CONFIG_GET_PATH)).await
+        self.get_raw(&api_path(CLUSTER_CONFIG_GET_PATH)).await
     }
 
     /// Get flapping detection list
