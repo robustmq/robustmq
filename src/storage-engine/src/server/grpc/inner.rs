@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core1::cache::CacheManager;
 use crate::inner::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
     get_shard_delete_status_by_req, update_cache_by_req,

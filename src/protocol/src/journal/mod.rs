@@ -16,19 +16,6 @@
 #![allow(clippy::all)]
 
 use std::io;
-
-pub mod journal_admin {
-    tonic::include_proto!("journal.admin");
-}
-
-pub mod journal_engine {
-    tonic::include_proto!("journal.engine");
-}
-
-pub mod journal_inner {
-    tonic::include_proto!("journal.inner");
-}
-
 pub mod journal_record {
     tonic::include_proto!("journal.record");
 }

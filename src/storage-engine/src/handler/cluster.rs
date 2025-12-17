@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
+use crate::core1::cache::CacheManager;
+use crate::core1::error::JournalServerError;
 use common_base::utils::serialize;
 use protocol::journal::journal_engine::GetClusterMetadataNode;
 use std::sync::Arc;

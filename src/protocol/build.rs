@@ -50,7 +50,6 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
                 .join("src/journal/engine.proto")
                 .to_str()
                 .unwrap(),
-            proto_root.join("src/journal/inner.proto").to_str().unwrap(),
             proto_root
                 .join("src/journal/record.proto")
                 .to_str()
@@ -59,10 +58,14 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
         &[proto_root.join("src/").to_str().unwrap()],
     )?;
 
-    // MQTT Broker
+    // Broker
     tonic_build::configure().build_server(true).compile_protos(
         &[
-            proto_root.join("src/broker/inner.proto").to_str().unwrap(),
+            proto_root.join("src/broker/mqtt.proto").to_str().unwrap(),
+            proto_root
+                .join("src/broker/storage.proto")
+                .to_str()
+                .unwrap(),
             proto_root
                 .join("src/broker/cluster.proto")
                 .to_str()

@@ -15,9 +15,9 @@
  */
 
 syntax = "proto3";
-package journal.inner;
+package broker.storage;
 
-service JournalServerInnerService {
+service StorageEngineInnerService {
   rpc UpdateCache(UpdateJournalCacheRequest) returns (UpdateJournalCacheReply) {}
   rpc DeleteShardFile(DeleteShardFileRequest) returns (DeleteShardFileReply) {}
   rpc GetShardDeleteStatus(GetShardDeleteStatusRequest) returns (GetShardDeleteStatusReply) {}

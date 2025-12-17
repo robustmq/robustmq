@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core1::consts::DB_COLUMN_FAMILY_INDEX;
+use common_base::{error::log_config::LogConfigError, logging::init_tracing_subscriber};
+use common_config::broker::broker_config;
+use tracing_appender::non_blocking::WorkerGuard;
 
-pub fn column_family_list() -> Vec<String> {
-    vec![DB_COLUMN_FAMILY_INDEX.to_string()]
-}
-
-pub fn storage_data_fold(data_fold: &Vec<String>) -> String {
-    if let Some(fold) = data_fold.first() {
-        return format!("{fold}_index");
-    }
-    panic!("No configuration data storage directory, configuration info :{data_fold:?}");
+pub fn init_journal_server_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
+    let conf = broker_config();
+    init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
 }

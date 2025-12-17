@@ -20,7 +20,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::{debug, error};
 
-use crate::core::error::JournalServerError;
+use crate::core1::error::JournalServerError;
 use crate::handler::command::Command;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};

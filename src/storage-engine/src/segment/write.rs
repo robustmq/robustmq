@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
-use crate::core::error::{get_journal_server_code, JournalServerError};
-use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
-use crate::core::segment_status::sealup_segment;
+use crate::core1::cache::CacheManager;
+use crate::core1::error::{get_journal_server_code, JournalServerError};
+use crate::core1::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
+use crate::core1::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
 use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
@@ -483,7 +483,7 @@ mod tests {
     use protocol::journal::journal_record::JournalRecord;
 
     use super::{create_write_thread, is_end_offset, write_data};
-    use crate::core::test::test_init_segment;
+    use crate::core1::test::test_init_segment;
     use crate::segment::file::open_segment_write;
 
     #[tokio::test]

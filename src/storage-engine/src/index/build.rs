@@ -31,9 +31,9 @@ use super::keys::{finish_build_index, last_offset_build_index, segment_index_pre
 use super::offset::OffsetIndexManager;
 use super::tag::TagIndexManager;
 use super::time::TimestampIndexManager;
-use crate::core::cache::CacheManager;
-use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
-use crate::core::error::JournalServerError;
+use crate::core1::cache::CacheManager;
+use crate::core1::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
+use crate::core1::error::JournalServerError;
 use crate::index::IndexData;
 use crate::segment::file::{open_segment_write, ReadData};
 use crate::segment::manager::SegmentFileManager;
@@ -343,8 +343,8 @@ mod tests {
     use tokio::time::sleep;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
-    use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-    use crate::core::test::{test_base_write_data, test_build_rocksdb_sgement};
+    use crate::core1::consts::DB_COLUMN_FAMILY_INDEX;
+    use crate::core1::test::{test_base_write_data, test_build_rocksdb_sgement};
     use crate::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
     };
@@ -447,7 +447,7 @@ mod tests {
     async fn build_thread_test() {
         let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_base_write_data(10001).await;
-        let res: Result<(), crate::core::error::JournalServerError> = try_trigger_build_index(
+        let res: Result<(), crate::core1::error::JournalServerError> = try_trigger_build_index(
             &cache_manager,
             &segment_file_manager,
             &rocksdb_engine_handler,

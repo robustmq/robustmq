@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package broker.mqtt.inner;
+package broker.mqtt;
 service MQTTBrokerInnerService {
   rpc UpdateCache(UpdateMQTTCacheRequest) returns (UpdateMQTTCacheReply) {}
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}

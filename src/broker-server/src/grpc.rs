@@ -33,7 +33,6 @@ use protocol::meta::meta_service_journal::engine_service_server::EngineServiceSe
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use storage_engine::server::grpc::admin::GrpcJournalServerAdminService;
 use storage_engine::server::grpc::inner::GrpcJournalServerInnerService;
 use storage_engine::JournalServerParams;
 use tonic::transport::Server;
@@ -89,15 +88,10 @@ pub async fn start_grpc_server(
     }
 
     if config.is_start_journal() {
-        route = route
-            .add_service(
-                JournalServerAdminServiceServer::new(get_journal_admin_handler(&journal_params))
-                    .max_decoding_message_size(grpc_max_decoding_message_size),
-            )
-            .add_service(
-                JournalServerInnerServiceServer::new(get_journal_inner_handler(&journal_params))
-                    .max_decoding_message_size(grpc_max_decoding_message_size),
-            );
+        route = route.add_service(
+            JournalServerInnerServiceServer::new(get_journal_inner_handler(&journal_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        );
     }
 
     route.serve(ip).await?;
@@ -145,10 +139,6 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
         mqtt_params.message_storage_adapter.clone(),
         mqtt_params.metrics_cache_manager.clone(),
     )
-}
-
-fn get_journal_admin_handler(params: &JournalServerParams) -> GrpcJournalServerAdminService {
-    GrpcJournalServerAdminService::new(params.cache_manager.clone())
 }
 
 fn get_journal_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {

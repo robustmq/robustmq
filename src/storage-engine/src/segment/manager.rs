@@ -24,8 +24,8 @@ use tracing::{error, info};
 
 use super::file::SegmentFile;
 use super::SegmentIdentity;
-use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
+use crate::core1::cache::CacheManager;
+use crate::core1::error::JournalServerError;
 use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::time::TimestampIndexManager;
@@ -268,7 +268,7 @@ mod tests {
     use common_base::tools::now_second;
 
     use super::{SegmentFileManager, SegmentFileMetadata};
-    use crate::core::test::{test_build_rocksdb_sgement, test_init_segment};
+    use crate::core1::test::{test_build_rocksdb_sgement, test_init_segment};
     use crate::segment::file::SegmentFile;
 
     #[tokio::test]

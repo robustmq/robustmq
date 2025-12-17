@@ -65,7 +65,7 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core::cache::CacheManager as JournalCacheManager, segment::manager::SegmentFileManager,
+    core1::cache::CacheManager as JournalCacheManager, segment::manager::SegmentFileManager,
     server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
     JournalServerParams,
 };
