@@ -514,6 +514,10 @@ pub fn process_session_args(args: SessionArgs) -> MqttActionType {
     }
 }
 
+pub fn process_overview() -> MqttActionType {
+    MqttActionType::Overview
+}
+
 pub fn process_subscribes_args(args: SubscribesArgs) -> MqttActionType {
     match args.action {
         SubscribesActionType::List => MqttActionType::ListSubscribe,

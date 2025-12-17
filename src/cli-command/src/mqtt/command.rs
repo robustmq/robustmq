@@ -34,6 +34,8 @@ pub struct MqttCliCommandParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MqttActionType {
+    // overview
+    Overview,
     // session
     ListSession,
 
@@ -117,6 +119,10 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let params_clone = params.clone();
         match params.action {
+            // overview
+            MqttActionType::Overview => {
+                self.cluster_overview(params.clone()).await;
+            }
             // client
             MqttActionType::ListClient => {
                 self.list_clients(params.clone()).await;
@@ -1451,6 +1457,63 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker list auto subscribe rule exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn cluster_overview(&self, params: MqttCliCommandParam) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        match admin_client
+            .get_cluster_overview::<admin_server::mqtt::overview::OverViewResp>()
+            .await
+        {
+            Ok(overview) => {
+                let data = overview.data;
+                println!("\n📊 Cluster Overview");
+                println!("{:<30} {}", "Cluster Name", data.cluster_name);
+                println!("{:<30} {}", "Placement Status", data.placement_status);
+                println!("{:<30} {}", "Message In Rate", data.message_in_rate);
+                println!("{:<30} {}", "Message Out Rate", data.message_out_rate);
+                println!("{:<30} {}", "Connection Num", data.connection_num);
+                println!("{:<30} {}", "Session Num", data.session_num);
+                println!("{:<30} {}", "Topic Num", data.topic_num);
+                println!("{:<30} {}", "Subscribe Num", data.subscribe_num);
+                println!("{:<30} {}", "Connector Num", data.connector_num);
+                println!("{:<30} {}", "TCP Connections", data.tcp_connection_num);
+                println!("{:<30} {}", "TLS Connections", data.tls_connection_num);
+                println!(
+                    "{:<30} {}",
+                    "WebSocket Connections", data.websocket_connection_num
+                );
+                println!("{:<30} {}", "QUIC Connections", data.quic_connection_num);
+
+                println!("\n🧩 Node List");
+                println!(
+                    "{:<10} {:<20} {:<25} {:<30} Start Time",
+                    "Node ID", "Node IP", "Inner Addr", "Roles"
+                );
+
+                use chrono::{Local, TimeZone};
+                for node in data.node_list {
+                    let start_time_local = Local
+                        .timestamp_opt(node.start_time as i64, 0)
+                        .single()
+                        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                        .unwrap_or_else(|| node.start_time.to_string());
+
+                    println!(
+                        "{:<10} {:<20} {:<25} {:<30} {}",
+                        node.node_id,
+                        node.node_ip,
+                        node.node_inner_addr,
+                        format!("{:?}", node.roles),
+                        start_time_local
+                    );
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker cluster overview exception");
                 error_info(e.to_string());
             }
         }
