@@ -18,7 +18,7 @@ use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::meta::node::BrokerNode;
-use protocol::journal::journal_inner::{
+use protocol::broker::broker_storage::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
 };
 use tracing::{error, info};

@@ -20,14 +20,14 @@ use crate::server::services::journal::segment::{
 use crate::server::services::journal::shard::{
     sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
 };
-use grpc_clients::journal::inner::call::{
+use grpc_clients::broker::storage::call::{
     journal_inner_delete_segment_file, journal_inner_delete_shard_file,
     journal_inner_get_segment_delete_status, journal_inner_get_shard_delete_status,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::shard::JournalShardStatus;
-use protocol::storage::journal_inner::{
+use protocol::storage::journal_engine::{
     DeleteSegmentFileRequest, DeleteShardFileRequest, GetSegmentDeleteStatusRequest,
     GetShardDeleteStatusRequest,
 };

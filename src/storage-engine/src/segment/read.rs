@@ -21,8 +21,8 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use super::file::{ReadData, SegmentFile};
 use super::SegmentIdentity;
-use crate::core1::cache::CacheManager;
-use crate::core1::error::JournalServerError;
+use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::tag::TagIndexManager;
 
@@ -231,7 +231,7 @@ mod tests {
     use tokio::time::sleep;
 
     use super::{read_by_key, read_by_offset, read_by_tag, read_data_req};
-    use crate::core1::test::test_base_write_data;
+    use crate::core::test::test_base_write_data;
     use crate::index::build::try_trigger_build_index;
     use crate::segment::file::SegmentFile;
 

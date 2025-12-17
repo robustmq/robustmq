@@ -26,9 +26,9 @@ use tracing::{error, info};
 
 use super::file::open_segment_write;
 use super::manager::SegmentFileManager;
-use crate::core1::cache::CacheManager;
-use crate::core1::segment_meta::update_end_and_start_offset;
-use crate::core1::segment_status::pre_sealup_segment;
+use crate::core::cache::CacheManager;
+use crate::core::segment_meta::update_end_and_start_offset;
+use crate::core::segment_status::pre_sealup_segment;
 
 pub struct SegmentScrollManager {
     cache_manager: Arc<CacheManager>,

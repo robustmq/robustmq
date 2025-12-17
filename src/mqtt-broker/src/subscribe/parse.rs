@@ -32,9 +32,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MQTTTopic};
 use protocol::{
-    broker::broker_mqtt_inner::{
-        MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType,
-    },
+    broker::broker_mqtt::{MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType},
     mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
 };
 use serde::{Deserialize, Serialize};

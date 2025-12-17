@@ -24,8 +24,8 @@ use super::keys::{
     timestamp_segment_time_prefix,
 };
 use super::IndexData;
-use crate::core1::consts::DB_COLUMN_FAMILY_INDEX;
-use crate::core1::error::JournalServerError;
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
+use crate::core::error::JournalServerError;
 use crate::segment::SegmentIdentity;
 
 pub struct TimestampIndexManager {
@@ -167,7 +167,7 @@ mod tests {
     use common_base::tools::now_second;
 
     use super::TimestampIndexManager;
-    use crate::core1::test::test_build_rocksdb_sgement;
+    use crate::core::test::test_build_rocksdb_sgement;
     use crate::index::IndexData;
 
     #[test]

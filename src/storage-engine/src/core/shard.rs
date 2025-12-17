@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::remove_dir_all;
-use std::path::Path;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-
-use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::shard::JournalShardConfig;
-use protocol::journal::journal_inner::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
-use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use tokio::time::sleep;
-use tracing::{error, info};
-
 use super::cache::CacheManager;
 use super::error::JournalServerError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
+use common_config::broker::broker_config;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::shard::JournalShardConfig;
+use protocol::broker::broker_storage::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
+use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::fs::remove_dir_all;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
+use tracing::{error, info};
 
 pub fn delete_local_shard(
     cache_manager: Arc<CacheManager>,

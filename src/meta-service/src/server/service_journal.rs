@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::storage::call_node::JournalInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::journal::segment::{

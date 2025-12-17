@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::shard::update_last_segment_by_shard;
-use crate::controller::journal::call_node::{
+use crate::controller::storage::call_node::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
     JournalInnerCallManager,
 };

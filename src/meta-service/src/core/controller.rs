@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::heartbeat::BrokerHeartbeat;
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::storage::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;

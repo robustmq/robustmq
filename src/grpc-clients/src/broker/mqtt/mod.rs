@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
-use protocol::broker::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
+use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };

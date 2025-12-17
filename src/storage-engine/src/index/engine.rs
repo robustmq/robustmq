@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core1::consts::DB_COLUMN_FAMILY_INDEX;
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 
 pub fn column_family_list() -> Vec<String> {
     vec![DB_COLUMN_FAMILY_INDEX.to_string()]

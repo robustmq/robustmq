@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::controller::journal::call_node::{journal_call_thread_manager, JournalInnerCallManager};
+use crate::controller::storage::call_node::{journal_call_thread_manager, JournalInnerCallManager};
 use crate::controller::mqtt::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use crate::controller::mqtt::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};

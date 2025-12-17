@@ -28,7 +28,7 @@ use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use meta_service::{
     controller::{
-        journal::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
+        storage::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
     },
     core::cache::CacheManager as PlacementCacheManager,
     raft::{manager::MultiRaftManager, route::DataRoute},

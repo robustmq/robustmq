@@ -18,7 +18,7 @@ use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_base::utils::serialize;
 use dashmap::DashMap;
-use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
+use grpc_clients::broker::mqtt::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
@@ -28,8 +28,8 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use protocol::broker::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
-use protocol::broker::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt::MqttBrokerUpdateCacheResourceType;
+use protocol::broker::broker_mqtt::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
 };
 use std::sync::Arc;

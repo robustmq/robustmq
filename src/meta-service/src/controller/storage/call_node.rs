@@ -17,13 +17,12 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use dashmap::DashMap;
-use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::meta::node::BrokerNode;
-use protocol::storage::journal_inner::{
+use protocol::storage::journal_engine::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
 use std::sync::Arc;

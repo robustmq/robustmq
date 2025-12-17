@@ -14,18 +14,18 @@
 
 use std::sync::Arc;
 
-use protocol::storage::journal_inner::{
+use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
-use crate::core1::cache::CacheManager;
-use crate::core1::error::JournalServerError;
-use crate::core1::notification::parse_notification;
-use crate::core1::segment::{delete_local_segment, segment_already_delete};
-use crate::core1::shard::{delete_local_shard, is_delete_by_shard};
+use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
+use crate::core::notification::parse_notification;
+use crate::core::segment::{delete_local_segment, segment_already_delete};
+use crate::core::shard::{delete_local_shard, is_delete_by_shard};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 

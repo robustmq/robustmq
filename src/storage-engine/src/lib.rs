@@ -17,7 +17,7 @@
 #![allow(clippy::large_enum_variant)]
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
-use core1::cache::{load_metadata_cache, CacheManager};
+use core::cache::{load_metadata_cache, CacheManager};
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use segment::manager::{
@@ -31,7 +31,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
 
-pub mod core1;
+pub mod core;
 pub mod handler;
 pub mod index;
 pub mod inner;

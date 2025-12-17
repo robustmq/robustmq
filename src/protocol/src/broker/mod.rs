@@ -14,7 +14,7 @@
 
 #![cfg_attr(any(), rustfmt::skip)]
 #![allow(clippy::all)]
-pub mod broker_mqtt_inner {
+pub mod broker_mqtt {
     tonic::include_proto!("broker.mqtt");
 }
 
@@ -22,6 +22,6 @@ pub mod broker_cluster {
     tonic::include_proto!("broker.cluster");
 }
 
-pub mod broker_storage_inner {
+pub mod broker_storage {
     tonic::include_proto!("broker.storage");
 }

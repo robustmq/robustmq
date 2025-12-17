@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::{journal::StorageEngineController, mqtt::MqttController},
+    controller::{storage::StorageEngineController, mqtt::MqttController},
     core::cache::CacheManager,
     raft::manager::MultiRaftManager,
 };

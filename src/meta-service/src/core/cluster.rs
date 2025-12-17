@@ -14,7 +14,7 @@
 
 use super::cache::CacheManager;
 use super::error::MetaServiceError;
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::storage::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::{
     update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
 };

@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use protocol::journal::journal_inner::GetSegmentDeleteStatusRequest;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use tracing::{error, info};
-
 use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::index::build::delete_segment_index;
 use crate::segment::file::open_segment_write;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
+use protocol::broker::broker_storage::GetSegmentDeleteStatusRequest;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
+use tracing::{error, info};
 
 pub async fn delete_local_segment(
     cache_manager: &Arc<CacheManager>,

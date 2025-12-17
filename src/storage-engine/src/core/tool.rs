@@ -16,7 +16,7 @@ use std::{future::Future, time::Duration};
 
 use tokio::{select, sync::broadcast};
 
-use crate::core1::error::JournalServerError;
+use crate::core::error::JournalServerError;
 
 pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
 where

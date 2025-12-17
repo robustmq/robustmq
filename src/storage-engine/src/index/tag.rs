@@ -21,8 +21,8 @@ use rocksdb_engine::warp::StorageDataWrap;
 
 use super::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_prefix};
 use super::IndexData;
-use crate::core1::consts::DB_COLUMN_FAMILY_INDEX;
-use crate::core1::error::JournalServerError;
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
+use crate::core::error::JournalServerError;
 use crate::segment::SegmentIdentity;
 
 pub struct TagIndexManager {
@@ -177,7 +177,7 @@ mod tests {
     use common_base::tools::now_second;
 
     use super::TagIndexManager;
-    use crate::core1::test::test_build_rocksdb_sgement;
+    use crate::core::test::test_build_rocksdb_sgement;
     use crate::index::IndexData;
 
     #[tokio::test]

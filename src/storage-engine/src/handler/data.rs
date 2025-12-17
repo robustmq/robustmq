@@ -22,9 +22,9 @@ use protocol::storage::journal_engine::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
-use crate::core1::cache::CacheManager;
-use crate::core1::error::{get_journal_server_code, JournalServerError};
-use crate::core1::shard::try_auto_create_shard;
+use crate::core::cache::CacheManager;
+use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::shard::try_auto_create_shard;
 use crate::index::time::TimestampIndexManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data_req;

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::broker::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };

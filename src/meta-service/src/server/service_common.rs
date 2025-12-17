@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::storage::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};

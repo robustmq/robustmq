@@ -11,12 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use crate::journal::inner::JournalInnerServiceManager;
-use crate::meta::common::PlacementServiceManager;
 use crate::meta::journal::JournalServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
-use crate::mqtt::inner::MqttBrokerPlacementServiceManager;
+use crate::{
+    broker::mqtt::MqttBrokerPlacementServiceManager, meta::common::PlacementServiceManager,
+};
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
@@ -99,12 +98,8 @@ pub struct ClientPool {
     // modules: meta service service: leader cache
     meta_service_leader_addr_caches: DashMap<String, String>,
 
-    // modules: mqtt broker
+    // modules: broker co
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
-
-    // modules: journal engine
-    journal_admin_service_pools: DashMap<String, Pool<JournalAdminServiceManager>>,
-    journal_inner_service_pools: DashMap<String, Pool<JournalInnerServiceManager>>,
 }
 
 impl ClientPool {
@@ -126,9 +121,6 @@ impl ClientPool {
             meta_service_leader_addr_caches: DashMap::with_capacity(2),
             // modules: mqtt_broker
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
-            // modules: journal_engine
-            journal_admin_service_pools: DashMap::with_capacity(2),
-            journal_inner_service_pools: DashMap::with_capacity(2),
         }
     }
 
@@ -162,21 +154,6 @@ impl ClientPool {
         "MQTTBrokerPlacementService"
     );
 
-    // ----------modules: journal engine -------------
-    define_client_method!(
-        journal_inner_services_client,
-        journal_inner_service_pools,
-        JournalInnerServiceManager,
-        "JournalInnerService"
-    );
-
-    define_client_method!(
-        journal_admin_services_client,
-        journal_admin_service_pools,
-        JournalAdminServiceManager,
-        "JournalAdminService"
-    );
-
     // ----------leader cache management -------------
     pub fn get_leader_addr(&self, method: &str) -> Option<Ref<'_, String, String>> {
         self.meta_service_leader_addr_caches.get(method)
@@ -201,8 +178,6 @@ impl ClientPool {
             + self.meta_service_journal_service_pools.len()
             + self.meta_service_mqtt_service_pools.len()
             + self.mqtt_broker_placement_service_pools.len()
-            + self.journal_admin_service_pools.len()
-            + self.journal_inner_service_pools.len()
     }
 
     // ----------connection pool warming -------------

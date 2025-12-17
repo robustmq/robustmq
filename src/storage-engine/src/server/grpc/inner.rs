@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core1::cache::CacheManager;
+use crate::core::cache::CacheManager;
 use crate::inner::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
     get_shard_delete_status_by_req, update_cache_by_req,
 };
 use crate::segment::manager::SegmentFileManager;
-use protocol::storage::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
-use protocol::storage::journal_inner::{
+use protocol::broker::broker_storage::storage_engine_inner_service_server::StorageEngineInnerService;
+use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
@@ -49,7 +49,7 @@ impl GrpcJournalServerInnerService {
 }
 
 #[tonic::async_trait]
-impl JournalServerInnerService for GrpcJournalServerInnerService {
+impl StorageEngineInnerService for GrpcJournalServerInnerService {
     async fn update_cache(
         &self,
         request: Request<UpdateJournalCacheRequest>,

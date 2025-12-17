@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::SegmentIdentity;
-use crate::core1::cache::CacheManager;
-use crate::core1::error::JournalServerError;
+use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
@@ -266,8 +266,8 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
-    use crate::core1::cache::CacheManager;
-    use crate::core1::test::{test_build_data_fold, test_build_segment};
+    use crate::core::cache::CacheManager;
+    use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};

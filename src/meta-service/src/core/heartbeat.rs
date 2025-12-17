@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::cluster::un_register_node_by_req;
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::storage::call_node::JournalInnerCallManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;

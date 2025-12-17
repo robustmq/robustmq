@@ -24,9 +24,9 @@ use protocol::storage::journal_engine::{
 };
 use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, UpdateSegmentStatusRequest};
 
-use crate::core1::cache::{load_metadata_cache, CacheManager};
-use crate::core1::error::JournalServerError;
-use crate::core1::shard::{create_shard_to_place, delete_shard_to_place};
+use crate::core::cache::{load_metadata_cache, CacheManager};
+use crate::core::error::JournalServerError;
+use crate::core::shard::{create_shard_to_place, delete_shard_to_place};
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]

@@ -32,7 +32,7 @@ use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use protocol::broker::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
