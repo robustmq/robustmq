@@ -14,8 +14,8 @@
 
 mod macros;
 
-pub mod meta;
 pub mod broker;
+pub mod meta;
 pub mod pool;
 mod utils;
 // const MAX_RETRY_TIMES: usize = 10;

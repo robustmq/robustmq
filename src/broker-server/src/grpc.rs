@@ -24,6 +24,8 @@ use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::inner::GrpcInnerServices;
+use protocol::broker::broker_mqtt::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
+use protocol::broker::broker_storage::storage_engine_inner_service_server::StorageEngineInnerServiceServer;
 use protocol::cluster::cluster_status::cluster_service_server::ClusterServiceServer;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceServiceServer;
 use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
@@ -86,7 +88,7 @@ pub async fn start_grpc_server(
 
     if config.is_start_journal() {
         route = route.add_service(
-            JournalServerInnerServiceServer::new(get_journal_inner_handler(&journal_params))
+            StorageEngineInnerServiceServer::new(get_storage_engine_inner_handler(&journal_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
     }
@@ -137,7 +139,7 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
     )
 }
 
-fn get_journal_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {
+fn get_storage_engine_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {
     GrpcJournalServerInnerService::new(
         params.cache_manager.clone(),
         params.segment_file_manager.clone(),

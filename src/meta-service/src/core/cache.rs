@@ -21,9 +21,7 @@ use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use crate::{
-    controller::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
-};
+use crate::{controller::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage};
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::JournalSegment;

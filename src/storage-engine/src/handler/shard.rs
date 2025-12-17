@@ -18,11 +18,11 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
+use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, UpdateSegmentStatusRequest};
 use protocol::storage::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard, ListShardReq,
 };
-use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, UpdateSegmentStatusRequest};
 
 use crate::core::cache::{load_metadata_cache, CacheManager};
 use crate::core::error::JournalServerError;

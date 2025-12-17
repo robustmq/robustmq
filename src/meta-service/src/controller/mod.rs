@@ -35,21 +35,21 @@ pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
     false
 }
 
-pub struct MqttController {
+pub struct BrokerController {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 }
 
-impl MqttController {
+impl BrokerController {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
         stop_send: broadcast::Sender<bool>,
-    ) -> MqttController {
-        MqttController {
+    ) -> BrokerController {
+        BrokerController {
             rocksdb_engine_handler,
             cache_manager,
             client_pool,

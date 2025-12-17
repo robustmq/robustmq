@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::MqttController, core::cache::CacheManager, raft::manager::MultiRaftManager,
+    controller::BrokerController, core::cache::CacheManager, raft::manager::MultiRaftManager,
 };
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -60,7 +60,6 @@ pub fn monitoring_leader_transition(
                                         &rocksdb_engine_handler,
                                         &cache_manager,
                                         &client_pool,
-                                        &raft_manager,
                                         controller_stop_recv.clone(),
                                     );
                                     controller_running = true;
@@ -88,10 +87,9 @@ pub fn start_controller(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    raft_manager: &Arc<MultiRaftManager>,
     stop_send: Sender<bool>,
 ) {
-    let mqtt_controller = MqttController::new(
+    let mqtt_controller = BrokerController::new(
         rocksdb_engine_handler.clone(),
         cache_manager.clone(),
         client_pool.clone(),
