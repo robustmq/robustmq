@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::broker::storage::BrokerStorageServiceManager;
 use crate::meta::journal::JournalServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
-use crate::{
-    broker::mqtt::BrokerMQTTServiceManager, meta::common::PlacementServiceManager,
-};
+use crate::{broker::mqtt::BrokerMQTTServiceManager, meta::common::PlacementServiceManager};
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
@@ -99,8 +98,10 @@ pub struct ClientPool {
     // modules: meta service service: leader cache
     meta_service_leader_addr_caches: DashMap<String, String>,
 
-    // modules: broker co
-    mqtt_broker_placement_service_pools: DashMap<String, Pool<BrokerMQTTServiceManager>>,
+    // modules: broker mqtt
+    broker_mqtt_grpc_pools: DashMap<String, Pool<BrokerMQTTServiceManager>>,
+    // modules: broker storage engine
+    broker_storage_grpc_pools: DashMap<String, Pool<BrokerStorageServiceManager>>,
 }
 
 impl ClientPool {
@@ -121,7 +122,8 @@ impl ClientPool {
             meta_service_mqtt_service_pools: DashMap::with_capacity(2),
             meta_service_leader_addr_caches: DashMap::with_capacity(2),
             // modules: mqtt_broker
-            mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
+            broker_mqtt_grpc_pools: DashMap::with_capacity(2),
+            broker_storage_grpc_pools: DashMap::with_capacity(2),
         }
     }
 
@@ -130,29 +132,37 @@ impl ClientPool {
         meta_service_inner_services_client,
         meta_service_inner_pools,
         PlacementServiceManager,
-        "PlacementService"
+        "PlacementServiceManager"
     );
 
     define_client_method!(
         meta_service_journal_services_client,
         meta_service_journal_service_pools,
         JournalServiceManager,
-        "JournalService"
+        "JournalServiceManager"
     );
 
     define_client_method!(
         meta_service_mqtt_services_client,
         meta_service_mqtt_service_pools,
         MqttServiceManager,
-        "MqttService"
+        "MqttServiceManager"
     );
 
     // ----------modules: mqtt broker -------------
     define_client_method!(
         mqtt_broker_mqtt_services_client,
-        mqtt_broker_placement_service_pools,
+        broker_mqtt_grpc_pools,
         BrokerMQTTServiceManager,
-        "MQTTBrokerPlacementService"
+        "BrokerMQTTServiceManager"
+    );
+
+    // ----------modules: storage broker -------------
+    define_client_method!(
+        broker_storage_services_client,
+        broker_storage_grpc_pools,
+        BrokerStorageServiceManager,
+        "BrokerStorageServiceManager"
     );
 
     // ----------leader cache management -------------
@@ -178,7 +188,7 @@ impl ClientPool {
         self.meta_service_inner_pools.len()
             + self.meta_service_journal_service_pools.len()
             + self.meta_service_mqtt_service_pools.len()
-            + self.mqtt_broker_placement_service_pools.len()
+            + self.broker_mqtt_grpc_pools.len()
     }
 
     // ----------connection pool warming -------------
@@ -225,7 +235,7 @@ impl ClientPool {
     // ----------pool health monitoring -------------
     /// Get health status of MQTT Broker connection pool
     pub async fn get_mqtt_broker_pool_health(&self, addr: &str) -> Option<PoolHealthStatus> {
-        if let Some(pool) = self.mqtt_broker_placement_service_pools.get(addr) {
+        if let Some(pool) = self.broker_mqtt_grpc_pools.get(addr) {
             let state = pool.state().await;
             Some(PoolHealthStatus {
                 addr: addr.to_string(),
@@ -244,7 +254,7 @@ impl ClientPool {
     pub async fn get_all_mqtt_broker_pool_health(&self) -> Vec<PoolHealthStatus> {
         let mut statuses = Vec::new();
 
-        for entry in self.mqtt_broker_placement_service_pools.iter() {
+        for entry in self.broker_mqtt_grpc_pools.iter() {
             let addr = entry.key().clone();
             let pool = entry.value();
             let state = pool.state().await;
@@ -264,8 +274,8 @@ impl ClientPool {
 
     /// Clear unhealthy connections from MQTT Broker pool
     pub fn clear_mqtt_broker_pool(&self, addr: &str) -> bool {
-        if self.mqtt_broker_placement_service_pools.contains_key(addr) {
-            self.mqtt_broker_placement_service_pools.remove(addr);
+        if self.broker_mqtt_grpc_pools.contains_key(addr) {
+            self.broker_mqtt_grpc_pools.remove(addr);
             info!("Cleared MQTT Broker connection pool for {}", addr);
             true
         } else {
