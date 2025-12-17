@@ -14,7 +14,6 @@
 
 mod macros;
 
-pub mod journal;
 pub mod meta;
 pub mod mqtt;
 pub mod pool;

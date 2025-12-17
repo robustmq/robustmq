@@ -657,7 +657,7 @@ mod tests {
     use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
 
     use super::{JournalEnginePacket, JournalServerCodec};
-    use crate::journal::journal_engine::{
+    use crate::storage::journal_engine::{
         ApiKey, ApiVersion, GetClusterMetadataReq, ReadReq, ReadReqBody, ReqHeader, RespHeader,
         WriteReq, WriteReqBody, WriteResp, WriteRespBody,
     };

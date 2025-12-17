@@ -27,7 +27,7 @@ use grpc_clients::journal::inner::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::shard::JournalShardStatus;
-use protocol::journal::journal_inner::{
+use protocol::storage::journal_inner::{
     DeleteSegmentFileRequest, DeleteShardFileRequest, GetSegmentDeleteStatusRequest,
     GetShardDeleteStatusRequest,
 };

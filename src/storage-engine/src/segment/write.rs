@@ -23,8 +23,8 @@ use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
-use protocol::journal::journal_engine::{WriteReqBody, WriteRespMessage, WriteRespMessageStatus};
-use protocol::journal::journal_record::JournalRecord;
+use protocol::storage::journal_engine::{WriteReqBody, WriteRespMessage, WriteRespMessageStatus};
+use protocol::storage::journal_record::JournalRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -480,7 +480,7 @@ fn is_end_offset(end_offset: i64, current_offset: u64, packet_len: u64) -> bool 
 mod tests {
     use common_base::tools::unique_id;
     use prost::Message;
-    use protocol::journal::journal_record::JournalRecord;
+    use protocol::storage::journal_record::JournalRecord;
 
     use super::{create_write_thread, is_end_offset, write_data};
     use crate::core1::test::test_init_segment;

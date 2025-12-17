@@ -18,8 +18,8 @@ use crate::inner::services::{
     get_shard_delete_status_by_req, update_cache_by_req,
 };
 use crate::segment::manager::SegmentFileManager;
-use protocol::journal::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
-use protocol::journal::journal_inner::{
+use protocol::storage::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
+use protocol::storage::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,

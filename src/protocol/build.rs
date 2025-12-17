@@ -24,7 +24,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     // Declare dependencies for all proto files and directories
     println!(
         "cargo:rerun-if-changed={}",
-        proto_root.join("src/journal/*.proto").display()
+        proto_root.join("src/storage/*.proto").display()
     );
     println!(
         "cargo:rerun-if-changed={}",
@@ -39,19 +39,15 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
         proto_root.join("src/*.proto").display()
     );
 
-    // Journal Engine
+    // Storage Engine
     tonic_build::configure().build_server(true).compile_protos(
         &[
             proto_root
-                .join("src/journal/command.proto")
+                .join("src/storage/engine.proto")
                 .to_str()
                 .unwrap(),
             proto_root
-                .join("src/journal/engine.proto")
-                .to_str()
-                .unwrap(),
-            proto_root
-                .join("src/journal/record.proto")
+                .join("src/storage/record.proto")
                 .to_str()
                 .unwrap(),
         ],

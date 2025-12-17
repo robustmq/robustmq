@@ -20,6 +20,10 @@ pub mod journal_record {
     tonic::include_proto!("journal.record");
 }
 
+pub mod journal_engine {
+    tonic::include_proto!("journal.engine");
+}
+
 pub mod codec;
 
 /// Error during serialization and deserialization

@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use protocol::journal::journal_inner::{
+use protocol::storage::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,

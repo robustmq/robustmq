@@ -23,7 +23,7 @@ use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::meta::node::BrokerNode;
-use protocol::journal::journal_inner::{
+use protocol::storage::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
 use std::sync::Arc;

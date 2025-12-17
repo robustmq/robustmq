@@ -19,7 +19,7 @@ use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
 use prost::Message;
-use protocol::journal::journal_record::JournalRecord;
+use protocol::storage::journal_record::JournalRecord;
 use std::fs::remove_file;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -272,7 +272,7 @@ mod tests {
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
-    use protocol::journal::journal_record::JournalRecord;
+    use protocol::storage::journal_record::JournalRecord;
     use std::sync::Arc;
 
     #[tokio::test]

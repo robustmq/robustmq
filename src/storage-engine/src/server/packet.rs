@@ -14,7 +14,7 @@
 
 use std::net::SocketAddr;
 
-use protocol::journal::codec::JournalEnginePacket;
+use protocol::storage::codec::JournalEnginePacket;
 
 #[derive(Clone, Debug)]
 pub struct RequestPackage {

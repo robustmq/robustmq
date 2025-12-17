@@ -15,27 +15,16 @@
  */
 
 syntax = "proto3";
-package journal.admin;
-service JournalServerAdminService {
-  rpc ListShard(ListShardRequest) returns (ListShardReply) {}
-  rpc ListSegment(ListSegmentRequest) returns (ListSegmentReply) {}
-}
+package journal.record;
 
-message ListShardRequest {
-
-  string shard_name = 2;
-}
-
-message ListShardReply {
-  repeated string shards = 1;
-}
-
-message ListSegmentRequest {
-
-  string shard_name = 2;
-  int32 segment_no = 3;
-}
-
-message ListSegmentReply {
-  repeated string segments = 1;
+message JournalRecord {
+  string producer_id = 1;
+  uint64 pkid = 2;
+  string key = 3;
+  bytes content = 4;
+  uint64 create_time = 5;
+  repeated string tags = 6;
+  int64 offset = 7;
+  string shard_name = 9;
+  uint32 segment = 10;
 }

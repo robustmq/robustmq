@@ -18,7 +18,7 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
-use protocol::journal::journal_engine::{
+use protocol::storage::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard, ListShardReq,
 };

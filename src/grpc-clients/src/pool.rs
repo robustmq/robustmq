@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Duration;
-
-use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
 use crate::meta::common::PlacementServiceManager;
 use crate::meta::journal::JournalServiceManager;
@@ -24,6 +21,7 @@ use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use mobc::{Connection, Pool};
+use std::time::Duration;
 use tracing::{debug, info, warn};
 
 // Increased default timeout to handle network latency better

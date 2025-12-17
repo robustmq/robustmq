@@ -15,7 +15,7 @@
 use crate::core1::cache::CacheManager;
 use crate::core1::error::JournalServerError;
 use common_base::utils::serialize;
-use protocol::journal::journal_engine::GetClusterMetadataNode;
+use protocol::storage::journal_engine::GetClusterMetadataNode;
 use std::sync::Arc;
 
 #[derive(Clone)]
