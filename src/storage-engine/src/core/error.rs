@@ -18,14 +18,13 @@ use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-#[allow(clippy::result_large_err)]
 #[derive(Error, Debug)]
 pub enum StorageEngineError {
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("{0}")]
-    CommonError(#[from] CommonError),
+    CommonError(Box<CommonError>),
 
     #[error("{0}")]
     StdIoError(#[from] std::io::Error),
@@ -101,6 +100,12 @@ pub enum StorageEngineError {
 
     #[error("Segment Offset is at the end and can no longer be written.")]
     SegmentOffsetAtTheEnd,
+}
+
+impl From<CommonError> for StorageEngineError {
+    fn from(error: CommonError) -> Self {
+        StorageEngineError::CommonError(Box::new(error))
+    }
 }
 
 pub fn get_journal_server_code(e: &StorageEngineError) -> String {

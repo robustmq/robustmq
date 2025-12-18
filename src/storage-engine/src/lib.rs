@@ -13,7 +13,6 @@
 // limitations under the License.
 
 // #![allow(dead_code, unused_variables)]
-#![allow(clippy::result_large_err)]
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use core::cache::{load_metadata_cache, StorageCacheManager};
