@@ -20,7 +20,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::{debug, error};
 
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use crate::handler::command::Command;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
@@ -147,7 +147,7 @@ fn handler_child_process(
                                     debug!("{}","No backpacking is required for this request");
                                 }
                             } else {
-                                error!("{}", JournalServerError::NotFoundConnectionInCache(packet.connection_id));
+                                error!("{}", StorageEngineError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

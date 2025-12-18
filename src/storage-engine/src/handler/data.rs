@@ -22,7 +22,7 @@ use protocol::storage::journal_engine::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use crate::core::cache::StorageCacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use crate::core::shard::try_auto_create_shard;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data_req;
@@ -55,9 +55,9 @@ impl DataHandler {
     pub async fn write(
         &self,
         request: WriteReq,
-    ) -> Result<Vec<WriteRespMessage>, JournalServerError> {
+    ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
         if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty("write".to_string()));
+            return Err(StorageEngineError::RequestBodyNotEmpty("write".to_string()));
         }
 
         let req_body = request.body.unwrap();
@@ -86,9 +86,9 @@ impl DataHandler {
     pub async fn read(
         &self,
         request: ReadReq,
-    ) -> Result<Vec<ReadRespSegmentMessage>, JournalServerError> {
+    ) -> Result<Vec<ReadRespSegmentMessage>, StorageEngineError> {
         if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty("write".to_string()));
+            return Err(StorageEngineError::RequestBodyNotEmpty("write".to_string()));
         }
 
         let req_body = request.body.unwrap();
@@ -113,13 +113,13 @@ impl DataHandler {
         Ok(results)
     }
 
-    fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), JournalServerError> {
+    fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), StorageEngineError> {
         if self
             .cache_manager
             .get_shard(&segment_identity.shard_name)
             .is_none()
         {
-            return Err(JournalServerError::ShardNotExist(
+            return Err(StorageEngineError::ShardNotExist(
                 segment_identity.shard_name.to_string(),
             ));
         }
@@ -127,11 +127,11 @@ impl DataHandler {
         let segment = if let Some(segment) = self.cache_manager.get_segment(segment_identity) {
             segment
         } else {
-            return Err(JournalServerError::SegmentNotExist(segment_identity.name()));
+            return Err(StorageEngineError::SegmentNotExist(segment_identity.name()));
         };
 
         if !segment.allow_read() {
-            return Err(JournalServerError::SegmentStatusError(
+            return Err(StorageEngineError::SegmentStatusError(
                 segment_identity.name(),
                 segment.status.to_string(),
             ));
@@ -139,7 +139,7 @@ impl DataHandler {
 
         let conf = broker_config();
         if segment.leader != conf.broker_id {
-            return Err(JournalServerError::NotLeader(segment_identity.name()));
+            return Err(StorageEngineError::NotLeader(segment_identity.name()));
         }
 
         if self
@@ -147,7 +147,7 @@ impl DataHandler {
             .get_segment_meta(segment_identity)
             .is_none()
         {
-            return Err(JournalServerError::SegmentFileMetaNotExists(
+            return Err(StorageEngineError::SegmentFileMetaNotExists(
                 segment_identity.name(),
             ));
         }

@@ -12,20 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::cache::BrokerCacheManager;
-use protocol::broker::broker_common::{
-    broker_common_service_server::BrokerCommonService, UpdateCacheReply, UpdateCacheRequest,
+use common_base::error::{common::CommonError, ResultCommonError};
+use mqtt_broker::{
+    broker::MqttBrokerServerParams, handler::dynamic_cache::update_mqtt_cache_metadata,
 };
-use std::sync::Arc;
+use protocol::broker::broker_common::{
+    broker_common_service_server::BrokerCommonService, BrokerUpdateCacheResourceType,
+    UpdateCacheReply, UpdateCacheRequest,
+};
+use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerCommonService {
-    cache_manager: Arc<BrokerCacheManager>,
+    mqtt_params: MqttBrokerServerParams,
+    storage_params: StorageEngineParams,
 }
 
 impl GrpcBrokerCommonService {
-    pub fn new(cache_manager: Arc<BrokerCacheManager>) -> Self {
-        GrpcBrokerCommonService { cache_manager }
+    pub fn new(mqtt_params: MqttBrokerServerParams, storage_params: StorageEngineParams) -> Self {
+        GrpcBrokerCommonService {
+            mqtt_params,
+            storage_params,
+        }
     }
 }
 
@@ -33,9 +41,58 @@ impl GrpcBrokerCommonService {
 impl BrokerCommonService for GrpcBrokerCommonService {
     async fn update_cache(
         &self,
-        _request: Request<UpdateCacheRequest>,
+        request: Request<UpdateCacheRequest>,
     ) -> Result<Response<UpdateCacheReply>, Status> {
-        // todo
+        let req = request.into_inner();
+        if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, &req).await {
+            return Err(Status::internal(e.to_string()));
+        }
         Ok(Response::new(UpdateCacheReply::default()))
     }
+}
+
+async fn update_cache(
+    mqtt_params: &MqttBrokerServerParams,
+    storage_params: &StorageEngineParams,
+    req: &UpdateCacheRequest,
+) -> ResultCommonError {
+    match req.resource_type() {
+        BrokerUpdateCacheResourceType::Session
+        | BrokerUpdateCacheResourceType::User
+        | BrokerUpdateCacheResourceType::Subscribe
+        | BrokerUpdateCacheResourceType::Topic
+        | BrokerUpdateCacheResourceType::Connector
+        | BrokerUpdateCacheResourceType::Schema
+        | BrokerUpdateCacheResourceType::SchemaResource => {
+            if let Err(e) = update_mqtt_cache_metadata(
+                &mqtt_params.cache_manager,
+                &mqtt_params.connector_manager,
+                &mqtt_params.subscribe_manager,
+                &mqtt_params.schema_manager,
+                &mqtt_params.message_storage_adapter,
+                &mqtt_params.metrics_cache_manager,
+                req,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+        BrokerUpdateCacheResourceType::ClusterResourceConfig => {}
+        BrokerUpdateCacheResourceType::Node => {}
+        BrokerUpdateCacheResourceType::Shard
+        | BrokerUpdateCacheResourceType::Segment
+        | BrokerUpdateCacheResourceType::SegmentMeta => {
+            if let Err(e) = update_storage_cache_metadata(
+                &storage_params.cache_manager,
+                &storage_params.segment_file_manager,
+                req,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+    }
+    Ok(())
 }

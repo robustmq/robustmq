@@ -16,12 +16,12 @@ use std::{future::Future, time::Duration};
 
 use tokio::{select, sync::broadcast};
 
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 
 pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
 where
     F: FnOnce() -> Fut + Copy,
-    Fut: Future<Output = Result<(), JournalServerError>>,
+    Fut: Future<Output = Result<(), StorageEngineError>>,
 {
     let mut stop_recv = stop_sx.subscribe();
     let mut internal = tokio::time::interval(Duration::from_secs(tick_secs));

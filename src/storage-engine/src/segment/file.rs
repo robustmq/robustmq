@@ -14,7 +14,7 @@
 
 use super::SegmentIdentity;
 use crate::core::cache::StorageCacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
@@ -38,18 +38,18 @@ pub struct ReadData {
 pub async fn open_segment_write(
     cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<(SegmentFile, u32), JournalServerError> {
+) -> Result<(SegmentFile, u32), StorageEngineError> {
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
         segment
     } else {
-        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
+        return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
     };
 
     let conf = broker_config();
     let fold = if let Some(fold) = segment.get_fold(conf.broker_id) {
         fold
     } else {
-        return Err(JournalServerError::SegmentDataDirectoryNotFound(
+        return Err(StorageEngineError::SegmentDataDirectoryNotFound(
             segment_iden.name(),
             conf.broker_id,
         ));
@@ -84,7 +84,7 @@ impl SegmentFile {
     }
 
     /// try create a segment file under the data folder
-    pub async fn try_create(&self) -> Result<(), JournalServerError> {
+    pub async fn try_create(&self) -> Result<(), StorageEngineError> {
         try_create_fold(&self.data_fold)?;
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if file_exists(&segment_file) {
@@ -95,17 +95,17 @@ impl SegmentFile {
     }
 
     /// delete the segment file
-    pub async fn delete(&self) -> Result<(), JournalServerError> {
+    pub async fn delete(&self) -> Result<(), StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if !file_exists(&segment_file) {
-            return Err(JournalServerError::SegmentFileNotExists(segment_file));
+            return Err(StorageEngineError::SegmentFileNotExists(segment_file));
         }
 
         Ok(remove_file(segment_file)?)
     }
 
     /// append a list of records to the segment file
-    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), JournalServerError> {
+    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
@@ -121,7 +121,7 @@ impl SegmentFile {
     }
 
     /// get the size of the segment file
-    pub async fn size(&self) -> Result<u64, JournalServerError> {
+    pub async fn size(&self) -> Result<u64, StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let metadata = fs::metadata(segment_file).await?;
         Ok(metadata.len())
@@ -150,7 +150,7 @@ impl SegmentFile {
         start_offset: u64,
         max_size: u64,
         max_record: u64,
-    ) -> Result<Vec<ReadData>, JournalServerError> {
+    ) -> Result<Vec<ReadData>, StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);
@@ -209,7 +209,7 @@ impl SegmentFile {
     pub async fn read_by_positions(
         &self,
         positions: Vec<u64>,
-    ) -> Result<Vec<ReadData>, JournalServerError> {
+    ) -> Result<Vec<ReadData>, StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);

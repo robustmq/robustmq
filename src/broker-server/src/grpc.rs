@@ -33,7 +33,7 @@ use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use storage_engine::server::grpc::inner::GrpcBrokerStorageServerService;
-use storage_engine::JournalServerParams;
+use storage_engine::StorageEngineParams;
 use tonic::transport::Server;
 use tower::{Layer, Service};
 use tracing::info;
@@ -41,7 +41,7 @@ use tracing::info;
 pub async fn start_grpc_server(
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
-    journal_params: JournalServerParams,
+    journal_params: StorageEngineParams,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{grpc_port}").parse()?;
@@ -59,7 +59,8 @@ pub async fn start_grpc_server(
         .layer(layer)
         .add_service(
             BrokerCommonServiceServer::new(GrpcBrokerCommonService::new(
-                mqtt_params.broker_cache.clone(),
+                mqtt_params.clone(),
+                journal_params.clone(),
             ))
             .max_decoding_message_size(grpc_max_decoding_message_size),
         );
@@ -133,16 +134,13 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
     GrpcInnerServices::new(
         mqtt_params.cache_manager.clone(),
         mqtt_params.subscribe_manager.clone(),
-        mqtt_params.connector_manager.clone(),
-        mqtt_params.schema_manager.clone(),
         mqtt_params.client_pool.clone(),
         mqtt_params.message_storage_adapter.clone(),
-        mqtt_params.metrics_cache_manager.clone(),
     )
 }
 
 fn get_storage_engine_inner_handler(
-    params: &JournalServerParams,
+    params: &StorageEngineParams,
 ) -> GrpcBrokerStorageServerService {
     GrpcBrokerStorageServerService::new(
         params.cache_manager.clone(),

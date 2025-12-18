@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use super::error::JournalServerError;
+use super::error::StorageEngineError;
 use crate::index::build::delete_segment_index;
 use crate::segment::file::open_segment_write;
 use crate::segment::manager::SegmentFileManager;
@@ -28,7 +28,7 @@ pub async fn delete_local_segment(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     if cache_manager.get_segment(segment_iden).is_none() {
         return Ok(());
     };
@@ -66,7 +66,7 @@ pub async fn delete_local_segment(
 pub async fn segment_already_delete(
     cache_manager: &Arc<StorageCacheManager>,
     req: &GetSegmentDeleteStatusRequest,
-) -> Result<bool, JournalServerError> {
+) -> Result<bool, StorageEngineError> {
     let segment_iden = SegmentIdentity {
         shard_name: req.shard_name.clone(),
         segment_seq: req.segment,

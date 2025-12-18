@@ -40,7 +40,7 @@ pub mod segment;
 pub mod server;
 
 #[derive(Clone)]
-pub struct JournalServerParams {
+pub struct StorageEngineParams {
     pub cache_manager: Arc<StorageCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection_manager: Arc<ConnectionManager>,
@@ -60,7 +60,7 @@ pub struct JournalServer {
 }
 
 impl JournalServer {
-    pub fn new(params: JournalServerParams, main_stop: Sender<bool>) -> Self {
+    pub fn new(params: StorageEngineParams, main_stop: Sender<bool>) -> Self {
         let config = broker_config();
 
         let (inner_stop, _) = broadcast::channel(2);
@@ -137,7 +137,6 @@ impl JournalServer {
     }
 
     async fn init_node(&self) {
-
         load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
         for path in self.config.journal_storage.data_path.clone() {

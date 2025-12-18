@@ -127,14 +127,14 @@ pub async fn load_metadata_cache(
     Ok(())
 }
 
-pub async fn update_cache_metadata(
+pub async fn update_mqtt_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
-    request: UpdateCacheRequest,
+    request: &UpdateCacheRequest,
 ) -> ResultMqttBrokerError {
     match request.resource_type() {
         BrokerUpdateCacheResourceType::Node => match request.action_type() {
@@ -270,26 +270,7 @@ pub async fn update_cache_metadata(
                 schema_manager.remove_bind(&schema_resource);
             }
         },
-
-        BrokerUpdateCacheResourceType::Shard => match request.action_type() {
-            BrokerUpdateCacheActionType::Set => {}
-            BrokerUpdateCacheActionType::Delete => {}
-        },
-
-        BrokerUpdateCacheResourceType::Segment => match request.action_type() {
-            BrokerUpdateCacheActionType::Set => {}
-            BrokerUpdateCacheActionType::Delete => {}
-        },
-
-        BrokerUpdateCacheResourceType::SegmentMeta => match request.action_type() {
-            BrokerUpdateCacheActionType::Set => {}
-            BrokerUpdateCacheActionType::Delete => {}
-        },
-
-        BrokerUpdateCacheResourceType::ClusterResourceConfig => match request.action_type() {
-            BrokerUpdateCacheActionType::Set => {}
-            BrokerUpdateCacheActionType::Delete => {}
-        },
+        _ => {}
     }
     Ok(())
 }

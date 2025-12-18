@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
-use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
@@ -22,42 +20,12 @@ use broker_core::tool::wait_cluster_running;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use protocol::broker::{
-    broker_common::{UpdateCacheReply, UpdateCacheRequest},
-    broker_mqtt::{
-        DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply,
-        SendLastWillMessageRequest,
-    },
+use protocol::broker::broker_mqtt::{
+    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
-use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
-use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::debug;
-
-#[allow(clippy::too_many_arguments)]
-pub async fn update_cache_by_req(
-    cache_manager: &Arc<MQTTCacheManager>,
-    connector_manager: &Arc<ConnectorManager>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    schema_manager: &Arc<SchemaRegisterManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-    metrics_manager: &Arc<MQTTMetricsCache>,
-    req: &UpdateCacheRequest,
-) -> Result<UpdateCacheReply, MqttBrokerError> {
-    wait_cluster_running(&cache_manager.broker_cache).await;
-    update_cache_metadata(
-        cache_manager,
-        connector_manager,
-        subscribe_manager,
-        schema_manager,
-        message_storage_adapter,
-        metrics_manager,
-        req.clone(),
-    )
-    .await?;
-    Ok(UpdateCacheReply::default())
-}
 
 pub async fn delete_session_by_req(
     cache_manager: &Arc<MQTTCacheManager>,

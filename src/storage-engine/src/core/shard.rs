@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use super::error::JournalServerError;
+use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
 use crate::segment::manager::SegmentFileManager;
@@ -78,7 +78,7 @@ pub fn delete_local_shard(
     });
 }
 
-pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, JournalServerError> {
+pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, StorageEngineError> {
     let conf = broker_config();
     for data_fold in conf.journal_storage.data_path.iter() {
         let shard_fold_name = data_fold_shard(&req.shard_name, data_fold);
@@ -99,7 +99,7 @@ pub async fn create_shard_to_place(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let config = JournalShardConfig {
         replica_num: 1,
         max_segment_size: 1073741824,
@@ -139,7 +139,7 @@ pub async fn create_shard_to_place(
 pub async fn delete_shard_to_place(
     client_pool: Arc<ClientPool>,
     shard_name: &str,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     let request = DeleteShardRequest {
         shard_name: shard_name.to_string(),
@@ -158,7 +158,7 @@ pub async fn try_auto_create_shard(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     if cache_manager.get_shard(shard_name).is_some() {
         return Ok(());
     }
@@ -176,5 +176,5 @@ pub async fn try_auto_create_shard(
         sleep(Duration::from_secs(1)).await;
     }
 
-    Err(JournalServerError::ShardNotExist(shard_name.to_string()))
+    Err(StorageEngineError::ShardNotExist(shard_name.to_string()))
 }

@@ -22,7 +22,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use super::file::{ReadData, SegmentFile};
 use super::SegmentIdentity;
 use crate::core::cache::StorageCacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::tag::TagIndexManager;
 
@@ -34,7 +34,7 @@ pub async fn read_data_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req_body: &ReadReqBody,
     node_id: u64,
-) -> Result<Vec<ReadRespSegmentMessage>, JournalServerError> {
+) -> Result<Vec<ReadRespSegmentMessage>, StorageEngineError> {
     let mut results = Vec::new();
     for raw in req_body.messages.iter() {
         let mut shard_message = ReadRespSegmentMessage {
@@ -51,13 +51,13 @@ pub async fn read_data_req(
         let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
             segment
         } else {
-            return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
+            return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
         };
 
         let fold = if let Some(fold) = segment.get_fold(node_id) {
             fold
         } else {
-            return Err(JournalServerError::SegmentDataDirectoryNotFound(
+            return Err(StorageEngineError::SegmentDataDirectoryNotFound(
                 segment_iden.name(),
                 node_id,
             ));
@@ -149,7 +149,7 @@ async fn read_by_offset(
     segment_iden: &SegmentIdentity,
     filter: &ReadReqFilter,
     read_options: &ReadReqOptions,
-) -> Result<Vec<ReadData>, JournalServerError> {
+) -> Result<Vec<ReadData>, StorageEngineError> {
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let start_position = if let Some(position) = offset_index
         .get_last_nearest_position_by_offset(segment_iden, filter.offset)
@@ -181,7 +181,7 @@ async fn read_by_key(
     segment_iden: &SegmentIdentity,
     filter: &ReadReqFilter,
     read_options: &ReadReqOptions,
-) -> Result<Vec<ReadData>, JournalServerError> {
+) -> Result<Vec<ReadData>, StorageEngineError> {
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
     let index_data_list = tag_index
         .get_last_positions_by_key(
@@ -206,7 +206,7 @@ async fn read_by_tag(
     segment_iden: &SegmentIdentity,
     filter: &ReadReqFilter,
     read_options: &ReadReqOptions,
-) -> Result<Vec<ReadData>, JournalServerError> {
+) -> Result<Vec<ReadData>, StorageEngineError> {
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
     let index_data_list = tag_index
         .get_last_positions_by_tag(

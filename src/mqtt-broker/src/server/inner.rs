@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::inner::{delete_session_by_req, send_last_will_message_by_req};
 use crate::subscribe::manager::SubscribeManager;
@@ -21,40 +20,30 @@ use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttService
 use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
-use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
-use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcInnerServices {
     cache_manager: Arc<MQTTCacheManager>,
-    connector_manager: Arc<ConnectorManager>,
     subscribe_manager: Arc<SubscribeManager>,
-    schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: ArcStorageAdapter,
-    metrics_manager: Arc<MQTTMetricsCache>,
 }
 
 impl GrpcInnerServices {
     pub fn new(
         cache_manager: Arc<MQTTCacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
-        connector_manager: Arc<ConnectorManager>,
-        schema_manager: Arc<SchemaRegisterManager>,
+
         client_pool: Arc<ClientPool>,
         message_storage_adapter: ArcStorageAdapter,
-        metrics_manager: Arc<MQTTMetricsCache>,
     ) -> Self {
         GrpcInnerServices {
             cache_manager,
             subscribe_manager,
-            connector_manager,
             client_pool,
             message_storage_adapter,
-            schema_manager,
-            metrics_manager,
         }
     }
 }

@@ -17,11 +17,45 @@ use std::sync::Arc;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use protocol::broker::broker_common::BrokerUpdateCacheActionType;
+use protocol::broker::broker_common::{
+    BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRequest,
+};
 use tracing::{error, info};
 
 use super::cache::StorageCacheManager;
-use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::{
+    core::error::StorageEngineError,
+    segment::manager::{create_local_segment, SegmentFileManager},
+};
+
+pub async fn update_storage_cache_metadata(
+    cache_manager: &Arc<StorageCacheManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
+    request: &UpdateCacheRequest,
+) -> Result<(), StorageEngineError> {
+    match request.resource_type() {
+        BrokerUpdateCacheResourceType::Shard => {
+            parse_shard(cache_manager, request.action_type(), &request.data);
+        }
+
+        BrokerUpdateCacheResourceType::Segment => {
+            parse_segment(
+                cache_manager,
+                segment_file_manager,
+                request.action_type(),
+                &request.data,
+            )
+            .await;
+        }
+
+        BrokerUpdateCacheResourceType::SegmentMeta => {
+            parse_segment_meta(cache_manager, request.action_type(), &request.data).await;
+        }
+
+        _ => {}
+    }
+    Ok(())
+}
 
 fn parse_shard(
     cache_manager: &Arc<StorageCacheManager>,
@@ -42,12 +76,7 @@ fn parse_shard(
             }
         },
 
-        _ => {
-            error!(
-                "UpdateCache updates Shard information, only supports Set operations, not {:?}",
-                action_type
-            );
-        }
+        BrokerUpdateCacheActionType::Delete => {}
     }
 }
 
@@ -75,12 +104,7 @@ async fn parse_segment(
                 );
             }
         },
-        _ => {
-            error!(
-                "UpdateCache updates Segment information, only supports Set operations, not {:?}",
-                action_type
-            );
-        }
+        BrokerUpdateCacheActionType::Delete => {}
     }
 }
 
@@ -106,11 +130,7 @@ async fn parse_segment_meta(
                 );
             }
         },
-        _ => {
-            error!(
-                "UpdateCache updates SegmentMeta information, only supports Set operations, not {:?}",
-                action_type
-            );
-        }
+
+        BrokerUpdateCacheActionType::Delete => {}
     }
 }
