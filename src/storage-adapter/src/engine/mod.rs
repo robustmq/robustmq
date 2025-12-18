@@ -13,14 +13,12 @@
 // limitations under the License.
 
 use crate::expire::MessageExpireConfig;
-use crate::offset::OffsetManager;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub struct JournalStorageAdapter {}
 

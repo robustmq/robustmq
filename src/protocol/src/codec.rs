@@ -61,6 +61,7 @@ impl Default for RobustMQCodec {
 }
 
 impl RobustMQCodec {
+    #[allow(clippy::result_large_err)]
     pub fn decode_data(
         &mut self,
         stream: &mut BytesMut,
@@ -116,6 +117,7 @@ impl RobustMQCodec {
         Ok(None)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn encode_data(
         &mut self,
         packet_wrapper: RobustMQCodecWrapper,

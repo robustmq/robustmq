@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::segment::write::SegmentWriteData;
+use common_base::error::common::CommonError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;
-
-use common_base::error::common::CommonError;
 use thiserror::Error;
 
-use crate::segment::write::SegmentWriteData;
-
+#[allow(clippy::result_large_err)]
 #[derive(Error, Debug)]
 pub enum StorageEngineError {
     #[error("{0}")]
