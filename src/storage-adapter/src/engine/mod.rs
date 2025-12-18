@@ -12,24 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::expire::MessageExpireConfig;
+use crate::offset::OffsetManager;
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::AdapterHandler;
-
+use storage_engine::handler::expire::message_expire;
 pub struct JournalStorageAdapter {
     adapter: Arc<AdapterHandler>,
+    offset_manager: Arc<OffsetManager>,
 }
 
 impl JournalStorageAdapter {
-    pub async fn new(adapter: Arc<AdapterHandler>) -> JournalStorageAdapter {
-        JournalStorageAdapter { adapter }
+    pub async fn new(
+        adapter: Arc<AdapterHandler>,
+        offset_manager: Arc<OffsetManager>,
+    ) -> JournalStorageAdapter {
+        JournalStorageAdapter {
+            adapter,
+            offset_manager,
+        }
     }
 }
 
@@ -47,63 +55,76 @@ impl StorageAdapter for JournalStorageAdapter {
         self.adapter.delete_shard(shard).await
     }
 
-    async fn write(&self, _shard: &str, _record: &Record) -> Result<u64, CommonError> {
-        Ok(0)
+    async fn write(&self, shard: &str, record: &Record) -> Result<u64, CommonError> {
+        let res = self
+            .adapter
+            .batch_write(shard, &vec![record.clone()])
+            .await?;
+
+        if let Some(offset) = res.first() {
+            return Ok(*offset);
+        }
+
+        return Err(CommonError::CommonError(
+            "Data writing failed, although it indicated success,
+             but the Offset does not exist. Check if there is any error in the logic."
+                .to_string(),
+        ));
     }
 
-    async fn batch_write(
-        &self,
-        _shard: &str,
-        _records: &[Record],
-    ) -> Result<Vec<u64>, CommonError> {
-        Ok(Vec::new())
+    async fn batch_write(&self, shard: &str, records: &[Record]) -> Result<Vec<u64>, CommonError> {
+        self.adapter.batch_write(shard, records).await
     }
 
     async fn read_by_offset(
         &self,
-        _shard: &str,
-        _offset: u64,
-        _read_config: &ReadConfig,
+        shard: &str,
+        offset: u64,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        Ok(Vec::new())
+        self.adapter
+            .read_by_offset(shard, offset, read_config)
+            .await
     }
 
     async fn read_by_tag(
         &self,
-        _shard: &str,
-        _tag: &str,
-        _start_offset: Option<u64>,
-        _read_config: &ReadConfig,
+        shard: &str,
+        tag: &str,
+        start_offset: Option<u64>,
+        read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        Ok(Vec::new())
+        self.adapter
+            .read_by_tag(shard, tag, start_offset, read_config)
+            .await
     }
 
-    async fn read_by_key(&self, _shard: &str, _key: &str) -> Result<Vec<Record>, CommonError> {
-        Ok(Vec::new())
-    }
-
-    async fn get_offset_by_group(&self, _group: &str) -> Result<Vec<ShardOffset>, CommonError> {
-        Ok(Vec::new())
+    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError> {
+        self.adapter.read_by_key(shard, key).await
     }
 
     async fn get_offset_by_timestamp(
         &self,
-        _shard: &str,
-        _timestamp: u64,
+        shard: &str,
+        timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        Ok(None)
+        self.adapter.get_offset_by_timestamp(shard, timestamp).await
+    }
+
+    async fn get_offset_by_group(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
+        self.offset_manager.get_offset(group).await
     }
 
     async fn commit_offset(
         &self,
-        _group_name: &str,
-        _offset: &HashMap<String, u64>,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        Ok(())
+        self.offset_manager.commit_offset(group_name, offset).await
     }
 
-    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
-        Ok(())
+    async fn message_expire(&self, config: &MessageExpireConfig) -> Result<(), CommonError> {
+        message_expire(config).await
     }
 
     async fn close(&self) -> Result<(), CommonError> {

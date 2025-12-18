@@ -32,6 +32,7 @@ use meta_service::{
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
+use metadata_struct::adapter::MessageExpireConfig;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
@@ -57,9 +58,7 @@ use std::{
     time::Duration,
 };
 use storage_adapter::{
-    driver::build_message_storage_driver,
-    expire::{message_expire_thread, MessageExpireConfig},
-    offset::OffsetManager,
+    driver::build_message_storage_driver, expire::message_expire_thread, offset::OffsetManager,
     storage::ArcStorageAdapter,
 };
 use storage_engine::{

@@ -1013,6 +1013,7 @@ dependencies = [
  "delay-message",
  "grpc-clients",
  "meta-service",
+ "metadata-struct",
  "mqtt-broker",
  "network-server",
  "pprof-monitor",

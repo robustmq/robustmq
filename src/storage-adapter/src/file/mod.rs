@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::expire::MessageExpireConfig;
 use crate::file::key::*;
 use crate::storage::StorageAdapter;
 use axum::async_trait;
@@ -20,6 +19,7 @@ use common_base::tools::now_second;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
+use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use rocksdb::WriteBatch;

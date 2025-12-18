@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod adapter;
-pub mod command;
-pub mod data;
-pub mod expire;
+use common_base::error::common::CommonError;
+use metadata_struct::adapter::MessageExpireConfig;
+
+pub async fn message_expire(_config: &MessageExpireConfig) -> Result<(), CommonError> {
+    Ok(())
+}

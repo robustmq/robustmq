@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::ShardInfo;
+use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo, ShardOffset};
 
+#[derive(Default, Clone)]
 pub struct AdapterHandler {}
 
 impl AdapterHandler {
@@ -32,5 +33,44 @@ impl AdapterHandler {
 
     pub async fn delete_shard(&self, _shard: &str) -> Result<(), CommonError> {
         Ok(())
+    }
+
+    pub async fn batch_write(
+        &self,
+        _shard: &str,
+        _records: &[Record],
+    ) -> Result<Vec<u64>, CommonError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn read_by_offset(
+        &self,
+        _shard: &str,
+        _offset: u64,
+        _read_config: &ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn read_by_tag(
+        &self,
+        _shard: &str,
+        _tag: &str,
+        _start_offset: Option<u64>,
+        _read_config: &ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn read_by_key(&self, _shard: &str, _key: &str) -> Result<Vec<Record>, CommonError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn get_offset_by_timestamp(
+        &self,
+        _shard: &str,
+        _timestamp: u64,
+    ) -> Result<Option<ShardOffset>, CommonError> {
+        Ok(None)
     }
 }

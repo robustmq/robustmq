@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::expire::MessageExpireConfig;
 use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::ShardInfo;
 use metadata_struct::adapter::{read_config::ReadConfig, ShardOffset};
 use std::{collections::HashMap, sync::Arc};
