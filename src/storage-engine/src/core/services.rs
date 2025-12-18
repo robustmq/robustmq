@@ -25,8 +25,8 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
 use crate::core::shard::{delete_local_shard, is_delete_by_shard};
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::SegmentIdentity;
+use crate::segment::storage::manager::SegmentFileManager;
+use crate::segment::storage::SegmentIdentity;
 
 /// Delete shard file based on the request
 pub async fn delete_shard_file_by_req(

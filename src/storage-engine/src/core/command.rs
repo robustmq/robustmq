@@ -15,7 +15,7 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::core::handler::DataHandler;
-use crate::segment::manager::SegmentFileManager;
+use crate::segment::storage::manager::SegmentFileManager;
 use axum::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;

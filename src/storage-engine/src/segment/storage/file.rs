@@ -268,7 +268,7 @@ mod tests {
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::StorageCacheManager;
     use crate::core::test::{test_build_data_fold, test_build_segment};
-    use crate::segment::SegmentIdentity;
+    use crate::segment::storage::SegmentIdentity;
     use broker_core::cache::BrokerCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};

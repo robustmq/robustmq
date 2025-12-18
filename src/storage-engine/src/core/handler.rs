@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::storage::storage_engine_engine::{
     ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::shard::try_auto_create_shard;
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::read::read_data_req;
-use crate::segment::write::write_data_req;
-use crate::segment::SegmentIdentity;
+use crate::segment::storage::manager::SegmentFileManager;
+use crate::segment::storage::read::read_data_req;
+use crate::segment::storage::write::write_data_req;
+use crate::segment::storage::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct DataHandler {

@@ -23,7 +23,7 @@ use super::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_pref
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
-use crate::segment::SegmentIdentity;
+use crate::segment::storage::SegmentIdentity;
 
 pub struct TagIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -178,7 +178,7 @@ mod tests {
 
     use super::TagIndexManager;
     use crate::core::test::test_build_rocksdb_sgement;
-    use crate::index::IndexData;
+    use crate::segment::index::IndexData;
 
     #[tokio::test]
     async fn tag_index_test() {

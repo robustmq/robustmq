@@ -16,10 +16,10 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::{get_journal_server_code, StorageEngineError};
 use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
 use crate::core::segment_status::sealup_segment;
-use crate::index::build::try_trigger_build_index;
-use crate::segment::file::{open_segment_write, SegmentFile};
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::SegmentIdentity;
+use crate::segment::index::build::try_trigger_build_index;
+use crate::segment::storage::file::{open_segment_write, SegmentFile};
+use crate::segment::storage::manager::SegmentFileManager;
+use crate::segment::storage::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
@@ -486,7 +486,7 @@ mod tests {
 
     use super::{create_write_thread, is_end_offset, write_data};
     use crate::core::test::test_init_segment;
-    use crate::segment::file::open_segment_write;
+    use crate::segment::storage::file::open_segment_write;
 
     #[tokio::test]
     async fn is_sealup_segment_test() {

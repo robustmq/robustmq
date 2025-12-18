@@ -26,9 +26,9 @@ use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::index::engine::storage_data_fold;
-use crate::index::offset::OffsetIndexManager;
-use crate::index::time::TimestampIndexManager;
+use crate::segment::index::engine::storage_data_fold;
+use crate::segment::index::offset::OffsetIndexManager;
+use crate::segment::index::time::TimestampIndexManager;
 
 /// struct that stores the metadata of a segment file.
 #[derive(Clone, Default, Debug)]
@@ -269,7 +269,7 @@ mod tests {
 
     use super::{SegmentFileManager, SegmentFileMetadata};
     use crate::core::test::{test_build_rocksdb_sgement, test_init_segment};
-    use crate::segment::file::SegmentFile;
+    use crate::segment::storage::file::SegmentFile;
 
     #[tokio::test]
     async fn segment_metadata_test() {

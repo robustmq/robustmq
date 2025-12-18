@@ -15,9 +15,9 @@
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
-use crate::segment::file::data_fold_shard;
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::SegmentIdentity;
+use crate::segment::storage::file::data_fold_shard;
+use crate::segment::storage::manager::SegmentFileManager;
+use crate::segment::storage::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::JournalShardConfig;

@@ -25,7 +25,7 @@ use tracing::{error, info};
 use super::cache::StorageCacheManager;
 use crate::{
     core::error::StorageEngineError,
-    segment::manager::{create_local_segment, SegmentFileManager},
+    segment::storage::manager::{create_local_segment, SegmentFileManager},
 };
 
 pub async fn update_storage_cache_metadata(

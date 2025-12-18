@@ -26,7 +26,7 @@ use super::keys::{
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
-use crate::segment::SegmentIdentity;
+use crate::segment::storage::SegmentIdentity;
 
 pub struct OffsetIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -169,7 +169,7 @@ mod tests {
 
     use super::OffsetIndexManager;
     use crate::core::test::test_build_rocksdb_sgement;
-    use crate::index::IndexData;
+    use crate::segment::index::IndexData;
 
     #[test]
     fn start_end_index_test() {

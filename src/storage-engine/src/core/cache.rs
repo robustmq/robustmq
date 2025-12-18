@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::index::build::IndexBuildThreadData;
-use crate::segment::write::SegmentWrite;
-use crate::segment::SegmentIdentity;
+use crate::segment::index::build::IndexBuildThreadData;
+use crate::segment::storage::write::SegmentWrite;
+use crate::segment::storage::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
 use dashmap::DashMap;

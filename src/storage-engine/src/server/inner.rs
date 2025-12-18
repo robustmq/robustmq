@@ -17,7 +17,7 @@ use crate::core::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
     get_shard_delete_status_by_req,
 };
-use crate::segment::manager::SegmentFileManager;
+use crate::segment::storage::manager::SegmentFileManager;
 use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageService;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,

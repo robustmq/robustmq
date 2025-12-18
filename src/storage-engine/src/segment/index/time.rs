@@ -26,7 +26,7 @@ use super::keys::{
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
-use crate::segment::SegmentIdentity;
+use crate::segment::storage::SegmentIdentity;
 
 pub struct TimestampIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -164,11 +164,10 @@ impl TimestampIndexManager {
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::now_second;
-
     use super::TimestampIndexManager;
     use crate::core::test::test_build_rocksdb_sgement;
-    use crate::index::IndexData;
+    use crate::segment::index::IndexData;
+    use common_base::tools::now_second;
 
     #[test]
     fn start_end_index_test() {
