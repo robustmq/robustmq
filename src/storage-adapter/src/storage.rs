@@ -28,7 +28,7 @@ pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError>;
+    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError>;
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 

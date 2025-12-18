@@ -113,10 +113,10 @@ impl DataHandler {
     }
 
     fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), StorageEngineError> {
-        if self
+        if !self
             .cache_manager
-            .get_shard(&segment_identity.shard_name)
-            .is_none()
+            .shards
+            .contains_key(&segment_identity.shard_name)
         {
             return Err(StorageEngineError::ShardNotExist(
                 segment_identity.shard_name.to_string(),

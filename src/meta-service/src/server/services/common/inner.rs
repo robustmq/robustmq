@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::mqtt::{
-    update_cache_by_set_resource_config, BrokerCallManager,
-};
+use crate::controller::call_broker::call::BrokerCallManager;
+use crate::controller::call_broker::mqtt::update_cache_by_set_resource_config;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;

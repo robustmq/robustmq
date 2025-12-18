@@ -15,7 +15,7 @@
 use super::segment::{
     build_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
 };
-use crate::controller::call_broker::mqtt::BrokerCallManager;
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
 };

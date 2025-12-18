@@ -12,26 +12,66 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo, ShardOffset};
 
-#[derive(Default, Clone)]
-pub struct AdapterHandler {}
+use crate::core::{
+    cache::StorageCacheManager,
+    shard::{create_shard_to_place, delete_shard_to_place},
+};
+
+#[derive(Clone)]
+pub struct AdapterHandler {
+    cache_manager: Arc<StorageCacheManager>,
+    client_pool: Arc<ClientPool>,
+}
 
 impl AdapterHandler {
-    pub fn new() -> Self {
-        AdapterHandler {}
+    pub fn new(cache_manager: Arc<StorageCacheManager>, client_pool: Arc<ClientPool>) -> Self {
+        AdapterHandler {
+            cache_manager,
+            client_pool,
+        }
     }
 
-    pub async fn create_shard(&self, _shard: &ShardInfo) -> Result<(), CommonError> {
+    pub async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+        if let Err(e) = create_shard_to_place(&self.cache_manager, &self.client_pool, shard).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
         Ok(())
     }
 
-    pub async fn list_shard(&self, _shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
-        Ok(Vec::new())
+    pub async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+        if let Some(shard_name) = shard {
+            if let Some(raw) = self.cache_manager.shards.get(&shard_name) {
+                return Ok(vec![ShardInfo {
+                    shard_name: raw.shard_name.clone(),
+                    replica_num: 1,
+                }]);
+            }
+            return Ok(Vec::new());
+        }
+
+        let res = self
+            .cache_manager
+            .shards
+            .iter()
+            .map(|raw| ShardInfo {
+                shard_name: raw.shard_name.clone(),
+                replica_num: 1,
+            })
+            .collect();
+
+        Ok(res)
     }
 
-    pub async fn delete_shard(&self, _shard: &str) -> Result<(), CommonError> {
+    pub async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {
+        if let Err(e) = delete_shard_to_place(&self.client_pool, shard_name).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
         Ok(())
     }
 

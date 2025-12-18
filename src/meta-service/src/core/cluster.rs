@@ -14,9 +14,8 @@
 
 use super::cache::CacheManager;
 use super::error::MetaServiceError;
-use crate::controller::call_broker::mqtt::{
-    update_cache_by_add_node, update_cache_by_delete_node, BrokerCallManager,
-};
+use crate::controller::call_broker::call::BrokerCallManager;
+use crate::controller::call_broker::mqtt::{update_cache_by_add_node, update_cache_by_delete_node};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;

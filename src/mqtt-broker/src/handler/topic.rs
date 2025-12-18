@@ -157,7 +157,9 @@ pub async fn try_init_topic(
         metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer
-        let list = message_storage_adapter.list_shard(topic_name).await?;
+        let list = message_storage_adapter
+            .list_shard(Some(topic_name.to_string()))
+            .await?;
         if list.is_empty() {
             let shard = ShardInfo {
                 shard_name: topic_name.to_owned(),
@@ -179,7 +181,9 @@ pub async fn delete_topic(
     metrics_manager: &Arc<MQTTMetricsCache>,
 ) -> Result<(), MqttBrokerError> {
     // delete shard
-    let list = message_storage_adapter.list_shard(topic_name).await?;
+    let list = message_storage_adapter
+        .list_shard(Some(topic_name.to_string()))
+        .await?;
     if !list.is_empty() {
         message_storage_adapter.delete_shard(topic_name).await?;
     }

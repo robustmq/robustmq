@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::mqtt::{
-    update_cache_by_add_topic, update_cache_by_delete_topic, BrokerCallManager,
+    update_cache_by_add_topic, update_cache_by_delete_topic,
 };
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;

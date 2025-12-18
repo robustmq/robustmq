@@ -117,7 +117,9 @@ pub(crate) async fn init_delay_message_shard(
     let mut created_count = 0;
     for i in 0..shard_num {
         let shard_name = get_delay_message_shard_name(i);
-        let results = message_storage_adapter.list_shard(&shard_name).await?;
+        let results = message_storage_adapter
+            .list_shard(Some(shard_name.clone()))
+            .await?;
         if results.is_empty() {
             let shard = ShardInfo {
                 shard_name: shard_name.clone(),
@@ -130,7 +132,7 @@ pub(crate) async fn init_delay_message_shard(
     }
 
     let results = message_storage_adapter
-        .list_shard(DELAY_QUEUE_INFO_SHARD_NAME)
+        .list_shard(Some(DELAY_QUEUE_INFO_SHARD_NAME.to_string()))
         .await?;
     if results.is_empty() {
         let shard = ShardInfo {
@@ -193,7 +195,9 @@ mod test {
         assert!(res.is_ok());
 
         let shard_name = get_delay_message_shard_name(shard_num - 1);
-        let res = message_storage_adapter.list_shard(&shard_name).await;
+        let res = message_storage_adapter
+            .list_shard(Some(shard_name.clone()))
+            .await;
         assert!(res.is_ok());
         let res = res.unwrap();
         assert_eq!(res.len(), 1);

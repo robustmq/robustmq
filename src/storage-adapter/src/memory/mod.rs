@@ -230,20 +230,20 @@ impl StorageAdapter for MemoryStorageAdapter {
         Ok(())
     }
 
-    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
-        if shard.is_empty() {
+    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+        if let Some(shard_name) = shard {
+            return Ok(self
+                .shard_info
+                .get(&shard_name)
+                .map(|info| vec![info.clone()])
+                .unwrap_or_default());
+        } else {
             return Ok(self
                 .shard_info
                 .iter()
                 .map(|entry| entry.value().clone())
                 .collect());
         }
-
-        Ok(self
-            .shard_info
-            .get(shard)
-            .map(|info| vec![info.clone()])
-            .unwrap_or_default())
     }
 
     async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {

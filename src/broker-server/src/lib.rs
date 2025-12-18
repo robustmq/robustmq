@@ -27,7 +27,7 @@ use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use meta_service::{
-    controller::call_broker::mqtt::BrokerCallManager,
+    controller::call_broker::call::BrokerCallManager,
     core::cache::CacheManager as PlacementCacheManager,
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,

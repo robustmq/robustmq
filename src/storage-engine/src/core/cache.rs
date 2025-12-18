@@ -35,22 +35,22 @@ pub struct StorageCacheManager {
     pub broker_cache: Arc<BrokerCacheManager>,
 
     // (shard_name, JournalShard)
-    shards: DashMap<String, JournalShard>,
+    pub shards: DashMap<String, JournalShard>,
 
     // (shard_name, (segment_no, JournalSegment))
-    segments: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub segments: DashMap<String, DashMap<u32, JournalSegment>>,
 
     // (shard_name, (segment_no, JournalSegmentMetadata))
-    segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
+    pub segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
 
     // (segment_name, SegmentIdentity)
-    leader_segments: DashMap<String, SegmentIdentity>,
+    pub leader_segments: DashMap<String, SegmentIdentity>,
 
     // (segment_name, IndexBuildThreadData)
-    segment_index_build_thread: DashMap<String, IndexBuildThreadData>,
+    pub segment_index_build_thread: DashMap<String, IndexBuildThreadData>,
 
     // (segment_name, SegmentWrite)
-    segment_writes: DashMap<String, SegmentWrite>,
+    pub segment_writes: DashMap<String, SegmentWrite>,
 }
 
 impl StorageCacheManager {
@@ -77,30 +77,8 @@ impl StorageCacheManager {
         self.shards.insert(shard.shard_name.clone(), shard);
     }
 
-    pub fn get_shard(&self, shard_name: &str) -> Option<JournalShard> {
-        if let Some(shard) = self.shards.get(shard_name) {
-            return Some(shard.clone());
-        }
-        None
-    }
-
     pub fn delete_shard(&self, shard_name: &str) {
         self.shards.remove(shard_name);
-    }
-
-    pub fn get_shards(&self) -> Vec<JournalShard> {
-        self.shards.iter().map(|raw| raw.value().clone()).collect()
-    }
-
-    pub fn get_shards_by_namespace(&self, namespace: &str) -> Vec<JournalShard> {
-        let mut results = Vec::new();
-        let prefix = format!("{namespace},");
-        for raw in self.shards.iter() {
-            if raw.key().starts_with(&prefix) {
-                results.push(raw.value().clone());
-            }
-        }
-        results
     }
 
     pub fn get_active_segment(&self, shard_name: &str) -> Option<JournalSegment> {

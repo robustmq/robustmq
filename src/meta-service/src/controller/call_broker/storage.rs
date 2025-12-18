@@ -12,20 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{
+    controller::call_broker::call::{add_call_message, BrokerCallManager, BrokerCallMessage},
+    core::error::MetaServiceError,
+};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::{
     segment::JournalSegment, segment_meta::JournalSegmentMetadata, shard::JournalShard,
 };
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
-
-use crate::{
-    controller::call_broker::{
-        call::add_call_message,
-        mqtt::{BrokerCallManager, BrokerCallMessage},
-    },
-    core::error::MetaServiceError,
-};
 
 pub async fn update_cache_by_set_shard(
     call_manager: &Arc<BrokerCallManager>,
