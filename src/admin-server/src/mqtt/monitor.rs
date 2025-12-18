@@ -15,7 +15,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
@@ -24,6 +24,7 @@ use dashmap::DashMap;
 use serde::Deserialize;
 
 use crate::state::HttpState;
+use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 
 #[derive(Deserialize)]
 pub struct MonitorDataReq {
@@ -85,7 +86,7 @@ impl FromStr for MonitorDataType {
 
 pub async fn monitor_data(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<MonitorDataReq>,
+    Query(params): Query<MonitorDataReq>,
 ) -> String {
     let data_type = match MonitorDataType::from_str(&params.data_type) {
         Ok(data) => data,
@@ -94,12 +95,13 @@ pub async fn monitor_data(
         }
     };
 
-    let data: DashMap<u64, u64> = match get_monitor_data(&state, params, data_type) {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
+    let data: DashMap<u64, u64> =
+        match get_monitor_data(&state.mqtt_context.metrics_manager, params, data_type) {
+            Ok(data) => data,
+            Err(e) => {
+                return error_response(e.to_string());
+            }
+        };
 
     let resp = state
         .mqtt_context
@@ -110,27 +112,22 @@ pub async fn monitor_data(
 }
 
 pub fn get_monitor_data(
-    state: &Arc<HttpState>,
+    metrics_manager: &Arc<MQTTMetricsCache>,
     params: MonitorDataReq,
     data_type: MonitorDataType,
 ) -> Result<DashMap<u64, u64>, CommonError> {
     match data_type {
-        MonitorDataType::ConnectionNum => state.mqtt_context.metrics_manager.get_connection_num(),
-        MonitorDataType::TopicNum => state.mqtt_context.metrics_manager.get_topic_num(),
-        MonitorDataType::SubscribeNum => state.mqtt_context.metrics_manager.get_subscribe_num(),
-        MonitorDataType::MessageInNum => state.mqtt_context.metrics_manager.get_message_in_num(),
-        MonitorDataType::MessageOutNum => state.mqtt_context.metrics_manager.get_message_out_num(),
+        MonitorDataType::ConnectionNum => metrics_manager.get_connection_num(),
+        MonitorDataType::TopicNum => metrics_manager.get_topic_num(),
+        MonitorDataType::SubscribeNum => metrics_manager.get_subscribe_num(),
+        MonitorDataType::MessageInNum => metrics_manager.get_message_in_num(),
+        MonitorDataType::MessageOutNum => metrics_manager.get_message_out_num(),
 
-        MonitorDataType::MessageDropNum => {
-            state.mqtt_context.metrics_manager.get_message_drop_num()
-        }
+        MonitorDataType::MessageDropNum => metrics_manager.get_message_drop_num(),
 
         MonitorDataType::TopicInNum => {
             if let Some(topic_name) = params.topic_name {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_topic_in_num(&topic_name)
+                metrics_manager.get_topic_in_num(&topic_name)
             } else {
                 Ok(DashMap::new())
             }
@@ -138,10 +135,7 @@ pub fn get_monitor_data(
 
         MonitorDataType::TopicOutNum => {
             if let Some(topic_name) = params.topic_name {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_topic_out_num(&topic_name)
+                metrics_manager.get_topic_out_num(&topic_name)
             } else {
                 Ok(DashMap::new())
             }
@@ -149,7 +143,7 @@ pub fn get_monitor_data(
 
         MonitorDataType::SubscribeSendSuccessNum => {
             if params.client_id.is_some() && params.path.is_some() {
-                state.mqtt_context.metrics_manager.get_subscribe_send_num(
+                metrics_manager.get_subscribe_send_num(
                     &params.client_id.unwrap(),
                     &params.path.unwrap(),
                     true,
@@ -160,7 +154,7 @@ pub fn get_monitor_data(
         }
         MonitorDataType::SubscribeSendFailureNum => {
             if params.client_id.is_some() && params.path.is_some() {
-                state.mqtt_context.metrics_manager.get_subscribe_send_num(
+                metrics_manager.get_subscribe_send_num(
                     &params.client_id.unwrap(),
                     &params.path.unwrap(),
                     false,
@@ -172,15 +166,12 @@ pub fn get_monitor_data(
 
         MonitorDataType::SubscribeTopicSendSuccessNum => {
             if params.client_id.is_some() && params.path.is_some() && params.topic_name.is_some() {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_subscribe_topic_send_num(
-                        &params.client_id.unwrap(),
-                        &params.path.unwrap(),
-                        &params.topic_name.unwrap(),
-                        true,
-                    )
+                metrics_manager.get_subscribe_topic_send_num(
+                    &params.client_id.unwrap(),
+                    &params.path.unwrap(),
+                    &params.topic_name.unwrap(),
+                    true,
+                )
             } else {
                 Ok(DashMap::new())
             }
@@ -188,15 +179,12 @@ pub fn get_monitor_data(
 
         MonitorDataType::SubscribeTopicSendFailureNum => {
             if params.client_id.is_some() && params.path.is_some() && params.topic_name.is_some() {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_subscribe_topic_send_num(
-                        &params.client_id.unwrap(),
-                        &params.path.unwrap(),
-                        &params.topic_name.unwrap(),
-                        false,
-                    )
+                metrics_manager.get_subscribe_topic_send_num(
+                    &params.client_id.unwrap(),
+                    &params.path.unwrap(),
+                    &params.topic_name.unwrap(),
+                    false,
+                )
             } else {
                 Ok(DashMap::new())
             }
@@ -204,10 +192,7 @@ pub fn get_monitor_data(
 
         MonitorDataType::SessionInNum => {
             if params.client_id.is_some() {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_session_in_num(&params.client_id.unwrap())
+                metrics_manager.get_session_in_num(&params.client_id.unwrap())
             } else {
                 Ok(DashMap::new())
             }
@@ -215,31 +200,23 @@ pub fn get_monitor_data(
 
         MonitorDataType::SessionOutNum => {
             if params.client_id.is_some() {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_session_out_num(&params.client_id.unwrap())
+                metrics_manager.get_session_out_num(&params.client_id.unwrap())
             } else {
                 Ok(DashMap::new())
             }
         }
 
-        MonitorDataType::ConnectorSendSuccessTotal => state
-            .mqtt_context
-            .metrics_manager
-            .get_connector_success_total_num(),
+        MonitorDataType::ConnectorSendSuccessTotal => {
+            metrics_manager.get_connector_success_total_num()
+        }
 
-        MonitorDataType::ConnectorSendFailureTotal => state
-            .mqtt_context
-            .metrics_manager
-            .get_connector_failure_total_num(),
+        MonitorDataType::ConnectorSendFailureTotal => {
+            metrics_manager.get_connector_failure_total_num()
+        }
 
         MonitorDataType::ConnectorSendSuccess => {
             if let Some(connector_name) = params.connector_name {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_connector_success_num(&connector_name)
+                metrics_manager.get_connector_success_num(&connector_name)
             } else {
                 Ok(DashMap::new())
             }
@@ -247,13 +224,41 @@ pub fn get_monitor_data(
 
         MonitorDataType::ConnectorSendFailure => {
             if let Some(connector_name) = params.connector_name {
-                state
-                    .mqtt_context
-                    .metrics_manager
-                    .get_connector_failure_num(&connector_name)
+                metrics_manager.get_connector_failure_num(&connector_name)
             } else {
                 Ok(DashMap::new())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_base::tools::now_second;
+    use rocksdb_engine::test::test_rocksdb_instance;
+
+    #[tokio::test]
+    async fn test_get_monitor_data() {
+        let rocksdb_engine = test_rocksdb_instance();
+        let metrics_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine));
+        let time = now_second();
+
+        // Record some data
+        metrics_manager.record_connection_num(time, 100).unwrap();
+
+        let params = MonitorDataReq {
+            data_type: "connection_num".to_string(),
+            topic_name: None,
+            client_id: None,
+            path: None,
+            connector_name: None,
+        };
+
+        let data_type = MonitorDataType::from_str(&params.data_type).unwrap();
+        let result = get_monitor_data(&metrics_manager, params, data_type).unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(*result.get(&time).unwrap(), 100);
     }
 }
