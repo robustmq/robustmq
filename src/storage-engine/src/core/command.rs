@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
-use super::data::DataHandler;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
+use crate::core::handler::DataHandler;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
@@ -28,6 +25,8 @@ use protocol::storage::journal_engine::{
     WriteRespBody,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::{debug, error};
 
 /// a dispatcher struct to handle all commands from journal clients

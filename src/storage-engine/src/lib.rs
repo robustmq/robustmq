@@ -14,7 +14,6 @@
 
 // #![allow(dead_code, unused_variables)]
 #![allow(clippy::result_large_err)]
-#![allow(clippy::large_enum_variant)]
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use core::cache::{load_metadata_cache, StorageCacheManager};
@@ -77,7 +76,7 @@ impl JournalServer {
     }
 
     pub async fn start(&self) {
-        self.init_node().await;
+        self.init().await;
 
         self.start_tcp_server();
 
@@ -136,7 +135,7 @@ impl JournalServer {
         }
     }
 
-    async fn init_node(&self) {
+    async fn init(&self) {
         load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
         for path in self.config.journal_storage.data_path.clone() {

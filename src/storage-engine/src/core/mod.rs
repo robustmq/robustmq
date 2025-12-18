@@ -13,11 +13,11 @@
 // limitations under the License.
 
 pub mod cache;
-pub mod cluster_config;
+pub mod command;
 pub mod consts;
 pub mod dynamic_cache;
 pub mod error;
-pub mod log;
+pub mod handler;
 pub mod segment;
 pub mod segment_meta;
 pub mod segment_status;
