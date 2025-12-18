@@ -15,7 +15,6 @@
 use common_base::error::common::CommonError;
 use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
 
 use crate::pool::ClientPool;
@@ -37,13 +36,6 @@ generate_mqtt_inner_service_call!(
     DeleteSessionRequest,
     DeleteSessionReply,
     DeleteSession
-);
-
-generate_mqtt_inner_service_call!(
-    broker_mqtt_update_cache,
-    UpdateMqttCacheRequest,
-    UpdateMqttCacheReply,
-    UpdateMqttCache
 );
 
 generate_mqtt_inner_service_call!(

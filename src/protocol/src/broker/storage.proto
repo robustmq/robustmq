@@ -17,31 +17,21 @@
 syntax = "proto3";
 package broker.storage;
 
-service StorageEngineInnerService {
-  rpc UpdateCache(UpdateJournalCacheRequest) returns (UpdateJournalCacheReply) {}
+service BrokerStorageService {
   rpc DeleteShardFile(DeleteShardFileRequest) returns (DeleteShardFileReply) {}
   rpc GetShardDeleteStatus(GetShardDeleteStatusRequest) returns (GetShardDeleteStatusReply) {}
   rpc DeleteSegmentFile(DeleteSegmentFileRequest) returns (DeleteSegmentFileReply) {}
   rpc GetSegmentDeleteStatus(GetSegmentDeleteStatusRequest) returns (GetSegmentDeleteStatusReply) {}
 }
 
-message UpdateJournalCacheRequest {
-  JournalUpdateCacheActionType action_type = 2;
-  JournalUpdateCacheResourceType resource_type = 3;
-  bytes data = 4;
-}
-
-message UpdateJournalCacheReply {}
 
 message DeleteShardFileRequest {
-
   string shard_name = 3;
 }
 
 message DeleteShardFileReply {}
 
 message GetShardDeleteStatusRequest {
-
   string shard_name = 3;
 }
 
@@ -65,16 +55,4 @@ message GetSegmentDeleteStatusRequest {
 
 message GetSegmentDeleteStatusReply {
   bool status = 1;
-}
-
-enum JournalUpdateCacheActionType {
-  Set = 0;
-  Delete = 1;
-}
-
-enum JournalUpdateCacheResourceType {
-  JournalNode = 0;
-  Shard = 1;
-  Segment = 2;
-  SegmentMeta = 3;
 }

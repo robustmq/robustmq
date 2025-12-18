@@ -16,21 +16,9 @@
 
 syntax = "proto3";
 package broker.mqtt;
-service MQTTBrokerInnerService {
-  rpc UpdateCache(UpdateMQTTCacheRequest) returns (UpdateMQTTCacheReply) {}
+service BrokerMQTTService {
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
-}
-
-message UpdateMQTTCacheRequest {
-  MQTTBrokerUpdateCacheActionType action_type = 2;
-  MQTTBrokerUpdateCacheResourceType resource_type = 3;
-  bytes data = 4;
-}
-
-message UpdateMQTTCacheReply {
-  bool code = 1;
-  string data = 2;
 }
 
 message DeleteSessionRequest {
@@ -45,26 +33,6 @@ message DeleteSessionReply {
 message SendLastWillMessageReply {
   bool code = 1;
   string data = 2;
-}
-
-enum MQTTBrokerUpdateCacheActionType {
-  Set = 0;
-  Delete = 1;
-}
-
-enum MQTTBrokerUpdateCacheResourceType {
-  Session = 0;
-  User = 1;
-  Subscribe = 2;
-  Topic = 3;
-  Connector = 4;
-  Schema = 5;
-  SchemaResource = 6;
-  ClusterResourceConfig = 7;
-  Node = 8;
-  Shard = 9;
-  Segment = 10;
-  SegmentMeta = 11;
 }
 
 message SendLastWillMessageRequest {

@@ -26,12 +26,12 @@ use tracing::{error, info};
 
 use super::file::open_segment_write;
 use super::manager::SegmentFileManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::segment_meta::update_end_and_start_offset;
 use crate::core::segment_status::pre_sealup_segment;
 
 pub struct SegmentScrollManager {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     client_pool: Arc<ClientPool>,
     segment_file_manager: Arc<SegmentFileManager>,
     percentage50_cache: DashMap<String, u64>,
@@ -40,7 +40,7 @@ pub struct SegmentScrollManager {
 
 impl SegmentScrollManager {
     pub fn new(
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         client_pool: Arc<ClientPool>,
         segment_file_manager: Arc<SegmentFileManager>,
     ) -> Self {

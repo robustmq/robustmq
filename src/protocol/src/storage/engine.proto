@@ -28,18 +28,6 @@ enum ApiKey {
   Unimplemented = 0;
   Read = 1;
   Write = 2;
-
-  // shard
-  CreateShard = 3;
-  DeleteShard = 4;
-  ListShard = 5;
-
-  // metadata
-  GetShardMetadata = 6;
-  GetClusterMetadata = 7;
-
-  // Offset
-  FetchOffset = 8;
 }
 
 enum ApiVersion {
@@ -50,12 +38,6 @@ enum ReadType {
   Offset = 0;
   Key = 1;
   Tag = 2;
-}
-
-enum AutoOffsetStrategy {
-  Earliest = 0;
-  Latest = 1;
-  None = 2;
 }
 
 message ReqHeader {
@@ -69,132 +51,12 @@ message RespHeader {
   JournalEngineError error = 3;
 }
 
-message ClientSegmentMetadata {
-  uint32 segment_no = 1;
-  uint64 leader = 2;
-  repeated uint64 replicas = 3;
-  int64 start_offset = 4;
-  int64 end_offset = 5;
-  int64 start_timestamp = 6;
-  int64 end_timestamp = 7;
-}
-
-/** Get Cluster Metadata **/
-message GetClusterMetadataReq {
-  ReqHeader header = 1;
-}
-
-message GetClusterMetadataRespBody {
-  repeated GetClusterMetadataNode nodes = 1;
-}
-
-message GetClusterMetadataNode {
-  uint64 node_id = 1;
-  string tcp_addr = 2;
-  string tcps_addr = 3;
-}
-
-message GetClusterMetadataResp {
-  RespHeader header = 1;
-  GetClusterMetadataRespBody body = 2;
-}
-
-/**  Create Shard **/
-message CreateShardReqBody {
-
-  string shard_name = 2;
-  uint32 replica_num = 3;
-}
-
-message CreateShardRespBody {}
-
-message CreateShardReq {
-  ReqHeader header = 1;
-  CreateShardReqBody body = 2;
-}
-
-message CreateShardResp {
-  RespHeader header = 1;
-  CreateShardRespBody body = 2;
-}
-
-/**  Delete Shard **/
-message DeleteShardReqBody {
-
-  string shard_name = 2;
-}
-
-message DeleteShardRespBody {}
-
-message DeleteShardReq {
-  ReqHeader header = 1;
-  DeleteShardReqBody body = 2;
-}
-
-message DeleteShardResp {
-  RespHeader header = 1;
-  DeleteShardRespBody body = 2;
-}
-
-/** List Shard **/
-message ListShardReqBody {
-
-  string shard_name = 2;
-}
-
-message ListShardRespBody {
-  repeated bytes shards = 1;
-}
-
-message ListShardReq {
-  ReqHeader header = 1;
-  ListShardReqBody body = 2;
-}
-
-message ListShardResp {
-  RespHeader header = 1;
-  ListShardRespBody body = 2;
-}
-
-/** Get Shard Metadata **/
-message GetShardMetadataReqBody {
-  repeated GetShardMetadataReqShard shards = 1;
-}
-
-message GetShardMetadataReqShard {
-
-  string shard_name = 2;
-}
-
-message GetShardMetadataReq {
-  ReqHeader header = 1;
-  GetShardMetadataReqBody body = 2;
-}
-
-message GetShardMetadataRespBody {
-  repeated GetShardMetadataRespShard shards = 1;
-}
-
-message GetShardMetadataRespShard {
-
-  string shard = 2;
-  int32 active_segment = 3;
-  int64 active_segment_leader = 4;
-  repeated ClientSegmentMetadata segments = 5;
-}
-
-message GetShardMetadataResp {
-  RespHeader header = 1;
-  GetShardMetadataRespBody body = 2;
-}
-
 /** Write Request **/
 message WriteReqBody {
   repeated WriteReqSegmentMessages data = 1;
 }
 
 message WriteReqSegmentMessages {
-
   string shard_name = 2;
   uint32 segment = 3;
   repeated WriteReqMessages messages = 4;
@@ -212,7 +74,6 @@ message WriteRespBody {
 }
 
 message WriteRespMessage {
-
   string shard_name = 2;
   uint32 segment = 3;
   repeated WriteRespMessageStatus messages = 4;
@@ -240,7 +101,6 @@ message ReadReqBody {
 }
 
 message ReadReqMessage {
-
   string shard_name = 2;
   uint32 segment = 3;
   ReadType ready_type = 4;
@@ -289,36 +149,3 @@ message ReadResp {
   ReadRespBody body = 2;
 }
 
-/** Fetch Offset **/
-message FetchOffsetReqBody {
-  repeated FetchOffsetShard shards = 2;
-}
-
-message FetchOffsetShard {
-
-  string shard_name = 2;
-  uint32 segment_no = 3;
-  uint64 timestamp = 4;
-}
-
-message FetchOffsetReq {
-  ReqHeader header = 1;
-  FetchOffsetReqBody body = 2;
-}
-
-message FetchOffsetRespBody {
-  repeated FetchOffsetShardMeta shard_offsets = 2;
-}
-
-message FetchOffsetShardMeta {
-
-  string shard_name = 2;
-  uint32 segment_no = 3;
-  int64 offset = 4;
-  JournalEngineError error = 5;
-}
-
-message FetchOffsetResp {
-  RespHeader header = 1;
-  FetchOffsetRespBody body = 2;
-}

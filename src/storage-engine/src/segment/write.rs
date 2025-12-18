@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
-use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::cache::StorageCacheManager;
+use crate::core::error::{get_journal_server_code, StorageEngineError};
 use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
 use crate::core::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
@@ -53,17 +53,17 @@ pub struct SegmentWriteData {
 pub struct SegmentWriteResp {
     pub offsets: HashMap<u64, u64>,
     pub last_offset: u64,
-    pub error: Option<JournalServerError>,
+    pub error: Option<StorageEngineError>,
 }
 
 /// the entry point for handling write requests
 pub async fn write_data_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     client_pool: &Arc<ClientPool>,
     req_body: &WriteReqBody,
-) -> Result<Vec<WriteRespMessage>, JournalServerError> {
+) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     let mut results = Vec::new();
     for shard_data in req_body.data.clone() {
         let mut resp_message = WriteRespMessage {
@@ -172,12 +172,12 @@ pub async fn write_data_req(
 
 /// get the write handle for the segment identified by `segment_iden`, write data and return the response
 pub(crate) async fn write_data(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
     data_list: Vec<JournalRecord>,
-) -> Result<SegmentWriteResp, JournalServerError> {
+) -> Result<SegmentWriteResp, StorageEngineError> {
     let write = get_write(
         cache_manager,
         rocksdb_engine_handler,
@@ -207,11 +207,11 @@ pub(crate) async fn write_data(
 /// TODO: maybe we should use [`DashMap::entry()`](https://docs.rs/dashmap/latest/dashmap/struct.DashMap.html#method.entry)
 /// with [`or_insert`](https://docs.rs/dashmap/latest/dashmap/mapref/entry/enum.Entry.html#method.or_insert) to prevent creating multiple handles for the same segment
 async fn get_write(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<SegmentWrite, JournalServerError> {
+) -> Result<SegmentWrite, StorageEngineError> {
     let write = if let Some(write) = cache_manager.get_segment_write_thread(segment_iden) {
         write
     } else {
@@ -230,11 +230,11 @@ async fn get_write(
 ///
 /// Return a `SegmentWrite` handle which can be used to send data to the write thread
 pub(crate) async fn create_write_thread(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<SegmentWrite, JournalServerError> {
+) -> Result<SegmentWrite, StorageEngineError> {
     let (data_sender, data_recv) = mpsc::channel::<SegmentWriteData>(1000);
     let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
 
@@ -243,7 +243,7 @@ pub(crate) async fn create_write_thread(
             segment_file
         } else {
             // todo try recover segment file. create or local cache
-            return Err(JournalServerError::SegmentFileMetaNotExists(
+            return Err(StorageEngineError::SegmentFileMetaNotExists(
                 segment_iden.name(),
             ));
         };
@@ -273,7 +273,7 @@ pub struct WriteThreadContext {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub segment_iden: SegmentIdentity,
     pub segment_file_manager: Arc<SegmentFileManager>,
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<StorageCacheManager>,
     pub local_segment_end_offset: i64,
     pub segment_write: SegmentFile,
 }
@@ -347,11 +347,11 @@ async fn batch_write(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     segment_file_manager: &Arc<SegmentFileManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     local_segment_end_offset: i64,
     segment_write: &SegmentFile,
     data: Vec<JournalRecord>,
-) -> Result<Option<SegmentWriteResp>, JournalServerError> {
+) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
     if data.is_empty() {
         return Ok(None);
     }
@@ -393,7 +393,7 @@ async fn batch_write0(
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
     mut local_segment_end_offset: u64,
-) -> Result<Option<SegmentWriteResp>, JournalServerError> {
+) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
     if data.is_empty() {
         return Ok(None);
     }
@@ -434,21 +434,21 @@ async fn batch_write0(
 ///
 /// Note that this function will be executed serially by the write thread of the segment
 async fn write_validator(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_write: &SegmentFile,
     local_segment_end_offset: u64,
     packet_len: u64,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let segment_iden = SegmentIdentity::new(&segment_write.shard_name, segment_write.segment_no);
 
     let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
         segment
     } else {
-        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
+        return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
     };
 
     if segment.status == SegmentStatus::SealUp {
-        return Err(JournalServerError::SegmentAlreadySealUp(
+        return Err(StorageEngineError::SegmentAlreadySealUp(
             segment_iden.name(),
         ));
     }
@@ -456,7 +456,7 @@ async fn write_validator(
     let segment_meta = if let Some(meta) = cache_manager.get_segment_meta(&segment_iden) {
         meta
     } else {
-        return Err(JournalServerError::SegmentMetaNotExists(
+        return Err(StorageEngineError::SegmentMetaNotExists(
             segment_iden.name(),
         ));
     };
@@ -467,7 +467,7 @@ async fn write_validator(
         packet_len,
     ) {
         cache_manager.update_segment_status(&segment_iden, SegmentStatus::SealUp);
-        return Err(JournalServerError::SegmentOffsetAtTheEnd);
+        return Err(StorageEngineError::SegmentOffsetAtTheEnd);
     }
     Ok(())
 }

@@ -34,7 +34,6 @@ mysql.workspace = true
 metadata-struct.workspace = true
 rocksdb.workspace = true
 rocksdb-engine.workspace = true
-journal-client.workspace = true
 futures.workspace = true
 opendal.workspace = true
 r2d2_mysql.workspace = true

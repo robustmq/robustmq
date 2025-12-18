@@ -39,7 +39,6 @@ members = [
     "src/common/rate-limit",
     "src/protocol",
     "src/storage-engine",
-    "src/journal-client",
     "src/rule-engine",
     "src/storage-adapter",
     "src/robustmq-macro",
@@ -252,7 +251,6 @@ broker-core = { path = "src/broker-core" }
 # Meta & Journal Services
 meta-service = { path = "src/meta-service" }
 storage-engine = { path = "src/storage-engine" }
-journal-client = { path = "src/journal-client" }
 
 # Message Processing
 delay-message = { path = "src/delay-message" }

@@ -19,13 +19,8 @@ use prost::Message as _;
 use tokio_util::codec;
 
 use super::journal_engine::{
-    ApiKey, CreateShardReq, CreateShardReqBody, CreateShardResp, CreateShardRespBody,
-    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, FetchOffsetReq,
-    FetchOffsetReqBody, FetchOffsetResp, FetchOffsetRespBody, GetClusterMetadataReq,
-    GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataReq,
-    GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, ListShardReq,
-    ListShardReqBody, ListShardResp, ListShardRespBody, ReadReq, ReadReqBody, ReadResp,
-    ReadRespBody, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+    ApiKey, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader, WriteReq,
+    WriteReqBody, WriteResp, WriteRespBody,
 };
 use super::Error;
 
@@ -41,30 +36,6 @@ pub enum JournalEnginePacket {
     // Read
     ReadReq(ReadReq),
     ReadResp(ReadResp),
-
-    // GetClusterMetadata
-    GetClusterMetadataReq(GetClusterMetadataReq),
-    GetClusterMetadataResp(GetClusterMetadataResp),
-
-    // GetShardMetadata
-    GetShardMetadataReq(GetShardMetadataReq),
-    GetShardMetadataResp(GetShardMetadataResp),
-
-    // FetchOffset
-    FetchOffsetReq(FetchOffsetReq),
-    FetchOffsetResp(FetchOffsetResp),
-
-    // CreateShard
-    CreateShardReq(CreateShardReq),
-    CreateShardResp(CreateShardResp),
-
-    // DeleteShard
-    DeleteShardReq(DeleteShardReq),
-    DeleteShardResp(DeleteShardResp),
-
-    // ListShard
-    ListShardReq(ListShardReq),
-    ListShardResp(ListShardResp),
 }
 
 impl fmt::Display for JournalEnginePacket {
@@ -74,18 +45,6 @@ impl fmt::Display for JournalEnginePacket {
             JournalEnginePacket::WriteResp(_) => write!(f, "WriteResp"),
             JournalEnginePacket::ReadReq(_) => write!(f, "ReadReq"),
             JournalEnginePacket::ReadResp(_) => write!(f, "ReadResp"),
-            JournalEnginePacket::GetClusterMetadataReq(_) => write!(f, "GetClusterMetadataReq"),
-            JournalEnginePacket::GetClusterMetadataResp(_) => write!(f, "GetClusterMetadataResp"),
-            JournalEnginePacket::GetShardMetadataReq(_) => write!(f, "GetShardMetadataReq"),
-            JournalEnginePacket::GetShardMetadataResp(_) => write!(f, "GetShardMetadataResp"),
-            JournalEnginePacket::FetchOffsetReq(_) => write!(f, "FetchOffsetReq"),
-            JournalEnginePacket::FetchOffsetResp(_) => write!(f, "FetchOffsetResp"),
-            JournalEnginePacket::CreateShardReq(_) => write!(f, "CreateShardReq"),
-            JournalEnginePacket::CreateShardResp(_) => write!(f, "CreateShardResp"),
-            JournalEnginePacket::DeleteShardReq(_) => write!(f, "DeleteShardReq"),
-            JournalEnginePacket::DeleteShardResp(_) => write!(f, "DeleteShardResp"),
-            JournalEnginePacket::ListShardReq(_) => write!(f, "ListShardReq"),
-            JournalEnginePacket::ListShardResp(_) => write!(f, "ListShardResp"),
         }
     }
 }
@@ -144,96 +103,6 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
                 let body = data.body.unwrap();
                 header_byte = RespHeader::encode_to_vec(&header);
                 body_byte = ReadRespBody::encode_to_vec(&body);
-            }
-
-            // GetClusterMetadata
-            JournalEnginePacket::GetClusterMetadataReq(data) => {
-                let header = data.header.unwrap();
-                header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = Vec::new();
-                req_type = 1;
-            }
-            JournalEnginePacket::GetClusterMetadataResp(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = GetClusterMetadataRespBody::encode_to_vec(&body);
-            }
-
-            // GetShardMetadata
-            JournalEnginePacket::GetShardMetadataReq(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = GetShardMetadataReqBody::encode_to_vec(&body);
-                req_type = 1;
-            }
-            JournalEnginePacket::GetShardMetadataResp(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = GetShardMetadataRespBody::encode_to_vec(&body);
-            }
-
-            // FetchOffset
-            JournalEnginePacket::FetchOffsetReq(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = FetchOffsetReqBody::encode_to_vec(&body);
-                req_type = 1;
-            }
-            JournalEnginePacket::FetchOffsetResp(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = FetchOffsetRespBody::encode_to_vec(&body);
-            }
-
-            // CreateShard
-            JournalEnginePacket::CreateShardReq(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = CreateShardReqBody::encode_to_vec(&body);
-                req_type = 1;
-            }
-            JournalEnginePacket::CreateShardResp(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = CreateShardRespBody::encode_to_vec(&body);
-            }
-
-            // DeleteShard
-            JournalEnginePacket::DeleteShardReq(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = DeleteShardReqBody::encode_to_vec(&body);
-                req_type = 1;
-            }
-            JournalEnginePacket::DeleteShardResp(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = DeleteShardRespBody::encode_to_vec(&body);
-            }
-
-            // ListShard
-            JournalEnginePacket::ListShardReq(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = ListShardReqBody::encode_to_vec(&body);
-                req_type = 1;
-            }
-
-            JournalEnginePacket::ListShardResp(data) => {
-                let header = data.header.unwrap();
-                let body = data.body.unwrap();
-                header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = ListShardRespBody::encode_to_vec(&body);
             }
         }
 
@@ -351,16 +220,6 @@ impl codec::Decoder for JournalServerCodec {
 
                         ApiKey::Read => read_req(body_bytes, header),
 
-                        ApiKey::GetClusterMetadata => get_cluster_metadata_req(body_bytes, header),
-
-                        ApiKey::GetShardMetadata => get_shard_metadata_req(body_bytes, header),
-
-                        ApiKey::FetchOffset => fetch_offset_req(body_bytes, header),
-
-                        ApiKey::CreateShard => create_shard_req(body_bytes, header),
-
-                        ApiKey::DeleteShard => delete_shard_req(body_bytes, header),
-
                         _ => Err(Error::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
@@ -373,98 +232,12 @@ impl codec::Decoder for JournalServerCodec {
 
                     ApiKey::Read => read_resp(body_bytes, header),
 
-                    ApiKey::GetClusterMetadata => get_cluster_metadata_resp(body_bytes, header),
-
-                    ApiKey::GetShardMetadata => get_shard_metadata_resp(body_bytes, header),
-
-                    ApiKey::FetchOffset => fetch_offset_resp(body_bytes, header),
-
-                    ApiKey::CreateShard => create_shard_resp(body_bytes, header),
-
-                    ApiKey::DeleteShard => delete_shard_resp(body_bytes, header),
-
                     _ => Err(Error::NotAvailableRequestType(req_type)),
                 },
                 Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
             },
             _ => Err(Error::NotAvailableRequestType(req_type)),
         }
-    }
-}
-
-fn create_shard_req(
-    body_bytes: BytesMut,
-    header: ReqHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match CreateShardReqBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::CreateShardReq(CreateShardReq {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "write_req".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn create_shard_resp(
-    body_bytes: BytesMut,
-    header: RespHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match CreateShardRespBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::CreateShardResp(CreateShardResp {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "write_resp".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn delete_shard_req(
-    body_bytes: BytesMut,
-    header: ReqHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match DeleteShardReqBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::DeleteShardReq(DeleteShardReq {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "write_req".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn delete_shard_resp(
-    body_bytes: BytesMut,
-    header: RespHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match DeleteShardRespBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::DeleteShardResp(DeleteShardResp {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "write_resp".to_string(),
-            e.to_string(),
-        )),
     }
 }
 
@@ -541,111 +314,6 @@ fn read_resp(
     }
 }
 
-fn get_cluster_metadata_req(
-    _: BytesMut,
-    header: ReqHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    Ok(Some(JournalEnginePacket::GetClusterMetadataReq(
-        GetClusterMetadataReq {
-            header: Some(header),
-        },
-    )))
-}
-fn get_cluster_metadata_resp(
-    body_bytes: BytesMut,
-    header: RespHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match GetClusterMetadataRespBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::GetClusterMetadataResp(GetClusterMetadataResp {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "get_cluster_metadata_resp".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn get_shard_metadata_req(
-    body_bytes: BytesMut,
-    header: ReqHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match GetShardMetadataReqBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::GetShardMetadataReq(GetShardMetadataReq {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "get_shard_metadata_req".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn get_shard_metadata_resp(
-    body_bytes: BytesMut,
-    header: RespHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match GetShardMetadataRespBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::GetShardMetadataResp(GetShardMetadataResp {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "get_shard_metadata_resp".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn fetch_offset_req(
-    body_bytes: BytesMut,
-    header: ReqHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match FetchOffsetReqBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::FetchOffsetReq(FetchOffsetReq {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "fetch_offset_resp".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn fetch_offset_resp(
-    body_bytes: BytesMut,
-    header: RespHeader,
-) -> Result<Option<JournalEnginePacket>, Error> {
-    match FetchOffsetRespBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = JournalEnginePacket::FetchOffsetResp(FetchOffsetResp {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "fetch_offset_resp".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -658,8 +326,8 @@ mod tests {
 
     use super::{JournalEnginePacket, JournalServerCodec};
     use crate::storage::journal_engine::{
-        ApiKey, ApiVersion, GetClusterMetadataReq, ReadReq, ReadReqBody, ReqHeader, RespHeader,
-        WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+        ApiKey, ApiVersion, ReadReq, ReadReqBody, ReqHeader, RespHeader, WriteReq, WriteReqBody,
+        WriteResp, WriteRespBody,
     };
 
     #[test]
@@ -675,25 +343,6 @@ mod tests {
             body: Some(body),
         };
         let source = JournalEnginePacket::WriteReq(req);
-
-        let mut codec = JournalServerCodec::new();
-        let mut dst = bytes::BytesMut::new();
-        codec.encode(source.clone(), &mut dst).unwrap();
-        let target = codec.decode(&mut dst).unwrap().unwrap();
-        assert_eq!(source, target);
-    }
-
-    #[test]
-    fn get_cluster_metadata_codec_test() {
-        let header = ReqHeader {
-            api_key: ApiKey::GetClusterMetadata.into(),
-            api_version: ApiVersion::V0.into(),
-        };
-
-        let req = GetClusterMetadataReq {
-            header: Some(header),
-        };
-        let source = JournalEnginePacket::GetClusterMetadataReq(req);
 
         let mut codec = JournalServerCodec::new();
         let mut dst = bytes::BytesMut::new();

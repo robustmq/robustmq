@@ -21,7 +21,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
 use tracing::info;
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::handler::command::Command;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnectionType;
@@ -35,7 +35,7 @@ use crate::server::tcp::tcp_server::acceptor_process;
 pub async fn start_tcp_server(
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_sx: broadcast::Sender<bool>,
@@ -68,7 +68,7 @@ pub async fn start_tcp_server(
 struct TcpServer {
     command: Command,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     client_pool: Arc<ClientPool>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -90,7 +90,7 @@ impl TcpServer {
         proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         Self {
@@ -152,6 +152,6 @@ impl TcpServer {
         .await;
 
         self.network_connection_type = NetworkConnectionType::Tcp;
-        info!("Journal Engine Server started successfully, addr: {addr}");
+        info!("Storage Engine Server started successfully, addr: {addr}");
     }
 }

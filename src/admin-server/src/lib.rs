@@ -16,10 +16,10 @@
 pub mod client;
 pub mod cluster;
 pub mod extractor;
-pub mod journal;
 pub mod meta;
 pub mod mqtt;
 pub mod path;
 pub mod server;
 pub mod state;
+pub mod storage;
 pub mod tool;

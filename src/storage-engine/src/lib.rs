@@ -17,7 +17,7 @@
 #![allow(clippy::large_enum_variant)]
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
-use core::cache::{load_metadata_cache, CacheManager};
+use core::cache::{load_metadata_cache, StorageCacheManager};
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use segment::manager::{
@@ -40,8 +40,8 @@ pub mod segment;
 pub mod server;
 
 #[derive(Clone)]
-pub struct JournalServerParams {
-    pub cache_manager: Arc<CacheManager>,
+pub struct StorageEngineParams {
+    pub cache_manager: Arc<StorageCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection_manager: Arc<ConnectionManager>,
     pub segment_file_manager: Arc<SegmentFileManager>,
@@ -52,7 +52,7 @@ pub struct JournalServer {
     config: BrokerConfig,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     main_stop: broadcast::Sender<bool>,
@@ -60,7 +60,7 @@ pub struct JournalServer {
 }
 
 impl JournalServer {
-    pub fn new(params: JournalServerParams, main_stop: Sender<bool>) -> Self {
+    pub fn new(params: StorageEngineParams, main_stop: Sender<bool>) -> Self {
         let config = broker_config();
 
         let (inner_stop, _) = broadcast::channel(2);
@@ -137,9 +137,6 @@ impl JournalServer {
     }
 
     async fn init_node(&self) {
-        // todo
-        self.cache_manager.init_cluster();
-
         load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
         for path in self.config.journal_storage.data_path.clone() {
@@ -162,7 +159,7 @@ impl JournalServer {
         info!("Journal Node was initialized successfully");
     }
 
-    async fn stop_server(cache_manager: Arc<CacheManager>, _client_pool: Arc<ClientPool>) {
+    async fn stop_server(cache_manager: Arc<StorageCacheManager>, _client_pool: Arc<ClientPool>) {
         cache_manager.stop_all_build_index_thread();
     }
 }

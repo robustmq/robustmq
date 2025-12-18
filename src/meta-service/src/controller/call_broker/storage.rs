@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::{
     segment::JournalSegment, segment_meta::JournalSegmentMetadata, shard::JournalShard,
 };
-use protocol::broker::broker_mqtt::{
-    MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType,
-};
+use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
+use std::sync::Arc;
 
 use crate::{
     controller::call_broker::{
@@ -37,8 +34,8 @@ pub async fn update_cache_by_set_shard(
 ) -> Result<(), MetaServiceError> {
     let data = shard_info.encode()?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Shard,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Shard,
         data,
     };
     add_call_message(call_manager, client_pool, message).await?;
@@ -52,8 +49,8 @@ pub async fn update_cache_by_set_segment(
 ) -> Result<(), MetaServiceError> {
     let data = segment_info.encode()?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Segment,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Segment,
         data,
     };
     add_call_message(call_manager, client_pool, message).await?;
@@ -67,8 +64,8 @@ pub async fn update_cache_by_set_segment_meta(
 ) -> Result<(), MetaServiceError> {
     let data = segment_info.encode()?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::SegmentMeta,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::SegmentMeta,
         data,
     };
     add_call_message(call_manager, client_pool, message).await?;

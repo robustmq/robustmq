@@ -63,9 +63,9 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core::cache::CacheManager, segment::manager::SegmentFileManager,
+    core::cache::StorageCacheManager, segment::manager::SegmentFileManager,
     server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
-    JournalServerParams,
+    StorageEngineParams,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
@@ -79,7 +79,7 @@ pub struct BrokerServer {
     main_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
-    journal_params: JournalServerParams,
+    journal_params: StorageEngineParams,
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     rate_limiter_manager: Arc<RateLimiterManager>,
@@ -386,10 +386,10 @@ impl BrokerServer {
         }
     }
 
-    fn build_journal_server(client_pool: Arc<ClientPool>) -> JournalServerParams {
+    fn build_journal_server(client_pool: Arc<ClientPool>) -> StorageEngineParams {
         let config = broker_config();
         let connection_manager = Arc::new(JournalConnectionManager::new());
-        let cache_manager = Arc::new(CacheManager::new());
+        let cache_manager = Arc::new(StorageCacheManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_engine::index::engine::storage_data_fold(&config.journal_storage.data_path),
             10000,
@@ -399,7 +399,7 @@ impl BrokerServer {
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
-        JournalServerParams {
+        StorageEngineParams {
             cache_manager,
             client_pool,
             connection_manager,

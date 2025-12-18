@@ -12,7 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(crate) const ADMIN_NODE_ID: i64 = -999;
-pub(crate) const MODULE_ADMIN: &str = "admin";
-pub(crate) const MODULE_WRITE: &str = "write";
-pub(crate) const MODULE_READ: &str = "read";
+pub mod segment;
+pub mod shard;

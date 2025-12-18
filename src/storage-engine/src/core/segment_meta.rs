@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_journal::UpdateSegmentMetaRequest;
 use tracing::warn;
 
-use super::error::JournalServerError;
+use super::error::StorageEngineError;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
@@ -28,7 +28,7 @@ pub async fn update_end_and_start_offset(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     end_offset: i64,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     // update active segment end offset
     update_meta_end_offset(client_pool.clone(), segment_iden, end_offset).await?;
 
@@ -44,7 +44,7 @@ pub async fn update_meta_start_timestamp(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
@@ -63,7 +63,7 @@ pub async fn update_meta_end_timestamp(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     segment_file_manager: &Arc<SegmentFileManager>,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     if let Some(file) = segment_file_manager.get_segment_file(segment_iden) {
         let next_segment_no = segment_iden.segment_seq;
@@ -89,7 +89,7 @@ async fn update_meta_start_offset(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     start_offset: i64,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
@@ -108,7 +108,7 @@ async fn update_meta_end_offset(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     end_offset: i64,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {

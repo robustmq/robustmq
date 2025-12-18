@@ -22,7 +22,7 @@ use rocksdb_engine::warp::StorageDataWrap;
 use super::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_prefix};
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 
 pub struct TagIndexManager {
@@ -41,7 +41,7 @@ impl TagIndexManager {
         segment_iden: &SegmentIdentity,
         tag: String,
         index_data: IndexData,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         let key = tag_segment(segment_iden, tag, index_data.offset);
         Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
@@ -57,7 +57,7 @@ impl TagIndexManager {
         start_offset: u64,
         tag: String,
         record_num: u64,
-    ) -> Result<Vec<IndexData>, JournalServerError> {
+    ) -> Result<Vec<IndexData>, StorageEngineError> {
         let prefix_key = tag_segment_prefix(segment_iden, tag);
 
         let cf = if let Some(cf) = self
@@ -108,7 +108,7 @@ impl TagIndexManager {
         segment_iden: &SegmentIdentity,
         key: String,
         index_data: IndexData,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         let key = key_segment(segment_iden, key, index_data.offset);
         Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
@@ -124,7 +124,7 @@ impl TagIndexManager {
         start_offset: u64,
         key: String,
         record_num: u64,
-    ) -> Result<Vec<IndexData>, JournalServerError> {
+    ) -> Result<Vec<IndexData>, StorageEngineError> {
         let prefix_key = key_segment_prefix(segment_iden, key);
 
         let cf = if let Some(cf) = self

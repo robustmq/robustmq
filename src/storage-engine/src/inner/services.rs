@@ -17,43 +17,24 @@ use std::sync::Arc;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+    GetShardDeleteStatusRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
-use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
-use crate::core::notification::parse_notification;
+use crate::core::cache::StorageCacheManager;
+use crate::core::error::StorageEngineError;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
 use crate::core::shard::{delete_local_shard, is_delete_by_shard};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
-/// Update journal cache based on the request
-pub async fn update_cache_by_req(
-    cache_manager: &Arc<CacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    request: &UpdateJournalCacheRequest,
-) -> Result<UpdateJournalCacheReply, JournalServerError> {
-    parse_notification(
-        cache_manager,
-        segment_file_manager,
-        request.action_type(),
-        request.resource_type(),
-        &request.data,
-    )
-    .await;
-
-    Ok(UpdateJournalCacheReply::default())
-}
-
 /// Delete shard file based on the request
 pub async fn delete_shard_file_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteShardFileRequest,
-) -> Result<DeleteShardFileReply, JournalServerError> {
+) -> Result<DeleteShardFileReply, StorageEngineError> {
     delete_local_shard(
         cache_manager.clone(),
         rocksdb_engine_handler.clone(),
@@ -67,18 +48,18 @@ pub async fn delete_shard_file_by_req(
 /// Get shard delete status based on the request
 pub async fn get_shard_delete_status_by_req(
     request: &GetShardDeleteStatusRequest,
-) -> Result<GetShardDeleteStatusReply, JournalServerError> {
+) -> Result<GetShardDeleteStatusReply, StorageEngineError> {
     let flag = is_delete_by_shard(request)?;
     Ok(GetShardDeleteStatusReply { status: flag })
 }
 
 /// Delete segment file based on the request
 pub async fn delete_segment_file_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
-) -> Result<DeleteSegmentFileReply, JournalServerError> {
+) -> Result<DeleteSegmentFileReply, StorageEngineError> {
     let segment_iden = SegmentIdentity::new(&request.shard_name, request.segment);
     delete_local_segment(
         cache_manager,
@@ -93,9 +74,9 @@ pub async fn delete_segment_file_by_req(
 
 /// Get segment delete status based on the request
 pub async fn get_segment_delete_status_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     request: &GetSegmentDeleteStatusRequest,
-) -> Result<GetSegmentDeleteStatusReply, JournalServerError> {
+) -> Result<GetSegmentDeleteStatusReply, StorageEngineError> {
     let flag = segment_already_delete(cache_manager, request).await?;
     Ok(GetSegmentDeleteStatusReply { status: flag })
 }

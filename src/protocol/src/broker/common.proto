@@ -1,0 +1,52 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package broker.common;
+
+service BrokerCommonService {
+  rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
+}
+
+message UpdateCacheRequest {
+  BrokerUpdateCacheActionType action_type = 2;
+  BrokerUpdateCacheResourceType resource_type = 3;
+  bytes data = 4;
+}
+
+message UpdateCacheReply {
+  bool code = 1;
+  string data = 2;
+}
+
+enum BrokerUpdateCacheResourceType {
+  Session = 0;
+  User = 1;
+  Subscribe = 2;
+  Topic = 3;
+  Connector = 4;
+  Schema = 5;
+  SchemaResource = 6;
+  ClusterResourceConfig = 7;
+  Node = 8;
+  Shard = 9;
+  Segment = 10;
+  SegmentMeta = 11;
+}
+
+enum BrokerUpdateCacheActionType {
+  Set = 0;
+  Delete = 1;
+}

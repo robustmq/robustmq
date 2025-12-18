@@ -12,40 +12,87 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::cache::BrokerCacheManager;
-use common_base::tools::now_second;
-use protocol::cluster::cluster_status::{
-    cluster_service_server::ClusterService, ClusterStatusReply, ClusterStatusRequest,
+use common_base::error::{common::CommonError, ResultCommonError};
+use mqtt_broker::{
+    broker::MqttBrokerServerParams, handler::dynamic_cache::update_mqtt_cache_metadata,
 };
-use std::sync::Arc;
+use protocol::broker::broker_common::{
+    broker_common_service_server::BrokerCommonService, BrokerUpdateCacheResourceType,
+    UpdateCacheReply, UpdateCacheRequest,
+};
+use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
 
-pub struct ClusterInnerService {
-    cache_manager: Arc<BrokerCacheManager>,
+pub struct GrpcBrokerCommonService {
+    mqtt_params: MqttBrokerServerParams,
+    storage_params: StorageEngineParams,
 }
 
-impl ClusterInnerService {
-    pub fn new(cache_manager: Arc<BrokerCacheManager>) -> Self {
-        ClusterInnerService { cache_manager }
+impl GrpcBrokerCommonService {
+    pub fn new(mqtt_params: MqttBrokerServerParams, storage_params: StorageEngineParams) -> Self {
+        GrpcBrokerCommonService {
+            mqtt_params,
+            storage_params,
+        }
     }
 }
 
 #[tonic::async_trait]
-impl ClusterService for ClusterInnerService {
-    async fn cluster_status(
+impl BrokerCommonService for GrpcBrokerCommonService {
+    async fn update_cache(
         &self,
-        _request: Request<ClusterStatusRequest>,
-    ) -> Result<Response<ClusterStatusReply>, Status> {
-        let node_list = self.cache_manager.node_list();
-        let uptime = now_second() - self.cache_manager.get_start_time();
-
-        let reply = ClusterStatusReply {
-            node_count: node_list.len() as u32,
-            uptime,
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            active_nodes: node_list.iter().map(|n| n.node_id).collect(),
-        };
-
-        Ok(Response::new(reply))
+        request: Request<UpdateCacheRequest>,
+    ) -> Result<Response<UpdateCacheReply>, Status> {
+        let req = request.into_inner();
+        if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, &req).await {
+            return Err(Status::internal(e.to_string()));
+        }
+        Ok(Response::new(UpdateCacheReply::default()))
     }
+}
+
+async fn update_cache(
+    mqtt_params: &MqttBrokerServerParams,
+    storage_params: &StorageEngineParams,
+    req: &UpdateCacheRequest,
+) -> ResultCommonError {
+    match req.resource_type() {
+        BrokerUpdateCacheResourceType::Session
+        | BrokerUpdateCacheResourceType::User
+        | BrokerUpdateCacheResourceType::Subscribe
+        | BrokerUpdateCacheResourceType::Topic
+        | BrokerUpdateCacheResourceType::Connector
+        | BrokerUpdateCacheResourceType::Schema
+        | BrokerUpdateCacheResourceType::SchemaResource => {
+            if let Err(e) = update_mqtt_cache_metadata(
+                &mqtt_params.cache_manager,
+                &mqtt_params.connector_manager,
+                &mqtt_params.subscribe_manager,
+                &mqtt_params.schema_manager,
+                &mqtt_params.message_storage_adapter,
+                &mqtt_params.metrics_cache_manager,
+                req,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+        BrokerUpdateCacheResourceType::ClusterResourceConfig => {}
+        BrokerUpdateCacheResourceType::Node => {}
+        BrokerUpdateCacheResourceType::Shard
+        | BrokerUpdateCacheResourceType::Segment
+        | BrokerUpdateCacheResourceType::SegmentMeta => {
+            if let Err(e) = update_storage_cache_metadata(
+                &storage_params.cache_manager,
+                &storage_params.segment_file_manager,
+                req,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+    }
+    Ok(())
 }

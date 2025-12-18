@@ -15,9 +15,9 @@
 pub mod cache;
 pub mod cluster_config;
 pub mod consts;
+pub mod dynamic_cache;
 pub mod error;
 pub mod log;
-pub mod notification;
 pub mod segment;
 pub mod segment_meta;
 pub mod segment_status;

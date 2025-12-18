@@ -32,7 +32,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MQTTTopic};
 use protocol::{
-    broker::broker_mqtt::{MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType},
+    broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType},
     mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
 };
 use serde::{Deserialize, Serialize};
@@ -79,8 +79,8 @@ struct AddSharePushContext {
 
 #[derive(Clone)]
 pub struct ParseSubscribeData {
-    pub action_type: MqttBrokerUpdateCacheActionType,
-    pub resource_type: MqttBrokerUpdateCacheResourceType,
+    pub action_type: BrokerUpdateCacheActionType,
+    pub resource_type: BrokerUpdateCacheResourceType,
     pub subscribe: Option<MqttSubscribe>,
     pub topic: Option<MQTTTopic>,
 }
@@ -110,20 +110,20 @@ pub async fn start_update_parse_thread(
                 let Some(data) = result else { continue };
 
                 match (data.resource_type, data.action_type) {
-                    (MqttBrokerUpdateCacheResourceType::Topic, MqttBrokerUpdateCacheActionType::Set) => {
+                    (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Set) => {
                         if let Some(topic) = data.topic {
                             if let Err(e) = parse_subscribe_by_new_topic(&client_pool, &cache_manager, &subscribe_manager, &topic).await {
                                 error!("Failed to parse subscriptions for new topic '{}': {}", topic.topic_name, e);
                             }
                         }
                     }
-                    (MqttBrokerUpdateCacheResourceType::Topic, MqttBrokerUpdateCacheActionType::Delete) => {
+                    (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Delete) => {
                         if let Some(topic) = data.topic {
                             info!("Removing subscriptions for deleted topic '{}'", topic.topic_name);
                             subscribe_manager.remove_by_topic(&topic.topic_name);
                         }
                     }
-                    (MqttBrokerUpdateCacheResourceType::Subscribe, MqttBrokerUpdateCacheActionType::Set) => {
+                    (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Set) => {
                         if let Some(subscribe) = data.subscribe {
                             if let Err(e) = parse_subscribe_by_new_subscribe(&subscribe_manager, &cache_manager, &client_pool, &subscribe).await {
                                 error!("Failed to parse new subscription for client '{}', path '{}': {}",
@@ -131,7 +131,7 @@ pub async fn start_update_parse_thread(
                             }
                         }
                     }
-                    (MqttBrokerUpdateCacheResourceType::Subscribe, MqttBrokerUpdateCacheActionType::Delete) => {
+                    (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Delete) => {
                         if let Some(subscribe) = data.subscribe {
                             info!("Removing subscription: client='{}', path='{}'", subscribe.client_id, subscribe.path);
                             subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);

@@ -25,7 +25,7 @@ use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error};
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
@@ -37,7 +37,7 @@ pub(crate) async fn acceptor_process(
     stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
     request_queue_sx: Sender<RequestPackage>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     network_connection_type: NetworkConnectionType,
 ) {
     for index in 1..=accept_thread_num {
@@ -105,7 +105,7 @@ fn read_frame_process(
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
     _network_type: NetworkConnectionType,
-    _cache_manager: Arc<CacheManager>,
+    _cache_manager: Arc<StorageCacheManager>,
 ) {
     tokio::spawn(async move {
         loop {

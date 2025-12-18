@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
-use super::error::JournalServerError;
+use super::cache::StorageCacheManager;
+use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
 use crate::segment::manager::SegmentFileManager;
@@ -32,7 +32,7 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 pub fn delete_local_shard(
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteShardFileRequest,
@@ -78,7 +78,7 @@ pub fn delete_local_shard(
     });
 }
 
-pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, JournalServerError> {
+pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, StorageEngineError> {
     let conf = broker_config();
     for data_fold in conf.journal_storage.data_path.iter() {
         let shard_fold_name = data_fold_shard(&req.shard_name, data_fold);
@@ -96,14 +96,13 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Jou
 ///
 /// Will wait for 3s for the cache update to take effect
 pub async fn create_shard_to_place(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
-) -> Result<(), JournalServerError> {
-    let cluster_config = cache_manager.get_cluster();
+) -> Result<(), StorageEngineError> {
     let config = JournalShardConfig {
-        replica_num: cluster_config.shard_replica_num,
-        max_segment_size: cluster_config.max_segment_size,
+        replica_num: 1,
+        max_segment_size: 1073741824,
     };
     let conf = broker_config();
     let request = CreateShardRequest {
@@ -140,7 +139,7 @@ pub async fn create_shard_to_place(
 pub async fn delete_shard_to_place(
     client_pool: Arc<ClientPool>,
     shard_name: &str,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     let request = DeleteShardRequest {
         shard_name: shard_name.to_string(),
@@ -156,16 +155,12 @@ pub async fn delete_shard_to_place(
 }
 
 pub async fn try_auto_create_shard(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     if cache_manager.get_shard(shard_name).is_some() {
         return Ok(());
-    }
-
-    if !cache_manager.get_cluster().enable_auto_create_shard {
-        return Err(JournalServerError::ShardNotExist(shard_name.to_string()));
     }
 
     create_shard_to_place(cache_manager, client_pool, shard_name).await?;
@@ -181,5 +176,5 @@ pub async fn try_auto_create_shard(
         sleep(Duration::from_secs(1)).await;
     }
 
-    Err(JournalServerError::ShardNotExist(shard_name.to_string()))
+    Err(StorageEngineError::ShardNotExist(shard_name.to_string()))
 }

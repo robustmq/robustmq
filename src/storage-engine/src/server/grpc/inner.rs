@@ -12,35 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::inner::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
-    get_shard_delete_status_by_req, update_cache_by_req,
+    get_shard_delete_status_by_req,
 };
 use crate::segment::manager::SegmentFileManager;
-use protocol::broker::broker_storage::storage_engine_inner_service_server::StorageEngineInnerService;
+use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageService;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+    GetShardDeleteStatusRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
-pub struct GrpcJournalServerInnerService {
-    cache_manager: Arc<CacheManager>,
+pub struct GrpcBrokerStorageServerService {
+    cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl GrpcJournalServerInnerService {
+impl GrpcBrokerStorageServerService {
     pub fn new(
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
-        GrpcJournalServerInnerService {
+        GrpcBrokerStorageServerService {
             cache_manager,
             segment_file_manager,
             rocksdb_engine_handler,
@@ -49,18 +49,7 @@ impl GrpcJournalServerInnerService {
 }
 
 #[tonic::async_trait]
-impl StorageEngineInnerService for GrpcJournalServerInnerService {
-    async fn update_cache(
-        &self,
-        request: Request<UpdateJournalCacheRequest>,
-    ) -> Result<Response<UpdateJournalCacheReply>, Status> {
-        let request = request.into_inner();
-        update_cache_by_req(&self.cache_manager, &self.segment_file_manager, &request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
+impl BrokerStorageService for GrpcBrokerStorageServerService {
     async fn delete_shard_file(
         &self,
         request: Request<DeleteShardFileRequest>,

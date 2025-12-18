@@ -3599,23 +3599,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "journal-client"
-version = "0.2.7"
-dependencies = [
- "common-base",
- "dashmap",
- "futures",
- "metadata-struct",
- "protocol",
- "rand 0.8.5",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
 name = "js-sys"
 version = "0.3.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6402,7 +6385,6 @@ dependencies = [
  "dashmap",
  "futures",
  "grpc-clients",
- "journal-client",
  "metadata-struct",
  "mqtt-broker",
  "network-server",
@@ -7479,7 +7461,6 @@ dependencies = [
  "dashmap",
  "futures",
  "grpc-clients",
- "journal-client",
  "metadata-struct",
  "mysql",
  "opendal",

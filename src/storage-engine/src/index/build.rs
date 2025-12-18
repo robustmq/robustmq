@@ -31,9 +31,9 @@ use super::keys::{finish_build_index, last_offset_build_index, segment_index_pre
 use super::offset::OffsetIndexManager;
 use super::tag::TagIndexManager;
 use super::time::TimestampIndexManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::StorageCacheManager;
 use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use crate::index::IndexData;
 use crate::segment::file::{open_segment_write, ReadData};
 use crate::segment::manager::SegmentFileManager;
@@ -45,11 +45,11 @@ pub struct IndexBuildThreadData {
 }
 
 pub async fn try_trigger_build_index(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     if cache_manager.contain_build_index_thread(segment_iden) {
         return Ok(());
     }
@@ -65,7 +65,7 @@ pub async fn try_trigger_build_index(
         if let Some(segment_file) = segment_file_manager.get_segment_file(segment_iden) {
             segment_file
         } else {
-            return Err(JournalServerError::SegmentMetaNotExists(
+            return Err(StorageEngineError::SegmentMetaNotExists(
                 segment_iden.name(),
             ));
         };
@@ -104,14 +104,14 @@ pub async fn try_trigger_build_index(
 }
 
 async fn start_segment_build_index_thread(
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_iden: SegmentIdentity,
     start_offset: u64,
     start_position: u64,
     mut last_build_offset: u64,
     mut stop_recv: Receiver<bool>,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let time_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
@@ -202,7 +202,7 @@ async fn start_segment_build_index_thread(
 
 fn try_finish_segment_index_build(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
 ) {
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
@@ -221,7 +221,7 @@ async fn save_record_index(
     offset_index: &OffsetIndexManager,
     time_index: &TimestampIndexManager,
     tag_index: &TagIndexManager,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     for read_data in data.iter() {
         let record = read_data.record.clone();
         let index_data = IndexData {
@@ -266,7 +266,7 @@ async fn save_record_index(
 fn save_finish_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let key = finish_build_index(segment_iden);
     Ok(engine_save_by_journal(
         rocksdb_engine_handler.clone(),
@@ -279,7 +279,7 @@ fn save_finish_build_index(
 fn is_finish_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-) -> Result<bool, JournalServerError> {
+) -> Result<bool, StorageEngineError> {
     let key = finish_build_index(segment_iden);
     let res =
         engine_get_by_journal::<u8>(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
@@ -290,7 +290,7 @@ fn save_last_offset_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     offset: u64,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let key = last_offset_build_index(segment_iden);
     Ok(engine_save_by_journal(
         rocksdb_engine_handler.clone(),
@@ -303,7 +303,7 @@ fn save_last_offset_build_index(
 fn get_last_offset_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-) -> Result<Option<u64>, JournalServerError> {
+) -> Result<Option<u64>, StorageEngineError> {
     let key = last_offset_build_index(segment_iden);
     if let Some(res) =
         engine_get_by_journal::<u64>(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
@@ -317,7 +317,7 @@ fn get_last_offset_build_index(
 pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     use super::IndexData;
 
     let prefix_key_name = segment_index_prefix(segment_iden);
@@ -447,7 +447,7 @@ mod tests {
     async fn build_thread_test() {
         let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_base_write_data(10001).await;
-        let res: Result<(), crate::core::error::JournalServerError> = try_trigger_build_index(
+        let res: Result<(), crate::core::error::StorageEngineError> = try_trigger_build_index(
             &cache_manager,
             &segment_file_manager,
             &rocksdb_engine_handler,

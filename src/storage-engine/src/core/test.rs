@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::StorageCacheManager;
 use crate::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::{create_write_thread, write_data};
@@ -65,7 +65,7 @@ pub fn test_init_conf() {
 #[allow(dead_code)]
 pub async fn test_init_segment() -> (
     SegmentIdentity,
-    Arc<CacheManager>,
+    Arc<StorageCacheManager>,
     Arc<SegmentFileManager>,
     String,
     Arc<RocksDBEngine>,
@@ -89,7 +89,7 @@ pub async fn test_init_segment() -> (
         ..Default::default()
     };
 
-    let cache_manager = Arc::new(CacheManager::new());
+    let cache_manager = Arc::new(StorageCacheManager::new());
     create_local_segment(&cache_manager, &segment_file_manager, &segment)
         .await
         .unwrap();
@@ -120,7 +120,7 @@ pub async fn test_base_write_data(
     len: u64,
 ) -> (
     SegmentIdentity,
-    Arc<CacheManager>,
+    Arc<StorageCacheManager>,
     Arc<SegmentFileManager>,
     String,
     Arc<RocksDBEngine>,

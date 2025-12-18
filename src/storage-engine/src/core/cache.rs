@@ -12,21 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cluster_config::JournalEngineClusterConfig;
 use crate::index::build::IndexBuildThreadData;
 use crate::segment::write::SegmentWrite;
 use crate::segment::SegmentIdentity;
-use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::meta::common::call::node_list;
 use grpc_clients::meta::journal::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use metadata_struct::meta::node::BrokerNode;
-use protocol::meta::meta_service_common::NodeListRequest;
 use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
@@ -34,15 +29,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 #[derive(Clone)]
-pub struct CacheManager {
-    start_time: u64,
-
-    // ("local", JournalEngineClusterConfig)
-    cluster: DashMap<String, JournalEngineClusterConfig>,
-
-    // (node_id, BrokerNode)
-    node_list: DashMap<u64, BrokerNode>,
-
+pub struct StorageCacheManager {
     // (shard_name, JournalShard)
     shards: DashMap<String, JournalShard>,
 
@@ -62,78 +49,27 @@ pub struct CacheManager {
     segment_writes: DashMap<String, SegmentWrite>,
 }
 
-impl Default for CacheManager {
+impl Default for StorageCacheManager {
     fn default() -> Self {
         Self::new()
     }
 }
-impl CacheManager {
+impl StorageCacheManager {
     pub fn new() -> Self {
-        let cluster = DashMap::with_capacity(2);
-        let node_list = DashMap::with_capacity(2);
         let shards = DashMap::with_capacity(8);
         let segments = DashMap::with_capacity(8);
         let segment_metadatas = DashMap::with_capacity(8);
         let leader_segments = DashMap::with_capacity(8);
         let segment_index_build_thread = DashMap::with_capacity(2);
         let segment_write = DashMap::with_capacity(2);
-        CacheManager {
-            cluster,
-            node_list,
+        StorageCacheManager {
             shards,
             segments,
             segment_metadatas,
             leader_segments,
             segment_index_build_thread,
             segment_writes: segment_write,
-            start_time: now_second(),
         }
-    }
-
-    // Node
-    pub fn add_node(&self, node: BrokerNode) {
-        self.node_list.insert(node.node_id, node);
-    }
-
-    pub fn delete_node(&self, node_id: u64) {
-        self.node_list.remove(&node_id);
-    }
-
-    pub fn all_node(&self) -> Vec<BrokerNode> {
-        let mut results = Vec::new();
-        for raw in self.node_list.iter() {
-            results.push(raw.value().clone());
-        }
-        results
-    }
-
-    // Cluster
-    pub fn get_cluster(&self) -> JournalEngineClusterConfig {
-        return self.cluster.get("local").unwrap().clone();
-    }
-
-    pub fn init_cluster(&self) {
-        let cluster_config = JournalEngineClusterConfig::build();
-        info!(
-            "cluster config: {}",
-            serde_json::to_string(&cluster_config).unwrap()
-        );
-
-        self.cluster.insert("local".to_string(), cluster_config);
-    }
-
-    pub fn update_local_cache_time(&self, time: u64) {
-        if let Some(mut cluster) = self.cluster.get_mut("local") {
-            cluster.last_update_local_cache_time = time;
-        }
-    }
-
-    pub fn is_allow_update_local_cache(&self) -> bool {
-        if (now_second() - self.get_cluster().last_update_local_cache_time) > 3 {
-            return true;
-        }
-
-        false
     }
 
     // Shard
@@ -350,44 +286,14 @@ impl CacheManager {
     fn remove_leader_segment(&self, segment_iden: &SegmentIdentity) {
         self.leader_segments.remove(&segment_iden.name());
     }
-
-    // get start time
-    pub fn get_start_time(&self) -> u64 {
-        self.start_time
-    }
 }
 
 /// fetch node, shard, segment, segment meta from meta service and store them in cache
-pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
+pub async fn load_metadata_cache(
+    cache_manager: &Arc<StorageCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) {
     let conf = broker_config();
-
-    if !cache_manager.is_allow_update_local_cache() {
-        return;
-    }
-
-    // load node
-    let request = NodeListRequest {};
-    match node_list(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => {
-            info!(
-                "Load the node cache, the number of nodes is {}",
-                list.nodes.len()
-            );
-            for raw in list.nodes {
-                let node = match BrokerNode::decode(&raw) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        panic!("Failed to decode the BrokerNode information, {e}");
-                    }
-                };
-                cache_manager.add_node(node);
-            }
-        }
-        Err(e) => {
-            panic!("Loading the node cache from the Meta Service failed, {e}");
-        }
-    }
-
     // load shard
     let request = ListShardRequest {
         ..Default::default()
@@ -460,6 +366,4 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             panic!("Loading the segment metadata cache from the Meta Service failed, {e}");
         }
     }
-
-    cache_manager.update_local_cache_time(now_second());
 }

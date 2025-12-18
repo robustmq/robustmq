@@ -21,7 +21,7 @@ use thiserror::Error;
 use crate::segment::write::SegmentWriteData;
 
 #[derive(Error, Debug)]
-pub enum JournalServerError {
+pub enum StorageEngineError {
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
 
@@ -104,54 +104,54 @@ pub enum JournalServerError {
     SegmentOffsetAtTheEnd,
 }
 
-pub fn get_journal_server_code(e: &JournalServerError) -> String {
+pub fn get_journal_server_code(e: &StorageEngineError) -> String {
     match e {
-        JournalServerError::CommonError(_) => "CommonError".to_string(),
-        JournalServerError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
-        JournalServerError::MpscSegmentWriteDataSendError(_) => {
+        StorageEngineError::CommonError(_) => "CommonError".to_string(),
+        StorageEngineError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
+        StorageEngineError::MpscSegmentWriteDataSendError(_) => {
             "MpscSegmentWriteDataSendError".to_string()
         }
-        JournalServerError::OneshotRecvError(_) => "OneshotRecvError".to_string(),
-        JournalServerError::FromUtf8Error(_) => "FromUtf8Error".to_string(),
-        JournalServerError::SegmentAlreadySealUp(_) => "SegmentAlreadySealUp".to_string(),
-        JournalServerError::TokioTimeErrorElapsed(_) => "TokioTimeErrorElapsed".to_string(),
-        JournalServerError::StdIoError(_) => "StdIoError".to_string(),
-        JournalServerError::ProstDecodeError(_) => "ProstDecodeError".to_string(),
-        JournalServerError::SerdeJsonError(_) => "SerdeJsonError".to_string(),
-        JournalServerError::ParseIntError(_) => "ParseIntError".to_string(),
-        JournalServerError::RequestBodyNotEmpty(_) => "RequestBodyNotEmpty".to_string(),
-        JournalServerError::ShardNotExist(_) => "ShardNotExist".to_string(),
-        JournalServerError::NotAvailableSegments(_) => "NotAvailableSegments".to_string(),
-        JournalServerError::NotActiveSegment(_) => "NotActiveSegment".to_string(),
-        JournalServerError::SegmentNotExist(_) => "SegmentNotExist".to_string(),
-        JournalServerError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
-        JournalServerError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),
-        JournalServerError::NotLeader(_) => "NotLeader".to_string(),
-        JournalServerError::SegmentFileNotExists(_) => "SegmentFileNotExists".to_string(),
-        JournalServerError::SegmentDataDirectoryNotFound(_, _) => {
+        StorageEngineError::OneshotRecvError(_) => "OneshotRecvError".to_string(),
+        StorageEngineError::FromUtf8Error(_) => "FromUtf8Error".to_string(),
+        StorageEngineError::SegmentAlreadySealUp(_) => "SegmentAlreadySealUp".to_string(),
+        StorageEngineError::TokioTimeErrorElapsed(_) => "TokioTimeErrorElapsed".to_string(),
+        StorageEngineError::StdIoError(_) => "StdIoError".to_string(),
+        StorageEngineError::ProstDecodeError(_) => "ProstDecodeError".to_string(),
+        StorageEngineError::SerdeJsonError(_) => "SerdeJsonError".to_string(),
+        StorageEngineError::ParseIntError(_) => "ParseIntError".to_string(),
+        StorageEngineError::RequestBodyNotEmpty(_) => "RequestBodyNotEmpty".to_string(),
+        StorageEngineError::ShardNotExist(_) => "ShardNotExist".to_string(),
+        StorageEngineError::NotAvailableSegments(_) => "NotAvailableSegments".to_string(),
+        StorageEngineError::NotActiveSegment(_) => "NotActiveSegment".to_string(),
+        StorageEngineError::SegmentNotExist(_) => "SegmentNotExist".to_string(),
+        StorageEngineError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
+        StorageEngineError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),
+        StorageEngineError::NotLeader(_) => "NotLeader".to_string(),
+        StorageEngineError::SegmentFileNotExists(_) => "SegmentFileNotExists".to_string(),
+        StorageEngineError::SegmentDataDirectoryNotFound(_, _) => {
             "SegmentDataDirectoryNotFound".to_string()
         }
-        JournalServerError::SegmentMetaNotExists(_) => "SegmentMetaNotExists".to_string(),
-        JournalServerError::SegmentFileMetaNotExists(_) => "SegmentFileMetaNotExists".to_string(),
-        JournalServerError::TimestampBelongToPreviousSegment(_, _, _) => {
+        StorageEngineError::SegmentMetaNotExists(_) => "SegmentMetaNotExists".to_string(),
+        StorageEngineError::SegmentFileMetaNotExists(_) => "SegmentFileMetaNotExists".to_string(),
+        StorageEngineError::TimestampBelongToPreviousSegment(_, _, _) => {
             "TimestampBelongToPreviousSegment".to_string()
         }
-        JournalServerError::TimestampBelongToNextSegment(_, _, _) => {
+        StorageEngineError::TimestampBelongToNextSegment(_, _, _) => {
             "TimestampBelongToNextSegment".to_string()
         }
-        JournalServerError::NotAvailableOffsetByTimestamp(_, _) => {
+        StorageEngineError::NotAvailableOffsetByTimestamp(_, _) => {
             "NotAvailableOffsetByTimestamp".to_string()
         }
-        JournalServerError::SegmentOffsetAtTheEnd => "SegmentOffsetAtTheEnd".to_string(),
+        StorageEngineError::SegmentOffsetAtTheEnd => "SegmentOffsetAtTheEnd".to_string(),
     }
 }
 #[cfg(test)]
 mod tests {
-    use super::{get_journal_server_code, JournalServerError};
+    use super::{get_journal_server_code, StorageEngineError};
 
     #[tokio::test]
     async fn get_journal_server_code_test() {
-        let e = JournalServerError::SegmentMetaNotExists("xx".to_string());
+        let e = StorageEngineError::SegmentMetaNotExists("xx".to_string());
         assert_eq!(
             get_journal_server_code(&e),
             "SegmentMetaNotExists".to_string()

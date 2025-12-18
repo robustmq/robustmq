@@ -25,7 +25,7 @@ use super::keys::{
 };
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-use crate::core::error::JournalServerError;
+use crate::core::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 
 pub struct OffsetIndexManager {
@@ -43,7 +43,7 @@ impl OffsetIndexManager {
         &self,
         segment_iden: &SegmentIdentity,
         start_offset: u64,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         let key = offset_segment_start(segment_iden);
         Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
@@ -56,7 +56,7 @@ impl OffsetIndexManager {
     pub fn get_start_offset(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<i64, JournalServerError> {
+    ) -> Result<i64, StorageEngineError> {
         let key = offset_segment_start(segment_iden);
         if let Some(res) = engine_get_by_journal::<i64>(
             self.rocksdb_engine_handler.clone(),
@@ -73,7 +73,7 @@ impl OffsetIndexManager {
         &self,
         segment_iden: &SegmentIdentity,
         end_offset: u64,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         let key = offset_segment_end(segment_iden);
         Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
@@ -86,7 +86,7 @@ impl OffsetIndexManager {
     pub fn get_end_offset(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<i64, JournalServerError> {
+    ) -> Result<i64, StorageEngineError> {
         let key = offset_segment_end(segment_iden);
         if let Some(res) = engine_get_by_journal::<i64>(
             self.rocksdb_engine_handler.clone(),
@@ -104,7 +104,7 @@ impl OffsetIndexManager {
         segment_iden: &SegmentIdentity,
         offset: u64,
         index_data: IndexData,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         let key = offset_segment_position(segment_iden, offset);
         Ok(engine_save_by_journal(
             self.rocksdb_engine_handler.clone(),
@@ -119,7 +119,7 @@ impl OffsetIndexManager {
         &self,
         segment_iden: &SegmentIdentity,
         start_offset: u64,
-    ) -> Result<Option<IndexData>, JournalServerError> {
+    ) -> Result<Option<IndexData>, StorageEngineError> {
         let prefix_key = offset_segment_position_prefix(segment_iden);
 
         let cf = if let Some(cf) = self

@@ -21,15 +21,15 @@ use metadata_struct::journal::segment::SegmentStatus;
 use protocol::meta::meta_service_journal::UpdateSegmentStatusRequest;
 use tracing::warn;
 
-use super::cache::CacheManager;
-use super::error::JournalServerError;
+use super::cache::StorageCacheManager;
+use super::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 
 pub async fn pre_sealup_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     // active segment to preSealUp
     update_segment_status_to_pre_seal_up(cache_manager, client_pool, segment_iden).await?;
 
@@ -40,10 +40,10 @@ pub async fn pre_sealup_segment(
 }
 
 pub async fn sealup_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     // active segment to sealUp
     update_segment_status_to_seal_up(cache_manager, client_pool, segment_iden).await?;
 
@@ -54,10 +54,10 @@ pub async fn sealup_segment(
 }
 
 async fn update_segment_status_to_pre_write(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::Idle {
@@ -82,10 +82,10 @@ async fn update_segment_status_to_pre_write(
 }
 
 async fn update_segment_status_to_write(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::PreWrite {
@@ -108,10 +108,10 @@ async fn update_segment_status_to_write(
 }
 
 async fn update_segment_status_to_pre_seal_up(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::Write {
@@ -137,10 +137,10 @@ async fn update_segment_status_to_pre_seal_up(
 }
 
 async fn update_segment_status_to_seal_up(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::PreSealUp {

@@ -18,11 +18,11 @@ use crate::controller::call_broker::mqtt::BrokerCallNodeSender;
 use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
 use common_base::utils::serialize;
-use grpc_clients::broker::mqtt::call::broker_mqtt_update_cache;
+use grpc_clients::broker::common::call::broker_common_update_cache;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
-use protocol::broker::broker_mqtt::MqttBrokerUpdateCacheResourceType;
-use protocol::broker::broker_mqtt::UpdateMqttCacheRequest;
+use protocol::broker::broker_common::BrokerUpdateCacheResourceType;
+use protocol::broker::broker_common::UpdateCacheRequest;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -70,7 +70,7 @@ pub async fn start_call_thread(
 }
 
 fn is_ignore_push(node: &BrokerNode, data: &BrokerCallMessage) -> bool {
-    if data.resource_type == MqttBrokerUpdateCacheResourceType::Node {
+    if data.resource_type == BrokerUpdateCacheResourceType::Node {
         let broker_node = match serialize::deserialize::<BrokerNode>(&data.data) {
             Ok(node) => node,
             Err(_) => {
@@ -87,13 +87,13 @@ async fn call_mqtt_update_cache(
     addr: &String,
     data: &BrokerCallMessage,
 ) {
-    let request = UpdateMqttCacheRequest {
+    let request = UpdateCacheRequest {
         action_type: data.action_type.into(),
         resource_type: data.resource_type.into(),
         data: data.data.clone(),
     };
 
-    if let Err(e) = broker_mqtt_update_cache(client_pool, &[addr], request.clone()).await {
+    if let Err(e) = broker_common_update_cache(client_pool, &[addr], request.clone()).await {
         if broker_cache.is_stop().await {
             return;
         }

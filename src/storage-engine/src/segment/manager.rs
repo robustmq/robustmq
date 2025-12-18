@@ -24,8 +24,8 @@ use tracing::{error, info};
 
 use super::file::SegmentFile;
 use super::SegmentIdentity;
-use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::cache::StorageCacheManager;
+use crate::core::error::StorageEngineError;
 use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::time::TimestampIndexManager;
@@ -83,7 +83,7 @@ impl SegmentFileManager {
         &self,
         segment_iden: &SegmentIdentity,
         start_offset: i64,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
             data.start_offset = start_offset;
             let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
@@ -96,7 +96,7 @@ impl SegmentFileManager {
         &self,
         segment_iden: &SegmentIdentity,
         end_offset: i64,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
             data.end_offset = end_offset;
             let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
@@ -109,7 +109,7 @@ impl SegmentFileManager {
         &self,
         segment_iden: &SegmentIdentity,
         timestamp: u64,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
             data.start_timestamp = timestamp as i64;
             let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
@@ -122,7 +122,7 @@ impl SegmentFileManager {
         &self,
         segment_iden: &SegmentIdentity,
         timestamp: u64,
-    ) -> Result<(), JournalServerError> {
+    ) -> Result<(), StorageEngineError> {
         if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
             data.end_timestamp = timestamp as i64;
             let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
@@ -140,7 +140,7 @@ pub fn load_local_segment_cache(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     local_data_folds: &Vec<String>,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let dir_str = dir.display().to_string();
     let rocksdb_dir = storage_data_fold(local_data_folds);
     if dir_str == rocksdb_dir {
@@ -215,10 +215,10 @@ pub fn metadata_and_local_segment_diff_check() {
 
 /// Create a new local segment file from `JournalSegment`.
 pub async fn create_local_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment: &JournalSegment,
-) -> Result<(), JournalServerError> {
+) -> Result<(), StorageEngineError> {
     let segment_iden = SegmentIdentity {
         shard_name: segment.shard_name.clone(),
         segment_seq: segment.segment_seq,
@@ -232,7 +232,7 @@ pub async fn create_local_segment(
     let fold = if let Some(fold) = segment.get_fold(conf.broker_id) {
         fold
     } else {
-        return Err(JournalServerError::SegmentDataDirectoryNotFound(
+        return Err(StorageEngineError::SegmentDataDirectoryNotFound(
             segment_iden.name(),
             conf.broker_id,
         ));
