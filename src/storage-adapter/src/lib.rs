@@ -14,9 +14,9 @@
 
 #![allow(clippy::result_large_err)]
 pub mod driver;
+pub mod engine;
 pub mod expire;
 pub mod file;
-// pub mod journal;
 pub mod memory;
 pub mod minio;
 pub mod tests;
