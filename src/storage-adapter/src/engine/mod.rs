@@ -58,7 +58,7 @@ impl StorageAdapter for JournalStorageAdapter {
     async fn write(&self, shard: &str, record: &Record) -> Result<u64, CommonError> {
         let res = self
             .adapter
-            .batch_write(shard, &vec![record.clone()])
+            .batch_write(shard, std::slice::from_ref(record))
             .await?;
 
         if let Some(offset) = res.first() {
