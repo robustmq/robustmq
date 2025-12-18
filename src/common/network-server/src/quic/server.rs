@@ -29,12 +29,13 @@ use std::sync::Arc;
 use tracing::info;
 
 pub struct QuicServer {
+    name: String,
     context: ServerContext,
 }
 
 impl QuicServer {
-    pub fn new(context: ServerContext) -> Self {
-        QuicServer { context }
+    pub fn new(name: String, context: ServerContext) -> Self {
+        QuicServer { name, context }
     }
 
     pub async fn start(&self, port: u32) -> ResultCommonError {
@@ -66,15 +67,10 @@ impl QuicServer {
             self.context.stop_sx.clone(),
         );
 
-        // response_process(ResponseChildProcessContext {
-        //     response_process_num: self.context.proc_config.response_process_num,
-        //     connection_manager: self.context.connection_manager.clone(),
-        //     request_channel: request_channel.clone(),
-        //     network_type: NetworkConnectionType::QUIC,
-        //     stop_sx: self.context.stop_sx.clone(),
-        // });
-
-        info!("MQTT Quic Server started successfully, addr: {}", addr);
+        info!(
+            "{} Quic Server started successfully, addr: {}",
+            self.name, addr
+        );
         Ok(())
     }
 

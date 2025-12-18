@@ -75,19 +75,20 @@ impl WebSocketServerState {
 }
 #[derive(Clone)]
 pub struct WebSocketServer {
+    name: String,
     state: WebSocketServerState,
 }
 
 impl WebSocketServer {
-    pub fn new(state: WebSocketServerState) -> Self {
-        WebSocketServer { state }
+    pub fn new(name: String, state: WebSocketServerState) -> Self {
+        WebSocketServer { name, state }
     }
 
     pub async fn start_ws(&self) -> ResultCommonError {
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.ws_port).parse()?;
         let app = routes_v1(self.state.clone());
 
-        info!("Broker WebSocket Server start success. addr:{}", ip);
+        info!("{} WebSocket Server start success. addr:{}", self.name, ip);
         axum_server::bind(ip)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
@@ -105,7 +106,10 @@ impl WebSocketServer {
         )
         .await?;
 
-        info!("Broker WebSocket TLS Server start success. addr:{}", ip);
+        info!(
+            "{} WebSocket TLS Server start success. addr:{}",
+            self.name, ip
+        );
         axum_server::bind_rustls(ip, tls_config)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
@@ -131,7 +135,7 @@ async fn ws_handler(
         String::from("Unknown Source")
     };
 
-    info!("websocket `{user_agent}` at {addr} connected.");
+    debug!("websocket `{user_agent}` at {addr} connected.");
     let codec = RobustMQCodec::new();
     ws.protocols(["mqtt", "mqttv3.1"])
         .on_upgrade(move |socket| {

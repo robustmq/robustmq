@@ -267,7 +267,7 @@ impl BrokerServer {
             self.config.runtime.runtime_worker_threads,
         );
 
-        if config.is_start_journal() {
+        if config.is_start_storage_engine() {
             journal_stop_send = Some(stop_send.clone());
             let server = JournalServer::new(self.journal_params.clone(), stop_send);
             journal_runtime.spawn(async move {

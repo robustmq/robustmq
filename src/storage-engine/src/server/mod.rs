@@ -82,7 +82,9 @@ impl Server {
         };
 
         // TCP Server
-        let tcp_server = TcpServer::new(context.clone());
+
+        let name = "Storage Engine".to_string();
+        let tcp_server = TcpServer::new(name.clone(), context.clone());
         if let Err(e) = tcp_server.start(false, conf.journal_server.tcp_port).await {
             error!("Storage Engine tCP server start fail, error:{}", e);
         }
