@@ -2916,7 +2916,6 @@ name = "grpc-clients"
 version = "0.2.7"
 dependencies = [
  "common-base",
- "common-config",
  "dashmap",
  "metadata-struct",
  "mobc",
@@ -7471,7 +7470,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "third-driver",
  "tokio",
  "tracing",
 ]

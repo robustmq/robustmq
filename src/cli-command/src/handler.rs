@@ -24,7 +24,7 @@ use crate::mqtt::params::{
     FlappingDetectArgs, PubSubArgs, SchemaArgs, SessionArgs, SlowSubscribeArgs, SubscribesArgs,
     SystemAlarmArgs, TopicArgs, TopicRewriteArgs, UserArgs,
 };
-use clap::{arg, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use serde::Deserialize;
 
 #[derive(Parser)] // requires `derive` feature

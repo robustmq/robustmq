@@ -16,7 +16,7 @@ use crate::mqtt::command::MqttActionType;
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 use admin_server::mqtt::connector::FailureStrategy;
 use clap::builder::EnumValueParser;
-use clap::{arg, Parser};
+use clap::Parser;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
