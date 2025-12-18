@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::ShardOffset;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
+use metadata_struct::adapter::ShardOffset;
 use protocol::meta::meta_service_common::{
     GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };

@@ -396,10 +396,11 @@ mod test {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::read_config::ReadConfig;
+    use metadata_struct::adapter::ShardInfo;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use std::sync::Arc;
-    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
+    use storage_adapter::storage::build_memory_storage_driver;
 
     #[tokio::test]
     async fn test_write_topic_data() {

@@ -102,9 +102,9 @@ impl MessageStorage {
 mod tests {
     use super::*;
     use common_config::storage::memory::StorageDriverMemoryConfig;
-    use metadata_struct::adapter::record::Record;
+    use metadata_struct::adapter::{record::Record, ShardInfo};
     use std::sync::Arc;
-    use storage_adapter::{memory::MemoryStorageAdapter, storage::ShardInfo};
+    use storage_adapter::memory::MemoryStorageAdapter;
 
     async fn create_test_storage() -> MessageStorage {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new(

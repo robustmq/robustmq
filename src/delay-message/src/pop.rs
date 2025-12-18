@@ -90,18 +90,19 @@ pub(crate) async fn read_offset_data(
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, time::Duration};
-
-    use common_base::tools::unique_id;
-    use metadata_struct::{adapter::record::Record, delay_info::DelayMessageInfo};
-    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
-    use tokio::time::sleep;
-
     use crate::{
         delay::init_delay_message_shard,
         pop::{read_offset_data, send_delay_message_to_shard},
         start_delay_message_pop, DelayMessageManager,
     };
+    use common_base::tools::unique_id;
+    use metadata_struct::{
+        adapter::{record::Record, ShardInfo},
+        delay_info::DelayMessageInfo,
+    };
+    use std::{sync::Arc, time::Duration};
+    use storage_adapter::storage::build_memory_storage_driver;
+    use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn read_offset_data_test() {

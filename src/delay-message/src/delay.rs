@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
-use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
+use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo};
+use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
@@ -160,8 +159,8 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::adapter::record::Record;
-    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
+    use metadata_struct::adapter::{record::Record, ShardInfo};
+    use storage_adapter::storage::build_memory_storage_driver;
 
     use crate::{
         get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,

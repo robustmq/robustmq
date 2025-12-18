@@ -14,13 +14,14 @@
 
 use crate::expire::MessageExpireConfig;
 use crate::file::key::*;
-use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
+use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use rocksdb::WriteBatch;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;

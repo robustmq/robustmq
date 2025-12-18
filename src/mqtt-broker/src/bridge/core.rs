@@ -428,8 +428,8 @@ mod tests {
     use crate::bridge::manager::ConnectorManager;
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
-    use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter, ShardInfo};
+    use metadata_struct::{adapter::ShardInfo, mqtt::bridge::connector::FailureHandlingStrategy};
+    use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter};
 
     fn setup() -> (ArcStorageAdapter, Arc<ConnectorManager>) {
         let namespace = unique_id();

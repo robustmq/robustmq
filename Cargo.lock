@@ -7470,6 +7470,7 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
+ "storage-engine",
  "tempfile",
  "third-driver",
  "tokio",

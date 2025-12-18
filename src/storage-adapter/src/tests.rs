@@ -14,9 +14,9 @@
 
 use std::collections::HashMap;
 
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo};
 
-use crate::storage::{ArcStorageAdapter, ShardInfo};
+use crate::storage::ArcStorageAdapter;
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1 = ShardInfo {

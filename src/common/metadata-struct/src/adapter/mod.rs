@@ -12,6 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
+
 pub mod read_config;
 pub mod record;
 pub mod serde_bytes_wrapper;
+
+pub enum OffsetStrategy {
+    Earliest,
+    Latest,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct ShardInfo {
+    pub shard_name: String,
+    pub replica_num: u32,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct ShardOffset {
+    pub group: String,
+    pub shard_name: String,
+    pub segment_no: u32,
+    pub offset: u64,
+}

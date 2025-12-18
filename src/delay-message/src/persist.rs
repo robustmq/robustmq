@@ -138,22 +138,20 @@ async fn send_expired_delay_message(
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, time::Duration};
-
-    use common_base::{tools::unique_id, utils::serialize};
-    use metadata_struct::{
-        adapter::{read_config::ReadConfig, record::Record},
-        delay_info::DelayMessageInfo,
-    };
-    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
-    use tokio::time::sleep;
-
     use crate::{
         delay::init_delay_message_shard,
         persist::{persist_delay_info, recover_delay_queue, DELAY_QUEUE_INFO_SHARD_NAME},
         pop::read_offset_data,
         start_delay_message_pop, DelayMessageManager,
     };
+    use common_base::{tools::unique_id, utils::serialize};
+    use metadata_struct::{
+        adapter::{read_config::ReadConfig, record::Record, ShardInfo},
+        delay_info::DelayMessageInfo,
+    };
+    use std::{sync::Arc, time::Duration};
+    use storage_adapter::storage::build_memory_storage_driver;
+    use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn persist_delay_info_test() {

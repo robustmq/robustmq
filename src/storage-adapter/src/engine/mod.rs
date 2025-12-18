@@ -13,33 +13,38 @@
 // limitations under the License.
 
 use crate::expire::MessageExpireConfig;
-use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
+use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use std::collections::HashMap;
+use std::sync::Arc;
+use storage_engine::handler::adapter::AdapterHandler;
 
-pub struct JournalStorageAdapter {}
+pub struct JournalStorageAdapter {
+    adapter: Arc<AdapterHandler>,
+}
 
 impl JournalStorageAdapter {
-    pub async fn new() -> JournalStorageAdapter {
-        JournalStorageAdapter {}
+    pub async fn new(adapter: Arc<AdapterHandler>) -> JournalStorageAdapter {
+        JournalStorageAdapter { adapter }
     }
 }
 
 #[async_trait]
 impl StorageAdapter for JournalStorageAdapter {
-    async fn create_shard(&self, _shard: &ShardInfo) -> Result<(), CommonError> {
-        Ok(())
+    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+        self.adapter.create_shard(shard).await
     }
 
-    async fn list_shard(&self, _shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
-        Ok(Vec::new())
+    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
+        self.adapter.list_shard(shard).await
     }
 
-    async fn delete_shard(&self, _shard: &str) -> Result<(), CommonError> {
-        Ok(())
+    async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
+        self.adapter.delete_shard(shard).await
     }
 
     async fn write(&self, _shard: &str, _record: &Record) -> Result<u64, CommonError> {

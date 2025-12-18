@@ -260,13 +260,16 @@ pub fn start_local_file_connector(
 mod tests {
     use common_base::{tools::now_second, utils::crc::calc_crc32};
     use metadata_struct::{
-        adapter::record::{Header, Record},
+        adapter::{
+            record::{Header, Record},
+            ShardInfo,
+        },
         mqtt::bridge::{
             config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
         },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
+    use storage_adapter::storage::build_memory_storage_driver;
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
     use crate::bridge::{
