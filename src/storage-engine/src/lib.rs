@@ -30,7 +30,9 @@ use tracing::{error, info};
 
 use crate::server::Server;
 
+pub mod clients;
 pub mod core;
+pub mod handler;
 pub mod memory;
 pub mod segment;
 pub mod server;

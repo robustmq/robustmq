@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::{cache::StorageCacheManager, command::StorageEngineHandlerCommand},
+    core::cache::StorageCacheManager, handler::command::StorageEngineHandlerCommand,
     segment::storage::manager::SegmentFileManager,
 };
 use broker_core::cache::BrokerCacheManager;
@@ -82,7 +82,6 @@ impl Server {
         };
 
         // TCP Server
-
         let name = "Storage Engine".to_string();
         let tcp_server = TcpServer::new(name.clone(), context.clone());
         if let Err(e) = tcp_server.start(false, conf.journal_server.tcp_port).await {

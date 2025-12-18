@@ -13,11 +13,9 @@
 // limitations under the License.
 
 pub mod cache;
-pub mod command;
 pub mod consts;
 pub mod dynamic_cache;
 pub mod error;
-pub mod handler;
 pub mod segment;
 pub mod segment_meta;
 pub mod segment_status;
