@@ -28,8 +28,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use protocol::broker::broker_mqtt::MqttBrokerUpdateCacheActionType;
-use protocol::broker::broker_mqtt::MqttBrokerUpdateCacheResourceType;
+use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::error;
@@ -37,8 +36,8 @@ use tracing::warn;
 
 #[derive(Clone)]
 pub struct BrokerCallMessage {
-    pub action_type: MqttBrokerUpdateCacheActionType,
-    pub resource_type: MqttBrokerUpdateCacheResourceType,
+    pub action_type: BrokerUpdateCacheActionType,
+    pub resource_type: BrokerUpdateCacheResourceType,
     pub data: Vec<u8>,
 }
 
@@ -131,8 +130,8 @@ pub async fn update_cache_by_add_session(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Session,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Session,
 
         data,
     };
@@ -147,8 +146,8 @@ pub async fn update_cache_by_delete_session(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::Session,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Session,
 
         data,
     };
@@ -163,8 +162,8 @@ pub async fn update_cache_by_add_schema(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&schema)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Schema,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Schema,
 
         data,
     };
@@ -179,8 +178,8 @@ pub async fn update_cache_by_delete_schema(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&schema)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::Schema,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Schema,
 
         data,
     };
@@ -195,8 +194,8 @@ pub async fn update_cache_by_add_schema_bind(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&bind_data)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::SchemaResource,
 
         data,
     };
@@ -211,8 +210,8 @@ pub async fn update_cache_by_delete_schema_bind(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&bind_data)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::SchemaResource,
 
         data,
     };
@@ -227,8 +226,8 @@ pub async fn update_cache_by_add_connector(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Connector,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Connector,
 
         data,
     };
@@ -243,8 +242,8 @@ pub async fn update_cache_by_delete_connector(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::Connector,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Connector,
 
         data,
     };
@@ -259,8 +258,8 @@ pub async fn update_cache_by_add_user(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::User,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::User,
 
         data,
     };
@@ -275,8 +274,8 @@ pub async fn update_cache_by_delete_user(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::User,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::User,
 
         data,
     };
@@ -291,8 +290,8 @@ pub async fn update_cache_by_add_subscribe(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Subscribe,
 
         data,
     };
@@ -307,8 +306,8 @@ pub async fn update_cache_by_delete_subscribe(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&session)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::Subscribe,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Subscribe,
 
         data,
     };
@@ -323,8 +322,8 @@ pub async fn update_cache_by_add_topic(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&topic)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Topic,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Topic,
 
         data,
     };
@@ -339,8 +338,8 @@ pub async fn update_cache_by_delete_topic(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&topic)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::Topic,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Topic,
 
         data,
     };
@@ -355,8 +354,8 @@ pub async fn update_cache_by_add_node(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&node)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::Node,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Node,
 
         data,
     };
@@ -371,8 +370,8 @@ pub async fn update_cache_by_delete_node(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&node)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Delete,
-        resource_type: MqttBrokerUpdateCacheResourceType::Node,
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Node,
 
         data,
     };
@@ -387,8 +386,8 @@ pub async fn update_cache_by_set_resource_config(
 ) -> Result<(), MetaServiceError> {
     let data = serialize::serialize(&config)?;
     let message = BrokerCallMessage {
-        action_type: MqttBrokerUpdateCacheActionType::Set,
-        resource_type: MqttBrokerUpdateCacheResourceType::ClusterResourceConfig,
+        action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::ClusterResourceConfig,
 
         data,
     };

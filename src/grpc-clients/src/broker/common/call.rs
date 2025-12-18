@@ -13,32 +13,25 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use protocol::broker::broker_common::{UpdateCacheReply, UpdateCacheRequest};
 
-#[derive(Default, Clone)]
-pub struct JournalClientOption {
-    pub addrs: Vec<String>,
-    pub line_ms: u64,
-}
+use crate::pool::ClientPool;
 
-impl JournalClientOption {
-    pub fn build() -> Self {
-        JournalClientOption {
-            line_ms: 10,
-            ..Default::default()
+macro_rules! generate_mqtt_inner_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: &ClientPool,
+            addrs: &[impl AsRef<str>],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            $crate::utils::retry_call(client_pool, addrs, request).await
         }
-    }
-
-    pub fn set_addrs(&mut self, addrs: Vec<String>) {
-        self.addrs = addrs;
-    }
+    };
 }
 
-pub fn options_validator(option: &JournalClientOption) -> Result<(), Box<CommonError>> {
-    if option.addrs.is_empty() {
-        let err = Box::new(CommonError::ParameterCannotBeNull(
-            "option.addrs".to_string(),
-        ));
-        return Err(err);
-    }
-    Ok(())
-}
+generate_mqtt_inner_service_call!(
+    broker_common_update_cache,
+    UpdateCacheRequest,
+    UpdateCacheReply,
+    UpdateMqttCache
+);

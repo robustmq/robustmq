@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cluster_service::ClusterInnerService;
+use crate::cluster_service::GrpcBrokerCommonService;
 use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_millis;
@@ -24,15 +24,15 @@ use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::inner::GrpcInnerServices;
-use protocol::broker::broker_mqtt::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
-use protocol::broker::broker_storage::storage_engine_inner_service_server::StorageEngineInnerServiceServer;
-use protocol::cluster::cluster_status::cluster_service_server::ClusterServiceServer;
+use protocol::broker::broker_common::broker_common_service_server::BrokerCommonServiceServer;
+use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttServiceServer;
+use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageServiceServer;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceServiceServer;
 use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use storage_engine::server::grpc::inner::GrpcJournalServerInnerService;
+use storage_engine::server::grpc::inner::GrpcBrokerStorageServerService;
 use storage_engine::JournalServerParams;
 use tonic::transport::Server;
 use tower::{Layer, Service};
@@ -58,8 +58,10 @@ pub async fn start_grpc_server(
         .layer(tonic_web::GrpcWebLayer::new())
         .layer(layer)
         .add_service(
-            ClusterServiceServer::new(ClusterInnerService::new(mqtt_params.broker_cache.clone()))
-                .max_decoding_message_size(grpc_max_decoding_message_size),
+            BrokerCommonServiceServer::new(GrpcBrokerCommonService::new(
+                mqtt_params.broker_cache.clone(),
+            ))
+            .max_decoding_message_size(grpc_max_decoding_message_size),
         );
 
     let config = broker_config();
@@ -81,14 +83,14 @@ pub async fn start_grpc_server(
 
     if config.is_start_broker() {
         route = route.add_service(
-            MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
+            BrokerMqttServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
     }
 
     if config.is_start_journal() {
         route = route.add_service(
-            StorageEngineInnerServiceServer::new(get_storage_engine_inner_handler(&journal_params))
+            BrokerStorageServiceServer::new(get_storage_engine_inner_handler(&journal_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
     }
@@ -139,8 +141,10 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
     )
 }
 
-fn get_storage_engine_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {
-    GrpcJournalServerInnerService::new(
+fn get_storage_engine_inner_handler(
+    params: &JournalServerParams,
+) -> GrpcBrokerStorageServerService {
+    GrpcBrokerStorageServerService::new(
         params.cache_manager.clone(),
         params.segment_file_manager.clone(),
         params.rocksdb_engine_handler.clone(),

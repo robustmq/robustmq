@@ -17,39 +17,19 @@ use std::sync::Arc;
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use protocol::broker::broker_storage::{
-    JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
-};
+use protocol::broker::broker_common::BrokerUpdateCacheActionType;
 use tracing::{error, info};
 
 use super::cache::StorageCacheManager;
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
 
-pub async fn parse_notification(
-    cache_manager: &Arc<StorageCacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    action_type: JournalUpdateCacheActionType,
-    resource_type: JournalUpdateCacheResourceType,
-    data: &[u8],
-) {
-    match resource_type {
-        JournalUpdateCacheResourceType::Shard => parse_shard(cache_manager, action_type, data),
-        JournalUpdateCacheResourceType::Segment => {
-            parse_segment(cache_manager, segment_file_manager, action_type, data).await
-        }
-        JournalUpdateCacheResourceType::SegmentMeta => {
-            parse_segment_meta(cache_manager, action_type, data).await
-        }
-    }
-}
-
 fn parse_shard(
     cache_manager: &Arc<StorageCacheManager>,
-    action_type: JournalUpdateCacheActionType,
+    action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => match JournalShard::decode(data) {
+        BrokerUpdateCacheActionType::Set => match JournalShard::decode(data) {
             Ok(shard) => {
                 info!("Update the cache, set shard, shard name: {:?}", shard);
                 cache_manager.set_shard(shard);
@@ -74,11 +54,11 @@ fn parse_shard(
 async fn parse_segment(
     cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    action_type: JournalUpdateCacheActionType,
+    action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => match JournalSegment::decode(data) {
+        BrokerUpdateCacheActionType::Set => match JournalSegment::decode(data) {
             Ok(segment) => {
                 info!("Segment cache update, action: set, segment:{:?}", segment);
 
@@ -106,11 +86,11 @@ async fn parse_segment(
 
 async fn parse_segment_meta(
     cache_manager: &Arc<StorageCacheManager>,
-    action_type: JournalUpdateCacheActionType,
+    action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Set => match JournalSegmentMetadata::decode(data) {
+        BrokerUpdateCacheActionType::Set => match JournalSegmentMetadata::decode(data) {
             Ok(segment_meta) => {
                 info!(
                     "Update the cache, set segment meta, segment meta:{:?}",

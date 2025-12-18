@@ -17,35 +17,16 @@ use std::sync::Arc;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+    GetShardDeleteStatusRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::JournalServerError;
-use crate::core::notification::parse_notification;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
 use crate::core::shard::{delete_local_shard, is_delete_by_shard};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
-
-/// Update journal cache based on the request
-pub async fn update_cache_by_req(
-    cache_manager: &Arc<StorageCacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    request: &UpdateJournalCacheRequest,
-) -> Result<UpdateJournalCacheReply, JournalServerError> {
-    parse_notification(
-        cache_manager,
-        segment_file_manager,
-        request.action_type(),
-        request.resource_type(),
-        &request.data,
-    )
-    .await;
-
-    Ok(UpdateJournalCacheReply::default())
-}
 
 /// Delete shard file based on the request
 pub async fn delete_shard_file_by_req(

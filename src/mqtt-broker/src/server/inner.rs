@@ -14,15 +14,12 @@
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::MQTTCacheManager;
-use crate::handler::inner::{
-    delete_session_by_req, send_last_will_message_by_req, update_cache_by_req,
-};
+use crate::handler::inner::{delete_session_by_req, send_last_will_message_by_req};
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
-use protocol::broker::broker_mqtt::mqtt_broker_inner_service_server::MqttBrokerInnerService;
+use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttService;
 use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
@@ -63,26 +60,7 @@ impl GrpcInnerServices {
 }
 
 #[tonic::async_trait]
-impl MqttBrokerInnerService for GrpcInnerServices {
-    async fn update_cache(
-        &self,
-        request: Request<UpdateMqttCacheRequest>,
-    ) -> Result<Response<UpdateMqttCacheReply>, Status> {
-        let req = request.into_inner();
-        update_cache_by_req(
-            &self.cache_manager,
-            &self.connector_manager,
-            &self.subscribe_manager,
-            &self.schema_manager,
-            &self.message_storage_adapter,
-            &self.metrics_manager,
-            &req,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
-    }
-
+impl BrokerMqttService for GrpcInnerServices {
     async fn delete_session(
         &self,
         request: Request<DeleteSessionRequest>,

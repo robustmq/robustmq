@@ -16,10 +16,10 @@ use crate::macros::impl_retriable_request;
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker::broker_storage::{
-    storage_engine_inner_service_client::StorageEngineInnerServiceClient, DeleteSegmentFileReply,
+    broker_storage_service_client::BrokerStorageServiceClient, DeleteSegmentFileReply,
     DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+    GetShardDeleteStatusRequest,
 };
 use tonic::transport::Channel;
 
@@ -37,13 +37,11 @@ impl BrokerStorageServiceManager {
 }
 #[tonic::async_trait]
 impl Manager for BrokerStorageServiceManager {
-    type Connection = StorageEngineInnerServiceClient<Channel>;
+    type Connection = BrokerStorageServiceClient<Channel>;
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match StorageEngineInnerServiceClient::connect(format!("http://{}", self.addr.clone()))
-            .await
-        {
+        match BrokerStorageServiceClient::connect(format!("http://{}", self.addr.clone())).await {
             Ok(client) => {
                 return Ok(client);
             }
@@ -63,18 +61,8 @@ impl Manager for BrokerStorageServiceManager {
 }
 
 impl_retriable_request!(
-    UpdateJournalCacheRequest,
-    StorageEngineInnerServiceClient<Channel>,
-    UpdateJournalCacheReply,
-    broker_storage_services_client,
-    update_cache,
-    "JournalInnerService",
-    "UpdateCache"
-);
-
-impl_retriable_request!(
     DeleteShardFileRequest,
-    StorageEngineInnerServiceClient<Channel>,
+    BrokerStorageServiceClient<Channel>,
     DeleteShardFileReply,
     broker_storage_services_client,
     delete_shard_file,
@@ -84,7 +72,7 @@ impl_retriable_request!(
 
 impl_retriable_request!(
     GetShardDeleteStatusRequest,
-    StorageEngineInnerServiceClient<Channel>,
+    BrokerStorageServiceClient<Channel>,
     GetShardDeleteStatusReply,
     broker_storage_services_client,
     get_shard_delete_status,
@@ -94,7 +82,7 @@ impl_retriable_request!(
 
 impl_retriable_request!(
     DeleteSegmentFileRequest,
-    StorageEngineInnerServiceClient<Channel>,
+    BrokerStorageServiceClient<Channel>,
     DeleteSegmentFileReply,
     broker_storage_services_client,
     delete_segment_file,
@@ -104,7 +92,7 @@ impl_retriable_request!(
 
 impl_retriable_request!(
     GetSegmentDeleteStatusRequest,
-    StorageEngineInnerServiceClient<Channel>,
+    BrokerStorageServiceClient<Channel>,
     GetSegmentDeleteStatusReply,
     broker_storage_services_client,
     get_segment_delete_status,

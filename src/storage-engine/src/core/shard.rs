@@ -100,10 +100,9 @@ pub async fn create_shard_to_place(
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {
-    let cluster_config = cache_manager.get_cluster();
     let config = JournalShardConfig {
-        replica_num: cluster_config.shard_replica_num,
-        max_segment_size: cluster_config.max_segment_size,
+        replica_num: 1,
+        max_segment_size: 1073741824,
     };
     let conf = broker_config();
     let request = CreateShardRequest {
@@ -162,10 +161,6 @@ pub async fn try_auto_create_shard(
 ) -> Result<(), JournalServerError> {
     if cache_manager.get_shard(shard_name).is_some() {
         return Ok(());
-    }
-
-    if !cache_manager.get_cluster().enable_auto_create_shard {
-        return Err(JournalServerError::ShardNotExist(shard_name.to_string()));
     }
 
     create_shard_to_place(cache_manager, client_pool, shard_name).await?;

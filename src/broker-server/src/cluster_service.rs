@@ -13,39 +13,29 @@
 // limitations under the License.
 
 use broker_core::cache::BrokerCacheManager;
-use common_base::tools::now_second;
-use protocol::cluster::cluster_status::{
-    cluster_service_server::ClusterService, ClusterStatusReply, ClusterStatusRequest,
+use protocol::broker::broker_common::{
+    broker_common_service_server::BrokerCommonService, UpdateCacheReply, UpdateCacheRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
-pub struct ClusterInnerService {
+pub struct GrpcBrokerCommonService {
     cache_manager: Arc<BrokerCacheManager>,
 }
 
-impl ClusterInnerService {
+impl GrpcBrokerCommonService {
     pub fn new(cache_manager: Arc<BrokerCacheManager>) -> Self {
-        ClusterInnerService { cache_manager }
+        GrpcBrokerCommonService { cache_manager }
     }
 }
 
 #[tonic::async_trait]
-impl ClusterService for ClusterInnerService {
-    async fn cluster_status(
+impl BrokerCommonService for GrpcBrokerCommonService {
+    async fn update_cache(
         &self,
-        _request: Request<ClusterStatusRequest>,
-    ) -> Result<Response<ClusterStatusReply>, Status> {
-        let node_list = self.cache_manager.node_list();
-        let uptime = now_second() - self.cache_manager.get_start_time();
-
-        let reply = ClusterStatusReply {
-            node_count: node_list.len() as u32,
-            uptime,
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            active_nodes: node_list.iter().map(|n| n.node_id).collect(),
-        };
-
-        Ok(Response::new(reply))
+        _request: Request<UpdateCacheRequest>,
+    ) -> Result<Response<UpdateCacheReply>, Status> {
+        // todo
+        Ok(Response::new(UpdateCacheReply::default()))
     }
 }

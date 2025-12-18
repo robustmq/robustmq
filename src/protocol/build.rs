@@ -62,10 +62,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
                 .join("src/broker/storage.proto")
                 .to_str()
                 .unwrap(),
-            proto_root
-                .join("src/broker/cluster.proto")
-                .to_str()
-                .unwrap(),
+            proto_root.join("src/broker/common.proto").to_str().unwrap(),
         ],
         &[proto_root.join("src/").to_str().unwrap()],
     )?;

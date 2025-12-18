@@ -15,9 +15,8 @@
 use crate::macros::impl_retriable_request;
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::broker::broker_mqtt::{
-    broker_mqtt_service_client::BrokerMqttServiceClient, DeleteSessionReply, DeleteSessionRequest,
-    SendLastWillMessageReply, SendLastWillMessageRequest,
+use protocol::broker::broker_common::{
+    broker_common_service_client::BrokerCommonServiceClient, UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 use tracing::{debug, error, info, warn};
@@ -25,18 +24,18 @@ use tracing::{debug, error, info, warn};
 pub mod call;
 
 #[derive(Clone)]
-pub struct BrokerMqttServiceManager {
+pub struct BrokerCommonServiceManager {
     pub addr: String,
 }
 
-impl BrokerMqttServiceManager {
+impl BrokerCommonServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }
 #[tonic::async_trait]
-impl Manager for BrokerMqttServiceManager {
-    type Connection = BrokerMqttServiceClient<Channel>;
+impl Manager for BrokerCommonServiceManager {
+    type Connection = BrokerCommonServiceClient<Channel>;
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
@@ -47,7 +46,7 @@ impl Manager for BrokerMqttServiceManager {
         );
 
         let start = std::time::Instant::now();
-        match BrokerMqttServiceClient::connect(url.clone()).await {
+        match BrokerCommonServiceClient::connect(url.clone()).await {
             Ok(client) => {
                 let duration = start.elapsed();
                 info!(
@@ -82,27 +81,17 @@ impl Manager for BrokerMqttServiceManager {
         // Basic connection validation
         // Note: gRPC connections are lazy, so we just validate the connection object exists
         // The actual health check happens when the first RPC is made
-        debug!("Checking MQTT Broker connection health for {}", self.addr);
+        debug!("Checking Broker Common connection health for {}", self.addr);
         Ok(conn)
     }
 }
 
 impl_retriable_request!(
-    DeleteSessionRequest,
-    BrokerMqttServiceClient<Channel>,
-    DeleteSessionReply,
-    mqtt_broker_mqtt_services_client,
-    delete_session,
+    UpdateCacheRequest,
+    BrokerCommonServiceClient<Channel>,
+    UpdateCacheReply,
+    broker_common_services_client,
+    update_cache,
     "MqttBrokerInnerService",
-    "DeleteSession"
-);
-
-impl_retriable_request!(
-    SendLastWillMessageRequest,
-    BrokerMqttServiceClient<Channel>,
-    SendLastWillMessageReply,
-    mqtt_broker_mqtt_services_client,
-    send_last_will_message,
-    "MqttBrokerInnerService",
-    "SendLastWillMessage"
+    "UpdateCache"
 );

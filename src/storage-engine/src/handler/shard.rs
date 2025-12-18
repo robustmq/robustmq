@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::core::cache::{load_metadata_cache, StorageCacheManager};
+use crate::core::error::JournalServerError;
+use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::meta::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use protocol::meta::meta_service_journal::{CreateNextSegmentRequest, UpdateSegmentStatusRequest};
-use protocol::storage::journal_engine::{
-    ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
-    GetShardMetadataRespShard, ListShardReq,
-};
-
-use crate::core::cache::{load_metadata_cache, StorageCacheManager};
-use crate::core::error::JournalServerError;
-use crate::core::shard::{create_shard_to_place, delete_shard_to_place};
-use crate::segment::SegmentIdentity;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ShardHandler {
@@ -36,73 +29,14 @@ pub struct ShardHandler {
 }
 
 impl ShardHandler {
-    pub fn new(cache_manager: Arc<StorageCacheManager>, client_pool: Arc<ClientPool>) -> ShardHandler {
+    pub fn new(
+        cache_manager: Arc<StorageCacheManager>,
+        client_pool: Arc<ClientPool>,
+    ) -> ShardHandler {
         ShardHandler {
             cache_manager,
             client_pool,
         }
-    }
-
-    pub async fn create_shard(&self, request: CreateShardReq) -> Result<(), JournalServerError> {
-        if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty(
-                "create_shard".to_string(),
-            ));
-        }
-        let req_body = request.body.unwrap();
-
-        if self.cache_manager.get_shard(&req_body.shard_name).is_none() {
-            create_shard_to_place(&self.cache_manager, &self.client_pool, &req_body.shard_name)
-                .await?;
-        };
-        Ok(())
-    }
-
-    pub async fn delete_shard(&self, request: DeleteShardReq) -> Result<(), JournalServerError> {
-        if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty(
-                "create_shard".to_string(),
-            ));
-        }
-        let req_body = request.body.unwrap();
-
-        if self.cache_manager.get_shard(&req_body.shard_name).is_none() {
-            return Err(JournalServerError::ShardNotExist(req_body.shard_name));
-        }
-
-        delete_shard_to_place(self.client_pool.clone(), &req_body.shard_name).await?;
-
-        Ok(())
-    }
-
-    pub async fn list_shard(
-        &self,
-        request: ListShardReq,
-    ) -> Result<Vec<Vec<u8>>, JournalServerError> {
-        if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty(
-                "list_shard".to_string(),
-            ));
-        }
-
-        let req_body = request.body.unwrap();
-
-        // directly get from cache
-        let shards = if req_body.shard_name.is_empty() {
-            self.cache_manager.get_shards()
-        } else if let Some(shard_info) = self.cache_manager.get_shard(&req_body.shard_name) {
-            vec![shard_info]
-        } else {
-            vec![]
-        };
-
-        let mut res = Vec::new();
-
-        for shard in shards {
-            res.push(serde_json::to_vec(&shard)?)
-        }
-
-        Ok(res)
     }
 
     pub async fn get_shard_metadata(

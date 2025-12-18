@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::broker::common::BrokerCommonServiceManager;
 use crate::broker::storage::BrokerStorageServiceManager;
 use crate::meta::journal::JournalServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
-use crate::{broker::mqtt::BrokerMQTTServiceManager, meta::common::PlacementServiceManager};
+use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::PlacementServiceManager};
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
@@ -99,9 +100,11 @@ pub struct ClientPool {
     meta_service_leader_addr_caches: DashMap<String, String>,
 
     // modules: broker mqtt
-    broker_mqtt_grpc_pools: DashMap<String, Pool<BrokerMQTTServiceManager>>,
+    broker_mqtt_grpc_pools: DashMap<String, Pool<BrokerMqttServiceManager>>,
     // modules: broker storage engine
     broker_storage_grpc_pools: DashMap<String, Pool<BrokerStorageServiceManager>>,
+    // modules: broker common
+    broker_common_grpc_pools: DashMap<String, Pool<BrokerCommonServiceManager>>,
 }
 
 impl ClientPool {
@@ -124,6 +127,7 @@ impl ClientPool {
             // modules: mqtt_broker
             broker_mqtt_grpc_pools: DashMap::with_capacity(2),
             broker_storage_grpc_pools: DashMap::with_capacity(2),
+            broker_common_grpc_pools: DashMap::with_capacity(2),
         }
     }
 
@@ -153,7 +157,7 @@ impl ClientPool {
     define_client_method!(
         mqtt_broker_mqtt_services_client,
         broker_mqtt_grpc_pools,
-        BrokerMQTTServiceManager,
+        BrokerMqttServiceManager,
         "BrokerMQTTServiceManager"
     );
 
@@ -163,6 +167,14 @@ impl ClientPool {
         broker_storage_grpc_pools,
         BrokerStorageServiceManager,
         "BrokerStorageServiceManager"
+    );
+
+    // ----------modules: common broker -------------
+    define_client_method!(
+        broker_common_services_client,
+        broker_common_grpc_pools,
+        BrokerCommonServiceManager,
+        "BrokerCommonServiceManager"
     );
 
     // ----------leader cache management -------------

@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+    GetShardDeleteStatusRequest,
 };
 
 macro_rules! generate_journal_inner_service_call {
@@ -31,13 +31,6 @@ macro_rules! generate_journal_inner_service_call {
         }
     };
 }
-
-generate_journal_inner_service_call!(
-    journal_inner_update_cache,
-    UpdateJournalCacheRequest,
-    UpdateJournalCacheReply,
-    UpdateJournalCache
-);
 
 generate_journal_inner_service_call!(
     journal_inner_delete_shard_file,

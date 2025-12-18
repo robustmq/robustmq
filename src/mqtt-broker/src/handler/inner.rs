@@ -22,9 +22,12 @@ use broker_core::tool::wait_cluster_running;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use protocol::broker::broker_mqtt::{
-    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateMqttCacheReply, UpdateMqttCacheRequest,
+use protocol::broker::{
+    broker_common::{UpdateCacheReply, UpdateCacheRequest},
+    broker_mqtt::{
+        DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply,
+        SendLastWillMessageRequest,
+    },
 };
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
@@ -40,8 +43,8 @@ pub async fn update_cache_by_req(
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
-    req: &UpdateMqttCacheRequest,
-) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
+    req: &UpdateCacheRequest,
+) -> Result<UpdateCacheReply, MqttBrokerError> {
     wait_cluster_running(&cache_manager.broker_cache).await;
     update_cache_metadata(
         cache_manager,
@@ -53,7 +56,7 @@ pub async fn update_cache_by_req(
         req.clone(),
     )
     .await?;
-    Ok(UpdateMqttCacheReply::default())
+    Ok(UpdateCacheReply::default())
 }
 
 pub async fn delete_session_by_req(
