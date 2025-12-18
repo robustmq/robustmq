@@ -42,3 +42,4 @@ common-config.workspace = true
 tracing-appender.workspace = true
 network-server.workspace = true
 axum.workspace = true
+broker-core.workspace = true

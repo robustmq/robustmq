@@ -17,6 +17,7 @@ use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use core::cache::{load_metadata_cache, StorageCacheManager};
 use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
@@ -26,6 +27,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
+
+use crate::server::Server;
 
 pub mod core;
 pub mod index;
@@ -39,11 +42,13 @@ pub struct StorageEngineParams {
     pub client_pool: Arc<ClientPool>,
     pub segment_file_manager: Arc<SegmentFileManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub connection_manager: Arc<ConnectionManager>,
 }
 
 pub struct JournalServer {
     config: BrokerConfig,
     client_pool: Arc<ClientPool>,
+    connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -62,6 +67,7 @@ impl JournalServer {
             cache_manager: params.cache_manager,
             segment_file_manager: params.segment_file_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
+            connection_manager: params.connection_manager,
             main_stop,
             inner_stop,
         }
@@ -78,7 +84,16 @@ impl JournalServer {
     }
 
     fn start_tcp_server(&self) {
-        tokio::spawn(async {});
+        let tcp_server = Server::new(
+            self.client_pool.clone(),
+            self.cache_manager.clone(),
+            self.segment_file_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
+            self.connection_manager.clone(),
+            self.cache_manager.broker_cache.clone(),
+        );
+        let stop_sx = self.inner_stop.clone();
+        tokio::spawn(async move { tcp_server.start(stop_sx).await });
     }
 
     fn start_daemon_thread(&self) {

@@ -151,8 +151,12 @@ impl BrokerServer {
             offset_manager.clone(),
         );
 
-        let journal_params =
-            BrokerServer::build_journal_server(client_pool.clone(), rocksdb_engine_handler.clone());
+        let journal_params = BrokerServer::build_journal_server(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+            broker_cache.clone(),
+            connection_manager.clone(),
+        );
 
         BrokerServer {
             broker_cache,
@@ -389,8 +393,10 @@ impl BrokerServer {
     fn build_journal_server(
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        broker_cache: Arc<BrokerCacheManager>,
+        connection_manager: Arc<NetworkConnectionManager>,
     ) -> StorageEngineParams {
-        let cache_manager = Arc::new(StorageCacheManager::new());
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
@@ -399,6 +405,7 @@ impl BrokerServer {
             client_pool,
             segment_file_manager,
             rocksdb_engine_handler,
+            connection_manager,
         }
     }
 
