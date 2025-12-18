@@ -28,7 +28,7 @@ use prost::Message;
 use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
- 
+
 #[allow(dead_code)]
 pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
     let data_fold = test_build_data_fold();
