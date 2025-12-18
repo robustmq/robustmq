@@ -122,7 +122,7 @@ impl AdminServer {
             // overview
             .route(MQTT_OVERVIEW_PATH, get(overview))
             // monitor
-            .route(MQTT_MONITOR_PATH, post(monitor_data))
+            .route(MQTT_MONITOR_PATH, get(monitor_data))
             // client
             .route(MQTT_CLIENT_LIST_PATH, post(client_list))
             // session
