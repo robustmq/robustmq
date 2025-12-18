@@ -21,6 +21,7 @@ pub mod handler;
 pub mod segment;
 pub mod segment_meta;
 pub mod segment_status;
+pub mod services;
 pub mod shard;
 pub mod test;
 pub mod tool;

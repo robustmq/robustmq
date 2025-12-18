@@ -31,9 +31,7 @@ use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
 
 pub mod core;
-pub mod handler;
 pub mod index;
-pub mod inner;
 pub mod isr;
 pub mod segment;
 pub mod server;

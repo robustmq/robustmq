@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::StorageCacheManager;
-use crate::inner::services::{
+use crate::core::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
     get_shard_delete_status_by_req,
 };
