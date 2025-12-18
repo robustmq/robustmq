@@ -42,9 +42,10 @@ tracing.workspace = true
 mobc.workspace = true
 rocksdb.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
-tempfile.workspace = true
 tracing-appender.workspace = true
 async-stream.workspace = true
 broker-core.workspace = true
 common-metrics.workspace = true
 zstd.workspace = true
+[dev-dependencies]
+tempfile.workspace = true

@@ -28,7 +28,6 @@ mobc.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
 regex.workspace = true
-common-config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
