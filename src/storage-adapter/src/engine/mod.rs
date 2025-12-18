@@ -17,8 +17,6 @@ use crate::offset::OffsetManager;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use common_config::storage::journal::StorageDriverJournalConfig;
-use journal_client::client::{JournalClient, JournalClientWriteData};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
@@ -29,10 +27,7 @@ pub struct JournalStorageAdapter {
 }
 
 impl JournalStorageAdapter {
-    pub async fn new(
-        offset_manager: Arc<OffsetManager>,
-        config: StorageDriverJournalConfig,
-    ) -> JournalStorageAdapter {
+    pub async fn new(offset_manager: Arc<OffsetManager>) -> JournalStorageAdapter {
         JournalStorageAdapter { offset_manager }
     }
 }
@@ -71,20 +66,14 @@ impl StorageAdapter for JournalStorageAdapter {
     async fn read_by_tag(
         &self,
         shard: &str,
-        offset: u64,
         tag: &str,
+        start_offset: Option<u64>,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         Ok(Vec::new())
     }
 
-    async fn read_by_key(
-        &self,
-        _shard: &str,
-        _offset: u64,
-        _key: &str,
-        _read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError> {
         Ok(Vec::new())
     }
 
