@@ -32,7 +32,7 @@ use protocol::meta::meta_service_journal::engine_service_server::EngineServiceSe
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use storage_engine::server::grpc::inner::GrpcBrokerStorageServerService;
+use storage_engine::server::inner::GrpcBrokerStorageServerService;
 use storage_engine::StorageEngineParams;
 use tonic::transport::Server;
 use tower::{Layer, Service};

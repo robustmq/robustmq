@@ -155,6 +155,9 @@ fn read_frame_process(
                                     RobustMQCodecWrapper::KAFKA(p) => {
                                         read_packet(RobustMQPacket::KAFKA(p.packet), &request_channel, &connection, &network_type).await;
                                     }
+                                    RobustMQCodecWrapper::StorageEngine(p) => {
+                                        read_packet(RobustMQPacket::StorageEngine(p), &request_channel, &connection, &network_type).await;
+                                    }
                                 }
                             }
                         }

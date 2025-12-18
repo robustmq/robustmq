@@ -71,6 +71,7 @@ mod tests {
             protocol: Some(RobustMQProtocol::MQTT4),
             mqtt_codec: MqttCodec::new(Some(RobustMQProtocol::MQTT4.to_u8())),
             kafka_codec: Default::default(),
+            storage_engine_codec: Default::default(),
         };
         let mut write_stream = QuicFramedWriteStream::new(send, mqtt_codec.clone());
         let mqtt_wrapper = RobustMQCodecWrapper::MQTT(mqtt_4_wrapper);
@@ -84,6 +85,7 @@ mod tests {
         let codec_wrapper = read_stream.receive().await.unwrap().unwrap();
         match codec_wrapper {
             RobustMQCodecWrapper::KAFKA(_) => {}
+            RobustMQCodecWrapper::StorageEngine(_) => {}
             RobustMQCodecWrapper::MQTT(packet) => {
                 assert_eq!(packet.protocol_version, 4);
             }

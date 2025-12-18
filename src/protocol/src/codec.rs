@@ -16,6 +16,7 @@ use crate::{
     kafka::{codec::KafkaCodec, packet::KafkaPacketWrapper},
     mqtt::codec::{MqttCodec, MqttPacketWrapper},
     robust::RobustMQProtocol,
+    storage::codec::{StorageEngineCodec, StorageEnginePacket},
 };
 use bytes::BytesMut;
 use common_base::error::common::CommonError;
@@ -23,6 +24,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Debug, Clone)]
 pub enum RobustMQCodecWrapper {
+    StorageEngine(StorageEnginePacket),
     KAFKA(KafkaPacketWrapper),
     MQTT(MqttPacketWrapper),
 }
@@ -30,6 +32,7 @@ pub enum RobustMQCodecWrapper {
 pub enum RobustMQCodecEnum {
     MQTT(MqttCodec),
     KAFKA(KafkaCodec),
+    StorageEngine(StorageEngineCodec),
 }
 
 #[derive(Clone)]
@@ -37,6 +40,7 @@ pub struct RobustMQCodec {
     pub protocol: Option<RobustMQProtocol>,
     pub mqtt_codec: MqttCodec,
     pub kafka_codec: KafkaCodec,
+    pub storage_engine_codec: StorageEngineCodec,
 }
 
 impl RobustMQCodec {
@@ -45,6 +49,7 @@ impl RobustMQCodec {
             protocol: None,
             mqtt_codec: MqttCodec::new(None),
             kafka_codec: KafkaCodec::new(),
+            storage_engine_codec: StorageEngineCodec::new(),
         }
     }
 }
@@ -56,7 +61,6 @@ impl Default for RobustMQCodec {
 }
 
 impl RobustMQCodec {
-    #[allow(clippy::result_large_err)]
     pub fn decode_data(
         &mut self,
         stream: &mut BytesMut,
@@ -112,7 +116,6 @@ impl RobustMQCodec {
         Ok(None)
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn encode_data(
         &mut self,
         packet_wrapper: RobustMQCodecWrapper,
@@ -124,6 +127,11 @@ impl RobustMQCodec {
             }
             RobustMQCodecWrapper::KAFKA(wrapper) => {
                 self.kafka_codec.encode_data(wrapper, buffer)?;
+            }
+            RobustMQCodecWrapper::StorageEngine(wrapper) => {
+                if let Err(e) = self.storage_engine_codec.encode_data(wrapper, buffer) {
+                    return Err(CommonError::CommonError(e.to_string()));
+                }
             }
         }
 
@@ -147,15 +155,7 @@ impl Encoder<RobustMQCodecWrapper> for RobustMQCodec {
         packet_wrapper: RobustMQCodecWrapper,
         buffer: &mut BytesMut,
     ) -> Result<(), Self::Error> {
-        match packet_wrapper {
-            RobustMQCodecWrapper::MQTT(wrapper) => {
-                self.mqtt_codec.encode_data(wrapper, buffer)?;
-            }
-            RobustMQCodecWrapper::KAFKA(wrapper) => {
-                self.kafka_codec.encode_data(wrapper, buffer)?;
-            }
-        }
-
+        self.encode_data(packet_wrapper, buffer)?;
         Ok(())
     }
 }

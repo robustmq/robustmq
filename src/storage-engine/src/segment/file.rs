@@ -19,7 +19,7 @@ use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
 use prost::Message;
-use protocol::storage::journal_record::JournalRecord;
+use protocol::storage::storage_engine_record::StorageEngineRecord;
 use std::fs::remove_file;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -31,7 +31,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 #[derive(Debug, Clone)]
 pub struct ReadData {
     pub position: u64,
-    pub record: JournalRecord,
+    pub record: StorageEngineRecord,
 }
 
 /// Given a segment identity, open a segment file for reading and writing.
@@ -105,13 +105,13 @@ impl SegmentFile {
     }
 
     /// append a list of records to the segment file
-    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), StorageEngineError> {
+    pub async fn write(&self, records: &[StorageEngineRecord]) -> Result<(), StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
         for record in records {
-            let data = JournalRecord::encode_to_vec(record);
+            let data = StorageEngineRecord::encode_to_vec(record);
             writer.write_u64(record.offset as u64).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
@@ -192,7 +192,7 @@ impl SegmentFile {
             reader.read_buf(&mut buf).await?;
 
             already_size += buf.len() as u64;
-            let record = JournalRecord::decode(buf)?;
+            let record = StorageEngineRecord::decode(buf)?;
             results.push(ReadData { position, record });
 
             if results.len() >= max_record as usize {
@@ -241,7 +241,7 @@ impl SegmentFile {
             let mut buf = BytesMut::with_capacity(len as usize);
             reader.read_buf(&mut buf).await?;
 
-            let record = JournalRecord::decode(buf)?;
+            let record = StorageEngineRecord::decode(buf)?;
 
             results.push(ReadData { position, record });
         }
@@ -272,7 +272,7 @@ mod tests {
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
-    use protocol::storage::journal_record::JournalRecord;
+    use protocol::storage::storage_engine_record::StorageEngineRecord;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -351,7 +351,7 @@ mod tests {
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{i}");
-            let record = JournalRecord {
+            let record = StorageEngineRecord {
                 content: value.as_bytes().to_vec(),
                 create_time: now_second(),
                 key: format!("k{i}"),
@@ -390,7 +390,7 @@ mod tests {
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{i}");
-            let record = JournalRecord {
+            let record = StorageEngineRecord {
                 content: value.as_bytes().to_vec(),
                 create_time: now_second(),
                 key: format!("k{i}"),

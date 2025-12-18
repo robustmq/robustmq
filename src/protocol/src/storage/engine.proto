@@ -15,10 +15,10 @@
  */
 
 syntax = "proto3";
-package journal.engine;
+package storage.engine;
 
 /** Error **/
-message JournalEngineError {
+message StorageEngineError {
   string code = 1;
   string error = 2;
 }
@@ -48,7 +48,7 @@ message ReqHeader {
 message RespHeader {
   ApiKey api_key = 1;
   ApiVersion api_version = 2;
-  JournalEngineError error = 3;
+  StorageEngineError error = 3;
 }
 
 /** Write Request **/
@@ -82,7 +82,7 @@ message WriteRespMessage {
 message WriteRespMessageStatus {
   uint64 offset = 1;
   uint64 pkid = 2;
-  JournalEngineError error = 3;
+  StorageEngineError error = 3;
 }
 
 message WriteReq {

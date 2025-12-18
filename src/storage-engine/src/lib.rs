@@ -23,8 +23,6 @@ use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
 use segment::scroll::SegmentScrollManager;
-use server::connection_manager::ConnectionManager;
-use server::tcp::server::start_tcp_server;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
@@ -40,7 +38,6 @@ pub mod server;
 pub struct StorageEngineParams {
     pub cache_manager: Arc<StorageCacheManager>,
     pub client_pool: Arc<ClientPool>,
-    pub connection_manager: Arc<ConnectionManager>,
     pub segment_file_manager: Arc<SegmentFileManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
@@ -48,7 +45,6 @@ pub struct StorageEngineParams {
 pub struct JournalServer {
     config: BrokerConfig,
     client_pool: Arc<ClientPool>,
-    connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -64,7 +60,6 @@ impl JournalServer {
         JournalServer {
             config: config.clone(),
             client_pool: params.client_pool,
-            connection_manager: params.connection_manager,
             cache_manager: params.cache_manager,
             segment_file_manager: params.segment_file_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
@@ -84,23 +79,7 @@ impl JournalServer {
     }
 
     fn start_tcp_server(&self) {
-        let client_pool = self.client_pool.clone();
-        let connection_manager = self.connection_manager.clone();
-        let cache_manager = self.cache_manager.clone();
-        let inner_stop = self.inner_stop.clone();
-        let segment_file_manager = self.segment_file_manager.clone();
-        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
-        tokio::spawn(async {
-            start_tcp_server(
-                client_pool,
-                connection_manager,
-                cache_manager,
-                segment_file_manager,
-                rocksdb_engine_handler,
-                inner_stop,
-            )
-            .await;
-        });
+        tokio::spawn(async {});
     }
 
     fn start_daemon_thread(&self) {

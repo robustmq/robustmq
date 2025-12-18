@@ -15,9 +15,9 @@
  */
 
 syntax = "proto3";
-package journal.record;
+package storage.record;
 
-message JournalRecord {
+message StorageEngineRecord {
   string producer_id = 1;
   uint64 pkid = 2;
   string key = 3;

@@ -7480,6 +7480,7 @@ dependencies = [
 name = "storage-engine"
 version = "0.2.7"
 dependencies = [
+ "axum",
  "bytes",
  "common-base",
  "common-config",
@@ -7488,6 +7489,7 @@ dependencies = [
  "futures-util",
  "grpc-clients",
  "metadata-struct",
+ "network-server",
  "prost",
  "protocol",
  "rocksdb-engine",

@@ -20,6 +20,7 @@ use crate::{
         codec::MqttPacketWrapper,
         common::{MqttPacket, MqttProtocol},
     },
+    storage::codec::StorageEnginePacket,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -28,6 +29,7 @@ pub enum RobustMQProtocol {
     MQTT4,
     MQTT5,
     KAFKA,
+    StorageEngine,
 }
 
 impl RobustMQProtocol {
@@ -51,6 +53,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => 4,
             RobustMQProtocol::MQTT5 => 5,
             RobustMQProtocol::KAFKA => 0,
+            RobustMQProtocol::StorageEngine => 10,
         }
     }
 
@@ -60,6 +63,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => "MQTT4".to_string(),
             RobustMQProtocol::MQTT5 => "MQTT5".to_string(),
             RobustMQProtocol::KAFKA => "KAFKA".to_string(),
+            RobustMQProtocol::StorageEngine => "StorageEngine".to_string(),
         }
     }
 
@@ -69,6 +73,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => MqttProtocol::Mqtt4,
             RobustMQProtocol::MQTT5 => MqttProtocol::Mqtt5,
             RobustMQProtocol::KAFKA => MqttProtocol::Mqtt3,
+            RobustMQProtocol::StorageEngine => MqttProtocol::Mqtt3,
         }
     }
 
@@ -89,10 +94,14 @@ pub struct MqttWrapperExtend {
 #[derive(Clone, Debug, Default)]
 pub struct KafkaWrapperExtend {}
 
+#[derive(Clone, Debug, Default)]
+pub struct StorageEngineWrapperExtend {}
+
 #[derive(Clone, Debug)]
 pub enum RobustMQWrapperExtend {
     MQTT(MqttWrapperExtend),
     KAFKA(KafkaWrapperExtend),
+    StorageEngine(StorageEngineWrapperExtend),
 }
 
 impl RobustMQWrapperExtend {
@@ -100,6 +109,7 @@ impl RobustMQWrapperExtend {
         match self.clone() {
             RobustMQWrapperExtend::MQTT(extend) => extend.protocol_version,
             RobustMQWrapperExtend::KAFKA(_) => 3,
+            RobustMQWrapperExtend::StorageEngine(_) => 3,
         }
     }
 }
@@ -134,6 +144,7 @@ impl RobustMQPacketWrapper {
 pub enum RobustMQPacket {
     MQTT(MqttPacket),
     KAFKA(KafkaPacket),
+    StorageEngine(StorageEnginePacket),
 }
 
 impl RobustMQPacket {
@@ -141,6 +152,7 @@ impl RobustMQPacket {
         match self.clone() {
             RobustMQPacket::MQTT(pack) => Some(pack),
             RobustMQPacket::KAFKA(_) => None,
+            RobustMQPacket::StorageEngine(_) => None,
         }
     }
 }

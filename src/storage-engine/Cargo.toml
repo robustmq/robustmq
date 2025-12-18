@@ -40,3 +40,5 @@ prost.workspace = true
 rocksdb-engine.workspace = true
 common-config.workspace = true
 tracing-appender.workspace = true
+network-server.workspace = true
+axum.workspace = true
