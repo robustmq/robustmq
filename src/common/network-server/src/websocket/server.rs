@@ -36,7 +36,7 @@ use protocol::kafka::packet::{KafkaHeader, KafkaPacketWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{
     KafkaWrapperExtend, MqttWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
-    RobustMQWrapperExtend,
+    RobustMQWrapperExtend, StorageEngineWrapperExtend,
 };
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -239,6 +239,7 @@ async fn process_socket_packet_by_binary(
         let robust_packet = match packet {
             RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg.packet),
             RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
+            RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
         };
 
         if let Some(resp_pkg) = command.apply(&tcp_connection, addr, &robust_packet).await {
@@ -254,6 +255,7 @@ async fn process_socket_packet_by_binary(
                     header: KafkaHeader::Response(ResponseHeader::default()),
                     packet: pkg,
                 }),
+                RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),
             };
             codec.encode_data(resp_codec_wrapper, &mut response_buff)?;
 
@@ -268,6 +270,13 @@ async fn process_socket_packet_by_binary(
                     protocol: RobustMQProtocol::KAFKA,
                     extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend::default()),
                     packet: RobustMQPacket::KAFKA(pkg),
+                },
+                RobustMQPacket::StorageEngine(pkg) => RobustMQPacketWrapper {
+                    protocol: RobustMQProtocol::StorageEngine,
+                    extend: RobustMQWrapperExtend::StorageEngine(
+                        StorageEngineWrapperExtend::default(),
+                    ),
+                    packet: RobustMQPacket::StorageEngine(pkg),
                 },
             };
 

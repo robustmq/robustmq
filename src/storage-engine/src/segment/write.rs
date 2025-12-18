@@ -23,8 +23,10 @@ use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
-use protocol::storage::journal_engine::{WriteReqBody, WriteRespMessage, WriteRespMessageStatus};
-use protocol::storage::journal_record::JournalRecord;
+use protocol::storage::storage_engine_engine::{
+    WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
+};
+use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -44,7 +46,7 @@ pub struct SegmentWrite {
 
 /// the data to be sent to the segment write thread
 pub struct SegmentWriteData {
-    data: Vec<JournalRecord>,
+    data: Vec<StorageEngineRecord>,
     resp_sx: oneshot::Sender<SegmentWriteResp>,
 }
 
@@ -77,7 +79,7 @@ pub async fn write_data_req(
         let mut record_list = Vec::new();
         for message in shard_data.messages.iter() {
             // todo data validator
-            let record = JournalRecord {
+            let record = StorageEngineRecord {
                 content: message.value.clone(),
                 create_time: now_second(),
                 key: message.key.clone(),
@@ -176,7 +178,7 @@ pub(crate) async fn write_data(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
-    data_list: Vec<JournalRecord>,
+    data_list: Vec<StorageEngineRecord>,
 ) -> Result<SegmentWriteResp, StorageEngineError> {
     let write = get_write(
         cache_manager,
@@ -350,7 +352,7 @@ async fn batch_write(
     cache_manager: &Arc<StorageCacheManager>,
     local_segment_end_offset: i64,
     segment_write: &SegmentFile,
-    data: Vec<JournalRecord>,
+    data: Vec<StorageEngineRecord>,
 ) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
     if data.is_empty() {
         return Ok(None);
@@ -388,7 +390,7 @@ async fn batch_write(
 ///
 /// Note that this function will be executed serially by the write thread of the segment
 async fn batch_write0(
-    data: Vec<JournalRecord>,
+    data: Vec<StorageEngineRecord>,
     segment_write: &SegmentFile,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
@@ -480,7 +482,7 @@ fn is_end_offset(end_offset: i64, current_offset: u64, packet_len: u64) -> bool 
 mod tests {
     use common_base::tools::unique_id;
     use prost::Message;
-    use protocol::storage::journal_record::JournalRecord;
+    use protocol::storage::storage_engine_record::StorageEngineRecord;
 
     use super::{create_write_thread, is_end_offset, write_data};
     use crate::core::test::test_init_segment;
@@ -519,7 +521,7 @@ mod tests {
 
         let producer_id = unique_id();
         for i in 0..10 {
-            data_list.push(JournalRecord {
+            data_list.push(StorageEngineRecord {
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 content: format!("data-{i}").encode_to_vec(),
@@ -547,7 +549,7 @@ mod tests {
 
         let mut data_list = Vec::new();
         for i in 10..20 {
-            data_list.push(JournalRecord {
+            data_list.push(StorageEngineRecord {
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
                 content: format!("data-{i}").encode_to_vec(),

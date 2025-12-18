@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use prost::Message;
-use protocol::storage::journal_record::JournalRecord;
+use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -141,7 +141,7 @@ pub async fn test_base_write_data(
 
     let producer_id = unique_id();
     for i in 0..len {
-        data_list.push(JournalRecord {
+        data_list.push(StorageEngineRecord {
             shard_name: segment_iden.shard_name.clone(),
             segment: segment_iden.segment_seq,
             content: format!("data-{i}").encode_to_vec(),

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use protocol::storage::journal_engine::{
+use protocol::storage::storage_engine_engine::{
     ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;

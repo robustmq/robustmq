@@ -16,19 +16,19 @@
 #![allow(clippy::all)]
 
 use std::io;
-pub mod journal_record {
-    tonic::include_proto!("journal.record");
+pub mod storage_engine_record {
+    tonic::include_proto!("storage.record");
 }
 
-pub mod journal_engine {
-    tonic::include_proto!("journal.engine");
+pub mod storage_engine_engine {
+    tonic::include_proto!("storage.engine");
 }
 
 pub mod codec;
 
 /// Error during serialization and deserialization
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum StorageError {
     #[error("data store disconnected")]
     IoError(#[from] io::Error),
     #[error("Payload size has been exceeded by {0} bytes")]

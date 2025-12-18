@@ -118,6 +118,10 @@ async fn process_response(
                 // todo
                 return;
             }
+            RobustMQPacket::StorageEngine(_packet) => {
+                // todo
+                return;
+            }
         };
 
         match network_type.clone() {

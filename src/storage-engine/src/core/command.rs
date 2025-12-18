@@ -12,31 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
-use super::data::DataHandler;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
+use crate::core::handler::DataHandler;
 use crate::segment::manager::SegmentFileManager;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
+use axum::async_trait;
 use grpc_clients::pool::ClientPool;
-use protocol::storage::codec::JournalEnginePacket;
-use protocol::storage::journal_engine::{
-    ApiKey, ApiVersion, JournalEngineError, ReadResp, ReadRespBody, RespHeader, WriteResp,
+use metadata_struct::connection::NetworkConnection;
+use network_server::command::Command;
+use network_server::common::packet::ResponsePackage;
+use protocol::robust::RobustMQPacket;
+use protocol::storage::codec::StorageEnginePacket;
+use protocol::storage::storage_engine_engine::{
+    ApiKey, ApiVersion, ReadResp, ReadRespBody, RespHeader, StorageEngineError, WriteResp,
     WriteRespBody,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::{debug, error};
 
 /// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
-pub struct Command {
+pub struct StorageEngineHandlerCommand {
     data_handler: DataHandler,
 }
 
-impl Command {
+impl StorageEngineHandlerCommand {
     pub fn new(
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<StorageCacheManager>,
@@ -49,20 +51,29 @@ impl Command {
             rocksdb_engine_handler,
             client_pool,
         );
-        Command { data_handler }
+        StorageEngineHandlerCommand { data_handler }
     }
+}
 
-    pub async fn apply(
+#[async_trait]
+impl Command for StorageEngineHandlerCommand {
+    async fn apply(
         &self,
-        _connect_manager: Arc<ConnectionManager>,
-        _tcp_connection: NetworkConnection,
-        _addr: SocketAddr,
-        packet: JournalEnginePacket,
-    ) -> Option<JournalEnginePacket> {
+        tcp_connection: &NetworkConnection,
+        _addr: &SocketAddr,
+        packet: &RobustMQPacket,
+    ) -> Option<ResponsePackage> {
         debug!("recv packet: {:?}", packet);
-        match packet {
+        let pack = match packet {
+            RobustMQPacket::StorageEngine(pack) => pack.clone(),
+            _ => {
+                return None;
+            }
+        };
+
+        match pack {
             /* Data Handler */
-            JournalEnginePacket::WriteReq(request) => {
+            StorageEnginePacket::WriteReq(request) => {
                 let mut resp = WriteResp::default();
                 let mut header = RespHeader {
                     api_key: ApiKey::Write.into(),
@@ -74,7 +85,7 @@ impl Command {
                         resp.body = Some(WriteRespBody { status });
                     }
                     Err(e) => {
-                        header.error = Some(JournalEngineError {
+                        header.error = Some(StorageEngineError {
                             code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
@@ -82,10 +93,14 @@ impl Command {
                     }
                 }
                 resp.header = Some(header);
-                return Some(JournalEnginePacket::WriteResp(resp));
+                let response = ResponsePackage::build(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::WriteResp(resp)),
+                );
+                return Some(response);
             }
 
-            JournalEnginePacket::ReadReq(request) => {
+            StorageEnginePacket::ReadReq(request) => {
                 let mut resp = ReadResp::default();
                 let mut header = RespHeader {
                     api_key: ApiKey::Read.into(),
@@ -97,7 +112,7 @@ impl Command {
                         resp.body = Some(ReadRespBody { messages });
                     }
                     Err(e) => {
-                        header.error = Some(JournalEngineError {
+                        header.error = Some(StorageEngineError {
                             code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
@@ -105,12 +120,16 @@ impl Command {
                     }
                 }
                 resp.header = Some(header);
-                return Some(JournalEnginePacket::ReadResp(resp));
+                let response = ResponsePackage::build(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::ReadResp(resp)),
+                );
+                return Some(response);
             }
 
             _ => {
                 error!(
-                    "server received an unrecognized request, request info: {:?}",
+                    "storage engine server received an unrecognized request, request info: {:?}",
                     packet
                 );
             }

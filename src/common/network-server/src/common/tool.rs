@@ -49,6 +49,7 @@ pub async fn read_packet(
     }
     match pack.clone() {
         RobustMQPacket::KAFKA(_) => {}
+        RobustMQPacket::StorageEngine(_) => {}
         RobustMQPacket::MQTT(pack) => {
             record_packet_received_metrics(connection, &pack, network_type);
         }

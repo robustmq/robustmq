@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::segment::write::SegmentWriteData;
+use common_base::error::common::CommonError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;
-
-use common_base::error::common::CommonError;
 use thiserror::Error;
-
-use crate::segment::write::SegmentWriteData;
 
 #[derive(Error, Debug)]
 pub enum StorageEngineError {
@@ -26,7 +24,7 @@ pub enum StorageEngineError {
     FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("{0}")]
-    CommonError(#[from] CommonError),
+    CommonError(Box<CommonError>),
 
     #[error("{0}")]
     StdIoError(#[from] std::io::Error),
@@ -102,6 +100,12 @@ pub enum StorageEngineError {
 
     #[error("Segment Offset is at the end and can no longer be written.")]
     SegmentOffsetAtTheEnd,
+}
+
+impl From<CommonError> for StorageEngineError {
+    fn from(error: CommonError) -> Self {
+        StorageEngineError::CommonError(Box::new(error))
+    }
 }
 
 pub fn get_journal_server_code(e: &StorageEngineError) -> String {
