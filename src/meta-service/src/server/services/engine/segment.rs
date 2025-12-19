@@ -24,7 +24,6 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use bytes::Bytes;
-use common_base::utils::serialize;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
@@ -368,7 +367,6 @@ fn calc_node_fold(
     cache_manager: &Arc<CacheManager>,
     node_id: u64,
 ) -> Result<String, MetaServiceError> {
-    let conf = broker_config();
     let node = if let Some(node) = cache_manager.get_broker_node(node_id) {
         node
     } else {
