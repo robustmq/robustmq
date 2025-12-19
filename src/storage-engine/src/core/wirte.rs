@@ -12,12 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::{cache::StorageCacheManager, error::StorageEngineError};
+use crate::{
+    core::{cache::StorageCacheManager, error::StorageEngineError},
+    segment::{manager::SegmentFileManager, write::write_data_req},
+};
 use common_base::tools::{now_millis, now_second};
 use common_config::broker::broker_config;
 use grpc_clients::{meta::journal::call::create_next_segment, pool::ClientPool};
-use metadata_struct::{adapter::record::Record, storage::segment::EngineSegment};
-use protocol::meta::meta_service_journal::CreateNextSegmentRequest;
+use metadata_struct::{
+    adapter::record::Record,
+    storage::{
+        segment::EngineSegment,
+        shard::{EngineShard, EngineType},
+    },
+};
+use protocol::{
+    meta::meta_service_journal::CreateNextSegmentRequest,
+    storage::storage_engine_engine::WriteReqBody,
+};
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -39,7 +52,30 @@ pub async fn batch_write(
     Ok(Vec::new())
 }
 
-async fn write_to_local() {}
+async fn write_to_local(
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_file_manager: &Arc<SegmentFileManager>,
+
+    shard_info: &EngineShard,
+) -> Result<Vec<u64>, StorageEngineError> {
+    // let req_body = WriteReqBody {};
+    // match shard_info.engine_type {
+    //     EngineType::Memory => {}
+    //     EngineType::Segment => {
+    //         let resp = write_data_req(
+    //             cache_manager,
+    //             rocksdb_engine_handler,
+    //             segment_file_manager,
+    //             client_pool,
+    //             &req_body,
+    //         )
+    //         .await?;
+    //     }
+    // }
+    Ok(Vec::new())
+}
 
 async fn write_to_leader() {}
 
