@@ -15,11 +15,12 @@
 use crate::cluster_service::GrpcBrokerCommonService;
 use axum::http::{self};
 use common_base::error::common::CommonError;
+use common_base::role::{is_broker_node, is_engine_node, is_meta_node};
 use common_base::tools::now_millis;
 use common_config::broker::broker_config;
 use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grpc_request};
 use meta_service::server::service_common::GrpcPlacementService;
-use meta_service::server::service_journal::GrpcEngineService;
+use meta_service::server::service_engine::GrpcEngineService;
 use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
@@ -66,7 +67,7 @@ pub async fn start_grpc_server(
         );
 
     let config = broker_config();
-    if config.is_start_meta() {
+    if is_meta_node(&config.roles) {
         route = route
             .add_service(
                 MetaServiceServiceServer::new(get_place_inner_handler(&place_params))
@@ -82,14 +83,14 @@ pub async fn start_grpc_server(
             );
     }
 
-    if config.is_start_broker() {
+    if is_broker_node(&config.roles) {
         route = route.add_service(
             BrokerMqttServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
     }
 
-    if config.is_start_storage_engine() {
+    if is_engine_node(&config.roles) {
         route = route.add_service(
             BrokerStorageServiceServer::new(get_storage_engine_inner_handler(&journal_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),

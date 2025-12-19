@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod enum_type;
-pub mod error;
-pub mod http_error;
-pub mod http_response;
-pub mod inner_topic;
-pub mod logging;
-pub mod network;
-pub mod node_status;
-pub mod role;
-pub mod runtime;
-pub mod telemetry;
-pub mod tools;
-pub mod utils;
-pub mod version;
+pub const ROLE_BROKER: &str = "broker";
+pub const ROLE_META: &str = "meta";
+pub const ROLE_ENGINE: &str = "engine";
+
+pub fn is_meta_node(roles: &[String]) -> bool {
+    roles.contains(&ROLE_META.to_string())
+}
+
+pub fn is_engine_node(roles: &[String]) -> bool {
+    roles.contains(&ROLE_ENGINE.to_string())
+}
+
+pub fn is_broker_node(roles: &[String]) -> bool {
+    roles.contains(&ROLE_BROKER.to_string())
+}

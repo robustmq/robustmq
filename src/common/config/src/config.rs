@@ -29,6 +29,9 @@ use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
 use crate::storage::StorageAdapterConfig;
 use common_base::enum_type::delay_type::DelayType;
+use common_base::role::{
+    is_broker_node, is_engine_node, is_meta_node, ROLE_BROKER, ROLE_ENGINE, ROLE_META,
+};
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
@@ -128,18 +131,6 @@ impl BrokerConfig {
             .values()
             .filter_map(|v| v.as_str().map(String::from))
             .collect()
-    }
-
-    pub fn is_start_meta(&self) -> bool {
-        self.roles.contains(&"meta".to_string())
-    }
-
-    pub fn is_start_storage_engine(&self) -> bool {
-        self.roles.contains(&"engine".to_string())
-    }
-
-    pub fn is_start_broker(&self) -> bool {
-        self.roles.contains(&"broker".to_string())
     }
 
     pub fn is_enable_slow_subscribe_record(&self) -> bool {

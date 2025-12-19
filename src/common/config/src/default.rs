@@ -21,12 +21,13 @@ use crate::config::{
 };
 use crate::storage::{StorageAdapterConfig, StorageAdapterType};
 use common_base::enum_type::delay_type::DelayType;
+use common_base::role::{ROLE_BROKER, ROLE_META};
 use common_base::runtime::get_runtime_worker_threads;
 use common_base::tools::get_local_ip;
 use toml::Table;
 
 pub fn default_roles() -> Vec<String> {
-    vec!["meta".to_string(), "broker".to_string()]
+    vec![ROLE_BROKER.to_string(), ROLE_META.to_string()]
 }
 
 pub fn default_cluster_name() -> String {

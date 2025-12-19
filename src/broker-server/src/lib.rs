@@ -21,7 +21,10 @@ use broker_core::{
     cache::BrokerCacheManager,
     heartbeat::{check_meta_service_status, register_node, report_heartbeat},
 };
-use common_base::runtime::create_runtime;
+use common_base::{
+    role::{is_broker_node, is_engine_node, is_meta_node},
+    runtime::create_runtime,
+};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
@@ -246,7 +249,7 @@ impl BrokerServer {
         let place_runtime =
             create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
         let place_params = self.place_params.clone();
-        if config.is_start_meta() {
+        if is_meta_node(&config.roles) {
             place_stop_send = Some(stop_send.clone());
             place_runtime.spawn(async move {
                 let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
@@ -266,7 +269,7 @@ impl BrokerServer {
             self.config.runtime.runtime_worker_threads,
         );
 
-        if config.is_start_storage_engine() {
+        if is_engine_node(&config.roles) {
             journal_stop_send = Some(stop_send.clone());
             let server = JournalServer::new(self.journal_params.clone(), stop_send);
             journal_runtime.spawn(async move {
@@ -279,7 +282,7 @@ impl BrokerServer {
         let (stop_send, _) = broadcast::channel(2);
         let mqtt_runtime =
             create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
-        if config.is_start_broker() {
+        if is_broker_node(&config.roles) {
             mqtt_stop_send = Some(stop_send.clone());
             let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
             mqtt_runtime.spawn(async move {
