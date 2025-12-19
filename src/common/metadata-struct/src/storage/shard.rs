@@ -25,6 +25,8 @@ pub struct EngineShard {
     pub last_segment_seq: u32,
     pub status: EngineShardStatus,
     pub config: EngineShardConfig,
+    pub engine_type: EngineType,
+    pub replica_num: u32,
     pub create_time: u128,
 }
 
@@ -60,4 +62,11 @@ impl EngineShardConfig {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
+}
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EngineType {
+    #[default]
+    Segment,
+    Memory,
 }

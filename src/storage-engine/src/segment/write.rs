@@ -250,7 +250,7 @@ pub(crate) async fn create_write_thread(
             ));
         };
 
-    let (segment_write, _) = open_segment_write(cache_manager, segment_iden).await?;
+    let segment_write = open_segment_write(cache_manager, segment_iden).await?;
 
     let context = WriteThreadContext {
         rocksdb_engine_handler: rocksdb_engine_handler.clone(),
@@ -578,7 +578,7 @@ mod tests {
         let write = open_segment_write(&cache_manager, &segment_iden)
             .await
             .unwrap();
-        let res = write.0.read_by_offset(0, 0, 1024 * 1024 * 1024, 1000).await;
+        let res = write.read_by_offset(0, 0, 1024 * 1024 * 1024, 1000).await;
         assert!(res.is_ok());
 
         let resp = res.unwrap();

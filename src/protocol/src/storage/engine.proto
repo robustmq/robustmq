@@ -30,10 +30,6 @@ enum ApiKey {
   Write = 2;
 }
 
-enum ApiVersion {
-  V0 = 0;
-}
-
 enum ReadType {
   Offset = 0;
   Key = 1;
@@ -42,12 +38,10 @@ enum ReadType {
 
 message ReqHeader {
   ApiKey api_key = 1;
-  ApiVersion api_version = 2;
 }
 
 message RespHeader {
   ApiKey api_key = 1;
-  ApiVersion api_version = 2;
   StorageEngineError error = 3;
 }
 

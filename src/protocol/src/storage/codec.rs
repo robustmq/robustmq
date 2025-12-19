@@ -344,15 +344,14 @@ mod tests {
 
     use super::{StorageEngineCodec, StorageEnginePacket};
     use crate::storage::storage_engine_engine::{
-        ApiKey, ApiVersion, ReadReq, ReadReqBody, ReqHeader, RespHeader, WriteReq, WriteReqBody,
-        WriteResp, WriteRespBody,
+        ApiKey, ReadReq, ReadReqBody, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp,
+        WriteRespBody,
     };
 
     #[test]
     fn write_req_codec_test() {
         let header = ReqHeader {
             api_key: ApiKey::Write.into(),
-            api_version: ApiVersion::V0.into(),
         };
 
         let body: WriteReqBody = WriteReqBody::default();
@@ -373,7 +372,6 @@ mod tests {
     fn read_codec_test() {
         let header = ReqHeader {
             api_key: ApiKey::Read.into(),
-            api_version: ApiVersion::V0.into(),
         };
 
         let source = StorageEnginePacket::ReadReq(ReadReq {
@@ -440,7 +438,6 @@ mod tests {
     fn build_write_resp() -> StorageEnginePacket {
         let header = RespHeader {
             api_key: ApiKey::Write.into(),
-            api_version: ApiVersion::V0.into(),
             error: None,
         };
 
@@ -455,7 +452,6 @@ mod tests {
     fn build_write_req() -> StorageEnginePacket {
         let header = ReqHeader {
             api_key: ApiKey::Write.into(),
-            api_version: ApiVersion::V0.into(),
         };
 
         let body: WriteReqBody = WriteReqBody::default();

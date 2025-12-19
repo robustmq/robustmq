@@ -38,7 +38,7 @@ pub struct ReadData {
 pub async fn open_segment_write(
     cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<(SegmentFile, u32), StorageEngineError> {
+) -> Result<SegmentFile, StorageEngineError> {
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
         segment
     } else {
@@ -55,13 +55,10 @@ pub async fn open_segment_write(
         ));
     };
 
-    Ok((
-        SegmentFile::new(
-            segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
-            fold,
-        ),
-        segment.config.max_segment_size,
+    Ok(SegmentFile::new(
+        segment_iden.shard_name.to_string(),
+        segment_iden.segment_seq,
+        fold,
     ))
 }
 
@@ -273,7 +270,7 @@ mod tests {
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::segment::{JournalSegment, Replica, SegmentConfig};
+    use metadata_struct::storage::segment::{EngineSegment, Replica};
     use protocol::storage::storage_engine_record::StorageEngineRecord;
     use std::sync::Arc;
 
@@ -297,7 +294,7 @@ mod tests {
             shard_name: shard_name.clone(),
             segment_seq: segment_no,
         };
-        let segment = JournalSegment {
+        let segment = EngineSegment {
             shard_name,
             segment_seq: segment_no,
             replicas: vec![Replica {
@@ -305,9 +302,6 @@ mod tests {
                 node_id: 1,
                 fold: "/tmp/jl/tests".to_string(),
             }],
-            config: SegmentConfig {
-                max_segment_size: 1000,
-            },
             ..Default::default()
         };
 
@@ -320,7 +314,6 @@ mod tests {
         cache_manager.set_segment(segment);
         let res = open_segment_write(&cache_manager, &segment_iden).await;
         assert!(res.is_ok());
-        assert_eq!(res.unwrap().1, 1000);
     }
 
     #[tokio::test]

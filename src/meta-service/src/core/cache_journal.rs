@@ -14,8 +14,8 @@
 
 use crate::core::cache::CacheManager;
 use dashmap::DashMap;
-use metadata_struct::storage::segment::{JournalSegment, SegmentStatus};
-use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 
 impl CacheManager {
@@ -35,7 +35,7 @@ impl CacheManager {
         self.segment_list.remove(shard_name);
     }
 
-    pub fn get_segment_list_by_shard(&self, shard_name: &str) -> Vec<JournalSegment> {
+    pub fn get_segment_list_by_shard(&self, shard_name: &str) -> Vec<EngineSegment> {
         let mut results = Vec::new();
         if let Some(segment_list) = self.segment_list.get(shard_name) {
             for raw in segment_list.iter() {
@@ -45,7 +45,7 @@ impl CacheManager {
         results
     }
 
-    pub fn get_segment_meta_list_by_shard(&self, shard_name: &str) -> Vec<JournalSegmentMetadata> {
+    pub fn get_segment_meta_list_by_shard(&self, shard_name: &str) -> Vec<EngineSegmentMetadata> {
         let mut results = Vec::new();
         if let Some(segment_list) = self.segment_meta_list.get(shard_name) {
             for raw in segment_list.iter() {
@@ -74,7 +74,7 @@ impl CacheManager {
         num
     }
 
-    pub fn get_segment(&self, shard_name: &str, segment_seq: u32) -> Option<JournalSegment> {
+    pub fn get_segment(&self, shard_name: &str, segment_seq: u32) -> Option<EngineSegment> {
         if let Some(segment_list) = self.segment_list.get(shard_name) {
             let res = segment_list.get(&segment_seq)?;
             return Some(res.clone());
@@ -82,7 +82,7 @@ impl CacheManager {
         None
     }
 
-    pub fn set_segment(&self, segment: &JournalSegment) {
+    pub fn set_segment(&self, segment: &EngineSegment) {
         if let Some(shard_list) = self.segment_list.get(&segment.shard_name) {
             shard_list.insert(segment.segment_seq, segment.clone());
         } else {
@@ -102,7 +102,7 @@ impl CacheManager {
         &self,
         shard_name: &str,
         segment_seq: u32,
-    ) -> Option<JournalSegmentMetadata> {
+    ) -> Option<EngineSegmentMetadata> {
         if let Some(list) = self.segment_meta_list.get(shard_name) {
             let res = list.get(&segment_seq)?;
             return Some(res.clone());
@@ -110,7 +110,7 @@ impl CacheManager {
         None
     }
 
-    pub fn set_segment_meta(&self, meta: &JournalSegmentMetadata) {
+    pub fn set_segment_meta(&self, meta: &EngineSegmentMetadata) {
         if let Some(list) = self.segment_meta_list.get(&meta.shard_name) {
             list.insert(meta.segment_seq, meta.clone());
         } else {
@@ -136,14 +136,14 @@ impl CacheManager {
             .insert(shard.shard_name.to_string(), shard.clone());
     }
 
-    pub fn add_wait_delete_segment(&self, segment: &JournalSegment) {
+    pub fn add_wait_delete_segment(&self, segment: &EngineSegment) {
         self.wait_delete_segment_list.insert(
             self.segment_key(&segment.shard_name, segment.segment_seq),
             segment.clone(),
         );
     }
 
-    pub fn remove_wait_delete_segment(&self, segment: &JournalSegment) {
+    pub fn remove_wait_delete_segment(&self, segment: &EngineSegment) {
         self.wait_delete_segment_list.insert(
             self.segment_key(&segment.shard_name, segment.segment_seq),
             segment.clone(),
@@ -158,7 +158,7 @@ impl CacheManager {
         results
     }
 
-    pub fn get_wait_delete_segment_list(&self) -> Vec<JournalSegment> {
+    pub fn get_wait_delete_segment_list(&self) -> Vec<EngineSegment> {
         let mut results = Vec::new();
         for raw in self.wait_delete_segment_list.iter() {
             results.push(raw.value().clone());

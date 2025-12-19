@@ -20,8 +20,8 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::journal::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::{JournalSegment, SegmentStatus};
-use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
@@ -38,10 +38,10 @@ pub struct StorageCacheManager {
     pub shards: DashMap<String, EngineShard>,
 
     // (shard_name, (segment_no, JournalSegment))
-    pub segments: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub segments: DashMap<String, DashMap<u32, EngineSegment>>,
 
     // (shard_name, (segment_no, JournalSegmentMetadata))
-    pub segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
+    pub segment_metadatas: DashMap<String, DashMap<u32, EngineSegmentMetadata>>,
 
     // (segment_name, SegmentIdentity)
     pub leader_segments: DashMap<String, SegmentIdentity>,
@@ -81,7 +81,7 @@ impl StorageCacheManager {
         self.shards.remove(shard_name);
     }
 
-    pub fn get_active_segment(&self, shard_name: &str) -> Option<JournalSegment> {
+    pub fn get_active_segment(&self, shard_name: &str) -> Option<EngineSegment> {
         if let Some(shard) = self.shards.get(shard_name) {
             let segment_iden = SegmentIdentity {
                 shard_name: shard_name.to_string(),
@@ -96,7 +96,7 @@ impl StorageCacheManager {
     }
 
     // Segment
-    pub fn set_segment(&self, segment: JournalSegment) {
+    pub fn set_segment(&self, segment: EngineSegment) {
         if let Some(segment_list) = self.segments.get(&segment.shard_name) {
             segment_list.insert(segment.segment_seq, segment.clone());
         } else {
@@ -144,7 +144,7 @@ impl StorageCacheManager {
         }
     }
 
-    pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<JournalSegment> {
+    pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
         if let Some(sgement_list) = self.segments.get(&segment.shard_name) {
             if let Some(segment) = sgement_list.get(&segment.segment_seq) {
                 return Some(segment.clone());
@@ -153,7 +153,7 @@ impl StorageCacheManager {
         None
     }
 
-    pub fn get_segments_list_by_shard(&self, shard_name: &str) -> Vec<JournalSegment> {
+    pub fn get_segments_list_by_shard(&self, shard_name: &str) -> Vec<EngineSegment> {
         let mut results = Vec::new();
         if let Some(sgement_list) = self.segments.get(shard_name) {
             for raw in sgement_list.iter() {
@@ -172,7 +172,7 @@ impl StorageCacheManager {
     }
 
     // Segment Meta
-    pub fn set_segment_meta(&self, segment: JournalSegmentMetadata) {
+    pub fn set_segment_meta(&self, segment: EngineSegmentMetadata) {
         if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
             list.insert(segment.segment_seq, segment);
         } else {
@@ -186,7 +186,7 @@ impl StorageCacheManager {
     pub fn get_segment_meta(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Option<JournalSegmentMetadata> {
+    ) -> Option<EngineSegmentMetadata> {
         if let Some(list) = self.segment_metadatas.get(&segment_iden.shard_name) {
             if let Some(segment) = list.get(&segment_iden.segment_seq) {
                 return Some(segment.clone());
@@ -308,7 +308,7 @@ pub async fn load_metadata_cache(
                 list.segments.len()
             );
             for segment_bytes in list.segments {
-                match JournalSegment::decode(&segment_bytes) {
+                match EngineSegment::decode(&segment_bytes) {
                     Ok(segment) => cache_manager.set_segment(segment),
                     Err(e) => {
                         panic!("Failed to decode the JournalSegment information, {e}");
@@ -332,7 +332,7 @@ pub async fn load_metadata_cache(
                 list.segments.len()
             );
             for segment_bytes in list.segments {
-                match JournalSegmentMetadata::decode(&segment_bytes) {
+                match EngineSegmentMetadata::decode(&segment_bytes) {
                     Ok(meta) => cache_manager.set_segment_meta(meta),
                     Err(e) => {
                         panic!("Failed to decode the JournalSegmentMetadata information, {e}");

@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use metadata_struct::storage::segment::{segment_name, JournalSegment};
+use metadata_struct::storage::segment::{segment_name, EngineSegment};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use tracing::{error, info};
 
@@ -217,7 +217,7 @@ pub fn metadata_and_local_segment_diff_check() {
 pub async fn create_local_segment(
     cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    segment: &JournalSegment,
+    segment: &EngineSegment,
 ) -> Result<(), StorageEngineError> {
     let segment_iden = SegmentIdentity {
         shard_name: segment.shard_name.clone(),

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 /// Segment metadata in the meta service.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct JournalSegmentMetadata {
+pub struct EngineSegmentMetadata {
     pub shard_name: String,
     pub segment_seq: u32,
     pub start_offset: i64,
@@ -26,7 +26,7 @@ pub struct JournalSegmentMetadata {
     pub end_timestamp: i64,
 }
 
-impl JournalSegmentMetadata {
+impl EngineSegmentMetadata {
     pub fn name(&self) -> String {
         format!("{},{}", self.shard_name, self.segment_seq)
     }

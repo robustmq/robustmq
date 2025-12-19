@@ -113,7 +113,7 @@ async fn start_segment_build_index_thread(
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let time_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
-    let (segment_write, _) = open_segment_write(&cache_manager, &segment_iden).await?;
+    let segment_write = open_segment_write(&cache_manager, &segment_iden).await?;
 
     tokio::spawn(async move {
         let size = 10 * 1024 * 1024;

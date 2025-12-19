@@ -27,9 +27,9 @@ use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{
-    str_to_segment_status, JournalSegment, Replica, SegmentConfig, SegmentStatus,
+    str_to_segment_status, EngineSegment, Replica, SegmentConfig, SegmentStatus,
 };
-use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
@@ -97,10 +97,10 @@ pub async fn create_segment_by_req(
         .get_segment(&req.shard_name, next_segment_no)
         .is_none()
     {
-        let segment = build_segment(&shard, cache_manager, next_segment_no).await?;
+        let segment = create_segment(&shard, cache_manager, next_segment_no).await?;
         sync_save_segment_info(raft_manager, &segment).await?;
 
-        let metadata = JournalSegmentMetadata {
+        let metadata = EngineSegmentMetadata {
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
             start_offset: if segment.segment_seq == 0 { 0 } else { -1 },
@@ -301,23 +301,18 @@ pub async fn update_segment_meta_by_req(
     Ok(UpdateSegmentMetaReply::default())
 }
 
-pub async fn build_segment(
+pub async fn create_segment(
     shard_info: &EngineShard,
     cache_manager: &Arc<CacheManager>,
     segment_no: u32,
-) -> Result<JournalSegment, MetaServiceError> {
+) -> Result<EngineSegment, MetaServiceError> {
     if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_no) {
         return Ok(segment);
     }
 
-    let node_list: Vec<BrokerNode> = cache_manager
-        .node_list
-        .iter()
-        .map(|raw| raw.clone())
-        .collect();
-
+    let node_list: Vec<BrokerNode> = cache_manager.get_engine_node_list();
     if node_list.len() < shard_info.config.replica_num as usize {
-        return Err(MetaServiceError::NotEnoughNodes(
+        return Err(MetaServiceError::NotEnoughEngineNodes(
             shard_info.config.replica_num,
             node_list.len() as u32,
         ));
@@ -325,7 +320,7 @@ pub async fn build_segment(
 
     //todo Get the node copies at random
     let node_ids: Vec<u64> = node_list.iter().map(|raw| raw.node_id).collect();
-    println!("{:?}", node_ids);
+
     let mut replicas = Vec::new();
     for i in 0..node_ids.len() {
         let node_id = *node_ids.get(i).unwrap();
@@ -344,7 +339,7 @@ pub async fn build_segment(
         ));
     }
 
-    Ok(JournalSegment {
+    Ok(EngineSegment {
         shard_name: shard_info.shard_name.clone(),
         leader_epoch: 0,
         status: SegmentStatus::Idle,
@@ -352,9 +347,6 @@ pub async fn build_segment(
         leader: calc_leader_node(&replicas),
         replicas: replicas.clone(),
         isr: replicas.iter().map(|rep| rep.node_id).collect(),
-        config: SegmentConfig {
-            max_segment_size: shard_info.config.max_segment_size,
-        },
     })
 }
 
@@ -382,7 +374,7 @@ fn calc_node_fold(
 pub async fn update_segment_status(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    segment: &JournalSegment,
+    segment: &EngineSegment,
     status: SegmentStatus,
 ) -> Result<(), MetaServiceError> {
     let mut new_segment = segment.clone();
@@ -396,7 +388,7 @@ pub async fn update_segment_status(
 
 pub async fn sync_save_segment_info(
     raft_manager: &Arc<MultiRaftManager>,
-    segment: &JournalSegment,
+    segment: &EngineSegment,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegment,
@@ -410,7 +402,7 @@ pub async fn sync_save_segment_info(
 
 pub async fn sync_delete_segment_info(
     raft_manager: &Arc<MultiRaftManager>,
-    segment: &JournalSegment,
+    segment: &EngineSegment,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegment,
@@ -424,7 +416,7 @@ pub async fn sync_delete_segment_info(
 
 pub async fn sync_save_segment_metadata_info(
     raft_manager: &Arc<MultiRaftManager>,
-    segment: &JournalSegmentMetadata,
+    segment: &EngineSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetSegmentMetadata,
@@ -438,7 +430,7 @@ pub async fn sync_save_segment_metadata_info(
 
 pub async fn sync_delete_segment_metadata_info(
     raft_manager: &Arc<MultiRaftManager>,
-    segment: &JournalSegmentMetadata,
+    segment: &EngineSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegmentMetadata,
@@ -478,7 +470,4 @@ mod tests {
         let res = calc_node_fold(&cache_manager, 1).unwrap();
         assert!(!res.is_empty())
     }
-
-    #[tokio::test]
-    async fn create_segment_test() {}
 }

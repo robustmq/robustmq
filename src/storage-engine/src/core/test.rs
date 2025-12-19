@@ -22,8 +22,8 @@ use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::{JournalSegment, Replica, SegmentConfig};
-use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentConfig};
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use prost::Message;
 use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -77,7 +77,7 @@ pub async fn test_init_segment() -> (
     let fold = test_build_data_fold().first().unwrap().to_string();
     let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
-    let segment = JournalSegment {
+    let segment = EngineSegment {
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment_seq,
         replicas: vec![Replica {
@@ -85,9 +85,6 @@ pub async fn test_init_segment() -> (
             node_id: 1,
             fold: fold.clone(),
         }],
-        config: SegmentConfig {
-            max_segment_size: 1024 * 1024 * 1024,
-        },
         ..Default::default()
     };
     let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
@@ -96,7 +93,7 @@ pub async fn test_init_segment() -> (
         .await
         .unwrap();
 
-    let segment_meta = JournalSegmentMetadata {
+    let segment_meta = EngineSegmentMetadata {
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment_seq,
         ..Default::default()

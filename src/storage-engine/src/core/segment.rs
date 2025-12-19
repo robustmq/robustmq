@@ -49,7 +49,7 @@ pub async fn delete_local_segment(
 
     // delete local file
     match open_segment_write(cache_manager, segment_iden).await {
-        Ok((segment_file, _)) => {
+        Ok(segment_file) => {
             if let Err(e) = segment_file.delete().await {
                 error!("{}", e);
             }
@@ -72,7 +72,7 @@ pub async fn segment_already_delete(
         segment_seq: req.segment,
     };
 
-    let (segment_file, _) = open_segment_write(cache_manager, &segment_iden).await?;
+    let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
 
     Ok(!segment_file.exists())
 }

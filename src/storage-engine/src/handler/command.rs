@@ -24,8 +24,7 @@ use network_server::common::packet::ResponsePackage;
 use protocol::robust::RobustMQPacket;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::storage_engine_engine::{
-    ApiKey, ApiVersion, ReadResp, ReadRespBody, RespHeader, StorageEngineError, WriteResp,
-    WriteRespBody,
+    ApiKey, ReadResp, ReadRespBody, RespHeader, StorageEngineError, WriteResp, WriteRespBody,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::net::SocketAddr;
@@ -76,7 +75,6 @@ impl Command for StorageEngineHandlerCommand {
                 let mut resp = WriteResp::default();
                 let mut header = RespHeader {
                     api_key: ApiKey::Write.into(),
-                    api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
                 match self.data_handler.write(request).await {
@@ -103,7 +101,6 @@ impl Command for StorageEngineHandlerCommand {
                 let mut resp = ReadResp::default();
                 let mut header = RespHeader {
                     api_key: ApiKey::Read.into(),
-                    api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
                 match self.data_handler.read(request).await {

@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use metadata_struct::storage::segment::JournalSegment;
-use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::broker::broker_common::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRequest,
@@ -87,7 +87,7 @@ async fn parse_segment(
     data: &[u8],
 ) {
     match action_type {
-        BrokerUpdateCacheActionType::Set => match JournalSegment::decode(data) {
+        BrokerUpdateCacheActionType::Set => match EngineSegment::decode(data) {
             Ok(segment) => {
                 info!("Segment cache update, action: set, segment:{:?}", segment);
 
@@ -114,7 +114,7 @@ async fn parse_segment_meta(
     data: &[u8],
 ) {
     match action_type {
-        BrokerUpdateCacheActionType::Set => match JournalSegmentMetadata::decode(data) {
+        BrokerUpdateCacheActionType::Set => match EngineSegmentMetadata::decode(data) {
             Ok(segment_meta) => {
                 info!(
                     "Update the cache, set segment meta, segment meta:{:?}",

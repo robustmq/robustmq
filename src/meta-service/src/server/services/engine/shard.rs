@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::segment::{
-    build_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
+    create_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
 };
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::{
@@ -28,8 +28,10 @@ use bytes::Bytes;
 use common_base::tools::{now_millis, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::SegmentStatus;
-use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
-use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+use metadata_struct::storage::shard::{
+    EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+};
 use protocol::meta::meta_service_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest, ListShardReply,
     ListShardRequest,
@@ -75,7 +77,7 @@ pub async fn create_shard_by_req(
 
     let shard_config: EngineShardConfig = EngineShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
-        return Err(MetaServiceError::NotEnoughNodes(
+        return Err(MetaServiceError::NotEnoughEngineNodes(
             shard_config.replica_num,
             num,
         ));
@@ -91,7 +93,9 @@ pub async fn create_shard_by_req(
             active_segment_seq: 0,
             last_segment_seq: 0,
             status: EngineShardStatus::Run,
-            config: shard_config,
+            config: shard_config.clone(),
+            replica_num: shard_config.replica_num,
+            engine_type: EngineType::Segment,
             create_time: now_millis(),
         };
 
@@ -105,11 +109,11 @@ pub async fn create_shard_by_req(
     {
         segment
     } else {
-        let segment = build_segment(&shard, cache_manager, 0).await?;
+        let segment = create_segment(&shard, cache_manager, 0).await?;
 
         sync_save_segment_info(raft_manager, &segment).await?;
 
-        let metadata = JournalSegmentMetadata {
+        let metadata = EngineSegmentMetadata {
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
             start_offset: 0,

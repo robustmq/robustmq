@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::storage::segment::{segment_name, JournalSegment};
+use metadata_struct::storage::segment::{segment_name, EngineSegment};
 
 pub mod file;
 pub mod index;
@@ -41,7 +41,7 @@ impl SegmentIdentity {
         }
     }
 
-    pub fn from_journal_segment(segment: &JournalSegment) -> Self {
+    pub fn from_journal_segment(segment: &EngineSegment) -> Self {
         SegmentIdentity {
             shard_name: segment.shard_name.to_string(),
             segment_seq: segment.segment_seq,
