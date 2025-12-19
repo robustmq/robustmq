@@ -24,7 +24,6 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use bytes::Bytes;
-use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{
@@ -456,7 +455,6 @@ mod tests {
     use super::calc_node_fold;
     use crate::core::cache::CacheManager;
     use common_base::tools::now_second;
-    use common_base::utils::serialize;
     use metadata_struct::meta::node::BrokerNode;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
