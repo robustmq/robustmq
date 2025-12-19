@@ -14,8 +14,5 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
-
-pub struct JournalNamespace {
-    namespace_name: String,
-}
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct StorageDriverEngineConfig {}

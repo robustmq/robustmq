@@ -24,7 +24,7 @@ use crate::segment::index::IndexData;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
-use metadata_struct::journal::segment::SegmentStatus;
+use metadata_struct::storage::segment::SegmentStatus;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::journal::{
     engine_delete_by_journal, engine_get_by_journal, engine_list_by_prefix_to_map_by_journal,

@@ -17,8 +17,8 @@ use crate::{
     core::error::MetaServiceError,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::{
-    segment::JournalSegment, segment_meta::JournalSegmentMetadata, shard::JournalShard,
+use metadata_struct::storage::{
+    segment::JournalSegment, segment_meta::JournalSegmentMetadata, shard::EngineShard,
 };
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 pub async fn update_cache_by_set_shard(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    shard_info: JournalShard,
+    shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
     let data = shard_info.encode()?;
     let message = BrokerCallMessage {

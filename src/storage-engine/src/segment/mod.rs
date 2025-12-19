@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::journal::segment::{segment_name, JournalSegment};
+use metadata_struct::storage::segment::{segment_name, JournalSegment};
 
 pub mod file;
 pub mod index;

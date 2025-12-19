@@ -21,7 +21,7 @@ use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::ShardInfo;
-use metadata_struct::journal::shard::JournalShardConfig;
+use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::broker::broker_storage::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -64,7 +64,7 @@ pub fn delete_local_shard(
 
         // delete file
         let conf = broker_config();
-        for data_fold in conf.journal_storage.data_path.iter() {
+        for data_fold in conf.storage_runtime.data_path.iter() {
             let shard_fold_name = data_fold_shard(&req.shard_name, data_fold);
             if Path::new(&shard_fold_name).exists() {
                 match remove_dir_all(shard_fold_name) {
@@ -81,7 +81,7 @@ pub fn delete_local_shard(
 
 pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, StorageEngineError> {
     let conf = broker_config();
-    for data_fold in conf.journal_storage.data_path.iter() {
+    for data_fold in conf.storage_runtime.data_path.iter() {
         let shard_fold_name = data_fold_shard(&req.shard_name, data_fold);
         if Path::new(&shard_fold_name).exists() {
             return Ok(false);
@@ -102,7 +102,7 @@ pub async fn create_shard_to_place(
     shard: &ShardInfo,
 ) -> Result<(), StorageEngineError> {
     let shard_name = &shard.shard_name;
-    let config = JournalShardConfig {
+    let config = EngineShardConfig {
         replica_num: shard.replica_num,
         max_segment_size: 1073741824,
     };

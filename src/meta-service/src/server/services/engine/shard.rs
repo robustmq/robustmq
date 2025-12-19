@@ -27,9 +27,9 @@ use crate::storage::journal::shard::ShardStorage;
 use bytes::Bytes;
 use common_base::tools::{now_millis, unique_id};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::SegmentStatus;
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
+use metadata_struct::storage::segment::SegmentStatus;
+use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use protocol::meta::meta_service_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest, ListShardReply,
     ListShardRequest,
@@ -51,7 +51,7 @@ pub async fn list_shard_by_req(
         }
     };
 
-    let shards: Vec<JournalShard> = binary_shards.into_iter().collect();
+    let shards: Vec<EngineShard> = binary_shards.into_iter().collect();
 
     let shards_data = shards
         .into_iter()
@@ -73,7 +73,7 @@ pub async fn create_shard_by_req(
     // Check that the number of available nodes is sufficient
     let num = cache_manager.node_list.len() as u32;
 
-    let shard_config: JournalShardConfig = JournalShardConfig::decode(&req.shard_config)?;
+    let shard_config: EngineShardConfig = EngineShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
         return Err(MetaServiceError::NotEnoughNodes(
             shard_config.replica_num,
@@ -84,13 +84,13 @@ pub async fn create_shard_by_req(
     let shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
         shard
     } else {
-        let shard = JournalShard {
+        let shard = EngineShard {
             shard_uid: unique_id(),
             shard_name: req.shard_name.clone(),
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
-            status: JournalShardStatus::Run,
+            status: EngineShardStatus::Run,
             config: shard_config,
             create_time: now_millis(),
         };
@@ -154,11 +154,11 @@ pub async fn delete_shard_by_req(
         raft_manager,
         cache_manager,
         &shard,
-        JournalShardStatus::PrepareDelete,
+        EngineShardStatus::PrepareDelete,
     )
     .await?;
 
-    shard.status = JournalShardStatus::PrepareDelete;
+    shard.status = EngineShardStatus::PrepareDelete;
     cache_manager.add_wait_delete_shard(&shard);
 
     update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
@@ -169,7 +169,7 @@ pub async fn delete_shard_by_req(
 pub async fn update_start_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    shard: &mut JournalShard,
+    shard: &mut EngineShard,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
     shard.start_segment_seq = segment_no;
@@ -181,7 +181,7 @@ pub async fn update_start_segment_by_shard(
 pub async fn update_last_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    shard: &mut JournalShard,
+    shard: &mut EngineShard,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
     shard.last_segment_seq = segment_no;
@@ -192,7 +192,7 @@ pub async fn update_last_segment_by_shard(
 
 async fn sync_save_shard_info(
     raft_manager: &Arc<MultiRaftManager>,
-    shard: &JournalShard,
+    shard: &EngineShard,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalSetShard,
@@ -206,7 +206,7 @@ async fn sync_save_shard_info(
 
 pub async fn sync_delete_shard_info(
     raft_manager: &Arc<MultiRaftManager>,
-    shard: &JournalShard,
+    shard: &EngineShard,
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteShard,
@@ -221,8 +221,8 @@ pub async fn sync_delete_shard_info(
 pub async fn update_shard_status(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    shard: &JournalShard,
-    status: JournalShardStatus,
+    shard: &EngineShard,
+    status: EngineShardStatus,
 ) -> Result<(), MetaServiceError> {
     let mut new_shard = shard.clone();
     new_shard.status = status;

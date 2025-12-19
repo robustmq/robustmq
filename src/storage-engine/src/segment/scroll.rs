@@ -85,7 +85,7 @@ impl SegmentScrollManager {
                     Ok(size) => size,
                     Err(e) => {
                         error!(
-                            "Segmen {} File size calculation failed, error message :{}",
+                            "Segment {} File size calculation failed, error message :{}",
                             segment_iden.name(),
                             e
                         );

@@ -14,10 +14,10 @@
 
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
-use crate::server::services::journal::segment::{
+use crate::server::services::engine::segment::{
     sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
 };
-use crate::server::services::journal::shard::{
+use crate::server::services::engine::shard::{
     sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
 };
 
@@ -26,8 +26,8 @@ use grpc_clients::broker::storage::call::{
     journal_inner_get_segment_delete_status, journal_inner_get_shard_delete_status,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::SegmentStatus;
-use metadata_struct::journal::shard::JournalShardStatus;
+use metadata_struct::storage::segment::SegmentStatus;
+use metadata_struct::storage::shard::EngineShardStatus;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileRequest, DeleteShardFileRequest, GetSegmentDeleteStatusRequest,
     GetShardDeleteStatusRequest,
@@ -41,7 +41,7 @@ pub async fn gc_shard_thread(
     client_pool: &Arc<ClientPool>,
 ) {
     for shard in cache_manager.get_wait_delete_shard_list() {
-        if shard.status != JournalShardStatus::PrepareDelete {
+        if shard.status != EngineShardStatus::PrepareDelete {
             warn!(
                 "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
                 shard.shard_name, shard.status
@@ -54,7 +54,7 @@ pub async fn gc_shard_thread(
             raft_manager,
             cache_manager,
             &shard.clone(),
-            JournalShardStatus::Deleting,
+            EngineShardStatus::Deleting,
         )
         .await
         {

@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use metadata_struct::journal::segment::{segment_name, JournalSegment};
+use metadata_struct::storage::segment::{segment_name, JournalSegment};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use tracing::{error, info};
 

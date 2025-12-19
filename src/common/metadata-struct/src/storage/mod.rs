@@ -12,17 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct JournalGroup {
-    namespace: String,
-    group_name: String,
-    shard_list: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct JournalGroupOffset {
-    shard_name: String,
-    commit_offset: String,
-}
+pub mod segment;
+pub mod segment_meta;
+pub mod shard;

@@ -22,7 +22,7 @@ use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::SegmentStatus;
+use metadata_struct::storage::segment::SegmentStatus;
 use protocol::storage::storage_engine_engine::{
     WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
 };

@@ -24,13 +24,13 @@ use crate::storage::mqtt::user::MqttUserStorage;
 use crate::{controller::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage};
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::journal::segment::JournalSegment;
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::storage::segment::JournalSegment;
+use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::shard::EngineShard;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -61,7 +61,7 @@ pub struct CacheManager {
 
     // Journal
     //（shard_name, JournalShard）
-    pub shard_list: DashMap<String, JournalShard>,
+    pub shard_list: DashMap<String, EngineShard>,
 
     //（shard_name, (segment_no,JournalSegment))
     pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
@@ -70,7 +70,7 @@ pub struct CacheManager {
     pub segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
 
     //（shard_name, JournalShard）
-    pub wait_delete_shard_list: DashMap<String, JournalShard>,
+    pub wait_delete_shard_list: DashMap<String, EngineShard>,
 
     //（shard_name, JournalSegment)
     pub wait_delete_segment_list: DashMap<String, JournalSegment>,

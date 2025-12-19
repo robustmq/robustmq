@@ -20,9 +20,9 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::journal::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::JournalShard;
+use metadata_struct::storage::segment::{JournalSegment, SegmentStatus};
+use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
@@ -35,7 +35,7 @@ pub struct StorageCacheManager {
     pub broker_cache: Arc<BrokerCacheManager>,
 
     // (shard_name, JournalShard)
-    pub shards: DashMap<String, JournalShard>,
+    pub shards: DashMap<String, EngineShard>,
 
     // (shard_name, (segment_no, JournalSegment))
     pub segments: DashMap<String, DashMap<u32, JournalSegment>>,
@@ -73,7 +73,7 @@ impl StorageCacheManager {
     }
 
     // Shard
-    pub fn set_shard(&self, shard: JournalShard) {
+    pub fn set_shard(&self, shard: EngineShard) {
         self.shards.insert(shard.shard_name.clone(), shard);
     }
 
@@ -283,7 +283,7 @@ pub async fn load_metadata_cache(
                 list.shards.len()
             );
             for shard_bytes in list.shards {
-                match JournalShard::decode(&shard_bytes) {
+                match EngineShard::decode(&shard_bytes) {
                     Ok(shard) => cache_manager.set_shard(shard),
                     Err(e) => {
                         panic!("Failed to decode the JournalShard information, {e}");

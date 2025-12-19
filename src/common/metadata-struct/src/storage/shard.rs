@@ -15,13 +15,44 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct JournalNodeExtend {
-    pub data_fold: Vec<String>,
-    pub tcp_addr: String,
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+
+pub struct EngineShard {
+    pub shard_uid: String,
+    pub shard_name: String,
+    pub start_segment_seq: u32,
+    pub active_segment_seq: u32,
+    pub last_segment_seq: u32,
+    pub status: EngineShardStatus,
+    pub config: EngineShardConfig,
+    pub create_time: u128,
 }
 
-impl JournalNodeExtend {
+impl EngineShard {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
+}
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EngineShardStatus {
+    #[default]
+    Run,
+    PrepareDelete,
+    Deleting,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct EngineShardConfig {
+    pub replica_num: u32,
+    pub max_segment_size: u32,
+}
+
+impl EngineShardConfig {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }

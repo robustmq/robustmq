@@ -510,7 +510,7 @@ impl BrokerServer {
     }
 
     fn wait_for_journal_ready(&self) {
-        let journal_port = self.config.journal_server.tcp_port;
+        let journal_port = self.config.storage_runtime.tcp_port;
         let max_wait_time = Duration::from_secs(10);
         let check_interval = Duration::from_millis(100);
         let start_time = std::time::Instant::now();

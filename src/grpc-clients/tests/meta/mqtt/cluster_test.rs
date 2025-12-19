@@ -48,6 +48,7 @@ mod tests {
             extend: extend_info.clone(),
             register_time: now_second(),
             start_time: now_second(),
+            storage_fold: Vec::new(),
         };
         let request = RegisterNodeRequest {
             node: node.encode().unwrap(),

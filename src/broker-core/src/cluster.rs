@@ -87,6 +87,7 @@ impl ClusterStorage {
             extend: extend.encode()?,
             start_time: cache_manager.get_start_time(),
             register_time: now_second(),
+            storage_fold: config.storage_runtime.data_path.clone(),
         };
 
         let req = RegisterNodeRequest {

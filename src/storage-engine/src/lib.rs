@@ -130,13 +130,13 @@ impl JournalServer {
     async fn init(&self) {
         load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
-        for path in self.config.journal_storage.data_path.clone() {
+        for path in self.config.storage_runtime.data_path.clone() {
             let path = Path::new(&path);
             match load_local_segment_cache(
                 path,
                 &self.rocksdb_engine_handler,
                 &self.segment_file_manager,
-                &self.config.journal_storage.data_path,
+                &self.config.storage_runtime.data_path,
             ) {
                 Ok(()) => {}
                 Err(e) => {

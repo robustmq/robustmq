@@ -14,7 +14,7 @@
 
 use crate::storage::keys::{key_all_shard, key_shard};
 use common_base::error::common::CommonError;
-use metadata_struct::journal::shard::JournalShard;
+use metadata_struct::storage::shard::EngineShard;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
@@ -33,14 +33,14 @@ impl ShardStorage {
         }
     }
 
-    pub fn save(&self, shard_info: &JournalShard) -> Result<(), CommonError> {
+    pub fn save(&self, shard_info: &EngineShard) -> Result<(), CommonError> {
         let shard_key = key_shard(&shard_info.shard_name);
         engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, shard_info)
     }
 
-    pub fn get(&self, shard_name: &str) -> Result<Option<JournalShard>, CommonError> {
+    pub fn get(&self, shard_name: &str) -> Result<Option<EngineShard>, CommonError> {
         let shard_key: String = key_shard(shard_name);
-        if let Some(data) = engine_get_by_meta_metadata::<JournalShard>(
+        if let Some(data) = engine_get_by_meta_metadata::<EngineShard>(
             self.rocksdb_engine_handler.clone(),
             &shard_key,
         )? {
@@ -54,9 +54,9 @@ impl ShardStorage {
         engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
     }
 
-    pub fn all_shard(&self) -> Result<Vec<JournalShard>, CommonError> {
+    pub fn all_shard(&self) -> Result<Vec<EngineShard>, CommonError> {
         let prefix_key = key_all_shard();
-        let data = engine_prefix_list_by_meta_metadata::<JournalShard>(
+        let data = engine_prefix_list_by_meta_metadata::<EngineShard>(
             self.rocksdb_engine_handler.clone(),
             prefix_key,
         )?;

@@ -273,7 +273,7 @@ mod tests {
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
-    use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
+    use metadata_struct::storage::segment::{JournalSegment, Replica, SegmentConfig};
     use protocol::storage::storage_engine_record::StorageEngineRecord;
     use std::sync::Arc;
 

@@ -14,7 +14,7 @@
 
 use crate::storage::keys::{key_all_segment, key_segment, key_segment_shard_prefix};
 use common_base::error::common::CommonError;
-use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
+use metadata_struct::storage::segment::{JournalSegment, SegmentStatus};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,

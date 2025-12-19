@@ -14,18 +14,18 @@
 
 use crate::core::cache::CacheManager;
 use dashmap::DashMap;
-use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::JournalShard;
+use metadata_struct::storage::segment::{JournalSegment, SegmentStatus};
+use metadata_struct::storage::segment_meta::JournalSegmentMetadata;
+use metadata_struct::storage::shard::EngineShard;
 
 impl CacheManager {
     // Shard
-    pub fn get_shard(&self, shard_name: &str) -> Option<JournalShard> {
+    pub fn get_shard(&self, shard_name: &str) -> Option<EngineShard> {
         let res = self.shard_list.get(shard_name)?;
         Some(res.clone())
     }
 
-    pub fn set_shard(&self, shard: &JournalShard) {
+    pub fn set_shard(&self, shard: &EngineShard) {
         self.shard_list
             .insert(shard.shard_name.clone(), shard.clone());
     }
@@ -126,12 +126,12 @@ impl CacheManager {
         }
     }
 
-    pub fn add_wait_delete_shard(&self, shard: &JournalShard) {
+    pub fn add_wait_delete_shard(&self, shard: &EngineShard) {
         self.wait_delete_shard_list
             .insert(shard.shard_name.to_string(), shard.clone());
     }
 
-    pub fn remove_wait_delete_shard(&self, shard: &JournalShard) {
+    pub fn remove_wait_delete_shard(&self, shard: &EngineShard) {
         self.wait_delete_shard_list
             .insert(shard.shard_name.to_string(), shard.clone());
     }
@@ -150,7 +150,7 @@ impl CacheManager {
         );
     }
 
-    pub fn get_wait_delete_shard_list(&self) -> Vec<JournalShard> {
+    pub fn get_wait_delete_shard_list(&self) -> Vec<EngineShard> {
         let mut results = Vec::new();
         for raw in self.wait_delete_shard_list.iter() {
             results.push(raw.value().clone());
