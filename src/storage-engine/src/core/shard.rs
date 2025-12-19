@@ -20,6 +20,7 @@ use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::adapter::ShardInfo;
 use metadata_struct::journal::shard::JournalShardConfig;
 use protocol::broker::broker_storage::{DeleteShardFileRequest, GetShardDeleteStatusRequest};
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
@@ -37,7 +38,7 @@ pub fn delete_local_shard(
     segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteShardFileRequest,
 ) {
-    if cache_manager.get_shard(&req.shard_name).is_none() {
+    if !cache_manager.shards.contains_key(&req.shard_name) {
         return;
     }
 
@@ -98,13 +99,15 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Sto
 pub async fn create_shard_to_place(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
-    shard_name: &str,
+    shard: &ShardInfo,
 ) -> Result<(), StorageEngineError> {
+    let shard_name = &shard.shard_name;
     let config = JournalShardConfig {
-        replica_num: 1,
+        replica_num: shard.replica_num,
         max_segment_size: 1073741824,
     };
-    let conf = broker_config();
+
+    let conf: &common_config::config::BrokerConfig = broker_config();
     let request = CreateShardRequest {
         shard_name: shard_name.to_string(),
         shard_config: config.encode()?,
@@ -118,7 +121,7 @@ pub async fn create_shard_to_place(
 
     let start = Instant::now();
     loop {
-        if cache_manager.get_shard(shard_name).is_some() {
+        if cache_manager.shards.contains_key(shard_name) {
             info!("Shard {} created successfully", shard_name);
             return Ok(());
         }
@@ -137,7 +140,7 @@ pub async fn create_shard_to_place(
 ///
 /// A background thread will delete the shard and its segments. No need to wait for the deletion to complete
 pub async fn delete_shard_to_place(
-    client_pool: Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     shard_name: &str,
 ) -> Result<(), StorageEngineError> {
     let conf = broker_config();
@@ -146,7 +149,7 @@ pub async fn delete_shard_to_place(
     };
 
     grpc_clients::meta::journal::call::delete_shard(
-        &client_pool,
+        client_pool,
         &conf.get_meta_service_addr(),
         request,
     )
@@ -159,17 +162,25 @@ pub async fn try_auto_create_shard(
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
 ) -> Result<(), StorageEngineError> {
-    if cache_manager.get_shard(shard_name).is_some() {
+    if cache_manager.shards.contains_key(shard_name) {
         return Ok(());
     }
 
-    create_shard_to_place(cache_manager, client_pool, shard_name).await?;
+    create_shard_to_place(
+        cache_manager,
+        client_pool,
+        &ShardInfo {
+            shard_name: shard_name.to_string(),
+            replica_num: 1,
+        },
+    )
+    .await?;
     let mut i = 0;
     loop {
         if i >= 30 {
             break;
         }
-        if cache_manager.get_shard(shard_name).is_some() {
+        if cache_manager.shards.contains_key(shard_name) {
             return Ok(());
         }
         i += 1;

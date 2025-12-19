@@ -178,7 +178,7 @@ mod tests {
 
     use super::TagIndexManager;
     use crate::core::test::test_build_rocksdb_sgement;
-    use crate::index::IndexData;
+    use crate::segment::index::IndexData;
 
     #[tokio::test]
     async fn tag_index_test() {

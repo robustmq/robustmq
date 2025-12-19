@@ -12,21 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use common_base::tools::now_second;
-use metadata_struct::journal::segment::SegmentStatus;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::journal::{
-    engine_delete_by_journal, engine_get_by_journal, engine_list_by_prefix_to_map_by_journal,
-    engine_save_by_journal,
-};
-use tokio::select;
-use tokio::sync::broadcast::{self, Receiver};
-use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
-
 use super::keys::{finish_build_index, last_offset_build_index, segment_index_prefix};
 use super::offset::OffsetIndexManager;
 use super::tag::TagIndexManager;
@@ -34,10 +19,23 @@ use super::time::TimestampIndexManager;
 use crate::core::cache::StorageCacheManager;
 use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
 use crate::core::error::StorageEngineError;
-use crate::index::IndexData;
 use crate::segment::file::{open_segment_write, ReadData};
+use crate::segment::index::IndexData;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
+use common_base::tools::now_second;
+use metadata_struct::journal::segment::SegmentStatus;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::journal::{
+    engine_delete_by_journal, engine_get_by_journal, engine_list_by_prefix_to_map_by_journal,
+    engine_save_by_journal,
+};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::select;
+use tokio::sync::broadcast::{self, Receiver};
+use tokio::time::sleep;
+use tracing::{debug, error, info, warn};
 
 #[derive(Clone)]
 pub struct IndexBuildThreadData {
@@ -345,12 +343,13 @@ mod tests {
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
     use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
     use crate::core::test::{test_base_write_data, test_build_rocksdb_sgement};
-    use crate::index::build::{
+    use crate::segment::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
     };
-    use crate::index::keys::segment_index_prefix;
-    use crate::index::offset::OffsetIndexManager;
-    use crate::index::IndexData;
+    use crate::segment::index::keys::segment_index_prefix;
+    use crate::segment::index::offset::OffsetIndexManager;
+    use crate::segment::index::IndexData;
+
     #[test]
     fn last_offset_build_index_test() {
         let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();

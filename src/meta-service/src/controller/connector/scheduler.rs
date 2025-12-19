@@ -14,7 +14,7 @@
 
 use super::status::ConnectorContext;
 use crate::{
-    controller::call_broker::mqtt::BrokerCallManager,
+    controller::call_broker::call::BrokerCallManager,
     core::{cache::CacheManager, error::MetaServiceError},
     raft::manager::MultiRaftManager,
 };

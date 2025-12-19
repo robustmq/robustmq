@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{offset::storage::OffsetStorageManager, storage::ShardOffset};
+use crate::offset::storage::OffsetStorageManager;
 use common_base::{
     error::common::CommonError,
     utils::serialize::{deserialize, serialize},
 };
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::adapter::ShardOffset;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{base::get_cf_handle, family::DB_COLUMN_FAMILY_BROKER},

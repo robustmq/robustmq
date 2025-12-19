@@ -15,6 +15,8 @@
 use metadata_struct::journal::segment::{segment_name, JournalSegment};
 
 pub mod file;
+pub mod index;
+pub mod isr;
 pub mod manager;
 pub mod read;
 pub mod scroll;

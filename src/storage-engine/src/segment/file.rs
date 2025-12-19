@@ -269,8 +269,10 @@ mod tests {
     use crate::core::cache::StorageCacheManager;
     use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
+    use broker_core::cache::BrokerCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_config::config::BrokerConfig;
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
     use protocol::storage::storage_engine_record::StorageEngineRecord;
     use std::sync::Arc;
@@ -308,7 +310,9 @@ mod tests {
             },
             ..Default::default()
         };
-        let cache_manager = Arc::new(StorageCacheManager::new());
+
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
 
         let res = open_segment_write(&cache_manager, &segment_iden).await;
         assert!(res.is_err());

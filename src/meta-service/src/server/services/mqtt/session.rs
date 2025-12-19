@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::mqtt::{
-    update_cache_by_add_session, update_cache_by_delete_session, BrokerCallManager,
+    update_cache_by_add_session, update_cache_by_delete_session,
 };
 use crate::controller::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;

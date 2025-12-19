@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::heartbeat::BrokerHeartbeat;
-use crate::controller::call_broker::mqtt::BrokerCallManager;
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
 use common_base::error::ResultCommonError;

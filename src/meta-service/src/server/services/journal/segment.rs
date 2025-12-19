@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::shard::update_last_segment_by_shard;
-use crate::controller::call_broker::mqtt::BrokerCallManager;
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
 };

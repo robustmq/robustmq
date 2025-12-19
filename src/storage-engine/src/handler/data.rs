@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::storage::storage_engine_engine::{
     ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
@@ -114,10 +113,10 @@ impl DataHandler {
     }
 
     fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), StorageEngineError> {
-        if self
+        if !self
             .cache_manager
-            .get_shard(&segment_identity.shard_name)
-            .is_none()
+            .shards
+            .contains_key(&segment_identity.shard_name)
         {
             return Err(StorageEngineError::ShardNotExist(
                 segment_identity.shard_name.to_string(),

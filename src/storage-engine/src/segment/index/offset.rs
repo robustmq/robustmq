@@ -169,7 +169,7 @@ mod tests {
 
     use super::OffsetIndexManager;
     use crate::core::test::test_build_rocksdb_sgement;
-    use crate::index::IndexData;
+    use crate::segment::index::IndexData;
 
     #[test]
     fn start_end_index_test() {

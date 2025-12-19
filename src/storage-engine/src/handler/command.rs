@@ -14,7 +14,7 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
-use crate::core::handler::DataHandler;
+use crate::handler::data::DataHandler;
 use crate::segment::manager::SegmentFileManager;
 use axum::async_trait;
 use grpc_clients::pool::ClientPool;
@@ -72,7 +72,6 @@ impl Command for StorageEngineHandlerCommand {
         };
 
         match pack {
-            /* Data Handler */
             StorageEnginePacket::WriteReq(request) => {
                 let mut resp = WriteResp::default();
                 let mut header = RespHeader {

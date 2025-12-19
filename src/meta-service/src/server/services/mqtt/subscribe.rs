@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::{
     controller::call_broker::mqtt::{
-        update_cache_by_add_subscribe, update_cache_by_delete_subscribe, BrokerCallManager,
+        update_cache_by_add_subscribe, update_cache_by_delete_subscribe,
     },
     core::error::MetaServiceError,
     raft::{

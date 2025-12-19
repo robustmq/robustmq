@@ -89,7 +89,7 @@ pub async fn start_grpc_server(
         );
     }
 
-    if config.is_start_journal() {
+    if config.is_start_storage_engine() {
         route = route.add_service(
             BrokerStorageServiceServer::new(get_storage_engine_inner_handler(&journal_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),

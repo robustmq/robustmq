@@ -14,8 +14,8 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
-use crate::index::build::delete_segment_index;
 use crate::segment::file::open_segment_write;
+use crate::segment::index::build::delete_segment_index;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use protocol::broker::broker_storage::GetSegmentDeleteStatusRequest;

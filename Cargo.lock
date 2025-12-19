@@ -1013,6 +1013,7 @@ dependencies = [
  "delay-message",
  "grpc-clients",
  "meta-service",
+ "metadata-struct",
  "mqtt-broker",
  "network-server",
  "pprof-monitor",
@@ -7469,6 +7470,7 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
+ "storage-engine",
  "tempfile",
  "tokio",
  "tracing",
@@ -7479,6 +7481,7 @@ name = "storage-engine"
 version = "0.2.7"
 dependencies = [
  "axum",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",

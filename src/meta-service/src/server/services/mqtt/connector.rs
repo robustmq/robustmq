@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::mqtt::{update_cache_by_delete_connector, BrokerCallManager};
+use crate::controller::call_broker::call::BrokerCallManager;
+use crate::controller::call_broker::mqtt::update_cache_by_delete_connector;
 use crate::controller::connector::status::ConnectorContext;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;

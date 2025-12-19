@@ -13,12 +13,14 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use crate::index::engine::{column_family_list, storage_data_fold};
+use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::{create_write_thread, write_data};
 use crate::segment::SegmentIdentity;
+use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
@@ -88,8 +90,8 @@ pub async fn test_init_segment() -> (
         },
         ..Default::default()
     };
-
-    let cache_manager = Arc::new(StorageCacheManager::new());
+    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+    let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
     create_local_segment(&cache_manager, &segment_file_manager, &segment)
         .await
         .unwrap();

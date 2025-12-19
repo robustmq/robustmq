@@ -141,8 +141,8 @@ impl BrokerConfig {
         self.roles.contains(&"meta".to_string())
     }
 
-    pub fn is_start_journal(&self) -> bool {
-        self.roles.contains(&"journal".to_string())
+    pub fn is_start_storage_engine(&self) -> bool {
+        self.roles.contains(&"engine".to_string())
     }
 
     pub fn is_start_broker(&self) -> bool {

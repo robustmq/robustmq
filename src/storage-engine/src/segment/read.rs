@@ -23,8 +23,8 @@ use super::file::{ReadData, SegmentFile};
 use super::SegmentIdentity;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::index::offset::OffsetIndexManager;
-use crate::index::tag::TagIndexManager;
+use crate::segment::index::offset::OffsetIndexManager;
+use crate::segment::index::tag::TagIndexManager;
 
 /// handle all read requests from Journal Client
 ///
@@ -232,8 +232,8 @@ mod tests {
 
     use super::{read_by_key, read_by_offset, read_by_tag, read_data_req};
     use crate::core::test::test_base_write_data;
-    use crate::index::build::try_trigger_build_index;
     use crate::segment::file::SegmentFile;
+    use crate::segment::index::build::try_trigger_build_index;
 
     #[tokio::test]
     async fn read_by_offset_test() {

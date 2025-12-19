@@ -46,3 +46,4 @@ common-metrics.workspace = true
 rate-limit.workspace = true
 rocksdb-engine.workspace = true
 storage-adapter.workspace = true
+metadata-struct.workspace = true

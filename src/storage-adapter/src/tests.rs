@@ -14,9 +14,9 @@
 
 use std::collections::HashMap;
 
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo};
 
-use crate::storage::{ArcStorageAdapter, ShardInfo};
+use crate::storage::ArcStorageAdapter;
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1 = ShardInfo {
@@ -32,15 +32,26 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
         .await
         .unwrap();
 
-    assert_eq!(adapter.list_shard("").await.unwrap().len(), 2);
+    assert_eq!(adapter.list_shard(None).await.unwrap().len(), 2);
     assert_eq!(
-        adapter.list_shard("shard1").await.unwrap()[0].replica_num,
+        adapter
+            .list_shard(Some("shard1".to_string()))
+            .await
+            .unwrap()[0]
+            .replica_num,
         3
     );
 
     adapter.delete_shard("shard1").await.unwrap();
-    assert_eq!(adapter.list_shard("").await.unwrap().len(), 1);
-    assert_eq!(adapter.list_shard("shard1").await.unwrap().len(), 0);
+    assert_eq!(adapter.list_shard(None).await.unwrap().len(), 1);
+    assert_eq!(
+        adapter
+            .list_shard(Some("shard1".to_string()))
+            .await
+            .unwrap()
+            .len(),
+        0
+    );
 }
 
 pub async fn test_write_and_read(adapter: ArcStorageAdapter) {

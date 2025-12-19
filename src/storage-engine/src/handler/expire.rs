@@ -12,14 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod consts;
-pub mod dynamic_cache;
-pub mod error;
-pub mod segment;
-pub mod segment_meta;
-pub mod segment_status;
-pub mod services;
-pub mod shard;
-pub mod test;
-pub mod tool;
+use common_base::error::common::CommonError;
+use metadata_struct::adapter::MessageExpireConfig;
+
+pub async fn message_expire(_config: &MessageExpireConfig) -> Result<(), CommonError> {
+    Ok(())
+}

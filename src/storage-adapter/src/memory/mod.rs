@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::expire::MessageExpireConfig;
-use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
+use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::MessageExpireConfig;
+use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -229,20 +230,20 @@ impl StorageAdapter for MemoryStorageAdapter {
         Ok(())
     }
 
-    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
-        if shard.is_empty() {
+    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+        if let Some(shard_name) = shard {
+            return Ok(self
+                .shard_info
+                .get(&shard_name)
+                .map(|info| vec![info.clone()])
+                .unwrap_or_default());
+        } else {
             return Ok(self
                 .shard_info
                 .iter()
                 .map(|entry| entry.value().clone())
                 .collect());
         }
-
-        Ok(self
-            .shard_info
-            .get(shard)
-            .map(|info| vec![info.clone()])
-            .unwrap_or_default())
     }
 
     async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {

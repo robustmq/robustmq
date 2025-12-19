@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    offset::{cache::OffsetCacheManager, storage::OffsetStorageManager},
-    storage::ShardOffset,
-};
+use crate::offset::{cache::OffsetCacheManager, storage::OffsetStorageManager};
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::adapter::ShardOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;

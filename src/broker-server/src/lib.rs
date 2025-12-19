@@ -27,11 +27,12 @@ use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use meta_service::{
-    controller::call_broker::mqtt::BrokerCallManager,
+    controller::call_broker::call::BrokerCallManager,
     core::cache::CacheManager as PlacementCacheManager,
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
+use metadata_struct::adapter::MessageExpireConfig;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
@@ -57,9 +58,7 @@ use std::{
     time::Duration,
 };
 use storage_adapter::{
-    driver::build_message_storage_driver,
-    expire::{message_expire_thread, MessageExpireConfig},
-    offset::OffsetManager,
+    driver::build_message_storage_driver, expire::message_expire_thread, offset::OffsetManager,
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
@@ -151,8 +150,12 @@ impl BrokerServer {
             offset_manager.clone(),
         );
 
-        let journal_params =
-            BrokerServer::build_journal_server(client_pool.clone(), rocksdb_engine_handler.clone());
+        let journal_params = BrokerServer::build_journal_server(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+            broker_cache.clone(),
+            connection_manager.clone(),
+        );
 
         BrokerServer {
             broker_cache,
@@ -263,7 +266,7 @@ impl BrokerServer {
             self.config.runtime.runtime_worker_threads,
         );
 
-        if config.is_start_journal() {
+        if config.is_start_storage_engine() {
             journal_stop_send = Some(stop_send.clone());
             let server = JournalServer::new(self.journal_params.clone(), stop_send);
             journal_runtime.spawn(async move {
@@ -389,8 +392,10 @@ impl BrokerServer {
     fn build_journal_server(
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        broker_cache: Arc<BrokerCacheManager>,
+        connection_manager: Arc<NetworkConnectionManager>,
     ) -> StorageEngineParams {
-        let cache_manager = Arc::new(StorageCacheManager::new());
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
@@ -399,6 +404,7 @@ impl BrokerServer {
             client_pool,
             segment_file_manager,
             rocksdb_engine_handler,
+            connection_manager,
         }
     }
 

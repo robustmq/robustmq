@@ -12,41 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use metadata_struct::adapter::MessageExpireConfig;
 use tracing::error;
 
 use crate::storage::ArcStorageAdapter;
-
-#[derive(Default, Clone)]
-pub struct MessageExpireConfig {
-    // data_size: Option<u32>,
-    timestamp: Option<u32>,
-}
-
-impl MessageExpireConfig {
-    /// Get the retention period in seconds
-    pub fn get_timestamp(&self) -> Option<u32> {
-        self.timestamp
-    }
-
-    /// Set the retention period in seconds
-    pub fn set_timestamp(&mut self, timestamp: Option<u32>) {
-        self.timestamp = timestamp;
-    }
-
-    /// Create a new config with timestamp retention
-    pub fn with_timestamp(timestamp: u32) -> Self {
-        Self {
-            timestamp: Some(timestamp),
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-pub enum MessageExpireStrategy {
-    #[default]
-    // DataSize,
-    Timestamp,
-}
 
 pub async fn message_expire_thread(driver: ArcStorageAdapter, config: MessageExpireConfig) {
     if let Err(e) = driver.message_expire(&config).await {

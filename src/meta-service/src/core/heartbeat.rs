@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use super::cluster::un_register_node_by_req;
+use crate::controller::call_broker::call::BrokerCallManager;
+use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
-use crate::{controller::call_broker::mqtt::BrokerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_common::UnRegisterNodeRequest;

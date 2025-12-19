@@ -12,42 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::expire::MessageExpireConfig;
 use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
-use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use serde::{Deserialize, Serialize};
+use metadata_struct::adapter::MessageExpireConfig;
+use metadata_struct::adapter::ShardInfo;
+use metadata_struct::adapter::{read_config::ReadConfig, ShardOffset};
 use std::{collections::HashMap, sync::Arc};
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
-
-pub enum OffsetStrategy {
-    Earliest,
-    Latest,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct ShardInfo {
-    pub shard_name: String,
-    pub replica_num: u32,
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub struct ShardOffset {
-    pub group: String,
-    pub shard_name: String,
-    pub segment_no: u32,
-    pub offset: u64,
-}
 
 #[async_trait]
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError>;
+    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError>;
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 

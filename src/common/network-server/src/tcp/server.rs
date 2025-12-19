@@ -35,6 +35,7 @@ use tracing::{error, info};
 // U: codec: encoder + decoder
 // S: message storage adapter
 pub struct TcpServer {
+    name: String,
     command: ArcCommandAdapter,
     connection_manager: Arc<ConnectionManager>,
     proc_config: ProcessorConfig,
@@ -46,7 +47,7 @@ pub struct TcpServer {
 }
 
 impl TcpServer {
-    pub fn new(context: ServerContext) -> Self {
+    pub fn new(name: String, context: ServerContext) -> Self {
         info!(
             "network type:{}, process thread num: {:?}",
             context.network_type, context.proc_config
@@ -54,6 +55,7 @@ impl TcpServer {
         let request_channel = Arc::new(RequestChannel::new(context.proc_config.channel_size));
         let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
+            name,
             network_type: context.network_type,
             command: context.command,
             connection_manager: context.connection_manager,
@@ -104,18 +106,10 @@ impl TcpServer {
             self.stop_sx.clone(),
         );
 
-        // response_process(ResponseChildProcessContext {
-        //     response_process_num: self.proc_config.response_process_num,
-        //     connection_manager: self.connection_manager.clone(),
-        //     request_channel: self.request_channel.clone(),
-        //     network_type: self.network_type.clone(),
-        //     stop_sx: self.stop_sx.clone(),
-        // });
-
         self.record_pre_server_metrics();
         info!(
-            "MQTT {} Server started successfully, listening port: {port}",
-            self.network_type
+            "{} {} Server started successfully, listening port: {port}",
+            self.name, self.network_type
         );
         Ok(())
     }
@@ -143,15 +137,6 @@ impl TcpServer {
                     flag = true;
                 }
             }
-
-            // response child channel
-            // for (index, send) in self.request_channel.response_channels.clone() {
-            //     let cap = send.capacity();
-            //     if self.proc_config.channel_size > send.capacity() {
-            //         info!("Response child queue {} is not empty, current length {}, waiting for response packet processing to complete....", index, self.proc_config.channel_size - cap);
-            //         flag = true;
-            //     }
-            // }
 
             if !flag {
                 info!("[{}] All the request packets have been processed. Start to stop the request processing thread.", self.network_type);

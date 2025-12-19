@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::expire::MessageExpireConfig;
 use crate::file::key::*;
-use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
+use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
+use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use rocksdb::WriteBatch;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
@@ -295,22 +296,22 @@ impl StorageAdapter for RocksDBStorageAdapter {
         Ok(())
     }
 
-    async fn list_shard(&self, shard: &str) -> Result<Vec<ShardInfo>, CommonError> {
+    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
         let cf = self.get_cf()?;
-        if shard.is_empty() {
+        if let Some(shard_name) = shard {
+            let key = shard_info_key(&shard_name);
+            if let Some(v) = self.db.read::<ShardInfo>(cf.clone(), &key)? {
+                Ok(vec![v])
+            } else {
+                Ok(Vec::new())
+            }
+        } else {
             let raw_shard_info = self.db.read_prefix(cf.clone(), &shard_info_key_prefix())?;
             let mut result = Vec::new();
             for (_, v) in raw_shard_info {
                 result.push(serialize::deserialize::<ShardInfo>(v.as_slice())?);
             }
             Ok(result)
-        } else {
-            let key = shard_info_key(shard);
-            if let Some(v) = self.db.read::<ShardInfo>(cf.clone(), &key)? {
-                Ok(vec![v])
-            } else {
-                Ok(Vec::new())
-            }
         }
     }
 
