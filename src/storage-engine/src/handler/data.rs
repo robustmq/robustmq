@@ -23,10 +23,10 @@ use std::sync::Arc;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::shard::try_auto_create_shard;
-use crate::segment::storage::manager::SegmentFileManager;
-use crate::segment::storage::read::read_data_req;
-use crate::segment::storage::write::write_data_req;
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::read::read_data_req;
+use crate::segment::write::write_data_req;
+use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct DataHandler {

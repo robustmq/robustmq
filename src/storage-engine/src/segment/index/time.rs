@@ -26,7 +26,7 @@ use super::keys::{
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::SegmentIdentity;
 
 pub struct TimestampIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,

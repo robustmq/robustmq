@@ -14,10 +14,10 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
+use crate::segment::file::open_segment_write;
 use crate::segment::index::build::delete_segment_index;
-use crate::segment::storage::file::open_segment_write;
-use crate::segment::storage::manager::SegmentFileManager;
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 use protocol::broker::broker_storage::GetSegmentDeleteStatusRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;

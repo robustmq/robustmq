@@ -23,7 +23,7 @@ use tracing::warn;
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::SegmentIdentity;
 
 pub async fn pre_sealup_segment(
     cache_manager: &Arc<StorageCacheManager>,

@@ -269,7 +269,7 @@ mod tests {
 
     use super::{SegmentFileManager, SegmentFileMetadata};
     use crate::core::test::{test_build_rocksdb_sgement, test_init_segment};
-    use crate::segment::storage::file::SegmentFile;
+    use crate::segment::file::SegmentFile;
 
     #[tokio::test]
     async fn segment_metadata_test() {

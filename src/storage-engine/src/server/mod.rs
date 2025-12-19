@@ -14,7 +14,7 @@
 
 use crate::{
     core::cache::StorageCacheManager, handler::command::StorageEngineHandlerCommand,
-    segment::storage::manager::SegmentFileManager,
+    segment::manager::SegmentFileManager,
 };
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;

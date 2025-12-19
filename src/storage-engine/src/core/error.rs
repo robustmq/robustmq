@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::segment::storage::write::SegmentWriteData;
+use crate::segment::write::SegmentWriteData;
 use common_base::error::common::CommonError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;

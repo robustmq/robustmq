@@ -62,7 +62,7 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core::cache::StorageCacheManager, segment::storage::manager::SegmentFileManager, JournalServer,
+    core::cache::StorageCacheManager, segment::manager::SegmentFileManager, JournalServer,
     StorageEngineParams,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};

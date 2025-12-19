@@ -19,10 +19,10 @@ use core::cache::{load_metadata_cache, StorageCacheManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use segment::storage::manager::{
+use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
-use segment::storage::scroll::SegmentScrollManager;
+use segment::scroll::SegmentScrollManager;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};

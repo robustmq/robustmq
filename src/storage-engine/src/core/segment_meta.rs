@@ -21,8 +21,8 @@ use protocol::meta::meta_service_journal::UpdateSegmentMetaRequest;
 use tracing::warn;
 
 use super::error::StorageEngineError;
-use crate::segment::storage::manager::SegmentFileManager;
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 
 pub async fn update_end_and_start_offset(
     client_pool: &Arc<ClientPool>,

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::SegmentIdentity;
 
 pub(crate) fn offset_segment_start(segment_iden: &SegmentIdentity) -> String {
     format!(

@@ -14,9 +14,9 @@
 
 use super::cache::StorageCacheManager;
 use crate::segment::index::engine::{column_family_list, storage_data_fold};
-use crate::segment::storage::manager::{create_local_segment, SegmentFileManager};
-use crate::segment::storage::write::{create_write_thread, write_data};
-use crate::segment::storage::SegmentIdentity;
+use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::segment::write::{create_write_thread, write_data};
+use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};

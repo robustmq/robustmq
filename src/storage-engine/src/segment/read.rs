@@ -232,8 +232,8 @@ mod tests {
 
     use super::{read_by_key, read_by_offset, read_by_tag, read_data_req};
     use crate::core::test::test_base_write_data;
+    use crate::segment::file::SegmentFile;
     use crate::segment::index::build::try_trigger_build_index;
-    use crate::segment::storage::file::SegmentFile;
 
     #[tokio::test]
     async fn read_by_offset_test() {
