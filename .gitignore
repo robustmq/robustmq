@@ -20,6 +20,7 @@
 # Nextest artifacts
 .nextest/
 /target/nextest/
+src/admin-server/data/
 
 # Test data and temporary files
 /target/tmp/
