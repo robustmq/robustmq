@@ -45,13 +45,13 @@ impl AclStorage {
         acl_list.push(acl.clone());
 
         let key = storage_key_mqtt_acl(&resource_type_str, &acl.resource_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, acl_list)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, acl_list)
     }
 
     pub fn list_all(&self) -> Result<Vec<MqttAcl>, CommonError> {
         let prefix_key = storage_key_mqtt_acl_prefix();
         let data = engine_prefix_list_by_meta_metadata::<Vec<MqttAcl>>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().flat_map(|raw| raw.data).collect())
@@ -71,7 +71,7 @@ impl AclStorage {
             .collect();
 
         let key = storage_key_mqtt_acl(&resource_type_str, &delete_acl.resource_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, new_acl_list)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, new_acl_list)
     }
 
     pub fn get(
@@ -81,7 +81,7 @@ impl AclStorage {
     ) -> Result<Vec<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(resource_type, resource_name);
         Ok(
-            engine_get_by_meta_metadata::<Vec<MqttAcl>>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_metadata::<Vec<MqttAcl>>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data)
                 .unwrap_or_default(),
         )

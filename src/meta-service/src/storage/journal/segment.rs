@@ -40,7 +40,7 @@ impl SegmentStorage {
 
     pub fn save(&self, segment: EngineSegment) -> Result<(), CommonError> {
         let shard_key = key_segment(&segment.shard_name, segment.segment_seq);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, segment)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &shard_key, segment)
     }
 
     pub fn get(
@@ -50,7 +50,7 @@ impl SegmentStorage {
     ) -> Result<Option<EngineSegment>, CommonError> {
         let shard_key: String = key_segment(shard_name, segment_seq);
         if let Some(data) = engine_get_by_meta_metadata::<EngineSegment>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &shard_key,
         )? {
             return Ok(Some(data.data));
@@ -61,7 +61,7 @@ impl SegmentStorage {
     pub fn all_segment(&self) -> Result<Vec<EngineSegment>, CommonError> {
         let prefix_key = key_all_segment();
         let data = engine_prefix_list_by_meta_metadata::<EngineSegment>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             prefix_key,
         )?;
         let mut results = Vec::new();
@@ -74,7 +74,7 @@ impl SegmentStorage {
     pub fn list_by_shard(&self, shard_name: &str) -> Result<Vec<EngineSegment>, CommonError> {
         let prefix_key = key_segment_shard_prefix(shard_name);
         let data = engine_prefix_list_by_meta_metadata::<EngineSegment>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         let mut results = Vec::new();
@@ -86,7 +86,7 @@ impl SegmentStorage {
 
     pub fn delete(&self, shard_name: &str, segment_seq: u32) -> Result<(), CommonError> {
         let shard_key = key_segment(shard_name, segment_seq);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &shard_key)
     }
 }
 

@@ -37,7 +37,7 @@ impl SegmentMetadataStorage {
 
     pub fn save(&self, segment: EngineSegmentMetadata) -> Result<(), CommonError> {
         let shard_key = key_segment_metadata(&segment.shard_name, segment.segment_seq);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key, segment)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &shard_key, segment)
     }
 
     pub fn get(
@@ -48,7 +48,7 @@ impl SegmentMetadataStorage {
         let shard_key: String = key_segment_metadata(shard_name, segment_seq);
 
         if let Some(data) = engine_get_by_meta_metadata::<EngineSegmentMetadata>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &shard_key,
         )? {
             return Ok(Some(data.data));
@@ -60,7 +60,7 @@ impl SegmentMetadataStorage {
     pub fn all_segment(&self) -> Result<Vec<EngineSegmentMetadata>, CommonError> {
         let prefix_key = key_all_segment_metadata();
         let data = engine_prefix_list_by_meta_metadata::<EngineSegmentMetadata>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             prefix_key,
         )?;
         let mut results = Vec::new();
@@ -76,7 +76,7 @@ impl SegmentMetadataStorage {
     ) -> Result<Vec<EngineSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_shard_prefix(shard_name);
         let data = engine_prefix_list_by_meta_metadata::<EngineSegmentMetadata>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         let mut results = Vec::new();
@@ -88,7 +88,7 @@ impl SegmentMetadataStorage {
 
     pub fn delete(&self, shard_name: &str, segment_seq: u32) -> Result<(), CommonError> {
         let shard_key = key_segment_metadata(shard_name, segment_seq);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &shard_key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &shard_key)
     }
 }
 

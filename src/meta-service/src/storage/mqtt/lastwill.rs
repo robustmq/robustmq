@@ -41,7 +41,7 @@ impl MqttLastWillStorage {
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(client_id);
         Ok(engine_save_by_meta_data(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &key,
             last_will_message,
         )?)
@@ -50,7 +50,7 @@ impl MqttLastWillStorage {
     pub fn get(&self, client_id: &str) -> Result<Option<MqttLastWillData>, MetaServiceError> {
         let key = storage_key_mqtt_last_will(client_id);
         Ok(
-            engine_get_by_meta_data::<MqttLastWillData>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_data::<MqttLastWillData>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
@@ -58,7 +58,7 @@ impl MqttLastWillStorage {
     pub fn delete(&self, client_id: &str) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_last_will(client_id);
         Ok(engine_delete_by_meta_data(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &key,
         )?)
     }

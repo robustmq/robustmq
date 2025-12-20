@@ -46,14 +46,14 @@ impl MqttTopicStorage {
     // Topic
     pub fn save(&self, topic_name: &str, topic: MQTTTopic) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic(topic_name);
-        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, topic)?;
+        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, topic)?;
         Ok(())
     }
 
     pub fn list(&self) -> Result<Vec<MQTTTopic>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix();
         let data = engine_prefix_list_by_meta_data::<MQTTTopic>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -62,14 +62,14 @@ impl MqttTopicStorage {
     pub fn get(&self, topic_name: &str) -> Result<Option<MQTTTopic>, MetaServiceError> {
         let key = storage_key_mqtt_topic(topic_name);
         Ok(
-            engine_get_by_meta_data::<MQTTTopic>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_data::<MQTTTopic>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
 
     pub fn delete(&self, topic_name: &str) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_topic(topic_name);
-        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
 
@@ -82,7 +82,7 @@ impl MqttTopicStorage {
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
         engine_save_by_meta_metadata(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &key,
             topic_rewrite_rule,
         )?;
@@ -95,7 +95,7 @@ impl MqttTopicStorage {
         source_topic: &str,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
 
@@ -104,7 +104,7 @@ impl MqttTopicStorage {
     ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_rewrite_rule_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttTopicRewriteRule>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -116,13 +116,13 @@ impl MqttTopicStorage {
         retain_message: MQTTRetainMessage,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_retain_message(&retain_message.topic_name);
-        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, retain_message)?;
+        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, retain_message)?;
         Ok(())
     }
 
     pub fn delete_retain_message(&self, topic_name: &str) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_retain_message(topic_name);
-        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
 
@@ -133,7 +133,7 @@ impl MqttTopicStorage {
         let key = storage_key_mqtt_retain_message(topic_name);
         Ok(
             engine_get_by_meta_data::<MQTTRetainMessage>(
-                self.rocksdb_engine_handler.clone(),
+                &self.rocksdb_engine_handler,
                 &key,
             )?
             .map(|data| data.data),
@@ -143,7 +143,7 @@ impl MqttTopicStorage {
     pub fn list_all_retain_messages(&self) -> Result<Vec<MQTTRetainMessage>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_retain_message_prefix();
         let data = engine_prefix_list_by_meta_data::<MQTTRetainMessage>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())

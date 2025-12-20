@@ -38,14 +38,14 @@ impl SchemaStorage {
 
     pub fn save(&self, schema_name: &str, schema: &SchemaData) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema(schema_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, schema)?;
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, schema)?;
         Ok(())
     }
 
     pub fn list(&self) -> Result<Vec<SchemaData>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_prefix();
         let data = engine_prefix_list_by_meta_metadata::<SchemaData>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -55,7 +55,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema(schema_name);
 
         if let Some(data) =
-            engine_get_by_meta_metadata::<SchemaData>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_metadata::<SchemaData>(&self.rocksdb_engine_handler, &key)?
         {
             let topic: SchemaData = data.data;
             return Ok(Some(topic));
@@ -65,13 +65,13 @@ impl SchemaStorage {
 
     pub fn delete(&self, schema_name: &str) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_schema(schema_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
 
     pub fn save_bind(&self, bind_data: &SchemaResourceBind) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema_bind(&bind_data.resource_name, &bind_data.schema_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, bind_data)?;
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, bind_data)?;
         Ok(())
     }
 
@@ -81,7 +81,7 @@ impl SchemaStorage {
     ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_schema_bind_prefix_by_resource(resource_name);
         let data = engine_prefix_list_by_meta_metadata::<SchemaResourceBind>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         let mut results = Vec::new();
@@ -99,7 +99,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema_bind(resource_name, schema_name);
 
         if let Some(data) = engine_get_by_meta_metadata::<SchemaResourceBind>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &key,
         )? {
             return Ok(Some(data.data));
@@ -113,7 +113,7 @@ impl SchemaStorage {
         schema_name: &str,
     ) -> Result<(), MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(resource_name, schema_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
 }

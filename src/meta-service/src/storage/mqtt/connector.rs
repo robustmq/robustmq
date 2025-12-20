@@ -48,13 +48,13 @@ impl MqttConnectorStorage {
     }
     pub fn save(&self, connector_name: &str, connector: &MQTTConnector) -> Result<(), CommonError> {
         let key = storage_key_mqtt_connector(connector_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, connector)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, connector)
     }
 
     pub fn list(&self) -> Result<Vec<MQTTConnector>, CommonError> {
         let prefix_key = storage_key_mqtt_connector_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MQTTConnector>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -64,7 +64,7 @@ impl MqttConnectorStorage {
         let key = storage_key_mqtt_connector(connector_name);
         Ok(
             engine_get_by_meta_metadata::<MQTTConnector>(
-                self.rocksdb_engine_handler.clone(),
+                &self.rocksdb_engine_handler,
                 &key,
             )?
             .map(|data| data.data),
@@ -73,7 +73,7 @@ impl MqttConnectorStorage {
 
     pub fn delete(&self, connector_name: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_connector(connector_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
     }
 }
 

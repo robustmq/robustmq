@@ -57,13 +57,13 @@ impl MqttSubscribeStorage {
         subscribe: MqttSubscribe,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_subscribe(client_id, path);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, subscribe)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, subscribe)
     }
 
     pub fn list_all(&self) -> Result<Vec<MqttSubscribe>, CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_prefix();
         let resp = engine_prefix_list_by_meta_metadata::<MqttSubscribe>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(resp.into_iter().map(|raw| raw.data).collect())
@@ -72,7 +72,7 @@ impl MqttSubscribeStorage {
     pub fn list_by_client_id(&self, client_id: &str) -> Result<Vec<MqttSubscribe>, CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(client_id);
         let resp = engine_prefix_list_by_meta_metadata::<MqttSubscribe>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(resp.into_iter().map(|raw| raw.data).collect())
@@ -81,7 +81,7 @@ impl MqttSubscribeStorage {
     pub fn delete_by_client_id(&self, client_id: &str) -> Result<(), CommonError> {
         let prefix_key = storage_key_mqtt_subscribe_client_id_prefix(client_id);
         let list = engine_prefix_list_by_meta_metadata::<MqttSubscribe>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         for raw in list {
@@ -99,7 +99,7 @@ impl MqttSubscribeStorage {
         let key = storage_key_mqtt_subscribe(client_id, path);
         Ok(
             engine_get_by_meta_metadata::<MqttSubscribe>(
-                self.rocksdb_engine_handler.clone(),
+                &self.rocksdb_engine_handler,
                 &key,
             )?
             .map(|data| data.data),
@@ -108,7 +108,7 @@ impl MqttSubscribeStorage {
 
     pub fn delete_by_path(&self, client_id: &str, path: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_subscribe(client_id, path);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
     }
 
     pub fn save_auto_subscribe_rule(
@@ -118,7 +118,7 @@ impl MqttSubscribeStorage {
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(topic);
         engine_save_by_meta_metadata(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &key,
             auto_subscribe_rule,
         )?;
@@ -127,7 +127,7 @@ impl MqttSubscribeStorage {
 
     pub fn delete_auto_subscribe_rule(&self, topic: &str) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(topic);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?;
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
 
@@ -136,7 +136,7 @@ impl MqttSubscribeStorage {
     ) -> Result<Vec<MqttAutoSubscribeRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_auto_subscribe_rule_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttAutoSubscribeRule>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())

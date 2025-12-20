@@ -37,13 +37,13 @@ impl MqttUserStorage {
 
     pub fn save(&self, user_name: &str, user: MqttUser) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(user_name);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, user)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, user)
     }
 
     pub fn list(&self) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttUser>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -52,7 +52,7 @@ impl MqttUserStorage {
     pub fn get(&self, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(username);
         if let Some(data) =
-            engine_get_by_meta_metadata::<MqttUser>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_metadata::<MqttUser>(&self.rocksdb_engine_handler, &key)?
         {
             return Ok(Some(data.data));
         }
@@ -61,7 +61,7 @@ impl MqttUserStorage {
 
     pub fn delete(&self, user_name: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_user(user_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
     }
 }
 

@@ -206,7 +206,7 @@ impl BrokerServer {
                 connector_manager: self.mqtt_params.connector_manager.clone(),
                 schema_manager: self.mqtt_params.schema_manager.clone(),
             },
-            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
+            rocksdb_engine_handler: &self.rocksdb_engine_handler,
             broker_cache,
             rate_limiter_manager: self.rate_limiter_manager.clone(),
             storage_adapter: self.mqtt_params.message_storage_adapter.clone(),

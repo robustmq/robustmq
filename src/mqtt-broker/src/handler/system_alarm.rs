@@ -129,7 +129,7 @@ impl SystemAlarm {
                 &message,
             )
             .await?;
-            let log_storage = LocalStorage::new(self.rocksdb_engine_handler.clone());
+            let log_storage = LocalStorage::new(&self.rocksdb_engine_handler);
             log_storage.save_system_event(message).await?;
         }
         Ok(())
