@@ -57,7 +57,7 @@ pub(crate) async fn write_data(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
-    data_list: Vec<StorageEngineRecord>,
+    data_list: &Vec<StorageEngineRecord>,
 ) -> Result<SegmentWriteResp, StorageEngineError> {
     let write = get_write(
         cache_manager,
@@ -69,7 +69,7 @@ pub(crate) async fn write_data(
 
     let (sx, rx) = oneshot::channel::<SegmentWriteResp>();
     let data = SegmentWriteData {
-        data: data_list,
+        data: data_list.clone(),
         resp_sx: sx,
     };
     write.data_sender.send(data).await?;
@@ -415,7 +415,7 @@ mod tests {
             &rocksdb_engine_handler,
             &segment_file_manager,
             &segment_iden,
-            data_list,
+            &data_list,
         )
         .await;
 
@@ -443,7 +443,7 @@ mod tests {
             &rocksdb_engine_handler,
             &segment_file_manager,
             &segment_iden,
-            data_list,
+            &data_list,
         )
         .await;
 

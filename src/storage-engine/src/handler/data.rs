@@ -13,14 +13,11 @@
 // limitations under the License.
 
 use crate::core::cache::StorageCacheManager;
-use crate::core::error::{get_journal_server_code, StorageEngineError};
-use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
-use crate::core::segment_status::sealup_segment;
-use crate::core::shard::try_auto_create_shard;
+use crate::core::error::StorageEngineError;
 use crate::segment::file::SegmentFile;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::{read_by_key, read_by_offset, read_by_tag};
-use crate::segment::write::{get_write, write_data};
+use crate::segment::write::write_data;
 use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
@@ -32,9 +29,6 @@ use protocol::storage::storage_engine_engine::{
 use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::sleep;
-use tracing::warn;
 
 #[derive(Clone)]
 pub struct DataHandler {
@@ -69,9 +63,6 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         for message in req_body.data.iter() {
-            try_auto_create_shard(&self.cache_manager, &self.client_pool, &message.shard_name)
-                .await?;
-
             let segment_identity = SegmentIdentity {
                 shard_name: message.shard_name.to_string(),
                 segment_seq: message.segment,
@@ -83,7 +74,6 @@ impl DataHandler {
             &self.cache_manager,
             &self.rocksdb_engine_handler,
             &self.segment_file_manager,
-            &self.client_pool,
             &req_body,
         )
         .await?;
@@ -100,8 +90,6 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         for row in req_body.messages.clone() {
-            try_auto_create_shard(&self.cache_manager, &self.client_pool, &row.shard_name).await?;
-
             let segment_identity = SegmentIdentity {
                 shard_name: row.shard_name.to_string(),
                 segment_seq: row.segment,
@@ -168,7 +156,6 @@ pub async fn write_data_req(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
     req_body: &WriteReqBody,
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     let mut results = Vec::new();
@@ -198,80 +185,25 @@ pub async fn write_data_req(
             record_list.push(record);
         }
 
-        let resp = match write_data(
+        let response = write_data(
             cache_manager,
             rocksdb_engine_handler,
             segment_file_manager,
             &segment_iden,
-            record_list.clone(),
+            &record_list,
         )
-        .await
-        {
-            Ok(resp) => resp,
-            Err(e) => {
-                // if this write filled up the segment, we need to seal up the segment and update end timestamp
-                if get_journal_server_code(&e) == *"SegmentOffsetAtTheEnd" {
-                    sealup_segment(cache_manager, client_pool, &segment_iden).await?;
-                    update_meta_end_timestamp(client_pool, &segment_iden, segment_file_manager)
-                        .await?;
-                    let write = get_write(
-                        cache_manager,
-                        rocksdb_engine_handler,
-                        segment_file_manager,
-                        &segment_iden,
-                    )
-                    .await?;
+        .await?;
 
-                    // Stop the segment writer thread while waiting for messages to be written to the channel to clear
-                    loop {
-                        if write.data_sender.capacity() == write.data_sender.max_capacity() {
-                            write.stop_sender.send(true)?;
-                            break;
-                        }
-                        sleep(Duration::from_millis(10)).await;
-                    }
-                }
-
-                return Err(e);
-            }
-        };
-
-        if let Some(e) = resp.error {
-            return Err(e);
-        }
-
-        let mut resp_message_status = Vec::new();
-        for (pkid, offset) in resp.offsets {
-            let status = WriteRespMessageStatus {
-                pkid,
-                offset,
+        resp_message.messages = response
+            .offsets
+            .iter()
+            .map(|(pkid, offset)| WriteRespMessageStatus {
+                pkid: *pkid,
+                offset: *offset,
                 ..Default::default()
-            };
-            resp_message_status.push(status);
-            let segment_file_meta = segment_file_manager
-                .get_segment_file(&segment_iden)
-                .unwrap();
+            })
+            .collect();
 
-            // TODO: When it will happen?
-            if segment_file_meta.start_offset as u64 == offset {
-                let mut record = None;
-                for rc in record_list.iter() {
-                    if rc.pkid == pkid {
-                        record = Some(rc.clone());
-                    }
-                }
-                if let Some(rc) = record {
-                    let start_timestamp = rc.create_time;
-                    segment_file_manager.update_start_offset(&segment_iden, offset as i64)?;
-                    segment_file_manager.update_start_timestamp(&segment_iden, start_timestamp)?;
-                    update_meta_start_timestamp(client_pool, &segment_iden, start_timestamp)
-                        .await?;
-                } else {
-                    warn!("");
-                }
-            }
-        }
-        resp_message.messages = resp_message_status;
         results.push(resp_message);
     }
     Ok(results)

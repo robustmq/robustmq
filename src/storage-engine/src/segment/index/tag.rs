@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::{error::common::CommonError, utils::serialize};
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::journal::engine_save_by_journal;
-use rocksdb_engine::warp::StorageDataWrap;
-
-use super::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_prefix};
 use super::IndexData;
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
+use crate::segment::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_prefix};
 use crate::segment::SegmentIdentity;
+use common_base::{error::common::CommonError, utils::serialize};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::engine::engine_save_by_engine;
+use rocksdb_engine::warp::StorageDataWrap;
+use std::sync::Arc;
 
 pub struct TagIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -43,8 +41,8 @@ impl TagIndexManager {
         index_data: IndexData,
     ) -> Result<(), StorageEngineError> {
         let key = tag_segment(segment_iden, tag, index_data.offset);
-        Ok(engine_save_by_journal(
-            self.rocksdb_engine_handler.clone(),
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
             index_data,
@@ -110,8 +108,8 @@ impl TagIndexManager {
         index_data: IndexData,
     ) -> Result<(), StorageEngineError> {
         let key = key_segment(segment_iden, key, index_data.offset);
-        Ok(engine_save_by_journal(
-            self.rocksdb_engine_handler.clone(),
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
             index_data,

@@ -23,7 +23,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 pub fn engine_save_by_broker<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     key_name: &str,
     value: T,
 ) -> Result<(), CommonError>
@@ -40,7 +40,7 @@ where
 }
 
 pub fn engine_get_by_broker<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     key_name: &str,
 ) -> Result<Option<StorageDataWrap<T>>, CommonError>
 where
@@ -55,7 +55,7 @@ where
 }
 
 pub fn engine_exists_by_broker(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     key_name: &str,
 ) -> Result<bool, CommonError> {
     engine_exists(
@@ -67,7 +67,7 @@ pub fn engine_exists_by_broker(
 }
 
 pub fn engine_delete_by_broker(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     key_name: &str,
 ) -> Result<(), CommonError> {
     engine_delete(
@@ -79,7 +79,7 @@ pub fn engine_delete_by_broker(
 }
 
 pub fn engine_prefix_list_by_broker<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     prefix_key_name: &str,
 ) -> Result<Vec<StorageDataWrap<T>>, CommonError>
 where
@@ -94,7 +94,7 @@ where
 }
 
 pub fn engine_delete_prefix_by_broker(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     prefix_key: &str,
 ) -> Result<(), CommonError> {
     engine_delete_prefix(

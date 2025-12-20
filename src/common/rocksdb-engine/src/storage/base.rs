@@ -46,7 +46,7 @@ macro_rules! with_metrics {
 }
 
 pub fn engine_save<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
@@ -72,7 +72,7 @@ where
 }
 
 pub fn engine_get<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
@@ -87,7 +87,7 @@ where
 }
 
 pub fn engine_exists(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
@@ -99,7 +99,7 @@ pub fn engine_exists(
 }
 
 pub fn engine_delete(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
@@ -111,7 +111,7 @@ pub fn engine_delete(
 }
 
 pub fn engine_delete_range(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     from: Vec<u8>,
@@ -124,7 +124,7 @@ pub fn engine_delete_range(
 }
 
 pub fn engine_delete_prefix(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     prefix_key: &str,
@@ -136,7 +136,7 @@ pub fn engine_delete_prefix(
 }
 
 pub fn engine_prefix_list<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     prefix_key_name: &str,
@@ -166,7 +166,7 @@ where
 }
 
 pub fn engine_list_by_model<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     mode: &rocksdb::IteratorMode,

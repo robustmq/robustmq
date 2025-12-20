@@ -16,10 +16,10 @@ use std::sync::Arc;
 
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::journal::{engine_get_by_journal, engine_save_by_journal};
+use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
 use rocksdb_engine::warp::StorageDataWrap;
 
-use super::keys::{
+use crate::segment::keys::{
     timestamp_segment_end, timestamp_segment_start, timestamp_segment_time,
     timestamp_segment_time_prefix,
 };
@@ -45,8 +45,8 @@ impl TimestampIndexManager {
         start_timestamp: u64,
     ) -> Result<(), StorageEngineError> {
         let key = timestamp_segment_start(segment_iden);
-        Ok(engine_save_by_journal(
-            self.rocksdb_engine_handler.clone(),
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
             start_timestamp,
@@ -58,8 +58,8 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = timestamp_segment_start(segment_iden);
-        if let Some(res) = engine_get_by_journal::<i64>(
-            self.rocksdb_engine_handler.clone(),
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
         )? {
@@ -75,8 +75,8 @@ impl TimestampIndexManager {
         end_timestamp: u64,
     ) -> Result<(), StorageEngineError> {
         let key = timestamp_segment_end(segment_iden);
-        Ok(engine_save_by_journal(
-            self.rocksdb_engine_handler.clone(),
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
             end_timestamp,
@@ -88,8 +88,8 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = timestamp_segment_end(segment_iden);
-        if let Some(res) = engine_get_by_journal::<i64>(
-            self.rocksdb_engine_handler.clone(),
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
         )? {
@@ -106,8 +106,8 @@ impl TimestampIndexManager {
         index_data: IndexData,
     ) -> Result<(), StorageEngineError> {
         let key = timestamp_segment_time(segment_iden, timestamp);
-        Ok(engine_save_by_journal(
-            self.rocksdb_engine_handler.clone(),
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_INDEX,
             &key,
             index_data,

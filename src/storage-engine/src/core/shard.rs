@@ -156,36 +156,3 @@ pub async fn delete_shard_to_place(
     .await?;
     Ok(())
 }
-
-pub async fn try_auto_create_shard(
-    cache_manager: &Arc<StorageCacheManager>,
-    client_pool: &Arc<ClientPool>,
-    shard_name: &str,
-) -> Result<(), StorageEngineError> {
-    if cache_manager.shards.contains_key(shard_name) {
-        return Ok(());
-    }
-
-    create_shard_to_place(
-        cache_manager,
-        client_pool,
-        &ShardInfo {
-            shard_name: shard_name.to_string(),
-            replica_num: 1,
-        },
-    )
-    .await?;
-    let mut i = 0;
-    loop {
-        if i >= 30 {
-            break;
-        }
-        if cache_manager.shards.contains_key(shard_name) {
-            return Ok(());
-        }
-        i += 1;
-        sleep(Duration::from_secs(1)).await;
-    }
-
-    Err(StorageEngineError::ShardNotExist(shard_name.to_string()))
-}

@@ -15,14 +15,14 @@
 use super::cache::StorageCacheManager;
 use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
-use crate::segment::write::{create_write_thread, write_data};
+use crate::segment::write::write_data;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentConfig};
+use metadata_struct::storage::segment::{EngineSegment, Replica};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use prost::Message;
 use protocol::storage::storage_engine_record::StorageEngineRecord;
@@ -127,15 +127,6 @@ pub async fn test_base_write_data(
     let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
         test_init_segment().await;
 
-    let res = create_write_thread(
-        &cache_manager,
-        &rocksdb_engine_handler,
-        &segment_file_manager,
-        &segment_iden,
-    )
-    .await;
-    assert!(res.is_ok());
-
     let mut data_list = Vec::new();
 
     let producer_id = unique_id();
@@ -158,7 +149,7 @@ pub async fn test_base_write_data(
         &rocksdb_engine_handler,
         &segment_file_manager,
         &segment_iden,
-        data_list,
+        &data_list,
     )
     .await;
 

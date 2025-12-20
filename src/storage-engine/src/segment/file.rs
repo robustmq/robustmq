@@ -63,7 +63,7 @@ pub async fn open_segment_write(
 }
 
 /// Represent a segment file, providing methods for reading and writing records.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SegmentFile {
     pub shard_name: String,
     pub segment_no: u32,

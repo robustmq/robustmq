@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::keys::{finish_build_index, last_offset_build_index, segment_index_prefix};
 use super::offset::OffsetIndexManager;
 use super::tag::TagIndexManager;
 use super::time::TimestampIndexManager;
@@ -21,14 +20,15 @@ use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
 use crate::core::error::StorageEngineError;
 use crate::segment::file::{open_segment_write, ReadData};
 use crate::segment::index::IndexData;
+use crate::segment::keys::{finish_build_index, last_offset_build_index, segment_index_prefix};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use metadata_struct::storage::segment::SegmentStatus;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::journal::{
-    engine_delete_by_journal, engine_get_by_journal, engine_list_by_prefix_to_map_by_journal,
-    engine_save_by_journal,
+use rocksdb_engine::storage::engine::{
+    engine_delete_by_engine, engine_get_by_engine, engine_list_by_prefix_to_map_by_engine,
+    engine_save_by_engine,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -266,8 +266,8 @@ fn save_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
     let key = finish_build_index(segment_iden);
-    Ok(engine_save_by_journal(
-        rocksdb_engine_handler.clone(),
+    Ok(engine_save_by_engine(
+        rocksdb_engine_handler,
         DB_COLUMN_FAMILY_INDEX,
         &key,
         now_second(),
@@ -279,8 +279,7 @@ fn is_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, StorageEngineError> {
     let key = finish_build_index(segment_iden);
-    let res =
-        engine_get_by_journal::<u8>(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?;
+    let res = engine_get_by_engine::<u8>(rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?;
     Ok(res.is_some())
 }
 
@@ -290,8 +289,8 @@ fn save_last_offset_build_index(
     offset: u64,
 ) -> Result<(), StorageEngineError> {
     let key = last_offset_build_index(segment_iden);
-    Ok(engine_save_by_journal(
-        rocksdb_engine_handler.clone(),
+    Ok(engine_save_by_engine(
+        rocksdb_engine_handler,
         DB_COLUMN_FAMILY_INDEX,
         &key,
         offset,
@@ -304,7 +303,7 @@ fn get_last_offset_build_index(
 ) -> Result<Option<u64>, StorageEngineError> {
     let key = last_offset_build_index(segment_iden);
     if let Some(res) =
-        engine_get_by_journal::<u64>(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, &key)?
+        engine_get_by_engine::<u64>(rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
     {
         return Ok(Some(res.data));
     }
@@ -320,13 +319,13 @@ pub fn delete_segment_index(
 
     let prefix_key_name = segment_index_prefix(segment_iden);
     let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-    let data = engine_list_by_prefix_to_map_by_journal::<IndexData>(
-        rocksdb_engine_handler.clone(),
+    let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
+        rocksdb_engine_handler,
         comlumn_family,
         &prefix_key_name,
     )?;
     for raw in data.iter() {
-        engine_delete_by_journal(rocksdb_engine_handler.clone(), comlumn_family, raw.key())?;
+        engine_delete_by_engine(rocksdb_engine_handler, comlumn_family, raw.key())?;
     }
     Ok(())
 }
@@ -346,9 +345,9 @@ mod tests {
     use crate::segment::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
     };
-    use crate::segment::index::keys::segment_index_prefix;
     use crate::segment::index::offset::OffsetIndexManager;
     use crate::segment::index::IndexData;
+    use crate::segment::keys::segment_index_prefix;
 
     #[test]
     fn last_offset_build_index_test() {
