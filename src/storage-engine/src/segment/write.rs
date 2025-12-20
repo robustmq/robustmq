@@ -13,19 +13,12 @@
 // limitations under the License.
 
 use crate::core::cache::StorageCacheManager;
-use crate::core::error::{get_journal_server_code, StorageEngineError};
-use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
-use crate::core::segment_status::sealup_segment;
+use crate::core::error::StorageEngineError;
 use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::index::build::try_trigger_build_index;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
-use common_base::tools::now_second;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::SegmentStatus;
-use protocol::storage::storage_engine_engine::{
-    WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
-};
 use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -35,12 +28,12 @@ use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::{sleep, timeout};
-use tracing::{error, warn};
+use tracing::error;
 
 /// the write handle for a segment
 #[derive(Clone)]
 pub struct SegmentWrite {
-    data_sender: Sender<SegmentWriteData>,
+    pub data_sender: Sender<SegmentWriteData>,
     pub stop_sender: broadcast::Sender<bool>,
 }
 
@@ -56,120 +49,6 @@ pub struct SegmentWriteResp {
     pub offsets: HashMap<u64, u64>,
     pub last_offset: u64,
     pub error: Option<StorageEngineError>,
-}
-
-/// the entry point for handling write requests
-pub async fn write_data_req(
-    cache_manager: &Arc<StorageCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
-    req_body: &WriteReqBody,
-) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
-    let mut results = Vec::new();
-    for shard_data in req_body.data.clone() {
-        let mut resp_message = WriteRespMessage {
-            shard_name: shard_data.shard_name.clone(),
-            segment: shard_data.segment,
-            ..Default::default()
-        };
-
-        let segment_iden = SegmentIdentity::new(&shard_data.shard_name, shard_data.segment);
-
-        let mut record_list = Vec::new();
-        for message in shard_data.messages.iter() {
-            // todo data validator
-            let record = StorageEngineRecord {
-                content: message.value.clone(),
-                create_time: now_second(),
-                key: message.key.clone(),
-                shard_name: shard_data.shard_name.clone(),
-                segment: shard_data.segment,
-                tags: message.tags.clone(),
-                pkid: message.pkid,
-                producer_id: "".to_string(),
-                offset: -1,
-            };
-            record_list.push(record);
-        }
-
-        let resp = match write_data(
-            cache_manager,
-            rocksdb_engine_handler,
-            segment_file_manager,
-            &segment_iden,
-            record_list.clone(),
-        )
-        .await
-        {
-            Ok(resp) => resp,
-            Err(e) => {
-                // if this write filled up the segment, we need to seal up the segment and update end timestamp
-                if get_journal_server_code(&e) == *"SegmentOffsetAtTheEnd" {
-                    sealup_segment(cache_manager, client_pool, &segment_iden).await?;
-                    update_meta_end_timestamp(client_pool, &segment_iden, segment_file_manager)
-                        .await?;
-                    let write = get_write(
-                        cache_manager,
-                        rocksdb_engine_handler,
-                        segment_file_manager,
-                        &segment_iden,
-                    )
-                    .await?;
-
-                    // Stop the segment writer thread while waiting for messages to be written to the channel to clear
-                    loop {
-                        if write.data_sender.capacity() == write.data_sender.max_capacity() {
-                            write.stop_sender.send(true)?;
-                            break;
-                        }
-                        sleep(Duration::from_millis(10)).await;
-                    }
-                }
-
-                return Err(e);
-            }
-        };
-
-        if let Some(e) = resp.error {
-            return Err(e);
-        }
-
-        let mut resp_message_status = Vec::new();
-        for (pkid, offset) in resp.offsets {
-            let status = WriteRespMessageStatus {
-                pkid,
-                offset,
-                ..Default::default()
-            };
-            resp_message_status.push(status);
-            let segment_file_meta = segment_file_manager
-                .get_segment_file(&segment_iden)
-                .unwrap();
-
-            // TODO: When it will happen?
-            if segment_file_meta.start_offset as u64 == offset {
-                let mut record = None;
-                for rc in record_list.iter() {
-                    if rc.pkid == pkid {
-                        record = Some(rc.clone());
-                    }
-                }
-                if let Some(rc) = record {
-                    let start_timestamp = rc.create_time;
-                    segment_file_manager.update_start_offset(&segment_iden, offset as i64)?;
-                    segment_file_manager.update_start_timestamp(&segment_iden, start_timestamp)?;
-                    update_meta_start_timestamp(client_pool, &segment_iden, start_timestamp)
-                        .await?;
-                } else {
-                    warn!("");
-                }
-            }
-        }
-        resp_message.messages = resp_message_status;
-        results.push(resp_message);
-    }
-    Ok(results)
 }
 
 /// get the write handle for the segment identified by `segment_iden`, write data and return the response
@@ -208,7 +87,7 @@ pub(crate) async fn write_data(
 ///
 /// TODO: maybe we should use [`DashMap::entry()`](https://docs.rs/dashmap/latest/dashmap/struct.DashMap.html#method.entry)
 /// with [`or_insert`](https://docs.rs/dashmap/latest/dashmap/mapref/entry/enum.Entry.html#method.or_insert) to prevent creating multiple handles for the same segment
-async fn get_write(
+pub async fn get_write(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,

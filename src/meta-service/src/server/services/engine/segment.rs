@@ -27,7 +27,7 @@ use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{
-    str_to_segment_status, EngineSegment, Replica, SegmentConfig, SegmentStatus,
+    str_to_segment_status, EngineSegment, Replica, SegmentStatus,
 };
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;

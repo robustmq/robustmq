@@ -14,7 +14,7 @@
 
 use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
-    segment::{manager::SegmentFileManager, write::write_data_req},
+    segment::manager::SegmentFileManager,
 };
 use common_base::tools::{now_millis, now_second};
 use common_config::broker::broker_config;
