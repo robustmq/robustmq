@@ -404,7 +404,7 @@ impl BrokerServer {
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
-        let write_manager = Arc::new(WriteManager::new(config.storage_runtime));
+        let write_manager = Arc::new(WriteManager::new(config.storage_runtime.io_thread_num));
         StorageEngineParams {
             cache_manager,
             client_pool,
