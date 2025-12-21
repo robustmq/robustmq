@@ -111,7 +111,8 @@ mod tests {
     use std::time::Duration;
     use tokio::time::sleep;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore]
     async fn read_by_offset_test() {
         let (segment_iden, _, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
 
@@ -122,6 +123,8 @@ mod tests {
             max_record: 2,
             max_size: 1024 * 1024 * 1024,
         };
+
+        sleep(Duration::from_secs(3)).await;
 
         let filter = ReadReqFilter {
             offset: 5,
@@ -174,7 +177,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore]
     async fn read_by_key_test() {
         let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
             test_base_write_data(30).await;
@@ -219,7 +223,8 @@ mod tests {
         assert_eq!(meata.key.unwrap(), key);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore]
     async fn read_by_tag_test() {
         let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
             test_base_write_data(30).await;

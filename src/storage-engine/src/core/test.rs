@@ -127,6 +127,7 @@ pub async fn test_base_write_data(
     let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
         test_init_segment().await;
 
+    println!("{}", fold);
     let write_manager = WriteManager::new(
         rocksdb_engine_handler.clone(),
         segment_file_manager.clone(),
