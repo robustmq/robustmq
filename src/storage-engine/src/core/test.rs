@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use bytes::Bytes;
-use common_base::tools::{now_second, unique_id};
+use common_base::tools::unique_id;
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
@@ -27,6 +27,7 @@ use metadata_struct::storage::segment::{EngineSegment, Replica};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 
 #[allow(dead_code)]
 pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
@@ -126,32 +127,27 @@ pub async fn test_base_write_data(
     let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
         test_init_segment().await;
 
+    let write_manager = WriteManager::new(
+        rocksdb_engine_handler.clone(),
+        segment_file_manager.clone(),
+        cache_manager.clone(),
+        3,
+    );
+
+    let (stop_send, _) = broadcast::channel(2);
+    write_manager.start(stop_send);
+
     let mut data_list = Vec::new();
 
     for i in 0..len {
-        data_list.push(StorageEngineRecord {
-            metadata: StorageEngineRecordMetadata {
-                offset: 1000 + i,
-                key: None,
-                tags: None,
-                shard: segment_iden.shard_name.to_string(),
-                segment: segment_iden.segment,
-                create_t: now_second(),
-            },
-            data: Bytes::from(format!("data-{i}")),
+        data_list.push(WriteChannelDataRecord {
+            pkid: i,
+            key: None,
+            tags: None,
+            value: Bytes::from(format!("data-{i}")),
         });
     }
-
-    // let res = write_(
-    //     &cache_manager,
-    //     &rocksdb_engine_handler,
-    //     &segment_file_manager,
-    //     &segment_iden,
-    //     &data_list,
-    // )
-    // .await;
-
-    // assert!(res.is_ok());
+    write_manager.write(&segment_iden, data_list).await.unwrap();
 
     (
         segment_iden,

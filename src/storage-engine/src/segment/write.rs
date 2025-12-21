@@ -112,7 +112,7 @@ impl WriteManager {
             return Err(StorageEngineError::NoAvailableIoThread);
         }
 
-        let work_num = self.hash_string(&segment_iden.shard_name);
+        let work_num = self.hash_string(&segment_iden.shard_name) % self.io_num;
         let Some(sender) = self.io_thread.get(&work_num) else {
             return Err(StorageEngineError::NoAvailableIoThread);
         };

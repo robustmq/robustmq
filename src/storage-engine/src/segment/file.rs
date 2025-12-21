@@ -20,6 +20,7 @@ use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
 use std::fs::remove_file;
+use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::fs::{self, File, OpenOptions};
@@ -181,9 +182,14 @@ impl SegmentFile {
             // read offset
             let offset = match reader.read_u64().await {
                 Ok(offset) => offset,
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Err(e) => match e.kind() {
+                    ErrorKind::UnexpectedEof => {
+                        break;
+                    }
+                    _ => {
+                        return Err(e.into());
+                    }
+                },
             };
 
             // read total len
@@ -191,13 +197,14 @@ impl SegmentFile {
 
             if offset < start_offset {
                 reader
-                    .seek(std::io::SeekFrom::Current(total_len as i64))
+                    .seek(std::io::SeekFrom::Current(total_len as i64 + 8))
                     .await?;
                 continue;
             }
 
             // read data
             let data = self.read_data(&mut reader).await?;
+            println!("{:?}", data);
             if let Some(da) = data {
                 already_size += da.data.len() as u64;
                 results.push(ReadData {
@@ -414,7 +421,7 @@ mod tests {
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
-        println!("{}", segment.data_fold);
+
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{i}");
@@ -435,11 +442,11 @@ mod tests {
         let res = segment.read_by_positions(vec![0]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        // data len = 41
-        let res = segment.read_by_positions(vec![41]).await.unwrap();
+        // data len = 84
+        let res = segment.read_by_positions(vec![84]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![0, 41, 82]).await.unwrap();
+        let res = segment.read_by_positions(vec![0, 84, 168]).await.unwrap();
         assert_eq!(res.len(), 3);
 
         let size = segment.size().await.unwrap();
