@@ -55,7 +55,7 @@ pub async fn open_segment_write(
 
     Ok(SegmentFile::new(
         segment_iden.shard_name.to_string(),
-        segment_iden.segment_seq,
+        segment_iden.segment,
         fold,
     ))
 }
@@ -315,7 +315,7 @@ mod tests {
         let segment_no = 10;
         let segment_iden = SegmentIdentity {
             shard_name: shard_name.clone(),
-            segment_seq: segment_no,
+            segment: segment_no,
         };
         let segment = EngineSegment {
             shard_name,
@@ -346,7 +346,7 @@ mod tests {
 
         let segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
+            segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
         assert!(segment.try_create().await.is_ok());
@@ -364,7 +364,7 @@ mod tests {
 
         let segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
+            segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
 
@@ -377,7 +377,7 @@ mod tests {
                     key: None,
                     tags: None,
                     shard: segment_iden.shard_name.to_string(),
-                    segment: segment_iden.segment_seq,
+                    segment: segment_iden.segment,
                     create_t: now_second(),
                 },
                 data: Bytes::from(value),
@@ -404,7 +404,7 @@ mod tests {
 
         let segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
+            segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
         println!("{}", segment.data_fold);
@@ -417,7 +417,7 @@ mod tests {
                     key: None,
                     tags: None,
                     shard: segment_iden.shard_name.to_string(),
-                    segment: segment_iden.segment_seq,
+                    segment: segment_iden.segment,
                     create_t: now_second(),
                 },
                 data: Bytes::from(value),

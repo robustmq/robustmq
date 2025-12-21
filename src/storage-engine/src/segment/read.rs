@@ -14,11 +14,10 @@
 
 use super::file::SegmentFile;
 use super::SegmentIdentity;
-use crate::core::record::StorageEngineRecord;
 use crate::segment::index::offset::OffsetIndexManager;
 use crate::segment::index::tag::TagIndexManager;
 use crate::{core::error::StorageEngineError, segment::file::ReadData};
-use protocol::storage::storage_engine_engine::{ReadReqFilter, ReadReqOptions};
+use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -108,7 +107,7 @@ mod tests {
     use crate::core::test::test_base_write_data;
     use crate::segment::file::SegmentFile;
     use crate::segment::index::build::try_trigger_build_index;
-    use protocol::storage::storage_engine_engine::{ReadReqFilter, ReadReqOptions};
+    use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -116,11 +115,8 @@ mod tests {
     async fn read_by_offset_test() {
         let (segment_iden, _, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
 
-        let segment_file = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            fold,
-        );
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
 
         let read_options = ReadReqOptions {
             max_record: 2,
@@ -193,11 +189,8 @@ mod tests {
 
         sleep(Duration::from_secs(10)).await;
 
-        let segment_file = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            fold,
-        );
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
 
         let read_options = ReadReqOptions {
             max_record: 10,
@@ -242,11 +235,8 @@ mod tests {
 
         sleep(Duration::from_secs(10)).await;
 
-        let segment_file = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            fold,
-        );
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
 
         let read_options = ReadReqOptions {
             max_record: 10,

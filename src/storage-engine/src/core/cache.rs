@@ -85,7 +85,7 @@ impl StorageCacheManager {
         if let Some(shard) = self.shards.get(shard_name) {
             let segment_iden = SegmentIdentity {
                 shard_name: shard_name.to_string(),
-                segment_seq: shard.active_segment_seq,
+                segment: shard.active_segment_seq,
             };
             if let Some(segment) = self.get_segment(&segment_iden) {
                 return Some(segment);
@@ -110,7 +110,7 @@ impl StorageCacheManager {
         if segment.leader == conf.broker_id {
             self.add_leader_segment(&SegmentIdentity {
                 shard_name: segment.shard_name,
-                segment_seq: segment.segment_seq,
+                segment: segment.segment_seq,
             });
         }
     }
@@ -118,12 +118,12 @@ impl StorageCacheManager {
     pub fn delete_segment(&self, segment: &SegmentIdentity) {
         // delete segment
         if let Some(list) = self.segments.get(&segment.shard_name) {
-            list.remove(&segment.segment_seq);
+            list.remove(&segment.segment);
         }
 
         // delete segment_metadatas
         if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
-            list.remove(&segment.segment_seq);
+            list.remove(&segment.segment);
         }
 
         // delete leader segment
@@ -146,7 +146,7 @@ impl StorageCacheManager {
 
     pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
         if let Some(sgement_list) = self.segments.get(&segment.shard_name) {
-            if let Some(segment) = sgement_list.get(&segment.segment_seq) {
+            if let Some(segment) = sgement_list.get(&segment.segment) {
                 return Some(segment.clone());
             }
         }
@@ -165,7 +165,7 @@ impl StorageCacheManager {
 
     pub fn update_segment_status(&self, segment_iden: &SegmentIdentity, status: SegmentStatus) {
         if let Some(sgement_list) = self.segments.get(&segment_iden.shard_name) {
-            if let Some(mut segment) = sgement_list.get_mut(&segment_iden.segment_seq) {
+            if let Some(mut segment) = sgement_list.get_mut(&segment_iden.segment) {
                 segment.status = status;
             }
         }
@@ -188,7 +188,7 @@ impl StorageCacheManager {
         segment_iden: &SegmentIdentity,
     ) -> Option<EngineSegmentMetadata> {
         if let Some(list) = self.segment_metadatas.get(&segment_iden.shard_name) {
-            if let Some(segment) = list.get(&segment_iden.segment_seq) {
+            if let Some(segment) = list.get(&segment_iden.segment) {
                 return Some(segment.clone());
             }
         }

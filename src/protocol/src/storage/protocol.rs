@@ -426,18 +426,18 @@ impl ReadReq {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct ReadRespMessage {
     pub offset: u64,
-    pub key: String,
+    pub key: Option<String>,
     pub value: Vec<u8>,
-    pub tags: Vec<String>,
+    pub tags: Option<Vec<String>>,
     pub timestamp: u64,
 }
 
 impl ReadRespMessage {
     pub fn new(
         offset: u64,
-        key: String,
+        key: Option<String>,
         value: Vec<u8>,
-        tags: Vec<String>,
+        tags: Option<Vec<String>>,
         timestamp: u64,
     ) -> Self {
         Self {

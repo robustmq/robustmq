@@ -15,182 +15,89 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::segment::file::SegmentFile;
-use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::{read_by_key, read_by_offset, read_by_tag};
-use crate::segment::write::write_data;
+use crate::segment::write0::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
-use common_base::tools::now_second;
 use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
-use protocol::storage::storage_engine_engine::{
-    ReadReq, ReadReqBody, ReadReqFilter, ReadReqOptions, ReadRespMessage, ReadRespSegmentMessage,
-    ReadType, WriteReq, WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
+use protocol::storage::protocol::{
+    ReadReqBody, ReadRespMessage, ReadRespSegmentMessage, ReadType, WriteReqMessages,
+    WriteRespMessage, WriteRespMessageStatus,
 };
-use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-#[derive(Clone)]
-pub struct DataHandler {
-    cache_manager: Arc<StorageCacheManager>,
-    segment_file_manager: Arc<SegmentFileManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    client_pool: Arc<ClientPool>,
-}
-
-impl DataHandler {
-    pub fn new(
-        cache_manager: Arc<StorageCacheManager>,
-        segment_file_manager: Arc<SegmentFileManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        client_pool: Arc<ClientPool>,
-    ) -> DataHandler {
-        DataHandler {
-            cache_manager,
-            segment_file_manager,
-            rocksdb_engine_handler,
-            client_pool,
-        }
+fn params_validator(
+    cache_manager: &Arc<StorageCacheManager>,
+    segment_identity: &SegmentIdentity,
+) -> Result<(), StorageEngineError> {
+    if !cache_manager
+        .shards
+        .contains_key(&segment_identity.shard_name)
+    {
+        return Err(StorageEngineError::ShardNotExist(
+            segment_identity.shard_name.to_string(),
+        ));
     }
 
-    pub async fn write(
-        &self,
-        request: WriteReq,
-    ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
-        if request.body.is_none() {
-            return Err(StorageEngineError::RequestBodyNotEmpty("write".to_string()));
-        }
+    let segment = if let Some(segment) = cache_manager.get_segment(segment_identity) {
+        segment
+    } else {
+        return Err(StorageEngineError::SegmentNotExist(segment_identity.name()));
+    };
 
-        let req_body = request.body.unwrap();
-        for message in req_body.messages.iter() {
-            let segment_identity = SegmentIdentity {
-                shard_name: message.shard_name.to_string(),
-                segment_seq: message.segment,
-            };
-            self.validator(&segment_identity)?;
-        }
-
-        let results = write_data_req(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            &self.segment_file_manager,
-            &req_body,
-        )
-        .await?;
-        Ok(results)
+    if !segment.allow_read() {
+        return Err(StorageEngineError::SegmentStatusError(
+            segment_identity.name(),
+            segment.status.to_string(),
+        ));
     }
 
-    pub async fn read(
-        &self,
-        request: ReadReq,
-    ) -> Result<Vec<ReadRespSegmentMessage>, StorageEngineError> {
-        if request.body.is_none() {
-            return Err(StorageEngineError::RequestBodyNotEmpty("write".to_string()));
-        }
-
-        let req_body = request.body.unwrap();
-        for row in req_body.messages.clone() {
-            let segment_identity = SegmentIdentity {
-                shard_name: row.shard_name.to_string(),
-                segment_seq: row.segment,
-            };
-            self.validator(&segment_identity)?;
-        }
-
-        let conf = broker_config();
-        let results = read_data_req(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            &req_body,
-            conf.broker_id,
-        )
-        .await?;
-        Ok(results)
+    let conf = broker_config();
+    if segment.leader != conf.broker_id {
+        return Err(StorageEngineError::NotLeader(segment_identity.name()));
     }
 
-    fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), StorageEngineError> {
-        if !self
-            .cache_manager
-            .shards
-            .contains_key(&segment_identity.shard_name)
-        {
-            return Err(StorageEngineError::ShardNotExist(
-                segment_identity.shard_name.to_string(),
-            ));
-        }
-
-        let segment = if let Some(segment) = self.cache_manager.get_segment(segment_identity) {
-            segment
-        } else {
-            return Err(StorageEngineError::SegmentNotExist(segment_identity.name()));
-        };
-
-        if !segment.allow_read() {
-            return Err(StorageEngineError::SegmentStatusError(
-                segment_identity.name(),
-                segment.status.to_string(),
-            ));
-        }
-
-        let conf = broker_config();
-        if segment.leader != conf.broker_id {
-            return Err(StorageEngineError::NotLeader(segment_identity.name()));
-        }
-
-        if self
-            .cache_manager
-            .get_segment_meta(segment_identity)
-            .is_none()
-        {
-            return Err(StorageEngineError::SegmentFileMetaNotExists(
-                segment_identity.name(),
-            ));
-        }
-
-        Ok(())
+    if cache_manager.get_segment_meta(segment_identity).is_none() {
+        return Err(StorageEngineError::SegmentFileMetaNotExists(
+            segment_identity.name(),
+        ));
     }
+
+    Ok(())
 }
 
 /// the entry point for handling write requests
 pub async fn write_data_req(
     cache_manager: &Arc<StorageCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    req_body: &WriteReqBody,
+    write_manager: &Arc<WriteManager>,
+    segment_iden: &SegmentIdentity,
+    messages: &Vec<WriteReqMessages>,
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
+    if messages.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    params_validator(&cache_manager, &segment_iden)?;
+
     let mut results = Vec::new();
 
-    let segment_iden = SegmentIdentity::new(&req_body.shard_name, req_body.segment);
-
     let mut record_list = Vec::new();
-    for message in req_body.messages.iter() {
+    for message in messages.clone() {
         // todo data validator
-        let record = StorageEngineRecord::builder()
-            .content(message.value.clone())
-            .create_time(now_second())
-            .key(&message.key)
-            .shard_name(&req_body.shard_name)
-            .segment(req_body.segment)
-            .tags(message.tags.clone())
-            .pkid(message.pkid)
-            .producer_id("")
-            .offset(-1)
-            .build();
+        let record = WriteChannelDataRecord {
+            pkid: message.pkid,
+            key: message.key,
+            tags: message.tags,
+            value: message.value.into(),
+        };
         record_list.push(record);
     }
 
-    let response = write_data(
-        cache_manager,
-        rocksdb_engine_handler,
-        segment_file_manager,
-        &segment_iden,
-        &record_list,
-    )
-    .await?;
+    let response = write_manager.write(segment_iden, record_list).await?;
 
     let resp_message = WriteRespMessage {
-        shard_name: req_body.shard_name.clone(),
-        segment: req_body.segment,
+        shard_name: segment_iden.shard_name.clone(),
+        segment: segment_iden.segment,
         messages: response
             .offsets
             .iter()
@@ -226,7 +133,7 @@ pub async fn read_data_req(
 
         let segment_iden = SegmentIdentity {
             shard_name: raw.shard_name.to_string(),
-            segment_seq: raw.segment,
+            segment: raw.segment,
         };
 
         let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
@@ -244,31 +151,14 @@ pub async fn read_data_req(
             ));
         };
 
-        let segment_file = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            fold,
-        );
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
 
-        let filter = if let Some(filter) = raw.filter.clone() {
-            filter
-        } else {
-            ReadReqFilter {
-                offset: 0,
-                ..Default::default()
-            }
-        };
+        let filter = raw.filter.clone();
 
-        let read_options = if let Some(option) = raw.options {
-            option
-        } else {
-            ReadReqOptions {
-                max_size: 1024 * 1024,
-                max_record: 100,
-            }
-        };
+        let read_options = raw.options.clone();
 
-        let read_data_list = match raw.ready_type() {
+        let read_data_list = match raw.read_type {
             ReadType::Offset => {
                 read_by_offset(
                     rocksdb_engine_handler,
@@ -307,11 +197,11 @@ pub async fn read_data_req(
         for read_data in read_data_list {
             let record = read_data.record;
             record_message.push(ReadRespMessage {
-                offset: record.offset as u64,
-                key: record.key,
-                value: record.content,
-                tags: record.tags,
-                timestamp: record.create_time,
+                offset: record.metadata.offset as u64,
+                key: record.metadata.key,
+                value: record.data.to_vec(),
+                tags: record.metadata.tags,
+                timestamp: record.metadata.create_t,
             });
         }
         shard_message.messages = record_message;
@@ -326,7 +216,7 @@ mod tests {
     use std::time::Duration;
 
     use common_config::broker::broker_config;
-    use protocol::storage::storage_engine_engine::{
+    use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use tokio::time::sleep;
@@ -356,16 +246,16 @@ mod tests {
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment_seq,
-                ready_type: ReadType::Offset.into(),
-                filter: Some(ReadReqFilter {
+                segment: segment_iden.segment,
+                read_type: ReadType::Offset.into(),
+                filter: ReadReqFilter {
                     offset: 5,
                     ..Default::default()
-                }),
-                options: Some(ReadReqOptions {
+                },
+                options: ReadReqOptions {
                     max_size: 1024 * 1024 * 1024,
                     max_record: 2,
-                }),
+                },
             }],
         };
         let conf = broker_config();
@@ -394,17 +284,17 @@ mod tests {
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment_seq,
-                ready_type: ReadType::Key.into(),
-                filter: Some(ReadReqFilter {
+                segment: segment_iden.segment,
+                read_type: ReadType::Key.into(),
+                filter: ReadReqFilter {
                     offset: 0,
                     key: key.clone(),
                     ..Default::default()
-                }),
-                options: Some(ReadReqOptions {
+                },
+                options: ReadReqOptions {
                     max_size: 1024 * 1024 * 1024,
                     max_record: 2,
-                }),
+                },
             }],
         };
         let conf = broker_config();
@@ -421,25 +311,25 @@ mod tests {
         assert_eq!(resp.len(), 1);
         let resp_shard = resp.first().unwrap();
         assert_eq!(resp_shard.messages.len(), 1);
-        let data = resp_shard.messages.first().unwrap();
-        assert_eq!(data.key, key);
+        let data = resp_shard.messages.first().unwrap().clone();
+        assert_eq!(data.key.unwrap(), key);
 
         // tag
         let tag = format!("tag-{}", 1);
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment_seq,
-                ready_type: ReadType::Tag.into(),
-                filter: Some(ReadReqFilter {
+                segment: segment_iden.segment,
+                read_type: ReadType::Tag.into(),
+                filter: ReadReqFilter {
                     offset: 0,
                     tag: tag.clone(),
                     ..Default::default()
-                }),
-                options: Some(ReadReqOptions {
+                },
+                options: ReadReqOptions {
                     max_size: 1024 * 1024 * 1024,
                     max_record: 2,
-                }),
+                },
             }],
         };
         let conf = broker_config();
@@ -456,7 +346,7 @@ mod tests {
         assert_eq!(resp.len(), 1);
         let resp_shard = resp.first().unwrap();
         assert_eq!(resp_shard.messages.len(), 1);
-        let data = resp_shard.messages.first().unwrap();
-        assert!(data.tags.contains(&tag));
+        let data = resp_shard.messages.first().unwrap().clone();
+        assert!(data.tags.unwrap().contains(&tag));
     }
 }

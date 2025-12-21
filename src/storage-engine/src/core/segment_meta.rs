@@ -34,7 +34,7 @@ pub async fn update_end_and_start_offset(
 
     // update next segment start offset
     let mut new_segment_iden = segment_iden.clone();
-    new_segment_iden.segment_seq = segment_iden.segment_seq + 1;
+    new_segment_iden.segment = segment_iden.segment + 1;
 
     update_meta_start_offset(client_pool.clone(), segment_iden, end_offset + 1).await?;
     Ok(())
@@ -46,7 +46,7 @@ pub async fn update_meta_start_timestamp(
     start_timestamp: u64,
 ) -> Result<(), StorageEngineError> {
     let conf = broker_config();
-    let next_segment_no = segment_iden.segment_seq;
+    let next_segment_no = segment_iden.segment;
     let request = UpdateSegmentMetaRequest {
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
@@ -66,7 +66,7 @@ pub async fn update_meta_end_timestamp(
 ) -> Result<(), StorageEngineError> {
     let conf = broker_config();
     if let Some(file) = segment_file_manager.get_segment_file(segment_iden) {
-        let next_segment_no = segment_iden.segment_seq;
+        let next_segment_no = segment_iden.segment;
 
         if file.end_timestamp > 0 {
             let request = UpdateSegmentMetaRequest {
@@ -91,7 +91,7 @@ async fn update_meta_start_offset(
     start_offset: i64,
 ) -> Result<(), StorageEngineError> {
     let conf = broker_config();
-    let next_segment_no = segment_iden.segment_seq;
+    let next_segment_no = segment_iden.segment;
     let request = UpdateSegmentMetaRequest {
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
@@ -110,7 +110,7 @@ async fn update_meta_end_offset(
     end_offset: i64,
 ) -> Result<(), StorageEngineError> {
     let conf = broker_config();
-    let next_segment_no = segment_iden.segment_seq;
+    let next_segment_no = segment_iden.segment;
     let request = UpdateSegmentMetaRequest {
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,

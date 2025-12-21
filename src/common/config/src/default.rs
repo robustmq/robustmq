@@ -205,5 +205,6 @@ pub fn default_journal_runtime() -> StorageRuntime {
         tcp_port: 1778,
         max_segment_size: 1073741824,
         data_path: vec![],
+        io_thread_num: 8,
     }
 }

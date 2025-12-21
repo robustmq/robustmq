@@ -28,25 +28,25 @@ pub mod write0;
 #[derive(Clone, Debug)]
 pub struct SegmentIdentity {
     pub shard_name: String,
-    pub segment_seq: u32,
+    pub segment: u32,
 }
 
 impl SegmentIdentity {
     pub fn name(&self) -> String {
-        segment_name(&self.shard_name, self.segment_seq)
+        segment_name(&self.shard_name, self.segment)
     }
 
     pub fn new(shard_name: &str, segment_seq: u32) -> Self {
         SegmentIdentity {
             shard_name: shard_name.to_string(),
-            segment_seq,
+            segment: segment_seq,
         }
     }
 
     pub fn from_journal_segment(segment: &EngineSegment) -> Self {
         SegmentIdentity {
             shard_name: segment.shard_name.to_string(),
-            segment_seq: segment.segment_seq,
+            segment: segment.segment_seq,
         }
     }
 }

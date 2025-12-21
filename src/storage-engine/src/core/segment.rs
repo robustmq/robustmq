@@ -69,7 +69,7 @@ pub async fn segment_already_delete(
 ) -> Result<bool, StorageEngineError> {
     let segment_iden = SegmentIdentity {
         shard_name: req.shard_name.clone(),
-        segment_seq: req.segment,
+        segment: req.segment,
     };
 
     let segment_file = open_segment_write(cache_manager, &segment_iden).await?;

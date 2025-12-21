@@ -35,7 +35,7 @@ pub async fn pre_sealup_segment(
 
     // next segment preWrite
     let mut next_segment_iden = segment_iden.clone();
-    next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
+    next_segment_iden.segment = segment_iden.segment + 1;
     update_segment_status_to_pre_write(cache_manager, client_pool, &next_segment_iden).await
 }
 
@@ -49,7 +49,7 @@ pub async fn sealup_segment(
 
     // next segment to Write
     let mut next_segment_iden = segment_iden.clone();
-    next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
+    next_segment_iden.segment = segment_iden.segment + 1;
     update_segment_status_to_write(cache_manager, client_pool, &next_segment_iden).await
 }
 
@@ -72,7 +72,7 @@ async fn update_segment_status_to_pre_write(
         // update meta status
         let request = UpdateSegmentStatusRequest {
             shard_name: segment_iden.shard_name.to_string(),
-            segment_seq: segment_iden.segment_seq,
+            segment_seq: segment_iden.segment,
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreWrite.to_string(),
         };
@@ -98,7 +98,7 @@ async fn update_segment_status_to_write(
         // update meta status
         let request = UpdateSegmentStatusRequest {
             shard_name: segment_iden.shard_name.to_string(),
-            segment_seq: segment_iden.segment_seq,
+            segment_seq: segment_iden.segment,
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::Write.to_string(),
         };
@@ -126,7 +126,7 @@ async fn update_segment_status_to_pre_seal_up(
         // update meta status
         let request = UpdateSegmentStatusRequest {
             shard_name: segment_iden.shard_name.to_string(),
-            segment_seq: segment_iden.segment_seq,
+            segment_seq: segment_iden.segment,
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreSealUp.to_string(),
         };
@@ -155,7 +155,7 @@ async fn update_segment_status_to_seal_up(
         // update meta status
         let request = UpdateSegmentStatusRequest {
             shard_name: segment_iden.shard_name.to_string(),
-            segment_seq: segment_iden.segment_seq,
+            segment_seq: segment_iden.segment,
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::SealUp.to_string(),
         };

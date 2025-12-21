@@ -17,7 +17,7 @@ use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-use crate::segment::write0::SegmentWriteData;
+use crate::segment::write0::WriteChannelData;
 
 #[derive(Error, Debug)]
 pub enum StorageEngineError {
@@ -34,7 +34,7 @@ pub enum StorageEngineError {
     BroadcastBoolSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
 
     #[error("{0}")]
-    MpscSegmentWriteDataSendError(#[from] tokio::sync::mpsc::error::SendError<SegmentWriteData>),
+    MpscSegmentWriteDataSendError(#[from] tokio::sync::mpsc::error::SendError<WriteChannelData>),
 
     #[error("{0}")]
     OneshotRecvError(#[from] tokio::sync::oneshot::error::RecvError),
