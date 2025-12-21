@@ -98,7 +98,7 @@ impl Command for StorageEngineHandlerCommand {
 
                 let resp = WriteResp {
                     header: RespHeader {
-                        api_key: ApiKey::Write.into(),
+                        api_key: ApiKey::Write,
                         error,
                     },
                     body: resp_body,
@@ -134,7 +134,7 @@ impl Command for StorageEngineHandlerCommand {
 
                 let resp = protocol::storage::protocol::ReadResp {
                     header: RespHeader {
-                        api_key: ApiKey::Read.into(),
+                        api_key: ApiKey::Read,
                         error,
                     },
                     body: resp_body,

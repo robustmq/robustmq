@@ -28,13 +28,13 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
-pub async fn batch_write(
+pub async fn _batch_write(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
     shard: &str,
-    records: &[Record],
+    _records: &[Record],
 ) -> Result<Vec<u64>, StorageEngineError> {
-    let shard_info = if let Some(shard_info) = cache_manager.shards.get(shard) {
+    let _shard_info = if let Some(shard_info) = cache_manager.shards.get(shard) {
         shard_info.clone()
     } else {
         return Err(StorageEngineError::ShardNotExist(shard.to_string()));
@@ -42,17 +42,16 @@ pub async fn batch_write(
 
     let segment = get_active_segment(client_pool, cache_manager, shard).await?;
     let config = broker_config();
-    if segment.leader == config.broker_id {}
+    // if segment.leader == config.broker_id {}
     Ok(Vec::new())
 }
 
-async fn write_to_local(
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<StorageCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-
-    shard_info: &EngineShard,
+async fn _write_to_local(
+    _client_pool: &Arc<ClientPool>,
+    _cache_manager: &Arc<StorageCacheManager>,
+    _rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    _segment_file_manager: &Arc<SegmentFileManager>,
+    _shard_info: &EngineShard,
 ) -> Result<Vec<u64>, StorageEngineError> {
     // let req_body = WriteReqBody {};
     // match shard_info.engine_type {
@@ -71,7 +70,7 @@ async fn write_to_local(
     Ok(Vec::new())
 }
 
-async fn write_to_leader() {}
+async fn _write_to_leader() {}
 
 async fn get_active_segment(
     client_pool: &Arc<ClientPool>,

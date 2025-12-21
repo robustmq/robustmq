@@ -71,24 +71,24 @@ pub async fn write_data_req(
     cache_manager: &Arc<StorageCacheManager>,
     write_manager: &Arc<WriteManager>,
     segment_iden: &SegmentIdentity,
-    messages: &Vec<WriteReqMessages>,
+    messages: &[WriteReqMessages],
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     if messages.is_empty() {
         return Ok(Vec::new());
     }
 
-    params_validator(&cache_manager, &segment_iden)?;
+    params_validator(cache_manager, segment_iden)?;
 
     let mut results = Vec::new();
 
     let mut record_list = Vec::new();
-    for message in messages.clone() {
+    for message in messages {
         // todo data validator
         let record = WriteChannelDataRecord {
             pkid: message.pkid,
-            key: Some(message.key),
-            tags: Some(message.tags),
-            value: message.value.into(),
+            key: Some(message.key.clone()),
+            tags: Some(message.tags.clone()),
+            value: message.value.clone().into(),
         };
         record_list.push(record);
     }
@@ -197,7 +197,7 @@ pub async fn read_data_req(
         for read_data in read_data_list {
             let record = read_data.record;
             record_message.push(ReadRespMessage {
-                offset: record.metadata.offset as u64,
+                offset: record.metadata.offset,
                 key: record.metadata.key,
                 value: record.data.to_vec(),
                 tags: record.metadata.tags,
@@ -247,7 +247,7 @@ mod tests {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment,
-                read_type: ReadType::Offset.into(),
+                read_type: ReadType::Offset,
                 filter: ReadReqFilter {
                     offset: 5,
                     ..Default::default()
@@ -285,7 +285,7 @@ mod tests {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment,
-                read_type: ReadType::Key.into(),
+                read_type: ReadType::Key,
                 filter: ReadReqFilter {
                     offset: 0,
                     key: key.clone(),
@@ -320,7 +320,7 @@ mod tests {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment,
-                read_type: ReadType::Tag.into(),
+                read_type: ReadType::Tag,
                 filter: ReadReqFilter {
                     offset: 0,
                     tag: tag.clone(),

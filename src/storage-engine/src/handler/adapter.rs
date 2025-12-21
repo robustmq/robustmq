@@ -77,8 +77,8 @@ impl AdapterHandler {
 
     pub async fn batch_write(
         &self,
-        shard: &str,
-        records: &[Record],
+        _shard: &str,
+        _records: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
         Ok(Vec::new())
     }

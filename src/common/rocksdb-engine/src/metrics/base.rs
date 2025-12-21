@@ -66,7 +66,7 @@ pub(crate) fn record_pre_num(
     total: u64,
 ) -> Result<(), CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    engine_save_by_broker(&rocksdb_engine, &db_key, total)
+    engine_save_by_broker(rocksdb_engine, &db_key, total)
 }
 
 pub(crate) async fn get_pre_num(

@@ -167,7 +167,7 @@ async fn start_segment_build_index_thread(
                                 continue;
                             }
 
-                            last_build_offset = data.last().unwrap().record.metadata.offset as u64;
+                            last_build_offset = data.last().unwrap().record.metadata.offset;
                             // save last offset bye build index
                             if let Err(e) = save_last_offset_build_index(
                                 &rocksdb_engine_handler,
@@ -223,20 +223,20 @@ async fn save_record_index(
     for read_data in data.iter() {
         let record = read_data.record.clone();
         let index_data = IndexData {
-            offset: record.metadata.offset as u64,
+            offset: record.metadata.offset,
             timestamp: record.metadata.create_t,
             position: read_data.position,
         };
 
         if read_data.position == 0 {
-            offset_index.save_start_offset(segment_iden, record.metadata.offset as u64)?;
+            offset_index.save_start_offset(segment_iden, record.metadata.offset)?;
         }
 
-        if (record.metadata.offset - start_offset) % BUILD_INDE_PER_RECORD_NUM == 0 {
+        if (record.metadata.offset - start_offset).is_multiple_of(BUILD_INDE_PER_RECORD_NUM) {
             // build position index
             offset_index.save_position_offset(
                 segment_iden,
-                record.metadata.offset as u64,
+                record.metadata.offset,
                 index_data.clone(),
             )?;
 
@@ -249,7 +249,7 @@ async fn save_record_index(
         }
 
         // build key index
-        if !record.metadata.key.is_none() {
+        if record.metadata.key.is_some() {
             tag_index.save_key_position(
                 segment_iden,
                 record.metadata.key.unwrap(),
@@ -258,7 +258,7 @@ async fn save_record_index(
         }
 
         // build tag index
-        if !record.metadata.tags.is_none() {
+        if record.metadata.tags.is_some() {
             for tag in record.metadata.tags.unwrap() {
                 tag_index.save_tag_position(segment_iden, tag, index_data.clone())?;
             }

@@ -108,7 +108,7 @@ impl WriteManager {
         segment_iden: &SegmentIdentity,
         data_list: Vec<WriteChannelDataRecord>,
     ) -> Result<SegmentWriteResp, StorageEngineError> {
-        if self.io_thread.len() == 0 {
+        if self.io_thread.is_empty() {
             return Err(StorageEngineError::NoAvailableIoThread);
         }
 
@@ -236,14 +236,14 @@ pub fn create_io_thread(
 
                 let shard_list = write_data_list
                     .entry(channel_data.segment_iden.clone())
-                    .or_insert_with(Vec::new);
+                    .or_default();
                 let shard_pkid_list = pkid_offset
                     .entry(channel_data.segment_iden.clone())
-                    .or_insert_with(HashMap::new);
+                    .or_default();
 
                 let sender_list = shard_sender_list
                     .entry(channel_data.segment_iden.clone())
-                    .or_insert_with(Vec::new);
+                    .or_default();
 
                 match io_work.get_offset(&shard_name) {
                     Ok(offset) => {
@@ -258,7 +258,7 @@ pub fn create_io_thread(
                                     segment,
                                     key: row.key,
                                     tags: row.tags,
-                                    create_t: create_t.clone(),
+                                    create_t,
                                 },
                                 data: row.value,
                             });
@@ -287,7 +287,7 @@ pub fn create_io_thread(
                         continue;
                     }
                 };
-                let pkid_offset_list = pkid_offset.get(&segment_iden).unwrap();
+                let pkid_offset_list = pkid_offset.get(segment_iden).unwrap();
                 match batch_write(
                     &rocksdb_engine_handler,
                     segment_iden,
@@ -339,14 +339,14 @@ async fn batch_write(
     segment_file_manager: &Arc<SegmentFileManager>,
     cache_manager: &Arc<StorageCacheManager>,
     segment_write: &SegmentFile,
-    data_list: &Vec<StorageEngineRecord>,
+    data_list: &[StorageEngineRecord],
     pkid_offset_list: HashMap<u64, u64>,
 ) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
     if data_list.is_empty() {
         return Ok(None);
     }
 
-    let resp = match segment_write.write(&data_list).await {
+    let resp = match segment_write.write(data_list).await {
         Ok(_) => {
             let record = data_list.last().unwrap();
             segment_file_manager.update_end_offset(segment_iden, record.metadata.offset as i64)?;
@@ -354,7 +354,7 @@ async fn batch_write(
 
             Some(SegmentWriteResp {
                 offsets: pkid_offset_list,
-                last_offset: record.metadata.offset as u64,
+                last_offset: record.metadata.offset,
                 ..Default::default()
             })
         }
