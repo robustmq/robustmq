@@ -62,9 +62,3 @@ pub struct StorageEngineRecord {
     pub metadata: StorageEngineRecordMetadata,
     pub data: Bytes,
 }
-
-impl StorageEngineRecord {
-    pub fn len(&self) -> u64 {
-        self.data.len() as u64
-    }
-}

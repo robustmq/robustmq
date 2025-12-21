@@ -29,7 +29,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
 pub async fn _batch_write(
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
     shard: &str,
     _records: &[Record],
@@ -40,8 +40,8 @@ pub async fn _batch_write(
         return Err(StorageEngineError::ShardNotExist(shard.to_string()));
     };
 
-    let segment = get_active_segment(client_pool, cache_manager, shard).await?;
-    let config = broker_config();
+    // let segment = get_active_segment(client_pool, cache_manager, shard).await?;
+    // let config = broker_config();
     // if segment.leader == config.broker_id {}
     Ok(Vec::new())
 }
@@ -72,7 +72,7 @@ async fn _write_to_local(
 
 async fn _write_to_leader() {}
 
-async fn get_active_segment(
+async fn _get_active_segment(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
     shard: &str,
