@@ -199,7 +199,7 @@ impl SegmentFile {
             // read data
             let data = self.read_data(&mut reader).await?;
             if let Some(da) = data {
-                already_size += da.len();
+                already_size += da.data.len() as u64;
                 results.push(ReadData {
                     record: da,
                     position,
