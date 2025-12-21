@@ -47,13 +47,9 @@ message RespHeader {
 
 /** Write Request **/
 message WriteReqBody {
-  repeated WriteReqSegmentMessages data = 1;
-}
-
-message WriteReqSegmentMessages {
-  string shard_name = 2;
-  uint32 segment = 3;
-  repeated WriteReqMessages messages = 4;
+   string shard_name = 2;
+   uint32 segment = 3;
+   repeated WriteReqMessages messages = 4;
 }
 
 message WriteReqMessages {

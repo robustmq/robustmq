@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
+use crate::core::record::StorageEngineRecord;
 use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::write_data;
@@ -25,7 +26,6 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use prost::Message;
-use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 

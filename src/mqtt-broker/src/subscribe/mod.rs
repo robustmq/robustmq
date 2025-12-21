@@ -142,7 +142,7 @@ impl PushManager {
                     self.cache_manager.clone(),
                     self.storage_adapter.clone(),
                     self.connection_manager.clone(),
-                    &self.rocksdb_engine_handler,
+                    self.rocksdb_engine_handler.clone(),
                     bucket_id.clone(),
                 );
 
@@ -234,7 +234,7 @@ impl PushManager {
                     self.cache_manager.clone(),
                     self.storage_adapter.clone(),
                     self.connection_manager.clone(),
-                    &self.rocksdb_engine_handler,
+                    self.rocksdb_engine_handler.clone(),
                     group_name.clone(),
                 );
 

@@ -41,16 +41,10 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
 
     // Storage Engine
     tonic_build::configure().build_server(true).compile_protos(
-        &[
-            proto_root
-                .join("src/storage/engine.proto")
-                .to_str()
-                .unwrap(),
-            proto_root
-                .join("src/storage/record.proto")
-                .to_str()
-                .unwrap(),
-        ],
+        &[proto_root
+            .join("src/storage/engine.proto")
+            .to_str()
+            .unwrap()],
         &[proto_root.join("src/").to_str().unwrap()],
     )?;
 

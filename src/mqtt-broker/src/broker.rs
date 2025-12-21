@@ -196,7 +196,7 @@ impl MqttBrokerServer {
             self.client_pool.clone(),
             self.cache_manager.clone(),
             self.message_storage_adapter.clone(),
-            &self.rocksdb_engine_handler,
+            self.rocksdb_engine_handler.clone(),
             self.inner_stop.clone(),
         );
         tokio::spawn(async move {
@@ -233,7 +233,7 @@ impl MqttBrokerServer {
             self.cache_manager.clone(),
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
-            &self.rocksdb_engine_handler,
+            self.rocksdb_engine_handler.clone(),
             self.subscribe_manager.clone(),
         );
 

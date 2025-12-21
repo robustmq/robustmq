@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::segment::write::SegmentWriteData;
 use common_base::error::common::CommonError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
+
+use crate::segment::write0::SegmentWriteData;
 
 #[derive(Error, Debug)]
 pub enum StorageEngineError {
@@ -100,6 +101,9 @@ pub enum StorageEngineError {
 
     #[error("Segment Offset is at the end and can no longer be written.")]
     SegmentOffsetAtTheEnd,
+
+    #[error("No available IO thread available.")]
+    NoAvailableIoThread,
 }
 
 impl From<CommonError> for StorageEngineError {
@@ -147,6 +151,7 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
             "NotAvailableOffsetByTimestamp".to_string()
         }
         StorageEngineError::SegmentOffsetAtTheEnd => "SegmentOffsetAtTheEnd".to_string(),
+        StorageEngineError::NoAvailableIoThread => "NoAvailableIoThread".to_string(),
     }
 }
 #[cfg(test)]

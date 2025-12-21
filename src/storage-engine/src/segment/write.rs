@@ -17,6 +17,7 @@ use crate::core::error::StorageEngineError;
 use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::index::build::try_trigger_build_index;
 use crate::segment::manager::SegmentFileManager;
+use crate::segment::write0::{SegmentWrite, SegmentWriteData};
 use crate::segment::SegmentIdentity;
 use metadata_struct::storage::segment::SegmentStatus;
 use protocol::storage::storage_engine_record::StorageEngineRecord;
@@ -25,23 +26,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self, Receiver};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::{sleep, timeout};
 use tracing::error;
 
 /// the write handle for a segment
-#[derive(Clone)]
-pub struct SegmentWrite {
-    pub data_sender: Sender<SegmentWriteData>,
-    pub stop_sender: broadcast::Sender<bool>,
-}
-
-/// the data to be sent to the segment write thread
-pub struct SegmentWriteData {
-    data: Vec<StorageEngineRecord>,
-    resp_sx: oneshot::Sender<SegmentWriteResp>,
-}
 
 /// the response of the write request from the segment write thread
 #[derive(Default, Debug)]

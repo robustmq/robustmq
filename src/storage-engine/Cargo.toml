@@ -43,3 +43,4 @@ tracing-appender.workspace = true
 network-server.workspace = true
 axum.workspace = true
 broker-core.workspace = true
+twox-hash.workspace = true

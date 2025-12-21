@@ -16,20 +16,14 @@ use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
     segment::manager::SegmentFileManager,
 };
-use common_base::tools::{now_millis, now_second};
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::{meta::journal::call::create_next_segment, pool::ClientPool};
 use metadata_struct::{
     adapter::record::Record,
-    storage::{
-        segment::EngineSegment,
-        shard::{EngineShard, EngineType},
-    },
+    storage::{segment::EngineSegment, shard::EngineShard},
 };
-use protocol::{
-    meta::meta_service_journal::CreateNextSegmentRequest,
-    storage::storage_engine_engine::WriteReqBody,
-};
+use protocol::meta::meta_service_journal::CreateNextSegmentRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
