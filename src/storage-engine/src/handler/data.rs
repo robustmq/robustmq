@@ -16,7 +16,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::segment::file::SegmentFile;
 use crate::segment::read::{read_by_key, read_by_offset, read_by_tag};
-use crate::segment::write0::{WriteChannelDataRecord, WriteManager};
+use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use protocol::storage::protocol::{
@@ -86,8 +86,8 @@ pub async fn write_data_req(
         // todo data validator
         let record = WriteChannelDataRecord {
             pkid: message.pkid,
-            key: message.key,
-            tags: message.tags,
+            key: Some(message.key),
+            tags: Some(message.tags),
             value: message.value.into(),
         };
         record_list.push(record);

@@ -17,7 +17,7 @@ use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-use crate::segment::write0::WriteChannelData;
+use crate::segment::write::WriteChannelData;
 
 #[derive(Error, Debug)]
 pub enum StorageEngineError {
@@ -110,6 +110,9 @@ pub enum StorageEngineError {
 
     #[error("No Offset information for the Shard {0}stored locally. Please check the index data.")]
     NoOffsetInformation(String),
+
+    #[error("{0}")]
+    CommonErrorStr(String),
 }
 
 impl From<CommonError> for StorageEngineError {
@@ -160,6 +163,7 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::NoAvailableIoThread => "NoAvailableIoThread".to_string(),
         StorageEngineError::ReadSegmentFileError => "ReadSegmentFileError".to_string(),
         StorageEngineError::NoOffsetInformation(_) => "NoOffsetInformation".to_string(),
+        StorageEngineError::CommonErrorStr(_) => "NoOffsetInformation".to_string(),
     }
 }
 

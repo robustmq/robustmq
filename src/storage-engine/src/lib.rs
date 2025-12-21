@@ -28,7 +28,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
 
-use crate::segment::write0::WriteManager;
+use crate::segment::write::WriteManager;
 use crate::server::Server;
 
 pub mod clients;
@@ -92,7 +92,6 @@ impl StorageEngineServer {
         let tcp_server = Server::new(
             self.client_pool.clone(),
             self.cache_manager.clone(),
-            self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
             self.connection_manager.clone(),
             self.write_manager.clone(),

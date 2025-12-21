@@ -22,8 +22,7 @@ pub mod manager;
 pub mod offset;
 pub mod read;
 pub mod scroll;
-// pub mod write;
-pub mod write0;
+pub mod write;
 
 /// A unique identifier for a segment, used to get segment metadata or segment file.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

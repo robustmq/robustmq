@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    core::cache::StorageCacheManager,
-    handler::command::StorageEngineHandlerCommand,
-    segment::{manager::SegmentFileManager, write0::WriteManager},
+    core::cache::StorageCacheManager, handler::command::StorageEngineHandlerCommand,
+    segment::write::WriteManager,
 };
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
@@ -36,7 +35,6 @@ pub mod inner;
 pub struct Server {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<StorageCacheManager>,
-    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
     connection_manager: Arc<ConnectionManager>,
@@ -47,7 +45,6 @@ impl Server {
     pub fn new(
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<StorageCacheManager>,
-        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         connection_manager: Arc<ConnectionManager>,
         write_manager: Arc<WriteManager>,
@@ -56,7 +53,6 @@ impl Server {
         Server {
             client_pool,
             cache_manager,
-            segment_file_manager,
             rocksdb_engine_handler,
             connection_manager,
             broker_cache,

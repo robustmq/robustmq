@@ -14,7 +14,7 @@
 
 use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::index::build::IndexBuildThreadData;
-use crate::segment::write0::SegmentWrite;
+use crate::segment::write::SegmentWrite;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;

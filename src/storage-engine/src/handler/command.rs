@@ -15,12 +15,10 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::handler::data::{read_data_req, write_data_req};
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::write0::WriteManager;
+use crate::segment::write::WriteManager;
 use crate::segment::SegmentIdentity;
 use axum::async_trait;
 use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;
