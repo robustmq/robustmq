@@ -100,7 +100,7 @@ pub enum MetaServiceError {
     #[error(
         "There are not enough nodes available in the cluster, {0} is needed, and currently {1}."
     )]
-    NotEnoughNodes(u32, u32),
+    NotEnoughEngineNodes(u32, u32),
 
     #[error("Execution result is empty, please check whether the server logic is normal")]
     ExecutionResultIsEmpty,

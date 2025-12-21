@@ -46,7 +46,7 @@ macro_rules! with_metrics {
 }
 
 pub fn engine_save<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
@@ -56,7 +56,7 @@ where
     T: Serialize,
 {
     with_metrics!(source, metrics_rocksdb_save_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
         let wrap = StorageDataWrap::new(value);
         rocksdb_engine_handler.write(cf, key_name, &wrap)?;
         Ok(())
@@ -72,7 +72,7 @@ where
 }
 
 pub fn engine_get<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
@@ -81,62 +81,62 @@ where
     T: serde::de::DeserializeOwned,
 {
     with_metrics!(source, metrics_rocksdb_get_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
         rocksdb_engine_handler.read::<StorageDataWrap<T>>(cf, key_name)
     })
 }
 
 pub fn engine_exists(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
 ) -> Result<bool, CommonError> {
     with_metrics!(source, metrics_rocksdb_exist_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
         Ok(rocksdb_engine_handler.exist(cf, key_name))
     })
 }
 
 pub fn engine_delete(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     key_name: &str,
 ) -> Result<(), CommonError> {
     with_metrics!(source, metrics_rocksdb_delete_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
         rocksdb_engine_handler.delete(cf, key_name)
     })
 }
 
 pub fn engine_delete_range(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     from: Vec<u8>,
     to: Vec<u8>,
 ) -> Result<(), CommonError> {
     with_metrics!(source, metrics_rocksdb_delete_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
         rocksdb_engine_handler.delete_range_cf(cf, from, to)
     })
 }
 
 pub fn engine_delete_prefix(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     prefix_key: &str,
 ) -> Result<(), CommonError> {
     with_metrics!(source, metrics_rocksdb_delete_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
         rocksdb_engine_handler.delete_prefix(cf, prefix_key)
     })
 }
 
 pub fn engine_prefix_list<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     prefix_key_name: &str,
@@ -147,7 +147,7 @@ where
     use common_base::utils::serialize;
 
     with_metrics!(source, metrics_rocksdb_list_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
 
         let raw = rocksdb_engine_handler.read_prefix(cf, prefix_key_name)?;
         let mut results = Vec::with_capacity(raw.len().min(64));
@@ -166,7 +166,7 @@ where
 }
 
 pub fn engine_list_by_model<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     source: &str,
     mode: &rocksdb::IteratorMode,
@@ -177,7 +177,7 @@ where
     use common_base::utils::serialize;
 
     with_metrics!(source, metrics_rocksdb_list_ms, {
-        let cf = get_cf_handle(&rocksdb_engine_handler, column_family)?;
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
 
         let raw = rocksdb_engine_handler.read_list_by_model(cf, mode)?;
         let results = DashMap::with_capacity(raw.len().min(32));

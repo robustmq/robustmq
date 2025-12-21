@@ -44,7 +44,7 @@ pub(crate) fn record_num(
         value: num,
         timestamp: time,
     };
-    engine_save_by_broker(rocksdb_engine.clone(), &db_key, value)
+    engine_save_by_broker(rocksdb_engine, &db_key, value)
 }
 
 pub(crate) fn get_metric_data(
@@ -53,7 +53,7 @@ pub(crate) fn get_metric_data(
 ) -> Result<DashMap<u64, u64>, CommonError> {
     let prefix = format!("{}/{}/", DB_COLUMN_FAMILY_METRICS, key_prefix);
     let results = DashMap::new();
-    for row in engine_prefix_list_by_broker::<MetricsValue>(rocksdb_engine.clone(), &prefix)? {
+    for row in engine_prefix_list_by_broker::<MetricsValue>(rocksdb_engine, &prefix)? {
         results.insert(row.data.timestamp, row.data.value);
     }
 
@@ -66,7 +66,7 @@ pub(crate) fn record_pre_num(
     total: u64,
 ) -> Result<(), CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    engine_save_by_broker(rocksdb_engine.clone(), &db_key, total)
+    engine_save_by_broker(rocksdb_engine, &db_key, total)
 }
 
 pub(crate) async fn get_pre_num(
@@ -74,7 +74,7 @@ pub(crate) async fn get_pre_num(
     key: &str,
 ) -> Result<u64, CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    let res = match engine_get_by_broker::<u64>(rocksdb_engine.clone(), &db_key)? {
+    let res = match engine_get_by_broker::<u64>(rocksdb_engine, &db_key)? {
         Some(data) => data,
         None => return Ok(0),
     };
@@ -85,10 +85,10 @@ pub fn delete_by_prefix(
     prefix_key: &str,
 ) -> ResultCommonError {
     let key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS, prefix_key);
-    engine_delete_prefix_by_broker(rocksdb_engine.clone(), &key)?;
+    engine_delete_prefix_by_broker(rocksdb_engine, &key)?;
 
     let key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, prefix_key);
-    engine_delete_prefix_by_broker(rocksdb_engine.clone(), &key)?;
+    engine_delete_prefix_by_broker(rocksdb_engine, &key)?;
     Ok(())
 }
 
@@ -116,7 +116,7 @@ pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), Com
                 match serialize::deserialize::<StorageDataWrap<MetricsValue>>(value.as_ref()) {
                     Ok(v) => {
                         if now_time > (v.create_time + save_time) {
-                            engine_delete_by_broker(rocksdb_engine.clone(), &key)?;
+                            engine_delete_by_broker(rocksdb_engine, &key)?;
                         }
                     }
                     Err(_) => {

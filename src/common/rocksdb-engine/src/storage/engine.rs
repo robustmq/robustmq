@@ -28,8 +28,8 @@ use dashmap::DashMap;
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
-pub fn engine_save_by_journal<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_save_by_engine<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     key_name: &str,
     value: T,
@@ -46,8 +46,8 @@ where
     )
 }
 
-pub fn engine_get_by_journal<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_get_by_engine<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     key_name: &str,
 ) -> Result<Option<StorageDataWrap<T>>, CommonError>
@@ -62,8 +62,8 @@ where
     )
 }
 
-pub fn engine_delete_by_journal(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_delete_by_engine(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     key_name: &str,
 ) -> Result<(), CommonError> {
@@ -75,8 +75,8 @@ pub fn engine_delete_by_journal(
     )
 }
 
-pub fn engine_delete_prefix_by_journal(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_delete_prefix_by_engine(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     prefix_key: &str,
 ) -> Result<(), CommonError> {
@@ -88,8 +88,8 @@ pub fn engine_delete_prefix_by_journal(
     )
 }
 
-pub fn engine_exists_by_journal(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_exists_by_engine(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     key_name: &str,
 ) -> Result<bool, CommonError> {
@@ -101,8 +101,8 @@ pub fn engine_exists_by_journal(
     )
 }
 
-pub fn engine_list_by_prefix_by_journal<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_list_by_prefix_by_engine<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     prefix_key_name: &str,
 ) -> Result<Vec<StorageDataWrap<T>>, CommonError>
@@ -117,8 +117,8 @@ where
     )
 }
 
-pub fn engine_list_by_mode_by_journal<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_list_by_mode_by_engine<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     mode: &rocksdb::IteratorMode,
 ) -> Result<DashMap<String, StorageDataWrap<T>>, CommonError>
@@ -133,8 +133,8 @@ where
     )
 }
 
-pub fn engine_list_by_prefix_to_map_by_journal<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+pub fn engine_list_by_prefix_to_map_by_engine<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,
     prefix_key_name: &str,
 ) -> Result<DashMap<String, StorageDataWrap<T>>, CommonError>

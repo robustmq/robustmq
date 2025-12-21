@@ -13,5 +13,5 @@
 // limitations under the License.
 
 pub mod common;
-pub mod journal;
+pub mod engine;
 pub mod mqtt;

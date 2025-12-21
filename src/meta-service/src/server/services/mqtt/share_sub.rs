@@ -265,6 +265,7 @@ mod tests {
             extend: Vec::new(),
             start_time: now_second(),
             register_time: now_second(),
+            storage_fold: Vec::new(),
         });
         cluster_cache.add_broker_node(BrokerNode {
             roles: Vec::new(),
@@ -274,6 +275,7 @@ mod tests {
             extend: Vec::new(),
             start_time: now_second(),
             register_time: now_second(),
+            storage_fold: Vec::new(),
         });
         cluster_cache.add_broker_node(BrokerNode {
             roles: Vec::new(),
@@ -283,6 +285,7 @@ mod tests {
             extend: Vec::new(),
             start_time: now_second(),
             register_time: now_second(),
+            storage_fold: Vec::new(),
         });
 
         let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());

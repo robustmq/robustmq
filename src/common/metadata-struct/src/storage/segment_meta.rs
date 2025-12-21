@@ -15,13 +15,22 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct JournalNodeExtend {
-    pub data_fold: Vec<String>,
-    pub tcp_addr: String,
+/// Segment metadata in the meta service.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct EngineSegmentMetadata {
+    pub shard_name: String,
+    pub segment_seq: u32,
+    pub start_offset: i64,
+    pub end_offset: i64,
+    pub start_timestamp: i64,
+    pub end_timestamp: i64,
 }
 
-impl JournalNodeExtend {
+impl EngineSegmentMetadata {
+    pub fn name(&self) -> String {
+        format!("{},{}", self.shard_name, self.segment_seq)
+    }
+
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }

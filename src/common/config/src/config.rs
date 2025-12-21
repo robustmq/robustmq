@@ -16,10 +16,10 @@ use core::str;
 
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_flapping_detect,
-    default_grpc_port, default_http_port, default_journal_runtime, default_journal_server,
-    default_journal_storage, default_message_storage, default_meta_addrs, default_mqtt_auth_config,
-    default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
-    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
+    default_grpc_port, default_http_port, default_journal_runtime, default_message_storage,
+    default_meta_addrs, default_mqtt_auth_config, default_mqtt_keep_alive,
+    default_mqtt_offline_message, default_mqtt_protocol_config, default_mqtt_runtime,
+    default_mqtt_schema, default_mqtt_security, default_mqtt_server,
     default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
     default_place_runtime, default_rocksdb, default_roles, default_runtime, default_storage_offset,
 };
@@ -81,15 +81,8 @@ pub struct BrokerConfig {
     #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
 
-    // Journal Engine
-    #[serde(default = "default_journal_server")]
-    pub journal_server: JournalServer,
-
     #[serde(default = "default_journal_runtime")]
-    pub journal_runtime: JournalRuntime,
-
-    #[serde(default = "default_journal_storage")]
-    pub journal_storage: JournalStorage,
+    pub storage_runtime: StorageRuntime,
 
     // MQTT
     #[serde(default = "default_mqtt_server")]
@@ -135,18 +128,6 @@ impl BrokerConfig {
             .values()
             .filter_map(|v| v.as_str().map(String::from))
             .collect()
-    }
-
-    pub fn is_start_meta(&self) -> bool {
-        self.roles.contains(&"meta".to_string())
-    }
-
-    pub fn is_start_storage_engine(&self) -> bool {
-        self.roles.contains(&"engine".to_string())
-    }
-
-    pub fn is_start_broker(&self) -> bool {
-        self.roles.contains(&"broker".to_string())
     }
 
     pub fn is_enable_slow_subscribe_record(&self) -> bool {
@@ -346,19 +327,9 @@ impl MqttSchema {
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct JournalRuntime {
-    pub enable_auto_create_shard: bool,
-    pub shard_replica_num: u32,
-    pub max_segment_size: u32,
-}
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct JournalStorage {
-    pub data_path: Vec<String>,
-    pub rocksdb_max_open_files: i32,
-}
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct JournalServer {
+pub struct StorageRuntime {
     pub tcp_port: u32,
+    pub max_segment_size: u32,
+    pub io_thread_num: u32,
+    pub data_path: Vec<String>,
 }

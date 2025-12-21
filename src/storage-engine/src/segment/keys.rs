@@ -14,106 +14,110 @@
 
 use crate::segment::SegmentIdentity;
 
+pub(crate) fn offset_segment_offset(shard: &str) -> String {
+    format!("/offset/{}", shard,)
+}
+
 pub(crate) fn offset_segment_start(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/offset/start",
-        segment_iden.shard_name, segment_iden.segment_seq,
+        segment_iden.shard_name, segment_iden.segment,
     )
 }
 
 pub(crate) fn offset_segment_end(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/offset/end",
-        segment_iden.shard_name, segment_iden.segment_seq,
+        segment_iden.shard_name, segment_iden.segment,
     )
 }
 
 pub(crate) fn offset_segment_position(segment_iden: &SegmentIdentity, offset: u64) -> String {
     format!(
         "/index/{}/{}/offset/position-{}",
-        segment_iden.shard_name, segment_iden.segment_seq, offset
+        segment_iden.shard_name, segment_iden.segment, offset
     )
 }
 
 pub(crate) fn offset_segment_position_prefix(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/offset/position-",
-        segment_iden.shard_name, segment_iden.segment_seq
+        segment_iden.shard_name, segment_iden.segment
     )
 }
 
 pub(crate) fn timestamp_segment_start(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/timestamp/start",
-        segment_iden.shard_name, segment_iden.segment_seq
+        segment_iden.shard_name, segment_iden.segment
     )
 }
 
 pub(crate) fn timestamp_segment_end(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/timestamp/end",
-        segment_iden.shard_name, segment_iden.segment_seq
+        segment_iden.shard_name, segment_iden.segment
     )
 }
 
 pub(crate) fn timestamp_segment_time(segment_iden: &SegmentIdentity, time_sec: u64) -> String {
     format!(
         "/index/{}/{}/timestamp/time-{}",
-        segment_iden.shard_name, segment_iden.segment_seq, time_sec
+        segment_iden.shard_name, segment_iden.segment, time_sec
     )
 }
 
 pub(crate) fn timestamp_segment_time_prefix(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/timestamp/time-",
-        segment_iden.shard_name, segment_iden.segment_seq
+        segment_iden.shard_name, segment_iden.segment
     )
 }
 
 pub(crate) fn tag_segment(segment_iden: &SegmentIdentity, tag: String, offset: u64) -> String {
     format!(
         "/index/{}/{}/tag/{}/{}",
-        segment_iden.shard_name, segment_iden.segment_seq, tag, offset
+        segment_iden.shard_name, segment_iden.segment, tag, offset
     )
 }
 pub(crate) fn tag_segment_prefix(segment_iden: &SegmentIdentity, tag: String) -> String {
     format!(
         "/index/{}/{}/tag/{}/",
-        segment_iden.shard_name, segment_iden.segment_seq, tag
+        segment_iden.shard_name, segment_iden.segment, tag
     )
 }
 
 pub(crate) fn key_segment(segment_iden: &SegmentIdentity, key: String, offset: u64) -> String {
     format!(
         "/index/{}/{}/key/{}/{}",
-        segment_iden.shard_name, segment_iden.segment_seq, key, offset
+        segment_iden.shard_name, segment_iden.segment, key, offset
     )
 }
 
 pub(crate) fn key_segment_prefix(segment_iden: &SegmentIdentity, key: String) -> String {
     format!(
         "/index/{}/{}/key/{}/",
-        segment_iden.shard_name, segment_iden.segment_seq, key
+        segment_iden.shard_name, segment_iden.segment, key
     )
 }
 
 pub(crate) fn finish_build_index(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/build/finish",
-        segment_iden.shard_name, segment_iden.segment_seq,
+        segment_iden.shard_name, segment_iden.segment,
     )
 }
 
 pub(crate) fn last_offset_build_index(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/build/last/offset",
-        segment_iden.shard_name, segment_iden.segment_seq,
+        segment_iden.shard_name, segment_iden.segment,
     )
 }
 
 pub(crate) fn segment_index_prefix(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/",
-        segment_iden.shard_name, segment_iden.segment_seq,
+        segment_iden.shard_name, segment_iden.segment,
     )
 }

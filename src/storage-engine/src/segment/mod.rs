@@ -12,39 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::journal::segment::{segment_name, JournalSegment};
+use metadata_struct::storage::segment::{segment_name, EngineSegment};
 
 pub mod file;
 pub mod index;
 pub mod isr;
+pub mod keys;
 pub mod manager;
+pub mod offset;
 pub mod read;
 pub mod scroll;
 pub mod write;
 
 /// A unique identifier for a segment, used to get segment metadata or segment file.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct SegmentIdentity {
     pub shard_name: String,
-    pub segment_seq: u32,
+    pub segment: u32,
 }
 
 impl SegmentIdentity {
     pub fn name(&self) -> String {
-        segment_name(&self.shard_name, self.segment_seq)
+        segment_name(&self.shard_name, self.segment)
     }
 
     pub fn new(shard_name: &str, segment_seq: u32) -> Self {
         SegmentIdentity {
             shard_name: shard_name.to_string(),
-            segment_seq,
+            segment: segment_seq,
         }
     }
 
-    pub fn from_journal_segment(segment: &JournalSegment) -> Self {
+    pub fn from_journal_segment(segment: &EngineSegment) -> Self {
         SegmentIdentity {
             shard_name: segment.shard_name.to_string(),
-            segment_seq: segment.segment_seq,
+            segment: segment.segment_seq,
         }
     }
 }

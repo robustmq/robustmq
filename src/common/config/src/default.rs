@@ -14,19 +14,20 @@
 
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    JournalRuntime, JournalServer, JournalStorage, MetaRuntime, MqttAuthConfig, MqttFlappingDetect,
-    MqttKeepAlive, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity,
-    MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime,
-    SchemaFailedOperation, SchemaStrategy, StorageOffset,
+    MetaRuntime, MqttAuthConfig, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
+    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig,
+    MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
+    StorageOffset, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageAdapterType};
 use common_base::enum_type::delay_type::DelayType;
+use common_base::role::{ROLE_BROKER, ROLE_META};
 use common_base::runtime::get_runtime_worker_threads;
 use common_base::tools::get_local_ip;
 use toml::Table;
 
 pub fn default_roles() -> Vec<String> {
-    vec!["meta".to_string(), "broker".to_string()]
+    vec![ROLE_BROKER.to_string(), ROLE_META.to_string()]
 }
 
 pub fn default_cluster_name() -> String {
@@ -199,21 +200,11 @@ pub fn default_storage_offset() -> StorageOffset {
     StorageOffset { enable_cache: true }
 }
 
-pub fn default_journal_server() -> JournalServer {
-    JournalServer { tcp_port: 1778 }
-}
-
-pub fn default_journal_runtime() -> JournalRuntime {
-    JournalRuntime {
-        enable_auto_create_shard: true,
-        shard_replica_num: 2,
+pub fn default_journal_runtime() -> StorageRuntime {
+    StorageRuntime {
+        tcp_port: 1778,
         max_segment_size: 1073741824,
-    }
-}
-
-pub fn default_journal_storage() -> JournalStorage {
-    JournalStorage {
-        data_path: vec!["./data/journal/".to_string()],
-        rocksdb_max_open_files: 10000,
+        data_path: vec![],
+        io_thread_num: 8,
     }
 }

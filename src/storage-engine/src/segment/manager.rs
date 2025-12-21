@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use metadata_struct::journal::segment::{segment_name, JournalSegment};
+use metadata_struct::storage::segment::{segment_name, EngineSegment};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use tracing::{error, info};
 
@@ -186,7 +186,7 @@ pub fn load_local_segment_cache(
 
             let segment_iden = SegmentIdentity {
                 shard_name: shard_name.to_string(),
-                segment_seq: segment_no,
+                segment: segment_no,
             };
 
             let start_offset = offset_manager.get_start_offset(&segment_iden)?;
@@ -217,11 +217,11 @@ pub fn metadata_and_local_segment_diff_check() {
 pub async fn create_local_segment(
     cache_manager: &Arc<StorageCacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    segment: &JournalSegment,
+    segment: &EngineSegment,
 ) -> Result<(), StorageEngineError> {
     let segment_iden = SegmentIdentity {
         shard_name: segment.shard_name.clone(),
-        segment_seq: segment.segment_seq,
+        segment: segment.segment_seq,
     };
 
     if cache_manager.get_segment(&segment_iden).is_some() {
@@ -280,7 +280,7 @@ mod tests {
 
         let segment_file = SegmentFileMetadata {
             shard_name: segment_iden.shard_name.to_string(),
-            segment_no: segment_iden.segment_seq,
+            segment_no: segment_iden.segment,
             ..Default::default()
         };
         segment_file_manager.add_segment_file(segment_file);
@@ -330,11 +330,8 @@ mod tests {
         assert_eq!(data.start_timestamp, -1);
         assert_eq!(data.end_timestamp, -1);
 
-        let segment_write = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            fold,
-        );
+        let segment_write =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
         assert!(segment_write.exists());
     }
 

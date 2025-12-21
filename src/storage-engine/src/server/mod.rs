@@ -14,7 +14,7 @@
 
 use crate::{
     core::cache::StorageCacheManager, handler::command::StorageEngineHandlerCommand,
-    segment::manager::SegmentFileManager,
+    segment::write::WriteManager,
 };
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
@@ -35,8 +35,8 @@ pub mod inner;
 pub struct Server {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<StorageCacheManager>,
-    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    write_manager: Arc<WriteManager>,
     connection_manager: Arc<ConnectionManager>,
     broker_cache: Arc<BrokerCacheManager>,
 }
@@ -45,18 +45,18 @@ impl Server {
     pub fn new(
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<StorageCacheManager>,
-        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         connection_manager: Arc<ConnectionManager>,
+        write_manager: Arc<WriteManager>,
         broker_cache: Arc<BrokerCacheManager>,
     ) -> Server {
         Server {
             client_pool,
             cache_manager,
-            segment_file_manager,
             rocksdb_engine_handler,
             connection_manager,
             broker_cache,
+            write_manager,
         }
     }
 
@@ -84,17 +84,16 @@ impl Server {
         // TCP Server
         let name = "Storage Engine".to_string();
         let tcp_server = TcpServer::new(name.clone(), context.clone());
-        if let Err(e) = tcp_server.start(false, conf.journal_server.tcp_port).await {
+        if let Err(e) = tcp_server.start(false, conf.storage_runtime.tcp_port).await {
             error!("Storage Engine tCP server start fail, error:{}", e);
         }
     }
 
     fn create_command(&self) -> Arc<Box<dyn Command + Send + Sync>> {
         let storage: Box<dyn Command + Send + Sync> = Box::new(StorageEngineHandlerCommand::new(
-            self.client_pool.clone(),
             self.cache_manager.clone(),
-            self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
+            self.write_manager.clone(),
         ));
         Arc::new(storage)
     }

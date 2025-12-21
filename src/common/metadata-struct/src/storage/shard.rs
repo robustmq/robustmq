@@ -17,18 +17,20 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 
-pub struct JournalShard {
+pub struct EngineShard {
     pub shard_uid: String,
     pub shard_name: String,
     pub start_segment_seq: u32,
     pub active_segment_seq: u32,
     pub last_segment_seq: u32,
-    pub status: JournalShardStatus,
-    pub config: JournalShardConfig,
+    pub status: EngineShardStatus,
+    pub config: EngineShardConfig,
+    pub engine_type: EngineType,
+    pub replica_num: u32,
     pub create_time: u128,
 }
 
-impl JournalShard {
+impl EngineShard {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }
@@ -39,7 +41,7 @@ impl JournalShard {
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum JournalShardStatus {
+pub enum EngineShardStatus {
     #[default]
     Run,
     PrepareDelete,
@@ -47,12 +49,12 @@ pub enum JournalShardStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct JournalShardConfig {
+pub struct EngineShardConfig {
     pub replica_num: u32,
     pub max_segment_size: u32,
 }
 
-impl JournalShardConfig {
+impl EngineShardConfig {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }
@@ -60,4 +62,11 @@ impl JournalShardConfig {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
+}
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EngineType {
+    #[default]
+    Segment,
+    Memory,
 }

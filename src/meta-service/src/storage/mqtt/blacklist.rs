@@ -40,13 +40,13 @@ impl MqttBlackListStorage {
             &blacklist.blacklist_type.to_string(),
             &blacklist.resource_name,
         );
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, blacklist)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, blacklist)
     }
 
     pub fn list_all(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         let prefix_key = storage_key_mqtt_blacklist_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttAclBlackList>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -54,7 +54,7 @@ impl MqttBlackListStorage {
 
     pub fn delete(&self, blacklist_type: &str, resource_name: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(blacklist_type, resource_name);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
     }
 }
 

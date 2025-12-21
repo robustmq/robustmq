@@ -66,14 +66,14 @@ impl OffsetStorage {
 
     pub fn delete(&self, group: &str, shard_name: &str) -> Result<(), CommonError> {
         let key = key_offset(group, shard_name);
-        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 
     pub fn group_offset(&self, group: &str) -> Result<Vec<OffsetData>, CommonError> {
         let prefix_key = key_offset_by_group(group);
 
         let data = engine_prefix_list_by_meta_data::<OffsetData>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
 

@@ -60,9 +60,16 @@ impl SegmentScrollManager {
         info!("Segment scroll thread started successfully");
         loop {
             for segment_iden in self.cache_manager.get_leader_segment() {
+                let max_size = self
+                    .cache_manager
+                    .shards
+                    .get(&segment_iden.shard_name)
+                    .unwrap()
+                    .config
+                    .max_segment_size;
                 let (segment_write, max_size) =
                     match open_segment_write(&self.cache_manager, &segment_iden).await {
-                        Ok((segment_write, max_size)) => (segment_write, max_size),
+                        Ok(segment_write) => (segment_write, max_size),
                         Err(e) => {
                             error!(
                                 "Segmen {} File failed to open with error message :{}",
@@ -85,7 +92,7 @@ impl SegmentScrollManager {
                     Ok(size) => size,
                     Err(e) => {
                         error!(
-                            "Segmen {} File size calculation failed, error message :{}",
+                            "Segment {} File size calculation failed, error message :{}",
                             segment_iden.name(),
                             e
                         );

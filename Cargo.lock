@@ -4286,7 +4286,7 @@ dependencies = [
  "serde",
  "serde_json",
  "socket2 0.5.10",
- "twox-hash",
+ "twox-hash 1.6.3",
  "url",
 ]
 
@@ -5686,6 +5686,7 @@ dependencies = [
  "prost-build",
  "prost-validate",
  "prost-validate-build",
+ "rkyv",
  "robustmq-test",
  "serde",
  "thiserror 1.0.69",
@@ -7493,6 +7494,7 @@ dependencies = [
  "network-server",
  "prost",
  "protocol",
+ "rkyv",
  "rocksdb-engine",
  "serde",
  "serde_json",
@@ -7503,6 +7505,7 @@ dependencies = [
  "tonic",
  "tracing",
  "tracing-appender",
+ "twox-hash 2.1.2",
 ]
 
 [[package]]
@@ -8430,6 +8433,15 @@ dependencies = [
  "cfg-if",
  "rand 0.8.5",
  "static_assertions",
+]
+
+[[package]]
+name = "twox-hash"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ea3136b675547379c4bd395ca6b938e5ad3c3d20fad76e7fe85f9e0d011419c"
+dependencies = [
+ "rand 0.9.2",
 ]
 
 [[package]]

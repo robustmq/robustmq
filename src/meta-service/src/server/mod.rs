@@ -13,6 +13,6 @@
 // limitations under the License.
 
 pub mod service_common;
-pub mod service_journal;
+pub mod service_engine;
 pub mod service_mqtt;
 pub mod services;

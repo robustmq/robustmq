@@ -28,6 +28,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
 
+use crate::segment::write::WriteManager;
 use crate::server::Server;
 
 pub mod clients;
@@ -44,31 +45,34 @@ pub struct StorageEngineParams {
     pub segment_file_manager: Arc<SegmentFileManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub connection_manager: Arc<ConnectionManager>,
+    pub write_manager: Arc<WriteManager>,
 }
 
-pub struct JournalServer {
+pub struct StorageEngineServer {
     config: BrokerConfig,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<StorageCacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    write_manager: Arc<WriteManager>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
 }
 
-impl JournalServer {
+impl StorageEngineServer {
     pub fn new(params: StorageEngineParams, main_stop: Sender<bool>) -> Self {
         let config = broker_config();
 
         let (inner_stop, _) = broadcast::channel(2);
-        JournalServer {
+        StorageEngineServer {
             config: config.clone(),
             client_pool: params.client_pool,
             cache_manager: params.cache_manager,
             segment_file_manager: params.segment_file_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             connection_manager: params.connection_manager,
+            write_manager: params.write_manager,
             main_stop,
             inner_stop,
         }
@@ -88,9 +92,9 @@ impl JournalServer {
         let tcp_server = Server::new(
             self.client_pool.clone(),
             self.cache_manager.clone(),
-            self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
             self.connection_manager.clone(),
+            self.write_manager.clone(),
             self.cache_manager.broker_cache.clone(),
         );
         let stop_sx = self.inner_stop.clone();
@@ -106,6 +110,8 @@ impl JournalServer {
         tokio::spawn(async move {
             segment_scroll.trigger_segment_scroll().await;
         });
+
+        self.write_manager.start(self.inner_stop.clone());
     }
 
     async fn waiting_stop(&self) {
@@ -118,7 +124,7 @@ impl JournalServer {
             Ok(_) => {
                 info!("Journal has stopped.");
                 if inner_stop.send(true).is_ok() {
-                    JournalServer::stop_server(cache_manager, client_pool).await;
+                    StorageEngineServer::stop_server(cache_manager, client_pool).await;
                 }
             }
             Err(e) => {
@@ -130,13 +136,13 @@ impl JournalServer {
     async fn init(&self) {
         load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
-        for path in self.config.journal_storage.data_path.clone() {
+        for path in self.config.storage_runtime.data_path.clone() {
             let path = Path::new(&path);
             match load_local_segment_cache(
                 path,
                 &self.rocksdb_engine_handler,
                 &self.segment_file_manager,
-                &self.config.journal_storage.data_path,
+                &self.config.storage_runtime.data_path,
             ) {
                 Ok(()) => {}
                 Err(e) => {

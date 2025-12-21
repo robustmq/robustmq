@@ -371,6 +371,7 @@ mod tests {
                 roles: Vec::new(),
                 start_time: now_second(),
                 register_time: now_second(),
+                storage_fold: Vec::new(),
             });
         }
 

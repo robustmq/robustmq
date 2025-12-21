@@ -17,12 +17,12 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    storage::journal::StorageDriverJournalConfig, storage::memory::StorageDriverMemoryConfig,
+    storage::engine::StorageDriverEngineConfig, storage::memory::StorageDriverMemoryConfig,
     storage::minio::StorageDriverMinIoConfig, storage::mysql::StorageDriverMySQLConfig,
     storage::rocksdb::StorageDriverRocksDBConfig, storage::s3::StorageDriverS3Config,
 };
 
-pub mod journal;
+pub mod engine;
 pub mod memory;
 pub mod minio;
 pub mod mysql;
@@ -32,7 +32,7 @@ pub mod s3;
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StorageAdapterConfig {
     pub storage_type: StorageAdapterType,
-    pub journal_config: Option<StorageDriverJournalConfig>,
+    pub engine_config: Option<StorageDriverEngineConfig>,
     pub memory_config: Option<StorageDriverMemoryConfig>,
     pub minio_config: Option<StorageDriverMinIoConfig>,
     pub mysql_config: Option<StorageDriverMySQLConfig>,
@@ -42,7 +42,7 @@ pub struct StorageAdapterConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StorageAdapterType {
-    // Journal,
+    // Engine,
     #[default]
     Memory,
     // Mysql,
@@ -56,7 +56,7 @@ impl FromStr for StorageAdapterType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            // "journal" => Ok(StorageAdapterType::Journal),
+            // "engine" => Ok(StorageAdapterType::Engine),
             "memory" => Ok(StorageAdapterType::Memory),
             // "mysql" => Ok(StorageAdapterType::Mysql),
             "rocksdb" => Ok(StorageAdapterType::RocksDB), // "rocksdb" is an alias for backward compatibility
@@ -76,8 +76,8 @@ mod tests {
     #[test]
     fn storage_type_from_str() {
         // assert_eq!(
-        //     StorageAdapterType::from_str("journal").unwrap(),
-        //     StorageAdapterType::Journal
+        //     StorageAdapterType::from_str("engine").unwrap(),
+        //     StorageAdapterType::Engine
         // );
         assert_eq!(
             StorageAdapterType::from_str("memory").unwrap(),

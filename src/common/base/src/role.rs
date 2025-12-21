@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
+pub const ROLE_BROKER: &str = "broker";
+pub const ROLE_META: &str = "meta";
+pub const ROLE_ENGINE: &str = "engine";
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct JournalGroup {
-    namespace: String,
-    group_name: String,
-    shard_list: Vec<String>,
+pub fn is_meta_node(roles: &[String]) -> bool {
+    roles.contains(&ROLE_META.to_string())
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct JournalGroupOffset {
-    shard_name: String,
-    commit_offset: String,
+pub fn is_engine_node(roles: &[String]) -> bool {
+    roles.contains(&ROLE_ENGINE.to_string())
+}
+
+pub fn is_broker_node(roles: &[String]) -> bool {
+    roles.contains(&ROLE_BROKER.to_string())
 }

@@ -17,8 +17,8 @@ use crate::{
     core::error::MetaServiceError,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::{
-    segment::JournalSegment, segment_meta::JournalSegmentMetadata, shard::JournalShard,
+use metadata_struct::storage::{
+    segment::EngineSegment, segment_meta::EngineSegmentMetadata, shard::EngineShard,
 };
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 pub async fn update_cache_by_set_shard(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    shard_info: JournalShard,
+    shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
     let data = shard_info.encode()?;
     let message = BrokerCallMessage {
@@ -41,7 +41,7 @@ pub async fn update_cache_by_set_shard(
 pub async fn update_cache_by_set_segment(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    segment_info: JournalSegment,
+    segment_info: EngineSegment,
 ) -> Result<(), MetaServiceError> {
     let data = segment_info.encode()?;
     let message = BrokerCallMessage {
@@ -56,7 +56,7 @@ pub async fn update_cache_by_set_segment(
 pub async fn update_cache_by_set_segment_meta(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    segment_info: JournalSegmentMetadata,
+    segment_info: EngineSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
     let data = segment_info.encode()?;
     let message = BrokerCallMessage {

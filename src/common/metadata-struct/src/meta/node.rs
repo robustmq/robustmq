@@ -24,6 +24,7 @@ pub struct BrokerNode {
     pub node_inner_addr: String,
     pub start_time: u64,
     pub register_time: u64,
+    pub storage_fold: Vec<String>,
 }
 
 impl BrokerNode {

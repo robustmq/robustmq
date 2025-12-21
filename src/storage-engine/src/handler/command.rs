@@ -14,19 +14,19 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
-use crate::handler::data::DataHandler;
-use crate::segment::manager::SegmentFileManager;
+use crate::handler::data::{read_data_req, write_data_req};
+use crate::segment::write::WriteManager;
+use crate::segment::SegmentIdentity;
 use axum::async_trait;
-use grpc_clients::pool::ClientPool;
+use common_config::broker::broker_config;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;
-use protocol::robust::RobustMQPacket;
 use protocol::storage::codec::StorageEnginePacket;
-use protocol::storage::storage_engine_engine::{
-    ApiKey, ApiVersion, ReadResp, ReadRespBody, RespHeader, StorageEngineError, WriteResp,
-    WriteRespBody,
+use protocol::storage::protocol::{
+    ApiKey, ReadRespBody, RespHeader, StorageEngineNetworkError, WriteRespBody,
 };
+use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -35,23 +35,22 @@ use tracing::{debug, error};
 /// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
 pub struct StorageEngineHandlerCommand {
-    data_handler: DataHandler,
+    cache_manager: Arc<StorageCacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    write_manager: Arc<WriteManager>,
 }
 
 impl StorageEngineHandlerCommand {
     pub fn new(
-        client_pool: Arc<ClientPool>,
         cache_manager: Arc<StorageCacheManager>,
-        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        write_manager: Arc<WriteManager>,
     ) -> Self {
-        let data_handler = DataHandler::new(
+        StorageEngineHandlerCommand {
             cache_manager,
-            segment_file_manager,
             rocksdb_engine_handler,
-            client_pool,
-        );
-        StorageEngineHandlerCommand { data_handler }
+            write_manager,
+        }
     }
 }
 
@@ -73,25 +72,38 @@ impl Command for StorageEngineHandlerCommand {
 
         match pack {
             StorageEnginePacket::WriteReq(request) => {
-                let mut resp = WriteResp::default();
-                let mut header = RespHeader {
-                    api_key: ApiKey::Write.into(),
-                    api_version: ApiVersion::V0.into(),
-                    ..Default::default()
+                let segment_iden = SegmentIdentity {
+                    shard_name: request.body.shard_name,
+                    segment: request.body.segment,
                 };
-                match self.data_handler.write(request).await {
-                    Ok(status) => {
-                        resp.body = Some(WriteRespBody { status });
-                    }
-                    Err(e) => {
-                        header.error = Some(StorageEngineError {
+                let messages = request.body.messages;
+
+                let (resp_body, error) = match write_data_req(
+                    &self.cache_manager,
+                    &self.write_manager,
+                    &segment_iden,
+                    &messages,
+                )
+                .await
+                {
+                    Ok(status) => (WriteRespBody { status }, None),
+                    Err(e) => (
+                        WriteRespBody::default(),
+                        Some(StorageEngineNetworkError {
                             code: get_journal_server_code(&e),
                             error: e.to_string(),
-                        });
-                        resp.body = Some(WriteRespBody::default());
-                    }
-                }
-                resp.header = Some(header);
+                        }),
+                    ),
+                };
+
+                let resp = WriteResp {
+                    header: RespHeader {
+                        api_key: ApiKey::Write,
+                        error,
+                    },
+                    body: resp_body,
+                };
+
                 let response = ResponsePackage::build(
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::WriteResp(resp)),
@@ -100,25 +112,34 @@ impl Command for StorageEngineHandlerCommand {
             }
 
             StorageEnginePacket::ReadReq(request) => {
-                let mut resp = ReadResp::default();
-                let mut header = RespHeader {
-                    api_key: ApiKey::Read.into(),
-                    api_version: ApiVersion::V0.into(),
-                    ..Default::default()
-                };
-                match self.data_handler.read(request).await {
-                    Ok(messages) => {
-                        resp.body = Some(ReadRespBody { messages });
-                    }
-                    Err(e) => {
-                        header.error = Some(StorageEngineError {
+                let req_body = request.body;
+                let config = broker_config();
+                let (resp_body, error) = match read_data_req(
+                    &self.cache_manager,
+                    &self.rocksdb_engine_handler,
+                    &req_body,
+                    config.broker_id,
+                )
+                .await
+                {
+                    Ok(messages) => (ReadRespBody { messages }, None),
+                    Err(e) => (
+                        ReadRespBody::default(),
+                        Some(StorageEngineNetworkError {
                             code: get_journal_server_code(&e),
                             error: e.to_string(),
-                        });
-                        resp.body = Some(ReadRespBody::default());
-                    }
-                }
-                resp.header = Some(header);
+                        }),
+                    ),
+                };
+
+                let resp = protocol::storage::protocol::ReadResp {
+                    header: RespHeader {
+                        api_key: ApiKey::Read,
+                        error,
+                    },
+                    body: resp_body,
+                };
+
                 let response = ResponsePackage::build(
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::ReadResp(resp)),

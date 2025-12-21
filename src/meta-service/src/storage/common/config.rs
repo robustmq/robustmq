@@ -32,19 +32,18 @@ impl ResourceConfigStorage {
     }
     pub fn save(&self, resource_key: Vec<String>, config: Vec<u8>) -> Result<(), CommonError> {
         let key = key_resource_config(&resource_key.join("/"));
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key, config)
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, config)
     }
 
     pub fn delete(&self, resource_key: Vec<String>) -> Result<(), CommonError> {
         let key = key_resource_config(&resource_key.join("/"));
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
     }
 
     pub fn get(&self, resource_key: Vec<String>) -> Result<Option<Vec<u8>>, CommonError> {
         let key = key_resource_config(&resource_key.join("/"));
 
-        if let Some(data) = engine_get_by_meta_metadata(self.rocksdb_engine_handler.clone(), &key)?
-        {
+        if let Some(data) = engine_get_by_meta_metadata(&self.rocksdb_engine_handler, &key)? {
             return Ok(Some(data.data));
         }
         Ok(None)

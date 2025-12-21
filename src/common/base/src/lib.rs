@@ -21,6 +21,7 @@ pub mod inner_topic;
 pub mod logging;
 pub mod network;
 pub mod node_status;
+pub mod role;
 pub mod runtime;
 pub mod telemetry;
 pub mod tools;

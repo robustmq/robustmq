@@ -15,11 +15,11 @@
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
-use crate::server::services::journal::segment::{
+use crate::server::services::engine::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
     update_segment_meta_by_req, update_segment_status_req,
 };
-use crate::server::services::journal::shard::{
+use crate::server::services::engine::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
 };
 use grpc_clients::pool::ClientPool;

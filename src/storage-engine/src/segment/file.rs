@@ -15,17 +15,16 @@
 use super::SegmentIdentity;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
-use prost::Message;
-use protocol::storage::storage_engine_record::StorageEngineRecord;
 use std::fs::remove_file;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::fs::{self, File, OpenOptions};
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 
 /// The record read from the segment file
 #[derive(Debug, Clone)]
@@ -38,7 +37,11 @@ pub struct ReadData {
 pub async fn open_segment_write(
     cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<(SegmentFile, u32), StorageEngineError> {
+) -> Result<SegmentFile, StorageEngineError> {
+    if let Some(segment_file) = cache_manager.segment_file_writer.get(&segment_iden.name()) {
+        return Ok(segment_file.clone());
+    }
+
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
         segment
     } else {
@@ -55,18 +58,18 @@ pub async fn open_segment_write(
         ));
     };
 
-    Ok((
-        SegmentFile::new(
-            segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
-            fold,
-        ),
-        segment.config.max_segment_size,
-    ))
+    let segment_file = SegmentFile::new(
+        segment_iden.shard_name.to_string(),
+        segment_iden.segment,
+        fold,
+    );
+
+    cache_manager.add_segment_file_write(segment_iden, segment_file.clone());
+    Ok(segment_file)
 }
 
 /// Represent a segment file, providing methods for reading and writing records.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SegmentFile {
     pub shard_name: String,
     pub segment_no: u32,
@@ -110,11 +113,19 @@ impl SegmentFile {
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
+        // offset + total_len + metadata_len + metadata + data_len + data
         for record in records {
-            let data = StorageEngineRecord::encode_to_vec(record);
-            writer.write_u64(record.offset as u64).await?;
-            writer.write_u32(data.len() as u32).await?;
-            writer.write_all(data.as_ref()).await?;
+            let metadata_bytes = record.metadata.encode();
+            let metadata_bytes_len = metadata_bytes.len();
+            let data_len = record.data.len();
+            let total_len = data_len + metadata_bytes_len;
+
+            writer.write_u64(record.metadata.offset).await?;
+            writer.write_u32(total_len as u32).await?;
+            writer.write_u32(metadata_bytes_len as u32).await?;
+            writer.write_all(metadata_bytes.as_ref()).await?;
+            writer.write_u32(data_len as u32).await?;
+            writer.write_all(record.data.as_ref()).await?;
         }
         writer.flush().await?;
         Ok(())
@@ -153,7 +164,7 @@ impl SegmentFile {
     ) -> Result<Vec<ReadData>, StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
-        let mut reader = tokio::io::BufReader::new(file);
+        let mut reader: tokio::io::BufReader<File> = tokio::io::BufReader::new(file);
 
         reader
             .seek(std::io::SeekFrom::Current(start_position as i64))
@@ -166,34 +177,41 @@ impl SegmentFile {
                 break;
             }
 
-            // read offset
             let position = reader.stream_position().await?;
 
-            let record_offset = match reader.read_u64().await {
+            // read offset
+            let offset = match reader.read_u64().await {
                 Ok(offset) => offset,
-                Err(e) => {
-                    if e.kind() == ErrorKind::UnexpectedEof {
+                Err(e) => match e.kind() {
+                    ErrorKind::UnexpectedEof => {
                         break;
                     }
-                    return Err(e.into());
-                }
+                    _ => {
+                        return Err(e.into());
+                    }
+                },
             };
 
-            // read len
-            let len = reader.read_u32().await?;
+            // read total len
+            let total_len = reader.read_u32().await?;
 
-            if record_offset < start_offset {
-                reader.seek(std::io::SeekFrom::Current(len as i64)).await?;
+            if offset < start_offset {
+                reader
+                    .seek(std::io::SeekFrom::Current(total_len as i64 + 8))
+                    .await?;
                 continue;
             }
 
-            // read body
-            let mut buf = BytesMut::with_capacity(len as usize);
-            reader.read_buf(&mut buf).await?;
-
-            already_size += buf.len() as u64;
-            let record = StorageEngineRecord::decode(buf)?;
-            results.push(ReadData { position, record });
+            // read data
+            let data = self.read_data(&mut reader).await?;
+            println!("{:?}", data);
+            if let Some(da) = data {
+                already_size += da.data.len() as u64;
+                results.push(ReadData {
+                    record: da,
+                    position,
+                });
+            }
 
             if results.len() >= max_record as usize {
                 break;
@@ -219,31 +237,17 @@ impl SegmentFile {
         for position in positions {
             reader.seek(std::io::SeekFrom::Start(position)).await?;
 
-            // read offset
-            let _ = match reader.read_u64().await {
-                Ok(offset) => offset,
-                Err(e) => {
-                    if e.kind() == ErrorKind::UnexpectedEof {
-                        break;
-                    }
-                    return Err(e.into());
-                }
-            };
+            // seek to data
+            reader.seek(std::io::SeekFrom::Current(12)).await?;
 
-            // read len
-            let len = reader.read_u32().await?;
-
-            if len == 0 {
-                continue;
+            // read data
+            let data = self.read_data(&mut reader).await?;
+            if let Some(da) = data {
+                results.push(ReadData {
+                    position,
+                    record: da,
+                });
             }
-
-            // read body
-            let mut buf = BytesMut::with_capacity(len as usize);
-            reader.read_buf(&mut buf).await?;
-
-            let record = StorageEngineRecord::decode(buf)?;
-
-            results.push(ReadData { position, record });
         }
 
         Ok(results)
@@ -252,6 +256,35 @@ impl SegmentFile {
     pub fn exists(&self) -> bool {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         Path::new(&segment_file).exists()
+    }
+
+    async fn read_data(
+        &self,
+        reader: &mut BufReader<File>,
+    ) -> Result<Option<StorageEngineRecord>, StorageEngineError> {
+        // read metadata len
+        let metadata_len = reader.read_u32().await?;
+
+        // read metadata
+        let mut metadata_buf = BytesMut::with_capacity(metadata_len as usize);
+        reader.read_buf(&mut metadata_buf).await?;
+
+        let metadata = match StorageEngineRecordMetadata::decode(metadata_buf.as_ref()) {
+            Ok(data) => data,
+            Err(_) => return Err(StorageEngineError::ReadSegmentFileError),
+        };
+
+        // read data len
+        let data_len = reader.read_u32().await?;
+
+        // read data
+        let mut data_buf = BytesMut::with_capacity(data_len as usize);
+        reader.read_buf(&mut data_buf).await?;
+
+        Ok(Some(StorageEngineRecord {
+            metadata,
+            data: data_buf.into(),
+        }))
     }
 }
 
@@ -267,14 +300,15 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 mod tests {
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::StorageCacheManager;
+    use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
     use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
     use broker_core::cache::BrokerCacheManager;
+    use bytes::Bytes;
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
-    use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
-    use protocol::storage::storage_engine_record::StorageEngineRecord;
+    use metadata_struct::storage::segment::{EngineSegment, Replica};
     use std::sync::Arc;
 
     #[tokio::test]
@@ -295,9 +329,9 @@ mod tests {
         let segment_no = 10;
         let segment_iden = SegmentIdentity {
             shard_name: shard_name.clone(),
-            segment_seq: segment_no,
+            segment: segment_no,
         };
-        let segment = JournalSegment {
+        let segment = EngineSegment {
             shard_name,
             segment_seq: segment_no,
             replicas: vec![Replica {
@@ -305,9 +339,6 @@ mod tests {
                 node_id: 1,
                 fold: "/tmp/jl/tests".to_string(),
             }],
-            config: SegmentConfig {
-                max_segment_size: 1000,
-            },
             ..Default::default()
         };
 
@@ -320,7 +351,6 @@ mod tests {
         cache_manager.set_segment(segment);
         let res = open_segment_write(&cache_manager, &segment_iden).await;
         assert!(res.is_ok());
-        assert_eq!(res.unwrap().1, 1000);
     }
 
     #[tokio::test]
@@ -330,7 +360,7 @@ mod tests {
 
         let segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
+            segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
         assert!(segment.try_create().await.is_ok());
@@ -348,7 +378,7 @@ mod tests {
 
         let segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
+            segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
 
@@ -356,14 +386,15 @@ mod tests {
         for i in 0..10 {
             let value = format!("data1#-{i}");
             let record = StorageEngineRecord {
-                content: value.as_bytes().to_vec(),
-                create_time: now_second(),
-                key: format!("k{i}"),
-                shard_name: "s1".to_string(),
-                offset: 1000 + i,
-                segment: 1,
-                tags: vec![],
-                ..Default::default()
+                metadata: StorageEngineRecordMetadata {
+                    offset: 1000 + i,
+                    key: None,
+                    tags: None,
+                    shard: segment_iden.shard_name.to_string(),
+                    segment: segment_iden.segment,
+                    create_t: now_second(),
+                },
+                data: Bytes::from(value),
             };
             match segment.write(std::slice::from_ref(&record)).await {
                 Ok(_) => {}
@@ -387,22 +418,23 @@ mod tests {
 
         let segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
-            segment_iden.segment_seq,
+            segment_iden.segment,
             data_fold.first().unwrap().to_string(),
         );
-        println!("{}", segment.data_fold);
+
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{i}");
             let record = StorageEngineRecord {
-                content: value.as_bytes().to_vec(),
-                create_time: now_second(),
-                key: format!("k{i}"),
-                shard_name: "s1".to_string(),
-                offset: 1000 + i,
-                segment: segment.segment_no,
-                tags: vec![],
-                ..Default::default()
+                metadata: StorageEngineRecordMetadata {
+                    offset: 1000 + i,
+                    key: None,
+                    tags: None,
+                    shard: segment_iden.shard_name.to_string(),
+                    segment: segment_iden.segment,
+                    create_t: now_second(),
+                },
+                data: Bytes::from(value),
             };
             segment.write(std::slice::from_ref(&record)).await.unwrap();
         }
@@ -410,11 +442,11 @@ mod tests {
         let res = segment.read_by_positions(vec![0]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        // data len = 41
-        let res = segment.read_by_positions(vec![41]).await.unwrap();
+        // data len = 84
+        let res = segment.read_by_positions(vec![84]).await.unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![0, 41, 82]).await.unwrap();
+        let res = segment.read_by_positions(vec![0, 84, 168]).await.unwrap();
         assert_eq!(res.len(), 3);
 
         let size = segment.size().await.unwrap();

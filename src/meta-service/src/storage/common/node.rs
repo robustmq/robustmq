@@ -35,21 +35,20 @@ impl NodeStorage {
 
     pub fn save(&self, node: &BrokerNode) -> Result<(), CommonError> {
         let node_key = key_node(node.node_id);
-        engine_save_by_meta_metadata(self.rocksdb_engine_handler.clone(), &node_key, node.clone())
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &node_key, node.clone())
     }
 
     pub fn delete(&self, node_id: u64) -> Result<(), CommonError> {
         let node_key = key_node(node_id);
-        engine_delete_by_meta_metadata(self.rocksdb_engine_handler.clone(), &node_key)
+        engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &node_key)
     }
 
     #[allow(dead_code)]
     pub fn get(&self, node_id: u64) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(node_id);
-        if let Some(data) = engine_get_by_meta_metadata::<BrokerNode>(
-            self.rocksdb_engine_handler.clone(),
-            &node_key,
-        )? {
+        if let Some(data) =
+            engine_get_by_meta_metadata::<BrokerNode>(&self.rocksdb_engine_handler, &node_key)?
+        {
             return Ok(Some(data.data));
         }
         Ok(None)
@@ -59,7 +58,7 @@ impl NodeStorage {
         let prefix_key = key_node_prefix();
 
         let data = engine_prefix_list_by_meta_metadata::<BrokerNode>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         let mut results = Vec::new();

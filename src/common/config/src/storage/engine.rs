@@ -15,8 +15,4 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct StorageDriverJournalConfig {
-    pub cluster_name: String,
-    pub journal_addrs: Vec<String>,
-    pub place_addrs: Vec<String>,
-}
+pub struct StorageDriverEngineConfig {}

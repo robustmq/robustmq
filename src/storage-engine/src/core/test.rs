@@ -15,19 +15,19 @@
 use super::cache::StorageCacheManager;
 use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
-use crate::segment::write::{create_write_thread, write_data};
+use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
-use common_base::tools::{now_second, unique_id};
+use bytes::Bytes;
+use common_base::tools::unique_id;
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use prost::Message;
-use protocol::storage::storage_engine_record::StorageEngineRecord;
+use metadata_struct::storage::segment::{EngineSegment, Replica};
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 
 #[allow(dead_code)]
 pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
@@ -49,7 +49,7 @@ pub fn test_build_segment() -> SegmentIdentity {
 
     SegmentIdentity {
         shard_name,
-        segment_seq: segment_no,
+        segment: segment_no,
     }
 }
 
@@ -77,17 +77,14 @@ pub async fn test_init_segment() -> (
     let fold = test_build_data_fold().first().unwrap().to_string();
     let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
-    let segment = JournalSegment {
+    let segment = EngineSegment {
         shard_name: segment_iden.shard_name.clone(),
-        segment_seq: segment_iden.segment_seq,
+        segment_seq: segment_iden.segment,
         replicas: vec![Replica {
             replica_seq: 0,
             node_id: 1,
             fold: fold.clone(),
         }],
-        config: SegmentConfig {
-            max_segment_size: 1024 * 1024 * 1024,
-        },
         ..Default::default()
     };
     let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
@@ -96,9 +93,9 @@ pub async fn test_init_segment() -> (
         .await
         .unwrap();
 
-    let segment_meta = JournalSegmentMetadata {
+    let segment_meta = EngineSegmentMetadata {
         shard_name: segment_iden.shard_name.clone(),
-        segment_seq: segment_iden.segment_seq,
+        segment_seq: segment_iden.segment,
         ..Default::default()
     };
     cache_manager.set_segment_meta(segment_meta);
@@ -130,42 +127,28 @@ pub async fn test_base_write_data(
     let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
         test_init_segment().await;
 
-    let res = create_write_thread(
-        &cache_manager,
-        &rocksdb_engine_handler,
-        &segment_file_manager,
-        &segment_iden,
-    )
-    .await;
-    assert!(res.is_ok());
+    println!("{}", fold);
+    let write_manager = WriteManager::new(
+        rocksdb_engine_handler.clone(),
+        segment_file_manager.clone(),
+        cache_manager.clone(),
+        3,
+    );
+
+    let (stop_send, _) = broadcast::channel(2);
+    write_manager.start(stop_send);
 
     let mut data_list = Vec::new();
 
-    let producer_id = unique_id();
     for i in 0..len {
-        data_list.push(StorageEngineRecord {
-            shard_name: segment_iden.shard_name.clone(),
-            segment: segment_iden.segment_seq,
-            content: format!("data-{i}").encode_to_vec(),
-            key: format!("key-{i}"),
-            tags: vec![format!("tag-{}", i)],
+        data_list.push(WriteChannelDataRecord {
             pkid: i,
-            create_time: now_second(),
-            producer_id: producer_id.clone(),
-            ..Default::default()
+            key: None,
+            tags: None,
+            value: Bytes::from(format!("data-{i}")),
         });
     }
-
-    let res = write_data(
-        &cache_manager,
-        &rocksdb_engine_handler,
-        &segment_file_manager,
-        &segment_iden,
-        data_list,
-    )
-    .await;
-
-    assert!(res.is_ok());
+    write_manager.write(&segment_iden, data_list).await.unwrap();
 
     (
         segment_iden,

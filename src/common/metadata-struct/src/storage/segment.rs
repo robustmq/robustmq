@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 /// A struct used for segment status transition in the meta service.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct JournalSegment {
+pub struct EngineSegment {
     pub shard_name: String,
     pub segment_seq: u32,
     pub replicas: Vec<Replica>,
@@ -27,10 +27,9 @@ pub struct JournalSegment {
     pub leader: u64,
     pub isr: Vec<u64>,
     pub status: SegmentStatus,
-    pub config: SegmentConfig,
 }
 
-impl JournalSegment {
+impl EngineSegment {
     pub fn allow_read(&self) -> bool {
         self.status == SegmentStatus::Write || self.status == SegmentStatus::PreWrite
     }

@@ -46,13 +46,13 @@ impl MqttSessionStorage {
     }
     pub fn save(&self, client_id: &str, session: MqttSession) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(client_id);
-        engine_save_by_meta_data(self.rocksdb_engine_handler.clone(), &key, session)
+        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, session)
     }
 
     pub fn list_all(&self) -> Result<Vec<MqttSession>, CommonError> {
         let prefix_key = storage_key_mqtt_session_prefix();
         let data = engine_prefix_list_by_meta_data::<MqttSession>(
-            self.rocksdb_engine_handler.clone(),
+            &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
@@ -61,14 +61,14 @@ impl MqttSessionStorage {
     pub fn get(&self, client_id: &str) -> Result<Option<MqttSession>, CommonError> {
         let key = storage_key_mqtt_session(client_id);
         Ok(
-            engine_get_by_meta_data::<MqttSession>(self.rocksdb_engine_handler.clone(), &key)?
+            engine_get_by_meta_data::<MqttSession>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
 
     pub fn delete(&self, client_id: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(client_id);
-        engine_delete_by_meta_data(self.rocksdb_engine_handler.clone(), &key)
+        engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }
 
