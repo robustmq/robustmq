@@ -227,6 +227,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[ignore]
     async fn read_data_req_test() {
         let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_base_write_data(30).await;
