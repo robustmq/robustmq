@@ -107,6 +107,9 @@ pub enum StorageEngineError {
 
     #[error("Error occurred while reading Segment File data")]
     ReadSegmentFileError,
+
+    #[error("No Offset information for the Shard {0}stored locally. Please check the index data.")]
+    NoOffsetInformation(String),
 }
 
 impl From<CommonError> for StorageEngineError {
@@ -156,8 +159,10 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::SegmentOffsetAtTheEnd => "SegmentOffsetAtTheEnd".to_string(),
         StorageEngineError::NoAvailableIoThread => "NoAvailableIoThread".to_string(),
         StorageEngineError::ReadSegmentFileError => "ReadSegmentFileError".to_string(),
+        StorageEngineError::NoOffsetInformation(_) => "NoOffsetInformation".to_string(),
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::{get_journal_server_code, StorageEngineError};

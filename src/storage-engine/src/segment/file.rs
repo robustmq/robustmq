@@ -37,6 +37,10 @@ pub async fn open_segment_write(
     cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
 ) -> Result<SegmentFile, StorageEngineError> {
+    if let Some(segment_file) = cache_manager.segment_file_writer.get(&segment_iden.name()) {
+        return Ok(segment_file.clone());
+    }
+
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
         segment
     } else {
@@ -53,11 +57,14 @@ pub async fn open_segment_write(
         ));
     };
 
-    Ok(SegmentFile::new(
+    let segment_file = SegmentFile::new(
         segment_iden.shard_name.to_string(),
         segment_iden.segment,
         fold,
-    ))
+    );
+
+    cache_manager.add_segment_file_write(segment_iden, segment_file.clone());
+    Ok(segment_file)
 }
 
 /// Represent a segment file, providing methods for reading and writing records.

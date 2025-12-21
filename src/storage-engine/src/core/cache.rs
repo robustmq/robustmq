@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::index::build::IndexBuildThreadData;
 use crate::segment::write0::SegmentWrite;
 use crate::segment::SegmentIdentity;
@@ -49,8 +50,8 @@ pub struct StorageCacheManager {
     // (segment_name, IndexBuildThreadData)
     pub segment_index_build_thread: DashMap<String, IndexBuildThreadData>,
 
-    // (segment_name, SegmentWrite)
-    pub segment_writes: DashMap<String, SegmentWrite>,
+    // (segment_name, SegmentFile)
+    pub segment_file_writer: DashMap<String, SegmentFile>,
 }
 
 impl StorageCacheManager {
@@ -60,15 +61,15 @@ impl StorageCacheManager {
         let segment_metadatas = DashMap::with_capacity(8);
         let leader_segments = DashMap::with_capacity(8);
         let segment_index_build_thread = DashMap::with_capacity(2);
-        let segment_write = DashMap::with_capacity(2);
+        let segment_file_writer = DashMap::with_capacity(2);
         StorageCacheManager {
             shards,
             segments,
             segment_metadatas,
             leader_segments,
             segment_index_build_thread,
-            segment_writes: segment_write,
             broker_cache,
+            segment_file_writer,
         }
     }
 
@@ -135,13 +136,6 @@ impl StorageCacheManager {
                 error!("Trying to stop the index building thread for segment {} failed with error message:{}", segment.name(),e);
             }
         }
-
-        // delete write thread by segment
-        if let Some(write) = self.segment_writes.get(&segment.shard_name) {
-            if let Err(e) = write.stop_sender.send(true) {
-                error!("Trying to stop the segment write thread for segment {} failed with error message:{}", segment.name(),e);
-            }
-        }
     }
 
     pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
@@ -195,6 +189,20 @@ impl StorageCacheManager {
         None
     }
 
+    // Segment File
+    pub fn add_segment_file_write(
+        &self,
+        segment_iden: &SegmentIdentity,
+        segment_file: SegmentFile,
+    ) {
+        self.segment_file_writer
+            .insert(segment_iden.name(), segment_file);
+    }
+
+    pub fn remove_segment_file_write(&self, segment_iden: &SegmentIdentity) {
+        self.segment_file_writer.remove(&segment_iden.name());
+    }
+
     // Build Index Thread
     pub fn add_build_index_thread(
         &self,
@@ -224,27 +232,6 @@ impl StorageCacheManager {
                 error!("Trying to stop the index building thread for segment {} failed with error message:{}", raw.key(),e);
             }
         }
-    }
-
-    // Segment Write Thread
-    pub fn add_segment_write_thread(
-        &self,
-        segment_iden: &SegmentIdentity,
-        segment_write: SegmentWrite,
-    ) {
-        self.segment_writes
-            .insert(segment_iden.name(), segment_write);
-    }
-
-    pub fn remove_segment_write_thread(&self, segment_iden: &SegmentIdentity) {
-        self.segment_writes.remove(&segment_iden.name());
-    }
-
-    pub fn get_segment_write_thread(&self, segment_iden: &SegmentIdentity) -> Option<SegmentWrite> {
-        if let Some(write) = self.segment_writes.get(&segment_iden.name()) {
-            return Some(write.clone());
-        }
-        None
     }
 
     // Leader Segment

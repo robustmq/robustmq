@@ -14,11 +14,8 @@
 
 use crate::segment::SegmentIdentity;
 
-pub(crate) fn offset_segment_offset(segment_iden: &SegmentIdentity) -> String {
-    format!(
-        "/index/{}/{}/offset/offset",
-        segment_iden.shard_name, segment_iden.segment,
-    )
+pub(crate) fn offset_segment_offset(shard: &str) -> String {
+    format!("/offset/{}", shard,)
 }
 
 pub(crate) fn offset_segment_start(segment_iden: &SegmentIdentity) -> String {

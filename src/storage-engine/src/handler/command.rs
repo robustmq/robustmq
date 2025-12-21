@@ -37,25 +37,19 @@ use tracing::{debug, error};
 /// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
 pub struct StorageEngineHandlerCommand {
-    client_pool: Arc<ClientPool>,
     cache_manager: Arc<StorageCacheManager>,
-    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
 }
 
 impl StorageEngineHandlerCommand {
     pub fn new(
-        client_pool: Arc<ClientPool>,
         cache_manager: Arc<StorageCacheManager>,
-        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         write_manager: Arc<WriteManager>,
     ) -> Self {
         StorageEngineHandlerCommand {
-            client_pool,
             cache_manager,
-            segment_file_manager,
             rocksdb_engine_handler,
             write_manager,
         }

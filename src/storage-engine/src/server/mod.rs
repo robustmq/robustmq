@@ -95,9 +95,7 @@ impl Server {
 
     fn create_command(&self) -> Arc<Box<dyn Command + Send + Sync>> {
         let storage: Box<dyn Command + Send + Sync> = Box::new(StorageEngineHandlerCommand::new(
-            self.client_pool.clone(),
             self.cache_manager.clone(),
-            self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
             self.write_manager.clone(),
         ));
