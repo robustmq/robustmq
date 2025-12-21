@@ -21,7 +21,7 @@ pub mod keys;
 pub mod manager;
 pub mod read;
 pub mod scroll;
-pub mod write;
+// pub mod write;
 pub mod write0;
 
 /// A unique identifier for a segment, used to get segment metadata or segment file.

@@ -13,19 +13,18 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use crate::core::record::StorageEngineRecord;
+use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
-use crate::segment::write::write_data;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
+use bytes::Bytes;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use prost::Message;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -132,15 +131,15 @@ pub async fn test_base_write_data(
     let producer_id = unique_id();
     for i in 0..len {
         data_list.push(StorageEngineRecord {
-            shard_name: segment_iden.shard_name.clone(),
-            segment: segment_iden.segment_seq,
-            content: format!("data-{i}").encode_to_vec(),
-            key: format!("key-{i}"),
-            tags: vec![format!("tag-{}", i)],
-            pkid: i,
-            create_time: now_second(),
-            producer_id: producer_id.clone(),
-            ..Default::default()
+            metadata: StorageEngineRecordMetadata {
+                offset: 1000 + i,
+                key: None,
+                tags: None,
+                shard: segment_iden.shard_name.to_string(),
+                segment: segment_iden.segment_seq,
+                create_t: now_second(),
+            },
+            data: Bytes::from(format!("data-{i}")),
         });
     }
 

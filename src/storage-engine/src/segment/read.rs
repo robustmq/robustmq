@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::file::{ReadData, SegmentFile};
+use super::file::SegmentFile;
 use super::SegmentIdentity;
-use crate::core::error::StorageEngineError;
+use crate::core::record::StorageEngineRecord;
 use crate::segment::index::offset::OffsetIndexManager;
 use crate::segment::index::tag::TagIndexManager;
+use crate::{core::error::StorageEngineError, segment::file::ReadData};
 use protocol::storage::storage_engine_engine::{ReadReqFilter, ReadReqOptions};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -145,7 +146,7 @@ mod tests {
         let mut i = 5;
         for row in resp {
             println!("{row:?}");
-            assert_eq!(row.record.key, format!("key-{i}"));
+            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
             i += 1;
         }
 
@@ -172,7 +173,7 @@ mod tests {
         let mut i = 10;
         for row in resp {
             println!("{row:?}");
-            assert_eq!(row.record.key, format!("key-{i}"));
+            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
             i += 1;
         }
     }
@@ -221,7 +222,8 @@ mod tests {
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
-        assert_eq!(resp.first().unwrap().record.key, key);
+        let meata = resp.first().unwrap().record.metadata.clone();
+        assert_eq!(meata.key.unwrap(), key);
     }
 
     #[tokio::test]
@@ -269,6 +271,8 @@ mod tests {
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
-        assert!(resp.first().unwrap().record.tags.contains(&tag));
+
+        let meata = resp.first().unwrap().record.metadata.clone();
+        assert!(meata.tags.unwrap().contains(&tag));
     }
 }

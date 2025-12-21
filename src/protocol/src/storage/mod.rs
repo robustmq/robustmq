@@ -16,14 +16,9 @@
 #![allow(clippy::all)]
 
 use std::io;
-
-pub mod storage_engine_engine {
-    tonic::include_proto!("storage.engine");
-}
-
 pub mod codec;
+pub mod protocol;
 
-/// Error during serialization and deserialization
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("data store disconnected")]

@@ -104,6 +104,9 @@ pub enum StorageEngineError {
 
     #[error("No available IO thread available.")]
     NoAvailableIoThread,
+
+    #[error("Error occurred while reading Segment File data")]
+    ReadSegmentFileError,
 }
 
 impl From<CommonError> for StorageEngineError {
@@ -152,6 +155,7 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         }
         StorageEngineError::SegmentOffsetAtTheEnd => "SegmentOffsetAtTheEnd".to_string(),
         StorageEngineError::NoAvailableIoThread => "NoAvailableIoThread".to_string(),
+        StorageEngineError::ReadSegmentFileError => "ReadSegmentFileError".to_string(),
     }
 }
 #[cfg(test)]

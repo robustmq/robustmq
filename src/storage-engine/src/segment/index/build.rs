@@ -167,7 +167,7 @@ async fn start_segment_build_index_thread(
                                 continue;
                             }
 
-                            last_build_offset = data.last().unwrap().record.offset as u64;
+                            last_build_offset = data.last().unwrap().record.metadata.offset as u64;
                             // save last offset bye build index
                             if let Err(e) = save_last_offset_build_index(
                                 &rocksdb_engine_handler,
@@ -223,39 +223,45 @@ async fn save_record_index(
     for read_data in data.iter() {
         let record = read_data.record.clone();
         let index_data = IndexData {
-            offset: record.offset as u64,
-            timestamp: record.create_time,
+            offset: record.metadata.offset as u64,
+            timestamp: record.metadata.create_t,
             position: read_data.position,
         };
 
         if read_data.position == 0 {
-            offset_index.save_start_offset(segment_iden, record.offset as u64)?;
+            offset_index.save_start_offset(segment_iden, record.metadata.offset as u64)?;
         }
 
-        if (record.offset - start_offset as i64) % BUILD_INDE_PER_RECORD_NUM as i64 == 0 {
+        if (record.metadata.offset - start_offset) % BUILD_INDE_PER_RECORD_NUM == 0 {
             // build position index
             offset_index.save_position_offset(
                 segment_iden,
-                record.offset as u64,
+                record.metadata.offset as u64,
                 index_data.clone(),
             )?;
 
             // build timestamp index
             time_index.save_timestamp_offset(
                 segment_iden,
-                record.create_time,
+                record.metadata.create_t,
                 index_data.clone(),
             )?;
         }
 
         // build key index
-        if !record.key.is_empty() {
-            tag_index.save_key_position(segment_iden, record.key, index_data.clone())?;
+        if !record.metadata.key.is_none() {
+            tag_index.save_key_position(
+                segment_iden,
+                record.metadata.key.unwrap(),
+                index_data.clone(),
+            )?;
         }
 
         // build tag index
-        for tag in record.tags {
-            tag_index.save_tag_position(segment_iden, tag, index_data.clone())?;
+        if !record.metadata.tags.is_none() {
+            for tag in record.metadata.tags.unwrap() {
+                tag_index.save_tag_position(segment_iden, tag, index_data.clone())?;
+            }
         }
     }
     Ok(())

@@ -20,7 +20,6 @@ use crate::segment::manager::SegmentFileManager;
 use crate::segment::write0::{SegmentWrite, SegmentWriteData};
 use crate::segment::SegmentIdentity;
 use metadata_struct::storage::segment::SegmentStatus;
-use protocol::storage::storage_engine_record::StorageEngineRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -33,13 +32,7 @@ use tracing::error;
 
 /// the write handle for a segment
 
-/// the response of the write request from the segment write thread
-#[derive(Default, Debug)]
-pub struct SegmentWriteResp {
-    pub offsets: HashMap<u64, u64>,
-    pub last_offset: u64,
-    pub error: Option<StorageEngineError>,
-}
+
 
 /// get the write handle for the segment identified by `segment_iden`, write data and return the response
 pub(crate) async fn write_data(
@@ -390,14 +383,18 @@ mod tests {
 
         let producer_id = unique_id();
         for i in 0..10 {
-            data_list.push(StorageEngineRecord {
-                shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment_seq,
-                content: format!("data-{i}").encode_to_vec(),
-                pkid: i,
-                producer_id: producer_id.clone(),
-                ..Default::default()
-            });
+            data_list.push(
+                StorageEngineRecord::builder()
+                    .shard_name(&segment_iden.shard_name)
+                    .segment(segment_iden.segment_seq)
+                    .content(format!("data-{i}").encode_to_vec())
+                    .pkid(i)
+                    .producer_id(&producer_id)
+                    .create_time(0)
+                    .key("")
+                    .offset(-1)
+                    .build(),
+            );
         }
 
         let res = write_data(
@@ -418,14 +415,18 @@ mod tests {
 
         let mut data_list = Vec::new();
         for i in 10..20 {
-            data_list.push(StorageEngineRecord {
-                shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment_seq,
-                content: format!("data-{i}").encode_to_vec(),
-                pkid: i,
-                producer_id: producer_id.clone(),
-                ..Default::default()
-            });
+            data_list.push(
+                StorageEngineRecord::builder()
+                    .shard_name(&segment_iden.shard_name)
+                    .segment(segment_iden.segment_seq)
+                    .content(format!("data-{i}").encode_to_vec())
+                    .pkid(i)
+                    .producer_id(&producer_id)
+                    .create_time(0)
+                    .key("")
+                    .offset(-1)
+                    .build(),
+            );
         }
 
         let res = write_data(

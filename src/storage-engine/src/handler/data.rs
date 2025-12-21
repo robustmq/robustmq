@@ -62,7 +62,7 @@ impl DataHandler {
         }
 
         let req_body = request.body.unwrap();
-        for message in req_body.data.iter() {
+        for message in req_body.messages.iter() {
             let segment_identity = SegmentIdentity {
                 shard_name: message.shard_name.to_string(),
                 segment_seq: message.segment,
@@ -165,17 +165,17 @@ pub async fn write_data_req(
     let mut record_list = Vec::new();
     for message in req_body.messages.iter() {
         // todo data validator
-        let record = StorageEngineRecord {
-            content: message.value.clone(),
-            create_time: now_second(),
-            key: message.key.clone(),
-            shard_name: req_body.shard_name.clone(),
-            segment: req_body.segment,
-            tags: message.tags.clone(),
-            pkid: message.pkid,
-            producer_id: "".to_string(),
-            offset: -1,
-        };
+        let record = StorageEngineRecord::builder()
+            .content(message.value.clone())
+            .create_time(now_second())
+            .key(&message.key)
+            .shard_name(&req_body.shard_name)
+            .segment(req_body.segment)
+            .tags(message.tags.clone())
+            .pkid(message.pkid)
+            .producer_id("")
+            .offset(-1)
+            .build();
         record_list.push(record);
     }
 
@@ -188,15 +188,19 @@ pub async fn write_data_req(
     )
     .await?;
 
-    resp_message.messages = response
-        .offsets
-        .iter()
-        .map(|(pkid, offset)| WriteRespMessageStatus {
-            pkid: *pkid,
-            offset: *offset,
-            ..Default::default()
-        })
-        .collect();
+    let resp_message = WriteRespMessage {
+        shard_name: req_body.shard_name.clone(),
+        segment: req_body.segment,
+        messages: response
+            .offsets
+            .iter()
+            .map(|(pkid, offset)| WriteRespMessageStatus {
+                pkid: *pkid,
+                offset: *offset,
+                ..Default::default()
+            })
+            .collect(),
+    };
 
     results.push(resp_message);
 

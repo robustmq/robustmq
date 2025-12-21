@@ -1,12 +1,11 @@
+use crate::core::error::StorageEngineError;
+use crate::core::record::StorageEngineRecord;
+use dashmap::DashMap;
+use std::collections::HashMap;
+use std::hash::Hasher;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::core::error::StorageEngineError;
-use crate::segment::write::SegmentWriteResp;
-use dashmap::DashMap;
-use protocol::storage::storage_engine_record::StorageEngineRecord;
-use std::hash::Hasher;
-use tokio::select;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
@@ -24,6 +23,14 @@ pub struct SegmentWrite {
 pub struct SegmentWriteData {
     pub data: Vec<StorageEngineRecord>,
     pub resp_sx: oneshot::Sender<SegmentWriteResp>,
+}
+
+/// the response of the write request from the segment write thread
+#[derive(Default, Debug)]
+pub struct SegmentWriteResp {
+    pub offsets: HashMap<u64, u64>,
+    pub last_offset: u64,
+    pub error: Option<StorageEngineError>,
 }
 
 pub struct WriteManager {
@@ -127,6 +134,6 @@ pub fn create_io_thread(
             }
         }
 
-        // 
+        //
     });
 }
