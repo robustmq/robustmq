@@ -98,10 +98,9 @@ impl SchemaStorage {
     ) -> Result<Option<SchemaResourceBind>, MetaServiceError> {
         let key: String = storage_key_mqtt_schema_bind(resource_name, schema_name);
 
-        if let Some(data) = engine_get_by_meta_metadata::<SchemaResourceBind>(
-            &self.rocksdb_engine_handler,
-            &key,
-        )? {
+        if let Some(data) =
+            engine_get_by_meta_metadata::<SchemaResourceBind>(&self.rocksdb_engine_handler, &key)?
+        {
             return Ok(Some(data.data));
         }
         Ok(None)

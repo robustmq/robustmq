@@ -128,7 +128,6 @@ pub async fn test_base_write_data(
 
     let mut data_list = Vec::new();
 
-    let producer_id = unique_id();
     for i in 0..len {
         data_list.push(StorageEngineRecord {
             metadata: StorageEngineRecordMetadata {

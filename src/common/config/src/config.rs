@@ -330,6 +330,6 @@ impl MqttSchema {
 pub struct StorageRuntime {
     pub tcp_port: u32,
     pub max_segment_size: u32,
-    pub io_thread_num:u32,
+    pub io_thread_num: u32,
     pub data_path: Vec<String>,
 }

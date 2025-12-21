@@ -46,10 +46,9 @@ impl NodeStorage {
     #[allow(dead_code)]
     pub fn get(&self, node_id: u64) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(node_id);
-        if let Some(data) = engine_get_by_meta_metadata::<BrokerNode>(
-            &self.rocksdb_engine_handler,
-            &node_key,
-        )? {
+        if let Some(data) =
+            engine_get_by_meta_metadata::<BrokerNode>(&self.rocksdb_engine_handler, &node_key)?
+        {
             return Ok(Some(data.data));
         }
         Ok(None)

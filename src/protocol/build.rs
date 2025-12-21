@@ -35,7 +35,6 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
         proto_root.join("src/*.proto").display()
     );
 
-
     // Broker
     tonic_build::configure().build_server(true).compile_protos(
         &[

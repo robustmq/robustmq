@@ -66,7 +66,7 @@ use storage_adapter::{
 };
 use storage_engine::{
     core::cache::StorageCacheManager,
-    segment::{manager::SegmentFileManager, write0::WriteManager},
+    segment::{manager::SegmentFileManager, write::WriteManager},
     StorageEngineParams, StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
@@ -404,7 +404,12 @@ impl BrokerServer {
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
-        let write_manager = Arc::new(WriteManager::new(config.storage_runtime.io_thread_num));
+        let write_manager = Arc::new(WriteManager::new(
+            rocksdb_engine_handler.clone(),
+            segment_file_manager.clone(),
+            cache_manager.clone(),
+            config.storage_runtime.io_thread_num,
+        ));
         StorageEngineParams {
             cache_manager,
             client_pool,

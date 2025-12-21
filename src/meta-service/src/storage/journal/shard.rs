@@ -40,10 +40,9 @@ impl ShardStorage {
 
     pub fn get(&self, shard_name: &str) -> Result<Option<EngineShard>, CommonError> {
         let shard_key: String = key_shard(shard_name);
-        if let Some(data) = engine_get_by_meta_metadata::<EngineShard>(
-            &self.rocksdb_engine_handler,
-            &shard_key,
-        )? {
+        if let Some(data) =
+            engine_get_by_meta_metadata::<EngineShard>(&self.rocksdb_engine_handler, &shard_key)?
+        {
             return Ok(Some(data.data));
         }
         Ok(None)

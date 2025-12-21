@@ -43,8 +43,7 @@ impl ResourceConfigStorage {
     pub fn get(&self, resource_key: Vec<String>) -> Result<Option<Vec<u8>>, CommonError> {
         let key = key_resource_config(&resource_key.join("/"));
 
-        if let Some(data) = engine_get_by_meta_metadata(&self.rocksdb_engine_handler, &key)?
-        {
+        if let Some(data) = engine_get_by_meta_metadata(&self.rocksdb_engine_handler, &key)? {
             return Ok(Some(data.data));
         }
         Ok(None)

@@ -330,11 +330,8 @@ mod tests {
         assert_eq!(data.start_timestamp, -1);
         assert_eq!(data.end_timestamp, -1);
 
-        let segment_write = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment,
-            fold,
-        );
+        let segment_write =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
         assert!(segment_write.exists());
     }
 

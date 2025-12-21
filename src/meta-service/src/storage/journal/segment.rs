@@ -49,10 +49,9 @@ impl SegmentStorage {
         segment_seq: u32,
     ) -> Result<Option<EngineSegment>, CommonError> {
         let shard_key: String = key_segment(shard_name, segment_seq);
-        if let Some(data) = engine_get_by_meta_metadata::<EngineSegment>(
-            &self.rocksdb_engine_handler,
-            &shard_key,
-        )? {
+        if let Some(data) =
+            engine_get_by_meta_metadata::<EngineSegment>(&self.rocksdb_engine_handler, &shard_key)?
+        {
             return Ok(Some(data.data));
         }
         Ok(None)

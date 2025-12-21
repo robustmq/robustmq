@@ -56,10 +56,7 @@ impl KvStorage {
     }
 
     pub fn get_prefix(&self, prefix: String) -> Result<Vec<String>, CommonError> {
-        match engine_prefix_list_by_meta_metadata::<String>(
-            &self.rocksdb_engine_handler,
-            &prefix,
-        ) {
+        match engine_prefix_list_by_meta_metadata::<String>(&self.rocksdb_engine_handler, &prefix) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for item in data {

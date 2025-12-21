@@ -63,10 +63,8 @@ impl LocalStorage {
 
     pub async fn list_ban_log(&self) -> Result<Vec<BanLog>, MqttBrokerError> {
         let prefix_key = ban_log_prefix_key();
-        let data = engine_prefix_list_by_broker::<BanLog>(
-            &self.rocksdb_engine_handler,
-            &prefix_key,
-        )?;
+        let data =
+            engine_prefix_list_by_broker::<BanLog>(&self.rocksdb_engine_handler, &prefix_key)?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 

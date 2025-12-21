@@ -63,11 +63,8 @@ impl MqttConnectorStorage {
     pub fn get(&self, connector_name: &str) -> Result<Option<MQTTConnector>, CommonError> {
         let key = storage_key_mqtt_connector(connector_name);
         Ok(
-            engine_get_by_meta_metadata::<MQTTConnector>(
-                &self.rocksdb_engine_handler,
-                &key,
-            )?
-            .map(|data| data.data),
+            engine_get_by_meta_metadata::<MQTTConnector>(&self.rocksdb_engine_handler, &key)?
+                .map(|data| data.data),
         )
     }
 

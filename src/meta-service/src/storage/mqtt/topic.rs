@@ -81,11 +81,7 @@ impl MqttTopicStorage {
         topic_rewrite_rule: MqttTopicRewriteRule,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
-        engine_save_by_meta_metadata(
-            &self.rocksdb_engine_handler,
-            &key,
-            topic_rewrite_rule,
-        )?;
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, topic_rewrite_rule)?;
         Ok(())
     }
 
@@ -132,11 +128,8 @@ impl MqttTopicStorage {
     ) -> Result<Option<MQTTRetainMessage>, MetaServiceError> {
         let key = storage_key_mqtt_retain_message(topic_name);
         Ok(
-            engine_get_by_meta_data::<MQTTRetainMessage>(
-                &self.rocksdb_engine_handler,
-                &key,
-            )?
-            .map(|data| data.data),
+            engine_get_by_meta_data::<MQTTRetainMessage>(&self.rocksdb_engine_handler, &key)?
+                .map(|data| data.data),
         )
     }
 

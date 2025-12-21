@@ -98,11 +98,8 @@ impl MqttSubscribeStorage {
     ) -> Result<Option<MqttSubscribe>, MetaServiceError> {
         let key = storage_key_mqtt_subscribe(client_id, path);
         Ok(
-            engine_get_by_meta_metadata::<MqttSubscribe>(
-                &self.rocksdb_engine_handler,
-                &key,
-            )?
-            .map(|data| data.data),
+            engine_get_by_meta_metadata::<MqttSubscribe>(&self.rocksdb_engine_handler, &key)?
+                .map(|data| data.data),
         )
     }
 
@@ -117,11 +114,7 @@ impl MqttSubscribeStorage {
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(topic);
-        engine_save_by_meta_metadata(
-            &self.rocksdb_engine_handler,
-            &key,
-            auto_subscribe_rule,
-        )?;
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, auto_subscribe_rule)?;
         Ok(())
     }
 

@@ -19,13 +19,13 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
 use rocksdb_engine::warp::StorageDataWrap;
 
+use super::IndexData;
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
+use crate::core::error::StorageEngineError;
 use crate::segment::keys::{
     timestamp_segment_end, timestamp_segment_start, timestamp_segment_time,
     timestamp_segment_time_prefix,
 };
-use super::IndexData;
-use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-use crate::core::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 
 pub struct TimestampIndexManager {
@@ -58,11 +58,9 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = timestamp_segment_start(segment_iden);
-        if let Some(res) = engine_get_by_engine::<i64>(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
-            &key,
-        )? {
+        if let Some(res) =
+            engine_get_by_engine::<i64>(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
+        {
             return Ok(res.data);
         }
 
@@ -88,11 +86,9 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = timestamp_segment_end(segment_iden);
-        if let Some(res) = engine_get_by_engine::<i64>(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
-            &key,
-        )? {
+        if let Some(res) =
+            engine_get_by_engine::<i64>(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
+        {
             return Ok(res.data);
         }
 
