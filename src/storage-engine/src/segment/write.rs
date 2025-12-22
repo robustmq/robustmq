@@ -205,7 +205,7 @@ pub fn create_io_thread(
                         break;
                     }
                     Err(e) => {
-                        error!("{}", e.to_string());
+                        error!("Failed to receive write request data from channel: {}", e);
                     }
                 }
             }
@@ -248,7 +248,10 @@ pub fn create_io_thread(
                                 error: Some(ex.to_string()),
                                 ..Default::default()
                             }) {
-                                error!("{:?}", e);
+                                error!(
+                                    "Failed to send get_offset error response for shard {}, segment {}: {:?}",
+                                    shard_name, segment, e
+                                );
                             }
                             continue;
                         }
@@ -401,10 +404,7 @@ async fn batch_write(
                 ..Default::default()
             })
         }
-        Err(e) => Some(SegmentWriteResp {
-            error: Some(e.to_string()),
-            ..Default::default()
-        }),
+        Err(e) => return Err(e),
     };
 
     if let Err(e) = try_trigger_build_index(
