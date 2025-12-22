@@ -35,12 +35,6 @@ use tokio::time::{sleep, timeout};
 use tracing::{error, info};
 use twox_hash::XxHash32;
 
-#[derive(Clone)]
-pub struct SegmentWrite {
-    pub data_sender: Sender<WriteChannelData>,
-    pub stop_sender: broadcast::Sender<bool>,
-}
-
 /// the data to be sent to the segment write thread
 pub struct WriteChannelData {
     pub segment_iden: SegmentIdentity,
@@ -162,11 +156,8 @@ impl IoWork {
         Ok(offset)
     }
 
-    pub fn save_offset(&self, shard_name: &str, offset: u64) {
+    pub fn save_offset(&self, shard_name: &str, offset: u64) -> Result<(), StorageEngineError> {
         self.offset_data.insert(shard_name.to_string(), offset);
-    }
-
-    pub fn flush_offset(&self, shard_name: &str) -> Result<(), StorageEngineError> {
         if let Some(offset) = self.offset_data.get(shard_name) {
             save_shard_offset(&self.rocksdb_engine_handler, shard_name, *offset)?;
         }
@@ -229,6 +220,7 @@ pub fn create_io_thread(
                 SegmentIdentity,
                 Vec<oneshot::Sender<SegmentWriteResp>>,
             > = HashMap::new();
+            let mut tmp_offset_info = HashMap::new();
 
             for channel_data in results {
                 let shard_name = channel_data.segment_iden.shard_name.to_string();
@@ -245,37 +237,44 @@ pub fn create_io_thread(
                     .entry(channel_data.segment_iden.clone())
                     .or_default();
 
-                match io_work.get_offset(&shard_name) {
-                    Ok(offset) => {
-                        let create_t = now_second();
-                        let mut start_offset = offset;
-                        sender_list.push(channel_data.resp_sx);
-                        for row in channel_data.data_list {
-                            shard_list.push(StorageEngineRecord {
-                                metadata: StorageEngineRecordMetadata {
-                                    offset: start_offset,
-                                    shard: shard_name.clone(),
-                                    segment,
-                                    key: row.key,
-                                    tags: row.tags,
-                                    create_t,
-                                },
-                                data: row.value,
-                            });
-                            start_offset += 1;
-                            shard_pkid_list.insert(row.pkid, start_offset);
+                // get current offset
+                let offset = if let Some(offset) = tmp_offset_info.get(&shard_name) {
+                    *offset
+                } else {
+                    let offset = match io_work.get_offset(&shard_name) {
+                        Ok(offset) => offset,
+                        Err(ex) => {
+                            if let Err(e) = channel_data.resp_sx.send(SegmentWriteResp {
+                                error: Some(ex.to_string()),
+                                ..Default::default()
+                            }) {
+                                error!("{:?}", e);
+                            }
+                            continue;
                         }
-                        io_work.save_offset(&shard_name, offset);
-                    }
-                    Err(ex) => {
-                        if let Err(e) = channel_data.resp_sx.send(SegmentWriteResp {
-                            error: Some(ex.to_string()),
-                            ..Default::default()
-                        }) {
-                            error!("{:?}", e);
-                        }
-                    }
+                    };
+                    offset
+                };
+
+                let create_t = now_second();
+                let mut start_offset = offset;
+                sender_list.push(channel_data.resp_sx);
+                for row in channel_data.data_list {
+                    shard_pkid_list.insert(row.pkid, start_offset);
+                    shard_list.push(StorageEngineRecord {
+                        metadata: StorageEngineRecordMetadata {
+                            offset: start_offset,
+                            shard: shard_name.clone(),
+                            segment,
+                            key: row.key,
+                            tags: row.tags,
+                            create_t,
+                        },
+                        data: row.value,
+                    });
+                    start_offset += 1;
                 }
+                tmp_offset_info.insert(shard_name.to_string(), start_offset);
             }
 
             // save data
@@ -283,7 +282,7 @@ pub fn create_io_thread(
                 let segment_write = match open_segment_write(&cache_manager, segment_iden).await {
                     Ok(data) => data,
                     Err(e) => {
-                        error!("{}", e);
+                        call_error_response(&mut shard_sender_list, segment_iden, &e.to_string());
                         continue;
                     }
                 };
@@ -300,34 +299,78 @@ pub fn create_io_thread(
                 .await
                 {
                     Ok(data) => {
-                        if let Some(da) = data {
-                            if let Some(sender_list) = shard_sender_list.remove(segment_iden) {
-                                for sender in sender_list {
-                                    if let Err(e) = sender.send(da.clone()) {
-                                        error!("{:?}", e);
-                                    }
-                                }
+                        if let Some(resp) = data {
+                            if success_save_offset(
+                                &mut shard_sender_list,
+                                pkid_offset_list,
+                                &io_work,
+                                segment_iden,
+                            ) {
+                                call_success_response(&mut shard_sender_list, segment_iden, &resp);
                             }
                         }
                     }
 
                     Err(ex) => {
-                        let ex_str = ex.to_string();
-                        if let Some(sender_list) = shard_sender_list.remove(segment_iden) {
-                            for sender in sender_list {
-                                if let Err(e) = sender.send(SegmentWriteResp {
-                                    error: Some(ex_str.clone()),
-                                    ..Default::default()
-                                }) {
-                                    error!("{:?}", e);
-                                }
-                            }
-                        }
+                        call_error_response(&mut shard_sender_list, segment_iden, &ex.to_string());
                     }
                 }
             }
         }
     });
+}
+
+fn success_save_offset(
+    shard_sender_list: &mut HashMap<SegmentIdentity, Vec<oneshot::Sender<SegmentWriteResp>>>,
+    pkid_offset_list: &HashMap<u64, u64>,
+    io_work: &Arc<IoWork>,
+    segment_iden: &SegmentIdentity,
+) -> bool {
+    let offsets: Vec<u64> = pkid_offset_list.values().map(|&v| v).collect();
+    if let Some(max_offset) = offsets.iter().max() {
+        if let Err(ex) = io_work.save_offset(&segment_iden.shard_name, *max_offset + 1) {
+            call_error_response(shard_sender_list, segment_iden, &ex.to_string());
+            return false;
+        }
+    }
+    true
+}
+
+fn call_success_response(
+    shard_sender_list: &mut HashMap<SegmentIdentity, Vec<oneshot::Sender<SegmentWriteResp>>>,
+    segment_iden: &SegmentIdentity,
+    resp: &SegmentWriteResp,
+) {
+    if let Some(sender_list) = shard_sender_list.remove(segment_iden) {
+        for sender in sender_list {
+            if let Err(e) = sender.send(resp.clone()) {
+                error!(
+                    "Failed to send success response to client for shard {}, segment {}: {:?}",
+                    segment_iden.shard_name, segment_iden.segment, e
+                );
+            }
+        }
+    }
+}
+
+fn call_error_response(
+    shard_sender_list: &mut HashMap<SegmentIdentity, Vec<oneshot::Sender<SegmentWriteResp>>>,
+    segment_iden: &SegmentIdentity,
+    ex_str: &str,
+) {
+    if let Some(sender_list) = shard_sender_list.remove(segment_iden) {
+        for sender in sender_list {
+            if let Err(e) = sender.send(SegmentWriteResp {
+                error: Some(ex_str.to_string()),
+                ..Default::default()
+            }) {
+                error!(
+                    "Failed to send error response to client for shard {}, segment {}: {:?}",
+                    segment_iden.shard_name, segment_iden.segment, e
+                );
+            }
+        }
+    }
 }
 
 /// validate whether the data can be written to the segment, write the data to the segment file and update the index
@@ -364,13 +407,22 @@ async fn batch_write(
         }),
     };
 
-    try_trigger_build_index(
+    if let Err(e) = try_trigger_build_index(
         cache_manager,
         segment_file_manager,
         rocksdb_engine_handler,
         segment_iden,
     )
-    .await?;
+    .await
+    {
+        error!(
+            "Failed to trigger build index for shard {}, segment {}: {}",
+            segment_iden.shard_name, segment_iden.segment, e
+        );
+    }
 
     Ok(resp)
 }
+
+#[cfg(test)]
+mod tests {}
