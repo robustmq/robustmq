@@ -173,7 +173,7 @@ impl SegmentFile {
         let mut results = Vec::new();
         let mut already_size = 0;
         loop {
-            if already_size > max_size {
+            if results.len() >= max_record as usize {
                 break;
             }
 
@@ -204,17 +204,16 @@ impl SegmentFile {
 
             // read data
             let data = self.read_data(&mut reader).await?;
-            println!("{:?}", data);
             if let Some(da) = data {
-                already_size += da.data.len() as u64;
+                let data_size = da.data.len() as u64;
+                if already_size + data_size > max_size {
+                    break;
+                }
+                already_size += data_size;
                 results.push(ReadData {
                     record: da,
                     position,
                 });
-            }
-
-            if results.len() >= max_record as usize {
-                break;
             }
         }
 
@@ -237,7 +236,7 @@ impl SegmentFile {
         for position in positions {
             reader.seek(std::io::SeekFrom::Start(position)).await?;
 
-            // seek to data
+            // skip offset(8 bytes) + total_len(4 bytes) = 12 bytes
             reader.seek(std::io::SeekFrom::Current(12)).await?;
 
             // read data
@@ -271,7 +270,12 @@ impl SegmentFile {
 
         let metadata = match StorageEngineRecordMetadata::decode(metadata_buf.as_ref()) {
             Ok(data) => data,
-            Err(_) => return Err(StorageEngineError::ReadSegmentFileError),
+            Err(e) => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Failed to decode metadata in segment file for shard {}, segment {}: {}",
+                    self.shard_name, self.segment_no, e
+                )))
+            }
         };
 
         // read data len
@@ -300,6 +304,7 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 mod tests {
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::StorageCacheManager;
+    use crate::core::error::StorageEngineError;
     use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
     use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
@@ -451,5 +456,119 @@ mod tests {
 
         let size = segment.size().await.unwrap();
         assert!(size > 0);
+    }
+
+    #[tokio::test]
+    async fn segment_boundary_check_test() {
+        let data_fold = test_build_data_fold();
+        let segment_iden = test_build_segment();
+        let segment = SegmentFile::new(
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment,
+            data_fold.first().unwrap().to_string(),
+        );
+
+        segment.try_create().await.unwrap();
+        for i in 0..10 {
+            let record = StorageEngineRecord {
+                metadata: StorageEngineRecordMetadata {
+                    offset: 100 + i,
+                    key: None,
+                    tags: None,
+                    shard: segment_iden.shard_name.to_string(),
+                    segment: segment_iden.segment,
+                    create_t: now_second(),
+                },
+                data: Bytes::from(vec![0u8; 100]),
+            };
+            segment.write(std::slice::from_ref(&record)).await.unwrap();
+        }
+
+        let res = segment.read_by_offset(0, 0, 150, 1000).await.unwrap();
+        assert_eq!(res.len(), 1);
+
+        let res = segment.read_by_offset(0, 0, 100000, 3).await.unwrap();
+        assert_eq!(res.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn segment_error_handling_test() {
+        let data_fold = test_build_data_fold();
+        let segment = SegmentFile::new(
+            "test_shard".to_string(),
+            999,
+            data_fold.first().unwrap().to_string(),
+        );
+
+        let res = segment.read_by_offset(0, 0, 1000, 10).await;
+        assert!(res.is_err());
+
+        let res = segment.read_by_positions(vec![0]).await;
+        assert!(res.is_err());
+
+        let res = segment.delete().await;
+        assert!(res.is_err());
+        assert!(matches!(
+            res.unwrap_err(),
+            StorageEngineError::SegmentFileNotExists(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn segment_data_integrity_test() {
+        let data_fold = test_build_data_fold();
+        let segment_iden = test_build_segment();
+        let segment = SegmentFile::new(
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment,
+            data_fold.first().unwrap().to_string(),
+        );
+
+        segment.try_create().await.unwrap();
+        let record = StorageEngineRecord {
+            metadata: StorageEngineRecordMetadata {
+                offset: 100,
+                key: Some("test-key".to_string()),
+                tags: Some(vec!["tag1".to_string(), "tag2".to_string()]),
+                shard: segment_iden.shard_name.to_string(),
+                segment: segment_iden.segment,
+                create_t: 12345,
+            },
+            data: Bytes::from("test-data-content"),
+        };
+
+        segment.write(&[record]).await.unwrap();
+        let res = segment.read_by_offset(0, 0, 10000, 10).await.unwrap();
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].record.metadata.offset, 100);
+        assert_eq!(res[0].record.metadata.key, Some("test-key".to_string()));
+        assert_eq!(
+            res[0].record.metadata.tags,
+            Some(vec!["tag1".to_string(), "tag2".to_string()])
+        );
+        assert_eq!(res[0].record.data.as_ref(), b"test-data-content");
+        assert_eq!(res[0].record.metadata.create_t, 12345);
+    }
+
+    #[tokio::test]
+    async fn segment_edge_cases_test() {
+        let data_fold = test_build_data_fold();
+        let segment_iden = test_build_segment();
+        let segment = SegmentFile::new(
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment,
+            data_fold.first().unwrap().to_string(),
+        );
+
+        segment.try_create().await.unwrap();
+
+        let res = segment.read_by_offset(0, 0, 1000, 10).await.unwrap();
+        assert_eq!(res.len(), 0);
+
+        let res = segment.read_by_positions(vec![]).await.unwrap();
+        assert_eq!(res.len(), 0);
+
+        segment.write(&[]).await.unwrap();
     }
 }

@@ -26,7 +26,6 @@ use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::segment::index::engine::storage_data_fold;
 use crate::segment::index::offset::OffsetIndexManager;
 use crate::segment::index::time::TimestampIndexManager;
 
@@ -142,11 +141,6 @@ pub fn load_local_segment_cache(
     local_data_folds: &Vec<String>,
 ) -> Result<(), StorageEngineError> {
     let dir_str = dir.display().to_string();
-    let rocksdb_dir = storage_data_fold(local_data_folds);
-    if dir_str == rocksdb_dir {
-        return Ok(());
-    }
-
     let offset_manager = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let timestamp_manager = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     for entry in fs::read_dir(dir)? {
@@ -266,14 +260,16 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     use super::{SegmentFileManager, SegmentFileMetadata};
-    use crate::core::test::{test_build_rocksdb_sgement, test_init_segment};
+    use crate::core::test::{test_build_segment, test_init_segment};
     use crate::segment::file::SegmentFile;
 
     #[tokio::test]
     async fn segment_metadata_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
 
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
