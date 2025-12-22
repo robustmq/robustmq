@@ -423,11 +423,10 @@ async fn batch_write(
 mod tests {
     use super::*;
     use crate::core::record::StorageEngineRecordMetadata;
-    use crate::core::test::test_build_rocksdb_sgement;
+    use crate::core::test::test_init_segment;
     use crate::segment::file::SegmentFile;
     use bytes::Bytes;
     use common_base::tools::now_second;
-    use std::sync::Arc;
 
     fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageEngineRecord> {
         (0..count)
@@ -447,19 +446,11 @@ mod tests {
 
     #[tokio::test]
     async fn batch_write_test() {
-        let (rocksdb, segment_iden) = test_build_rocksdb_sgement();
-        let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb.clone()));
-        let broker_cache = Arc::new(broker_core::cache::BrokerCacheManager::new(
-            common_config::config::BrokerConfig::default(),
-        ));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb) =
+            test_init_segment().await;
 
-        let data_fold = format!("/tmp/robustmq_test_{}", common_base::tools::get_local_ip());
-        let segment_file = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment,
-            data_fold,
-        );
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
         segment_file.try_create().await.unwrap();
 
         let test_records = create_test_records(5, &segment_iden.shard_name, segment_iden.segment);
@@ -467,10 +458,6 @@ mod tests {
         for (i, _) in test_records.iter().enumerate() {
             pkid_offset.insert(i as u64, i as u64);
         }
-
-        segment_file_manager
-            .create_segment(&segment_iden.shard_name, segment_iden.segment, 0, 0)
-            .unwrap();
 
         let result = batch_write(
             &rocksdb,
@@ -491,25 +478,28 @@ mod tests {
         assert_eq!(resp_data.offsets.len(), 5);
         assert_eq!(resp_data.last_offset, 4);
 
-        let segment_meta = segment_file_manager.get_segment_file(&segment_iden).unwrap();
+        let segment_meta = segment_file_manager
+            .get_segment_file(&segment_iden)
+            .unwrap();
         assert_eq!(segment_meta.end_offset, 4);
+
+        let read_result = segment_file.read_by_offset(0, 0, 1024 * 1024, 100).await;
+        assert!(read_result.is_ok());
+        let read_records = read_result.unwrap();
+        assert_eq!(read_records.len(), 5);
+        for (i, record) in read_records.iter().enumerate() {
+            assert_eq!(record.record.metadata.offset, i as u64);
+            assert_eq!(record.record.data, Bytes::from(format!("data-{}", i)));
+        }
     }
 
     #[tokio::test]
     async fn batch_write_empty_data_test() {
-        let (rocksdb, segment_iden) = test_build_rocksdb_sgement();
-        let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb.clone()));
-        let broker_cache = Arc::new(broker_core::cache::BrokerCacheManager::new(
-            common_config::config::BrokerConfig::default(),
-        ));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb) =
+            test_init_segment().await;
 
-        let data_fold = format!("/tmp/robustmq_test_{}", common_base::tools::get_local_ip());
-        let segment_file = SegmentFile::new(
-            segment_iden.shard_name.clone(),
-            segment_iden.segment,
-            data_fold,
-        );
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
 
         let empty_records: Vec<StorageEngineRecord> = vec![];
         let pkid_offset = HashMap::new();
@@ -527,5 +517,165 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
+
+        let read_result = segment_file.read_by_offset(0, 0, 1024 * 1024, 100).await;
+        assert!(read_result.is_ok());
+        let read_records = read_result.unwrap();
+        assert_eq!(read_records.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn write_manager_write_test() {
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb) =
+            test_init_segment().await;
+
+        use crate::segment::offset::save_shard_offset;
+        save_shard_offset(&rocksdb, &segment_iden.shard_name, 0).unwrap();
+
+        let write_manager = WriteManager::new(
+            rocksdb.clone(),
+            segment_file_manager.clone(),
+            cache_manager.clone(),
+            3,
+        );
+
+        let (stop_send, _) = broadcast::channel(2);
+        write_manager.start(stop_send);
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let mut data_list = Vec::new();
+        for i in 0..10 {
+            data_list.push(WriteChannelDataRecord {
+                pkid: i,
+                key: Some(format!("key-{}", i)),
+                tags: Some(vec![format!("tag-{}", i)]),
+                value: Bytes::from(format!("data-{}", i)),
+            });
+        }
+
+        let result = write_manager.write(&segment_iden, data_list).await;
+        assert!(result.is_ok());
+
+        let resp = result.unwrap();
+        if let Some(ref err) = resp.error {
+            panic!("Write failed with error: {}", err);
+        }
+        assert_eq!(resp.offsets.len(), 10);
+        assert_eq!(resp.last_offset, 9);
+
+        for i in 0..10 {
+            assert_eq!(*resp.offsets.get(&i).unwrap(), i);
+        }
+
+        let segment_file =
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+        let read_result = segment_file.read_by_offset(0, 0, 1024 * 1024, 100).await;
+        assert!(read_result.is_ok());
+        let read_records = read_result.unwrap();
+        assert_eq!(read_records.len(), 10);
+        for (i, record) in read_records.iter().enumerate() {
+            assert_eq!(record.record.metadata.offset, i as u64);
+            assert_eq!(record.record.data, Bytes::from(format!("data-{}", i)));
+        }
+    }
+
+    #[tokio::test]
+    async fn write_manager_no_offset_error_test() {
+        let (segment_iden, cache_manager, segment_file_manager, _fold, rocksdb) =
+            test_init_segment().await;
+
+        let write_manager = WriteManager::new(
+            rocksdb.clone(),
+            segment_file_manager.clone(),
+            cache_manager.clone(),
+            3,
+        );
+
+        let (stop_send, _) = broadcast::channel(2);
+        write_manager.start(stop_send);
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let data_list = vec![WriteChannelDataRecord {
+            pkid: 1,
+            key: Some("key-1".to_string()),
+            tags: None,
+            value: Bytes::from("data-1"),
+        }];
+
+        let result = write_manager.write(&segment_iden, data_list).await;
+        assert!(result.is_ok());
+
+        let resp = result.unwrap();
+        assert!(resp.error.is_some());
+        assert!(resp.error.unwrap().contains("No Offset information"));
+    }
+
+    #[tokio::test]
+    async fn write_manager_segment_not_exist_error_test() {
+        use crate::segment::offset::save_shard_offset;
+        use crate::segment::SegmentIdentity;
+
+        let (_, cache_manager, segment_file_manager, _fold, rocksdb) = test_init_segment().await;
+
+        let non_exist_segment = SegmentIdentity {
+            shard_name: "non_exist_shard".to_string(),
+            segment: 999,
+        };
+
+        save_shard_offset(&rocksdb, &non_exist_segment.shard_name, 0).unwrap();
+
+        let write_manager = WriteManager::new(
+            rocksdb.clone(),
+            segment_file_manager.clone(),
+            cache_manager.clone(),
+            3,
+        );
+
+        let (stop_send, _) = broadcast::channel(2);
+        write_manager.start(stop_send);
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let data_list = vec![WriteChannelDataRecord {
+            pkid: 1,
+            key: Some("key-1".to_string()),
+            tags: None,
+            value: Bytes::from("data-1"),
+        }];
+
+        let result = write_manager.write(&non_exist_segment, data_list).await;
+        assert!(result.is_ok());
+
+        let resp = result.unwrap();
+        assert!(resp.error.is_some());
+    }
+
+    #[tokio::test]
+    async fn write_manager_no_io_thread_error_test() {
+        let (segment_iden, cache_manager, segment_file_manager, _fold, rocksdb) =
+            test_init_segment().await;
+
+        let write_manager = WriteManager::new(
+            rocksdb.clone(),
+            segment_file_manager.clone(),
+            cache_manager.clone(),
+            3,
+        );
+
+        let data_list = vec![WriteChannelDataRecord {
+            pkid: 1,
+            key: Some("key-1".to_string()),
+            tags: None,
+            value: Bytes::from("data-1"),
+        }];
+
+        let result = write_manager.write(&segment_iden, data_list).await;
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            StorageEngineError::NoAvailableIoThread
+        ));
     }
 }
