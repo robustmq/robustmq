@@ -420,4 +420,112 @@ async fn batch_write(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::core::record::StorageEngineRecordMetadata;
+    use crate::core::test::test_build_rocksdb_sgement;
+    use crate::segment::file::SegmentFile;
+    use bytes::Bytes;
+    use common_base::tools::now_second;
+    use std::sync::Arc;
+
+    fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageEngineRecord> {
+        (0..count)
+            .map(|i| StorageEngineRecord {
+                metadata: StorageEngineRecordMetadata {
+                    offset: i as u64,
+                    shard: shard.to_string(),
+                    segment,
+                    key: Some(format!("key-{}", i)),
+                    tags: Some(vec![format!("tag-{}", i)]),
+                    create_t: now_second(),
+                },
+                data: Bytes::from(format!("data-{}", i)),
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn batch_write_test() {
+        let (rocksdb, segment_iden) = test_build_rocksdb_sgement();
+        let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb.clone()));
+        let broker_cache = Arc::new(broker_core::cache::BrokerCacheManager::new(
+            common_config::config::BrokerConfig::default(),
+        ));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+
+        let data_fold = format!("/tmp/robustmq_test_{}", common_base::tools::get_local_ip());
+        let segment_file = SegmentFile::new(
+            segment_iden.shard_name.clone(),
+            segment_iden.segment,
+            data_fold,
+        );
+        segment_file.try_create().await.unwrap();
+
+        let test_records = create_test_records(5, &segment_iden.shard_name, segment_iden.segment);
+        let mut pkid_offset = HashMap::new();
+        for (i, _) in test_records.iter().enumerate() {
+            pkid_offset.insert(i as u64, i as u64);
+        }
+
+        segment_file_manager
+            .create_segment(&segment_iden.shard_name, segment_iden.segment, 0, 0)
+            .unwrap();
+
+        let result = batch_write(
+            &rocksdb,
+            &segment_iden,
+            &segment_file_manager,
+            &cache_manager,
+            &segment_file,
+            &test_records,
+            &pkid_offset,
+        )
+        .await;
+
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert!(resp.is_some());
+
+        let resp_data = resp.unwrap();
+        assert_eq!(resp_data.offsets.len(), 5);
+        assert_eq!(resp_data.last_offset, 4);
+
+        let segment_meta = segment_file_manager.get_segment_file(&segment_iden).unwrap();
+        assert_eq!(segment_meta.end_offset, 4);
+    }
+
+    #[tokio::test]
+    async fn batch_write_empty_data_test() {
+        let (rocksdb, segment_iden) = test_build_rocksdb_sgement();
+        let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb.clone()));
+        let broker_cache = Arc::new(broker_core::cache::BrokerCacheManager::new(
+            common_config::config::BrokerConfig::default(),
+        ));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+
+        let data_fold = format!("/tmp/robustmq_test_{}", common_base::tools::get_local_ip());
+        let segment_file = SegmentFile::new(
+            segment_iden.shard_name.clone(),
+            segment_iden.segment,
+            data_fold,
+        );
+
+        let empty_records: Vec<StorageEngineRecord> = vec![];
+        let pkid_offset = HashMap::new();
+
+        let result = batch_write(
+            &rocksdb,
+            &segment_iden,
+            &segment_file_manager,
+            &cache_manager,
+            &segment_file,
+            &empty_records,
+            &pkid_offset,
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+}
