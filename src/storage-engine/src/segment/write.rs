@@ -52,7 +52,7 @@ pub struct WriteChannelDataRecord {
 /// the response of the write request from the segment write thread
 #[derive(Default, Debug, Clone)]
 pub struct SegmentWriteResp {
-    pub offsets: HashMap<u64, u64>,
+    pub offsets: Arc<HashMap<u64, u64>>,
     pub last_offset: u64,
     pub error: Option<String>,
 }
@@ -174,9 +174,8 @@ pub fn create_io_thread(
     stop_send: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
+        let mut stop_recv = stop_send.subscribe();
         loop {
-            let mut stop_recv = stop_send.subscribe();
-
             // check io thread exist
             match stop_recv.try_recv() {
                 Ok(bl) => {
@@ -201,13 +200,17 @@ pub fn create_io_thread(
                         }
                     }
                     Err(TryRecvError::Empty) => {
-                        sleep(Duration::from_millis(10)).await;
                         break;
                     }
                     Err(e) => {
                         error!("Failed to receive write request data from channel: {}", e);
                     }
                 }
+            }
+
+            if results.is_empty() {
+                sleep(Duration::from_millis(10)).await;
+                continue;
             }
 
             // build write data
@@ -399,7 +402,7 @@ async fn batch_write(
             segment_file_manager.update_end_timestamp(segment_iden, record.metadata.create_t)?;
 
             Some(SegmentWriteResp {
-                offsets: pkid_offset_list,
+                offsets: Arc::new(pkid_offset_list),
                 last_offset: record.metadata.offset,
                 ..Default::default()
             })
