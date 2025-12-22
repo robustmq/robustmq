@@ -158,9 +158,7 @@ impl IoWork {
 
     pub fn save_offset(&self, shard_name: &str, offset: u64) -> Result<(), StorageEngineError> {
         self.offset_data.insert(shard_name.to_string(), offset);
-        if let Some(offset) = self.offset_data.get(shard_name) {
-            save_shard_offset(&self.rocksdb_engine_handler, shard_name, *offset)?;
-        }
+        save_shard_offset(&self.rocksdb_engine_handler, shard_name, offset)?;
         Ok(())
     }
 }
@@ -300,7 +298,7 @@ pub fn create_io_thread(
                     &cache_manager,
                     &segment_write,
                     shard_data,
-                    pkid_offset_list.clone(),
+                    pkid_offset_list,
                 )
                 .await
                 {
@@ -332,8 +330,7 @@ fn success_save_offset(
     io_work: &Arc<IoWork>,
     segment_iden: &SegmentIdentity,
 ) -> bool {
-    let offsets: Vec<u64> = pkid_offset_list.values().map(|&v| v).collect();
-    if let Some(max_offset) = offsets.iter().max() {
+    if let Some(max_offset) = pkid_offset_list.values().max() {
         if let Err(ex) = io_work.save_offset(&segment_iden.shard_name, *max_offset + 1) {
             call_error_response(shard_sender_list, segment_iden, &ex.to_string());
             return false;
@@ -389,7 +386,7 @@ async fn batch_write(
     cache_manager: &Arc<StorageCacheManager>,
     segment_write: &SegmentFile,
     data_list: &[StorageEngineRecord],
-    pkid_offset_list: HashMap<u64, u64>,
+    pkid_offset_list: &HashMap<u64, u64>,
 ) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
     if data_list.is_empty() {
         return Ok(None);
@@ -402,7 +399,7 @@ async fn batch_write(
             segment_file_manager.update_end_timestamp(segment_iden, record.metadata.create_t)?;
 
             Some(SegmentWriteResp {
-                offsets: Arc::new(pkid_offset_list),
+                offsets: Arc::new(pkid_offset_list.clone()),
                 last_offset: record.metadata.offset,
                 ..Default::default()
             })

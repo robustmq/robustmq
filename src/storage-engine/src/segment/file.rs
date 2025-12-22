@@ -173,7 +173,7 @@ impl SegmentFile {
         let mut results = Vec::new();
         let mut already_size = 0;
         loop {
-            if already_size > max_size {
+            if results.len() >= max_record as usize {
                 break;
             }
 
@@ -204,17 +204,16 @@ impl SegmentFile {
 
             // read data
             let data = self.read_data(&mut reader).await?;
-            println!("{:?}", data);
             if let Some(da) = data {
-                already_size += da.data.len() as u64;
+                let data_size = da.data.len() as u64;
+                if already_size + data_size > max_size {
+                    break;
+                }
+                already_size += data_size;
                 results.push(ReadData {
                     record: da,
                     position,
                 });
-            }
-
-            if results.len() >= max_record as usize {
-                break;
             }
         }
 
@@ -237,7 +236,7 @@ impl SegmentFile {
         for position in positions {
             reader.seek(std::io::SeekFrom::Start(position)).await?;
 
-            // seek to data
+            // skip offset(8 bytes) + total_len(4 bytes) = 12 bytes
             reader.seek(std::io::SeekFrom::Current(12)).await?;
 
             // read data
@@ -271,7 +270,12 @@ impl SegmentFile {
 
         let metadata = match StorageEngineRecordMetadata::decode(metadata_buf.as_ref()) {
             Ok(data) => data,
-            Err(_) => return Err(StorageEngineError::ReadSegmentFileError),
+            Err(e) => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Failed to decode metadata in segment file for shard {}, segment {}: {}",
+                    self.shard_name, self.segment_no, e
+                )))
+            }
         };
 
         // read data len
