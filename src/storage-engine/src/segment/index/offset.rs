@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::{error::common::CommonError, utils::serialize};
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
-use rocksdb_engine::warp::StorageDataWrap;
-
 use super::IndexData;
-use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
 use crate::segment::keys::{
     offset_segment_end, offset_segment_position, offset_segment_position_prefix,
     offset_segment_start,
 };
 use crate::segment::SegmentIdentity;
+use common_base::{error::common::CommonError, utils::serialize};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
+use rocksdb_engine::warp::StorageDataWrap;
+use std::sync::Arc;
 
 pub struct OffsetIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -47,7 +45,7 @@ impl OffsetIndexManager {
         let key = offset_segment_start(segment_iden);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             start_offset,
         )?)
@@ -58,9 +56,11 @@ impl OffsetIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = offset_segment_start(segment_iden);
-        if let Some(res) =
-            engine_get_by_engine::<i64>(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
-        {
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
             return Ok(res.data);
         }
 
@@ -75,7 +75,7 @@ impl OffsetIndexManager {
         let key = offset_segment_end(segment_iden);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             end_offset,
         )?)
@@ -86,9 +86,11 @@ impl OffsetIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = offset_segment_end(segment_iden);
-        if let Some(res) =
-            engine_get_by_engine::<i64>(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
-        {
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
             return Ok(res.data);
         }
 
@@ -104,7 +106,7 @@ impl OffsetIndexManager {
         let key = offset_segment_position(segment_iden, offset);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             index_data,
         )?)
@@ -120,13 +122,14 @@ impl OffsetIndexManager {
 
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
         {
             cf
         } else {
-            return Err(
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_INDEX.to_string()).into(),
-            );
+            return Err(CommonError::RocksDBFamilyNotAvailable(
+                DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
+            )
+            .into());
         };
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -160,16 +163,15 @@ impl OffsetIndexManager {
 
 #[cfg(test)]
 mod tests {
-
-    use common_base::tools::now_second;
-
     use super::OffsetIndexManager;
-    use crate::core::test::test_build_rocksdb_sgement;
-    use crate::segment::index::IndexData;
+    use crate::{core::test::test_build_segment, segment::index::IndexData};
+    use common_base::tools::now_second;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[test]
     fn start_end_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
 
         let offset_index = OffsetIndexManager::new(rocksdb_engine_handler);
 
@@ -192,7 +194,8 @@ mod tests {
 
     #[tokio::test]
     async fn timestamp_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
 
         let offset_index = OffsetIndexManager::new(rocksdb_engine_handler);
 

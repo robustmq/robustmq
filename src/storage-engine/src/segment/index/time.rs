@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::{error::common::CommonError, utils::serialize};
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
-use rocksdb_engine::warp::StorageDataWrap;
-
 use super::IndexData;
-use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
 use crate::segment::keys::{
     timestamp_segment_end, timestamp_segment_start, timestamp_segment_time,
     timestamp_segment_time_prefix,
 };
 use crate::segment::SegmentIdentity;
+use common_base::{error::common::CommonError, utils::serialize};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
+use rocksdb_engine::warp::StorageDataWrap;
+use std::sync::Arc;
 
 pub struct TimestampIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -47,7 +45,7 @@ impl TimestampIndexManager {
         let key = timestamp_segment_start(segment_iden);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             start_timestamp,
         )?)
@@ -58,9 +56,11 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = timestamp_segment_start(segment_iden);
-        if let Some(res) =
-            engine_get_by_engine::<i64>(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
-        {
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
             return Ok(res.data);
         }
 
@@ -75,7 +75,7 @@ impl TimestampIndexManager {
         let key = timestamp_segment_end(segment_iden);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             end_timestamp,
         )?)
@@ -86,9 +86,11 @@ impl TimestampIndexManager {
         segment_iden: &SegmentIdentity,
     ) -> Result<i64, StorageEngineError> {
         let key = timestamp_segment_end(segment_iden);
-        if let Some(res) =
-            engine_get_by_engine::<i64>(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
-        {
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
             return Ok(res.data);
         }
 
@@ -104,7 +106,7 @@ impl TimestampIndexManager {
         let key = timestamp_segment_time(segment_iden, timestamp);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             index_data,
         )?)
@@ -120,13 +122,14 @@ impl TimestampIndexManager {
 
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
         {
             cf
         } else {
-            return Err(
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_INDEX.to_string()).into(),
-            );
+            return Err(CommonError::RocksDBFamilyNotAvailable(
+                DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
+            )
+            .into());
         };
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -161,14 +164,14 @@ impl TimestampIndexManager {
 #[cfg(test)]
 mod tests {
     use super::TimestampIndexManager;
-    use crate::core::test::test_build_rocksdb_sgement;
-    use crate::segment::index::IndexData;
+    use crate::{core::test::test_build_segment, segment::index::IndexData};
     use common_base::tools::now_second;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[test]
     fn start_end_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
         let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
 
         let start_timestamp = now_second();
@@ -190,8 +193,8 @@ mod tests {
 
     #[tokio::test]
     async fn timestamp_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
         let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
 
         let timestamp = now_second();

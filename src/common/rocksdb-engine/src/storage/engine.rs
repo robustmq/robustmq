@@ -19,7 +19,7 @@ use crate::{
             engine_delete, engine_delete_prefix, engine_exists, engine_get, engine_list_by_model,
             engine_prefix_list, engine_save,
         },
-        family::DB_COLUMN_FAMILY_JOURNAL,
+        family::DB_COLUMN_FAMILY_STORAGE_ENGINE,
     },
     warp::StorageDataWrap,
 };
@@ -40,7 +40,7 @@ where
     engine_save(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         key_name,
         value,
     )
@@ -57,7 +57,7 @@ where
     engine_get(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         key_name,
     )
 }
@@ -70,7 +70,7 @@ pub fn engine_delete_by_engine(
     engine_delete(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         key_name,
     )
 }
@@ -83,7 +83,7 @@ pub fn engine_delete_prefix_by_engine(
     engine_delete_prefix(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         prefix_key,
     )
 }
@@ -96,7 +96,7 @@ pub fn engine_exists_by_engine(
     engine_exists(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         key_name,
     )
 }
@@ -112,7 +112,7 @@ where
     engine_prefix_list(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         prefix_key_name,
     )
 }
@@ -128,7 +128,7 @@ where
     engine_list_by_model(
         rocksdb_engine_handler,
         column_family,
-        DB_COLUMN_FAMILY_JOURNAL,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         mode,
     )
 }
@@ -166,7 +166,7 @@ where
     }
 
     let duration = (now_millis() - start_time) as f64;
-    metrics_rocksdb_list_ms(DB_COLUMN_FAMILY_JOURNAL, duration);
+    metrics_rocksdb_list_ms(DB_COLUMN_FAMILY_STORAGE_ENGINE, duration);
 
     Ok(results)
 }

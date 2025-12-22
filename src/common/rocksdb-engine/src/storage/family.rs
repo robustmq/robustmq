@@ -21,7 +21,7 @@ pub const DB_COLUMN_FAMILY_META_METADATA: &str = "meta_metadata";
 pub const DB_COLUMN_FAMILY_BROKER: &str = "broker";
 
 // journal engine
-pub const DB_COLUMN_FAMILY_JOURNAL: &str = "journal";
+pub const DB_COLUMN_FAMILY_STORAGE_ENGINE: &str = "storage";
 
 pub fn column_family_list() -> Vec<String> {
     vec![
@@ -29,7 +29,7 @@ pub fn column_family_list() -> Vec<String> {
         DB_COLUMN_FAMILY_META_DATA.to_string(),
         DB_COLUMN_FAMILY_META_METADATA.to_string(),
         DB_COLUMN_FAMILY_BROKER.to_string(),
-        DB_COLUMN_FAMILY_JOURNAL.to_string(),
+        DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
     ]
 }
 

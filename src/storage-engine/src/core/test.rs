@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use crate::segment::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
@@ -26,21 +25,9 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-
-#[allow(dead_code)]
-pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
-    let data_fold = test_build_data_fold();
-    let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-        &storage_data_fold(&data_fold),
-        10000,
-        column_family_list(),
-    ));
-
-    let segment_iden = test_build_segment();
-    (rocksdb_engine_handler, segment_iden)
-}
 
 #[allow(dead_code)]
 pub fn test_build_segment() -> SegmentIdentity {
@@ -73,7 +60,8 @@ pub async fn test_init_segment() -> (
     Arc<RocksDBEngine>,
 ) {
     test_init_conf();
-    let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+    let rocksdb_engine_handler = test_rocksdb_instance();
+    let segment_iden = test_build_segment();
     let fold = test_build_data_fold().first().unwrap().to_string();
     let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 

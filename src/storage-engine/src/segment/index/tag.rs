@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use super::IndexData;
-use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::StorageEngineError;
 use crate::segment::keys::{key_segment, key_segment_prefix, tag_segment, tag_segment_prefix};
 use crate::segment::SegmentIdentity;
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::engine::engine_save_by_engine;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use rocksdb_engine::warp::StorageDataWrap;
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ impl TagIndexManager {
         let key = tag_segment(segment_iden, tag, index_data.offset);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             index_data,
         )?)
@@ -60,13 +60,14 @@ impl TagIndexManager {
 
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
         {
             cf
         } else {
-            return Err(
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_INDEX.to_string()).into(),
-            );
+            return Err(CommonError::RocksDBFamilyNotAvailable(
+                DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
+            )
+            .into());
         };
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -110,7 +111,7 @@ impl TagIndexManager {
         let key = key_segment(segment_iden, key, index_data.offset);
         Ok(engine_save_by_engine(
             &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_INDEX,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
             &key,
             index_data,
         )?)
@@ -127,13 +128,14 @@ impl TagIndexManager {
 
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
         {
             cf
         } else {
-            return Err(
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_INDEX.to_string()).into(),
-            );
+            return Err(CommonError::RocksDBFamilyNotAvailable(
+                DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
+            )
+            .into());
         };
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -171,17 +173,15 @@ impl TagIndexManager {
 
 #[cfg(test)]
 mod tests {
-
-    use common_base::tools::now_second;
-
     use super::TagIndexManager;
-    use crate::core::test::test_build_rocksdb_sgement;
-    use crate::segment::index::IndexData;
+    use crate::{core::test::test_build_segment, segment::index::IndexData};
+    use common_base::tools::now_second;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
     #[tokio::test]
     async fn tag_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
         let tag_index = TagIndexManager::new(rocksdb_engine_handler);
 
         let timestamp = now_second();
@@ -237,7 +237,8 @@ mod tests {
 
     #[tokio::test]
     async fn key_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
 
         let tag_index = TagIndexManager::new(rocksdb_engine_handler);
 

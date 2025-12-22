@@ -174,7 +174,6 @@ pub fn create_io_thread(
     tokio::spawn(async move {
         let mut stop_recv = stop_send.subscribe();
         loop {
-            // check io thread exist
             match stop_recv.try_recv() {
                 Ok(bl) => {
                     if bl {
@@ -187,7 +186,6 @@ pub fn create_io_thread(
                 Err(_) => {}
             }
 
-            // batch recv data
             let mut results = Vec::new();
             loop {
                 match data_recv.try_recv() {
@@ -211,7 +209,6 @@ pub fn create_io_thread(
                 continue;
             }
 
-            // build write data
             let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageEngineRecord>> =
                 HashMap::new();
 
@@ -238,7 +235,6 @@ pub fn create_io_thread(
                     .entry(channel_data.segment_iden.clone())
                     .or_default();
 
-                // get current offset
                 let offset = if let Some(offset) = tmp_offset_info.get(&shard_name) {
                     *offset
                 } else {
@@ -281,7 +277,6 @@ pub fn create_io_thread(
                 tmp_offset_info.insert(shard_name.to_string(), start_offset);
             }
 
-            // save data
             for (segment_iden, shard_data) in write_data_list.iter() {
                 let segment_write = match open_segment_write(&cache_manager, segment_iden).await {
                     Ok(data) => data,

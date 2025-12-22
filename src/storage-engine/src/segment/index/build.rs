@@ -16,7 +16,7 @@ use super::offset::OffsetIndexManager;
 use super::tag::TagIndexManager;
 use super::time::TimestampIndexManager;
 use crate::core::cache::StorageCacheManager;
-use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
+use crate::core::consts::BUILD_INDE_PER_RECORD_NUM;
 use crate::core::error::StorageEngineError;
 use crate::segment::file::{open_segment_write, ReadData};
 use crate::segment::index::IndexData;
@@ -30,6 +30,7 @@ use rocksdb_engine::storage::engine::{
     engine_delete_by_engine, engine_get_by_engine, engine_list_by_prefix_to_map_by_engine,
     engine_save_by_engine,
 };
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -274,7 +275,7 @@ fn save_finish_build_index(
     let key = finish_build_index(segment_iden);
     Ok(engine_save_by_engine(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_INDEX,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         &key,
         now_second(),
     )?)
@@ -285,7 +286,11 @@ fn is_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, StorageEngineError> {
     let key = finish_build_index(segment_iden);
-    let res = engine_get_by_engine::<u8>(rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?;
+    let res = engine_get_by_engine::<u8>(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
+        &key,
+    )?;
     Ok(res.is_some())
 }
 
@@ -297,7 +302,7 @@ fn save_last_offset_build_index(
     let key = last_offset_build_index(segment_iden);
     Ok(engine_save_by_engine(
         rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_INDEX,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         &key,
         offset,
     )?)
@@ -308,9 +313,11 @@ fn get_last_offset_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<Option<u64>, StorageEngineError> {
     let key = last_offset_build_index(segment_iden);
-    if let Some(res) =
-        engine_get_by_engine::<u64>(rocksdb_engine_handler, DB_COLUMN_FAMILY_INDEX, &key)?
-    {
+    if let Some(res) = engine_get_by_engine::<u64>(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
+        &key,
+    )? {
         return Ok(Some(res.data));
     }
 
@@ -324,7 +331,7 @@ pub fn delete_segment_index(
     use super::IndexData;
 
     let prefix_key_name = segment_index_prefix(segment_iden);
-    let comlumn_family = DB_COLUMN_FAMILY_INDEX;
+    let comlumn_family = DB_COLUMN_FAMILY_STORAGE_ENGINE;
     let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
         rocksdb_engine_handler,
         comlumn_family,
@@ -338,26 +345,26 @@ pub fn delete_segment_index(
 
 #[cfg(test)]
 mod tests {
-    use common_base::utils::serialize;
-    use rocksdb_engine::warp::StorageDataWrap;
-    use std::time::Duration;
-
-    use common_base::tools::now_second;
-    use tokio::time::sleep;
-
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
-    use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-    use crate::core::test::{test_base_write_data, test_build_rocksdb_sgement};
+    use crate::core::test::{test_base_write_data, test_build_segment};
     use crate::segment::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
     };
     use crate::segment::index::offset::OffsetIndexManager;
     use crate::segment::index::IndexData;
     use crate::segment::keys::segment_index_prefix;
+    use common_base::tools::now_second;
+    use common_base::utils::serialize;
+    use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
+    use rocksdb_engine::test::test_rocksdb_instance;
+    use rocksdb_engine::warp::StorageDataWrap;
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[test]
     fn last_offset_build_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
         let res = save_last_offset_build_index(&rocksdb_engine_handler, &segment_iden, 10);
         assert!(res.is_ok());
 
@@ -369,8 +376,8 @@ mod tests {
 
     #[test]
     fn finish_build_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
         let res = save_finish_build_index(&rocksdb_engine_handler, &segment_iden);
         assert!(res.is_ok());
 
@@ -381,8 +388,8 @@ mod tests {
 
     #[test]
     fn delete_segment_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
         // build index
         let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
         let timestamp = now_second();
@@ -400,7 +407,7 @@ mod tests {
         // check data - use raw iterator to count entries
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let cf = rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
             .unwrap();
 
         let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -426,7 +433,7 @@ mod tests {
         // check data - use raw iterator to count entries
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let cf = rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
             .unwrap();
 
         let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -464,7 +471,7 @@ mod tests {
         sleep(Duration::from_secs(120)).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let cf = rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_INDEX)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
             .unwrap();
 
         let mut tag_num = 0;
