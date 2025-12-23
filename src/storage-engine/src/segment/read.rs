@@ -104,17 +104,85 @@ pub async fn read_by_tag(
 #[cfg(test)]
 mod tests {
     use super::{read_by_key, read_by_offset, read_by_tag};
-    use crate::core::test::test_base_write_data;
+    use crate::core::cache::StorageCacheManager;
+    use crate::core::test::test_init_segment;
     use crate::segment::file::SegmentFile;
     use crate::segment::index::build::try_trigger_build_index;
+    use crate::segment::manager::SegmentFileManager;
+    use crate::segment::offset::save_shard_offset;
+    use crate::segment::write::{WriteChannelDataRecord, WriteManager};
+    use crate::segment::SegmentIdentity;
+    use bytes::Bytes;
     use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use std::sync::Arc;
     use std::time::Duration;
+    use tokio::sync::broadcast;
     use tokio::time::sleep;
 
+    async fn test_write_and_build_index(
+        record_count: u64,
+        wait_secs: u64,
+    ) -> (
+        SegmentIdentity,
+        Arc<StorageCacheManager>,
+        Arc<SegmentFileManager>,
+        String,
+        Arc<RocksDBEngine>,
+    ) {
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+            test_init_segment().await;
+
+        save_shard_offset(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
+
+        let write_manager = WriteManager::new(
+            rocksdb_engine_handler.clone(),
+            segment_file_manager.clone(),
+            cache_manager.clone(),
+            3,
+        );
+
+        let (stop_send, _) = broadcast::channel(2);
+        write_manager.start(stop_send);
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let mut data_list = Vec::new();
+        for i in 0..record_count {
+            data_list.push(WriteChannelDataRecord {
+                pkid: i,
+                key: Some(format!("key-{}", i)),
+                tags: Some(vec![format!("tag-{}", i)]),
+                value: Bytes::from(format!("data-{}", i)),
+            });
+        }
+
+        write_manager.write(&segment_iden, data_list).await.unwrap();
+
+        try_trigger_build_index(
+            &cache_manager,
+            &segment_file_manager,
+            &rocksdb_engine_handler,
+            &segment_iden,
+        )
+        .await
+        .unwrap();
+
+        sleep(Duration::from_secs(wait_secs)).await;
+
+        (
+            segment_iden,
+            cache_manager,
+            segment_file_manager,
+            fold,
+            rocksdb_engine_handler,
+        )
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-    #[ignore]
     async fn read_by_offset_test() {
-        let (segment_iden, _, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
+        let (segment_iden, _, _, fold, rocksdb_engine_handler) =
+            test_write_and_build_index(30, 5).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
@@ -123,8 +191,6 @@ mod tests {
             max_record: 2,
             max_size: 1024 * 1024 * 1024,
         };
-
-        sleep(Duration::from_secs(3)).await;
 
         let filter = ReadReqFilter {
             offset: 5,
@@ -171,27 +237,15 @@ mod tests {
 
         let mut i = 10;
         for row in resp {
-            println!("{row:?}");
             assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
             i += 1;
         }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-    #[ignore]
     async fn read_by_key_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
-            test_base_write_data(30).await;
-        let res = try_trigger_build_index(
-            &cache_manager,
-            &segment_file_manager,
-            &rocksdb_engine_handler,
-            &segment_iden,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        sleep(Duration::from_secs(10)).await;
+        let (segment_iden, _, _, fold, rocksdb_engine_handler) =
+            test_write_and_build_index(30, 10).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
@@ -224,21 +278,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-    #[ignore]
     async fn read_by_tag_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
-            test_base_write_data(30).await;
-
-        let res = try_trigger_build_index(
-            &cache_manager,
-            &segment_file_manager,
-            &rocksdb_engine_handler,
-            &segment_iden,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        sleep(Duration::from_secs(10)).await;
+        let (segment_iden, _, _, fold, rocksdb_engine_handler) =
+            test_write_and_build_index(30, 10).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
