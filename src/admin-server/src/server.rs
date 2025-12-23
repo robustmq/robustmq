@@ -124,7 +124,7 @@ impl AdminServer {
             // monitor
             .route(MQTT_MONITOR_PATH, get(monitor_data))
             // client
-            .route(MQTT_CLIENT_LIST_PATH, post(client_list))
+            .route(MQTT_CLIENT_LIST_PATH, get(client_list))
             // session
             .route(MQTT_SESSION_LIST_PATH, post(session_list))
             // topic

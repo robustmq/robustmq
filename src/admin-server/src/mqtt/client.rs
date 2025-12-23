@@ -19,7 +19,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::State;
 use common_base::http_response::success_response;
 use metadata_struct::{
     connection::NetworkConnection,
@@ -50,11 +50,12 @@ pub struct ClientListRow {
     pub session: Option<MqttSession>,
     pub heartbeat: Option<ConnectionLiveTime>,
 }
+use axum::extract::Query;
 use std::sync::Arc;
 
 pub async fn client_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<ClientListReq>,
+    Query(params): Query<ClientListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
