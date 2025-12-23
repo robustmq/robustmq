@@ -104,80 +104,9 @@ pub async fn read_by_tag(
 #[cfg(test)]
 mod tests {
     use super::{read_by_key, read_by_offset, read_by_tag};
-    use crate::core::cache::StorageCacheManager;
-    use crate::core::test::test_init_segment;
+    use crate::core::test::test_write_and_build_index;
     use crate::segment::file::SegmentFile;
-    use crate::segment::index::build::try_trigger_build_index;
-    use crate::segment::manager::SegmentFileManager;
-    use crate::segment::offset::save_shard_offset;
-    use crate::segment::write::{WriteChannelDataRecord, WriteManager};
-    use crate::segment::SegmentIdentity;
-    use bytes::Bytes;
     use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use std::sync::Arc;
-    use std::time::Duration;
-    use tokio::sync::broadcast;
-    use tokio::time::sleep;
-
-    async fn test_write_and_build_index(
-        record_count: u64,
-        wait_secs: u64,
-    ) -> (
-        SegmentIdentity,
-        Arc<StorageCacheManager>,
-        Arc<SegmentFileManager>,
-        String,
-        Arc<RocksDBEngine>,
-    ) {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
-            test_init_segment().await;
-
-        save_shard_offset(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
-
-        let write_manager = WriteManager::new(
-            rocksdb_engine_handler.clone(),
-            segment_file_manager.clone(),
-            cache_manager.clone(),
-            3,
-        );
-
-        let (stop_send, _) = broadcast::channel(2);
-        write_manager.start(stop_send);
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let mut data_list = Vec::new();
-        for i in 0..record_count {
-            data_list.push(WriteChannelDataRecord {
-                pkid: i,
-                key: Some(format!("key-{}", i)),
-                tags: Some(vec![format!("tag-{}", i)]),
-                value: Bytes::from(format!("data-{}", i)),
-            });
-        }
-
-        write_manager.write(&segment_iden, data_list).await.unwrap();
-
-        try_trigger_build_index(
-            &cache_manager,
-            &segment_file_manager,
-            &rocksdb_engine_handler,
-            &segment_iden,
-        )
-        .await
-        .unwrap();
-
-        sleep(Duration::from_secs(wait_secs)).await;
-
-        (
-            segment_iden,
-            cache_manager,
-            segment_file_manager,
-            fold,
-            rocksdb_engine_handler,
-        )
-    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn read_by_offset_test() {

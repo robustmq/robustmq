@@ -345,8 +345,8 @@ pub fn delete_segment_index(
 
 #[cfg(test)]
 mod tests {
-    use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
-    use crate::core::test::{test_base_write_data, test_build_segment};
+    use super::{save_finish_build_index, save_last_offset_build_index};
+    use crate::core::test::{test_build_segment, test_write_and_build_index};
     use crate::segment::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
     };
@@ -358,8 +358,6 @@ mod tests {
     use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
     use rocksdb_engine::test::test_rocksdb_instance;
     use rocksdb_engine::warp::StorageDataWrap;
-    use std::time::Duration;
-    use tokio::time::sleep;
 
     #[test]
     fn last_offset_build_index_test() {
@@ -455,20 +453,9 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn build_thread_test() {
-        let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
-            test_base_write_data(10001).await;
-        let res: Result<(), crate::core::error::StorageEngineError> = try_trigger_build_index(
-            &cache_manager,
-            &segment_file_manager,
-            &rocksdb_engine_handler,
-            &segment_iden,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        sleep(Duration::from_secs(120)).await;
+        let (segment_iden, _, _, _, rocksdb_engine_handler) =
+            test_write_and_build_index(10001, 120).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let cf = rocksdb_engine_handler
             .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
