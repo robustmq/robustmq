@@ -23,14 +23,10 @@ use protocol::broker::broker_common::{
 use tracing::{error, info};
 
 use super::cache::StorageCacheManager;
-use crate::{
-    core::error::StorageEngineError,
-    segment::manager::{create_local_segment, SegmentFileManager},
-};
+use crate::core::{error::StorageEngineError, segment::create_local_segment};
 
 pub async fn update_storage_cache_metadata(
     cache_manager: &Arc<StorageCacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
     request: &UpdateCacheRequest,
 ) -> Result<(), StorageEngineError> {
     match request.resource_type() {
@@ -39,13 +35,7 @@ pub async fn update_storage_cache_metadata(
         }
 
         BrokerUpdateCacheResourceType::Segment => {
-            parse_segment(
-                cache_manager,
-                segment_file_manager,
-                request.action_type(),
-                &request.data,
-            )
-            .await;
+            parse_segment(cache_manager, request.action_type(), &request.data).await;
         }
 
         BrokerUpdateCacheResourceType::SegmentMeta => {
@@ -82,7 +72,6 @@ fn parse_shard(
 
 async fn parse_segment(
     cache_manager: &Arc<StorageCacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) {
@@ -91,9 +80,7 @@ async fn parse_segment(
             Ok(segment) => {
                 info!("Segment cache update, action: set, segment:{:?}", segment);
 
-                if let Err(e) =
-                    create_local_segment(cache_manager, segment_file_manager, &segment).await
-                {
+                if let Err(e) = create_local_segment(cache_manager, &segment).await {
                     error!("Error creating local Segment file, error message: {}", e);
                 }
             }

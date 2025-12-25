@@ -14,10 +14,11 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
-use crate::segment::file::open_segment_write;
+use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::index::build::delete_segment_index;
-use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
+use common_config::broker::broker_config;
+use metadata_struct::storage::segment::EngineSegment;
 use protocol::broker::broker_storage::GetSegmentDeleteStatusRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -26,7 +27,6 @@ use tracing::{error, info};
 pub async fn delete_local_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
     if cache_manager.get_segment(segment_iden).is_none() {
@@ -35,12 +35,6 @@ pub async fn delete_local_segment(
 
     // delete segment by cache
     cache_manager.delete_segment(segment_iden);
-
-    // delete segment file manager  by cache
-    segment_file_manager.remove_segment_file(segment_iden);
-
-    // delete build index thread
-    cache_manager.remove_build_index_thread(segment_iden);
 
     // delete index
     if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {
@@ -75,4 +69,39 @@ pub async fn segment_already_delete(
     let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
 
     Ok(!segment_file.exists())
+}
+
+/// Create a new local segment file from `JournalSegment`.
+pub async fn create_local_segment(
+    cache_manager: &Arc<StorageCacheManager>,
+    segment: &EngineSegment,
+) -> Result<(), StorageEngineError> {
+    let segment_iden = SegmentIdentity {
+        shard_name: segment.shard_name.clone(),
+        segment: segment.segment_seq,
+    };
+
+    if cache_manager.get_segment(&segment_iden).is_some() {
+        return Ok(());
+    }
+
+    let conf = broker_config();
+    let fold = if let Some(fold) = segment.get_fold(conf.broker_id) {
+        fold
+    } else {
+        return Err(StorageEngineError::SegmentDataDirectoryNotFound(
+            segment_iden.name(),
+            conf.broker_id,
+        ));
+    };
+
+    // create segment file
+    let segment_file = SegmentFile::new(segment.shard_name.clone(), segment.segment_seq, fold);
+    segment_file.try_create().await?;
+
+    // add cache
+    cache_manager.set_segment(segment.clone());
+
+    info!("Segment {} created successfully", segment_iden.name());
+    Ok(())
 }

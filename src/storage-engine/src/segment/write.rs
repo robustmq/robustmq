@@ -15,14 +15,15 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
-use crate::segment::file::{open_segment_write, SegmentFile};
-use crate::segment::index::build::try_trigger_build_index;
-use crate::segment::manager::SegmentFileManager;
+use crate::segment::file::open_segment_write;
+use crate::segment::index::build::{save_index, BuildIndexRaw};
 use crate::segment::offset::{get_shard_offset, save_shard_offset};
+use crate::segment::scroll::{is_trigger_next_segment_scroll, trigger_next_segment_scroll};
 use crate::segment::SegmentIdentity;
 use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
+use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::hash::Hasher;
@@ -59,8 +60,8 @@ pub struct SegmentWriteResp {
 
 pub struct WriteManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<StorageCacheManager>,
+    client_pool: Arc<ClientPool>,
     io_num: u32,
     io_thread: DashMap<u32, Sender<WriteChannelData>>,
 }
@@ -68,14 +69,14 @@ pub struct WriteManager {
 impl WriteManager {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        segment_file_manager: Arc<SegmentFileManager>,
         cache_manager: Arc<StorageCacheManager>,
+        client_pool: Arc<ClientPool>,
         io_num: u32,
     ) -> Self {
         WriteManager {
             rocksdb_engine_handler,
-            segment_file_manager,
             cache_manager,
+            client_pool,
             io_num,
             io_thread: DashMap::with_capacity(2),
         }
@@ -88,8 +89,8 @@ impl WriteManager {
             create_io_thread(
                 io_work,
                 self.rocksdb_engine_handler.clone(),
-                self.segment_file_manager.clone(),
                 self.cache_manager.clone(),
+                self.client_pool.clone(),
                 data_recv,
                 stop_send.clone(),
             );
@@ -166,8 +167,8 @@ impl IoWork {
 pub fn create_io_thread(
     io_work: Arc<IoWork>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<StorageCacheManager>,
+    client_pool: Arc<ClientPool>,
     mut data_recv: Receiver<WriteChannelData>,
     stop_send: broadcast::Sender<bool>,
 ) {
@@ -219,6 +220,7 @@ pub fn create_io_thread(
                 Vec<oneshot::Sender<SegmentWriteResp>>,
             > = HashMap::new();
             let mut tmp_offset_info = HashMap::new();
+            let index_info_list = Vec::new();
 
             for channel_data in results {
                 let shard_name = channel_data.segment_iden.shard_name.to_string();
@@ -278,22 +280,15 @@ pub fn create_io_thread(
             }
 
             for (segment_iden, shard_data) in write_data_list.iter() {
-                let segment_write = match open_segment_write(&cache_manager, segment_iden).await {
-                    Ok(data) => data,
-                    Err(e) => {
-                        call_error_response(&mut shard_sender_list, segment_iden, &e.to_string());
-                        continue;
-                    }
-                };
                 let pkid_offset_list = pkid_offset.get(segment_iden).unwrap();
                 match batch_write(
-                    &rocksdb_engine_handler,
-                    segment_iden,
-                    &segment_file_manager,
                     &cache_manager,
-                    &segment_write,
+                    &rocksdb_engine_handler,
+                    &client_pool,
+                    segment_iden,
                     shard_data,
                     pkid_offset_list,
+                    &index_info_list,
                 )
                 .await
                 {
@@ -375,48 +370,47 @@ fn call_error_response(
 ///
 /// Note that this function will be executed serially by the write thread of the segment
 async fn batch_write(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-    segment_file_manager: &Arc<SegmentFileManager>,
     cache_manager: &Arc<StorageCacheManager>,
-    segment_write: &SegmentFile,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    client_pool: &Arc<ClientPool>,
+    segment_iden: &SegmentIdentity,
     data_list: &[StorageEngineRecord],
     pkid_offset_list: &HashMap<u64, u64>,
+    index_data: &[BuildIndexRaw],
 ) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
     if data_list.is_empty() {
         return Ok(None);
     }
 
-    let resp = match segment_write.write(data_list).await {
-        Ok(_) => {
-            let record = data_list.last().unwrap();
-            segment_file_manager.update_end_offset(segment_iden, record.metadata.offset as i64)?;
-            segment_file_manager.update_end_timestamp(segment_iden, record.metadata.create_t)?;
+    let segment_write = open_segment_write(cache_manager, segment_iden).await?;
+    segment_write.write(data_list).await?;
 
-            Some(SegmentWriteResp {
-                offsets: Arc::new(pkid_offset_list.clone()),
-                last_offset: record.metadata.offset,
-                ..Default::default()
-            })
+    let offsets: Vec<u64> = data_list.iter().map(|raw| raw.metadata.offset).collect();
+    let last_offset = offsets.iter().max().unwrap();
+
+    // save index
+    save_index(rocksdb_engine_handler, segment_iden, index_data)?;
+
+    // trigger scroll next segment
+    if is_trigger_next_segment_scroll(&offsets) {
+        if let Err(e) = trigger_next_segment_scroll(
+            cache_manager,
+            client_pool,
+            &segment_write,
+            segment_iden,
+            *last_offset,
+        )
+        .await
+        {
+            error!("{}", e);
         }
-        Err(e) => return Err(e),
-    };
-
-    if let Err(e) = try_trigger_build_index(
-        cache_manager,
-        segment_file_manager,
-        rocksdb_engine_handler,
-        segment_iden,
-    )
-    .await
-    {
-        error!(
-            "Failed to trigger build index for shard {}, segment {}: {}",
-            segment_iden.shard_name, segment_iden.segment, e
-        );
     }
 
-    Ok(resp)
+    Ok(Some(SegmentWriteResp {
+        offsets: Arc::new(pkid_offset_list.clone()),
+        last_offset: *last_offset,
+        ..Default::default()
+    }))
 }
 
 #[cfg(test)]
@@ -446,27 +440,28 @@ mod tests {
 
     #[tokio::test]
     async fn batch_write_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb) =
-            test_init_segment().await;
+        let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
-        segment_file.try_create().await.unwrap();
+
+        let client_poll = Arc::new(ClientPool::new(100));
 
         let test_records = create_test_records(5, &segment_iden.shard_name, segment_iden.segment);
         let mut pkid_offset = HashMap::new();
         for (i, _) in test_records.iter().enumerate() {
             pkid_offset.insert(i as u64, i as u64);
         }
+        let index_data = Vec::new();
 
         let result = batch_write(
-            &rocksdb,
-            &segment_iden,
-            &segment_file_manager,
             &cache_manager,
-            &segment_file,
+            &rocksdb,
+            &client_poll,
+            &segment_iden,
             &test_records,
             &pkid_offset,
+            &index_data,
         )
         .await;
 
@@ -477,11 +472,6 @@ mod tests {
         let resp_data = resp.unwrap();
         assert_eq!(resp_data.offsets.len(), 5);
         assert_eq!(resp_data.last_offset, 4);
-
-        let segment_meta = segment_file_manager
-            .get_segment_file(&segment_iden)
-            .unwrap();
-        assert_eq!(segment_meta.end_offset, 4);
 
         let read_result = segment_file.read_by_offset(0, 0, 1024 * 1024, 100).await;
         assert!(read_result.is_ok());
@@ -495,23 +485,24 @@ mod tests {
 
     #[tokio::test]
     async fn batch_write_empty_data_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb) =
-            test_init_segment().await;
+        let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
 
         let empty_records: Vec<StorageEngineRecord> = vec![];
         let pkid_offset = HashMap::new();
+        let client_poll = Arc::new(ClientPool::new(100));
+        let index_data = Vec::new();
 
         let result = batch_write(
-            &rocksdb,
-            &segment_iden,
-            &segment_file_manager,
             &cache_manager,
-            &segment_file,
+            &rocksdb,
+            &client_poll,
+            &segment_iden,
             &empty_records,
             &pkid_offset,
+            &index_data,
         )
         .await;
 
@@ -526,18 +517,14 @@ mod tests {
 
     #[tokio::test]
     async fn write_manager_write_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb) =
-            test_init_segment().await;
+        let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         use crate::segment::offset::save_shard_offset;
         save_shard_offset(&rocksdb, &segment_iden.shard_name, 0).unwrap();
+        let client_poll = Arc::new(ClientPool::new(100));
 
-        let write_manager = WriteManager::new(
-            rocksdb.clone(),
-            segment_file_manager.clone(),
-            cache_manager.clone(),
-            3,
-        );
+        let write_manager =
+            WriteManager::new(rocksdb.clone(), cache_manager.clone(), client_poll, 3);
 
         let (stop_send, _) = broadcast::channel(2);
         write_manager.start(stop_send);
@@ -582,13 +569,12 @@ mod tests {
 
     #[tokio::test]
     async fn write_manager_no_offset_error_test() {
-        let (segment_iden, cache_manager, segment_file_manager, _fold, rocksdb) =
-            test_init_segment().await;
-
+        let (segment_iden, cache_manager, _fold, rocksdb) = test_init_segment().await;
+        let client_poll = Arc::new(ClientPool::new(100));
         let write_manager = WriteManager::new(
             rocksdb.clone(),
-            segment_file_manager.clone(),
             cache_manager.clone(),
+            client_poll.clone(),
             3,
         );
 
@@ -617,7 +603,9 @@ mod tests {
         use crate::segment::offset::save_shard_offset;
         use crate::segment::SegmentIdentity;
 
-        let (_, cache_manager, segment_file_manager, _fold, rocksdb) = test_init_segment().await;
+        let (_, cache_manager, _fold, rocksdb) = test_init_segment().await;
+
+        let client_poll = Arc::new(ClientPool::new(100));
 
         let non_exist_segment = SegmentIdentity {
             shard_name: "non_exist_shard".to_string(),
@@ -628,8 +616,8 @@ mod tests {
 
         let write_manager = WriteManager::new(
             rocksdb.clone(),
-            segment_file_manager.clone(),
             cache_manager.clone(),
+            client_poll.clone(),
             3,
         );
 
@@ -654,13 +642,13 @@ mod tests {
 
     #[tokio::test]
     async fn write_manager_no_io_thread_error_test() {
-        let (segment_iden, cache_manager, segment_file_manager, _fold, rocksdb) =
-            test_init_segment().await;
+        let (segment_iden, cache_manager, _fold, rocksdb) = test_init_segment().await;
+        let client_poll = Arc::new(ClientPool::new(100));
 
         let write_manager = WriteManager::new(
             rocksdb.clone(),
-            segment_file_manager.clone(),
             cache_manager.clone(),
+            client_poll.clone(),
             3,
         );
 

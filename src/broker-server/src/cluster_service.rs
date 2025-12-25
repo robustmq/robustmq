@@ -83,12 +83,7 @@ async fn update_cache(
         BrokerUpdateCacheResourceType::Shard
         | BrokerUpdateCacheResourceType::Segment
         | BrokerUpdateCacheResourceType::SegmentMeta => {
-            if let Err(e) = update_storage_cache_metadata(
-                &storage_params.cache_manager,
-                &storage_params.segment_file_manager,
-                req,
-            )
-            .await
+            if let Err(e) = update_storage_cache_metadata(&storage_params.cache_manager, req).await
             {
                 return Err(CommonError::CommonError(e.to_string()));
             }

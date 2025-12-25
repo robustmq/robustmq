@@ -12,33 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::error::StorageEngineError;
+use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::meta::journal::call::update_segment_meta;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_journal::UpdateSegmentMetaRequest;
-use tracing::warn;
-
-use super::error::StorageEngineError;
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::SegmentIdentity;
-
-pub async fn update_end_and_start_offset(
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    end_offset: i64,
-) -> Result<(), StorageEngineError> {
-    // update active segment end offset
-    update_meta_end_offset(client_pool.clone(), segment_iden, end_offset).await?;
-
-    // update next segment start offset
-    let mut new_segment_iden = segment_iden.clone();
-    new_segment_iden.segment = segment_iden.segment + 1;
-
-    update_meta_start_offset(client_pool.clone(), segment_iden, end_offset + 1).await?;
-    Ok(())
-}
+use std::sync::Arc;
 
 pub async fn update_meta_start_timestamp(
     client_pool: &Arc<ClientPool>,
@@ -62,63 +42,19 @@ pub async fn update_meta_start_timestamp(
 pub async fn update_meta_end_timestamp(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    segment_file_manager: &Arc<SegmentFileManager>,
+    end_timestamp: u64,
 ) -> Result<(), StorageEngineError> {
     let conf = broker_config();
-    if let Some(file) = segment_file_manager.get_segment_file(segment_iden) {
-        let next_segment_no = segment_iden.segment;
 
-        if file.end_timestamp > 0 {
-            let request = UpdateSegmentMetaRequest {
-                shard_name: segment_iden.shard_name.clone(),
-                segment_no: next_segment_no,
-                start_offset: -1,
-                end_offset: -1,
-                start_timestamp: -1,
-                end_timestamp: file.end_timestamp,
-            };
-            update_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
-        } else {
-            warn!("");
-        }
-    }
-    Ok(())
-}
-
-async fn update_meta_start_offset(
-    client_pool: Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    start_offset: i64,
-) -> Result<(), StorageEngineError> {
-    let conf = broker_config();
-    let next_segment_no = segment_iden.segment;
     let request = UpdateSegmentMetaRequest {
         shard_name: segment_iden.shard_name.clone(),
-        segment_no: next_segment_no,
-        start_offset,
+        segment_no: segment_iden.segment,
+        start_offset: -1,
         end_offset: -1,
         start_timestamp: -1,
-        end_timestamp: -1,
+        end_timestamp: end_timestamp as i64,
     };
-    update_segment_meta(&client_pool, &conf.get_meta_service_addr(), request).await?;
-    Ok(())
-}
+    update_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
 
-async fn update_meta_end_offset(
-    client_pool: Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    end_offset: i64,
-) -> Result<(), StorageEngineError> {
-    let conf = broker_config();
-    let next_segment_no = segment_iden.segment;
-    let request = UpdateSegmentMetaRequest {
-        shard_name: segment_iden.shard_name.clone(),
-        segment_no: next_segment_no,
-        start_offset: -1,
-        end_offset,
-        start_timestamp: -1,
-        end_timestamp: -1,
-    };
-    update_segment_meta(&client_pool, &conf.get_meta_service_addr(), request).await?;
     Ok(())
 }

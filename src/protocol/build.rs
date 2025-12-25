@@ -59,7 +59,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     prost_validate_build::Builder::new().compile_protos_with_config(
         config,
         &[
-            proto_root.join("src/meta/journal.proto").to_str().unwrap(),
+            proto_root.join("src/meta/engine.proto").to_str().unwrap(),
             proto_root.join("src/meta/mqtt.proto").to_str().unwrap(),
             proto_root.join("src/meta/common.proto").to_str().unwrap(),
             proto_root.join("src/meta/validate.proto").to_str().unwrap(),

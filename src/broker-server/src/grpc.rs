@@ -145,7 +145,6 @@ fn get_storage_engine_inner_handler(
 ) -> GrpcBrokerStorageServerService {
     GrpcBrokerStorageServerService::new(
         params.cache_manager.clone(),
-        params.segment_file_manager.clone(),
         params.rocksdb_engine_handler.clone(),
     )
 }

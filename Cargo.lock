@@ -7495,6 +7495,7 @@ dependencies = [
  "prost",
  "protocol",
  "rkyv",
+ "rocksdb",
  "rocksdb-engine",
  "serde",
  "serde_json",

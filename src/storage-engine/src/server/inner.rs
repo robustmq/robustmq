@@ -17,7 +17,6 @@ use crate::core::services::{
     delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
     get_shard_delete_status_by_req,
 };
-use crate::segment::manager::SegmentFileManager;
 use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageService;
 use protocol::broker::broker_storage::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
@@ -30,19 +29,16 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerStorageServerService {
     cache_manager: Arc<StorageCacheManager>,
-    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcBrokerStorageServerService {
     pub fn new(
         cache_manager: Arc<StorageCacheManager>,
-        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcBrokerStorageServerService {
             cache_manager,
-            segment_file_manager,
             rocksdb_engine_handler,
         }
     }
@@ -55,15 +51,10 @@ impl BrokerStorageService for GrpcBrokerStorageServerService {
         request: Request<DeleteShardFileRequest>,
     ) -> Result<Response<DeleteShardFileReply>, Status> {
         let request = request.into_inner();
-        delete_shard_file_by_req(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            &self.segment_file_manager,
-            &request,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
+        delete_shard_file_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_shard_delete_status(
@@ -82,15 +73,10 @@ impl BrokerStorageService for GrpcBrokerStorageServerService {
         request: Request<DeleteSegmentFileRequest>,
     ) -> Result<Response<DeleteSegmentFileReply>, Status> {
         let request = request.into_inner();
-        delete_segment_file_by_req(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            &self.segment_file_manager,
-            &request,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
+        delete_segment_file_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_segment_delete_status(

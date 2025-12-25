@@ -12,21 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    core::{cache::StorageCacheManager, error::StorageEngineError},
-    segment::manager::SegmentFileManager,
-};
-use common_base::tools::now_second;
-use common_config::broker::broker_config;
-use grpc_clients::{meta::journal::call::create_next_segment, pool::ClientPool};
+use crate::core::{cache::StorageCacheManager, error::StorageEngineError};
+use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     adapter::record::Record,
     storage::{segment::EngineSegment, shard::EngineShard},
 };
-use protocol::meta::meta_service_journal::CreateNextSegmentRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::{sync::Arc, time::Duration};
-use tokio::time::sleep;
+use std::sync::Arc;
 
 pub async fn _batch_write(
     _client_pool: &Arc<ClientPool>,
@@ -50,7 +43,6 @@ async fn _write_to_local(
     _client_pool: &Arc<ClientPool>,
     _cache_manager: &Arc<StorageCacheManager>,
     _rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _segment_file_manager: &Arc<SegmentFileManager>,
     _shard_info: &EngineShard,
 ) -> Result<Vec<u64>, StorageEngineError> {
     // let req_body = WriteReqBody {};
@@ -73,7 +65,7 @@ async fn _write_to_local(
 async fn _write_to_leader() {}
 
 async fn _get_active_segment(
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
     shard: &str,
 ) -> Result<EngineSegment, StorageEngineError> {
@@ -81,21 +73,5 @@ async fn _get_active_segment(
         return Ok(segment);
     }
 
-    let config = broker_config();
-    let request = CreateNextSegmentRequest {
-        shard_name: shard.to_string(),
-    };
-    create_next_segment(client_pool, &config.get_meta_service_addr(), request).await?;
-    let start_time = now_second();
-    loop {
-        if let Some(segment) = cache_manager.get_active_segment(shard) {
-            return Ok(segment);
-        }
-
-        if now_second() - start_time >= 3 {
-            break;
-        }
-        sleep(Duration::from_millis(100)).await;
-    }
     Err(StorageEngineError::NotActiveSegment(shard.to_string()))
 }

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::segment::file::SegmentFile;
-use crate::segment::index::build::IndexBuildThreadData;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
@@ -27,7 +26,7 @@ use protocol::meta::meta_service_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct StorageCacheManager {
@@ -46,11 +45,11 @@ pub struct StorageCacheManager {
     // (segment_name, SegmentIdentity)
     pub leader_segments: DashMap<String, SegmentIdentity>,
 
-    // (segment_name, IndexBuildThreadData)
-    pub segment_index_build_thread: DashMap<String, IndexBuildThreadData>,
-
     // (segment_name, SegmentFile)
     pub segment_file_writer: DashMap<String, SegmentFile>,
+
+    // (shard_name, segment_seq)
+    pub is_next_segment: DashMap<String, u32>,
 }
 
 impl StorageCacheManager {
@@ -59,16 +58,16 @@ impl StorageCacheManager {
         let segments = DashMap::with_capacity(8);
         let segment_metadatas = DashMap::with_capacity(8);
         let leader_segments = DashMap::with_capacity(8);
-        let segment_index_build_thread = DashMap::with_capacity(2);
         let segment_file_writer = DashMap::with_capacity(2);
+        let is_next_segment = DashMap::with_capacity(2);
         StorageCacheManager {
             shards,
             segments,
             segment_metadatas,
             leader_segments,
-            segment_index_build_thread,
             broker_cache,
             segment_file_writer,
+            is_next_segment,
         }
     }
 
@@ -128,13 +127,6 @@ impl StorageCacheManager {
 
         // delete leader segment
         self.remove_leader_segment(segment);
-
-        // delete index build thread by segment
-        if let Some(data) = self.segment_index_build_thread.get(&segment.shard_name) {
-            if let Err(e) = data.stop_send.send(true) {
-                error!("Trying to stop the index building thread for segment {} failed with error message:{}", segment.name(),e);
-            }
-        }
     }
 
     pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
@@ -202,35 +194,13 @@ impl StorageCacheManager {
         self.segment_file_writer.remove(&segment_iden.name());
     }
 
-    // Build Index Thread
-    pub fn add_build_index_thread(
-        &self,
-        segment_iden: &SegmentIdentity,
-        index_build_thread_data: IndexBuildThreadData,
-    ) {
-        self.segment_index_build_thread
-            .insert(segment_iden.name(), index_build_thread_data);
+    // next segment
+    pub fn add_next_segment(&self, shard: &str, segment: u32) {
+        self.is_next_segment.insert(shard.to_string(), segment);
     }
 
-    pub fn remove_build_index_thread(&self, segment_iden: &SegmentIdentity) {
-        if let Some((_, data)) = self.segment_index_build_thread.remove(&segment_iden.name()) {
-            if let Err(e) = data.stop_send.send(true) {
-                error!("Trying to stop the index building thread for segment {} failed with error message:{}", segment_iden.name(),e);
-            }
-        }
-    }
-
-    pub fn contain_build_index_thread(&self, segment_iden: &SegmentIdentity) -> bool {
-        self.segment_index_build_thread
-            .contains_key(&segment_iden.name())
-    }
-
-    pub fn stop_all_build_index_thread(&self) {
-        for raw in self.segment_index_build_thread.iter() {
-            if let Err(e) = raw.value().stop_send.send(true) {
-                error!("Trying to stop the index building thread for segment {} failed with error message:{}", raw.key(),e);
-            }
-        }
+    pub fn remove_next_segment(&self, shard: &str) {
+        self.is_next_segment.remove(shard);
     }
 
     // Leader Segment

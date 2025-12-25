@@ -51,7 +51,7 @@ pub enum EngineShardStatus {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct EngineShardConfig {
     pub replica_num: u32,
-    pub max_segment_size: u32,
+    pub max_segment_size: u64,
 }
 
 impl EngineShardConfig {
