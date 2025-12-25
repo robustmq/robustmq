@@ -16,7 +16,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use crate::segment::file::open_segment_write;
-use crate::segment::index::build::{save_index, BuildIndexRaw};
+use crate::segment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::segment::offset::{get_shard_offset, save_shard_offset};
 use crate::segment::scroll::{is_trigger_next_segment_scroll, trigger_next_segment_scroll};
 use crate::segment::SegmentIdentity;
@@ -220,7 +220,7 @@ pub fn create_io_thread(
                 Vec<oneshot::Sender<SegmentWriteResp>>,
             > = HashMap::new();
             let mut tmp_offset_info = HashMap::new();
-            let index_info_list = Vec::new();
+            let mut index_info_list: HashMap<SegmentIdentity, Vec<BuildIndexRaw>> = HashMap::new();
 
             for channel_data in results {
                 let shard_name = channel_data.segment_iden.shard_name.to_string();
@@ -234,6 +234,9 @@ pub fn create_io_thread(
                     .or_default();
 
                 let sender_list = shard_sender_list
+                    .entry(channel_data.segment_iden.clone())
+                    .or_default();
+                let index_list = index_info_list
                     .entry(channel_data.segment_iden.clone())
                     .or_default();
 
@@ -268,19 +271,62 @@ pub fn create_io_thread(
                             offset: start_offset,
                             shard: shard_name.clone(),
                             segment,
-                            key: row.key,
-                            tags: row.tags,
+                            key: row.key.clone(),
+                            tags: row.tags.clone(),
                             create_t,
                         },
                         data: row.value,
                     });
                     start_offset += 1;
+
+                    // key index
+                    if let Some(key) = row.key.clone() {
+                        index_list.push(BuildIndexRaw {
+                            index_type: IndexTypeEnum::Key,
+                            key: Some(key),
+                            offset: start_offset,
+                            ..Default::default()
+                        });
+                    }
+
+                    // tag index
+                    if let Some(tags) = row.tags.clone() {
+                        for tag in tags.iter() {
+                            index_list.push(BuildIndexRaw {
+                                index_type: IndexTypeEnum::Tag,
+                                tag: Some(tag.to_string()),
+                                offset: start_offset,
+                                ..Default::default()
+                            });
+                        }
+                    }
+
+                    // timestamp & offset index
+                    if start_offset % 10000 == 0 {
+                        index_list.push(BuildIndexRaw {
+                            index_type: IndexTypeEnum::Time,
+                            timestamp: Some(create_t),
+                            offset: start_offset,
+                            ..Default::default()
+                        });
+
+                        index_list.push(BuildIndexRaw {
+                            index_type: IndexTypeEnum::Offset,
+                            offset: start_offset,
+                            ..Default::default()
+                        });
+                    }
                 }
                 tmp_offset_info.insert(shard_name.to_string(), start_offset);
             }
 
             for (segment_iden, shard_data) in write_data_list.iter() {
                 let pkid_offset_list = pkid_offset.get(segment_iden).unwrap();
+                let index_list = index_info_list
+                    .get(segment_iden)
+                    .cloned()
+                    .unwrap_or_else(Vec::new);
+
                 match batch_write(
                     &cache_manager,
                     &rocksdb_engine_handler,
@@ -288,7 +334,7 @@ pub fn create_io_thread(
                     segment_iden,
                     shard_data,
                     pkid_offset_list,
-                    &index_info_list,
+                    &index_list,
                 )
                 .await
                 {

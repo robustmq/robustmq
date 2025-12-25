@@ -61,7 +61,7 @@ pub fn delete_segment_index(
     Ok(())
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum IndexTypeEnum {
     #[default]
     Offset,
@@ -70,14 +70,14 @@ pub enum IndexTypeEnum {
     Time,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BuildIndexRaw {
     pub index_type: IndexTypeEnum,
-    pub segment_iden: SegmentIdentity,
-    pub index_data: IndexData,
     pub key: Option<String>,
     pub tag: Option<String>,
     pub timestamp: Option<u64>,
+    pub position: Option<u64>,
+    pub offset: u64,
 }
 
 pub fn save_index(
@@ -96,27 +96,56 @@ pub fn save_index(
 
     let mut batch = WriteBatch::default();
     for data in index_data.iter() {
-        let serialized_data = serialize(&data.index_data)?;
+        let position = if let Some(position) = data.position {
+            position
+        } else {
+            continue;
+        };
+
         match data.index_type {
             IndexTypeEnum::Offset => {
-                let key = offset_segment_position(&data.segment_iden, data.index_data.offset);
+                let index_data = IndexData {
+                    offset: data.offset,
+                    position,
+                    ..Default::default()
+                };
+                let serialized_data = serialize(&index_data)?;
+                let key = offset_segment_position(segment_iden, data.offset);
                 batch.put_cf(&cf, key.as_bytes(), &serialized_data);
             }
             IndexTypeEnum::Key => {
                 if let Some(k) = data.key.clone() {
                     let key = key_segment(segment_iden, k);
+                    let index_data = IndexData {
+                        offset: data.offset,
+                        position,
+                        ..Default::default()
+                    };
+                    let serialized_data = serialize(&index_data)?;
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
             IndexTypeEnum::Tag => {
                 if let Some(t) = data.tag.clone() {
-                    let key = tag_segment(segment_iden, t, data.index_data.offset);
+                    let index_data = IndexData {
+                        offset: data.offset,
+                        position,
+                        ..Default::default()
+                    };
+                    let serialized_data = serialize(&index_data)?;
+                    let key = tag_segment(segment_iden, t, data.offset);
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
             IndexTypeEnum::Time => {
                 if let Some(t) = data.timestamp {
                     let key = timestamp_segment_time(segment_iden, t);
+                    let index_data = IndexData {
+                        offset: data.offset,
+                        position,
+                        timestamp: t,
+                    };
+                    let serialized_data = serialize(&index_data)?;
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
