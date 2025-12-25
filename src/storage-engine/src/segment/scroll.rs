@@ -33,7 +33,7 @@ const RETRY_DELAY_MS: u64 = 1000;
 pub fn is_trigger_next_segment_scroll(offsets: &[u64]) -> bool {
     offsets
         .last()
-        .map_or(false, |&offset| offset % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)
+        .is_some_and(|&offset| offset % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)
 }
 
 pub async fn trigger_next_segment_scroll(
@@ -168,9 +168,9 @@ mod tests {
         test_init_conf();
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(
-            BrokerCacheManager::new(default_broker_config()),
-        )));
+        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+            default_broker_config(),
+        ))));
         let client_pool = Arc::new(ClientPool::new(10));
 
         cache_manager.add_next_segment(&segment_iden.shard_name, segment_iden.segment);
@@ -203,9 +203,9 @@ mod tests {
         test_init_conf();
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(
-            BrokerCacheManager::new(default_broker_config()),
-        )));
+        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+            default_broker_config(),
+        ))));
         let client_pool = Arc::new(ClientPool::new(10));
 
         let shard = EngineShard {
