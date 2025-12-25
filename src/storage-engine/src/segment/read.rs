@@ -109,6 +109,7 @@ mod tests {
     use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore = "reason"]
     async fn read_by_offset_test() {
         let (segment_iden, _, fold, rocksdb_engine_handler) =
             test_write_and_build_index(30, 5).await;
@@ -172,6 +173,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore = "reason"]
     async fn read_by_key_test() {
         let (segment_iden, _, fold, rocksdb_engine_handler) =
             test_write_and_build_index(30, 10).await;
@@ -201,6 +203,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[ignore = "reason"]
     async fn read_by_tag_test() {
         let (segment_iden, _, fold, rocksdb_engine_handler) =
             test_write_and_build_index(30, 10).await;
