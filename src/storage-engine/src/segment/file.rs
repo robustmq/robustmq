@@ -450,6 +450,7 @@ mod tests {
         .unwrap();
 
         segment.try_create().await.unwrap();
+        let mut all_positions = Vec::new();
         for i in 0..10 {
             let value = format!("data1#-{i}");
             let record = StorageEngineRecord {
@@ -463,17 +464,28 @@ mod tests {
                 },
                 data: Bytes::from(value),
             };
-            segment.write(std::slice::from_ref(&record)).await.unwrap();
+            let positions = segment.write(std::slice::from_ref(&record)).await.unwrap();
+            if let Some(pos) = positions.get(&(1000 + i)) {
+                all_positions.push(*pos);
+            }
         }
 
-        let res = segment.read_by_positions(vec![0]).await.unwrap();
+        let res = segment
+            .read_by_positions(vec![all_positions[0]])
+            .await
+            .unwrap();
         assert_eq!(res.len(), 1);
 
-        // data len = 84
-        let res = segment.read_by_positions(vec![84]).await.unwrap();
+        let res = segment
+            .read_by_positions(vec![all_positions[1]])
+            .await
+            .unwrap();
         assert_eq!(res.len(), 1);
 
-        let res = segment.read_by_positions(vec![0, 84, 168]).await.unwrap();
+        let res = segment
+            .read_by_positions(vec![all_positions[0], all_positions[1], all_positions[2]])
+            .await
+            .unwrap();
         assert_eq!(res.len(), 3);
 
         let size = segment.size().await.unwrap();
