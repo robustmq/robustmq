@@ -265,10 +265,11 @@ pub fn create_io_thread(
                 let mut start_offset = offset;
                 sender_list.push(channel_data.resp_sx);
                 for row in channel_data.data_list {
-                    shard_pkid_list.insert(row.pkid, start_offset);
+                    let record_offset = start_offset;
+                    shard_pkid_list.insert(row.pkid, record_offset);
                     shard_list.push(StorageEngineRecord {
                         metadata: StorageEngineRecordMetadata {
-                            offset: start_offset,
+                            offset: record_offset,
                             shard: shard_name.clone(),
                             segment,
                             key: row.key.clone(),
@@ -277,14 +278,13 @@ pub fn create_io_thread(
                         },
                         data: row.value,
                     });
-                    start_offset += 1;
 
                     // key index
                     if let Some(key) = row.key.clone() {
                         index_list.push(BuildIndexRaw {
                             index_type: IndexTypeEnum::Key,
                             key: Some(key),
-                            offset: start_offset,
+                            offset: record_offset,
                             ..Default::default()
                         });
                     }
@@ -295,27 +295,29 @@ pub fn create_io_thread(
                             index_list.push(BuildIndexRaw {
                                 index_type: IndexTypeEnum::Tag,
                                 tag: Some(tag.to_string()),
-                                offset: start_offset,
+                                offset: record_offset,
                                 ..Default::default()
                             });
                         }
                     }
 
                     // timestamp & offset index
-                    if start_offset % 10000 == 0 {
+                    if record_offset % 10000 == 0 {
                         index_list.push(BuildIndexRaw {
                             index_type: IndexTypeEnum::Time,
                             timestamp: Some(create_t),
-                            offset: start_offset,
+                            offset: record_offset,
                             ..Default::default()
                         });
 
                         index_list.push(BuildIndexRaw {
                             index_type: IndexTypeEnum::Offset,
-                            offset: start_offset,
+                            offset: record_offset,
                             ..Default::default()
                         });
                     }
+
+                    start_offset += 1;
                 }
                 tmp_offset_info.insert(shard_name.to_string(), start_offset);
             }
@@ -428,6 +430,9 @@ async fn batch_write(
         return Ok(None);
     }
 
+    let offsets: Vec<u64> = data_list.iter().map(|raw| raw.metadata.offset).collect();
+    let last_offset = offsets.iter().max().unwrap();
+
     if !cache_manager
         .segment_file_writer
         .contains_key(&segment_iden.name())
@@ -448,9 +453,6 @@ async fn batch_write(
     };
 
     let offset_positions = segment_write.write(data_list).await?;
-
-    let offsets: Vec<u64> = data_list.iter().map(|raw| raw.metadata.offset).collect();
-    let last_offset = offsets.iter().max().unwrap();
 
     // save index
     save_index(
@@ -481,6 +483,8 @@ async fn batch_write(
         ..Default::default()
     }))
 }
+
+// async fn is_write_next_segment(last_offset: u64) {}
 
 #[cfg(test)]
 mod tests {

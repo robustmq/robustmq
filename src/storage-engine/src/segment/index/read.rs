@@ -23,25 +23,29 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
 
-//todo Optimize the fetching to avoid scanning the RocksDb index every time
-pub async fn get_index_data_by_offset(
+fn get_storage_cf(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+) -> Result<Arc<rocksdb::BoundColumnFamily<'_>>, StorageEngineError> {
+    rocksdb_engine_handler
+        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+        .ok_or_else(|| {
+            CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string())
+                .into()
+        })
+}
+
+pub fn get_index_data_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     start_offset: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
     let prefix_key = offset_segment_position_prefix(segment_iden);
-
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
-        )
-        .into());
-    };
+    let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-    iter.seek(prefix_key.clone());
+    iter.seek(&prefix_key);
+
+    let mut last_valid_index = None;
 
     while iter.valid() {
         if let Some(key) = iter.key() {
@@ -53,40 +57,35 @@ pub async fn get_index_data_by_offset(
 
                 let index_data = serialize::deserialize::<IndexData>(val)?;
 
-                if index_data.offset < start_offset {
+                if index_data.offset <= start_offset {
+                    last_valid_index = Some(index_data);
                     iter.next();
-                    continue;
+                } else {
+                    break;
                 }
-
-                return Ok(Some(index_data));
+            } else {
+                iter.next();
             }
+        } else {
+            iter.next();
         }
-        iter.next();
     }
 
-    Ok(None)
+    Ok(last_valid_index)
 }
 
-pub async fn get_index_data_by_tag(
+pub fn get_index_data_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     start_offset: u64,
     tag: String,
-    record_num: u64,
+    record_num: usize,
 ) -> Result<Vec<IndexData>, StorageEngineError> {
     let prefix_key = tag_segment_prefix(segment_iden, tag);
-
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
-        )
-        .into());
-    };
+    let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-    iter.seek(prefix_key.clone());
+    iter.seek(&prefix_key);
 
     let mut results = Vec::new();
     while iter.valid() {
@@ -105,36 +104,33 @@ pub async fn get_index_data_by_tag(
                 }
 
                 results.push(index_data);
-                if results.len() >= (record_num as usize) {
+                if results.len() >= record_num {
                     break;
                 }
+                iter.next();
+            } else {
+                iter.next();
             }
+        } else {
+            iter.next();
         }
-        iter.next();
     }
 
     Ok(results)
 }
 
-//todo Optimize the fetching to avoid scanning the RocksDb index every time
-pub async fn get_index_data_by_timestamp(
+pub fn get_index_data_by_timestamp(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
     let prefix_key = timestamp_segment_time_prefix(segment_iden);
-
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
-        )
-        .into());
-    };
+    let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-    iter.seek(prefix_key.clone());
+    iter.seek(&prefix_key);
+
+    let mut last_valid_index = None;
 
     while iter.valid() {
         if let Some(key) = iter.key() {
@@ -146,34 +142,29 @@ pub async fn get_index_data_by_timestamp(
 
                 let index_data = serialize::deserialize::<IndexData>(val)?;
 
-                if index_data.timestamp < start_timestamp {
+                if index_data.timestamp <= start_timestamp {
+                    last_valid_index = Some(index_data);
                     iter.next();
-                    continue;
+                } else {
+                    break;
                 }
-
-                return Ok(Some(index_data));
+            } else {
+                iter.next();
             }
+        } else {
+            iter.next();
         }
-        iter.next();
     }
 
-    Ok(None)
+    Ok(last_valid_index)
 }
 
-pub async fn get_index_data_positions_by_key(
+pub fn get_index_data_by_key(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     key: String,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string(),
-        )
-        .into());
-    };
-
+    let cf = get_storage_cf(rocksdb_engine_handler)?;
     let key = key_segment(segment_iden, key);
     Ok(rocksdb_engine_handler.read::<IndexData>(cf, &key)?)
 }

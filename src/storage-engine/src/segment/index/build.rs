@@ -27,8 +27,7 @@ use rocksdb::WriteBatch;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{
-        engine::{engine_delete_by_engine, engine_list_by_prefix_to_map_by_engine},
-        family::DB_COLUMN_FAMILY_STORAGE_ENGINE,
+        engine::engine_list_by_prefix_to_map_by_engine, family::DB_COLUMN_FAMILY_STORAGE_ENGINE,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -51,13 +50,25 @@ pub fn delete_segment_index(
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
         &prefix_key_name,
     )?;
-    for raw in data.iter() {
-        engine_delete_by_engine(
-            rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            raw.key(),
-        )?;
+
+    if data.is_empty() {
+        return Ok(());
     }
+
+    let cf = rocksdb_engine_handler
+        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+        .ok_or_else(|| {
+            StorageEngineError::CommonErrorStr(format!(
+                "Column family '{}' not found",
+                DB_COLUMN_FAMILY_STORAGE_ENGINE
+            ))
+        })?;
+
+    let mut batch = WriteBatch::default();
+    for raw in data.iter() {
+        batch.delete_cf(&cf, raw.key().as_bytes());
+    }
+    rocksdb_engine_handler.write_batch(batch)?;
     Ok(())
 }
 
@@ -85,6 +96,10 @@ pub fn save_index(
     index_data: &[BuildIndexRaw],
     offset_positions: &HashMap<u64, u64>,
 ) -> Result<(), StorageEngineError> {
+    if index_data.is_empty() {
+        return Ok(());
+    }
+
     let cf = rocksdb_engine_handler
         .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
         .ok_or_else(|| {
@@ -107,33 +122,33 @@ pub fn save_index(
                 let index_data = IndexData {
                     offset: data.offset,
                     position,
-                    ..Default::default()
+                    timestamp: 0,
                 };
                 let serialized_data = serialize(&index_data)?;
                 let key = offset_segment_position(segment_iden, data.offset);
                 batch.put_cf(&cf, key.as_bytes(), &serialized_data);
             }
             IndexTypeEnum::Key => {
-                if let Some(k) = data.key.clone() {
-                    let key = key_segment(segment_iden, k);
+                if let Some(k) = &data.key {
+                    let key = key_segment(segment_iden, k.clone());
                     let index_data = IndexData {
                         offset: data.offset,
                         position,
-                        ..Default::default()
+                        timestamp: 0,
                     };
                     let serialized_data = serialize(&index_data)?;
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
             IndexTypeEnum::Tag => {
-                if let Some(t) = data.tag.clone() {
+                if let Some(t) = &data.tag {
                     let index_data = IndexData {
                         offset: data.offset,
                         position,
-                        ..Default::default()
+                        timestamp: 0,
                     };
                     let serialized_data = serialize(&index_data)?;
-                    let key = tag_segment(segment_iden, t, data.offset);
+                    let key = tag_segment(segment_iden, t.clone(), data.offset);
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
@@ -152,6 +167,249 @@ pub fn save_index(
         }
     }
 
+    if batch.is_empty() {
+        return Ok(());
+    }
+
     rocksdb_engine_handler.write_batch(batch)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test::test_build_segment;
+    use crate::segment::index::read::{
+        get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag,
+        get_index_data_by_timestamp,
+    };
+    use rocksdb_engine::test::test_rocksdb_instance;
+
+    #[test]
+    fn offset_index_save_and_read_test() {
+        let rocksdb = test_rocksdb_instance();
+        let segment_iden = test_build_segment();
+
+        let mut offset_positions = HashMap::new();
+        offset_positions.insert(0, 100);
+        offset_positions.insert(10000, 50000);
+        offset_positions.insert(20000, 150000);
+
+        let index_data = vec![
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Offset,
+                offset: 0,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Offset,
+                offset: 10000,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Offset,
+                offset: 20000,
+                ..Default::default()
+            },
+        ];
+
+        save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
+
+        let result = get_index_data_by_offset(&rocksdb, &segment_iden, 0).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 0);
+        assert_eq!(data.position, 100);
+
+        let result = get_index_data_by_offset(&rocksdb, &segment_iden, 15000).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 10000);
+        assert_eq!(data.position, 50000);
+
+        let result = get_index_data_by_offset(&rocksdb, &segment_iden, 25000).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 20000);
+        assert_eq!(data.position, 150000);
+    }
+
+    #[test]
+    fn key_index_save_and_read_test() {
+        let rocksdb = test_rocksdb_instance();
+        let mut segment_iden = test_build_segment();
+        segment_iden.segment = 20;
+
+        let mut offset_positions = HashMap::new();
+        offset_positions.insert(100, 1000);
+        offset_positions.insert(200, 2000);
+        offset_positions.insert(300, 3000);
+
+        let index_data = vec![
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Key,
+                key: Some("user-123".to_string()),
+                offset: 100,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Key,
+                key: Some("order-456".to_string()),
+                offset: 200,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Key,
+                key: Some("product-789".to_string()),
+                offset: 300,
+                ..Default::default()
+            },
+        ];
+
+        save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
+
+        let result =
+            get_index_data_by_key(&rocksdb, &segment_iden, "user-123".to_string()).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 100);
+        assert_eq!(data.position, 1000);
+
+        let result =
+            get_index_data_by_key(&rocksdb, &segment_iden, "order-456".to_string()).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 200);
+        assert_eq!(data.position, 2000);
+
+        let result =
+            get_index_data_by_key(&rocksdb, &segment_iden, "not-exist".to_string()).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn tag_index_save_and_read_test() {
+        let rocksdb = test_rocksdb_instance();
+        let mut segment_iden = test_build_segment();
+        segment_iden.segment = 30;
+
+        let mut offset_positions = HashMap::new();
+        offset_positions.insert(100, 1000);
+        offset_positions.insert(200, 2000);
+        offset_positions.insert(300, 3000);
+        offset_positions.insert(400, 4000);
+
+        let index_data = vec![
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Tag,
+                tag: Some("urgent".to_string()),
+                offset: 100,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Tag,
+                tag: Some("urgent".to_string()),
+                offset: 200,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Tag,
+                tag: Some("normal".to_string()),
+                offset: 300,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Tag,
+                tag: Some("urgent".to_string()),
+                offset: 400,
+                ..Default::default()
+            },
+        ];
+
+        save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
+
+        let results =
+            get_index_data_by_tag(&rocksdb, &segment_iden, 0, "urgent".to_string(), 10).unwrap();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].offset, 100);
+        assert_eq!(results[0].position, 1000);
+        assert_eq!(results[1].offset, 200);
+        assert_eq!(results[1].position, 2000);
+        assert_eq!(results[2].offset, 400);
+        assert_eq!(results[2].position, 4000);
+
+        let results =
+            get_index_data_by_tag(&rocksdb, &segment_iden, 150, "urgent".to_string(), 10).unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].offset, 200);
+        assert_eq!(results[1].offset, 400);
+
+        let results =
+            get_index_data_by_tag(&rocksdb, &segment_iden, 0, "normal".to_string(), 10).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].offset, 300);
+    }
+
+    #[test]
+    fn timestamp_index_save_and_read_test() {
+        let rocksdb = test_rocksdb_instance();
+        let mut segment_iden = test_build_segment();
+        segment_iden.segment = 40;
+
+        let mut offset_positions = HashMap::new();
+        offset_positions.insert(0, 100);
+        offset_positions.insert(10000, 50000);
+        offset_positions.insert(20000, 150000);
+
+        let index_data = vec![
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Time,
+                timestamp: Some(1000),
+                offset: 0,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Time,
+                timestamp: Some(2000),
+                offset: 10000,
+                ..Default::default()
+            },
+            BuildIndexRaw {
+                index_type: IndexTypeEnum::Time,
+                timestamp: Some(3000),
+                offset: 20000,
+                ..Default::default()
+            },
+        ];
+
+        save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
+
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 1000).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 0);
+        assert_eq!(data.position, 100);
+        assert_eq!(data.timestamp, 1000);
+
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 1500).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 0);
+        assert_eq!(data.position, 100);
+        assert_eq!(data.timestamp, 1000);
+
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 2500).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 10000);
+        assert_eq!(data.position, 50000);
+        assert_eq!(data.timestamp, 2000);
+
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 3500).unwrap();
+        assert!(result.is_some());
+        let data = result.unwrap();
+        assert_eq!(data.offset, 20000);
+        assert_eq!(data.position, 150000);
+        assert_eq!(data.timestamp, 3000);
+    }
 }
