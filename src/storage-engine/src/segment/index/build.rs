@@ -32,7 +32,7 @@ use rocksdb_engine::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct IndexData {
@@ -76,7 +76,6 @@ pub struct BuildIndexRaw {
     pub key: Option<String>,
     pub tag: Option<String>,
     pub timestamp: Option<u64>,
-    pub position: Option<u64>,
     pub offset: u64,
 }
 
@@ -84,6 +83,7 @@ pub fn save_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     index_data: &[BuildIndexRaw],
+    offset_positions: &HashMap<u64, u64>,
 ) -> Result<(), StorageEngineError> {
     let cf = rocksdb_engine_handler
         .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
@@ -96,8 +96,8 @@ pub fn save_index(
 
     let mut batch = WriteBatch::default();
     for data in index_data.iter() {
-        let position = if let Some(position) = data.position {
-            position
+        let position = if let Some(position) = offset_positions.get(&data.offset) {
+            *position
         } else {
             continue;
         };

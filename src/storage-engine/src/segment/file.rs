@@ -119,7 +119,7 @@ impl SegmentFile {
     pub async fn write(
         &mut self,
         records: &[StorageEngineRecord],
-    ) -> Result<(), StorageEngineError> {
+    ) -> Result<HashMap<u64, u64>, StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
@@ -144,7 +144,7 @@ impl SegmentFile {
             self.position += (8 + 4 + 4 + metadata_bytes_len + 4 + data_len) as u64;
         }
         writer.flush().await?;
-        Ok(())
+        Ok(offset_positions)
     }
 
     /// get the size of the segment file

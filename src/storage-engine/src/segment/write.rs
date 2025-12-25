@@ -447,13 +447,18 @@ async fn batch_write(
         ));
     };
 
-    segment_write.write(data_list).await?;
+    let offset_positions = segment_write.write(data_list).await?;
 
     let offsets: Vec<u64> = data_list.iter().map(|raw| raw.metadata.offset).collect();
     let last_offset = offsets.iter().max().unwrap();
 
     // save index
-    save_index(rocksdb_engine_handler, segment_iden, index_data)?;
+    save_index(
+        rocksdb_engine_handler,
+        segment_iden,
+        index_data,
+        &offset_positions,
+    )?;
 
     // trigger scroll next segment
     if is_trigger_next_segment_scroll(&offsets) {
