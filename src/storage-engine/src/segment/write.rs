@@ -428,7 +428,25 @@ async fn batch_write(
         return Ok(None);
     }
 
-    let segment_write = open_segment_write(cache_manager, segment_iden).await?;
+    if !cache_manager
+        .segment_file_writer
+        .contains_key(&segment_iden.name())
+    {
+        let segment_file = open_segment_write(cache_manager, segment_iden).await?;
+        cache_manager.add_segment_file_write(segment_iden, segment_file);
+    }
+
+    let mut segment_write = if let Some(segment_file) = cache_manager
+        .segment_file_writer
+        .get_mut(&segment_iden.name())
+    {
+        segment_file
+    } else {
+        return Err(StorageEngineError::ReadSegmentFileError(
+            segment_iden.name(),
+        ));
+    };
+
     segment_write.write(data_list).await?;
 
     let offsets: Vec<u64> = data_list.iter().map(|raw| raw.metadata.offset).collect();
@@ -489,7 +507,9 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let client_poll = Arc::new(ClientPool::new(100));
 
@@ -534,7 +554,9 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let empty_records: Vec<StorageEngineRecord> = vec![];
         let pkid_offset = HashMap::new();
@@ -602,7 +624,10 @@ mod tests {
         }
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
+
         let read_result = segment_file.read_by_offset(0, 0, 1024 * 1024, 100).await;
         assert!(read_result.is_ok());
         let read_records = read_result.unwrap();

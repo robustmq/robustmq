@@ -96,7 +96,8 @@ pub async fn create_local_segment(
     };
 
     // create segment file
-    let segment_file = SegmentFile::new(segment.shard_name.clone(), segment.segment_seq, fold);
+    let segment_file =
+        SegmentFile::new(segment.shard_name.clone(), segment.segment_seq, fold).await?;
     segment_file.try_create().await?;
 
     // add cache

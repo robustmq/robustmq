@@ -152,7 +152,7 @@ pub async fn read_data_req(
         };
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold).await?;
 
         let filter = raw.filter.clone();
 

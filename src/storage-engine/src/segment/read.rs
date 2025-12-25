@@ -115,7 +115,9 @@ mod tests {
             test_write_and_build_index(30, 5).await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let read_options = ReadReqOptions {
             max_record: 2,
@@ -179,7 +181,9 @@ mod tests {
             test_write_and_build_index(30, 10).await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let key = "key-5".to_string();
         let filter = ReadReqFilter {
@@ -209,7 +213,9 @@ mod tests {
             test_write_and_build_index(30, 10).await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let read_options = ReadReqOptions {
             max_record: 10,

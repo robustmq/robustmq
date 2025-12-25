@@ -19,6 +19,7 @@ use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
+use std::collections::HashMap;
 use std::fs::remove_file;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -38,10 +39,6 @@ pub async fn open_segment_write(
     cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
 ) -> Result<SegmentFile, StorageEngineError> {
-    if let Some(segment_file) = cache_manager.segment_file_writer.get(&segment_iden.name()) {
-        return Ok(segment_file.clone());
-    }
-
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
         segment
     } else {
@@ -62,9 +59,9 @@ pub async fn open_segment_write(
         segment_iden.shard_name.to_string(),
         segment_iden.segment,
         fold,
-    );
+    )
+    .await?;
 
-    cache_manager.add_segment_file_write(segment_iden, segment_file.clone());
     Ok(segment_file)
 }
 
@@ -74,21 +71,32 @@ pub struct SegmentFile {
     pub shard_name: String,
     pub segment_no: u32,
     pub data_fold: String,
+    pub position: u64,
 }
 
 impl SegmentFile {
-    pub fn new(shard_name: String, segment_no: u32, data_fold: String) -> Self {
+    pub async fn new(
+        shard_name: String,
+        segment_no: u32,
+        data_fold: String,
+    ) -> Result<Self, StorageEngineError> {
         let data_fold = data_fold_shard(&shard_name, &data_fold);
-        SegmentFile {
+        let segment_file = data_file_segment(&data_fold, segment_no);
+        try_create_fold(&data_fold)?;
+        let position = fs::metadata(&segment_file)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
+        Ok(SegmentFile {
             shard_name,
             segment_no,
             data_fold,
-        }
+            position,
+        })
     }
 
     /// try create a segment file under the data folder
     pub async fn try_create(&self) -> Result<(), StorageEngineError> {
-        try_create_fold(&self.data_fold)?;
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if file_exists(&segment_file) {
             return Ok(());
@@ -108,17 +116,22 @@ impl SegmentFile {
     }
 
     /// append a list of records to the segment file
-    pub async fn write(&self, records: &[StorageEngineRecord]) -> Result<(), StorageEngineError> {
+    pub async fn write(
+        &mut self,
+        records: &[StorageEngineRecord],
+    ) -> Result<(), StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
         // offset + total_len + metadata_len + metadata + data_len + data
+        let mut offset_positions = HashMap::new();
         for record in records {
             let metadata_bytes = record.metadata.encode();
             let metadata_bytes_len = metadata_bytes.len();
             let data_len = record.data.len();
             let total_len = data_len + metadata_bytes_len;
+            offset_positions.insert(record.metadata.offset, self.position);
 
             writer.write_u64(record.metadata.offset).await?;
             writer.write_u32(total_len as u32).await?;
@@ -126,6 +139,9 @@ impl SegmentFile {
             writer.write_all(metadata_bytes.as_ref()).await?;
             writer.write_u32(data_len as u32).await?;
             writer.write_all(record.data.as_ref()).await?;
+
+            // record len
+            self.position += (8 + 4 + 4 + metadata_bytes_len + 4 + data_len) as u64;
         }
         writer.flush().await?;
         Ok(())
@@ -367,7 +383,9 @@ mod tests {
             segment_iden.shard_name.to_string(),
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
         assert!(segment.try_create().await.is_ok());
         assert!(segment.try_create().await.is_ok());
         assert!(segment.exists());
@@ -381,11 +399,13 @@ mod tests {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
 
-        let segment = SegmentFile::new(
+        let mut segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
 
         segment.try_create().await.unwrap();
         for i in 0..10 {
@@ -421,11 +441,13 @@ mod tests {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
 
-        let segment = SegmentFile::new(
+        let mut segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
 
         segment.try_create().await.unwrap();
         for i in 0..10 {
@@ -462,11 +484,13 @@ mod tests {
     async fn segment_boundary_check_test() {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-        let segment = SegmentFile::new(
+        let mut segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
 
         segment.try_create().await.unwrap();
         for i in 0..10 {
@@ -498,7 +522,9 @@ mod tests {
             "test_shard".to_string(),
             999,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
 
         let res = segment.read_by_offset(0, 0, 1000, 10).await;
         assert!(res.is_err());
@@ -518,11 +544,13 @@ mod tests {
     async fn segment_data_integrity_test() {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-        let segment = SegmentFile::new(
+        let mut segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
 
         segment.try_create().await.unwrap();
         let record = StorageEngineRecord {
@@ -555,11 +583,13 @@ mod tests {
     async fn segment_edge_cases_test() {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-        let segment = SegmentFile::new(
+        let mut segment = SegmentFile::new(
             segment_iden.shard_name.to_string(),
             segment_iden.segment,
             data_fold.first().unwrap().to_string(),
-        );
+        )
+        .await
+        .unwrap();
 
         segment.try_create().await.unwrap();
 
