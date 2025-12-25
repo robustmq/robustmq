@@ -16,7 +16,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use crate::segment::file::open_segment_write;
-use crate::segment::index::build::{save_index, BuildIndexRaw};
+use crate::segment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::segment::offset::{get_shard_offset, save_shard_offset};
 use crate::segment::scroll::{is_trigger_next_segment_scroll, trigger_next_segment_scroll};
 use crate::segment::SegmentIdentity;
@@ -220,7 +220,7 @@ pub fn create_io_thread(
                 Vec<oneshot::Sender<SegmentWriteResp>>,
             > = HashMap::new();
             let mut tmp_offset_info = HashMap::new();
-            let index_info_list = Vec::new();
+            let mut index_info_list: HashMap<SegmentIdentity, Vec<BuildIndexRaw>> = HashMap::new();
 
             for channel_data in results {
                 let shard_name = channel_data.segment_iden.shard_name.to_string();
@@ -234,6 +234,9 @@ pub fn create_io_thread(
                     .or_default();
 
                 let sender_list = shard_sender_list
+                    .entry(channel_data.segment_iden.clone())
+                    .or_default();
+                let index_list = index_info_list
                     .entry(channel_data.segment_iden.clone())
                     .or_default();
 
@@ -262,18 +265,58 @@ pub fn create_io_thread(
                 let mut start_offset = offset;
                 sender_list.push(channel_data.resp_sx);
                 for row in channel_data.data_list {
-                    shard_pkid_list.insert(row.pkid, start_offset);
+                    let record_offset = start_offset;
+                    shard_pkid_list.insert(row.pkid, record_offset);
                     shard_list.push(StorageEngineRecord {
                         metadata: StorageEngineRecordMetadata {
-                            offset: start_offset,
+                            offset: record_offset,
                             shard: shard_name.clone(),
                             segment,
-                            key: row.key,
-                            tags: row.tags,
+                            key: row.key.clone(),
+                            tags: row.tags.clone(),
                             create_t,
                         },
                         data: row.value,
                     });
+
+                    // key index
+                    if let Some(key) = row.key.clone() {
+                        index_list.push(BuildIndexRaw {
+                            index_type: IndexTypeEnum::Key,
+                            key: Some(key),
+                            offset: record_offset,
+                            ..Default::default()
+                        });
+                    }
+
+                    // tag index
+                    if let Some(tags) = row.tags.clone() {
+                        for tag in tags.iter() {
+                            index_list.push(BuildIndexRaw {
+                                index_type: IndexTypeEnum::Tag,
+                                tag: Some(tag.to_string()),
+                                offset: record_offset,
+                                ..Default::default()
+                            });
+                        }
+                    }
+
+                    // timestamp & offset index
+                    if record_offset % 10000 == 0 {
+                        index_list.push(BuildIndexRaw {
+                            index_type: IndexTypeEnum::Time,
+                            timestamp: Some(create_t),
+                            offset: record_offset,
+                            ..Default::default()
+                        });
+
+                        index_list.push(BuildIndexRaw {
+                            index_type: IndexTypeEnum::Offset,
+                            offset: record_offset,
+                            ..Default::default()
+                        });
+                    }
+
                     start_offset += 1;
                 }
                 tmp_offset_info.insert(shard_name.to_string(), start_offset);
@@ -281,6 +324,11 @@ pub fn create_io_thread(
 
             for (segment_iden, shard_data) in write_data_list.iter() {
                 let pkid_offset_list = pkid_offset.get(segment_iden).unwrap();
+                let index_list = index_info_list
+                    .get(segment_iden)
+                    .cloned()
+                    .unwrap_or_else(Vec::new);
+
                 match batch_write(
                     &cache_manager,
                     &rocksdb_engine_handler,
@@ -288,7 +336,7 @@ pub fn create_io_thread(
                     segment_iden,
                     shard_data,
                     pkid_offset_list,
-                    &index_info_list,
+                    &index_list,
                 )
                 .await
                 {
@@ -382,14 +430,37 @@ async fn batch_write(
         return Ok(None);
     }
 
-    let segment_write = open_segment_write(cache_manager, segment_iden).await?;
-    segment_write.write(data_list).await?;
-
     let offsets: Vec<u64> = data_list.iter().map(|raw| raw.metadata.offset).collect();
     let last_offset = offsets.iter().max().unwrap();
 
+    if !cache_manager
+        .segment_file_writer
+        .contains_key(&segment_iden.name())
+    {
+        let segment_file = open_segment_write(cache_manager, segment_iden).await?;
+        cache_manager.add_segment_file_write(segment_iden, segment_file);
+    }
+
+    let mut segment_write = if let Some(segment_file) = cache_manager
+        .segment_file_writer
+        .get_mut(&segment_iden.name())
+    {
+        segment_file
+    } else {
+        return Err(StorageEngineError::ReadSegmentFileError(
+            segment_iden.name(),
+        ));
+    };
+
+    let offset_positions = segment_write.write(data_list).await?;
+
     // save index
-    save_index(rocksdb_engine_handler, segment_iden, index_data)?;
+    save_index(
+        rocksdb_engine_handler,
+        segment_iden,
+        index_data,
+        &offset_positions,
+    )?;
 
     // trigger scroll next segment
     if is_trigger_next_segment_scroll(&offsets) {
@@ -412,6 +483,8 @@ async fn batch_write(
         ..Default::default()
     }))
 }
+
+// async fn is_write_next_segment(last_offset: u64) {}
 
 #[cfg(test)]
 mod tests {
@@ -443,7 +516,9 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let client_poll = Arc::new(ClientPool::new(100));
 
@@ -488,7 +563,9 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
 
         let empty_records: Vec<StorageEngineRecord> = vec![];
         let pkid_offset = HashMap::new();
@@ -556,7 +633,10 @@ mod tests {
         }
 
         let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
+            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
+                .await
+                .unwrap();
+
         let read_result = segment_file.read_by_offset(0, 0, 1024 * 1024, 100).await;
         assert!(read_result.is_ok());
         let read_records = read_result.unwrap();

@@ -14,7 +14,6 @@
 
 use super::cache::StorageCacheManager;
 use crate::core::segment::create_local_segment;
-use crate::segment::offset::save_shard_offset;
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -35,7 +34,7 @@ use tokio::time::sleep;
 #[allow(dead_code)]
 pub fn test_build_segment() -> SegmentIdentity {
     SegmentIdentity {
-        shard_name: "s1".to_string(),
+        shard_name: unique_id(),
         segment: 10,
     }
 }
@@ -101,7 +100,11 @@ pub async fn test_base_write_data(
 ) {
     let (segment_iden, cache_manager, fold, rocksdb_engine_handler) = test_init_segment().await;
 
+    use crate::segment::offset::save_shard_offset;
+    save_shard_offset(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
+
     let client_poll = Arc::new(ClientPool::new(100));
+
     let write_manager = WriteManager::new(
         rocksdb_engine_handler.clone(),
         cache_manager.clone(),
@@ -110,63 +113,23 @@ pub async fn test_base_write_data(
     );
 
     let (stop_send, _) = broadcast::channel(2);
-    write_manager.start(stop_send);
+    write_manager.start(stop_send.clone());
+
+    sleep(Duration::from_millis(100)).await;
 
     let mut data_list = Vec::new();
     for i in 0..len {
         data_list.push(WriteChannelDataRecord {
             pkid: i,
-            key: None,
-            tags: None,
+            key: Some(format!("key-{}", i)),
+            tags: Some(vec![format!("tag-{}", i)]),
             value: Bytes::from(format!("data-{i}")),
         });
     }
-
     write_manager.write(&segment_iden, data_list).await.unwrap();
 
-    (segment_iden, cache_manager, fold, rocksdb_engine_handler)
-}
-
-#[allow(dead_code)]
-pub async fn test_write_and_build_index(
-    record_count: u64,
-    wait_secs: u64,
-) -> (
-    SegmentIdentity,
-    Arc<StorageCacheManager>,
-    String,
-    Arc<RocksDBEngine>,
-) {
-    let (segment_iden, cache_manager, fold, rocksdb_engine_handler) = test_init_segment().await;
-
-    save_shard_offset(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
-
-    let client_poll = Arc::new(ClientPool::new(100));
-    let write_manager = WriteManager::new(
-        rocksdb_engine_handler.clone(),
-        cache_manager.clone(),
-        client_poll.clone(),
-        3,
-    );
-
-    let (stop_send, _) = broadcast::channel(2);
-    write_manager.start(stop_send);
-
+    stop_send.send(true).ok();
     sleep(Duration::from_millis(100)).await;
-
-    let mut data_list = Vec::new();
-    for i in 0..record_count {
-        data_list.push(WriteChannelDataRecord {
-            pkid: i,
-            key: Some(format!("key-{}", i)),
-            tags: Some(vec![format!("tag-{}", i)]),
-            value: Bytes::from(format!("data-{}", i)),
-        });
-    }
-
-    write_manager.write(&segment_iden, data_list).await.unwrap();
-
-    sleep(Duration::from_secs(wait_secs)).await;
 
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
