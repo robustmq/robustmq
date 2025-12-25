@@ -80,16 +80,16 @@ pub async fn create_segment_by_req(
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
     };
 
-    let next_segment_no = if let Some(segment_no) = cache_manager.next_segment_seq(&req.shard_name)
-    {
-        segment_no
-    } else {
-        return Err(MetaServiceError::ShardDoesNotExist(shard.shard_name));
-    };
+    if req.current_segment as u32 != shard.active_segment_seq {
+        return Err(MetaServiceError::CommonError("".to_string()));
+    }
 
-    if cache_manager.shard_idle_segment_num(&req.shard_name) >= 1 {
+    let next_segment = req.current_segment + 1;
+    if shard.last_segment_seq >= next_segment as u32 {
         return Ok(CreateNextSegmentReply {});
     }
+
+    // create next segment
 
     let mut shard_notice = false;
     // If the next Segment hasn't already been created, it triggers the creation of the next Segment

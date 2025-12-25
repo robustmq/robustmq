@@ -55,24 +55,6 @@ impl CacheManager {
         results
     }
 
-    pub fn next_segment_seq(&self, shard_name: &str) -> Option<u32> {
-        if let Some(shard) = self.shard_list.get(shard_name) {
-            return Some(shard.last_segment_seq + 1);
-        }
-        None
-    }
-
-    pub fn shard_idle_segment_num(&self, shard_name: &str) -> u32 {
-        let mut num = 0;
-        if let Some(segment_list) = self.segment_list.get(shard_name) {
-            for segment in segment_list.iter() {
-                if segment.status == SegmentStatus::Idle {
-                    num += 1
-                }
-            }
-        }
-        num
-    }
 
     pub fn get_segment(&self, shard_name: &str, segment_seq: u32) -> Option<EngineSegment> {
         if let Some(segment_list) = self.segment_list.get(shard_name) {
