@@ -55,13 +55,13 @@ pub enum StorageDataType {
     OffsetSet,
     OffsetDelete,
 
-    // Journal
-    JournalSetShard,
-    JournalDeleteShard,
-    JournalSetSegment,
-    JournalDeleteSegment,
-    JournalSetSegmentMetadata,
-    JournalDeleteSegmentMetadata,
+    // StorageEngine
+    StorageEngineSetShard,
+    StorageEngineDeleteShard,
+    StorageEngineSetSegment,
+    StorageEngineDeleteSegment,
+    StorageEngineSetSegmentMetadata,
+    StorageEngineDeleteSegmentMetadata,
 
     // mqtt
     MqttSetUser,
@@ -106,13 +106,15 @@ impl fmt::Display for StorageDataType {
             StorageDataType::OffsetSet => write!(f, "OffsetSet"),
             StorageDataType::OffsetDelete => write!(f, "OffsetDelete"),
 
-            StorageDataType::JournalSetShard => write!(f, "JournalSetShard"),
-            StorageDataType::JournalDeleteShard => write!(f, "JournalDeleteShard"),
-            StorageDataType::JournalSetSegment => write!(f, "JournalSetSegment"),
-            StorageDataType::JournalDeleteSegment => write!(f, "JournalDeleteSegment"),
-            StorageDataType::JournalSetSegmentMetadata => write!(f, "JournalSetSegmentMetadata"),
-            StorageDataType::JournalDeleteSegmentMetadata => {
-                write!(f, "JournalDeleteSegmentMetadata")
+            StorageDataType::StorageEngineSetShard => write!(f, "StorageEngineSetShard"),
+            StorageDataType::StorageEngineDeleteShard => write!(f, "StorageEngineDeleteShard"),
+            StorageDataType::StorageEngineSetSegment => write!(f, "StorageEngineSetSegment"),
+            StorageDataType::StorageEngineDeleteSegment => write!(f, "StorageEngineDeleteSegment"),
+            StorageDataType::StorageEngineSetSegmentMetadata => {
+                write!(f, "StorageEngineSetSegmentMetadata")
+            }
+            StorageDataType::StorageEngineDeleteSegmentMetadata => {
+                write!(f, "StorageEngineDeleteSegmentMetadata")
             }
 
             StorageDataType::MqttSetUser => write!(f, "MqttSetUser"),

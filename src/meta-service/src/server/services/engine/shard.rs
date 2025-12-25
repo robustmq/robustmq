@@ -11,20 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use super::segment::{
-    create_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
-};
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::segment::{
+    create_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
+};
+use crate::core::shard::{sync_save_shard_info, update_shard_status};
 use crate::raft::manager::MultiRaftManager;
-use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
-use bytes::Bytes;
 use common_base::tools::{now_millis, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::SegmentStatus;
@@ -124,7 +122,6 @@ pub async fn create_shard_by_req(
 
         sync_save_segment_metadata_info(raft_manager, &metadata).await?;
         update_cache_by_set_segment_meta(call_manager, client_pool, metadata).await?;
-
         segment
     };
 
@@ -168,71 +165,6 @@ pub async fn delete_shard_by_req(
     update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
 
     Ok(DeleteShardReply::default())
-}
-
-pub async fn update_start_segment_by_shard(
-    raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
-    shard: &mut EngineShard,
-    segment_no: u32,
-) -> Result<(), MetaServiceError> {
-    shard.start_segment_seq = segment_no;
-    sync_save_shard_info(raft_manager, shard).await?;
-    cache_manager.set_shard(shard);
-    Ok(())
-}
-
-pub async fn update_last_segment_by_shard(
-    raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
-    shard: &mut EngineShard,
-    segment_no: u32,
-) -> Result<(), MetaServiceError> {
-    shard.last_segment_seq = segment_no;
-    sync_save_shard_info(raft_manager, shard).await?;
-    cache_manager.set_shard(shard);
-    Ok(())
-}
-
-async fn sync_save_shard_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    shard: &EngineShard,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalSetShard,
-        Bytes::copy_from_slice(&shard.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_delete_shard_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    shard: &EngineShard,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalDeleteShard,
-        Bytes::copy_from_slice(&shard.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn update_shard_status(
-    raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
-    shard: &EngineShard,
-    status: EngineShardStatus,
-) -> Result<(), MetaServiceError> {
-    let mut new_shard = shard.clone();
-    new_shard.status = status;
-    sync_save_shard_info(raft_manager, &new_shard).await?;
-    cache_manager.set_shard(&new_shard);
-    Ok(())
 }
 
 #[cfg(test)]

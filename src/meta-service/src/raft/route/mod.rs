@@ -130,35 +130,35 @@ impl DataRoute {
             }
 
             // Journal Engine
-            StorageDataType::JournalSetShard => Ok(Some(
+            StorageDataType::StorageEngineSetShard => Ok(Some(
                 self.route_journal
                     .set_shard(storage_data.value.clone())
                     .await?,
             )),
-            StorageDataType::JournalDeleteShard => {
+            StorageDataType::StorageEngineDeleteShard => {
                 self.route_journal
                     .delete_shard(storage_data.value.clone())
                     .await?;
                 Ok(None)
             }
-            StorageDataType::JournalSetSegment => Ok(Some(
+            StorageDataType::StorageEngineSetSegment => Ok(Some(
                 self.route_journal
                     .set_segment(storage_data.value.clone())
                     .await?,
             )),
-            StorageDataType::JournalDeleteSegment => {
+            StorageDataType::StorageEngineDeleteSegment => {
                 self.route_journal
                     .delete_segment(storage_data.value.clone())
                     .await?;
                 Ok(None)
             }
 
-            StorageDataType::JournalSetSegmentMetadata => Ok(Some(
+            StorageDataType::StorageEngineSetSegmentMetadata => Ok(Some(
                 self.route_journal
                     .set_segment_meta(storage_data.value.clone())
                     .await?,
             )),
-            StorageDataType::JournalDeleteSegmentMetadata => {
+            StorageDataType::StorageEngineDeleteSegmentMetadata => {
                 self.route_journal
                     .delete_segment_meta(storage_data.value.clone())
                     .await?;

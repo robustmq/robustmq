@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::raft::manager::MultiRaftManager;
-use crate::server::services::engine::segment::{
+use crate::core::segment::{
     sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
 };
-use crate::server::services::engine::shard::{
+use crate::core::shard::{
     sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
 };
+use crate::raft::manager::MultiRaftManager;
 
 use grpc_clients::broker::storage::call::{
     journal_inner_delete_segment_file, journal_inner_delete_shard_file,
