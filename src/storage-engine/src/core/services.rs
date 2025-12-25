@@ -25,20 +25,17 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
 use crate::core::shard::{delete_local_shard, is_delete_by_shard};
-use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
 /// Delete shard file based on the request
 pub async fn delete_shard_file_by_req(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteShardFileRequest,
 ) -> Result<DeleteShardFileReply, StorageEngineError> {
     delete_local_shard(
         cache_manager.clone(),
         rocksdb_engine_handler.clone(),
-        segment_file_manager.clone(),
         request.clone(),
     );
 
@@ -57,17 +54,10 @@ pub async fn get_shard_delete_status_by_req(
 pub async fn delete_segment_file_by_req(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, StorageEngineError> {
     let segment_iden = SegmentIdentity::new(&request.shard_name, request.segment);
-    delete_local_segment(
-        cache_manager,
-        rocksdb_engine_handler,
-        segment_file_manager,
-        &segment_iden,
-    )
-    .await?;
+    delete_local_segment(cache_manager, rocksdb_engine_handler, &segment_iden).await?;
 
     Ok(DeleteSegmentFileReply::default())
 }

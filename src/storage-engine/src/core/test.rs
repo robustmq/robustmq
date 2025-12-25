@@ -1,6 +1,19 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::cache::StorageCacheManager;
-use crate::segment::index::build::try_trigger_build_index;
-use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::core::segment::create_local_segment;
 use crate::segment::offset::save_shard_offset;
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
@@ -9,6 +22,7 @@ use bytes::Bytes;
 use common_base::tools::unique_id;
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -40,7 +54,6 @@ pub fn test_init_conf() {
 pub async fn test_init_segment() -> (
     SegmentIdentity,
     Arc<StorageCacheManager>,
-    Arc<SegmentFileManager>,
     String,
     Arc<RocksDBEngine>,
 ) {
@@ -48,7 +61,6 @@ pub async fn test_init_segment() -> (
     let rocksdb_engine_handler = test_rocksdb_instance();
     let segment_iden = test_build_segment();
     let fold = test_build_data_fold().first().unwrap().to_string();
-    let segment_file_manager = Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
     let segment = EngineSegment {
         shard_name: segment_iden.shard_name.clone(),
@@ -61,11 +73,11 @@ pub async fn test_init_segment() -> (
         ..Default::default()
     };
 
-    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(
-        BrokerCacheManager::new(BrokerConfig::default()),
-    )));
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+    ))));
 
-    create_local_segment(&cache_manager, &segment_file_manager, &segment)
+    create_local_segment(&cache_manager, &segment)
         .await
         .unwrap();
 
@@ -75,13 +87,7 @@ pub async fn test_init_segment() -> (
         ..Default::default()
     });
 
-    (
-        segment_iden,
-        cache_manager,
-        segment_file_manager,
-        fold,
-        rocksdb_engine_handler,
-    )
+    (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
 
 #[allow(dead_code)]
@@ -90,17 +96,16 @@ pub async fn test_base_write_data(
 ) -> (
     SegmentIdentity,
     Arc<StorageCacheManager>,
-    Arc<SegmentFileManager>,
     String,
     Arc<RocksDBEngine>,
 ) {
-    let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
-        test_init_segment().await;
+    let (segment_iden, cache_manager, fold, rocksdb_engine_handler) = test_init_segment().await;
 
+    let client_poll = Arc::new(ClientPool::new(100));
     let write_manager = WriteManager::new(
         rocksdb_engine_handler.clone(),
-        segment_file_manager.clone(),
         cache_manager.clone(),
+        client_poll.clone(),
         3,
     );
 
@@ -117,18 +122,9 @@ pub async fn test_base_write_data(
         });
     }
 
-    write_manager
-        .write(&segment_iden, data_list)
-        .await
-        .unwrap();
+    write_manager.write(&segment_iden, data_list).await.unwrap();
 
-    (
-        segment_iden,
-        cache_manager,
-        segment_file_manager,
-        fold,
-        rocksdb_engine_handler,
-    )
+    (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
 
 #[allow(dead_code)]
@@ -138,19 +134,18 @@ pub async fn test_write_and_build_index(
 ) -> (
     SegmentIdentity,
     Arc<StorageCacheManager>,
-    Arc<SegmentFileManager>,
     String,
     Arc<RocksDBEngine>,
 ) {
-    let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
-        test_init_segment().await;
+    let (segment_iden, cache_manager, fold, rocksdb_engine_handler) = test_init_segment().await;
 
     save_shard_offset(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
 
+    let client_poll = Arc::new(ClientPool::new(100));
     let write_manager = WriteManager::new(
         rocksdb_engine_handler.clone(),
-        segment_file_manager.clone(),
         cache_manager.clone(),
+        client_poll.clone(),
         3,
     );
 
@@ -169,27 +164,9 @@ pub async fn test_write_and_build_index(
         });
     }
 
-    write_manager
-        .write(&segment_iden, data_list)
-        .await
-        .unwrap();
-
-    try_trigger_build_index(
-        &cache_manager,
-        &segment_file_manager,
-        &rocksdb_engine_handler,
-        &segment_iden,
-    )
-    .await
-    .unwrap();
+    write_manager.write(&segment_iden, data_list).await.unwrap();
 
     sleep(Duration::from_secs(wait_secs)).await;
 
-    (
-        segment_iden,
-        cache_manager,
-        segment_file_manager,
-        fold,
-        rocksdb_engine_handler,
-    )
+    (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }

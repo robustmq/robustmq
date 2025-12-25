@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    file::RocksDBStorageAdapter, memory::MemoryStorageAdapter, offset::OffsetManager,
+    memory::MemoryStorageAdapter, offset::OffsetManager, rocksdb::RocksDBStorageAdapter,
     storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;

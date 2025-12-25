@@ -12,503 +12,117 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::offset::OffsetIndexManager;
-use super::tag::TagIndexManager;
-use super::time::TimestampIndexManager;
-use crate::core::cache::StorageCacheManager;
-use crate::core::consts::BUILD_INDE_PER_RECORD_NUM;
-use crate::core::error::StorageEngineError;
-use crate::segment::file::{open_segment_write, ReadData};
-use crate::segment::index::IndexData;
-use crate::segment::keys::{finish_build_index, last_offset_build_index, segment_index_prefix};
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::SegmentIdentity;
-use common_base::tools::now_second;
-use metadata_struct::storage::segment::SegmentStatus;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::{
-    engine_delete_by_engine, engine_get_by_engine, engine_list_by_prefix_to_map_by_engine,
-    engine_save_by_engine,
+use crate::{
+    core::error::StorageEngineError,
+    segment::{
+        keys::{
+            key_segment, offset_segment_position, segment_index_prefix, tag_segment,
+            timestamp_segment_time,
+        },
+        SegmentIdentity,
+    },
 };
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
+use common_base::utils::serialize::serialize;
+use rocksdb::WriteBatch;
+use rocksdb_engine::{
+    rocksdb::RocksDBEngine,
+    storage::{
+        engine::{engine_delete_by_engine, engine_list_by_prefix_to_map_by_engine},
+        family::DB_COLUMN_FAMILY_STORAGE_ENGINE,
+    },
+};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::select;
-use tokio::sync::broadcast::{self, Receiver};
-use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
 
-#[derive(Clone)]
-pub struct IndexBuildThreadData {
-    pub stop_send: broadcast::Sender<bool>,
-}
-
-pub async fn try_trigger_build_index(
-    cache_manager: &Arc<StorageCacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), StorageEngineError> {
-    if cache_manager.contain_build_index_thread(segment_iden) {
-        return Ok(());
-    }
-
-    if is_finish_build_index(rocksdb_engine_handler, segment_iden)? {
-        warn!("segment {} is in the wrong state, marking that the index has been built but data is still being written.",
-        segment_iden.name());
-        return Ok(());
-    }
-
-    // Get the end offset of the local segment file
-    let segment_file_meta =
-        if let Some(segment_file) = segment_file_manager.get_segment_file(segment_iden) {
-            segment_file
-        } else {
-            return Err(StorageEngineError::SegmentMetaNotExists(
-                segment_iden.name(),
-            ));
-        };
-
-    // get start read position
-    let last_build_offset =
-        (get_last_offset_build_index(rocksdb_engine_handler, segment_iden)?).unwrap_or(0);
-    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-    let start_position = if let Some(position) = offset_index
-        .get_last_nearest_position_by_offset(segment_iden, last_build_offset)
-        .await?
-    {
-        position.position
-    } else {
-        0
-    };
-
-    let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
-
-    start_segment_build_index_thread(
-        cache_manager.clone(),
-        rocksdb_engine_handler.clone(),
-        segment_iden.clone(),
-        segment_file_meta.start_offset as u64,
-        start_position,
-        last_build_offset,
-        stop_recv,
-    )
-    .await?;
-
-    let index_thread_data = IndexBuildThreadData {
-        stop_send: stop_sender.clone(),
-    };
-    cache_manager.add_build_index_thread(segment_iden, index_thread_data);
-    Ok(())
-}
-
-async fn start_segment_build_index_thread(
-    cache_manager: Arc<StorageCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_iden: SegmentIdentity,
-    start_offset: u64,
-    start_position: u64,
-    mut last_build_offset: u64,
-    mut stop_recv: Receiver<bool>,
-) -> Result<(), StorageEngineError> {
-    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-    let time_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
-    let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
-    let segment_write = open_segment_write(&cache_manager, &segment_iden).await?;
-
-    tokio::spawn(async move {
-        let size = 10 * 1024 * 1024;
-        let mut data_empty_times = 0;
-        let max_data_empty_times = 10 * 60;
-
-        loop {
-            select! {
-                val = stop_recv.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            cache_manager.remove_build_index_thread(&segment_iden);
-                            info!("segment {} index build thread exited successfully.",
-                               segment_iden.name());
-                            break;
-                        }
-                    }
-                },
-                val = segment_write.read_by_offset(start_position, last_build_offset, size, 100)=>{
-                    match val {
-                        Ok(data) => {
-
-                            if data.is_empty() {
-                                if data_empty_times >= max_data_empty_times {
-                                    try_finish_segment_index_build(&rocksdb_engine_handler, &cache_manager, &segment_iden);
-                                    cache_manager.remove_build_index_thread(&segment_iden);
-
-                                    debug!("segment {} No data after 10 minutes of noise, index building thread temporarily quit",
-                                        segment_iden.name());
-                                    break;
-                                }
-
-                                data_empty_times += 1;
-                                sleep(Duration::from_secs(1)).await;
-                                continue;
-                            }
-
-                            data_empty_times = 0;
-
-                            // save offset data
-                            if let Err(e) = save_record_index(
-                                &data,
-                                start_offset,
-                                &segment_iden,
-                                &offset_index,
-                                &time_index,
-                                &tag_index,
-                            ).await
-                            {
-                                error!("{}",e);
-                                continue;
-                            }
-
-                            last_build_offset = data.last().unwrap().record.metadata.offset;
-                            // save last offset bye build index
-                            if let Err(e) = save_last_offset_build_index(
-                                &rocksdb_engine_handler,
-                                &segment_iden,
-                                last_build_offset,
-                            ) {
-                                error!("Failure to save last_offset_build_index information with error message :{}",e);
-                                continue;
-                            }
-
-
-                        }
-                        Err(e) => {
-                            error!("Failed to read Segment file data with error message:{},segment:{:?}", e, segment_iden);
-
-                            if e.to_string().contains("No such file or directory"){
-                                cache_manager.remove_build_index_thread(&segment_iden);
-                                break;
-                            }
-
-                            sleep(Duration::from_millis(100)).await;
-                        }
-                    }
-                }
-            }
-        }
-    });
-    Ok(())
-}
-
-fn try_finish_segment_index_build(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    cache_manager: &Arc<StorageCacheManager>,
-    segment_iden: &SegmentIdentity,
-) {
-    if let Some(segment) = cache_manager.get_segment(segment_iden) {
-        if segment.status == SegmentStatus::SealUp {
-            if let Err(e) = save_finish_build_index(rocksdb_engine_handler, segment_iden) {
-                error!("{}", e);
-            }
-        }
-    }
-}
-
-async fn save_record_index(
-    data: &[ReadData],
-    start_offset: u64,
-    segment_iden: &SegmentIdentity,
-    offset_index: &OffsetIndexManager,
-    time_index: &TimestampIndexManager,
-    tag_index: &TagIndexManager,
-) -> Result<(), StorageEngineError> {
-    for read_data in data.iter() {
-        let record = read_data.record.clone();
-        let index_data = IndexData {
-            offset: record.metadata.offset,
-            timestamp: record.metadata.create_t,
-            position: read_data.position,
-        };
-
-        if read_data.position == 0 {
-            offset_index.save_start_offset(segment_iden, record.metadata.offset)?;
-        }
-
-        if (record.metadata.offset - start_offset).is_multiple_of(BUILD_INDE_PER_RECORD_NUM) {
-            // build position index
-            offset_index.save_position_offset(
-                segment_iden,
-                record.metadata.offset,
-                index_data.clone(),
-            )?;
-
-            // build timestamp index
-            time_index.save_timestamp_offset(
-                segment_iden,
-                record.metadata.create_t,
-                index_data.clone(),
-            )?;
-        }
-
-        // build key index
-        if record.metadata.key.is_some() {
-            tag_index.save_key_position(
-                segment_iden,
-                record.metadata.key.unwrap(),
-                index_data.clone(),
-            )?;
-        }
-
-        // build tag index
-        if record.metadata.tags.is_some() {
-            for tag in record.metadata.tags.unwrap() {
-                tag_index.save_tag_position(segment_iden, tag, index_data.clone())?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn save_finish_build_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), StorageEngineError> {
-    let key = finish_build_index(segment_iden);
-    Ok(engine_save_by_engine(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_STORAGE_ENGINE,
-        &key,
-        now_second(),
-    )?)
-}
-
-fn is_finish_build_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<bool, StorageEngineError> {
-    let key = finish_build_index(segment_iden);
-    let res = engine_get_by_engine::<u8>(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_STORAGE_ENGINE,
-        &key,
-    )?;
-    Ok(res.is_some())
-}
-
-fn save_last_offset_build_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-    offset: u64,
-) -> Result<(), StorageEngineError> {
-    let key = last_offset_build_index(segment_iden);
-    Ok(engine_save_by_engine(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_STORAGE_ENGINE,
-        &key,
-        offset,
-    )?)
-}
-
-fn get_last_offset_build_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<Option<u64>, StorageEngineError> {
-    let key = last_offset_build_index(segment_iden);
-    if let Some(res) = engine_get_by_engine::<u64>(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_STORAGE_ENGINE,
-        &key,
-    )? {
-        return Ok(Some(res.data));
-    }
-
-    Ok(None)
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct IndexData {
+    pub offset: u64,
+    pub timestamp: u64,
+    pub position: u64,
 }
 
 pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
-    use super::IndexData;
-
     let prefix_key_name = segment_index_prefix(segment_iden);
-    let comlumn_family = DB_COLUMN_FAMILY_STORAGE_ENGINE;
     let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
         rocksdb_engine_handler,
-        comlumn_family,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
         &prefix_key_name,
     )?;
     for raw in data.iter() {
-        engine_delete_by_engine(rocksdb_engine_handler, comlumn_family, raw.key())?;
+        engine_delete_by_engine(
+            rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            raw.key(),
+        )?;
     }
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{save_finish_build_index, save_last_offset_build_index};
-    use crate::core::test::{test_build_segment, test_write_and_build_index};
-    use crate::segment::index::build::{
-        delete_segment_index, get_last_offset_build_index, is_finish_build_index,
-    };
-    use crate::segment::index::offset::OffsetIndexManager;
-    use crate::segment::index::IndexData;
-    use crate::segment::keys::segment_index_prefix;
-    use common_base::tools::now_second;
-    use common_base::utils::serialize;
-    use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
-    use rocksdb_engine::test::test_rocksdb_instance;
-    use rocksdb_engine::warp::StorageDataWrap;
+#[derive(Default)]
+pub enum IndexTypeEnum {
+    #[default]
+    Offset,
+    Tag,
+    Key,
+    Time,
+}
 
-    #[test]
-    fn last_offset_build_index_test() {
-        let rocksdb_engine_handler = test_rocksdb_instance();
-        let segment_iden = test_build_segment();
-        let res = save_last_offset_build_index(&rocksdb_engine_handler, &segment_iden, 10);
-        assert!(res.is_ok());
+#[derive(Default)]
+pub struct BuildIndexRaw {
+    pub index_type: IndexTypeEnum,
+    pub segment_iden: SegmentIdentity,
+    pub index_data: IndexData,
+    pub key: Option<String>,
+    pub tag: Option<String>,
+    pub timestamp: Option<u64>,
+}
 
-        let res = get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
-        println!("{res:?}");
-        assert!(res.is_ok());
-        assert!(res.unwrap().is_some());
-    }
+pub fn save_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+    index_data: &[BuildIndexRaw],
+) -> Result<(), StorageEngineError> {
+    let cf = rocksdb_engine_handler
+        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+        .ok_or_else(|| {
+            StorageEngineError::CommonErrorStr(format!(
+                "Column family '{}' not found",
+                DB_COLUMN_FAMILY_STORAGE_ENGINE
+            ))
+        })?;
 
-    #[test]
-    fn finish_build_index_test() {
-        let rocksdb_engine_handler = test_rocksdb_instance();
-        let segment_iden = test_build_segment();
-        let res = save_finish_build_index(&rocksdb_engine_handler, &segment_iden);
-        assert!(res.is_ok());
-
-        let res = is_finish_build_index(&rocksdb_engine_handler, &segment_iden);
-        assert!(res.is_ok());
-        assert!(res.unwrap());
-    }
-
-    #[test]
-    fn delete_segment_index_test() {
-        let rocksdb_engine_handler = test_rocksdb_instance();
-        let segment_iden = test_build_segment();
-        // build index
-        let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-        let timestamp = now_second();
-        for i in 0..10 {
-            let cur_timestamp = timestamp + i * 10;
-            let index_data = IndexData {
-                offset: i,
-                timestamp: cur_timestamp,
-                position: i * 5,
-            };
-            let res = offset_index.save_position_offset(&segment_iden, i, index_data);
-            assert!(res.is_ok());
-        }
-
-        // check data - use raw iterator to count entries
-        let prefix_key_name = segment_index_prefix(&segment_iden);
-        let cf = rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
-            .unwrap();
-
-        let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-        iter.seek(&prefix_key_name);
-
-        let mut count = 0;
-        while iter.valid() {
-            if let Some(k) = iter.key() {
-                let key_str = String::from_utf8(k.to_vec()).unwrap();
-                if !key_str.starts_with(&prefix_key_name) {
-                    break;
-                }
-                count += 1;
+    let mut batch = WriteBatch::default();
+    for data in index_data.iter() {
+        let serialized_data = serialize(&data.index_data)?;
+        match data.index_type {
+            IndexTypeEnum::Offset => {
+                let key = offset_segment_position(&data.segment_iden, data.index_data.offset);
+                batch.put_cf(&cf, key.as_bytes(), &serialized_data);
             }
-            iter.next();
-        }
-        assert!(count > 0);
-
-        // delete segment_index
-        let res = delete_segment_index(&rocksdb_engine_handler, &segment_iden);
-        assert!(res.is_ok());
-
-        // check data - use raw iterator to count entries
-        let prefix_key_name = segment_index_prefix(&segment_iden);
-        let cf = rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
-            .unwrap();
-
-        let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-        iter.seek(&prefix_key_name);
-
-        let mut count = 0;
-        while iter.valid() {
-            if let Some(k) = iter.key() {
-                let key_str = String::from_utf8(k.to_vec()).unwrap();
-                if !key_str.starts_with(&prefix_key_name) {
-                    break;
-                }
-                count += 1;
-            }
-            iter.next();
-        }
-
-        assert_eq!(count, 0);
-    }
-
-    #[tokio::test]
-    async fn build_thread_test() {
-        let (segment_iden, _, _, _, rocksdb_engine_handler) =
-            test_write_and_build_index(10001, 120).await;
-        let prefix_key_name = segment_index_prefix(&segment_iden);
-        let cf = rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
-            .unwrap();
-
-        let mut tag_num = 0;
-        let mut key_num = 0;
-        let mut offset_num = 0;
-        let mut timestamp_num = 0;
-
-        let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-        iter.seek(&prefix_key_name);
-
-        while iter.valid() {
-            if let (Some(k), Some(v)) = (iter.key(), iter.value()) {
-                let key_str = String::from_utf8(k.to_vec()).unwrap();
-                if !key_str.starts_with(&prefix_key_name) {
-                    break;
-                }
-
-                if key_str.contains("tag") {
-                    tag_num += 1;
-                }
-
-                if key_str.contains("key") {
-                    key_num += 1;
-                }
-
-                if key_str.contains("last/offset") {
-                    let wrap = serialize::deserialize::<StorageDataWrap<i64>>(v).unwrap();
-                    assert_eq!(wrap.data, 10000);
-                }
-
-                if key_str.contains("offset/position") {
-                    let wrap = serialize::deserialize::<StorageDataWrap<IndexData>>(v).unwrap();
-                    println!("key: {key_str},val={:?}", wrap.data);
-                    assert_eq!(wrap.data.offset, 9999);
-                    offset_num += 1;
-                }
-
-                if key_str.contains("timestamp/time-") {
-                    let wrap = serialize::deserialize::<StorageDataWrap<IndexData>>(v).unwrap();
-                    println!("key: {key_str},val={:?}", wrap.data);
-                    assert_eq!(wrap.data.offset, 9999);
-                    timestamp_num += 1;
+            IndexTypeEnum::Key => {
+                if let Some(k) = data.key.clone() {
+                    let key = key_segment(segment_iden, k);
+                    batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
-            iter.next();
+            IndexTypeEnum::Tag => {
+                if let Some(t) = data.tag.clone() {
+                    let key = tag_segment(segment_iden, t, data.index_data.offset);
+                    batch.put_cf(&cf, key.as_bytes(), &serialized_data);
+                }
+            }
+            IndexTypeEnum::Time => {
+                if let Some(t) = data.timestamp {
+                    let key = timestamp_segment_time(segment_iden, t);
+                    batch.put_cf(&cf, key.as_bytes(), &serialized_data);
+                }
+            }
         }
-
-        assert_eq!(tag_num, 10001);
-        assert_eq!(key_num, 10001);
-        assert_eq!(offset_num, 1);
-        assert_eq!(timestamp_num, 1);
     }
+
+    rocksdb_engine_handler.write_batch(batch)?;
+    Ok(())
 }

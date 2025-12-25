@@ -16,8 +16,8 @@
 pub mod driver;
 pub mod engine;
 pub mod expire;
-pub mod file;
 pub mod memory;
+pub mod rocksdb;
 pub mod tests;
 // pub mod mysql;
 pub mod offset;

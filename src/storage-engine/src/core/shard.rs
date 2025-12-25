@@ -16,7 +16,6 @@ use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
-use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -35,7 +34,6 @@ use tracing::{error, info};
 pub fn delete_local_shard(
     cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteShardFileRequest,
 ) {
     if !cache_manager.shards.contains_key(&req.shard_name) {
@@ -46,13 +44,8 @@ pub fn delete_local_shard(
         // delete segment
         for segment in cache_manager.get_segments_list_by_shard(&req.shard_name) {
             let segment_iden = SegmentIdentity::new(&req.shard_name, segment.segment_seq);
-            if let Err(e) = delete_local_segment(
-                &cache_manager,
-                &rocksdb_engine_handler,
-                &segment_file_manager,
-                &segment_iden,
-            )
-            .await
+            if let Err(e) =
+                delete_local_segment(&cache_manager, &rocksdb_engine_handler, &segment_iden).await
             {
                 error!("{}", e);
                 return;

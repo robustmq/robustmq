@@ -14,9 +14,15 @@
 
 use super::file::SegmentFile;
 use super::SegmentIdentity;
-use crate::segment::index::offset::OffsetIndexManager;
-use crate::segment::index::tag::TagIndexManager;
-use crate::{core::error::StorageEngineError, segment::file::ReadData};
+use crate::{
+    core::error::StorageEngineError,
+    segment::{
+        file::ReadData,
+        index::read::{
+            get_index_data_by_offset, get_index_data_by_tag, get_index_data_positions_by_key,
+        },
+    },
+};
 use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -31,10 +37,8 @@ pub async fn read_by_offset(
     filter: &ReadReqFilter,
     read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-    let start_position = if let Some(position) = offset_index
-        .get_last_nearest_position_by_offset(segment_iden, filter.offset)
-        .await?
+    let start_position = if let Some(position) =
+        get_index_data_by_offset(rocksdb_engine_handler, segment_iden, filter.offset).await?
     {
         position.position
     } else {
@@ -61,19 +65,16 @@ pub async fn read_by_key(
     segment_file: &SegmentFile,
     segment_iden: &SegmentIdentity,
     filter: &ReadReqFilter,
-    read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
-    let index_data_list = tag_index
-        .get_last_positions_by_key(
-            segment_iden,
-            filter.offset,
-            filter.key.clone(),
-            read_options.max_record,
-        )
-        .await?;
+    let index_data =
+        get_index_data_positions_by_key(rocksdb_engine_handler, segment_iden, filter.key.clone())
+            .await?;
 
-    let positions = index_data_list.iter().map(|raw| raw.position).collect();
+    let positions = if let Some(index) = index_data {
+        vec![index.offset]
+    } else {
+        return Ok(Vec::new());
+    };
 
     segment_file.read_by_positions(positions).await
 }
@@ -88,15 +89,14 @@ pub async fn read_by_tag(
     filter: &ReadReqFilter,
     read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
-    let index_data_list = tag_index
-        .get_last_positions_by_tag(
-            segment_iden,
-            filter.offset,
-            filter.tag.clone(),
-            read_options.max_record,
-        )
-        .await?;
+    let index_data_list = get_index_data_by_tag(
+        rocksdb_engine_handler,
+        segment_iden,
+        filter.offset,
+        filter.tag.clone(),
+        read_options.max_record,
+    )
+    .await?;
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
     segment_file.read_by_positions(positions).await
 }
@@ -110,7 +110,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn read_by_offset_test() {
-        let (segment_iden, _, _, fold, rocksdb_engine_handler) =
+        let (segment_iden, _, fold, rocksdb_engine_handler) =
             test_write_and_build_index(30, 5).await;
 
         let segment_file =
@@ -173,16 +173,11 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn read_by_key_test() {
-        let (segment_iden, _, _, fold, rocksdb_engine_handler) =
+        let (segment_iden, _, fold, rocksdb_engine_handler) =
             test_write_and_build_index(30, 10).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold);
-
-        let read_options = ReadReqOptions {
-            max_record: 10,
-            max_size: 1024 * 1024 * 1024,
-        };
 
         let key = "key-5".to_string();
         let filter = ReadReqFilter {
@@ -195,7 +190,6 @@ mod tests {
             &segment_file,
             &segment_iden,
             &filter,
-            &read_options,
         )
         .await;
         println!("{res:?}");
@@ -208,7 +202,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn read_by_tag_test() {
-        let (segment_iden, _, _, fold, rocksdb_engine_handler) =
+        let (segment_iden, _, fold, rocksdb_engine_handler) =
             test_write_and_build_index(30, 10).await;
 
         let segment_file =

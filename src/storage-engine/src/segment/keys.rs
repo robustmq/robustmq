@@ -73,15 +73,12 @@ const TYPE_OFFSET: &str = "o"; // offset
 const TYPE_TIMESTAMP: &str = "t"; // timestamp
 const TYPE_TAG: &str = "g"; // tag (using 'g' to avoid conflict with 't')
 const TYPE_KEY: &str = "k"; // key
-const TYPE_BUILD: &str = "b"; // build
 
 // Operations
 const OP_START: &str = "s"; // start
 const OP_END: &str = "e"; // end
 const OP_POSITION: &str = "p"; // position
 const OP_TIME: &str = "t"; // time
-const OP_FINISH: &str = "f"; // finish
-const OP_LAST: &str = "l"; // last
 
 // Special prefix for offset storage (not part of index)
 const OFFSET_PREFIX: &str = "/o/";
@@ -284,67 +281,14 @@ pub(crate) fn tag_segment_prefix(segment_iden: &SegmentIdentity, tag: String) ->
 /// Format: `/i/{shard}/{segment}/k/{key}/{offset}`
 ///
 /// Example: `/i/queue1/123/k/user-123/1000`
-pub(crate) fn key_segment(segment_iden: &SegmentIdentity, key: String, offset: u64) -> String {
-    format!(
-        "{}{}{}{}{}{}",
-        segment_base(segment_iden),
-        TYPE_KEY,
-        SEP,
-        key,
-        SEP,
-        offset
-    )
-}
-
-/// Prefix for scanning all offsets with a specific key
-///
-/// Format: `/i/{shard}/{segment}/k/{key}/`
-///
-/// Example: `/i/queue1/123/k/user-123/`
-pub(crate) fn key_segment_prefix(segment_iden: &SegmentIdentity, key: String) -> String {
+pub(crate) fn key_segment(segment_iden: &SegmentIdentity, key: String) -> String {
     format!(
         "{}{}{}{}{}",
         segment_base(segment_iden),
         TYPE_KEY,
         SEP,
         key,
-        SEP
-    )
-}
-
-// ============================================================================
-// Build Status Keys
-// ============================================================================
-
-/// Key for the index build finish marker
-///
-/// Format: `/i/{shard}/{segment}/b/f`
-///
-/// Example: `/i/queue1/123/b/f`
-pub(crate) fn finish_build_index(segment_iden: &SegmentIdentity) -> String {
-    format!(
-        "{}{}{}{}",
-        segment_base(segment_iden),
-        TYPE_BUILD,
         SEP,
-        OP_FINISH
-    )
-}
-
-/// Key for the last processed offset during index building
-///
-/// Format: `/i/{shard}/{segment}/b/l/o`
-///
-/// Example: `/i/queue1/123/b/l/o`
-pub(crate) fn last_offset_build_index(segment_iden: &SegmentIdentity) -> String {
-    format!(
-        "{}{}{}{}{}{}",
-        segment_base(segment_iden),
-        TYPE_BUILD,
-        SEP,
-        OP_LAST,
-        SEP,
-        TYPE_OFFSET
     )
 }
 

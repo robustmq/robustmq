@@ -71,7 +71,9 @@ message ListSegmentReply {
 }
 
 message CreateNextSegmentRequest {
-  string shard_name = 3;
+  string shard_name = 1;
+  int32  current_segment = 2;
+  int64  current_segment_end_offset = 3;
 }
 
 message CreateNextSegmentReply {}
@@ -79,6 +81,7 @@ message CreateNextSegmentReply {}
 message DeleteSegmentRequest {
   string shard_name = 3;
   uint32 segment_seq = 4;
+  
 }
 
 message DeleteSegmentReply {}

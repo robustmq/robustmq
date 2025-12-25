@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
 pub mod build;
-pub mod offset;
-pub mod tag;
-pub mod time;
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IndexData {
-    pub offset: u64,
-    pub timestamp: u64,
-    pub position: u64,
-}
+pub mod read;
+pub mod segment;

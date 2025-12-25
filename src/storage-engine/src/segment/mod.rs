@@ -18,14 +18,13 @@ pub mod file;
 pub mod index;
 pub mod isr;
 pub mod keys;
-pub mod manager;
 pub mod offset;
 pub mod read;
 pub mod scroll;
 pub mod write;
 
 /// A unique identifier for a segment, used to get segment metadata or segment file.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Default)]
 pub struct SegmentIdentity {
     pub shard_name: String,
     pub segment: u32,
