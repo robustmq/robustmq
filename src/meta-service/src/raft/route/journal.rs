@@ -46,8 +46,7 @@ impl DataRouteJournal {
 
         let shard_info = EngineShard::decode(&value)?;
         shard_storage.save(&shard_info)?;
-
-        self.cache_manager.set_shard(&shard_info);
+        self.cache_manager.set_shard(shard_info);
 
         Ok(value)
     }
@@ -68,8 +67,7 @@ impl DataRouteJournal {
 
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(segment.clone())?;
-
-        self.cache_manager.set_segment(&segment);
+        self.cache_manager.set_segment(segment);
 
         Ok(value)
     }
@@ -90,8 +88,7 @@ impl DataRouteJournal {
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(meta.clone())?;
-
-        self.cache_manager.set_segment_meta(&meta);
+        self.cache_manager.set_segment_meta(meta);
 
         Ok(value)
     }
