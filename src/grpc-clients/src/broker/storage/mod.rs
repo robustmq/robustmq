@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::macros::impl_retriable_request;
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker::broker_storage::broker_storage_service_client::BrokerStorageServiceClient;

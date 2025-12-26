@@ -11,20 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use crate::pool::ClientPool;
-use common_base::error::common::CommonError;
-
-
-macro_rules! generate_journal_inner_service_call {
-    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
-        pub async fn $fn_name(
-            client_pool: &ClientPool,
-            addrs: &[impl AsRef<str>],
-            request: $req_ty,
-        ) -> Result<$rep_ty, CommonError> {
-            $crate::utils::retry_call(client_pool, addrs, request).await
-        }
-    };
-}
-

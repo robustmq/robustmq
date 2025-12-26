@@ -63,7 +63,7 @@ pub async fn segment_already_delete(
 ) -> Result<bool, StorageEngineError> {
     let segment_iden = SegmentIdentity {
         shard_name: shard_name.to_string(),
-        segment: segment,
+        segment,
     };
 
     let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
@@ -101,7 +101,7 @@ pub async fn create_local_segment(
     segment_file.try_create().await?;
 
     // add cache
-    cache_manager.set_segment(&segment);
+    cache_manager.set_segment(segment);
 
     info!("Segment {} created successfully", segment_iden.name());
     Ok(())

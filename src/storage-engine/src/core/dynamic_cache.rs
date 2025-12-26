@@ -15,7 +15,7 @@
 use super::cache::StorageCacheManager;
 use crate::{
     core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    segment::SegmentIdentity,
+    segment::{file::open_segment_write, index::segment::SegmentIndexManager, SegmentIdentity},
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
@@ -54,7 +54,13 @@ pub async fn update_storage_cache_metadata(
         }
 
         BrokerUpdateCacheResourceType::SegmentMeta => {
-            parse_segment_meta(cache_manager, request.action_type(), &request.data).await?;
+            parse_segment_meta(
+                cache_manager,
+                rocksdb_engine_handler,
+                request.action_type(),
+                &request.data,
+            )
+            .await?;
         }
 
         _ => {}
@@ -72,8 +78,6 @@ async fn parse_shard(
         BrokerUpdateCacheActionType::Set => {
             let shard = EngineShard::decode(data)?;
             cache_manager.set_shard(shard);
-
-    
         }
 
         BrokerUpdateCacheActionType::Delete => {
@@ -97,7 +101,17 @@ async fn parse_segment(
     match action_type {
         BrokerUpdateCacheActionType::Set => {
             let segment = EngineSegment::decode(data)?;
-            // cache_manager.add_next_segment(shard, segment);
+            cache_manager.set_segment(&segment);
+            let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
+            let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+            segment_file.try_create().await?;
+
+            let conf = broker_config();
+            if conf.broker_id == segment.leader {
+                cache_manager.add_leader_segment(&segment_iden);
+            } else {
+                cache_manager.remove_leader_segment(&segment_iden);
+            }
         }
         BrokerUpdateCacheActionType::Delete => {
             let segment = EngineSegment::decode(data)?;
@@ -110,12 +124,22 @@ async fn parse_segment(
 
 async fn parse_segment_meta(
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) -> Result<(), StorageEngineError> {
     match action_type {
         BrokerUpdateCacheActionType::Set => {
             let meta = EngineSegmentMetadata::decode(data)?;
+            cache_manager.set_segment_meta(meta.clone());
+            let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
+
+            // persist segment meta index
+            let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
+            segment_index_manager.save_start_offset(&segment_iden, meta.start_offset)?;
+            segment_index_manager.save_end_offset(&segment_iden, meta.end_offset)?;
+            segment_index_manager.save_start_timestamp(&segment_iden, meta.start_timestamp)?;
+            segment_index_manager.save_end_timestamp(&segment_iden, meta.end_timestamp)?;
         }
 
         BrokerUpdateCacheActionType::Delete => {

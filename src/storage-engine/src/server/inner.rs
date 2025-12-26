@@ -12,25 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::StorageCacheManager;
 use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageService;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::sync::Arc;
 
-pub struct GrpcBrokerStorageServerService {
-    cache_manager: Arc<StorageCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-}
+#[derive(Default)]
+pub struct GrpcBrokerStorageServerService {}
 
 impl GrpcBrokerStorageServerService {
-    pub fn new(
-        cache_manager: Arc<StorageCacheManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-    ) -> Self {
-        GrpcBrokerStorageServerService {
-            cache_manager,
-            rocksdb_engine_handler,
-        }
+    pub fn new() -> Self {
+        GrpcBrokerStorageServerService {}
     }
 }
 

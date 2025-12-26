@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{core::error::StorageEngineError, segment::keys::offset_segment_offset};
+use crate::{
+    core::error::StorageEngineError,
+    segment::{
+        index::segment::SegmentIndexManager, keys::offset_segment_cursor_offset, SegmentIdentity,
+    },
+};
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{
@@ -25,9 +30,10 @@ use std::sync::Arc;
 pub fn save_shard_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard: &str,
+    current_segment: u32,
     offset: u64,
 ) -> Result<(), StorageEngineError> {
-    let key = offset_segment_offset(shard);
+    let key = offset_segment_cursor_offset(shard, current_segment);
     Ok(engine_save_by_engine(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -39,8 +45,9 @@ pub fn save_shard_offset(
 pub fn get_shard_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard: &str,
+    current_segment: u32,
 ) -> Result<u64, StorageEngineError> {
-    let key = offset_segment_offset(shard);
+    let key = offset_segment_cursor_offset(shard, current_segment);
     if let Some(res) = engine_get_by_engine::<u64>(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -49,7 +56,22 @@ pub fn get_shard_offset(
         return Ok(res.data);
     }
 
-    Err(StorageEngineError::NoOffsetInformation(shard.to_string()))
+    // If the segment cursor offset does not exist, then obtain the start offset of the metadata.
+    let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
+    let segment_iden = SegmentIdentity::new(shard, current_segment);
+    let start_offset = segment_index_manager.get_start_offset(&segment_iden)?;
+    if start_offset <= 0 {
+        return Err(StorageEngineError::NoOffsetInformation(shard.to_string()));
+    }
+
+    save_shard_offset(
+        rocksdb_engine_handler,
+        shard,
+        current_segment,
+        start_offset as u64,
+    )?;
+
+    Ok(start_offset as u64)
 }
 
 #[cfg(test)]
@@ -63,22 +85,32 @@ mod tests {
 
         let shard = "test_shard";
         let expected_offset = 12345u64;
+        let segment = 8;
 
-        save_shard_offset(&rocksdb, shard, expected_offset).unwrap();
+        save_shard_offset(&rocksdb, shard, segment, expected_offset).unwrap();
 
-        let actual_offset = get_shard_offset(&rocksdb, shard).unwrap();
+        let actual_offset = get_shard_offset(&rocksdb, shard, segment).unwrap();
 
         assert_eq!(actual_offset, expected_offset);
 
-        save_shard_offset(&rocksdb, shard, 99999).unwrap();
-        let updated_offset = get_shard_offset(&rocksdb, shard).unwrap();
+        save_shard_offset(&rocksdb, shard, segment, 99999).unwrap();
+        let updated_offset = get_shard_offset(&rocksdb, shard, segment).unwrap();
         assert_eq!(updated_offset, 99999);
 
-        let result = get_shard_offset(&rocksdb, "non_existent_shard");
+        let result = get_shard_offset(&rocksdb, "non_existent_shard", segment);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
             StorageEngineError::NoOffsetInformation(_)
         ));
+
+        let offset_manager = SegmentIndexManager::new(rocksdb.clone());
+
+        let segment_iden = SegmentIdentity::new("non_existent_shard", segment);
+        offset_manager
+            .save_start_offset(&segment_iden, 100)
+            .unwrap();
+        let result = get_shard_offset(&rocksdb, "non_existent_shard", segment).unwrap();
+        assert_eq!(result, 100);
     }
 }

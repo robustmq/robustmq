@@ -36,7 +36,7 @@ impl SegmentIndexManager {
     pub fn save_start_offset(
         &self,
         segment_iden: &SegmentIdentity,
-        start_offset: u64,
+        start_offset: i64,
     ) -> Result<(), StorageEngineError> {
         let key = offset_segment_start(segment_iden);
         Ok(engine_save_by_engine(
@@ -66,7 +66,7 @@ impl SegmentIndexManager {
     pub fn save_end_offset(
         &self,
         segment_iden: &SegmentIdentity,
-        end_offset: u64,
+        end_offset: i64,
     ) -> Result<(), StorageEngineError> {
         let key = offset_segment_end(segment_iden);
         Ok(engine_save_by_engine(
@@ -96,7 +96,7 @@ impl SegmentIndexManager {
     pub fn save_start_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
-        start_timestamp: u64,
+        start_timestamp: i64,
     ) -> Result<(), StorageEngineError> {
         let key = timestamp_segment_start(segment_iden);
         Ok(engine_save_by_engine(
@@ -126,7 +126,7 @@ impl SegmentIndexManager {
     pub fn save_end_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
-        end_timestamp: u64,
+        end_timestamp: i64,
     ) -> Result<(), StorageEngineError> {
         let key = timestamp_segment_end(segment_iden);
         Ok(engine_save_by_engine(
@@ -173,7 +173,7 @@ mod tests {
 
         let res = offset_index.get_start_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), start_offset as i64);
+        assert_eq!(res.unwrap(), start_offset);
 
         let end_offset = 1000;
         let res = offset_index.save_end_offset(&segment_iden, end_offset);
@@ -181,7 +181,7 @@ mod tests {
 
         let res = offset_index.get_end_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), end_offset as i64);
+        assert_eq!(res.unwrap(), end_offset);
     }
 
     #[test]
@@ -197,7 +197,7 @@ mod tests {
 
         let res = offset_index.get_start_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), start_offset as i64);
+        assert_eq!(res.unwrap(), start_offset);
 
         let end_offset = 1000;
         let res = offset_index.save_end_offset(&segment_iden, end_offset);
@@ -205,6 +205,6 @@ mod tests {
 
         let res = offset_index.get_end_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), end_offset as i64);
+        assert_eq!(res.unwrap(), end_offset);
     }
 }

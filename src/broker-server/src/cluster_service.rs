@@ -57,6 +57,7 @@ async fn update_cache(
     req: &UpdateCacheRequest,
 ) -> ResultCommonError {
     match req.resource_type() {
+        // MQTT Broker
         BrokerUpdateCacheResourceType::Session
         | BrokerUpdateCacheResourceType::User
         | BrokerUpdateCacheResourceType::Subscribe
@@ -78,12 +79,21 @@ async fn update_cache(
                 return Err(CommonError::CommonError(e.to_string()));
             }
         }
-        BrokerUpdateCacheResourceType::ClusterResourceConfig => {}
-        BrokerUpdateCacheResourceType::Node => {}
+
+        // Cluster
+        BrokerUpdateCacheResourceType::ClusterResourceConfig
+        | BrokerUpdateCacheResourceType::Node => {}
+
+        // Storage Engine
         BrokerUpdateCacheResourceType::Shard
         | BrokerUpdateCacheResourceType::Segment
         | BrokerUpdateCacheResourceType::SegmentMeta => {
-            if let Err(e) = update_storage_cache_metadata(&storage_params.cache_manager, req).await
+            if let Err(e) = update_storage_cache_metadata(
+                &storage_params.cache_manager,
+                &storage_params.rocksdb_engine_handler,
+                req,
+            )
+            .await
             {
                 return Err(CommonError::CommonError(e.to_string()));
             }

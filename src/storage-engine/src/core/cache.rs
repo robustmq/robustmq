@@ -83,13 +83,13 @@ impl StorageCacheManager {
         self.segment_metadatas.remove(shard_name);
 
         for raw in self.leader_segments.iter() {
-            if raw.shard_name == shard_name.to_string() {
+            if raw.shard_name == shard_name {
                 self.leader_segments.remove(raw.key());
             }
         }
 
         for raw in self.segment_file_writer.iter() {
-            if raw.shard_name == shard_name.to_string() {
+            if raw.shard_name == shard_name {
                 self.segment_file_writer.remove(raw.key());
             }
         }
@@ -196,11 +196,11 @@ impl StorageCacheManager {
     }
 
     // Leader Segment
-    pub fn get_leader_segment(&self) -> Vec<SegmentIdentity> {
-        self.leader_segments.iter().map(|raw| raw.clone()).collect()
+    pub fn remove_leader_segment(&self, segment_iden: &SegmentIdentity) {
+        self.leader_segments.remove(&segment_iden.name());
     }
 
-    fn add_leader_segment(&self, segment_iden: &SegmentIdentity) {
+    pub fn add_leader_segment(&self, segment_iden: &SegmentIdentity) {
         self.leader_segments
             .insert(segment_iden.name(), segment_iden.clone());
     }

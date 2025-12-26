@@ -109,7 +109,9 @@ impl StorageEngineServer {
     }
 
     async fn init(&self) {
-        load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+        if let Err(e) = load_metadata_cache(&self.cache_manager, &self.client_pool).await {
+            error!("{}", e);
+        }
         info!("Journal Node was initialized successfully");
     }
 

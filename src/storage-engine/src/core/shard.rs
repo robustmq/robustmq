@@ -51,9 +51,6 @@ pub fn delete_local_shard(
             }
         }
 
-        // delete shard
-        cache_manager.delete_shard(&shard_name);
-
         // delete file
         let conf = broker_config();
         for data_fold in conf.storage_runtime.data_path.iter() {
@@ -67,6 +64,10 @@ pub fn delete_local_shard(
                 }
             }
         }
+
+        // delete shard
+        cache_manager.delete_shard(&shard_name);
+
         info!("Shard {} deleted successfully", shard_name);
     });
 }
