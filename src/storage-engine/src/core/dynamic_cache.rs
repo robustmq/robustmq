@@ -131,20 +131,21 @@ async fn parse_segment_meta(
     match action_type {
         BrokerUpdateCacheActionType::Set => {
             let meta = EngineSegmentMetadata::decode(data)?;
-            cache_manager.set_segment_meta(meta.clone());
             let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
 
-            // persist segment meta index
             let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
-            segment_index_manager.save_start_offset(&segment_iden, meta.start_offset)?;
-            segment_index_manager.save_end_offset(&segment_iden, meta.end_offset)?;
-            segment_index_manager.save_start_timestamp(&segment_iden, meta.start_timestamp)?;
-            segment_index_manager.save_end_timestamp(&segment_iden, meta.end_timestamp)?;
+            segment_index_manager.batch_save_segment_metadata(
+                &segment_iden,
+                meta.start_offset,
+                meta.end_offset,
+                meta.start_timestamp,
+                meta.end_timestamp,
+            )?;
+
+            cache_manager.set_segment_meta(meta);
         }
 
-        BrokerUpdateCacheActionType::Delete => {
-            // There is no need to implement it. The metadata will be deleted along with the segment, and it will not be deleted separately.
-        }
+        BrokerUpdateCacheActionType::Delete => {}
     }
     Ok(())
 }
