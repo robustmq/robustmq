@@ -1,7 +1,22 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::update_cache_by_set_shard;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::segment::delete_segment_by_real;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
@@ -43,6 +58,28 @@ pub async fn create_shard(
     Ok(shard)
 }
 
+pub async fn delete_shard_by_real(
+    cache_manager: &Arc<CacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    shard_name: &str,
+) -> Result<(), MetaServiceError> {
+    let shard = if let Some(shard) = cache_manager.shard_list.get(shard_name) {
+        shard.clone()
+    } else {
+        return Ok(());
+    };
+
+    // delete real data
+    for segment in cache_manager.get_segment_list_by_shard(shard_name) {
+        delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
+    }
+    sync_delete_shard_info(raft_manager, &shard).await?;
+
+    // delete cache
+    cache_manager.remove_shard(shard_name);
+    Ok(())
+}
+
 pub async fn update_start_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
@@ -53,7 +90,7 @@ pub async fn update_start_segment_by_shard(
 ) -> Result<(), MetaServiceError> {
     if let Some(mut shard) = cache_manager.shard_list.get_mut(shard) {
         shard.start_segment_seq = segment_no;
-        sync_save_shard_info(raft_manager, &*shard).await?;
+        sync_save_shard_info(raft_manager, &shard).await?;
         update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
     }
     Ok(())
@@ -69,7 +106,7 @@ pub async fn update_last_segment_by_shard(
 ) -> Result<(), MetaServiceError> {
     if let Some(mut shard) = cache_manager.shard_list.get_mut(shard) {
         shard.last_segment_seq = segment_no;
-        sync_save_shard_info(raft_manager, &*shard).await?;
+        sync_save_shard_info(raft_manager, &shard).await?;
         update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
     }
     Ok(())
@@ -85,7 +122,7 @@ pub async fn update_shard_status(
 ) -> Result<(), MetaServiceError> {
     if let Some(mut shard) = cache_manager.shard_list.get_mut(shard) {
         shard.status = status;
-        sync_save_shard_info(raft_manager, &*shard).await?;
+        sync_save_shard_info(raft_manager, &shard).await?;
         update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
     }
     Ok(())

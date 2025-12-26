@@ -60,7 +60,7 @@ pub struct CacheManager {
     //(connector_name, ConnectorHeartbeat)
     pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
 
-    // Journal
+    // Storage Engine
     //（shard_name, JournalShard）
     pub shard_list: DashMap<String, EngineShard>,
 

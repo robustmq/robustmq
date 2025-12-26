@@ -1,9 +1,24 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::update_cache_by_set_segment;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment_meta::{
-    create_segment_metadata, update_end_timestamp_by_segment_metadata,
+    create_segment_metadata, sync_delete_segment_metadata_info,
+    update_end_timestamp_by_segment_metadata,
 };
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -77,6 +92,21 @@ pub async fn seal_up_segment(
         last_timestamp,
     )
     .await?;
+    Ok(())
+}
+
+pub async fn delete_segment_by_real(
+    cache_manager: &Arc<CacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    segment: &EngineSegment,
+) -> Result<(), MetaServiceError> {
+    sync_delete_segment_info(raft_manager, segment).await?;
+    if let Some(meta_list) = cache_manager.segment_meta_list.get(&segment.shard_name) {
+        if let Some(meta) = meta_list.get(&segment.segment_seq) {
+            sync_delete_segment_metadata_info(raft_manager, &meta).await?;
+        }
+    }
+
     Ok(())
 }
 

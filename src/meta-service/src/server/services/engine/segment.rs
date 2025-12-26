@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::storage::update_cache_by_set_segment_meta;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment::{create_segment, seal_up_segment, update_segment_status};
@@ -192,7 +191,7 @@ pub async fn seal_up_segment_req(
         call_manager,
         client_pool,
         &segment,
-        req.end_timestamp as u64,
+        req.end_timestamp,
     )
     .await?;
 

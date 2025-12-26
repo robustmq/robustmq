@@ -29,6 +29,8 @@ impl CacheManager {
     pub fn remove_shard(&self, shard_name: &str) {
         self.shard_list.remove(shard_name);
         self.segment_list.remove(shard_name);
+        self.segment_meta_list.remove(shard_name);
+        self.wait_delete_shard_list.remove(shard_name);
     }
 
     // segment

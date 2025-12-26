@@ -18,8 +18,6 @@ pub mod error;
 pub mod read;
 pub mod record;
 pub mod segment;
-pub mod segment_meta;
-pub mod segment_status;
 pub mod services;
 pub mod shard;
 pub mod test;

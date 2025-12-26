@@ -27,7 +27,7 @@ pub mod call_broker;
 pub mod connector;
 pub mod message_expire;
 pub mod session_expire;
-// pub mod storage_gc;
+pub mod storage_gc;
 
 pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
     if now_second() >= lastwill.delay_sec {

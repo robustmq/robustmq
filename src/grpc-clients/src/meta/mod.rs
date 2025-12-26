@@ -78,8 +78,8 @@ pub enum MetaServiceInterface {
 }
 
 pub mod common;
-pub mod storage;
 pub mod mqtt;
+pub mod storage;
 
 #[cfg(test)]
 mod test {

@@ -74,7 +74,6 @@ pub enum SegmentStatus {
     PreSealUp,
     SealUp,
     PreDelete,
-    Deleting,
 }
 
 impl fmt::Display for SegmentStatus {
@@ -84,7 +83,6 @@ impl fmt::Display for SegmentStatus {
             SegmentStatus::PreSealUp => write!(f, "PreSealUp"),
             SegmentStatus::SealUp => write!(f, "SealUp"),
             SegmentStatus::PreDelete => write!(f, "PreDelete"),
-            SegmentStatus::Deleting => write!(f, "Deleting"),
         }
     }
 }
@@ -95,7 +93,6 @@ pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError>
         "PreSealUp" => Ok(SegmentStatus::PreSealUp),
         "SealUp" => Ok(SegmentStatus::SealUp),
         "PreDelete" => Ok(SegmentStatus::PreDelete),
-        "Deleting" => Ok(SegmentStatus::Deleting),
         _ => Err(CommonError::CommonError("".to_string())),
     }
 }
