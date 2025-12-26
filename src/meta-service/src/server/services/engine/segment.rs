@@ -105,8 +105,11 @@ pub async fn create_segment_by_req(
         };
         sync_save_segment_metadata_info(raft_manager, &metadata).await?;
 
-        // update last segment
+        // update last segment by shard
         update_last_segment_by_shard(raft_manager, cache_manager, &mut shard, next_segment).await?;
+
+        // update last offset by current segment
+        
 
         // update call cache
         update_cache_by_set_shard(call_manager, client_pool, shard).await?;
@@ -275,4 +278,3 @@ pub async fn update_segment_meta_by_req(
 
     Ok(UpdateSegmentMetaReply::default())
 }
-
