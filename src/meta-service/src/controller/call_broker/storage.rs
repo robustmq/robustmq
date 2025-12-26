@@ -24,7 +24,7 @@ use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateC
 use std::sync::Arc;
 
 pub async fn update_cache_by_set_shard(
-    call_manager: &Arc<BrokerCallManager>,
+    broker_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
@@ -34,14 +34,14 @@ pub async fn update_cache_by_set_shard(
         resource_type: BrokerUpdateCacheResourceType::Shard,
         data,
     };
-    add_call_message(call_manager, client_pool, message).await?;
+    add_call_message(broker_call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_set_segment(
-    call_manager: &Arc<BrokerCallManager>,
+    broker_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    segment_info: EngineSegment,
+    segment_info: &EngineSegment,
 ) -> Result<(), MetaServiceError> {
     let data = segment_info.encode()?;
     let message = BrokerCallMessage {
@@ -49,12 +49,12 @@ pub async fn update_cache_by_set_segment(
         resource_type: BrokerUpdateCacheResourceType::Segment,
         data,
     };
-    add_call_message(call_manager, client_pool, message).await?;
+    add_call_message(broker_call_manager, client_pool, message).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_set_segment_meta(
-    call_manager: &Arc<BrokerCallManager>,
+    broker_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     segment_info: EngineSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
@@ -64,6 +64,6 @@ pub async fn update_cache_by_set_segment_meta(
         resource_type: BrokerUpdateCacheResourceType::SegmentMeta,
         data,
     };
-    add_call_message(call_manager, client_pool, message).await?;
+    add_call_message(broker_call_manager, client_pool, message).await?;
     Ok(())
 }

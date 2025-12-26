@@ -1,36 +1,97 @@
+use crate::controller::call_broker::call::BrokerCallManager;
+use crate::controller::call_broker::storage::update_cache_by_set_shard;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
-use metadata_struct::storage::shard::{EngineShard, EngineShardStatus};
+use common_base::tools::{now_second, unique_id};
+use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::shard::{
+    EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+};
 use std::sync::Arc;
+
+pub async fn create_shard(
+    cache_manager: &Arc<CacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    shard: &str,
+    shard_config: EngineShardConfig,
+) -> Result<EngineShard, MetaServiceError> {
+    let shard: EngineShard = if let Some(shard) = cache_manager.shard_list.get(shard) {
+        shard.clone()
+    } else {
+        let shard = EngineShard {
+            shard_uid: unique_id(),
+            shard_name: shard.to_string(),
+            start_segment_seq: 0,
+            active_segment_seq: 0,
+            last_segment_seq: 0,
+            status: EngineShardStatus::Run,
+            config: shard_config.clone(),
+            replica_num: shard_config.replica_num,
+            engine_type: EngineType::Segment,
+            create_time: now_second(),
+        };
+
+        sync_save_shard_info(raft_manager, &shard).await?;
+        update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+        shard
+    };
+    Ok(shard)
+}
 
 pub async fn update_start_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    shard: &mut EngineShard,
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    shard: &str,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
-    shard.start_segment_seq = segment_no;
-    sync_save_shard_info(raft_manager, shard).await?;
-    cache_manager.set_shard(shard);
+    if let Some(mut shard) = cache_manager.shard_list.get_mut(shard) {
+        shard.start_segment_seq = segment_no;
+        sync_save_shard_info(raft_manager, &*shard).await?;
+        update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    }
     Ok(())
 }
 
 pub async fn update_last_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
-    shard: &mut EngineShard,
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    shard: &str,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
-    shard.last_segment_seq = segment_no;
-    sync_save_shard_info(raft_manager, shard).await?;
-    cache_manager.set_shard(shard);
+    if let Some(mut shard) = cache_manager.shard_list.get_mut(shard) {
+        shard.last_segment_seq = segment_no;
+        sync_save_shard_info(raft_manager, &*shard).await?;
+        update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    }
     Ok(())
 }
 
-pub async fn sync_save_shard_info(
+pub async fn update_shard_status(
+    raft_manager: &Arc<MultiRaftManager>,
+    cache_manager: &Arc<CacheManager>,
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    shard: &str,
+    status: EngineShardStatus,
+) -> Result<(), MetaServiceError> {
+    if let Some(mut shard) = cache_manager.shard_list.get_mut(shard) {
+        shard.status = status;
+        sync_save_shard_info(raft_manager, &*shard).await?;
+        update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    }
+    Ok(())
+}
+
+async fn sync_save_shard_info(
     raft_manager: &Arc<MultiRaftManager>,
     shard: &EngineShard,
 ) -> Result<(), MetaServiceError> {
@@ -44,7 +105,7 @@ pub async fn sync_save_shard_info(
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
-pub async fn sync_delete_shard_info(
+async fn sync_delete_shard_info(
     raft_manager: &Arc<MultiRaftManager>,
     shard: &EngineShard,
 ) -> Result<(), MetaServiceError> {
@@ -56,17 +117,4 @@ pub async fn sync_delete_shard_info(
         return Ok(());
     }
     Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn update_shard_status(
-    raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
-    shard: &EngineShard,
-    status: EngineShardStatus,
-) -> Result<(), MetaServiceError> {
-    let mut new_shard = shard.clone();
-    new_shard.status = status;
-    sync_save_shard_info(raft_manager, &new_shard).await?;
-    cache_manager.set_shard(&new_shard);
-    Ok(())
 }

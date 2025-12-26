@@ -1,16 +1,86 @@
+use crate::controller::call_broker::call::BrokerCallManager;
+use crate::controller::call_broker::storage::update_cache_by_set_segment;
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::segment_meta::{
+    create_segment_metadata, update_end_timestamp_by_segment_metadata,
+};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
-use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use rand::{thread_rng, Rng};
 use std::sync::Arc;
 
 pub async fn create_segment(
+    cache_manager: &Arc<CacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    shard_info: &EngineShard,
+    segment_seq: u32,
+    start_offset: u64,
+) -> Result<EngineSegment, MetaServiceError> {
+    let segment =
+        if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_seq) {
+            segment
+        } else {
+            // create segment
+            let segment: EngineSegment = build_segment(shard_info, cache_manager, 0).await?;
+            sync_save_segment_info(raft_manager, &segment).await?;
+            update_cache_by_set_segment(call_manager, client_pool, &segment.clone()).await?;
+
+            // create segment metadata
+            create_segment_metadata(
+                cache_manager,
+                raft_manager,
+                call_manager,
+                client_pool,
+                &segment,
+                start_offset as i64,
+            )
+            .await?;
+            segment
+        };
+    Ok(segment)
+}
+
+pub async fn seal_up_segment(
+    cache_manager: &Arc<CacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    segment: &EngineSegment,
+    last_timestamp: u64,
+) -> Result<(), MetaServiceError> {
+    update_segment_status(
+        cache_manager,
+        call_manager,
+        raft_manager,
+        client_pool,
+        &segment.shard_name,
+        segment.segment_seq,
+        SegmentStatus::SealUp,
+    )
+    .await?;
+
+    update_end_timestamp_by_segment_metadata(
+        cache_manager,
+        raft_manager,
+        call_manager,
+        client_pool,
+        &segment.shard_name,
+        segment.segment_seq,
+        last_timestamp,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn build_segment(
     shard_info: &EngineShard,
     cache_manager: &Arc<CacheManager>,
     segment_no: u32,
@@ -51,7 +121,7 @@ pub async fn create_segment(
     Ok(EngineSegment {
         shard_name: shard_info.shard_name.clone(),
         leader_epoch: 0,
-        status: SegmentStatus::Idle,
+        status: SegmentStatus::Write,
         segment_seq: segment_no,
         leader: calc_leader_node(&replicas),
         replicas: replicas.clone(),
@@ -59,11 +129,58 @@ pub async fn create_segment(
     })
 }
 
-pub fn calc_leader_node(replicas: &[Replica]) -> u64 {
+pub async fn update_segment_status(
+    cache_manager: &Arc<CacheManager>,
+    broker_call_manager: &Arc<BrokerCallManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    client_pool: &Arc<ClientPool>,
+    shard_name: &str,
+    segment_seq: u32,
+    status: SegmentStatus,
+) -> Result<(), MetaServiceError> {
+    if let Some(segment_list) = cache_manager.segment_list.get(shard_name) {
+        if let Some(mut segment) = segment_list.get_mut(&segment_seq) {
+            segment.status = status;
+            sync_save_segment_info(raft_manager, &segment.clone()).await?;
+            update_cache_by_set_segment(broker_call_manager, client_pool, &segment.clone()).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn sync_save_segment_info(
+    raft_manager: &Arc<MultiRaftManager>,
+    segment: &EngineSegment,
+) -> Result<(), MetaServiceError> {
+    let data = StorageData::new(
+        StorageDataType::StorageEngineSetSegment,
+        Bytes::copy_from_slice(&Bytes::copy_from_slice(&segment.encode()?)),
+    );
+    if (raft_manager.write_metadata(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(MetaServiceError::ExecutionResultIsEmpty)
+}
+
+async fn sync_delete_segment_info(
+    raft_manager: &Arc<MultiRaftManager>,
+    segment: &EngineSegment,
+) -> Result<(), MetaServiceError> {
+    let data = StorageData::new(
+        StorageDataType::StorageEngineDeleteSegment,
+        Bytes::copy_from_slice(&segment.encode()?),
+    );
+    if (raft_manager.write_metadata(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(MetaServiceError::ExecutionResultIsEmpty)
+}
+
+fn calc_leader_node(replicas: &[Replica]) -> u64 {
     replicas.first().unwrap().node_id
 }
 
-pub fn calc_node_fold(
+fn calc_node_fold(
     cache_manager: &Arc<CacheManager>,
     node_id: u64,
 ) -> Result<String, MetaServiceError> {
@@ -78,77 +195,6 @@ pub fn calc_node_fold(
     let index = rng.gen_range(0..fold_list.len());
     let random_element = fold_list.get(index).unwrap();
     Ok(random_element.clone())
-}
-
-pub async fn update_segment_status(
-    cache_manager: &Arc<CacheManager>,
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegment,
-    status: SegmentStatus,
-) -> Result<(), MetaServiceError> {
-    let mut new_segment = segment.clone();
-    new_segment.status = status;
-    sync_save_segment_info(raft_manager, &new_segment).await?;
-
-    cache_manager.set_segment(&new_segment);
-
-    Ok(())
-}
-
-pub async fn sync_save_segment_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegment,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::StorageEngineSetSegment,
-        Bytes::copy_from_slice(&Bytes::copy_from_slice(&segment.encode()?)),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_delete_segment_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegment,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::StorageEngineDeleteSegment,
-        Bytes::copy_from_slice(&segment.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_save_segment_metadata_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegmentMetadata,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::StorageEngineSetSegmentMetadata,
-        Bytes::copy_from_slice(&segment.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_delete_segment_metadata_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegmentMetadata,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::StorageEngineDeleteSegmentMetadata,
-        Bytes::copy_from_slice(&segment.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
 #[cfg(test)]

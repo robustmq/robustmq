@@ -13,12 +13,13 @@
 // limitations under the License.
 
 pub mod cache;
+pub mod cache_engine;
 pub mod cache_mqtt;
-pub mod cache_segment;
 pub mod cluster;
 pub mod controller;
 pub mod error;
 pub mod heartbeat;
 pub mod log;
 pub mod segment;
+pub mod segment_meta;
 pub mod shard;

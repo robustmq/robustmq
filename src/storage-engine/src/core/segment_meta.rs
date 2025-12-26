@@ -15,7 +15,7 @@
 use super::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
-use grpc_clients::meta::journal::call::update_segment_meta;
+use grpc_clients::meta::storage::call::update_segment_meta;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_journal::UpdateSegmentMetaRequest;
 use std::sync::Arc;

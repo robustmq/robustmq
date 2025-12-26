@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use grpc_clients::meta::journal::call::update_segment_status;
+use grpc_clients::meta::storage::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::SegmentStatus;
 use protocol::meta::meta_service_journal::UpdateSegmentStatusRequest;

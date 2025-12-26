@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::core::segment::{
-    sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
-};
+use crate::core::segment::{sync_delete_segment_info, update_segment_status};
+use crate::core::segment_meta::sync_delete_segment_metadata_info;
 use crate::core::shard::{
     sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
 };

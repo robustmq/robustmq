@@ -16,7 +16,7 @@ use crate::core::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 use crate::{core::cache::StorageCacheManager, segment::file::SegmentFile};
 use common_config::broker::broker_config;
-use grpc_clients::meta::journal::call::create_next_segment;
+use grpc_clients::meta::storage::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
 use protocol::meta::meta_service_journal::CreateNextSegmentRequest;
 use std::sync::Arc;

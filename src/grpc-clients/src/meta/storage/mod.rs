@@ -19,8 +19,8 @@ use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
-    ListShardReply, ListShardRequest, UpdateSegmentMetaReply, UpdateSegmentMetaRequest,
-    UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
+    ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
+    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
 use tonic::transport::Channel;
 
@@ -125,13 +125,13 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    UpdateSegmentStatusRequest,
+    SealUpSegmentRequest,
     EngineServiceClient<Channel>,
-    UpdateSegmentStatusReply,
+    SealUpSegmentReply,
     meta_service_journal_services_client,
-    update_segment_status,
+    seal_up_segment,
     "EngineService",
-    "UpdateSegmentStatus",
+    "SealUpSegmentRequest",
     true
 );
 
@@ -147,12 +147,12 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    UpdateSegmentMetaRequest,
+    UpdateStartTimeBySegmentMetaRequest,
     EngineServiceClient<Channel>,
-    UpdateSegmentMetaReply,
+    UpdateStartTimeBySegmentMetaReply,
     meta_service_journal_services_client,
-    update_segment_meta,
+    update_start_time_by_segment_meta,
     "EngineService",
-    "UpdateSegmentMeta",
+    "UpdateStartTimeBySegmentMeta",
     true
 );

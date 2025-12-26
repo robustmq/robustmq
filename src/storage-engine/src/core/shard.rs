@@ -105,7 +105,7 @@ pub async fn create_shard_to_place(
         shard_name: shard_name.to_string(),
         shard_config: config.encode()?,
     };
-    grpc_clients::meta::journal::call::create_shard(
+    grpc_clients::meta::storage::call::create_shard(
         client_pool,
         &conf.get_meta_service_addr(),
         request,
@@ -141,7 +141,7 @@ pub async fn delete_shard_to_place(
         shard_name: shard_name.to_string(),
     };
 
-    grpc_clients::meta::journal::call::delete_shard(
+    grpc_clients::meta::storage::call::delete_shard(
         client_pool,
         &conf.get_meta_service_addr(),
         request,
