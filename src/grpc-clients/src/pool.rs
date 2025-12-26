@@ -14,8 +14,8 @@
 
 use crate::broker::common::BrokerCommonServiceManager;
 use crate::broker::storage::BrokerStorageServiceManager;
-use crate::meta::journal::JournalServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
+use crate::meta::storage::JournalServiceManager;
 use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::PlacementServiceManager};
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;

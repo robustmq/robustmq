@@ -17,8 +17,8 @@ use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
-    ListShardReply, ListShardRequest, UpdateSegmentMetaReply, UpdateSegmentMetaRequest,
-    UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
+    ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
+    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
 
 use crate::pool::ClientPool;
@@ -67,9 +67,9 @@ generate_journal_service_call!(
     DeleteSegment
 );
 generate_journal_service_call!(
-    update_segment_status,
-    UpdateSegmentStatusRequest,
-    UpdateSegmentStatusReply,
+    seal_up_segment,
+    SealUpSegmentRequest,
+    SealUpSegmentReply,
     UpdateSegmentStatus
 );
 generate_journal_service_call!(
@@ -79,8 +79,8 @@ generate_journal_service_call!(
     ListSegmentMeta
 );
 generate_journal_service_call!(
-    update_segment_meta,
-    UpdateSegmentMetaRequest,
-    UpdateSegmentMetaReply,
+    update_start_time_by_segment_meta,
+    UpdateStartTimeBySegmentMetaRequest,
+    UpdateStartTimeBySegmentMetaReply,
     UpdateSegmentMeta
 );

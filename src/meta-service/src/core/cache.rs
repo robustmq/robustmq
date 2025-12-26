@@ -60,7 +60,7 @@ pub struct CacheManager {
     //(connector_name, ConnectorHeartbeat)
     pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
 
-    // Journal
+    // Storage Engine
     //（shard_name, JournalShard）
     pub shard_list: DashMap<String, EngineShard>,
 
@@ -70,8 +70,8 @@ pub struct CacheManager {
     //（shard_name, (segment_no,JournalSegmentMetadata))
     pub segment_meta_list: DashMap<String, DashMap<u32, EngineSegmentMetadata>>,
 
-    //（shard_name, JournalShard）
-    pub wait_delete_shard_list: DashMap<String, EngineShard>,
+    //（shard_name, delete_time）
+    pub wait_delete_shard_list: DashMap<String, u64>,
 
     //（shard_name, JournalSegment)
     pub wait_delete_segment_list: DashMap<String, EngineSegment>,

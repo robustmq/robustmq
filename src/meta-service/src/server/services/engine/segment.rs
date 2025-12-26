@@ -12,32 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::shard::update_last_segment_by_shard;
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::storage::{
-    update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
-};
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::segment::{create_segment, seal_up_segment, update_segment_status};
+use crate::core::segment_meta::{
+    update_last_offset_by_segment_metadata, update_start_timestamp_by_segment_metadata,
+};
+use crate::core::shard::update_last_segment_by_shard;
 use crate::raft::manager::MultiRaftManager;
-use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
-use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::storage::segment::{
-    str_to_segment_status, EngineSegment, Replica, SegmentStatus,
-};
-use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::EngineShard;
+use metadata_struct::storage::segment::SegmentStatus;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
-    UpdateSegmentMetaReply, UpdateSegmentMetaRequest, UpdateSegmentStatusReply,
-    UpdateSegmentStatusRequest,
+    SealUpSegmentReply, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaReply,
+    UpdateStartTimeBySegmentMetaRequest,
 };
-use rand::{thread_rng, Rng};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -74,70 +67,52 @@ pub async fn create_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
-    let mut shard = if let Some(shard) = cache_manager.get_shard(&req.shard_name) {
-        shard
+    let shard = if let Some(shard) = cache_manager.shard_list.get(&req.shard_name) {
+        shard.clone()
     } else {
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
     };
 
-    let next_segment_no = if let Some(segment_no) = cache_manager.next_segment_seq(&req.shard_name)
-    {
-        segment_no
-    } else {
-        return Err(MetaServiceError::ShardDoesNotExist(shard.shard_name));
-    };
+    if req.current_segment as u32 != shard.active_segment_seq {
+        return Err(MetaServiceError::CommonError("".to_string()));
+    }
 
-    if cache_manager.shard_idle_segment_num(&req.shard_name) >= 1 {
+    let next_segment = (req.current_segment + 1) as u32;
+    if shard.last_segment_seq >= next_segment {
         return Ok(CreateNextSegmentReply {});
     }
 
-    let mut shard_notice = false;
-    // If the next Segment hasn't already been created, it triggers the creation of the next Segment
-    if cache_manager
-        .get_segment(&req.shard_name, next_segment_no)
-        .is_none()
-    {
-        let segment = create_segment(&shard, cache_manager, next_segment_no).await?;
-        sync_save_segment_info(raft_manager, &segment).await?;
+    create_segment(
+        cache_manager,
+        raft_manager,
+        call_manager,
+        client_pool,
+        &shard,
+        next_segment,
+        (req.current_segment_end_offset + 1) as u64,
+    )
+    .await?;
 
-        let metadata = EngineSegmentMetadata {
-            shard_name: segment.shard_name.clone(),
-            segment_seq: segment.segment_seq,
-            start_offset: if segment.segment_seq == 0 { 0 } else { -1 },
-            end_offset: -1,
-            start_timestamp: -1,
-            end_timestamp: -1,
-        };
-        sync_save_segment_metadata_info(raft_manager, &metadata).await?;
+    update_last_segment_by_shard(
+        raft_manager,
+        cache_manager,
+        call_manager,
+        client_pool,
+        &shard.shard_name,
+        next_segment,
+    )
+    .await?;
 
-        update_last_segment_by_shard(raft_manager, cache_manager, &mut shard, next_segment_no)
-            .await?;
-
-        update_cache_by_set_segment_meta(call_manager, client_pool, metadata).await?;
-        update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
-
-        shard_notice = true;
-    }
-
-    let active_segment = if let Some(segment) =
-        cache_manager.get_segment(&req.shard_name, shard.active_segment_seq)
-    {
-        segment
-    } else {
-        return Err(MetaServiceError::SegmentDoesNotExist(shard.shard_name));
-    };
-
-    // try fixed segment status
-    if active_segment.status == SegmentStatus::SealUp
-        || active_segment.status == SegmentStatus::PreDelete
-        || active_segment.status == SegmentStatus::Deleting
-    {
-        shard.active_segment_seq = next_segment_no;
-        shard_notice = true;
-    }
-    if shard_notice {
-        update_cache_by_set_shard(call_manager, client_pool, shard).await?;
-    }
+    update_last_offset_by_segment_metadata(
+        cache_manager,
+        raft_manager,
+        call_manager,
+        client_pool,
+        &req.shard_name,
+        req.current_segment as u32,
+        req.current_segment_end_offset,
+    )
+    .await?;
 
     Ok(CreateNextSegmentReply {})
 }
@@ -149,19 +124,19 @@ pub async fn delete_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
-    if cache_manager.get_shard(&req.shard_name).is_none() {
+    if !cache_manager.shard_list.contains_key(&req.shard_name) {
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
     };
 
-    let mut segment =
-        if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq) {
-            segment
-        } else {
-            return Err(MetaServiceError::SegmentDoesNotExist(format!(
-                "{}-{}",
-                req.shard_name, req.segment_seq
-            )));
-        };
+    let segment = if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq)
+    {
+        segment
+    } else {
+        return Err(MetaServiceError::SegmentDoesNotExist(format!(
+            "{}-{}",
+            req.shard_name, req.segment_seq
+        )));
+    };
 
     if segment.status != SegmentStatus::SealUp {
         return Err(MetaServiceError::NoAllowDeleteSegment(
@@ -172,51 +147,55 @@ pub async fn delete_segment_by_req(
 
     update_segment_status(
         cache_manager,
+        call_manager,
         raft_manager,
-        &segment,
+        client_pool,
+        &segment.shard_name,
+        segment.segment_seq,
         SegmentStatus::PreDelete,
     )
     .await?;
 
-    segment.status = SegmentStatus::PreDelete;
     cache_manager.add_wait_delete_segment(&segment);
-
-    update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
-
     Ok(DeleteSegmentReply::default())
 }
 
-pub async fn update_segment_status_req(
+pub async fn seal_up_segment_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: &UpdateSegmentStatusRequest,
-) -> Result<UpdateSegmentStatusReply, MetaServiceError> {
-    let mut segment =
-        if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq) {
-            segment
-        } else {
-            return Err(MetaServiceError::SegmentDoesNotExist(format!(
-                "{}_{}",
-                req.shard_name, req.segment_seq
-            )));
-        };
+    req: &SealUpSegmentRequest,
+) -> Result<SealUpSegmentReply, MetaServiceError> {
+    if !cache_manager.shard_list.contains_key(&req.shard_name) {
+        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
+    };
 
-    if segment.status.to_string() != req.cur_status {
-        return Err(MetaServiceError::SegmentStateError(
-            segment.name(),
-            segment.status.to_string(),
-            req.cur_status.clone(),
-        ));
+    let segment = if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq)
+    {
+        segment
+    } else {
+        return Err(MetaServiceError::SegmentDoesNotExist(format!(
+            "{}-{}",
+            req.shard_name, req.segment_seq
+        )));
+    };
+
+    if segment.status != SegmentStatus::Write {
+        return Err(MetaServiceError::CommonError("".to_string()));
     }
 
-    let new_status = str_to_segment_status(&req.next_status)?;
-    segment.status = new_status;
+    seal_up_segment(
+        cache_manager,
+        raft_manager,
+        call_manager,
+        client_pool,
+        &segment,
+        req.end_timestamp,
+    )
+    .await?;
 
-    sync_save_segment_info(raft_manager, &segment).await?;
-    update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
-    Ok(UpdateSegmentStatusReply::default())
+    Ok(SealUpSegmentReply::default())
 }
 
 pub async fn list_segment_meta_by_req(
@@ -245,18 +224,16 @@ pub async fn list_segment_meta_by_req(
     })
 }
 
-pub async fn update_segment_meta_by_req(
+pub async fn update_start_time_by_segment_meta_by_req(
     cache_manager: &Arc<CacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: &UpdateSegmentMetaRequest,
-) -> Result<UpdateSegmentMetaReply, MetaServiceError> {
-    if req.shard_name.is_empty() {
-        return Err(MetaServiceError::RequestParamsNotEmpty(
-            " shard_name".to_string(),
-        ));
-    }
+    req: &UpdateStartTimeBySegmentMetaRequest,
+) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {
+    if !cache_manager.shard_list.contains_key(&req.shard_name) {
+        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
+    };
 
     if cache_manager
         .get_segment(&req.shard_name, req.segment_no)
@@ -268,206 +245,15 @@ pub async fn update_segment_meta_by_req(
         )));
     };
 
-    let mut segment_meta =
-        if let Some(meta) = cache_manager.get_segment_meta(&req.shard_name, req.segment_no) {
-            meta
-        } else {
-            return Err(MetaServiceError::SegmentMetaDoesNotExist(format!(
-                "{}_{}",
-                req.shard_name, req.segment_no
-            )));
-        };
-
-    if req.start_offset > 0 {
-        segment_meta.start_offset = req.start_offset;
-    }
-
-    if req.end_offset > 0 {
-        segment_meta.end_offset = req.end_offset;
-    }
-
-    if req.start_timestamp > 0 {
-        segment_meta.start_timestamp = req.start_timestamp;
-    }
-
-    if req.end_timestamp > 0 {
-        segment_meta.end_timestamp = req.end_timestamp;
-    }
-
-    sync_save_segment_metadata_info(raft_manager, &segment_meta).await?;
-
-    update_cache_by_set_segment_meta(call_manager, client_pool, segment_meta).await?;
-
-    Ok(UpdateSegmentMetaReply::default())
-}
-
-pub async fn create_segment(
-    shard_info: &EngineShard,
-    cache_manager: &Arc<CacheManager>,
-    segment_no: u32,
-) -> Result<EngineSegment, MetaServiceError> {
-    if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_no) {
-        return Ok(segment);
-    }
-
-    let node_list: Vec<BrokerNode> = cache_manager.get_engine_node_list();
-    if node_list.len() < shard_info.config.replica_num as usize {
-        return Err(MetaServiceError::NotEnoughEngineNodes(
-            shard_info.config.replica_num,
-            node_list.len() as u32,
-        ));
-    }
-
-    //todo Get the node copies at random
-    let node_ids: Vec<u64> = node_list.iter().map(|raw| raw.node_id).collect();
-
-    let mut replicas = Vec::new();
-    for i in 0..node_ids.len() {
-        let node_id = *node_ids.get(i).unwrap();
-        let fold = calc_node_fold(cache_manager, node_id)?;
-        replicas.push(Replica {
-            replica_seq: i as u64,
-            node_id,
-            fold,
-        });
-    }
-
-    if replicas.len() != (shard_info.config.replica_num as usize) {
-        return Err(MetaServiceError::NumberOfReplicasIsIncorrect(
-            shard_info.config.replica_num,
-            replicas.len(),
-        ));
-    }
-
-    Ok(EngineSegment {
-        shard_name: shard_info.shard_name.clone(),
-        leader_epoch: 0,
-        status: SegmentStatus::Idle,
-        segment_seq: segment_no,
-        leader: calc_leader_node(&replicas),
-        replicas: replicas.clone(),
-        isr: replicas.iter().map(|rep| rep.node_id).collect(),
-    })
-}
-
-fn calc_leader_node(replicas: &[Replica]) -> u64 {
-    replicas.first().unwrap().node_id
-}
-
-fn calc_node_fold(
-    cache_manager: &Arc<CacheManager>,
-    node_id: u64,
-) -> Result<String, MetaServiceError> {
-    let node = if let Some(node) = cache_manager.get_broker_node(node_id) {
-        node
-    } else {
-        return Err(MetaServiceError::NodeDoesNotExist(node_id));
-    };
-
-    let fold_list = node.storage_fold.clone();
-    let mut rng = thread_rng();
-    let index = rng.gen_range(0..fold_list.len());
-    let random_element = fold_list.get(index).unwrap();
-    Ok(random_element.clone())
-}
-
-pub async fn update_segment_status(
-    cache_manager: &Arc<CacheManager>,
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegment,
-    status: SegmentStatus,
-) -> Result<(), MetaServiceError> {
-    let mut new_segment = segment.clone();
-    new_segment.status = status;
-    sync_save_segment_info(raft_manager, &new_segment).await?;
-
-    cache_manager.set_segment(&new_segment);
-
-    Ok(())
-}
-
-pub async fn sync_save_segment_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegment,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalSetSegment,
-        Bytes::copy_from_slice(&Bytes::copy_from_slice(&segment.encode()?)),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_delete_segment_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegment,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalDeleteSegment,
-        Bytes::copy_from_slice(&segment.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_save_segment_metadata_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegmentMetadata,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalSetSegmentMetadata,
-        Bytes::copy_from_slice(&segment.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-pub async fn sync_delete_segment_metadata_info(
-    raft_manager: &Arc<MultiRaftManager>,
-    segment: &EngineSegmentMetadata,
-) -> Result<(), MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::JournalDeleteSegmentMetadata,
-        Bytes::copy_from_slice(&segment.encode()?),
-    );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::calc_node_fold;
-    use crate::core::cache::CacheManager;
-    use common_base::tools::now_second;
-    use metadata_struct::meta::node::BrokerNode;
-    use rocksdb_engine::test::test_rocksdb_instance;
-    use std::sync::Arc;
-
-    #[tokio::test]
-    async fn calc_node_fold_test() {
-        let rocksdb_engine_handler = test_rocksdb_instance();
-        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler));
-
-        let node = BrokerNode {
-            roles: Vec::new(),
-            register_time: now_second(),
-            start_time: now_second(),
-            node_id: 1,
-            node_inner_addr: "".to_string(),
-            node_ip: "".to_string(),
-            storage_fold: vec!["../data/d1".to_string(), "../data/d2".to_string()],
-            extend: Vec::new(),
-        };
-        cache_manager.add_broker_node(node);
-        let res = calc_node_fold(&cache_manager, 1).unwrap();
-        assert!(!res.is_empty())
-    }
+    update_start_timestamp_by_segment_metadata(
+        cache_manager,
+        raft_manager,
+        call_manager,
+        client_pool,
+        &req.shard_name,
+        req.segment_no,
+        req.start_timestamp,
+    )
+    .await?;
+    Ok(UpdateStartTimeBySegmentMetaReply::default())
 }

@@ -17,7 +17,7 @@ use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::meta::journal::call::{list_segment, list_segment_meta, list_shard};
+use grpc_clients::meta::storage::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;

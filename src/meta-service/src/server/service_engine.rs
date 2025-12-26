@@ -17,7 +17,7 @@ use crate::core::cache::CacheManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::engine::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
-    update_segment_meta_by_req, update_segment_status_req,
+    seal_up_segment_req, update_start_time_by_segment_meta_by_req,
 };
 use crate::server::services::engine::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
@@ -29,8 +29,8 @@ use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
-    ListShardReply, ListShardRequest, UpdateSegmentMetaReply, UpdateSegmentMetaRequest,
-    UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
+    ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
+    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -179,14 +179,14 @@ impl EngineService for GrpcEngineService {
         .map(Response::new)
     }
 
-    async fn update_segment_status(
+    async fn seal_up_segment(
         &self,
-        request: Request<UpdateSegmentStatusRequest>,
-    ) -> Result<Response<UpdateSegmentStatusReply>, Status> {
+        request: Request<SealUpSegmentRequest>,
+    ) -> Result<Response<SealUpSegmentReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        update_segment_status_req(
+        seal_up_segment_req(
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,
@@ -212,14 +212,14 @@ impl EngineService for GrpcEngineService {
             .map(Response::new)
     }
 
-    async fn update_segment_meta(
+    async fn update_start_time_by_segment_meta(
         &self,
-        request: Request<UpdateSegmentMetaRequest>,
-    ) -> Result<Response<UpdateSegmentMetaReply>, Status> {
+        request: Request<UpdateStartTimeBySegmentMetaRequest>,
+    ) -> Result<Response<UpdateStartTimeBySegmentMetaReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        update_segment_meta_by_req(
+        update_start_time_by_segment_meta_by_req(
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,

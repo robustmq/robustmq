@@ -30,11 +30,11 @@ service EngineService {
 
   rpc DeleteSegment(DeleteSegmentRequest) returns (DeleteSegmentReply) {}
 
-  rpc UpdateSegmentStatus(UpdateSegmentStatusRequest) returns (UpdateSegmentStatusReply) {}
+  rpc SealUpSegment(SealUpSegmentRequest) returns (SealUpSegmentReply) {}
 
   rpc ListSegmentMeta(ListSegmentMetaRequest) returns (ListSegmentMetaReply) {}
 
-  rpc UpdateSegmentMeta(UpdateSegmentMetaRequest) returns (UpdateSegmentMetaReply) {}
+  rpc UpdateStartTimeBySegmentMeta(UpdateStartTimeBySegmentMetaRequest) returns (UpdateStartTimeBySegmentMetaReply) {}
 }
 
 message ListShardRequest {
@@ -86,14 +86,13 @@ message DeleteSegmentRequest {
 
 message DeleteSegmentReply {}
 
-message UpdateSegmentStatusRequest {
-  string shard_name = 3;
-  uint32 segment_seq = 4;
-  string cur_status = 5;
-  string next_status = 6;
+message SealUpSegmentRequest {
+  string shard_name = 1;
+  uint32 segment_seq = 2;
+  uint64 end_timestamp = 3;
 }
 
-message UpdateSegmentStatusReply {}
+message SealUpSegmentReply {}
 
 message ListSegmentMetaRequest {
   string shard_name = 3;
@@ -104,13 +103,10 @@ message ListSegmentMetaReply {
   repeated bytes segments = 1;
 }
 
-message UpdateSegmentMetaRequest {
-  string shard_name = 3;
-  uint32 segment_no = 4;
-  int64 start_offset = 5;
-  int64 end_offset = 6;
-  int64 start_timestamp = 7;
-  int64 end_timestamp = 8;
+message UpdateStartTimeBySegmentMetaRequest {
+  string shard_name = 1;
+  uint32 segment_no = 2;
+  uint64 start_timestamp = 3;
 }
 
-message UpdateSegmentMetaReply {}
+message UpdateStartTimeBySegmentMetaReply {}

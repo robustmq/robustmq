@@ -31,7 +31,7 @@ pub struct EngineSegment {
 
 impl EngineSegment {
     pub fn allow_read(&self) -> bool {
-        self.status == SegmentStatus::Write || self.status == SegmentStatus::PreWrite
+        self.status == SegmentStatus::Write
     }
 
     pub fn get_fold(&self, node_id: u64) -> Option<String> {
@@ -70,38 +70,29 @@ pub struct Replica {
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SegmentStatus {
     #[default]
-    Idle,
-    PreWrite,
     Write,
     PreSealUp,
     SealUp,
     PreDelete,
-    Deleting,
 }
 
 impl fmt::Display for SegmentStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SegmentStatus::Idle => write!(f, "Idle"),
-            SegmentStatus::PreWrite => write!(f, "PreWrite"),
             SegmentStatus::Write => write!(f, "Write"),
             SegmentStatus::PreSealUp => write!(f, "PreSealUp"),
             SegmentStatus::SealUp => write!(f, "SealUp"),
             SegmentStatus::PreDelete => write!(f, "PreDelete"),
-            SegmentStatus::Deleting => write!(f, "Deleting"),
         }
     }
 }
 
 pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError> {
     match status {
-        "Idle" => Ok(SegmentStatus::Idle),
-        "PreWrite" => Ok(SegmentStatus::PreWrite),
         "Write" => Ok(SegmentStatus::Write),
         "PreSealUp" => Ok(SegmentStatus::PreSealUp),
         "SealUp" => Ok(SegmentStatus::SealUp),
         "PreDelete" => Ok(SegmentStatus::PreDelete),
-        "Deleting" => Ok(SegmentStatus::Deleting),
         _ => Err(CommonError::CommonError("".to_string())),
     }
 }

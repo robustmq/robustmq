@@ -12,297 +12,130 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::CacheManager;
+use crate::core::error::MetaServiceError;
+use crate::core::segment::delete_segment_by_real;
+use crate::core::shard::{delete_shard_by_real, update_shard_status};
 use crate::raft::manager::MultiRaftManager;
-use crate::server::services::engine::segment::{
-    sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
-};
-use crate::server::services::engine::shard::{
-    sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
-};
-
 use grpc_clients::broker::storage::call::{
     journal_inner_delete_segment_file, journal_inner_delete_shard_file,
-    journal_inner_get_segment_delete_status, journal_inner_get_shard_delete_status,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::SegmentStatus;
+use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use metadata_struct::storage::shard::EngineShardStatus;
-use protocol::broker::broker_storage::{
-    DeleteSegmentFileRequest, DeleteShardFileRequest, GetSegmentDeleteStatusRequest,
-    GetShardDeleteStatusRequest,
-};
+use protocol::broker::broker_storage::{DeleteSegmentFileRequest, DeleteShardFileRequest};
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::warn;
 
 pub async fn gc_shard_thread(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
+    call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-) {
-    for shard in cache_manager.get_wait_delete_shard_list() {
+) -> Result<(), MetaServiceError> {
+    for shard_name in cache_manager.get_wait_delete_shard_list() {
+        let shard = if let Some(shard) = cache_manager.shard_list.get(&shard_name) {
+            shard.clone()
+        } else {
+            continue;
+        };
+
         if shard.status != EngineShardStatus::PrepareDelete {
             warn!(
                 "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
                 shard.shard_name, shard.status
             );
+            cache_manager.remove_wait_delete_shard(&shard_name);
             continue;
         }
 
-        // to deleting
-        if let Err(e) = update_shard_status(
+        update_shard_status(
             raft_manager,
             cache_manager,
-            &shard.clone(),
+            call_manager,
+            client_pool,
+            &shard_name,
             EngineShardStatus::Deleting,
         )
-        .await
-        {
-            // If Raft is stopped, it means system is shutting down, skip gracefully
-            if e.to_string().contains("raft stopped") {
-                info!(
-                    "Raft stopped during shutdown, skipping Shard {} GC operation",
-                    shard.shard_name
-                );
-                return;
-            }
-            error!(
-                "Failed to convert Shard to deleting state with error message: {}",
-                e
-            );
-            continue;
-        }
+        .await?;
 
-        let node_addrs: Vec<String> = cache_manager
-            .node_list
-            .iter()
-            .map(|raw| raw.node_inner_addr.clone())
-            .collect();
+        call_delete_shard_by_broker(cache_manager, client_pool, &shard_name).await?;
 
-        // call all jen delete shard
-        for node_addr in node_addrs.iter() {
-            let addrs = vec![node_addr.to_string()];
-            let request = DeleteShardFileRequest {
-                shard_name: shard.shard_name.clone(),
-            };
-            if let Err(e) = journal_inner_delete_shard_file(client_pool, &addrs, request).await {
-                error!(
-                    "Calling node {} to delete the Shard file failed with error message :{}",
-                    node_addr, e
-                );
-            }
-        }
-
-        // get delete shard status
-        let mut flag = true;
-        for node_addr in node_addrs {
-            let addrs = vec![node_addr.to_string()];
-            let request = GetShardDeleteStatusRequest {
-                shard_name: shard.shard_name.clone(),
-            };
-            match journal_inner_get_shard_delete_status(client_pool, &addrs, request).await {
-                Ok(reply) => {
-                    if !reply.status {
-                        flag = false;
-                    }
-                }
-                Err(e) => {
-                    error!("Calling node {} to get progress information on removing Shard failed, error message :{}", node_addr,e);
-                }
-            }
-        }
-
-        // delete shard/segment by storage/cache
-        if !flag {
-            // delete segment
-            for segment in cache_manager.get_segment_list_by_shard(&shard.shard_name) {
-                if let Err(e) = sync_delete_segment_info(raft_manager, &segment.clone()).await {
-                    if e.to_string().contains("raft stopped") {
-                        info!("Raft stopped during shutdown, skipping remaining GC operations");
-                        return;
-                    }
-                    error!(
-                        "Failed to delete data from Segment {} with error message {}",
-                        segment.name(),
-                        e
-                    );
-                };
-            }
-
-            // delete segment meta
-            for segment in cache_manager.get_segment_meta_list_by_shard(&shard.shard_name) {
-                if let Err(e) =
-                    sync_delete_segment_metadata_info(raft_manager, &segment.clone()).await
-                {
-                    if e.to_string().contains("raft stopped") {
-                        info!("Raft stopped during shutdown, skipping remaining GC operations");
-                        return;
-                    }
-                    error!(
-                        "Failed to delete data from Segment {} with error message {}",
-                        segment.name(),
-                        e
-                    );
-                };
-            }
-
-            // delete shard
-            if let Err(e) = sync_delete_shard_info(raft_manager, &shard).await {
-                if e.to_string().contains("raft stopped") {
-                    info!("Raft stopped during shutdown, skipping remaining GC operations");
-                    return;
-                }
-                error!(
-                    "Failed to delete Shard {} data with error message :{}",
-                    shard.shard_name, e
-                );
-            };
-
-            cache_manager.remove_wait_delete_shard(&shard);
-        }
+        delete_shard_by_real(cache_manager, raft_manager, &shard_name).await?;
     }
+    Ok(())
 }
 
 pub async fn gc_segment_thread(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-) {
+) -> Result<(), MetaServiceError> {
     for segment in cache_manager.get_wait_delete_segment_list() {
+        if cache_manager
+            .get_segment(&segment.shard_name, segment.segment_seq)
+            .is_none()
+        {
+            cache_manager.remove_wait_delete_segment(&segment);
+            continue;
+        };
+
         if segment.status != SegmentStatus::PreDelete {
             warn!(
                 "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",
                 segment.name(),
                 segment.status
             );
-            continue;
-        }
-
-        let mut shard = if let Some(shard) = cache_manager.get_shard(&segment.shard_name) {
-            shard
-        } else {
             cache_manager.remove_wait_delete_segment(&segment);
             continue;
-        };
-
-        // to deleting
-        if let Err(e) = update_segment_status(
-            cache_manager,
-            raft_manager,
-            &segment.clone(),
-            SegmentStatus::Deleting,
-        )
-        .await
-        {
-            // If Raft is stopped, it means system is shutting down, skip gracefully
-            if e.to_string().contains("raft stopped") {
-                info!(
-                    "Raft stopped during shutdown, skipping Segment {} GC operation",
-                    segment.name()
-                );
-                return;
-            }
-            error!(
-                "Failed to convert Segment to deleting state with error message: {}",
-                e
-            );
         }
 
-        let node_ids: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
+        call_delete_segment_by_broker(cache_manager, client_pool, &segment).await?;
+        delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
+    }
+    Ok(())
+}
 
-        // call all jen delete segment
-        for node_id in node_ids.iter() {
-            if let Some(node) = cache_manager.get_broker_node(*node_id) {
-                let addrs = vec![node.node_inner_addr.clone()];
-                let request = DeleteSegmentFileRequest {
-                    shard_name: segment.shard_name.clone(),
-                    segment: segment.segment_seq,
-                };
-                if let Err(e) =
-                    journal_inner_delete_segment_file(client_pool, &addrs, request).await
-                {
-                    error!(
-                        "Calling node {} to delete the Segment file failed with error message :{}",
-                        node.node_inner_addr, e
-                    );
-                }
-            }
-        }
+async fn call_delete_segment_by_broker(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+    segment: &EngineSegment,
+) -> Result<(), MetaServiceError> {
+    let node_ids: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
 
-        // get delete segment file status
-        let mut flag = true;
-        for node_id in node_ids.iter() {
-            if let Some(node) = cache_manager.get_broker_node(*node_id) {
-                let addrs = vec![node.node_inner_addr.clone()];
-                let request = GetSegmentDeleteStatusRequest {
-                    shard_name: segment.shard_name.clone(),
-                    segment: segment.segment_seq,
-                };
-                match journal_inner_get_segment_delete_status(client_pool, &addrs, request).await {
-                    Ok(reply) => {
-                        if !reply.status {
-                            flag = false;
-                        }
-                    }
-                    Err(e) => {
-                        error!("Calling node {} to get progress information on removing Segment failed, error message :{}", node.node_inner_addr,e);
-                    }
-                }
-            }
-        }
-
-        // update info
-        if !flag {
-            // delete segment
-            if let Err(e) = sync_delete_segment_info(raft_manager, &segment).await {
-                if e.to_string().contains("raft stopped") {
-                    info!("Raft stopped during shutdown, skipping remaining GC operations");
-                    return;
-                }
-                error!(
-                    "Failed to delete Segment {} data with error message :{}",
-                    segment.name(),
-                    e
-                );
+    for node_id in node_ids.iter() {
+        if let Some(node) = cache_manager.get_broker_node(*node_id) {
+            let addrs = vec![node.node_inner_addr.clone()];
+            let request = DeleteSegmentFileRequest {
+                shard_name: segment.shard_name.clone(),
+                segment: segment.segment_seq,
             };
-
-            // delete segment meta
-            if let Some(meta) =
-                cache_manager.get_segment_meta(&segment.shard_name, segment.segment_seq)
-            {
-                if let Err(e) = sync_delete_segment_metadata_info(raft_manager, &meta).await {
-                    if e.to_string().contains("raft stopped") {
-                        info!("Raft stopped during shutdown, skipping remaining GC operations");
-                        return;
-                    }
-                    error!(
-                        "Failed to delete Segment metadata {} data with error message :{}",
-                        segment.name(),
-                        e
-                    );
-                };
-            }
-
-            // update start segment by shard
-            if let Err(e) = update_start_segment_by_shard(
-                raft_manager,
-                cache_manager,
-                &mut shard,
-                segment.segment_seq,
-            )
-            .await
-            {
-                if e.to_string().contains("raft stopped") {
-                    info!("Raft stopped during shutdown, skipping remaining GC operations");
-                    return;
-                }
-                error!(
-                    "Updating the Shard {} start segment information failed with error message {}",
-                    shard.shard_name, e
-                );
-            }
-
-            cache_manager.remove_wait_delete_segment(&segment);
+            journal_inner_delete_segment_file(client_pool, &addrs, request).await?;
         }
     }
+
+    Ok(())
+}
+
+async fn call_delete_shard_by_broker(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+    shard_name: &str,
+) -> Result<(), MetaServiceError> {
+    let node_addrs: Vec<String> = cache_manager
+        .node_list
+        .iter()
+        .map(|raw| raw.node_inner_addr.clone())
+        .collect();
+
+    // call all jen delete shard
+    for node_addr in node_addrs.iter() {
+        let addrs = vec![node_addr.to_string()];
+        let request = DeleteShardFileRequest {
+            shard_name: shard_name.to_string(),
+        };
+        journal_inner_delete_shard_file(client_pool, &addrs, request).await?;
+    }
+    Ok(())
 }
