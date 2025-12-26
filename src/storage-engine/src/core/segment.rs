@@ -19,7 +19,6 @@ use crate::segment::index::build::delete_segment_index;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
-use protocol::broker::broker_storage::GetSegmentDeleteStatusRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::{error, info};
@@ -59,11 +58,12 @@ pub async fn delete_local_segment(
 
 pub async fn segment_already_delete(
     cache_manager: &Arc<StorageCacheManager>,
-    req: &GetSegmentDeleteStatusRequest,
+    shard_name: &str,
+    segment: u32,
 ) -> Result<bool, StorageEngineError> {
     let segment_iden = SegmentIdentity {
-        shard_name: req.shard_name.clone(),
-        segment: req.segment,
+        shard_name: shard_name.to_string(),
+        segment: segment,
     };
 
     let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
@@ -101,7 +101,7 @@ pub async fn create_local_segment(
     segment_file.try_create().await?;
 
     // add cache
-    cache_manager.set_segment(segment.clone());
+    cache_manager.set_segment(&segment);
 
     info!("Segment {} created successfully", segment_iden.name());
     Ok(())

@@ -12,34 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::cache::StorageCacheManager;
+use crate::{
+    core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
+    segment::SegmentIdentity,
+};
+use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::broker::broker_common::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
-use tracing::{error, info};
-
-use super::cache::StorageCacheManager;
-use crate::core::{error::StorageEngineError, segment::create_local_segment};
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 pub async fn update_storage_cache_metadata(
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     request: &UpdateCacheRequest,
 ) -> Result<(), StorageEngineError> {
     match request.resource_type() {
         BrokerUpdateCacheResourceType::Shard => {
-            parse_shard(cache_manager, request.action_type(), &request.data);
+            parse_shard(
+                cache_manager,
+                rocksdb_engine_handler,
+                request.action_type(),
+                &request.data,
+            )
+            .await?;
         }
 
         BrokerUpdateCacheResourceType::Segment => {
-            parse_segment(cache_manager, request.action_type(), &request.data).await;
+            parse_segment(
+                cache_manager,
+                rocksdb_engine_handler,
+                request.action_type(),
+                &request.data,
+            )
+            .await?;
         }
 
         BrokerUpdateCacheResourceType::SegmentMeta => {
-            parse_segment_meta(cache_manager, request.action_type(), &request.data).await;
+            parse_segment_meta(cache_manager, request.action_type(), &request.data).await?;
         }
 
         _ => {}
@@ -47,77 +62,65 @@ pub async fn update_storage_cache_metadata(
     Ok(())
 }
 
-fn parse_shard(
+async fn parse_shard(
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
-) {
+) -> Result<(), StorageEngineError> {
     match action_type {
-        BrokerUpdateCacheActionType::Set => match EngineShard::decode(data) {
-            Ok(shard) => {
-                info!("Update the cache, set shard, shard name: {:?}", shard);
-                cache_manager.set_shard(shard);
-            }
-            Err(e) => {
-                error!(
-                    "set shard information failed to parse with error message :{}",
-                    e
-                );
-            }
-        },
+        BrokerUpdateCacheActionType::Set => {
+            let shard = EngineShard::decode(data)?;
+            cache_manager.set_shard(shard);
 
-        BrokerUpdateCacheActionType::Delete => {}
+    
+        }
+
+        BrokerUpdateCacheActionType::Delete => {
+            let shard = EngineShard::decode(data)?;
+            delete_local_shard(
+                cache_manager.clone(),
+                rocksdb_engine_handler.clone(),
+                shard.shard_name,
+            );
+        }
     }
+    Ok(())
 }
 
 async fn parse_segment(
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
-) {
+) -> Result<(), StorageEngineError> {
     match action_type {
-        BrokerUpdateCacheActionType::Set => match EngineSegment::decode(data) {
-            Ok(segment) => {
-                info!("Segment cache update, action: set, segment:{:?}", segment);
-
-                if let Err(e) = create_local_segment(cache_manager, &segment).await {
-                    error!("Error creating local Segment file, error message: {}", e);
-                }
-            }
-            Err(e) => {
-                error!(
-                    "Set segment information failed to parse with error message :{}",
-                    e
-                );
-            }
-        },
-        BrokerUpdateCacheActionType::Delete => {}
+        BrokerUpdateCacheActionType::Set => {
+            let segment = EngineSegment::decode(data)?;
+            // cache_manager.add_next_segment(shard, segment);
+        }
+        BrokerUpdateCacheActionType::Delete => {
+            let segment = EngineSegment::decode(data)?;
+            let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
+            delete_local_segment(cache_manager, rocksdb_engine_handler, &segment_iden).await?;
+        }
     }
+    Ok(())
 }
 
 async fn parse_segment_meta(
     cache_manager: &Arc<StorageCacheManager>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
-) {
+) -> Result<(), StorageEngineError> {
     match action_type {
-        BrokerUpdateCacheActionType::Set => match EngineSegmentMetadata::decode(data) {
-            Ok(segment_meta) => {
-                info!(
-                    "Update the cache, set segment meta, segment meta:{:?}",
-                    segment_meta
-                );
+        BrokerUpdateCacheActionType::Set => {
+            let meta = EngineSegmentMetadata::decode(data)?;
+        }
 
-                cache_manager.set_segment_meta(segment_meta);
-            }
-            Err(e) => {
-                error!(
-                    "Set segment meta information failed to parse with error message :{}",
-                    e
-                );
-            }
-        },
-
-        BrokerUpdateCacheActionType::Delete => {}
+        BrokerUpdateCacheActionType::Delete => {
+            // There is no need to implement it. The metadata will be deleted along with the segment, and it will not be deleted separately.
+        }
     }
+    Ok(())
 }

@@ -15,12 +15,7 @@
 use crate::macros::impl_retriable_request;
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::broker::broker_storage::{
-    broker_storage_service_client::BrokerStorageServiceClient, DeleteSegmentFileReply,
-    DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
-    GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest,
-};
+use protocol::broker::broker_storage::broker_storage_service_client::BrokerStorageServiceClient;
 use tonic::transport::Channel;
 
 pub mod call;
@@ -59,43 +54,3 @@ impl Manager for BrokerStorageServiceManager {
         Ok(conn)
     }
 }
-
-impl_retriable_request!(
-    DeleteShardFileRequest,
-    BrokerStorageServiceClient<Channel>,
-    DeleteShardFileReply,
-    broker_storage_services_client,
-    delete_shard_file,
-    "JournalInnerService",
-    "DeleteShardFile"
-);
-
-impl_retriable_request!(
-    GetShardDeleteStatusRequest,
-    BrokerStorageServiceClient<Channel>,
-    GetShardDeleteStatusReply,
-    broker_storage_services_client,
-    get_shard_delete_status,
-    "JournalInnerService",
-    "GetShardDeleteStatus"
-);
-
-impl_retriable_request!(
-    DeleteSegmentFileRequest,
-    BrokerStorageServiceClient<Channel>,
-    DeleteSegmentFileReply,
-    broker_storage_services_client,
-    delete_segment_file,
-    "JournalInnerService",
-    "DeleteSegmentFile"
-);
-
-impl_retriable_request!(
-    GetSegmentDeleteStatusRequest,
-    BrokerStorageServiceClient<Channel>,
-    GetSegmentDeleteStatusReply,
-    broker_storage_services_client,
-    get_segment_delete_status,
-    "JournalInnerService",
-    "GetSegmentDeleteStatus"
-);

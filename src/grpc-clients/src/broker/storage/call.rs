@@ -14,11 +14,7 @@
 
 use crate::pool::ClientPool;
 use common_base::error::common::CommonError;
-use protocol::broker::broker_storage::{
-    DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
-    GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest,
-};
+
 
 macro_rules! generate_journal_inner_service_call {
     ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
@@ -32,30 +28,3 @@ macro_rules! generate_journal_inner_service_call {
     };
 }
 
-generate_journal_inner_service_call!(
-    journal_inner_delete_shard_file,
-    DeleteShardFileRequest,
-    DeleteShardFileReply,
-    DeleteShardFile
-);
-
-generate_journal_inner_service_call!(
-    journal_inner_get_shard_delete_status,
-    GetShardDeleteStatusRequest,
-    GetShardDeleteStatusReply,
-    GetShardDeleteStatus
-);
-
-generate_journal_inner_service_call!(
-    journal_inner_delete_segment_file,
-    DeleteSegmentFileRequest,
-    DeleteSegmentFileReply,
-    DeleteSegmentFile
-);
-
-generate_journal_inner_service_call!(
-    journal_inner_get_segment_delete_status,
-    GetSegmentDeleteStatusRequest,
-    GetSegmentDeleteStatusReply,
-    GetSegmentDeleteStatus
-);

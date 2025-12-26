@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::StorageEngineError;
 use crate::segment::file::SegmentFile;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -19,7 +20,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::storage::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
+use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
@@ -78,6 +79,65 @@ impl StorageCacheManager {
 
     pub fn delete_shard(&self, shard_name: &str) {
         self.shards.remove(shard_name);
+        self.segments.remove(shard_name);
+        self.segment_metadatas.remove(shard_name);
+
+        for raw in self.leader_segments.iter() {
+            if raw.shard_name == shard_name.to_string() {
+                self.leader_segments.remove(raw.key());
+            }
+        }
+
+        for raw in self.segment_file_writer.iter() {
+            if raw.shard_name == shard_name.to_string() {
+                self.segment_file_writer.remove(raw.key());
+            }
+        }
+
+        self.is_next_segment.remove(shard_name);
+    }
+
+    // Segment
+    pub fn set_segment(&self, segment: &EngineSegment) {
+        let segment_list = self
+            .segments
+            .entry(segment.shard_name.clone())
+            .or_insert(DashMap::with_capacity(8));
+        segment_list.insert(segment.segment_seq, segment.clone());
+    }
+
+    pub fn delete_segment(&self, segment: &SegmentIdentity) {
+        // delete segment
+        if let Some(list) = self.segments.get(&segment.shard_name) {
+            list.remove(&segment.segment);
+        }
+
+        // delete segment_metadata
+        if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
+            list.remove(&segment.segment);
+        }
+
+        // delete leader segment
+        self.leader_segments.remove(&segment.name());
+
+        // delete segment writer
+        self.segment_file_writer.remove(&segment.name());
+    }
+
+    pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
+        if let Some(segment_list) = self.segments.get(&segment.shard_name) {
+            if let Some(segment) = segment_list.get(&segment.segment) {
+                return Some(segment.clone());
+            }
+        }
+        None
+    }
+
+    pub fn get_segments_list_by_shard(&self, shard_name: &str) -> Vec<EngineSegment> {
+        if let Some(segment_list) = self.segments.get(shard_name) {
+            return segment_list.iter().map(|raw| raw.clone()).collect();
+        }
+        Vec::new()
     }
 
     pub fn get_active_segment(&self, shard_name: &str) -> Option<EngineSegment> {
@@ -94,78 +154,14 @@ impl StorageCacheManager {
         None
     }
 
-    // Segment
-    pub fn set_segment(&self, segment: EngineSegment) {
-        if let Some(segment_list) = self.segments.get(&segment.shard_name) {
-            segment_list.insert(segment.segment_seq, segment.clone());
-        } else {
-            let data = DashMap::with_capacity(2);
-            data.insert(segment.segment_seq, segment.clone());
-            self.segments.insert(segment.shard_name.clone(), data);
-        }
-
-        // add to leader
-        let conf = broker_config();
-        if segment.leader == conf.broker_id {
-            self.add_leader_segment(&SegmentIdentity {
-                shard_name: segment.shard_name,
-                segment: segment.segment_seq,
-            });
-        }
-    }
-
-    pub fn delete_segment(&self, segment: &SegmentIdentity) {
-        // delete segment
-        if let Some(list) = self.segments.get(&segment.shard_name) {
-            list.remove(&segment.segment);
-        }
-
-        // delete segment_metadatas
-        if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
-            list.remove(&segment.segment);
-        }
-
-        // delete leader segment
-        self.remove_leader_segment(segment);
-    }
-
-    pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
-        if let Some(sgement_list) = self.segments.get(&segment.shard_name) {
-            if let Some(segment) = sgement_list.get(&segment.segment) {
-                return Some(segment.clone());
-            }
-        }
-        None
-    }
-
-    pub fn get_segments_list_by_shard(&self, shard_name: &str) -> Vec<EngineSegment> {
-        let mut results = Vec::new();
-        if let Some(sgement_list) = self.segments.get(shard_name) {
-            for raw in sgement_list.iter() {
-                results.push(raw.value().clone());
-            }
-        }
-        results
-    }
-
-    pub fn update_segment_status(&self, segment_iden: &SegmentIdentity, status: SegmentStatus) {
-        if let Some(sgement_list) = self.segments.get(&segment_iden.shard_name) {
-            if let Some(mut segment) = sgement_list.get_mut(&segment_iden.segment) {
-                segment.status = status;
-            }
-        }
-    }
-
     // Segment Meta
     pub fn set_segment_meta(&self, segment: EngineSegmentMetadata) {
-        if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
-            list.insert(segment.segment_seq, segment);
-        } else {
-            let data = DashMap::with_capacity(2);
-            data.insert(segment.segment_seq, segment.clone());
-            self.segment_metadatas
-                .insert(segment.shard_name.clone(), data);
-        }
+        let data_list = self
+            .segment_metadatas
+            .entry(segment.shard_name.clone())
+            .or_insert(DashMap::with_capacity(8));
+
+        data_list.insert(segment.segment_seq, segment);
     }
 
     pub fn get_segment_meta(
@@ -190,10 +186,6 @@ impl StorageCacheManager {
             .insert(segment_iden.name(), segment_file);
     }
 
-    pub fn remove_segment_file_write(&self, segment_iden: &SegmentIdentity) {
-        self.segment_file_writer.remove(&segment_iden.name());
-    }
-
     // next segment
     pub fn add_next_segment(&self, shard: &str, segment: u32) {
         self.is_next_segment.insert(shard.to_string(), segment);
@@ -205,20 +197,12 @@ impl StorageCacheManager {
 
     // Leader Segment
     pub fn get_leader_segment(&self) -> Vec<SegmentIdentity> {
-        let mut results = Vec::new();
-        for raw in self.leader_segments.iter() {
-            results.push(raw.value().clone());
-        }
-        results
+        self.leader_segments.iter().map(|raw| raw.clone()).collect()
     }
 
     fn add_leader_segment(&self, segment_iden: &SegmentIdentity) {
         self.leader_segments
             .insert(segment_iden.name(), segment_iden.clone());
-    }
-
-    fn remove_leader_segment(&self, segment_iden: &SegmentIdentity) {
-        self.leader_segments.remove(&segment_iden.name());
     }
 }
 
@@ -226,30 +210,23 @@ impl StorageCacheManager {
 pub async fn load_metadata_cache(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
-) {
+) -> Result<(), StorageEngineError> {
     let conf = broker_config();
+
     // load shard
     let request = ListShardRequest {
         ..Default::default()
     };
-    match list_shard(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => {
-            info!(
-                "Load the shard cache, the number of shards is {}",
-                list.shards.len()
-            );
-            for shard_bytes in list.shards {
-                match EngineShard::decode(&shard_bytes) {
-                    Ok(shard) => cache_manager.set_shard(shard),
-                    Err(e) => {
-                        panic!("Failed to decode the JournalShard information, {e}");
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            panic!("Loading the shardcache from the Meta Service failed, {e}");
-        }
+    let list = list_shard(client_pool, &conf.get_meta_service_addr(), request).await?;
+
+    info!(
+        "Load the shard cache, the number of shards is {}",
+        list.shards.len()
+    );
+
+    for shard_bytes in list.shards {
+        let shard = EngineShard::decode(&shard_bytes)?;
+        cache_manager.set_shard(shard);
     }
 
     // load segment
@@ -257,47 +234,29 @@ pub async fn load_metadata_cache(
         segment_no: -1,
         ..Default::default()
     };
-    match list_segment(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => {
-            info!(
-                "Load the segment cache, the number of segments is {}",
-                list.segments.len()
-            );
-            for segment_bytes in list.segments {
-                match EngineSegment::decode(&segment_bytes) {
-                    Ok(segment) => cache_manager.set_segment(segment),
-                    Err(e) => {
-                        panic!("Failed to decode the JournalSegment information, {e}");
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            panic!("Loading the segment cache from the Meta Service failed, {e}");
-        }
+    let list = list_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
+    info!(
+        "Load the segment cache, the number of segments is {}",
+        list.segments.len()
+    );
+    for segment_bytes in list.segments {
+        let segment = EngineSegment::decode(&segment_bytes)?;
+        cache_manager.set_segment(&segment);
     }
+
     // load segment data
     let request = ListSegmentMetaRequest {
         segment_no: -1,
         ..Default::default()
     };
-    match list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await {
-        Ok(list) => {
-            info!(
-                "Load the segment metadata cache, the number of segments is {}",
-                list.segments.len()
-            );
-            for segment_bytes in list.segments {
-                match EngineSegmentMetadata::decode(&segment_bytes) {
-                    Ok(meta) => cache_manager.set_segment_meta(meta),
-                    Err(e) => {
-                        panic!("Failed to decode the JournalSegmentMetadata information, {e}");
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            panic!("Loading the segment metadata cache from the Meta Service failed, {e}");
-        }
+    let list = list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
+    info!(
+        "Load the segment metadata cache, the number of segments is {}",
+        list.segments.len()
+    );
+    for segment_bytes in list.segments {
+        let meta = EngineSegmentMetadata::decode(&segment_bytes)?;
+        cache_manager.set_segment_meta(meta);
     }
+    Ok(())
 }

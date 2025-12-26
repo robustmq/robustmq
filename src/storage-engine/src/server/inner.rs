@@ -13,19 +13,9 @@
 // limitations under the License.
 
 use crate::core::cache::StorageCacheManager;
-use crate::core::services::{
-    delete_segment_file_by_req, delete_shard_file_by_req, get_segment_delete_status_by_req,
-    get_shard_delete_status_by_req,
-};
 use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageService;
-use protocol::broker::broker_storage::{
-    DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
-    GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
-    GetShardDeleteStatusRequest,
-};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerStorageServerService {
     cache_manager: Arc<StorageCacheManager>,
@@ -45,48 +35,4 @@ impl GrpcBrokerStorageServerService {
 }
 
 #[tonic::async_trait]
-impl BrokerStorageService for GrpcBrokerStorageServerService {
-    async fn delete_shard_file(
-        &self,
-        request: Request<DeleteShardFileRequest>,
-    ) -> Result<Response<DeleteShardFileReply>, Status> {
-        let request = request.into_inner();
-        delete_shard_file_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn get_shard_delete_status(
-        &self,
-        request: Request<GetShardDeleteStatusRequest>,
-    ) -> Result<Response<GetShardDeleteStatusReply>, Status> {
-        let request = request.into_inner();
-        get_shard_delete_status_by_req(&request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn delete_segment_file(
-        &self,
-        request: Request<DeleteSegmentFileRequest>,
-    ) -> Result<Response<DeleteSegmentFileReply>, Status> {
-        let request = request.into_inner();
-        delete_segment_file_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
-    async fn get_segment_delete_status(
-        &self,
-        request: Request<GetSegmentDeleteStatusRequest>,
-    ) -> Result<Response<GetSegmentDeleteStatusReply>, Status> {
-        let request = request.into_inner();
-        get_segment_delete_status_by_req(&self.cache_manager, &request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-}
+impl BrokerStorageService for GrpcBrokerStorageServerService {}

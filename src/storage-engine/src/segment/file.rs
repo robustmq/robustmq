@@ -369,7 +369,7 @@ mod tests {
         let res = open_segment_write(&cache_manager, &segment_iden).await;
         assert!(res.is_err());
 
-        cache_manager.set_segment(segment);
+        cache_manager.set_segment(&segment);
         let res = open_segment_write(&cache_manager, &segment_iden).await;
         assert!(res.is_ok());
     }
