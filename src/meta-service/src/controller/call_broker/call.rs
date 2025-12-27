@@ -24,6 +24,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use protocol::broker::broker_common::BrokerUpdateCacheActionType;
 use protocol::broker::broker_common::BrokerUpdateCacheResourceType;
+use protocol::broker::broker_common::UpdateCacheRecord;
 use protocol::broker::broker_common::UpdateCacheRequest;
 use std::sync::Arc;
 use std::time::Duration;
@@ -46,16 +47,16 @@ pub async fn start_call_thread(
         if let Some(node_send) = call_manager.get_node_sender(node.node_id) {
             let mut raw_stop_rx = stop_send.subscribe();
             let mut data_recv = node_send.sender.subscribe();
-            
+
             if ready_tx.send(()).is_err() {
                 warn!("Failed to notify thread ready for node {}", node.node_id);
             }
-            
+
             info!(
                 "Started inner communication thread between Meta Service and Broker node {}",
                 node.node_id
             );
-            
+
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
@@ -129,25 +130,23 @@ async fn call_mqtt_update_cache(
     client_pool: &Arc<ClientPool>,
     broker_cache: &Arc<BrokerCacheManager>,
     addr: &str,
-    data: &BrokerCallMessage,
+    data: &Vec<BrokerCallMessage>,
 ) {
-    let request = UpdateCacheRequest {
-        action_type: data.action_type.into(),
-        resource_type: data.resource_type.into(),
-        data: data.data.clone(),
-    };
+    let records = data
+        .iter()
+        .map(|raw| UpdateCacheRecord {
+            action_type: raw.action_type.into(),
+            resource_type: raw.resource_type.into(),
+            data: raw.data.clone(),
+        })
+        .collect();
 
+    let request = UpdateCacheRequest { records };
     if let Err(e) = broker_common_update_cache(client_pool, &[addr], request.clone()).await {
         if broker_cache.is_stop().await {
             return;
         }
-        error!(
-            "Failed to update cache on Broker {}, action: {:?}, resource: {:?}: {}",
-            addr,
-            request.action_type(),
-            request.resource_type(),
-            e
-        );
+        error!("Failed to update cache on Broker {},: {}", addr, e);
     };
 }
 
@@ -186,11 +185,17 @@ pub async fn add_call_message(
                     ready_tx,
                 )
                 .await;
-                
+
                 call_manager.node_thread_handle.insert(raw.node_id, handle);
 
-                if tokio::time::timeout(Duration::from_secs(1), ready_rx).await.is_err() {
-                    warn!("Timeout waiting for thread to be ready for node {}", raw.node_id);
+                if tokio::time::timeout(Duration::from_secs(1), ready_rx)
+                    .await
+                    .is_err()
+                {
+                    warn!(
+                        "Timeout waiting for thread to be ready for node {}",
+                        raw.node_id
+                    );
                 }
 
                 if let Err(e) = sx.send(message.clone()) {
@@ -251,19 +256,22 @@ impl BrokerCallManager {
 
     pub async fn remove_node(&self, node_id: u64) {
         self.node_sender.remove(&node_id);
-        
+
         if let Some((_, send)) = self.node_stop_sender.remove(&node_id) {
             if let Err(e) = send.send(true) {
-                warn!("Failed to send stop signal to Broker node {}: {}", node_id, e);
+                warn!(
+                    "Failed to send stop signal to Broker node {}: {}",
+                    node_id, e
+                );
             }
         }
-        
+
         if let Some((_, handle)) = self.node_thread_handle.remove(&node_id) {
-            if let Err(e) = tokio::time::timeout(
-                Duration::from_secs(5),
-                handle
-            ).await {
-                warn!("Timeout waiting for thread to stop for node {}: {}", node_id, e);
+            if let Err(e) = tokio::time::timeout(Duration::from_secs(5), handle).await {
+                warn!(
+                    "Timeout waiting for thread to stop for node {}: {}",
+                    node_id, e
+                );
             }
         }
     }
@@ -296,12 +304,12 @@ pub async fn broker_call_thread_manager(
             if let Entry::Vacant(entry) = call_manager.node_stop_sender.entry(node_id) {
                 let (stop_send, _) = broadcast::channel(2);
                 entry.insert(stop_send.clone());
-                
+
                 warn!(
                     "Detected orphaned sender for node {}, starting recovery thread",
                     node_id
                 );
-                
+
                 let (ready_tx, _) = oneshot::channel();
                 let handle = start_call_thread(
                     node,
@@ -311,7 +319,7 @@ pub async fn broker_call_thread_manager(
                     ready_tx,
                 )
                 .await;
-                
+
                 call_manager.node_thread_handle.insert(node_id, handle);
             }
         }
@@ -325,7 +333,10 @@ pub async fn broker_call_thread_manager(
 
         for (node_id, sx) in stop_node_ids {
             if let Err(e) = sx.send(true) {
-                error!("Failed to send stop signal to orphaned thread for node {}: {}", node_id, e);
+                error!(
+                    "Failed to send stop signal to orphaned thread for node {}: {}",
+                    node_id, e
+                );
             }
             call_manager.node_stop_sender.remove(&node_id);
             call_manager.node_thread_handle.remove(&node_id);
@@ -456,7 +467,8 @@ mod tests {
         let (stop_send, _) = broadcast::channel(2);
         let (ready_tx, ready_rx) = oneshot::channel();
 
-        let _handle = start_call_thread(node, manager.clone(), client_pool, stop_send, ready_tx).await;
+        let _handle =
+            start_call_thread(node, manager.clone(), client_pool, stop_send, ready_tx).await;
 
         let result = tokio::time::timeout(Duration::from_secs(1), ready_rx).await;
         assert!(result.is_ok(), "Thread should send ready signal");
