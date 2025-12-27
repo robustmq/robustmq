@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo};
+use metadata_struct::adapter::{read_config::ReadConfig, record::StorageAdapterRecord, ShardInfo};
 
 use crate::storage::ArcStorageAdapter;
 
@@ -68,12 +68,12 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
         .await
         .unwrap();
 
-    let mut r1 = Record::from_bytes(b"msg1".to_vec());
+    let mut r1 = StorageAdapterRecord::from_bytes(b"msg1".to_vec());
     r1.key = Some("k1".to_string());
     r1.tags = Some(vec!["a".to_string(), "c".to_string()]);
     r1.timestamp = 1000;
 
-    let mut r2 = Record::from_bytes(b"msg2".to_vec());
+    let mut r2 = StorageAdapterRecord::from_bytes(b"msg2".to_vec());
     r2.key = Some("k2".to_string());
     r2.tags = Some(vec!["b".to_string(), "c".to_string()]);
     r2.timestamp = 2000;
@@ -219,7 +219,7 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
 
     let mut records = Vec::new();
     for i in 0..15000 {
-        let mut r = Record::from_bytes(format!("msg{}", i).into_bytes());
+        let mut r = StorageAdapterRecord::from_bytes(format!("msg{}", i).into_bytes());
         r.timestamp = 1000 + i;
         records.push(r);
     }
@@ -255,5 +255,5 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
 
     let read_result = adapter.read_by_offset("s", 5000, &cfg).await.unwrap();
     assert!(!read_result.is_empty());
-    assert_eq!(read_result[0].timestamp, 6000);
+    assert_eq!(read_result[0].metadata.create_t, 6000);
 }

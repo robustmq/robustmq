@@ -76,7 +76,7 @@ use crate::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select_ticket};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -371,7 +371,7 @@ pub(crate) async fn write_topic_data(
     metadata_cache: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
-    record: Record,
+    record: StorageAdapterRecord,
 ) -> ResultMqttBrokerError {
     let topic = try_init_topic(
         &topic_name,
@@ -502,6 +502,5 @@ mod test {
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].data, except_message.data);
-        assert_eq!(results[0].crc_num, except_message.crc_num);
     }
 }

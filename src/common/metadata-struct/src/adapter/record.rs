@@ -13,14 +13,11 @@
 // limitations under the License.
 
 use bytes::Bytes;
-use common_base::{
-    tools::now_second,
-    utils::{crc::calc_crc32, serialize},
-};
+use common_base::{tools::now_second, utils::serialize};
 use pulsar::{producer, Error as PulsarError, SerializeMessage};
 use serde::{Deserialize, Serialize};
 
-use crate::adapter::{self, serde_bytes_wrapper};
+use crate::adapter;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Header {
@@ -29,77 +26,71 @@ pub struct Header {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Record {
-    pub offset: Option<u64>,
+pub struct StorageAdapterRecord {
+    pub pkid: u64,
     pub header: Option<Vec<Header>>,
     pub key: Option<String>,
-
-    #[serde(with = "serde_bytes_wrapper")]
-    pub data: Bytes,
-
     pub tags: Option<Vec<String>>,
+    pub data: Bytes,
     pub timestamp: u64,
-    pub crc_num: u32,
 }
 
-impl Record {
+impl StorageAdapterRecord {
     /// Create a Record from raw bytes (Vec<u8>)
     pub fn from_bytes(data: Vec<u8>) -> Self {
         let data = Bytes::from(data);
-        let crc_num = calc_crc32(&data);
-        Record {
-            offset: None,
+        StorageAdapterRecord {
+            pkid: 0,
             key: None,
             data,
             tags: None,
             timestamp: now_second(),
             header: None,
-            crc_num,
         }
     }
 
     /// Create a Record from Bytes (zero-copy)
     pub fn from_bytes_shared(data: Bytes) -> Self {
-        let crc_num = calc_crc32(&data);
-        Record {
-            offset: None,
-            key: None,
+        StorageAdapterRecord {
+            pkid: 0,
             data,
+            key: None,
             tags: None,
             timestamp: now_second(),
             header: None,
-            crc_num,
         }
     }
 
     /// Create a Record from a byte slice (copy)
     pub fn from_slice(data: &[u8]) -> Self {
         let data = Bytes::copy_from_slice(data);
-        let crc_num = calc_crc32(&data);
-        Record {
-            offset: None,
-            key: None,
+        StorageAdapterRecord {
+            pkid: 0,
             data,
+            key: None,
             tags: None,
             timestamp: now_second(),
             header: None,
-            crc_num,
         }
     }
 
     /// Create a Record from a string
     pub fn from_string(data: String) -> Self {
         let data = Bytes::from(data.into_bytes());
-        let crc_num = calc_crc32(&data);
-        Record {
-            offset: None,
+        StorageAdapterRecord {
+            pkid: 0,
             key: None,
-            data,
             tags: None,
+            data,
             timestamp: now_second(),
             header: None,
-            crc_num,
         }
+    }
+
+    /// Set pkid (chainable)
+    pub fn with_pkid(mut self, pkid: u64) -> Self {
+        self.pkid = pkid;
+        self
     }
 
     /// Set key (chainable)
@@ -126,6 +117,11 @@ impl Record {
         self
     }
 
+    /// Set pkid (mutable)
+    pub fn set_pkid(&mut self, pkid: u64) {
+        self.pkid = pkid;
+    }
+
     /// Set tags (mutable)
     pub fn set_tags(&mut self, tags: Vec<String>) {
         self.tags = Some(tags);
@@ -141,10 +137,9 @@ impl Record {
         self.key = Some(key);
     }
 
-    /// Verify CRC32 checksum
-    pub fn crc32_check(&self) -> bool {
-        let crc_num = calc_crc32(&self.data);
-        crc_num == self.crc_num
+    /// Set timestamp (mutable)
+    pub fn set_timestamp(&mut self, timestamp: u64) {
+        self.timestamp = timestamp;
     }
 
     /// Get key as string slice
@@ -168,9 +163,8 @@ impl Record {
         let mut total_size = 0;
 
         // Fixed-size fields
-        total_size += std::mem::size_of::<Option<u64>>(); // offset
+        total_size += std::mem::size_of::<u64>(); // pkid
         total_size += std::mem::size_of::<u64>(); // timestamp
-        total_size += std::mem::size_of::<u32>(); // crc_num
 
         // data (the main payload)
         total_size += self.data.len();
@@ -199,8 +193,10 @@ impl Record {
     }
 }
 
-impl SerializeMessage for Record {
-    fn serialize_message(input: adapter::record::Record) -> Result<producer::Message, PulsarError> {
+impl SerializeMessage for StorageAdapterRecord {
+    fn serialize_message(
+        input: adapter::record::StorageAdapterRecord,
+    ) -> Result<producer::Message, PulsarError> {
         // Use bincode for better performance (3-5x faster than JSON)
         let payload =
             serialize::serialize(&input).map_err(|e| PulsarError::Custom(e.to_string()))?;
@@ -217,8 +213,8 @@ mod tests {
 
     #[test]
     fn test_record_bincode_serialization() {
-        let record = Record {
-            offset: Some(123),
+        let record = StorageAdapterRecord {
+            pkid: 1,
             header: Some(vec![Header {
                 name: "test_header".to_string(),
                 value: "test_value".to_string(),
@@ -227,35 +223,32 @@ mod tests {
             data: b"test_data_12345".to_vec().into(),
             tags: Some(vec!["tag1".to_string(), "tag2".to_string()]),
             timestamp: 987654321,
-            crc_num: 12345,
         };
 
         // Serialize
         let serialized = serialize::serialize(&record).expect("Failed to serialize");
 
         // Deserialize
-        let deserialized: Record =
+        let deserialized: StorageAdapterRecord =
             serialize::deserialize(&serialized).expect("Failed to deserialize");
 
         // Verify
-        assert_eq!(record.offset, deserialized.offset);
+        assert_eq!(record.pkid, deserialized.pkid);
         assert_eq!(record.key, deserialized.key);
         assert_eq!(record.data.as_ref(), deserialized.data.as_ref());
         assert_eq!(record.tags, deserialized.tags);
         assert_eq!(record.timestamp, deserialized.timestamp);
-        assert_eq!(record.crc_num, deserialized.crc_num);
     }
 
     #[test]
     fn test_record_with_none_fields() {
-        let record = Record {
-            offset: None,
+        let record = StorageAdapterRecord {
+            pkid: 1,
             header: None,
             key: None,
             data: Bytes::from(vec![1, 2, 3]),
             tags: None,
             timestamp: 111,
-            crc_num: 222,
         };
 
         println!("Original record: {:?}", record);
@@ -267,13 +260,14 @@ mod tests {
             &serialized[..50.min(serialized.len())]
         );
 
-        let deserialized: Record =
+        let deserialized: StorageAdapterRecord =
             serialize::deserialize(&serialized).expect("Failed to deserialize");
         println!("Deserialized record: {:?}", deserialized);
 
-        assert_eq!(record.offset, deserialized.offset);
+        assert_eq!(record.pkid, deserialized.pkid);
         assert_eq!(record.key, deserialized.key);
         assert_eq!(record.data.as_ref(), deserialized.data.as_ref());
         assert_eq!(record.tags, deserialized.tags);
+        assert_eq!(record.timestamp, deserialized.timestamp);
     }
 }

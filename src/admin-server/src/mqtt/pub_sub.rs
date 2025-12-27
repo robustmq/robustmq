@@ -155,7 +155,7 @@ pub async fn read_inner(
         let message = MqttMessage::decode(&row.data)?;
         let content = String::from_utf8_lossy(&message.payload).to_string();
         results.push(ReadMessageRow {
-            offset: row.offset.unwrap(),
+            offset: row.pkid,
             content,
             timestamp: row.timestamp,
         });

@@ -16,8 +16,9 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::MessageExpireConfig;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::adapter::{read_config::ReadConfig, record::StorageAdapterRecord};
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::record::StorageEngineRecord;
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::rocksdb::engine::RocksDBStorageEngine;
 
@@ -48,11 +49,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.rocksdb_storage_engine.delete_shard(shard).await
     }
 
-    async fn write(&self, shard: &str, message: &Record) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, message: &StorageAdapterRecord) -> Result<u64, CommonError> {
         self.rocksdb_storage_engine.write(shard, message).await
     }
 
-    async fn batch_write(&self, shard: &str, messages: &[Record]) -> Result<Vec<u64>, CommonError> {
+    async fn batch_write(
+        &self,
+        shard: &str,
+        messages: &[StorageAdapterRecord],
+    ) -> Result<Vec<u64>, CommonError> {
         self.rocksdb_storage_engine
             .batch_write(shard, messages)
             .await
@@ -63,7 +68,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard: &str,
         offset: u64,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         self.rocksdb_storage_engine
             .read_by_offset(shard, offset, read_config)
             .await
@@ -75,13 +80,17 @@ impl StorageAdapter for RocksDBStorageAdapter {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         self.rocksdb_storage_engine
             .read_by_tag(shard, tag, start_offset, read_config)
             .await
     }
 
-    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError> {
+    async fn read_by_key(
+        &self,
+        shard: &str,
+        key: &str,
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         self.rocksdb_storage_engine.read_by_key(shard, key).await
     }
 

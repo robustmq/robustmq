@@ -18,7 +18,7 @@ use broker_core::cluster::ClusterStorage;
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::message::MqttMessage;
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
@@ -107,7 +107,10 @@ pub(crate) async fn report_broker_sysdescr(
     .await;
 }
 
-async fn build_node_cluster(topic_name: &str, client_pool: &Arc<ClientPool>) -> Option<Record> {
+async fn build_node_cluster(
+    topic_name: &str,
+    client_pool: &Arc<ClientPool>,
+) -> Option<StorageAdapterRecord> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let node_list = match cluster_storage.node_list().await {
         Ok(data) => data,

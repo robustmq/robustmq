@@ -17,7 +17,10 @@ use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
 use common_config::storage::mysql::StorageDriverMySQLConfig;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::adapter::record::{Header as AdapterHeader, StorageAdapterRecord};
+use metadata_struct::adapter::read_config::ReadConfig;
+use metadata_struct::storage::convert::convert_adapter_headers_to_storage;
+use metadata_struct::storage::record::{Header as StorageHeader, StorageEngineRecord, StorageEngineRecordMetadata};
 use r2d2_mysql::mysql::{params, prelude::Queryable, Row};
 use std::{collections::HashMap, time::Duration};
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
@@ -354,7 +357,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         shard: &str,
         offset: u64,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         let mut conn = self.pool.get()?;
 
         let sql = format!(
@@ -366,7 +369,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             Self::record_table_name(shard)
         );
 
-        let res: Vec<Record> = conn.exec_map(
+        let res: Vec<StorageEngineRecord> = conn.exec_map(
             sql,
             params! {
                 "offset" => offset,
@@ -380,14 +383,22 @@ impl StorageAdapter for MySQLStorageAdapter {
                 Vec<u8>,
                 u64,
             )| {
-                Record {
-                    offset: Some(offset), // offset is 1-based in the database
-                    key: if key.is_empty() { None } else { Some(key) },
-                    data: data.clone().into(),
-                    header: serde_json::from_slice(&header).unwrap(),
-                    tags: serde_json::from_slice(&tags).unwrap(),
-                    timestamp: ts,
-                    crc_num: calc_crc32(&data),
+                let data_bytes = data.into();
+                let adapter_headers: Option<Vec<AdapterHeader>> = serde_json::from_slice(&header).ok();
+                let storage_headers = convert_adapter_headers_to_storage(adapter_headers);
+                let tags_val = serde_json::from_slice(&tags).ok();
+                let key_val = if key.is_empty() { None } else { Some(key) };
+                
+                let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
+                    .with_header(storage_headers)
+                    .with_key(key_val)
+                    .with_tags(tags_val)
+                    .with_timestamp(ts)
+                    .with_crc_from_data(&data_bytes);
+
+                StorageEngineRecord {
+                    metadata,
+                    data: data_bytes,
                 }
             },
         )?;
@@ -398,11 +409,12 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn read_by_tag(
         &self,
         shard: &str,
-        offset: u64,
         tag: &str,
+        start_offset: Option<u64>,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         let mut conn = self.pool.get()?;
+        let offset = start_offset.unwrap_or(0);
 
         let sql = format!(
             "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
@@ -415,7 +427,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             Self::record_table_name(shard)
         );
 
-        let res: Vec<Record> = conn.exec_map(
+        let res: Vec<StorageEngineRecord> = conn.exec_map(
             sql,
             params! {
                 "tag" => tag,
@@ -431,14 +443,22 @@ impl StorageAdapter for MySQLStorageAdapter {
                 Vec<u8>,
                 u64,
             )| {
-                Record {
-                    offset: Some(offset), // offset is 1-based in the database
-                    key: if key.is_empty() { None } else { Some(key) },
-                    data: data.clone().into(),
-                    header: serde_json::from_slice(&header).unwrap(),
-                    tags: serde_json::from_slice(&tags).unwrap(),
-                    timestamp: ts,
-                    crc_num: calc_crc32(&data),
+                let data_bytes = data.into();
+                let adapter_headers: Option<Vec<AdapterHeader>> = serde_json::from_slice(&header).ok();
+                let storage_headers = convert_adapter_headers_to_storage(adapter_headers);
+                let tags_val = serde_json::from_slice(&tags).ok();
+                let key_val = if key.is_empty() { None } else { Some(key) };
+                
+                let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
+                    .with_header(storage_headers)
+                    .with_key(key_val)
+                    .with_tags(tags_val)
+                    .with_timestamp(ts)
+                    .with_crc_from_data(&data_bytes);
+
+                StorageEngineRecord {
+                    metadata,
+                    data: data_bytes,
                 }
             },
         )?;
@@ -449,18 +469,16 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn read_by_key(
         &self,
         shard: &str,
-        offset: u64,
         key: &str,
-        read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         let mut conn = self.pool.get()?;
 
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
             FROM {}
-            WHERE `offset` >= :offset AND `key` = :key
+            WHERE `key` = :key
             ORDER BY `offset`
-            LIMIT :limit",
+            LIMIT 1",
             Self::record_table_name(shard)
         );
 
@@ -468,9 +486,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             .exec_first(
                 sql,
                 params! {
-                    "offset" => offset,
                     "key" => key,
-                    "limit" => read_config.max_record_num,
                 },
             )?
             .map(
@@ -481,14 +497,31 @@ impl StorageAdapter for MySQLStorageAdapter {
                     Vec<u8>,
                     Vec<u8>,
                     u64,
-                )| Record {
-                    offset: Some(offset),
-                    key: if key.is_empty() { None } else { Some(key) },
-                    data: data.clone().into(),
-                    header: serde_json::from_slice(&header).unwrap(),
-                    tags: serde_json::from_slice(&tags).unwrap(),
-                    timestamp: ts,
-                    crc_num: calc_crc32(&data),
+                )| {
+                    let data_bytes = data.into();
+                    let adapter_headers: Option<Vec<AdapterHeader>> = serde_json::from_slice(&header).ok();
+                    let storage_headers = adapter_headers.map(|hs| {
+                        hs.into_iter()
+                            .map(|h| StorageHeader {
+                                name: h.name,
+                                value: h.value,
+                            })
+                            .collect()
+                    });
+                    let tags_val = serde_json::from_slice(&tags).ok();
+                    let key_val = if key.is_empty() { None } else { Some(key) };
+                    
+                    let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
+                        .with_header(storage_headers)
+                        .with_key(key_val)
+                        .with_tags(tags_val)
+                        .with_timestamp(ts)
+                        .with_crc_from_data(&data_bytes);
+
+                    StorageEngineRecord {
+                        metadata,
+                        data: data_bytes,
+                    }
                 },
             )
             .ok_or(CommonError::CommonError("No record found".to_string()))?;
@@ -794,7 +827,7 @@ mod tests {
         let mut offset_data = HashMap::new();
         offset_data.insert(
             shard_name.clone(),
-            res.first().unwrap().clone().offset.unwrap(),
+            res.first().unwrap().metadata.offset,
         );
 
         mysql_adapter
@@ -822,7 +855,7 @@ mod tests {
         let mut offset_data = HashMap::new();
         offset_data.insert(
             shard_name.clone(),
-            res.first().unwrap().clone().offset.unwrap(),
+            res.first().unwrap().metadata.offset,
         );
         mysql_adapter
             .commit_offset(&group_id, &offset_data)
@@ -849,7 +882,7 @@ mod tests {
         let mut offset_data = HashMap::new();
         offset_data.insert(
             shard_name.clone(),
-            res.first().unwrap().clone().offset.unwrap(),
+            res.first().unwrap().metadata.offset,
         );
         mysql_adapter
             .commit_offset(&group_id, &offset_data)
@@ -875,7 +908,7 @@ mod tests {
         let mut offset_data = HashMap::new();
         offset_data.insert(
             shard_name.clone(),
-            res.first().unwrap().clone().offset.unwrap(),
+            res.first().unwrap().metadata.offset,
         );
         mysql_adapter
             .commit_offset(&group_id, &offset_data)

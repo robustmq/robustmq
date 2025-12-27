@@ -16,8 +16,10 @@ use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::convert::convert_adapter_record_to_engine;
+use metadata_struct::storage::record::StorageEngineRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -32,7 +34,7 @@ pub struct MemoryStorageEngine {
     //(shard, (ShardInfo))
     pub shard_info: DashMap<String, ShardInfo>,
     //(shard, (offset,Record))
-    pub shard_data: DashMap<String, DashMap<u64, Record>>,
+    pub shard_data: DashMap<String, DashMap<u64, StorageEngineRecord>>,
     //(group, (shard, offset))
     pub group_data: DashMap<String, DashMap<String, u64>>,
     //(shard, (tag, (offset)))
@@ -113,7 +115,7 @@ impl MemoryStorageEngine {
                 continue;
             };
 
-            if record.timestamp >= timestamp {
+            if record.metadata.create_t >= timestamp {
                 return Some(offset);
             }
         }
@@ -124,7 +126,7 @@ impl MemoryStorageEngine {
     async fn internal_batch_write(
         &self,
         shard_name: &str,
-        messages: &[Record],
+        messages: &[StorageAdapterRecord],
     ) -> Result<Vec<u64>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
@@ -156,10 +158,12 @@ impl MemoryStorageEngine {
             for msg in messages.iter() {
                 offset_res.push(offset);
 
+                // Convert StorageAdapterRecord to StorageEngineRecord
+                let engine_record =
+                    convert_adapter_record_to_engine(msg.clone(), shard_name, offset);
+
                 // save data
-                let mut record_to_save = msg.clone();
-                record_to_save.offset = Some(offset);
-                data_map.insert(offset, record_to_save);
+                data_map.insert(offset, engine_record);
 
                 // key index
                 if let Some(key) = &msg.key {
@@ -266,12 +270,16 @@ impl MemoryStorageEngine {
     pub async fn batch_write(
         &self,
         shard: &str,
-        messages: &[Record],
+        messages: &[StorageAdapterRecord],
     ) -> Result<Vec<u64>, CommonError> {
         self.internal_batch_write(shard, messages).await
     }
 
-    pub async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError> {
+    pub async fn write(
+        &self,
+        shard: &str,
+        data: &StorageAdapterRecord,
+    ) -> Result<u64, CommonError> {
         let offsets = self
             .internal_batch_write(shard, std::slice::from_ref(data))
             .await?;
@@ -283,7 +291,7 @@ impl MemoryStorageEngine {
         shard: &str,
         offset: u64,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         let Some(data_map) = self.shard_data.get(shard) else {
             return Ok(Vec::new());
         };
@@ -315,7 +323,7 @@ impl MemoryStorageEngine {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         let Some(tag_map) = self.tag_index.get(shard) else {
             return Ok(Vec::new());
         };
@@ -358,7 +366,11 @@ impl MemoryStorageEngine {
         Ok(records)
     }
 
-    pub async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError> {
+    pub async fn read_by_key(
+        &self,
+        shard: &str,
+        key: &str,
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         let Some(key_map) = self.key_index.get(shard) else {
             return Ok(Vec::new());
         };

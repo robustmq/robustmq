@@ -18,6 +18,8 @@ use protocol::storage::protocol::{
     WriteResp, WriteRespBody, WriteRespMessage,
 };
 
+use crate::core::error::StorageEngineError;
+
 pub fn build_write_req(
     shard_name: String,
     segment: u32,
@@ -68,4 +70,22 @@ pub fn build_read_resp(
         },
         body: ReadRespBody { messages },
     }
+}
+
+// todo: In the future, there may be situations where some records are successfully written while others fail.
+pub fn write_resp_parse(resp: &WriteResp) -> Result<Vec<u64>, StorageEngineError> {
+    if let Some(err) = &resp.header.error {
+        return Err(StorageEngineError::CommonErrorStr(err.to_str()));
+    }
+
+    let mut offsets = Vec::new();
+    for msg in &resp.body.status {
+        for raw in &msg.messages {
+            if let Some(err) = &raw.error {
+                return Err(StorageEngineError::CommonErrorStr(err.to_str()));
+            }
+            offsets.push(raw.offset);
+        }
+    }
+    Ok(offsets)
 }

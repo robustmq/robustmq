@@ -16,7 +16,7 @@ use std::{sync::Arc, time::Duration};
 
 use axum::async_trait;
 use metadata_struct::{
-    adapter::record::Record, mqtt::bridge::config_kafka::KafkaConnectorConfig,
+    adapter::record::StorageAdapterRecord, mqtt::bridge::config_kafka::KafkaConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
@@ -84,7 +84,7 @@ impl ConnectorSink for KafkaBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         producer: &mut FutureProducer,
     ) -> ResultMqttBrokerError {
         use futures::future::join_all;

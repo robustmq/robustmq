@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use crate::{
-    clients::manager::ClientConnectionManager,
+    clients::{
+        manager::ClientConnectionManager,
+        packet::{build_write_req, write_resp_parse},
+    },
     core::{cache::StorageCacheManager, error::StorageEngineError},
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
@@ -23,7 +26,8 @@ use crate::{
     },
 };
 use common_config::broker::broker_config;
-use metadata_struct::{adapter::record::Record, storage::shard::EngineType};
+use metadata_struct::{adapter::record::StorageAdapterRecord, storage::shard::EngineType};
+use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 
 pub async fn batch_write(
@@ -33,7 +37,7 @@ pub async fn batch_write(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     client_connection_manager: &Arc<ClientConnectionManager>,
     shard_name: &str,
-    records: &[Record],
+    records: &[StorageAdapterRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
@@ -44,7 +48,14 @@ pub async fn batch_write(
     let conf = broker_config();
 
     let offsets = if conf.broker_id == active_segment.leader {
-        write_data_to_remote(client_connection_manager, shard_name, records).await?
+        write_data_to_remote(
+            client_connection_manager,
+            active_segment.leader,
+            shard_name,
+            active_segment.segment_seq,
+            records,
+        )
+        .await?
     } else {
         match shard.engine_type {
             EngineType::Memory => {
@@ -68,17 +79,42 @@ pub async fn batch_write(
 }
 
 async fn write_data_to_remote(
-    _client_connection_manager: &Arc<ClientConnectionManager>,
-    _shard_name: &str,
-    _records: &[Record],
+    client_connection_manager: &Arc<ClientConnectionManager>,
+    target_broker_id: u64,
+    shard_name: &str,
+    segment: u32,
+    records: &[StorageAdapterRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
-    Ok(Vec::new())
+    use protocol::storage::protocol::WriteReqMessages;
+
+    let messages = records
+        .iter()
+        .map(|record| WriteReqMessages {
+            pkid: record.pkid,
+            key: record.key.clone().unwrap_or_default(),
+            value: record.data.to_vec(),
+            tags: record.tags.clone().unwrap_or_default(),
+        })
+        .collect();
+
+    let write_req = build_write_req(shard_name.to_string(), segment, messages);
+    let resp = client_connection_manager
+        .write_send(target_broker_id, StorageEnginePacket::WriteReq(write_req))
+        .await?;
+
+    match resp {
+        StorageEnginePacket::WriteResp(resp) => Ok(write_resp_parse(&resp)?),
+        packet => Err(StorageEngineError::ReceivedPacketError(
+            target_broker_id,
+            format!("Expected WriteResp, got {:?}", packet),
+        )),
+    }
 }
 
 async fn write_memory_to_local(
     memory_storage_engine: &Arc<MemoryStorageEngine>,
     shard_name: &str,
-    records: &[Record],
+    records: &[StorageAdapterRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let offsets = memory_storage_engine
         .batch_write(shard_name, records)
@@ -89,7 +125,7 @@ async fn write_memory_to_local(
 async fn write_rocksdb_to_local(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     shard_name: &str,
-    records: &[Record],
+    records: &[StorageAdapterRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let offsets = rocksdb_storage_engine
         .batch_write(shard_name, records)
@@ -101,13 +137,22 @@ async fn write_segment_to_local(
     write_manager: &Arc<WriteManager>,
     shard_name: &str,
     segment: u32,
-    records: &[Record],
+    records: &[StorageAdapterRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let segment_iden = SegmentIdentity::new(shard_name, segment);
     let data_list = records
         .iter()
         .map(|record| WriteChannelDataRecord {
-            pkid: 0,
+            pkid: record.pkid,
+            header: record.header.as_ref().map(|headers| {
+                headers
+                    .iter()
+                    .map(|h| metadata_struct::storage::record::Header {
+                        name: h.name.clone(),
+                        value: h.value.clone(),
+                    })
+                    .collect()
+            }),
             key: record.key.clone(),
             tags: record.tags.clone(),
             value: record.data.clone(),

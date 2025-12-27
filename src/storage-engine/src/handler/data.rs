@@ -86,6 +86,7 @@ pub async fn write_data_req(
         // todo data validator
         let record = WriteChannelDataRecord {
             pkid: message.pkid,
+            header: None,
             key: Some(message.key.clone()),
             tags: Some(message.tags.clone()),
             value: message.value.clone().into(),

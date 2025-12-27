@@ -127,6 +127,7 @@ pub async fn test_base_write_data(
     for i in 0..len {
         data_list.push(WriteChannelDataRecord {
             pkid: i,
+            header: None,
             key: Some(format!("key-{}", i)),
             tags: Some(vec![format!("tag-{}", i)]),
             value: Bytes::from(format!("data-{i}")),

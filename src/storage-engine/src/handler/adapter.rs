@@ -16,7 +16,10 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo, ShardOffset};
+use metadata_struct::adapter::{
+    read_config::ReadConfig, record::StorageAdapterRecord, ShardInfo, ShardOffset,
+};
+use metadata_struct::storage::record::StorageEngineRecord;
 
 use crate::{
     clients::manager::ClientConnectionManager,
@@ -100,7 +103,7 @@ impl AdapterHandler {
     pub async fn batch_write(
         &self,
         shard: &str,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
     ) -> Result<Vec<u64>, CommonError> {
         match batch_write(
             &self.write_manager,
@@ -123,7 +126,7 @@ impl AdapterHandler {
         _shard: &str,
         _offset: u64,
         _read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         Ok(Vec::new())
     }
 
@@ -133,11 +136,15 @@ impl AdapterHandler {
         _tag: &str,
         _start_offset: Option<u64>,
         _read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         Ok(Vec::new())
     }
 
-    pub async fn read_by_key(&self, _shard: &str, _key: &str) -> Result<Vec<Record>, CommonError> {
+    pub async fn read_by_key(
+        &self,
+        _shard: &str,
+        _key: &str,
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         Ok(Vec::new())
     }
 

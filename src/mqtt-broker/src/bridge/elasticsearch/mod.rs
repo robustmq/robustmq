@@ -24,7 +24,8 @@ use elasticsearch::{
     BulkParts, Elasticsearch,
 };
 use metadata_struct::{
-    adapter::record::Record, mqtt::bridge::config_elasticsearch::ElasticsearchConnectorConfig,
+    adapter::record::StorageAdapterRecord,
+    mqtt::bridge::config_elasticsearch::ElasticsearchConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
 use serde_json::{json, Value};
@@ -83,7 +84,7 @@ impl ElasticsearchBridgePlugin {
         Ok(Elasticsearch::new(transport))
     }
 
-    fn record_to_json(&self, record: &Record) -> Result<Value, MqttBrokerError> {
+    fn record_to_json(&self, record: &StorageAdapterRecord) -> Result<Value, MqttBrokerError> {
         let payload_str = String::from_utf8_lossy(&record.data).to_string();
 
         let mut doc = json!({
@@ -122,7 +123,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         client: &mut Elasticsearch,
     ) -> ResultMqttBrokerError {
         if records.is_empty() {

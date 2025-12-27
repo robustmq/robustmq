@@ -4020,6 +4020,7 @@ dependencies = [
  "dashmap",
  "protocol",
  "pulsar",
+ "rkyv",
  "serde",
  "serde_json",
  "tokio",

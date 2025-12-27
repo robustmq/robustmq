@@ -18,7 +18,7 @@ use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::adapter::record::Record;
+use crate::adapter::record::StorageAdapterRecord;
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct MqttMessage {
@@ -42,7 +42,10 @@ pub struct MqttMessage {
 }
 
 impl MqttMessage {
-    pub fn build_system_topic_message(topic_name: String, payload: String) -> Option<Record> {
+    pub fn build_system_topic_message(
+        topic_name: String,
+        payload: String,
+    ) -> Option<StorageAdapterRecord> {
         let message = MqttMessage {
             client_id: "-".to_string(),
             dup: false,
@@ -62,7 +65,7 @@ impl MqttMessage {
         };
 
         match message.encode() {
-            Ok(data) => Some(Record::from_bytes(data)),
+            Ok(data) => Some(StorageAdapterRecord::from_bytes(data)),
             Err(e) => {
                 error!("Message encoding failed, error message: {}", e);
                 None
@@ -112,11 +115,11 @@ impl MqttMessage {
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
         expiry_interval: u64,
-    ) -> Option<Record> {
+    ) -> Option<StorageAdapterRecord> {
         let msg =
             MqttMessage::build_message(client_id, publish, publish_properties, expiry_interval);
         match msg.encode() {
-            Ok(data) => Some(Record::from_bytes(data)),
+            Ok(data) => Some(StorageAdapterRecord::from_bytes(data)),
             Err(e) => {
                 error!("Message encoding failed, error message: {}", e);
                 None
@@ -124,7 +127,7 @@ impl MqttMessage {
         }
     }
 
-    pub fn decode_record(record: Record) -> Result<MqttMessage, CommonError> {
+    pub fn decode_record(record: StorageAdapterRecord) -> Result<MqttMessage, CommonError> {
         serialize::deserialize(&record.data)
     }
 
@@ -316,7 +319,7 @@ mod tests {
         };
 
         let encoded = msg.encode().unwrap();
-        let record = Record::from_bytes(encoded);
+        let record = StorageAdapterRecord::from_bytes(encoded);
         let decoded = MqttMessage::decode_record(record).unwrap();
 
         assert_eq!(decoded.client_id, msg.client_id);

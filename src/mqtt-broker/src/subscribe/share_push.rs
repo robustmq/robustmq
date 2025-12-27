@@ -28,7 +28,7 @@ use crate::{
     },
 };
 use common_base::tools::now_second;
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -36,7 +36,7 @@ use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 const BATCH_SIZE: u64 = 500;
 
@@ -144,15 +144,7 @@ impl SharePushManager {
 
             let mut last_commit_offset: Option<u64> = None;
             for record in data_list {
-                let record_offset = if let Some(offset) = record.offset {
-                    offset
-                } else {
-                    warn!(
-                        "Record without offset for subscriber [group_name: {}], skipping",
-                        self.group_name
-                    );
-                    continue;
-                };
+                let record_offset = record.pkid;
 
                 let msg = MqttMessage::decode_record(record.clone())?;
 
@@ -168,8 +160,8 @@ impl SharePushManager {
                 loop {
                     if attempts >= max_attempts {
                         debug!(
-                            "Failed to push message after {} attempts for group {}, skipping record at offset {:?}",
-                            attempts, self.group_name, record.offset
+                            "Failed to push message after {} attempts for group {}, skipping record at pkid {}",
+                            attempts, self.group_name, record.pkid
                         );
                         break_flag = true;
                         break;
@@ -319,7 +311,7 @@ impl SharePushManager {
         &self,
         group: &str,
         topic_name: &str,
-    ) -> Result<Vec<Record>, MqttBrokerError> {
+    ) -> Result<Vec<StorageAdapterRecord>, MqttBrokerError> {
         let offset = self
             .message_storage
             .get_group_offset(group, topic_name)
