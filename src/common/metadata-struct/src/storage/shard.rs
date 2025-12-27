@@ -69,4 +69,5 @@ pub enum EngineType {
     #[default]
     Segment,
     Memory,
+    RocksDB,
 }

@@ -33,12 +33,17 @@ pub async fn _batch_write(
 
     let _offsets = match shard.engine_type {
         EngineType::Memory => write_memory().await?,
+        EngineType::RocksDB => write_rocksdb().await?,
         EngineType::Segment => write_segment().await?,
     };
     Ok(Vec::new())
 }
 
 async fn write_memory() -> Result<Vec<u64>, StorageEngineError> {
+    Ok(Vec::new())
+}
+
+async fn write_rocksdb() -> Result<Vec<u64>, StorageEngineError> {
     Ok(Vec::new())
 }
 
