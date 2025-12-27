@@ -18,7 +18,6 @@ use common_base::error::common::CommonError;
 use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::rocksdb::engine::RocksDBStorageEngine;
 
