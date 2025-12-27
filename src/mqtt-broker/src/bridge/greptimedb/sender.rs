@@ -14,8 +14,8 @@
 
 use std::time::Duration;
 
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
 
@@ -166,7 +166,7 @@ impl Sender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::adapter::adapter_record::Header;
+    use metadata_struct::storage::adapter_record::Header;
 
     #[tokio::test]
     #[ignore = "reason"]

@@ -69,8 +69,8 @@ impl<'a> Producer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::adapter::adapter_record::Header;
-    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use metadata_struct::storage::adapter_record::Header;
 
     // Test PulsarProducer works
     // Run `docker run --rm -it -p 6650:6650 -p 8080:8080 --name pulsar apachepulsar/pulsar:2.11.0 bin/pulsar standalone -nfw -nss` to set up pulsar instance, then run test.

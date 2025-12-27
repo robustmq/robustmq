@@ -14,8 +14,8 @@
 
 use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
 use metadata_struct::{
-    adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord},
-    delay_info::DelayMessageInfo,
+    delay_info::DelayMessageInfo, storage::adapter_read_config::AdapterReadConfig,
+    storage::adapter_record::AdapterWriteRecord,
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -40,7 +40,7 @@ pub async fn persist_delay_info(
 pub async fn recover_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
     delay_message_manager: &Arc<DelayMessageManager>,
-    read_config: ReadConfig,
+    read_config: AdapterReadConfig,
     _shard_num: u64,
 ) {
     let mut offset = 0;
@@ -146,8 +146,11 @@ mod test {
     };
     use common_base::{tools::unique_id, utils::serialize};
     use metadata_struct::{
-        adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord, ShardInfo},
         delay_info::DelayMessageInfo,
+        storage::{
+            adapter_offset::ShardInfo, adapter_read_config::AdapterReadConfig,
+            adapter_record::AdapterWriteRecord,
+        },
     };
     use std::{sync::Arc, time::Duration};
     use storage_adapter::storage::build_memory_storage_driver;
@@ -249,7 +252,7 @@ mod test {
         );
 
         // build delay queue
-        let read_config = ReadConfig {
+        let read_config = AdapterReadConfig {
             max_record_num: 100,
             max_size: 1024 * 1024 * 1024,
         };

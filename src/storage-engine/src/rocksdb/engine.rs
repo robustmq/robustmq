@@ -16,8 +16,9 @@ use common_base::tools::now_second;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
-use metadata_struct::adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord};
-use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb::WriteBatch;
@@ -394,7 +395,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         offset: u64,
-        read_config: &ReadConfig,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
 
@@ -428,7 +429,7 @@ impl RocksDBStorageEngine {
         shard: &str,
         tag: &str,
         start_offset: Option<u64>,
-        read_config: &ReadConfig,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
         let tag_offset_key_prefix = tag_index_tag_prefix(shard, tag);

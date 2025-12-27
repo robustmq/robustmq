@@ -327,8 +327,8 @@ mod tests {
     use bytes::Bytes;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
     use metadata_struct::storage::segment::{EngineSegment, Replica};
+    use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
     use std::sync::Arc;
 
     #[tokio::test]

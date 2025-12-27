@@ -16,9 +16,9 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::{
-    read_config::ReadConfig, adapter_record::AdapterWriteRecord, ShardInfo, ShardOffset,
-};
+use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 
 use crate::{
@@ -125,7 +125,7 @@ impl AdapterHandler {
         &self,
         _shard: &str,
         _offset: u64,
-        _read_config: &ReadConfig,
+        _read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         Ok(Vec::new())
     }
@@ -135,7 +135,7 @@ impl AdapterHandler {
         _shard: &str,
         _tag: &str,
         _start_offset: Option<u64>,
-        _read_config: &ReadConfig,
+        _read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         Ok(Vec::new())
     }

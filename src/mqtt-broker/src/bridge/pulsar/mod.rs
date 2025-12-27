@@ -23,8 +23,8 @@ use crate::{
 };
 use axum::async_trait;
 use metadata_struct::{
-    adapter::adapter_record::AdapterWriteRecord, mqtt::bridge::config_pulsar::PulsarConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::config_pulsar::PulsarConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;

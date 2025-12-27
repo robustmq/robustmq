@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
 use std::collections::HashMap;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -50,7 +50,7 @@ impl MessageStorage {
     ) -> Result<Vec<AdapterWriteRecord>, CommonError> {
         let shard_name = topic_name;
 
-        let mut read_config = ReadConfig::new();
+        let mut read_config = AdapterReadConfig::new();
         read_config.max_record_num = record_num;
 
         let engine_records = self
@@ -107,7 +107,7 @@ impl MessageStorage {
 mod tests {
     use super::*;
     use common_config::storage::memory::StorageDriverMemoryConfig;
-    use metadata_struct::adapter::{adapter_record::AdapterWriteRecord, ShardInfo};
+    use metadata_struct::storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord};
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
     use storage_engine::memory::engine::MemoryStorageEngine;

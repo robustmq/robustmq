@@ -18,7 +18,7 @@ use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::adapter::adapter_record::AdapterWriteRecord;
+use crate::storage::adapter_record::AdapterWriteRecord;
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct MqttMessage {

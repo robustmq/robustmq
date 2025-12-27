@@ -14,7 +14,6 @@
 
 #![allow(clippy::result_large_err)]
 pub mod acl;
-pub mod adapter;
 pub mod connection;
 pub mod delay_info;
 pub mod meta;

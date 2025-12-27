@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use metadata_struct::{
-    adapter::adapter_record::AdapterWriteRecord, mqtt::bridge::config_mysql::MySQLConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::config_mysql::MySQLConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
 use storage_adapter::storage::ArcStorageAdapter;

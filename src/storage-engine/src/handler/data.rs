@@ -20,7 +20,7 @@ use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_config::broker::broker_config;
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use protocol::storage::protocol::{
     ReadReqBody, ReadType, WriteRespMessage, WriteRespMessageStatus,
 };

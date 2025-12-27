@@ -28,8 +28,8 @@ use crate::{
     },
 };
 use common_base::tools::now_second;
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::atomic::AtomicU64;

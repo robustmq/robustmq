@@ -15,7 +15,9 @@
 use std::collections::HashMap;
 
 use common_base::tools::unique_id;
-use metadata_struct::adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord, ShardInfo};
+use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
 use crate::storage::ArcStorageAdapter;
 
@@ -54,7 +56,7 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
     println!("=== NEW CODE LOADED: test_write_and_read ===");
 
     let shard_name = unique_id();
-    let cfg = ReadConfig {
+    let cfg = AdapterReadConfig {
         max_record_num: 10,
         max_size: 1024 * 1024,
     };
@@ -230,7 +232,7 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
 
 pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapter) {
     let shard_name = unique_id();
-    let cfg = ReadConfig {
+    let cfg = AdapterReadConfig {
         max_record_num: 100,
         max_size: 1024 * 1024,
     };

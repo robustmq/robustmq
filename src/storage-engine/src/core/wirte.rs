@@ -27,7 +27,7 @@ use crate::{
 };
 use common_base::utils::serialize::serialize;
 use common_config::broker::broker_config;
-use metadata_struct::{adapter::adapter_record::AdapterWriteRecord, storage::shard::EngineType};
+use metadata_struct::{storage::adapter_record::AdapterWriteRecord, storage::shard::EngineType};
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 

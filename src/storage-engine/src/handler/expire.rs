@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::MessageExpireConfig;
+use metadata_struct::storage::adapter_offset::MessageExpireConfig;
 
 pub async fn message_expire(_config: &MessageExpireConfig) -> Result<(), CommonError> {
     Ok(())

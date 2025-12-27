@@ -122,7 +122,6 @@ impl RespHeader {
     }
 }
 
-
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct WriteReqBody {
     pub shard_name: String,
@@ -150,7 +149,6 @@ impl WriteReqBody {
             Ok(deserialized)
         }
     }
-
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
@@ -478,7 +476,6 @@ impl ReadResp {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_read_request_encode_decode() {

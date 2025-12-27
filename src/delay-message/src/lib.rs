@@ -22,7 +22,7 @@ use delay::{
     get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
     start_delay_message_pop, start_recover_delay_queue,
 };
-use metadata_struct::{adapter::adapter_record::AdapterWriteRecord, delay_info::DelayMessageInfo};
+use metadata_struct::{delay_info::DelayMessageInfo, storage::adapter_record::AdapterWriteRecord};
 use persist::persist_delay_info;
 use std::{
     sync::{atomic::AtomicU64, Arc},

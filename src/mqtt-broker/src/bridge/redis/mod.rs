@@ -19,8 +19,8 @@ use std::time::Duration;
 use axum::async_trait;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
-    adapter::adapter_record::AdapterWriteRecord, mqtt::bridge::config_redis::RedisConnectorConfig,
-    mqtt::bridge::config_redis::RedisMode, mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::config_redis::RedisConnectorConfig, mqtt::bridge::config_redis::RedisMode,
+    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};

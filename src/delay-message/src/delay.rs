@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord, ShardInfo};
+use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
@@ -32,7 +34,7 @@ pub(crate) fn start_recover_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
     shard_num: u64,
 ) {
-    let read_config = ReadConfig {
+    let read_config = AdapterReadConfig {
         max_record_num: 100,
         max_size: 1024 * 1024 * 1024,
     };
@@ -161,7 +163,7 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::adapter::{adapter_record::AdapterWriteRecord, ShardInfo};
+    use metadata_struct::storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord};
     use storage_adapter::storage::build_memory_storage_driver;
 
     use crate::{

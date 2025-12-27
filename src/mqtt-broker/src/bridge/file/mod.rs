@@ -21,9 +21,8 @@ use chrono::{DateTime, Local, Timelike};
 use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
-    adapter::adapter_record::AdapterWriteRecord,
     mqtt::bridge::config_local_file::LocalFileConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -261,12 +260,12 @@ pub fn start_local_file_connector(
 mod tests {
     use common_base::tools::now_second;
     use metadata_struct::{
-        adapter::{
-            adapter_record::{Header, AdapterWriteRecord},
-            ShardInfo,
-        },
         mqtt::bridge::{
             config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
+        },
+        storage::{
+            adapter_offset::ShardInfo,
+            adapter_record::{AdapterWriteRecord, Header},
         },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};

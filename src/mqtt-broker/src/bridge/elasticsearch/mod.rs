@@ -24,9 +24,8 @@ use elasticsearch::{
     BulkParts, Elasticsearch,
 };
 use metadata_struct::{
-    adapter::adapter_record::AdapterWriteRecord,
     mqtt::bridge::config_elasticsearch::ElasticsearchConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use serde_json::{json, Value};
 use storage_adapter::storage::ArcStorageAdapter;

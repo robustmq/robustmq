@@ -19,7 +19,7 @@ use crate::segment::file::data_fold_shard;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::ShardInfo;
+use metadata_struct::storage::adapter_offset::ShardInfo;
 use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;

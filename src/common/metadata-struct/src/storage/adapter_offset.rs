@@ -14,9 +14,6 @@
 
 use serde::{Deserialize, Serialize};
 
-pub mod read_config;
-pub mod adapter_record;
-
 pub enum OffsetStrategy {
     Earliest,
     Latest,

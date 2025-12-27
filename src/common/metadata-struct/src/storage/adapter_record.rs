@@ -17,7 +17,7 @@ use common_base::{tools::now_second, utils::serialize};
 use pulsar::{producer, Error as PulsarError, SerializeMessage};
 use serde::{Deserialize, Serialize};
 
-use crate::adapter;
+use crate::storage;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Header {
@@ -195,7 +195,7 @@ impl AdapterWriteRecord {
 
 impl SerializeMessage for AdapterWriteRecord {
     fn serialize_message(
-        input: adapter::adapter_record::AdapterWriteRecord,
+        input: storage::adapter_record::AdapterWriteRecord,
     ) -> Result<producer::Message, PulsarError> {
         // Use bincode for better performance (3-5x faster than JSON)
         let payload =

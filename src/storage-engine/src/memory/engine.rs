@@ -15,9 +15,9 @@
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
-use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
@@ -275,11 +275,7 @@ impl MemoryStorageEngine {
         self.internal_batch_write(shard, messages).await
     }
 
-    pub async fn write(
-        &self,
-        shard: &str,
-        data: &AdapterWriteRecord,
-    ) -> Result<u64, CommonError> {
+    pub async fn write(&self, shard: &str, data: &AdapterWriteRecord) -> Result<u64, CommonError> {
         let offsets = self
             .internal_batch_write(shard, std::slice::from_ref(data))
             .await?;
@@ -290,7 +286,7 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         offset: u64,
-        read_config: &ReadConfig,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let Some(data_map) = self.shard_data.get(shard) else {
             return Ok(Vec::new());
@@ -322,7 +318,7 @@ impl MemoryStorageEngine {
         shard: &str,
         tag: &str,
         start_offset: Option<u64>,
-        read_config: &ReadConfig,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let Some(tag_map) = self.tag_index.get(shard) else {
             return Ok(Vec::new());

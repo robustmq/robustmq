@@ -15,10 +15,9 @@
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::adapter::MessageExpireConfig;
-use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_offset::{MessageExpireConfig, ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -75,7 +74,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard: &str,
         offset: u64,
-        read_config: &ReadConfig,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         self.memory_storage_engine
             .read_by_offset(shard, offset, read_config)
@@ -87,18 +86,14 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard: &str,
         tag: &str,
         start_offset: Option<u64>,
-        read_config: &ReadConfig,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         self.memory_storage_engine
             .read_by_tag(shard, tag, start_offset, read_config)
             .await
     }
 
-    async fn read_by_key(
-        &self,
-        shard: &str,
-        key: &str,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
+    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<StorageRecord>, CommonError> {
         self.memory_storage_engine.read_by_key(shard, key).await
     }
 

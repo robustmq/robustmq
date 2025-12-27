@@ -219,8 +219,7 @@ pub fn create_io_thread(
                 continue;
             }
 
-            let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageRecord>> =
-                HashMap::new();
+            let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageRecord>> = HashMap::new();
 
             let mut pkid_offset: HashMap<SegmentIdentity, HashMap<u64, u64>> = HashMap::new();
 

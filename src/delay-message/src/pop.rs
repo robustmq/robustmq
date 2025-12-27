@@ -16,8 +16,8 @@ use crate::DelayMessageManager;
 use common_base::error::common::CommonError;
 use futures::StreamExt;
 use metadata_struct::{
-    adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord},
-    delay_info::DelayMessageInfo,
+    delay_info::DelayMessageInfo, storage::adapter_read_config::AdapterReadConfig,
+    storage::adapter_record::AdapterWriteRecord,
     storage::convert::convert_engine_record_to_adapter,
 };
 use std::sync::Arc;
@@ -73,7 +73,7 @@ pub(crate) async fn read_offset_data(
     shard_name: &str,
     offset: u64,
 ) -> Result<Option<AdapterWriteRecord>, CommonError> {
-    let read_config = ReadConfig {
+    let read_config = AdapterReadConfig {
         max_record_num: 1,
         max_size: 1024 * 1024 * 1024,
     };
@@ -98,8 +98,8 @@ mod test {
     };
     use common_base::tools::unique_id;
     use metadata_struct::{
-        adapter::{adapter_record::AdapterWriteRecord, ShardInfo},
         delay_info::DelayMessageInfo,
+        storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord},
     };
     use std::{sync::Arc, time::Duration};
     use storage_adapter::storage::build_memory_storage_driver;

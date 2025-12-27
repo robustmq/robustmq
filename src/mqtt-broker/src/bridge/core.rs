@@ -25,12 +25,12 @@ use common_base::{
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    adapter::adapter_record::AdapterWriteRecord,
     mqtt::bridge::{
         connector::{FailureHandlingStrategy, MQTTConnector},
         connector_type::ConnectorType,
         status::MQTTStatus,
     },
+    storage::adapter_record::AdapterWriteRecord,
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -428,7 +428,9 @@ mod tests {
     use crate::bridge::manager::ConnectorManager;
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::{adapter::ShardInfo, mqtt::bridge::connector::FailureHandlingStrategy};
+    use metadata_struct::{
+        mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::ShardInfo,
+    };
     use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter};
 
     fn setup() -> (ArcStorageAdapter, Arc<ConnectorManager>) {

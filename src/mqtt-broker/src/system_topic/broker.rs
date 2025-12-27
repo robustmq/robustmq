@@ -18,8 +18,8 @@ use broker_core::cluster::ClusterStorage;
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
 

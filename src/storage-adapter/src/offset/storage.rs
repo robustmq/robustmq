@@ -17,7 +17,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::ShardOffset;
+use metadata_struct::storage::adapter_offset::ShardOffset;
 use protocol::meta::meta_service_common::{
     GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
