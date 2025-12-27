@@ -25,6 +25,7 @@ use tracing::{error, info};
 pub mod clients;
 pub mod core;
 pub mod handler;
+pub mod isr;
 pub mod memory;
 pub mod rocksdb;
 pub mod segment;

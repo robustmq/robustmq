@@ -16,7 +16,6 @@ use metadata_struct::storage::segment::{segment_name, EngineSegment};
 
 pub mod file;
 pub mod index;
-pub mod isr;
 pub mod offset;
 pub mod read;
 pub mod scroll;
