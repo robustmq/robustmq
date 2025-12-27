@@ -21,6 +21,7 @@ use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::ShardInfo;
 use metadata_struct::adapter::{read_config::ReadConfig, ShardOffset};
 use std::{collections::HashMap, sync::Arc};
+use storage_engine::memory::engine::MemoryStorageEngine;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
@@ -73,7 +74,8 @@ pub trait StorageAdapter {
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {
-    Arc::new(MemoryStorageAdapter::new(
+    let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
         StorageDriverMemoryConfig::default(),
-    ))
+    ));
+    Arc::new(MemoryStorageAdapter::new(memory_storage_engine))
 }
