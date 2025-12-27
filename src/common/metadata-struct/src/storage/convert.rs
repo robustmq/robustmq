@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::adapter::record::{Header as AdapterHeader, StorageAdapterRecord};
-use crate::storage::record::{
-    Header as StorageHeader, StorageEngineRecord, StorageEngineRecordMetadata,
+use crate::storage::adapter_record::{AdapterWriteRecord, Header as AdapterHeader};
+use crate::storage::storage_record::{
+    Header as StorageHeader, StorageRecord, StorageRecordMetadata,
 };
 
 pub fn convert_adapter_headers_to_storage(
@@ -31,24 +31,24 @@ pub fn convert_adapter_headers_to_storage(
 }
 
 pub fn convert_adapter_record_to_engine(
-    record: StorageAdapterRecord,
+    record: AdapterWriteRecord,
     shard: &str,
     offset: u64,
-) -> StorageEngineRecord {
-    let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
+) -> StorageRecord {
+    let metadata = StorageRecordMetadata::build(offset, shard.to_string(), 0)
         .with_header(convert_adapter_headers_to_storage(record.header))
         .with_key(record.key)
         .with_tags(record.tags)
         .with_timestamp(record.timestamp)
         .with_crc_from_data(&record.data);
 
-    StorageEngineRecord {
+    StorageRecord {
         metadata,
         data: record.data,
     }
 }
 
-pub fn convert_engine_record_to_adapter(record: StorageEngineRecord) -> StorageAdapterRecord {
+pub fn convert_engine_record_to_adapter(record: StorageRecord) -> AdapterWriteRecord {
     let header = record.metadata.header.map(|hs| {
         hs.into_iter()
             .map(|h| AdapterHeader {
@@ -58,7 +58,7 @@ pub fn convert_engine_record_to_adapter(record: StorageEngineRecord) -> StorageA
             .collect()
     });
 
-    StorageAdapterRecord {
+    AdapterWriteRecord {
         pkid: record.metadata.offset,
         header,
         key: record.metadata.key,

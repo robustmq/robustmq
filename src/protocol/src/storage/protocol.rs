@@ -15,6 +15,12 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Header {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, PartialEq, Eq)]
 pub enum ApiKey {
     Unimplemented,
     Read,
@@ -117,33 +123,14 @@ impl RespHeader {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
-pub struct WriteReqMessages {
-    pub pkid: u64,
-    pub key: String,
-    pub value: Vec<u8>,
-    pub tags: Vec<String>,
-}
-
-impl WriteReqMessages {
-    pub fn new(pkid: u64, key: String, value: Vec<u8>, tags: Vec<String>) -> Self {
-        Self {
-            pkid,
-            key,
-            value,
-            tags,
-        }
-    }
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct WriteReqBody {
     pub shard_name: String,
     pub segment: u32,
-    pub messages: Vec<WriteReqMessages>,
+    pub messages: Vec<Vec<u8>>,
 }
 
 impl WriteReqBody {
-    pub fn new(shard_name: String, segment: u32, messages: Vec<WriteReqMessages>) -> Self {
+    pub fn new(shard_name: String, segment: u32, messages: Vec<Vec<u8>>) -> Self {
         Self {
             shard_name,
             segment,
@@ -430,56 +417,12 @@ impl ReadReq {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
-pub struct ReadRespMessage {
-    pub offset: u64,
-    pub key: Option<String>,
-    pub value: Vec<u8>,
-    pub tags: Option<Vec<String>>,
-    pub timestamp: u64,
-}
-
-impl ReadRespMessage {
-    pub fn new(
-        offset: u64,
-        key: Option<String>,
-        value: Vec<u8>,
-        tags: Option<Vec<String>>,
-        timestamp: u64,
-    ) -> Self {
-        Self {
-            offset,
-            key,
-            value,
-            tags,
-            timestamp,
-        }
-    }
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
-pub struct ReadRespSegmentMessage {
-    pub shard_name: String,
-    pub segment: u32,
-    pub messages: Vec<ReadRespMessage>,
-}
-
-impl ReadRespSegmentMessage {
-    pub fn new(shard_name: String, segment: u32, messages: Vec<ReadRespMessage>) -> Self {
-        Self {
-            shard_name,
-            segment,
-            messages,
-        }
-    }
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct ReadRespBody {
-    pub messages: Vec<ReadRespSegmentMessage>,
+    pub messages: Vec<Vec<u8>>,
 }
 
 impl ReadRespBody {
-    pub fn new(messages: Vec<ReadRespSegmentMessage>) -> Self {
+    pub fn new(messages: Vec<Vec<u8>>) -> Self {
         Self { messages }
     }
 
@@ -533,27 +476,6 @@ impl ReadResp {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_write_request_encode_decode() {
-        let message = WriteReqMessages::new(
-            1,
-            "test_key".to_string(),
-            vec![1, 2, 3, 4, 5],
-            vec!["tag1".to_string(), "tag2".to_string()],
-        );
-        let body = WriteReqBody::new("shard1".to_string(), 1, vec![message]);
-        let req = WriteReq::new(body);
-
-        let encoded = req.encode();
-        let decoded = WriteReq::decode(&encoded).unwrap();
-
-        assert_eq!(decoded.body.shard_name, "shard1");
-        assert_eq!(decoded.body.segment, 1);
-        assert_eq!(decoded.body.messages.len(), 1);
-        assert_eq!(decoded.body.messages[0].pkid, 1);
-        assert_eq!(decoded.body.messages[0].key, "test_key");
-    }
 
     #[test]
     fn test_read_request_encode_decode() {

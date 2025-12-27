@@ -25,8 +25,9 @@ mod tests {
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, FetchOffsetReq, FetchOffsetReqBody,
         FetchOffsetShard, GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
         GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType,
-        ReqHeader, WriteReq, WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
+        ReqHeader, WriteReq, WriteReqBody, WriteReqSegmentMessages,
     };
+    use protocol::storage::storage_adapter_record::StorageAdapterRecord;
     use tokio::net::TcpStream;
     use tokio::time::sleep;
     use tokio_util::codec::Framed;
@@ -146,12 +147,14 @@ mod tests {
                         namespace: namespace.clone(),
                         shard_name: shard_name.clone(),
                         segment: 0,
-                        messages: vec![WriteReqMessages {
-                            pkid: 1,
-                            key: key.clone(),
-                            value: value.clone(),
-                            tags: tags.clone(),
-                        }],
+                        messages: vec![
+                            rkyv::to_bytes::<_, 256>(&StorageAdapterRecord::from_bytes(value.clone())
+                                .with_pkid(1)
+                                .with_key(key.clone())
+                                .with_tags(tags.clone()))
+                                .unwrap()
+                                .to_vec()
+                        ],
                     }],
                 }),
             });

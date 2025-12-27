@@ -24,7 +24,7 @@ pub struct Header {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Serialize, Deserialize)]
-pub struct StorageEngineRecordMetadata {
+pub struct StorageRecordMetadata {
     pub offset: u64,
     pub shard: String,
     pub segment: u32,
@@ -35,7 +35,7 @@ pub struct StorageEngineRecordMetadata {
     pub crc_num: u32,
 }
 
-impl StorageEngineRecordMetadata {
+impl StorageRecordMetadata {
     pub fn encode(&self) -> Vec<u8> {
         rkyv::to_bytes::<_, 256>(self).unwrap().to_vec()
     }
@@ -57,7 +57,7 @@ impl StorageEngineRecordMetadata {
         tags: &Option<Vec<String>>,
         data: &Bytes,
     ) -> Self {
-        StorageEngineRecordMetadata {
+        StorageRecordMetadata {
             offset,
             shard: shard.to_string(),
             segment,
@@ -71,7 +71,7 @@ impl StorageEngineRecordMetadata {
 
     /// Create a minimal metadata (Builder pattern entry point)
     pub fn build(offset: u64, shard: String, segment: u32) -> Self {
-        StorageEngineRecordMetadata {
+        StorageRecordMetadata {
             offset,
             shard,
             segment,
@@ -145,7 +145,7 @@ impl StorageEngineRecordMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StorageEngineRecord {
-    pub metadata: StorageEngineRecordMetadata,
+pub struct StorageRecord {
+    pub metadata: StorageRecordMetadata,
     pub data: Bytes,
 }

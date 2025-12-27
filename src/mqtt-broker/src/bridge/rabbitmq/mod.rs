@@ -21,8 +21,8 @@ use lapin::{
     BasicProperties, Channel, Connection, ConnectionProperties,
 };
 use metadata_struct::{
-    adapter::record::StorageAdapterRecord, mqtt::bridge::config_rabbitmq::RabbitMQConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::config_rabbitmq::RabbitMQConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
 use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{debug, error, info, warn};
@@ -135,7 +135,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[StorageAdapterRecord],
+        records: &[AdapterWriteRecord],
         channel: &mut Channel,
     ) -> ResultMqttBrokerError {
         if records.is_empty() {

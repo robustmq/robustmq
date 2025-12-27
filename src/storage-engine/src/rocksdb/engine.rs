@@ -16,10 +16,11 @@ use common_base::tools::now_second;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
-use metadata_struct::adapter::{read_config::ReadConfig, record::StorageAdapterRecord};
-use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
-use metadata_struct::storage::record::StorageEngineRecord;
+use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::*;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -103,7 +104,7 @@ impl RocksDBStorageEngine {
     async fn batch_write_internal(
         &self,
         shard_name: &str,
-        messages: &[StorageAdapterRecord],
+        messages: &[AdapterWriteRecord],
     ) -> Result<Vec<u64>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
@@ -263,7 +264,7 @@ impl RocksDBStorageEngine {
                 break;
             }
 
-            if let Ok(engine_record) = deserialize::<StorageEngineRecord>(value_byte) {
+            if let Ok(engine_record) = deserialize::<StorageRecord>(value_byte) {
                 if engine_record.metadata.create_t >= timestamp {
                     return Ok(Some(engine_record.metadata.offset));
                 }
@@ -366,7 +367,7 @@ impl RocksDBStorageEngine {
     pub async fn write(
         &self,
         shard: &str,
-        message: &StorageAdapterRecord,
+        message: &AdapterWriteRecord,
     ) -> Result<u64, CommonError> {
         let offsets = self
             .batch_write_internal(shard, std::slice::from_ref(message))
@@ -381,7 +382,7 @@ impl RocksDBStorageEngine {
     pub async fn batch_write(
         &self,
         shard: &str,
-        messages: &[StorageAdapterRecord],
+        messages: &[AdapterWriteRecord],
     ) -> Result<Vec<u64>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
@@ -394,8 +395,8 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         offset: u64,
-        read_config: &ReadConfig,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
 
         let keys: Vec<String> = (offset..offset.saturating_add(read_config.max_record_num))
@@ -405,7 +406,7 @@ impl RocksDBStorageEngine {
         let mut records = Vec::new();
         let mut total_size = 0;
 
-        let batch_results = self.db.multi_get::<StorageEngineRecord>(cf, &keys)?;
+        let batch_results = self.db.multi_get::<StorageRecord>(cf, &keys)?;
         for record_opt in batch_results {
             let Some(record) = record_opt else {
                 break;
@@ -428,8 +429,8 @@ impl RocksDBStorageEngine {
         shard: &str,
         tag: &str,
         start_offset: Option<u64>,
-        read_config: &ReadConfig,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
         let tag_offset_key_prefix = tag_index_tag_prefix(shard, tag);
         let tag_entries = self.db.read_prefix(cf.clone(), &tag_offset_key_prefix)?;
@@ -462,7 +463,7 @@ impl RocksDBStorageEngine {
             .collect();
 
         // Batch read records
-        let batch_results = self.db.multi_get::<StorageEngineRecord>(cf, &keys)?;
+        let batch_results = self.db.multi_get::<StorageRecord>(cf, &keys)?;
         let mut records = Vec::new();
         let mut total_size = 0;
 
@@ -487,7 +488,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         key: &str,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
         let key_index = key_index_key(shard, key);
 
@@ -504,7 +505,7 @@ impl RocksDBStorageEngine {
         let index = deserialize::<IndexInfo>(&key_offset_bytes)?;
 
         let shard_record_key = shard_record_key(shard, index.offset);
-        let Some(record) = self.db.read::<StorageEngineRecord>(cf, &shard_record_key)? else {
+        let Some(record) = self.db.read::<StorageRecord>(cf, &shard_record_key)? else {
             return Ok(Vec::new());
         };
 

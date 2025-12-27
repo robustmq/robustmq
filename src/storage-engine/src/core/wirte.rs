@@ -25,8 +25,9 @@ use crate::{
         SegmentIdentity,
     },
 };
+use common_base::utils::serialize::serialize;
 use common_config::broker::broker_config;
-use metadata_struct::{adapter::record::StorageAdapterRecord, storage::shard::EngineType};
+use metadata_struct::{storage::adapter_record::AdapterWriteRecord, storage::shard::EngineType};
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 
@@ -37,7 +38,7 @@ pub async fn batch_write(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     client_connection_manager: &Arc<ClientConnectionManager>,
     shard_name: &str,
-    records: &[StorageAdapterRecord],
+    records: &[AdapterWriteRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
@@ -83,20 +84,12 @@ async fn write_data_to_remote(
     target_broker_id: u64,
     shard_name: &str,
     segment: u32,
-    records: &[StorageAdapterRecord],
+    records: &[AdapterWriteRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
-    use protocol::storage::protocol::WriteReqMessages;
-
     let messages = records
         .iter()
-        .map(|record| WriteReqMessages {
-            pkid: record.pkid,
-            key: record.key.clone().unwrap_or_default(),
-            value: record.data.to_vec(),
-            tags: record.tags.clone().unwrap_or_default(),
-        })
-        .collect();
-
+        .map(serialize)
+        .collect::<Result<Vec<_>, _>>()?;
     let write_req = build_write_req(shard_name.to_string(), segment, messages);
     let resp = client_connection_manager
         .write_send(target_broker_id, StorageEnginePacket::WriteReq(write_req))
@@ -114,7 +107,7 @@ async fn write_data_to_remote(
 async fn write_memory_to_local(
     memory_storage_engine: &Arc<MemoryStorageEngine>,
     shard_name: &str,
-    records: &[StorageAdapterRecord],
+    records: &[AdapterWriteRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let offsets = memory_storage_engine
         .batch_write(shard_name, records)
@@ -125,7 +118,7 @@ async fn write_memory_to_local(
 async fn write_rocksdb_to_local(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     shard_name: &str,
-    records: &[StorageAdapterRecord],
+    records: &[AdapterWriteRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let offsets = rocksdb_storage_engine
         .batch_write(shard_name, records)
@@ -137,7 +130,7 @@ async fn write_segment_to_local(
     write_manager: &Arc<WriteManager>,
     shard_name: &str,
     segment: u32,
-    records: &[StorageAdapterRecord],
+    records: &[AdapterWriteRecord],
 ) -> Result<Vec<u64>, StorageEngineError> {
     let segment_iden = SegmentIdentity::new(shard_name, segment);
     let data_list = records
@@ -147,7 +140,7 @@ async fn write_segment_to_local(
             header: record.header.as_ref().map(|headers| {
                 headers
                     .iter()
-                    .map(|h| metadata_struct::storage::record::Header {
+                    .map(|h| metadata_struct::storage::storage_record::Header {
                         name: h.name.clone(),
                         value: h.value.clone(),
                     })

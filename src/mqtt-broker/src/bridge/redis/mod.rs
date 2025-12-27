@@ -19,8 +19,8 @@ use std::time::Duration;
 use axum::async_trait;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
-    adapter::record::StorageAdapterRecord, mqtt::bridge::config_redis::RedisConnectorConfig,
-    mqtt::bridge::config_redis::RedisMode, mqtt::bridge::connector::MQTTConnector,
+    mqtt::bridge::config_redis::RedisConnectorConfig, mqtt::bridge::config_redis::RedisMode,
+    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
@@ -118,7 +118,7 @@ impl RedisBridgePlugin {
 
     fn render_command_template(
         &self,
-        record: &StorageAdapterRecord,
+        record: &AdapterWriteRecord,
         msg: &MqttMessage,
     ) -> Result<Vec<String>, MqttBrokerError> {
         let mut rendered = self.config.command_template.clone();
@@ -200,7 +200,7 @@ impl ConnectorSink for RedisBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[StorageAdapterRecord],
+        records: &[AdapterWriteRecord],
         conn: &mut ConnectionManager,
     ) -> ResultMqttBrokerError {
         let mut success_count = 0;

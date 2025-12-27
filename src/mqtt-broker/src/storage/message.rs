@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::record::StorageAdapterRecord;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
 use std::collections::HashMap;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -32,7 +32,7 @@ impl MessageStorage {
     pub async fn append_topic_message(
         &self,
         topic_name: &str,
-        record: Vec<StorageAdapterRecord>,
+        record: Vec<AdapterWriteRecord>,
     ) -> Result<Vec<u64>, CommonError> {
         let shard_name = topic_name;
         let results = self
@@ -47,10 +47,10 @@ impl MessageStorage {
         topic_name: &str,
         offset: u64,
         record_num: u64,
-    ) -> Result<Vec<StorageAdapterRecord>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRecord>, CommonError> {
         let shard_name = topic_name;
 
-        let mut read_config = ReadConfig::new();
+        let mut read_config = AdapterReadConfig::new();
         read_config.max_record_num = record_num;
 
         let engine_records = self
@@ -107,7 +107,7 @@ impl MessageStorage {
 mod tests {
     use super::*;
     use common_config::storage::memory::StorageDriverMemoryConfig;
-    use metadata_struct::adapter::{record::StorageAdapterRecord, ShardInfo};
+    use metadata_struct::storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord};
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
     use storage_engine::memory::engine::MemoryStorageEngine;
@@ -134,9 +134,9 @@ mod tests {
             .unwrap();
 
         // Test basic append and read
-        let records: Vec<StorageAdapterRecord> = (0..10)
+        let records: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| {
-                StorageAdapterRecord::from_string(format!("Message {}", i))
+                AdapterWriteRecord::from_string(format!("Message {}", i))
                     .with_key(format!("key{}", i))
                     .with_tags(vec![format!("tag{}", i)])
             })
@@ -208,8 +208,8 @@ mod tests {
             .unwrap();
 
         // Append messages
-        let records: Vec<StorageAdapterRecord> = (0..10)
-            .map(|i| StorageAdapterRecord::from_string(format!("Msg{}", i)))
+        let records: Vec<AdapterWriteRecord> = (0..10)
+            .map(|i| AdapterWriteRecord::from_string(format!("Msg{}", i)))
             .collect();
         let offsets = storage
             .append_topic_message(shard_name, records)

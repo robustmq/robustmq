@@ -26,7 +26,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::record::{StorageEngineRecord, StorageEngineRecordMetadata};
+use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::hash::Hasher;
@@ -48,7 +48,7 @@ pub struct WriteChannelData {
 
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
-    pub header: Option<Vec<metadata_struct::storage::record::Header>>,
+    pub header: Option<Vec<metadata_struct::storage::storage_record::Header>>,
     pub key: Option<String>,
     pub value: Bytes,
     pub tags: Option<Vec<String>>,
@@ -219,8 +219,7 @@ pub fn create_io_thread(
                 continue;
             }
 
-            let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageEngineRecord>> =
-                HashMap::new();
+            let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageRecord>> = HashMap::new();
 
             let mut pkid_offset: HashMap<SegmentIdentity, HashMap<u64, u64>> = HashMap::new();
 
@@ -276,8 +275,8 @@ pub fn create_io_thread(
                 for row in channel_data.data_list {
                     let record_offset = start_offset;
                     shard_pkid_list.insert(row.pkid, record_offset);
-                    shard_list.push(StorageEngineRecord {
-                        metadata: StorageEngineRecordMetadata::new(
+                    shard_list.push(StorageRecord {
+                        metadata: StorageRecordMetadata::new(
                             record_offset,
                             &shard_name,
                             segment,
@@ -436,7 +435,7 @@ async fn batch_write(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    data_list: &[StorageEngineRecord],
+    data_list: &[StorageRecord],
     pkid_offset_list: &HashMap<u64, u64>,
     index_data: &[BuildIndexRaw],
 ) -> Result<Option<SegmentWriteResp>, StorageEngineError> {
@@ -516,14 +515,14 @@ mod tests {
     use crate::core::test::test_init_segment;
     use crate::segment::file::SegmentFile;
     use bytes::Bytes;
-    use metadata_struct::storage::record::StorageEngineRecordMetadata;
+    use metadata_struct::storage::storage_record::StorageRecordMetadata;
 
-    fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageEngineRecord> {
+    fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageRecord> {
         (0..count)
             .map(|i| {
                 let data = Bytes::from(format!("data-{}", i));
-                StorageEngineRecord {
-                    metadata: StorageEngineRecordMetadata::new(
+                StorageRecord {
+                    metadata: StorageRecordMetadata::new(
                         i as u64,
                         shard,
                         segment,
@@ -594,7 +593,7 @@ mod tests {
                 .await
                 .unwrap();
 
-        let empty_records: Vec<StorageEngineRecord> = vec![];
+        let empty_records: Vec<StorageRecord> = vec![];
         let pkid_offset = HashMap::new();
         let client_poll = Arc::new(ClientPool::new(100));
         let index_data = Vec::new();

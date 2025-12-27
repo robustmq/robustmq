@@ -16,11 +16,10 @@ use crate::offset::OffsetManager;
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::record::StorageAdapterRecord;
-use metadata_struct::adapter::MessageExpireConfig;
-use metadata_struct::adapter::{ShardInfo, ShardOffset};
-use metadata_struct::storage::record::StorageEngineRecord;
+use metadata_struct::storage::adapter_offset::{MessageExpireConfig, ShardInfo, ShardOffset};
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::AdapterHandler;
@@ -56,7 +55,7 @@ impl StorageAdapter for StorageEngineAdapter {
         self.adapter.delete_shard(shard).await
     }
 
-    async fn write(&self, shard: &str, record: &StorageAdapterRecord) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, record: &AdapterWriteRecord) -> Result<u64, CommonError> {
         let res = self
             .adapter
             .batch_write(shard, std::slice::from_ref(record))
@@ -76,7 +75,7 @@ impl StorageAdapter for StorageEngineAdapter {
     async fn batch_write(
         &self,
         shard: &str,
-        records: &[StorageAdapterRecord],
+        records: &[AdapterWriteRecord],
     ) -> Result<Vec<u64>, CommonError> {
         self.adapter.batch_write(shard, records).await
     }
@@ -85,8 +84,8 @@ impl StorageAdapter for StorageEngineAdapter {
         &self,
         shard: &str,
         offset: u64,
-        read_config: &ReadConfig,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         self.adapter
             .read_by_offset(shard, offset, read_config)
             .await
@@ -97,18 +96,14 @@ impl StorageAdapter for StorageEngineAdapter {
         shard: &str,
         tag: &str,
         start_offset: Option<u64>,
-        read_config: &ReadConfig,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         self.adapter
             .read_by_tag(shard, tag, start_offset, read_config)
             .await
     }
 
-    async fn read_by_key(
-        &self,
-        shard: &str,
-        key: &str,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<StorageRecord>, CommonError> {
         self.adapter.read_by_key(shard, key).await
     }
 

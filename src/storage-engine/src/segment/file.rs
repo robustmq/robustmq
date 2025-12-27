@@ -18,7 +18,7 @@ use crate::core::error::StorageEngineError;
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
-use metadata_struct::storage::record::{StorageEngineRecord, StorageEngineRecordMetadata};
+use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
 use std::collections::HashMap;
 use std::fs::remove_file;
 use std::io::ErrorKind;
@@ -31,7 +31,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 #[derive(Debug, Clone)]
 pub struct ReadData {
     pub position: u64,
-    pub record: StorageEngineRecord,
+    pub record: StorageRecord,
 }
 
 /// Given a segment identity, open a segment file for reading and writing.
@@ -118,7 +118,7 @@ impl SegmentFile {
     /// append a list of records to the segment file
     pub async fn write(
         &mut self,
-        records: &[StorageEngineRecord],
+        records: &[StorageRecord],
     ) -> Result<HashMap<u64, u64>, StorageEngineError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
@@ -276,7 +276,7 @@ impl SegmentFile {
     async fn read_data(
         &self,
         reader: &mut BufReader<File>,
-    ) -> Result<Option<StorageEngineRecord>, StorageEngineError> {
+    ) -> Result<Option<StorageRecord>, StorageEngineError> {
         // read metadata len
         let metadata_len = reader.read_u32().await?;
 
@@ -284,7 +284,7 @@ impl SegmentFile {
         let mut metadata_buf = BytesMut::with_capacity(metadata_len as usize);
         reader.read_buf(&mut metadata_buf).await?;
 
-        let metadata = match StorageEngineRecordMetadata::decode(metadata_buf.as_ref()) {
+        let metadata = match StorageRecordMetadata::decode(metadata_buf.as_ref()) {
             Ok(data) => data,
             Err(e) => {
                 return Err(StorageEngineError::CommonErrorStr(format!(
@@ -301,7 +301,7 @@ impl SegmentFile {
         let mut data_buf = BytesMut::with_capacity(data_len as usize);
         reader.read_buf(&mut data_buf).await?;
 
-        Ok(Some(StorageEngineRecord {
+        Ok(Some(StorageRecord {
             metadata,
             data: data_buf.into(),
         }))
@@ -327,8 +327,8 @@ mod tests {
     use bytes::Bytes;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::record::{StorageEngineRecord, StorageEngineRecordMetadata};
     use metadata_struct::storage::segment::{EngineSegment, Replica};
+    use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
     use std::sync::Arc;
 
     #[tokio::test]
@@ -410,8 +410,8 @@ mod tests {
         for i in 0..10 {
             let value = format!("data1#-{i}");
             let data = Bytes::from(value);
-            let record = StorageEngineRecord {
-                metadata: StorageEngineRecordMetadata::new(
+            let record = StorageRecord {
+                metadata: StorageRecordMetadata::new(
                     1000 + i,
                     &segment_iden.shard_name,
                     segment_iden.segment,
@@ -455,8 +455,8 @@ mod tests {
         for i in 0..10 {
             let value = format!("data1#-{i}");
             let data = Bytes::from(value);
-            let record = StorageEngineRecord {
-                metadata: StorageEngineRecordMetadata::new(
+            let record = StorageRecord {
+                metadata: StorageRecordMetadata::new(
                     1000 + i,
                     &segment_iden.shard_name,
                     segment_iden.segment,
@@ -510,8 +510,8 @@ mod tests {
         segment.try_create().await.unwrap();
         for i in 0..10 {
             let data = Bytes::from(vec![0u8; 100]);
-            let record = StorageEngineRecord {
-                metadata: StorageEngineRecordMetadata::new(
+            let record = StorageRecord {
+                metadata: StorageRecordMetadata::new(
                     100 + i,
                     &segment_iden.shard_name,
                     segment_iden.segment,
@@ -571,8 +571,8 @@ mod tests {
 
         segment.try_create().await.unwrap();
         let data = Bytes::from("test-data-content");
-        let record = StorageEngineRecord {
-            metadata: StorageEngineRecordMetadata::build(
+        let record = StorageRecord {
+            metadata: StorageRecordMetadata::build(
                 100,
                 segment_iden.shard_name.to_string(),
                 segment_iden.segment,

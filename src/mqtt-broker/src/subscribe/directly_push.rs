@@ -27,8 +27,8 @@ use crate::{
     },
 };
 use common_base::tools::now_second;
-use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
@@ -219,7 +219,7 @@ impl DirectlyPushManager {
     async fn push_data(
         &self,
         subscriber: &Subscriber,
-        record: &StorageAdapterRecord,
+        record: &AdapterWriteRecord,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
         let msg = MqttMessage::decode_record(record.clone())?;
@@ -273,7 +273,7 @@ impl DirectlyPushManager {
         &self,
         group: &str,
         topic_name: &str,
-    ) -> Result<Vec<StorageAdapterRecord>, MqttBrokerError> {
+    ) -> Result<Vec<AdapterWriteRecord>, MqttBrokerError> {
         let offset = self
             .message_storage
             .get_group_offset(group, topic_name)

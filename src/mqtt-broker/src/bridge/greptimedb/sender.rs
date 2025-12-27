@@ -14,8 +14,8 @@
 
 use std::time::Duration;
 
-use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
 
@@ -77,7 +77,7 @@ impl Sender {
             .replace(' ', "\\ ")
     }
 
-    fn record_to_line(record: &StorageAdapterRecord) -> Result<String, MqttBrokerError> {
+    fn record_to_line(record: &AdapterWriteRecord) -> Result<String, MqttBrokerError> {
         let mut tags = Vec::new();
         if let Some(headers) = &record.header {
             tags.reserve(headers.len());
@@ -113,7 +113,7 @@ impl Sender {
         ))
     }
 
-    pub async fn send(&self, data: &StorageAdapterRecord) -> ResultMqttBrokerError {
+    pub async fn send(&self, data: &AdapterWriteRecord) -> ResultMqttBrokerError {
         let line = Self::record_to_line(data)?;
         let res = self.client.post(&self.url).body(line).send().await?;
 
@@ -133,7 +133,7 @@ impl Sender {
         Ok(())
     }
 
-    pub async fn send_batch(&self, records: &[StorageAdapterRecord]) -> ResultMqttBrokerError {
+    pub async fn send_batch(&self, records: &[AdapterWriteRecord]) -> ResultMqttBrokerError {
         if records.is_empty() {
             return Ok(());
         }
@@ -166,7 +166,7 @@ impl Sender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::adapter::record::Header;
+    use metadata_struct::storage::adapter_record::Header;
 
     #[tokio::test]
     #[ignore = "reason"]
@@ -178,7 +178,7 @@ mod tests {
             "greptime_pwd".to_string(),
         );
         let sender = Sender::new(&config).expect("Failed to create sender");
-        let mut record = StorageAdapterRecord::from_string("test".to_string());
+        let mut record = AdapterWriteRecord::from_string("test".to_string());
         record.set_key("test".to_string());
         record.set_header(vec![Header {
             name: "h1".to_string(),
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_record_to_line() {
-        let mut record = StorageAdapterRecord::from_string("test data".to_string());
+        let mut record = AdapterWriteRecord::from_string("test data".to_string());
         record.set_key("sensor_data".to_string());
         record.set_header(vec![Header {
             name: "location".to_string(),

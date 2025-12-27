@@ -19,7 +19,7 @@ use common_base::{
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::ShardOffset;
+use metadata_struct::storage::adapter_offset::ShardOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;

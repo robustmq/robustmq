@@ -22,7 +22,7 @@ use delay::{
     get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
     start_delay_message_pop, start_recover_delay_queue,
 };
-use metadata_struct::{adapter::record::StorageAdapterRecord, delay_info::DelayMessageInfo};
+use metadata_struct::{delay_info::DelayMessageInfo, storage::adapter_record::AdapterWriteRecord};
 use persist::persist_delay_info;
 use std::{
     sync::{atomic::AtomicU64, Arc},
@@ -81,7 +81,7 @@ impl DelayMessageManager {
         &self,
         target_topic: &str,
         delay_timestamp: u64,
-        data: StorageAdapterRecord,
+        data: AdapterWriteRecord,
     ) -> Result<(), CommonError> {
         let shard_no = self.get_target_shard_no();
         let delay_shard_name = get_delay_message_shard_name(shard_no);

@@ -37,7 +37,7 @@ use meta_service::{
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
-use metadata_struct::adapter::MessageExpireConfig;
+use metadata_struct::storage::adapter_offset::MessageExpireConfig;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},

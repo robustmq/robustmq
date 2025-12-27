@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #[derive(Default, Clone)]
-pub struct ReadConfig {
+pub struct AdapterReadConfig {
     pub max_record_num: u64,
     pub max_size: u64,
 }
 
-impl ReadConfig {
+impl AdapterReadConfig {
     pub fn new() -> Self {
-        ReadConfig {
+        AdapterReadConfig {
             max_record_num: 10,
             max_size: 1024 * 1024 * 1024,
         }

@@ -21,9 +21,9 @@ mod tests {
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
         FetchOffsetReq, FetchOffsetReqBody, GetClusterMetadataReq, GetShardMetadataReq,
         GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter,
-        ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
-        WriteReqSegmentMessages,
+        ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody, WriteReqSegmentMessages,
     };
+    use protocol::storage::storage_adapter_record::StorageAdapterRecord;
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
 
@@ -146,12 +146,16 @@ mod tests {
                     namespace: "b1".to_string(),
                     shard_name: "s1".to_string(),
                     segment: 0,
-                    messages: vec![WriteReqMessages {
-                        pkid: 1,
-                        key: "k1".to_string(),
-                        value: serde_json::to_vec(&now_second().to_string()).unwrap(),
-                        tags: vec!["t1".to_string()],
-                    }],
+                    messages: vec![
+                        rkyv::to_bytes::<_, 256>(&StorageAdapterRecord::from_bytes(
+                            serde_json::to_vec(&now_second().to_string()).unwrap()
+                        )
+                        .with_pkid(1)
+                        .with_key("k1".to_string())
+                        .with_tags(vec!["t1".to_string()]))
+                        .unwrap()
+                        .to_vec()
+                    ],
                 }],
             }),
         });

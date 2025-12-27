@@ -76,8 +76,8 @@ use crate::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select_ticket};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
@@ -371,7 +371,7 @@ pub(crate) async fn write_topic_data(
     metadata_cache: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
-    record: StorageAdapterRecord,
+    record: AdapterWriteRecord,
 ) -> ResultMqttBrokerError {
     let topic = try_init_topic(
         &topic_name,
@@ -395,10 +395,10 @@ mod test {
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::adapter::read_config::ReadConfig;
-    use metadata_struct::adapter::ShardInfo;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::storage::adapter_offset::ShardInfo;
+    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use std::sync::Arc;
     use storage_adapter::storage::build_memory_storage_driver;
 
@@ -436,7 +436,7 @@ mod test {
 
         let topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
 
-        let read_config = ReadConfig {
+        let read_config = AdapterReadConfig {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
@@ -488,7 +488,7 @@ mod test {
 
         let mqtt_topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
 
-        let read_config = ReadConfig {
+        let read_config = AdapterReadConfig {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };

@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::adapter::{read_config::ReadConfig, record::StorageAdapterRecord, ShardInfo};
+use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
@@ -32,7 +34,7 @@ pub(crate) fn start_recover_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
     shard_num: u64,
 ) {
-    let read_config = ReadConfig {
+    let read_config = AdapterReadConfig {
         max_record_num: 100,
         max_size: 1024 * 1024 * 1024,
     };
@@ -99,7 +101,7 @@ pub(crate) fn start_delay_message_pop(
 pub(crate) async fn persist_delay_message(
     message_storage_adapter: &ArcStorageAdapter,
     shard_name: &str,
-    data: StorageAdapterRecord,
+    data: AdapterWriteRecord,
 ) -> Result<u64, CommonError> {
     let offset = message_storage_adapter.write(shard_name, &data).await?;
     debug!(
@@ -161,7 +163,7 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::adapter::{record::StorageAdapterRecord, ShardInfo};
+    use metadata_struct::storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord};
     use storage_adapter::storage::build_memory_storage_driver;
 
     use crate::{
@@ -208,7 +210,7 @@ mod test {
     pub async fn persist_delay_message_test() {
         let message_storage_adapter = build_memory_storage_driver();
         let shard_name = "test".to_string();
-        let data = StorageAdapterRecord::from_string("test".to_string());
+        let data = AdapterWriteRecord::from_string("test".to_string());
         message_storage_adapter
             .create_shard(&ShardInfo {
                 shard_name: shard_name.clone(),
@@ -222,7 +224,7 @@ mod test {
 
         let res = read_offset_data(&message_storage_adapter, &shard_name, offset).await;
         assert!(res.is_ok());
-        let res: StorageAdapterRecord = res.unwrap().unwrap();
+        let res: AdapterWriteRecord = res.unwrap().unwrap();
         assert_eq!(res.pkid, offset);
         let d1 = String::from_utf8(res.data.to_vec()).unwrap();
         assert_eq!(d1, "test".to_string());
