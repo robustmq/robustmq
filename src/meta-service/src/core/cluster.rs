@@ -53,7 +53,7 @@ pub async fn un_register_node_by_req(
     if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
         sync_delete_node(raft_manager, &req).await?;
         update_cache_by_delete_node(mqtt_call_manager, client_pool, node.clone()).await?;
-        mqtt_call_manager.remove_node(req.node_id);
+        mqtt_call_manager.remove_node(req.node_id).await;
     }
     Ok(UnRegisterNodeReply::default())
 }

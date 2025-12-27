@@ -127,7 +127,7 @@ pub fn save_index(
                 let serialized_data = serialize(&index_data)?;
                 let key = offset_segment_position(segment_iden, data.offset);
                 batch.put_cf(&cf, key.as_bytes(), &serialized_data);
-            }
+        }
             IndexTypeEnum::Key => {
                 if let Some(k) = &data.key {
                     let key = key_segment(segment_iden, k.clone());

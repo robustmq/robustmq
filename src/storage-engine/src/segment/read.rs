@@ -88,9 +88,9 @@ pub async fn read_by_tag(
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let index_data_list = get_index_data_by_tag(
         rocksdb_engine_handler,
-        segment_iden,
-        filter.offset,
-        filter.tag.clone(),
+            segment_iden,
+            filter.offset,
+            filter.tag.clone(),
         read_options.max_record as usize,
     )?;
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
