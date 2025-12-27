@@ -52,50 +52,69 @@ impl ClientConnectionManager {
         conn.write_send(req_packet).await
     }
 
+    async fn try_init_write_conn(&self, node_id: u64) -> Result<(), StorageEngineError> {
+        let index = self
+            .write_conn_atom
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let seq = index % self.node_connection_num as u64;
+        if !self.node_conns.contains_key(&node_id) {
+            let conn = NodeConnection::new(node_id, self.cache_manager.clone());
+            conn.init_conn(MODULE_WRITE).await?;
+            self.node_conns.insert(new_node_id, conn);
+        }
+        Ok(())
+    }
+
     pub async fn read_send(
         &self,
         node_id: u64,
         req_packet: StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let new_node_id = node_id as i64;
-        if !self.node_conns.contains_key(&new_node_id) {
-            let conn = NodeConnection::new(new_node_id, self.cache_manager.clone());
+        if !self.node_conns.contains_key(&node_id) {
+            let conn = NodeConnection::new(node_id, self.cache_manager.clone());
             conn.init_conn(MODULE_READ).await?;
-            self.node_conns.insert(new_node_id, conn);
+            self.node_conns.insert(node_id, conn);
         }
 
         let conn = self.node_conns.get(&new_node_id).unwrap();
         conn.read_send(req_packet).await
     }
 
-    pub fn get_inactive_conn(&self) -> Vec<(i64, String)> {
+    pub fn get_inactive_conn(&self) -> Vec<(u64, String)> {
         let mut results = Vec::new();
-        for node in self.node_conns.iter() {
-            for conn in node.connection.iter() {
-                if (now_second() - conn.last_active_time) > 600 {
-                    results.push((node.node_id, conn.key().to_string()));
+        for list in self.node_conns.iter() {
+            for node in list.iter() {
+                for conn in node.connection.iter() {
+                    if (now_second() - conn.last_active_time) > 600 {
+                        results.push((node.node_id, conn.key().to_string()));
+                    }
                 }
             }
         }
         results
     }
 
-    pub async fn close_conn_by_node(&self, node_id: i64, conn_type: &str) {
-        if let Some(node) = self.node_conns.get(&node_id) {
-            if let Some(mut conn) = node.connection.get_mut(conn_type) {
-                if let Err(e) = conn.stream.close().await {
-                    error!("{}", e);
+    pub async fn close_conn_by_node(&self, node_id: u64, conn_type: &str) {
+        if let Some(list) = self.node_conns.get(&node_id) {
+            for node in list.iter() {
+                if let Some(mut conn) = node.connection.get_mut(conn_type) {
+                    if let Err(e) = conn.stream.close().await {
+                        error!("{}", e);
+                    }
                 }
+                node.connection.remove(conn_type);
             }
-            node.connection.remove(conn_type);
+            self.node_conns.remove(&node_id);
         }
     }
 
     pub async fn close(&self) {
-        for node in self.node_conns.iter() {
-            for mut conn in node.connection.iter_mut() {
-                if let Err(e) = conn.stream.close().await {
-                    error!("{}", e);
+        for list in self.node_conns.iter() {
+            for node in list.iter() {
+                for mut conn in node.connection.iter_mut() {
+                    if let Err(e) = conn.stream.close().await {
+                        error!("{}", e);
+                    }
                 }
             }
         }
@@ -128,6 +147,6 @@ async fn gc_conn(
     connection_manager: Arc<ClientConnectionManager>,
 ) {
     for raw in connection_manager.get_inactive_conn() {
-        // connection_manager.close_conn_by_node(raw.0, &raw.1).await;
+        connection_manager.close_conn_by_node(raw.0, &raw.1).await;
     }
 }

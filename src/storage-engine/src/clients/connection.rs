@@ -34,13 +34,13 @@ pub struct ClientConnection {
 }
 
 pub struct NodeConnection {
-    pub node_id: i64,
+    pub node_id: u64,
     pub cache_manager: Arc<StorageCacheManager>,
     pub connection: DashMap<String, ClientConnection>,
 }
 
 impl NodeConnection {
-    pub fn new(node_id: i64, cache_manager: Arc<StorageCacheManager>) -> Self {
+    pub fn new(node_id: u64, cache_manager: Arc<StorageCacheManager>) -> Self {
         let connection = DashMap::with_capacity(2);
         NodeConnection {
             node_id,

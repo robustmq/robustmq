@@ -91,10 +91,10 @@ pub enum StorageEngineError {
     SegmentFileMetaNotExists(String),
 
     #[error("Timestamp {0} is less than the start timestamp {1} of Segment {2}, which should belong to the previous segment")]
-    TimestampBelongToPreviousSegment(u64, i64, String),
+    TimestampBelongToPreviousSegment(u64, u64, String),
 
     #[error("Timestamp {0} is greater than the start timestamp {1} of Segment {2}, which should belong to the next Segment")]
-    TimestampBelongToNextSegment(u64, i64, String),
+    TimestampBelongToNextSegment(u64, u64, String),
 
     #[error("Offset for timestamp {0} is not available in Segment {1}.")]
     NotAvailableOffsetByTimestamp(u64, String),
@@ -115,19 +115,19 @@ pub enum StorageEngineError {
     CommonErrorStr(String),
 
     #[error("Failed to send request to node {0} with error message :{1}")]
-    SendRequestError(i64, String),
+    SendRequestError(u64, String),
 
     #[error("request is sent to node {0} and the received return packet is empty")]
-    ReceivedPacketIsEmpty(i64),
+    ReceivedPacketIsEmpty(u64),
 
     #[error("Send request to node {0}, received wrong packet, error message :{1}")]
-    ReceivedPacketError(i64, String),
+    ReceivedPacketError(u64, String),
 
     #[error("Sending a request to node {0}, obtaining a connection failed, and the connection is occupied for a long time.")]
-    ConnectionIsOccupied(i64),
+    ConnectionIsOccupied(u64),
 
     #[error("Sending a request to node {0} failed to get a connection, possibly to create a connection.")]
-    NoAvailableConn(i64),
+    NoAvailableConn(u64),
 }
 
 impl From<CommonError> for StorageEngineError {
