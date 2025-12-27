@@ -13,18 +13,13 @@
 // limitations under the License.
 
 use protocol::storage::protocol::{
-    ApiKey, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody, ReadRespSegmentMessage,
-    ReqHeader, RespHeader, StorageEngineNetworkError, WriteReq, WriteReqBody, WriteReqMessages,
-    WriteResp, WriteRespBody, WriteRespMessage,
+    ApiKey, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody, ReqHeader, RespHeader,
+    StorageEngineNetworkError, WriteReq, WriteReqBody, WriteResp, WriteRespBody, WriteRespMessage,
 };
 
 use crate::core::error::StorageEngineError;
 
-pub fn build_write_req(
-    shard_name: String,
-    segment: u32,
-    messages: Vec<WriteReqMessages>,
-) -> WriteReq {
+pub fn build_write_req(shard_name: String, segment: u32, messages: Vec<Vec<u8>>) -> WriteReq {
     WriteReq {
         header: ReqHeader {
             api_key: ApiKey::Write,
@@ -60,7 +55,7 @@ pub fn build_read_req(messages: Vec<ReadReqMessage>) -> ReadReq {
 }
 
 pub fn build_read_resp(
-    messages: Vec<ReadRespSegmentMessage>,
+    messages: Vec<Vec<u8>>,
     error: Option<StorageEngineNetworkError>,
 ) -> ReadResp {
     ReadResp {

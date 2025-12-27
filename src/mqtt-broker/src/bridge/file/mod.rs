@@ -21,7 +21,7 @@ use chrono::{DateTime, Local, Timelike};
 use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
-    adapter::record::StorageAdapterRecord,
+    adapter::adapter_record::AdapterWriteRecord,
     mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
@@ -195,7 +195,7 @@ impl ConnectorSink for FileBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[StorageAdapterRecord],
+        records: &[AdapterWriteRecord],
         writer: &mut FileWriter,
     ) -> ResultMqttBrokerError {
         for record in records {
@@ -262,7 +262,7 @@ mod tests {
     use common_base::tools::now_second;
     use metadata_struct::{
         adapter::{
-            record::{Header, StorageAdapterRecord},
+            adapter_record::{Header, AdapterWriteRecord},
             ShardInfo,
         },
         mqtt::bridge::{
@@ -299,7 +299,7 @@ mod tests {
         let mut test_data = vec![];
 
         for i in 0..1000 {
-            let record = StorageAdapterRecord {
+            let record = AdapterWriteRecord {
                 pkid: i,
                 header: Some(vec![Header {
                     name: "test_name".to_string(),

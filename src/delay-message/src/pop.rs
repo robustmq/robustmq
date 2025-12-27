@@ -16,7 +16,7 @@ use crate::DelayMessageManager;
 use common_base::error::common::CommonError;
 use futures::StreamExt;
 use metadata_struct::{
-    adapter::{read_config::ReadConfig, record::StorageAdapterRecord},
+    adapter::{read_config::ReadConfig, adapter_record::AdapterWriteRecord},
     delay_info::DelayMessageInfo,
     storage::convert::convert_engine_record_to_adapter,
 };
@@ -72,7 +72,7 @@ pub(crate) async fn read_offset_data(
     message_storage_adapter: &ArcStorageAdapter,
     shard_name: &str,
     offset: u64,
-) -> Result<Option<StorageAdapterRecord>, CommonError> {
+) -> Result<Option<AdapterWriteRecord>, CommonError> {
     let read_config = ReadConfig {
         max_record_num: 1,
         max_size: 1024 * 1024 * 1024,
@@ -98,7 +98,7 @@ mod test {
     };
     use common_base::tools::unique_id;
     use metadata_struct::{
-        adapter::{record::StorageAdapterRecord, ShardInfo},
+        adapter::{adapter_record::AdapterWriteRecord, ShardInfo},
         delay_info::DelayMessageInfo,
     };
     use std::{sync::Arc, time::Duration};
@@ -117,7 +117,7 @@ mod test {
             .await
             .unwrap();
         for i in 0..100 {
-            let data = StorageAdapterRecord::from_string(format!("data{i}"));
+            let data = AdapterWriteRecord::from_string(format!("data{i}"));
             let res = message_storage_adapter.write(&shard_name, &data).await;
             assert!(res.is_ok());
         }
@@ -146,7 +146,7 @@ mod test {
             .unwrap();
 
         for i in 0..100 {
-            let data = StorageAdapterRecord::from_string(format!("data{i}"));
+            let data = AdapterWriteRecord::from_string(format!("data{i}"));
             let res = message_storage_adapter.write(&shard_name, &data).await;
             assert!(res.is_ok());
         }
@@ -211,7 +211,7 @@ mod test {
             .unwrap();
 
         for i in 0..10 {
-            let data = StorageAdapterRecord::from_string(format!("data{i}"));
+            let data = AdapterWriteRecord::from_string(format!("data{i}"));
             let res = delay_message_manager.send(&target_topic, 2, data).await;
             assert!(res.is_ok());
         }

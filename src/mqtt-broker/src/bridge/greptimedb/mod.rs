@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use metadata_struct::{
-    adapter::record::StorageAdapterRecord,
+    adapter::adapter_record::AdapterWriteRecord,
     mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
@@ -60,7 +60,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[StorageAdapterRecord],
+        records: &[AdapterWriteRecord],
         sender: &mut sender::Sender,
     ) -> ResultMqttBrokerError {
         sender.send_batch(records).await

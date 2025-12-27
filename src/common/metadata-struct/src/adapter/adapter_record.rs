@@ -26,7 +26,7 @@ pub struct Header {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StorageAdapterRecord {
+pub struct AdapterWriteRecord {
     pub pkid: u64,
     pub header: Option<Vec<Header>>,
     pub key: Option<String>,
@@ -35,11 +35,11 @@ pub struct StorageAdapterRecord {
     pub timestamp: u64,
 }
 
-impl StorageAdapterRecord {
+impl AdapterWriteRecord {
     /// Create a Record from raw bytes (Vec<u8>)
     pub fn from_bytes(data: Vec<u8>) -> Self {
         let data = Bytes::from(data);
-        StorageAdapterRecord {
+        AdapterWriteRecord {
             pkid: 0,
             key: None,
             data,
@@ -51,7 +51,7 @@ impl StorageAdapterRecord {
 
     /// Create a Record from Bytes (zero-copy)
     pub fn from_bytes_shared(data: Bytes) -> Self {
-        StorageAdapterRecord {
+        AdapterWriteRecord {
             pkid: 0,
             data,
             key: None,
@@ -64,7 +64,7 @@ impl StorageAdapterRecord {
     /// Create a Record from a byte slice (copy)
     pub fn from_slice(data: &[u8]) -> Self {
         let data = Bytes::copy_from_slice(data);
-        StorageAdapterRecord {
+        AdapterWriteRecord {
             pkid: 0,
             data,
             key: None,
@@ -77,7 +77,7 @@ impl StorageAdapterRecord {
     /// Create a Record from a string
     pub fn from_string(data: String) -> Self {
         let data = Bytes::from(data.into_bytes());
-        StorageAdapterRecord {
+        AdapterWriteRecord {
             pkid: 0,
             key: None,
             tags: None,
@@ -193,9 +193,9 @@ impl StorageAdapterRecord {
     }
 }
 
-impl SerializeMessage for StorageAdapterRecord {
+impl SerializeMessage for AdapterWriteRecord {
     fn serialize_message(
-        input: adapter::record::StorageAdapterRecord,
+        input: adapter::adapter_record::AdapterWriteRecord,
     ) -> Result<producer::Message, PulsarError> {
         // Use bincode for better performance (3-5x faster than JSON)
         let payload =
@@ -213,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_record_bincode_serialization() {
-        let record = StorageAdapterRecord {
+        let record = AdapterWriteRecord {
             pkid: 1,
             header: Some(vec![Header {
                 name: "test_header".to_string(),
@@ -229,7 +229,7 @@ mod tests {
         let serialized = serialize::serialize(&record).expect("Failed to serialize");
 
         // Deserialize
-        let deserialized: StorageAdapterRecord =
+        let deserialized: AdapterWriteRecord =
             serialize::deserialize(&serialized).expect("Failed to deserialize");
 
         // Verify
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_record_with_none_fields() {
-        let record = StorageAdapterRecord {
+        let record = AdapterWriteRecord {
             pkid: 1,
             header: None,
             key: None,
@@ -260,7 +260,7 @@ mod tests {
             &serialized[..50.min(serialized.len())]
         );
 
-        let deserialized: StorageAdapterRecord =
+        let deserialized: AdapterWriteRecord =
             serialize::deserialize(&serialized).expect("Failed to deserialize");
         println!("Deserialized record: {:?}", deserialized);
 

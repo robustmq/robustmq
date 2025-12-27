@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod convert;
-pub mod record;
+pub mod storage_record;
 pub mod segment;
 pub mod segment_meta;
 pub mod shard;

@@ -18,10 +18,11 @@ use crate::segment::file::SegmentFile;
 use crate::segment::read::{read_by_key, read_by_offset, read_by_tag};
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
+use common_base::utils::serialize::{deserialize, serialize};
 use common_config::broker::broker_config;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use protocol::storage::protocol::{
-    ReadReqBody, ReadRespMessage, ReadRespSegmentMessage, ReadType, WriteReqMessages,
-    WriteRespMessage, WriteRespMessageStatus,
+    ReadReqBody, ReadType, WriteRespMessage, WriteRespMessageStatus,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -71,7 +72,7 @@ pub async fn write_data_req(
     cache_manager: &Arc<StorageCacheManager>,
     write_manager: &Arc<WriteManager>,
     segment_iden: &SegmentIdentity,
-    messages: &[WriteReqMessages],
+    messages: &[Vec<u8>],
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     if messages.is_empty() {
         return Ok(Vec::new());
@@ -82,14 +83,26 @@ pub async fn write_data_req(
     let mut results = Vec::new();
 
     let mut record_list = Vec::new();
-    for message in messages {
+    for message_bytes in messages {
+        let adapter_record = deserialize::<AdapterWriteRecord>(message_bytes)?;
+
         // todo data validator
+        let header = adapter_record.header.as_ref().map(|headers| {
+            headers
+                .iter()
+                .map(|h| metadata_struct::storage::storage_record::Header {
+                    name: h.name.clone(),
+                    value: h.value.clone(),
+                })
+                .collect()
+        });
+
         let record = WriteChannelDataRecord {
-            pkid: message.pkid,
-            header: None,
-            key: Some(message.key.clone()),
-            tags: Some(message.tags.clone()),
-            value: message.value.clone().into(),
+            pkid: adapter_record.pkid,
+            header,
+            key: adapter_record.key.clone(),
+            tags: adapter_record.tags.clone(),
+            value: adapter_record.data.clone(),
         };
         record_list.push(record);
     }
@@ -123,15 +136,9 @@ pub async fn read_data_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req_body: &ReadReqBody,
     node_id: u64,
-) -> Result<Vec<ReadRespSegmentMessage>, StorageEngineError> {
+) -> Result<Vec<Vec<u8>>, StorageEngineError> {
     let mut results = Vec::new();
     for raw in req_body.messages.iter() {
-        let mut shard_message = ReadRespSegmentMessage {
-            shard_name: raw.shard_name.to_string(),
-            segment: raw.segment,
-            ..Default::default()
-        };
-
         let segment_iden = SegmentIdentity {
             shard_name: raw.shard_name.to_string(),
             segment: raw.segment,
@@ -193,35 +200,24 @@ pub async fn read_data_req(
             }
         };
 
-        let mut record_message = Vec::new();
         for read_data in read_data_list {
-            let record = read_data.record;
-            record_message.push(ReadRespMessage {
-                offset: record.metadata.offset,
-                key: record.metadata.key,
-                value: record.data.to_vec(),
-                tags: record.metadata.tags,
-                timestamp: record.metadata.create_t,
-            });
+            results.push(serialize(&read_data.record)?);
         }
-        shard_message.messages = record_message;
-
-        results.push(shard_message);
     }
     Ok(results)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
+    use crate::{core::test::test_base_write_data, handler::data::read_data_req};
+    use common_base::utils::serialize::deserialize;
     use common_config::broker::broker_config;
+    use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
+    use std::time::Duration;
     use tokio::time::sleep;
-
-    use crate::{core::test::test_base_write_data, handler::data::read_data_req};
 
     #[tokio::test]
     #[ignore]
@@ -255,16 +251,14 @@ mod tests {
             conf.broker_id,
         )
         .await;
-        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
-        assert_eq!(resp.len(), 1);
-        let resp_shard = resp.first().unwrap();
-        assert_eq!(resp_shard.messages.len(), 2);
+        assert_eq!(resp.len(), 2);
 
         let mut i = 5;
-        for row in resp_shard.messages.iter() {
-            assert_eq!(row.offset, i);
+        for record_bytes in resp.iter() {
+            let record: StorageRecord = deserialize(record_bytes).unwrap();
+            assert_eq!(record.metadata.offset, i);
             i += 1;
         }
 
@@ -294,14 +288,12 @@ mod tests {
             conf.broker_id,
         )
         .await;
-        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
-        let resp_shard = resp.first().unwrap();
-        assert_eq!(resp_shard.messages.len(), 1);
-        let data = resp_shard.messages.first().unwrap().clone();
-        assert_eq!(data.key.unwrap(), key);
+        let record_bytes = resp.first().unwrap();
+        let record: StorageRecord = deserialize(record_bytes).unwrap();
+        assert_eq!(record.metadata.key.unwrap(), key);
 
         // tag
         let tag = format!("tag-{}", 1);
@@ -329,13 +321,11 @@ mod tests {
             conf.broker_id,
         )
         .await;
-        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
-        let resp_shard = resp.first().unwrap();
-        assert_eq!(resp_shard.messages.len(), 1);
-        let data = resp_shard.messages.first().unwrap().clone();
-        assert!(data.tags.unwrap().contains(&tag));
+        let record_bytes = resp.first().unwrap();
+        let record: StorageRecord = deserialize(record_bytes).unwrap();
+        assert!(record.metadata.tags.unwrap().contains(&tag));
     }
 }

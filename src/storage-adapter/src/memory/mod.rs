@@ -16,10 +16,10 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::record::StorageAdapterRecord;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
-use metadata_struct::storage::record::StorageEngineRecord;
+use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::memory::engine::MemoryStorageEngine;
@@ -60,14 +60,14 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn batch_write(
         &self,
         shard: &str,
-        messages: &[StorageAdapterRecord],
+        messages: &[AdapterWriteRecord],
     ) -> Result<Vec<u64>, CommonError> {
         self.memory_storage_engine
             .batch_write(shard, messages)
             .await
     }
 
-    async fn write(&self, shard: &str, data: &StorageAdapterRecord) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, data: &AdapterWriteRecord) -> Result<u64, CommonError> {
         self.memory_storage_engine.write(shard, data).await
     }
 
@@ -76,7 +76,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard: &str,
         offset: u64,
         read_config: &ReadConfig,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         self.memory_storage_engine
             .read_by_offset(shard, offset, read_config)
             .await
@@ -88,7 +88,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &ReadConfig,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         self.memory_storage_engine
             .read_by_tag(shard, tag, start_offset, read_config)
             .await
@@ -98,7 +98,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard: &str,
         key: &str,
-    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, CommonError> {
         self.memory_storage_engine.read_by_key(shard, key).await
     }
 
