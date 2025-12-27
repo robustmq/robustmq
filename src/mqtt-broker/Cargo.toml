@@ -46,6 +46,7 @@ os_info.workspace = true
 grep.workspace = true
 delay-message.workspace = true
 schema-register.workspace = true
+storage-engine.workspace = true
 # observability
 quinn.workspace = true
 rustls-pki-types.workspace = true

@@ -63,7 +63,7 @@ message DeleteShardReply {}
 
 message ListSegmentRequest {
   string shard_name = 3;
-  int32 segment_no = 4;
+  int32 segment = 4;
 }
 
 message ListSegmentReply {
@@ -80,7 +80,7 @@ message CreateNextSegmentReply {}
 
 message DeleteSegmentRequest {
   string shard_name = 3;
-  uint32 segment_seq = 4;
+  uint32 segment = 4;
   
 }
 
@@ -88,7 +88,7 @@ message DeleteSegmentReply {}
 
 message SealUpSegmentRequest {
   string shard_name = 1;
-  uint32 segment_seq = 2;
+  uint32 segment = 2;
   uint64 end_timestamp = 3;
 }
 
@@ -96,7 +96,7 @@ message SealUpSegmentReply {}
 
 message ListSegmentMetaRequest {
   string shard_name = 3;
-  int32 segment_no = 4;
+  int32 segment = 4;
 }
 
 message ListSegmentMetaReply {
@@ -105,7 +105,7 @@ message ListSegmentMetaReply {
 
 message UpdateStartTimeBySegmentMetaRequest {
   string shard_name = 1;
-  uint32 segment_no = 2;
+  uint32 segment = 2;
   uint64 start_timestamp = 3;
 }
 

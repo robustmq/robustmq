@@ -15,10 +15,15 @@
 use crate::core::error::StorageEngineError;
 use crate::segment::SegmentIdentity;
 use crate::{core::cache::StorageCacheManager, segment::file::SegmentFile};
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
-use grpc_clients::meta::storage::call::create_next_segment;
+use grpc_clients::meta::storage::call::{
+    create_next_segment, seal_up_segment, update_start_time_by_segment_meta,
+};
 use grpc_clients::pool::ClientPool;
-use protocol::meta::meta_service_journal::CreateNextSegmentRequest;
+use protocol::meta::meta_service_journal::{
+    CreateNextSegmentRequest, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaRequest,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -36,6 +41,84 @@ pub fn is_trigger_next_segment_scroll(offsets: &[u64]) -> bool {
         .is_some_and(|&offset| offset % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)
 }
 
+pub fn is_start_or_end_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    segment_iden: &SegmentIdentity,
+    offsets: &[u64],
+) -> bool {
+    if let Some(meta) = cache_manager.get_segment_meta(segment_iden) {
+        let start_offset = meta.start_offset.max(0) as u64;
+        let end_offset = meta.end_offset.max(0) as u64;
+        return offsets.contains(&start_offset) || offsets.contains(&end_offset);
+    }
+    warn!(
+        "Segment metadata not found for shard '{}' segment {}, expected to exist",
+        segment_iden.shard_name, segment_iden.segment
+    );
+    false
+}
+
+pub fn trigger_update_start_or_end_info(
+    cache_manager: Arc<StorageCacheManager>,
+    client_pool: Arc<ClientPool>,
+    segment_iden: SegmentIdentity,
+    offsets: Vec<u64>,
+) {
+    tokio::spawn(async move {
+        if let Err(e) =
+            trigger_update_start_or_end_info0(&cache_manager, &client_pool, &segment_iden, &offsets)
+                .await
+        {
+            error!(
+                "Failed to update start/end timestamp for shard '{}' segment {}: {}",
+                segment_iden.shard_name, segment_iden.segment, e
+            );
+        };
+    });
+}
+
+async fn trigger_update_start_or_end_info0(
+    cache_manager: &Arc<StorageCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_iden: &SegmentIdentity,
+    offsets: &[u64],
+) -> Result<(), StorageEngineError> {
+    if let Some(meta) = cache_manager.get_segment_meta(segment_iden) {
+        let start_offset = meta.start_offset.max(0) as u64;
+        let end_offset = meta.end_offset.max(0) as u64;
+        let is_start = offsets.contains(&start_offset);
+        let is_end = offsets.contains(&end_offset);
+
+        if is_start || is_end {
+            let conf = broker_config();
+
+            if is_start {
+                let request = UpdateStartTimeBySegmentMetaRequest {
+                    shard_name: segment_iden.shard_name.clone(),
+                    segment: segment_iden.segment,
+                    start_timestamp: now_second(),
+                };
+                update_start_time_by_segment_meta(
+                    client_pool,
+                    &conf.get_meta_service_addr(),
+                    request,
+                )
+                .await?;
+            }
+
+            if is_end {
+                let request = SealUpSegmentRequest {
+                    shard_name: segment_iden.shard_name.clone(),
+                    segment: segment_iden.segment,
+                    end_timestamp: now_second(),
+                };
+                seal_up_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
 pub async fn trigger_next_segment_scroll(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -51,28 +134,31 @@ pub async fn trigger_next_segment_scroll(
         return Ok(());
     }
 
-    let file_size = segment_write.size().await?;
-    if let Some(shard_info) = cache_manager.shards.get(&segment_iden.shard_name) {
-        if shard_info.last_segment_seq > segment_iden.segment {
-            cache_manager.remove_next_segment(&segment_iden.shard_name);
-            return Ok(());
-        }
-
-        let max_size = shard_info.config.max_segment_size;
-        let rate = calc_file_rate(file_size, max_size);
-        if rate > SEGMENT_SCROLL_SIZE_THRESHOLD {
-            trigger_next_segment_scroll0(
-                cache_manager.clone(),
-                client_pool.clone(),
-                segment_iden.clone(),
-                last_offset,
-            );
+    let should_trigger =
+        if let Some(shard_info) = cache_manager.shards.get(&segment_iden.shard_name) {
+            if shard_info.last_segment_seq > segment_iden.segment {
+                false
+            } else {
+                let file_size = segment_write.size().await?;
+                let max_size = shard_info.config.max_segment_size;
+                let rate = calc_file_rate(file_size, max_size);
+                rate > SEGMENT_SCROLL_SIZE_THRESHOLD
+            }
         } else {
-            cache_manager.remove_next_segment(&segment_iden.shard_name);
-        }
+            false
+        };
+
+    if should_trigger {
+        trigger_next_segment_scroll0(
+            cache_manager.clone(),
+            client_pool.clone(),
+            segment_iden.clone(),
+            last_offset,
+        );
     } else {
         cache_manager.remove_next_segment(&segment_iden.shard_name);
     }
+
     Ok(())
 }
 
@@ -84,11 +170,15 @@ fn trigger_next_segment_scroll0(
 ) {
     tokio::spawn(async move {
         let conf = broker_config();
-        let end_offset = last_offset + SEGMENT_SCROLL_OFFSET_BUFFER;
+        let end_offset = last_offset.saturating_add(SEGMENT_SCROLL_OFFSET_BUFFER);
+
+        let current_segment = segment_iden.segment.min(i32::MAX as u32) as i32;
+        let end_offset_i64 = end_offset.min(i64::MAX as u64) as i64;
+
         let request = CreateNextSegmentRequest {
-            shard_name: segment_iden.shard_name.to_string(),
-            current_segment: segment_iden.segment as i32,
-            current_segment_end_offset: end_offset as i64,
+            shard_name: segment_iden.shard_name.clone(),
+            current_segment,
+            current_segment_end_offset: end_offset_i64,
         };
 
         for attempt in 1..=MAX_RETRY_ATTEMPTS {
@@ -109,15 +199,8 @@ fn trigger_next_segment_scroll0(
                             e
                         );
                     } else {
-                        warn!(
-                            "Failed to create next segment for shard '{}', current segment {} (attempt {}/{}): {}. Retrying...",
-                            segment_iden.shard_name,
-                            segment_iden.segment,
-                            attempt,
-                            MAX_RETRY_ATTEMPTS,
-                            e
-                        );
-                        sleep(Duration::from_millis(RETRY_DELAY_MS * attempt as u64)).await;
+                        let delay = RETRY_DELAY_MS * (1 << (attempt - 1));
+                        sleep(Duration::from_millis(delay)).await;
                     }
                 }
             }

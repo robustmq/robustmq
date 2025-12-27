@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::keys::{key_offset, key_offset_by_group};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
+use rocksdb_engine::keys::meta::{key_offset, key_offset_by_group};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::base::{batch_encode_data, get_cf_handle};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;

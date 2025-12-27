@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::{
-    add_call_message, BrokerCallManager, BrokerCallMessage,
-};
+use crate::controller::call_broker::call::{send_cache_update, BrokerCallManager};
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
@@ -34,15 +32,14 @@ pub async fn update_cache_by_add_session(
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Session,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Session,
+        || Ok(serialize::serialize(&session)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_session(
@@ -50,15 +47,14 @@ pub async fn update_cache_by_delete_session(
     client_pool: &Arc<ClientPool>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Session,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Session,
+        || Ok(serialize::serialize(&session)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_schema(
@@ -66,15 +62,14 @@ pub async fn update_cache_by_add_schema(
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&schema)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Schema,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Schema,
+        || Ok(serialize::serialize(&schema)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_schema(
@@ -82,15 +77,14 @@ pub async fn update_cache_by_delete_schema(
     client_pool: &Arc<ClientPool>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&schema)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Schema,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Schema,
+        || Ok(serialize::serialize(&schema)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_schema_bind(
@@ -98,15 +92,14 @@ pub async fn update_cache_by_add_schema_bind(
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&bind_data)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::SchemaResource,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::SchemaResource,
+        || Ok(serialize::serialize(&bind_data)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_schema_bind(
@@ -114,111 +107,104 @@ pub async fn update_cache_by_delete_schema_bind(
     client_pool: &Arc<ClientPool>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&bind_data)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::SchemaResource,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::SchemaResource,
+        || Ok(serialize::serialize(&bind_data)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_connector(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    session: MQTTConnector,
+    connector: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Connector,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Connector,
+        || Ok(serialize::serialize(&connector)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_connector(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    session: MQTTConnector,
+    connector: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Connector,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Connector,
+        || Ok(serialize::serialize(&connector)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_user(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    session: MqttUser,
+    user: MqttUser,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::User,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::User,
+        || Ok(serialize::serialize(&user)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_user(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    session: MqttUser,
+    user: MqttUser,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::User,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::User,
+        || Ok(serialize::serialize(&user)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_subscribe(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    session: MqttSubscribe,
+    subscribe: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Subscribe,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Subscribe,
+        || Ok(serialize::serialize(&subscribe)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_subscribe(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    session: MqttSubscribe,
+    subscribe: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&session)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Subscribe,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Subscribe,
+        || Ok(serialize::serialize(&subscribe)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_topic(
@@ -226,15 +212,14 @@ pub async fn update_cache_by_add_topic(
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&topic)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Topic,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Topic,
+        || Ok(serialize::serialize(&topic)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_topic(
@@ -242,15 +227,14 @@ pub async fn update_cache_by_delete_topic(
     client_pool: &Arc<ClientPool>,
     topic: MQTTTopic,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&topic)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Topic,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Topic,
+        || Ok(serialize::serialize(&topic)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_add_node(
@@ -258,15 +242,14 @@ pub async fn update_cache_by_add_node(
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&node)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Node,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Node,
+        || Ok(serialize::serialize(&node)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_node(
@@ -274,15 +257,14 @@ pub async fn update_cache_by_delete_node(
     client_pool: &Arc<ClientPool>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&node)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Node,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Node,
+        || Ok(serialize::serialize(&node)?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_set_resource_config(
@@ -290,13 +272,12 @@ pub async fn update_cache_by_set_resource_config(
     client_pool: &Arc<ClientPool>,
     config: ResourceConfig,
 ) -> Result<(), MetaServiceError> {
-    let data = serialize::serialize(&config)?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::ClusterResourceConfig,
-
-        data,
-    };
-    add_call_message(call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::ClusterResourceConfig,
+        || Ok(serialize::serialize(&config)?),
+    )
+    .await
 }

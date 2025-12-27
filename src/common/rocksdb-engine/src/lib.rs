@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
+pub mod keys;
 pub mod metrics;
 pub mod rocksdb;
 pub mod storage;

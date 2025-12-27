@@ -12,36 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** ===========Cluster========== */
+use super::PREFIX_META;
+
 #[inline]
 pub fn key_node(node_id: u64) -> String {
-    format!("/meta/clusters/node/{node_id}")
+    format!("{}clusters/node/{}", PREFIX_META, node_id)
 }
 
 #[inline]
 pub fn key_node_prefix() -> String {
-    "/meta/clusters/node/".to_string()
+    format!("{}clusters/node/", PREFIX_META)
 }
 
 #[inline]
 pub fn key_resource_config(resource_key: &str) -> String {
-    format!("/meta/config/{resource_key}")
+    format!("{}config/{}", PREFIX_META, resource_key)
 }
 
 #[inline]
 pub fn key_offset(group: &str, shard_name: &str) -> String {
-    format!("/meta/offset/{group}/{shard_name}")
+    format!("{}offset/{}/{}", PREFIX_META, group, shard_name)
 }
 
 #[inline]
 pub fn key_offset_by_group(group: &str) -> String {
-    format!("/meta/offset/{group}/")
+    format!("{}offset/{}/", PREFIX_META, group)
 }
 
-/** ===========Journal========== */
 #[inline]
 pub fn key_shard(shard_name: &str) -> String {
-    format!("/meta/journal/shard/{shard_name}")
+    format!("{}journal/shard/{}", PREFIX_META, shard_name)
 }
 
 #[inline]
@@ -51,7 +51,10 @@ pub fn key_all_shard() -> &'static str {
 
 #[inline]
 pub fn key_segment(shard_name: &str, segment_seq: u32) -> String {
-    format!("/meta/journal/segment/{shard_name}/{segment_seq}")
+    format!(
+        "{}journal/segment/{}/{}",
+        PREFIX_META, shard_name, segment_seq
+    )
 }
 
 #[inline]
@@ -61,166 +64,180 @@ pub fn key_all_segment() -> &'static str {
 
 #[inline]
 pub fn key_segment_shard_prefix(shard_name: &str) -> String {
-    format!("/meta/journal/segment/{shard_name}/")
+    format!("{}journal/segment/{}/", PREFIX_META, shard_name)
 }
 
 #[inline]
 pub fn key_segment_metadata(shard_name: &str, segment_seq: u32) -> String {
-    format!("/meta/journal/segmentmeta/{shard_name}/{segment_seq}")
+    format!(
+        "{}journal/segment_meta/{}/{}",
+        PREFIX_META, shard_name, segment_seq
+    )
 }
 
 #[inline]
 pub fn key_all_segment_metadata() -> &'static str {
-    "/meta/journal/segmentmeta/"
+    "/meta/journal/segment_meta/"
 }
 
 #[inline]
 pub fn key_segment_metadata_shard_prefix(shard_name: &str) -> String {
-    format!("/meta/journal/segmentmeta/{shard_name}/")
+    format!("{}journal/segment_meta/{}/", PREFIX_META, shard_name)
 }
 
-/** ===========MQTT========== */
 #[inline]
 pub fn storage_key_mqtt_user(user_name: &str) -> String {
-    format!("/meta/mqtt/user/{user_name}")
+    format!("{}mqtt/user/{}", PREFIX_META, user_name)
 }
 
 #[inline]
 pub fn storage_key_mqtt_user_prefix() -> String {
-    "/meta/mqtt/user/".to_string()
+    format!("{}mqtt/user/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_topic(topic_name: &str) -> String {
-    format!("/meta/mqtt/topic/{topic_name}")
+    format!("{}mqtt/topic/{}", PREFIX_META, topic_name)
 }
 
 #[inline]
 pub fn storage_key_mqtt_topic_cluster_prefix() -> String {
-    "/meta/mqtt/topic/".to_string()
+    format!("{}mqtt/topic/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_session(client_id: &str) -> String {
-    format!("/meta/mqtt/session/{client_id}")
+    format!("{}mqtt/session/{}", PREFIX_META, client_id)
 }
 
 #[inline]
 pub fn storage_key_mqtt_session_prefix() -> String {
-    "/meta/mqtt/session/".to_string()
+    format!("{}mqtt/session/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_last_will(client_id: &str) -> String {
-    format!("/meta/mqtt/lastwill/{client_id}")
+    format!("{}mqtt/last_will/{}", PREFIX_META, client_id)
 }
 
 #[inline]
 pub fn storage_key_mqtt_last_will_prefix() -> String {
-    "/meta/mqtt/lastwill/".to_string()
+    format!("{}mqtt/last_will/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_node_sub_group_leader() -> String {
-    "/meta/mqtt/sub_group_leader".to_string()
+    format!("{}mqtt/sub_group_leader", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_subscribe(client_id: &str, path: &str) -> String {
-    format!("/meta/mqtt/subscribe/{client_id}/{path}")
+    format!("{}mqtt/subscribe/{}/{}", PREFIX_META, client_id, path)
 }
 
 #[inline]
 pub fn storage_key_mqtt_subscribe_client_id_prefix(client_id: &str) -> String {
-    format!("/meta/mqtt/subscribe/{client_id}/")
+    format!("{}mqtt/subscribe/{}/", PREFIX_META, client_id)
 }
 
 #[inline]
 pub fn storage_key_mqtt_subscribe_prefix() -> String {
-    "/meta/mqtt/subscribe/".to_string()
+    format!("{}mqtt/subscribe/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_connector(connector_name: &str) -> String {
-    format!("/meta/mqtt/connector/{connector_name}")
+    format!("{}mqtt/connector/{}", PREFIX_META, connector_name)
 }
 
 #[inline]
 pub fn storage_key_mqtt_connector_prefix() -> String {
-    "/meta/mqtt/connector/".to_string()
+    format!("{}mqtt/connector/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_schema(schema_name: &str) -> String {
-    format!("/meta/mqtt/schema/{schema_name}")
+    format!("{}mqtt/schema/{}", PREFIX_META, schema_name)
 }
 
 #[inline]
 pub fn storage_key_mqtt_schema_prefix() -> String {
-    "/meta/mqtt/schema/".to_string()
+    format!("{}mqtt/schema/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_schema_bind(resource_name: &str, schema_name: &str) -> String {
-    format!("/meta/mqtt/schema_bind/{resource_name}/{schema_name}")
+    format!(
+        "{}mqtt/schema_bind/{}/{}",
+        PREFIX_META, resource_name, schema_name
+    )
 }
 
 #[inline]
 pub fn storage_key_mqtt_schema_bind_prefix_by_resource(resource_name: &str) -> String {
-    format!("/meta/mqtt/schema_bind/{resource_name}/")
+    format!("{}mqtt/schema_bind/{}/", PREFIX_META, resource_name)
 }
 
 #[inline]
 pub fn storage_key_mqtt_schema_bind_prefix() -> String {
-    "/meta/mqtt/schema_bind/".to_string()
+    format!("{}mqtt/schema_bind/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_acl(resource_type: &str, resource_name: &str) -> String {
-    format!("/meta/mqtt/acl/{resource_type}/{resource_name}")
+    format!(
+        "{}mqtt/acl/{}/{}",
+        PREFIX_META, resource_type, resource_name
+    )
 }
 
 #[inline]
 pub fn storage_key_mqtt_acl_prefix() -> String {
-    "/meta/mqtt/acl/".to_string()
+    format!("{}mqtt/acl/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_blacklist(black_list_type: &str, resource_name: &str) -> String {
-    format!("/meta/mqtt/blacklist/{black_list_type}/{resource_name}")
+    format!(
+        "{}mqtt/blacklist/{}/{}",
+        PREFIX_META, black_list_type, resource_name
+    )
 }
 
 #[inline]
 pub fn storage_key_mqtt_blacklist_prefix() -> String {
-    "/meta/mqtt/blacklist/".to_string()
+    format!("{}mqtt/blacklist/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_topic_rewrite_rule(action: &str, source_topic: &str) -> String {
-    format!("/meta/mqtt/topic_rewrite_rule/{action}/{source_topic}")
+    format!(
+        "{}mqtt/topic_rewrite_rule/{}/{}",
+        PREFIX_META, action, source_topic
+    )
 }
 
 #[inline]
 pub fn storage_key_mqtt_topic_rewrite_rule_prefix() -> String {
-    "/meta/mqtt/topic_rewrite_rule/".to_string()
+    format!("{}mqtt/topic_rewrite_rule/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule(topic: &str) -> String {
-    format!("/meta/mqtt/auto_subscribe_rule/{topic}")
+    format!("{}mqtt/auto_subscribe_rule/{}", PREFIX_META, topic)
 }
 
 #[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule_prefix() -> String {
-    "/meta/mqtt/auto_subscribe_rule/".to_string()
+    format!("{}mqtt/auto_subscribe_rule/", PREFIX_META)
 }
 
 #[inline]
 pub fn storage_key_mqtt_retain_message(topic_name: &str) -> String {
-    format!("/meta/mqtt/retain_message/{topic_name}")
+    format!("{}mqtt/retain_message/{}", PREFIX_META, topic_name)
 }
 
 #[inline]
 pub fn storage_key_mqtt_retain_message_prefix() -> String {
-    "/meta/mqtt/retain_message/".to_string()
+    format!("{}mqtt/retain_message/", PREFIX_META)
 }

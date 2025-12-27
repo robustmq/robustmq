@@ -21,6 +21,10 @@ service BrokerCommonService {
 }
 
 message UpdateCacheRequest {
+  repeated UpdateCacheRecord records = 1;
+}
+
+message UpdateCacheRecord{
   BrokerUpdateCacheActionType action_type = 2;
   BrokerUpdateCacheResourceType resource_type = 3;
   bytes data = 4;

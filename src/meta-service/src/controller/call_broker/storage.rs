@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    controller::call_broker::call::{add_call_message, BrokerCallManager, BrokerCallMessage},
-    core::error::MetaServiceError,
-};
+use crate::controller::call_broker::call::{send_cache_update, BrokerCallManager};
+use crate::core::error::MetaServiceError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::{
     segment::EngineSegment, segment_meta::EngineSegmentMetadata, shard::EngineShard,
@@ -28,14 +26,14 @@ pub async fn update_cache_by_set_shard(
     client_pool: &Arc<ClientPool>,
     shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
-    let data = shard_info.encode()?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Shard,
-        data,
-    };
-    add_call_message(broker_call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        broker_call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Shard,
+        || Ok(shard_info.encode()?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_shard(
@@ -43,44 +41,44 @@ pub async fn update_cache_by_delete_shard(
     client_pool: &Arc<ClientPool>,
     shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
-    let data = shard_info.encode()?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Shard,
-        data,
-    };
-    add_call_message(broker_call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        broker_call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Shard,
+        || Ok(shard_info.encode()?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_set_segment(
     broker_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    segment_info: &EngineSegment,
+    segment_info: EngineSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = segment_info.encode()?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::Segment,
-        data,
-    };
-    add_call_message(broker_call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        broker_call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::Segment,
+        || Ok(segment_info.encode()?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_delete_segment(
     broker_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    segment_info: &EngineSegment,
+    segment_info: EngineSegment,
 ) -> Result<(), MetaServiceError> {
-    let data = segment_info.encode()?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Delete,
-        resource_type: BrokerUpdateCacheResourceType::Segment,
-        data,
-    };
-    add_call_message(broker_call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        broker_call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Segment,
+        || Ok(segment_info.encode()?),
+    )
+    .await
 }
 
 pub async fn update_cache_by_set_segment_meta(
@@ -88,12 +86,12 @@ pub async fn update_cache_by_set_segment_meta(
     client_pool: &Arc<ClientPool>,
     segment_info: EngineSegmentMetadata,
 ) -> Result<(), MetaServiceError> {
-    let data = segment_info.encode()?;
-    let message = BrokerCallMessage {
-        action_type: BrokerUpdateCacheActionType::Set,
-        resource_type: BrokerUpdateCacheResourceType::SegmentMeta,
-        data,
-    };
-    add_call_message(broker_call_manager, client_pool, message).await?;
-    Ok(())
+    send_cache_update(
+        broker_call_manager,
+        client_pool,
+        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheResourceType::SegmentMeta,
+        || Ok(segment_info.encode()?),
+    )
+    .await
 }

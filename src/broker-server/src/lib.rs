@@ -25,7 +25,9 @@ use common_base::{
     role::{is_broker_node, is_engine_node, is_meta_node},
     runtime::create_runtime,
 };
-use common_config::{broker::broker_config, config::BrokerConfig};
+use common_config::{
+    broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
+};
 use common_metrics::core::server::register_prometheus_export;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -65,8 +67,8 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core::cache::StorageCacheManager, segment::write::WriteManager, StorageEngineParams,
-    StorageEngineServer,
+    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
+    segment::write::WriteManager, StorageEngineParams, StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
@@ -126,11 +128,17 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
         ));
 
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+            StorageDriverMemoryConfig::default(),
+        ));
+
         let raw_offset_manager = offset_manager.clone();
+        let raw_memory_storage_engine = memory_storage_engine.clone();
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
                 raw_offset_manager.clone(),
+                raw_memory_storage_engine.clone(),
                 raw_rocksdb_engine_handler.clone(),
                 config.message_storage.clone(),
             )
@@ -412,6 +420,7 @@ impl BrokerServer {
             client_pool,
             rocksdb_engine_handler,
             connection_manager,
+
             write_manager,
         }
     }

@@ -14,64 +14,34 @@
 
 use crate::core::{cache::StorageCacheManager, error::StorageEngineError};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::{
-    adapter::record::Record,
-    storage::{segment::EngineSegment, shard::EngineShard},
-};
-use rocksdb_engine::rocksdb::RocksDBEngine;
+use metadata_struct::{adapter::record::Record, storage::shard::EngineType};
 use std::sync::Arc;
 
 pub async fn _batch_write(
     _client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
-    shard: &str,
+    shard_name: &str,
     _records: &[Record],
 ) -> Result<Vec<u64>, StorageEngineError> {
-    let _shard_info = if let Some(shard_info) = cache_manager.shards.get(shard) {
-        shard_info.clone()
-    } else {
-        return Err(StorageEngineError::ShardNotExist(shard.to_string()));
+    let Some(shard) = cache_manager.shards.get(shard_name) else {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    // let segment = get_active_segment(client_pool, cache_manager, shard).await?;
-    // let config = broker_config();
-    // if segment.leader == config.broker_id {}
+    let Some(_active_segment) = cache_manager.get_active_segment(shard_name) else {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+    };
+
+    let _offsets = match shard.engine_type {
+        EngineType::Memory => write_memory().await?,
+        EngineType::Segment => write_segment().await?,
+    };
     Ok(Vec::new())
 }
 
-async fn _write_to_local(
-    _client_pool: &Arc<ClientPool>,
-    _cache_manager: &Arc<StorageCacheManager>,
-    _rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _shard_info: &EngineShard,
-) -> Result<Vec<u64>, StorageEngineError> {
-    // let req_body = WriteReqBody {};
-    // match shard_info.engine_type {
-    //     EngineType::Memory => {}
-    //     EngineType::Segment => {
-    //         let resp = write_data_req(
-    //             cache_manager,
-    //             rocksdb_engine_handler,
-    //             segment_file_manager,
-    //             client_pool,
-    //             &req_body,
-    //         )
-    //         .await?;
-    //     }
-    // }
+async fn write_memory() -> Result<Vec<u64>, StorageEngineError> {
     Ok(Vec::new())
 }
 
-async fn _write_to_leader() {}
-
-async fn _get_active_segment(
-    _client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<StorageCacheManager>,
-    shard: &str,
-) -> Result<EngineSegment, StorageEngineError> {
-    if let Some(segment) = cache_manager.get_active_segment(shard) {
-        return Ok(segment);
-    }
-
-    Err(StorageEngineError::NotActiveSegment(shard.to_string()))
+async fn write_segment() -> Result<Vec<u64>, StorageEngineError> {
+    Ok(Vec::new())
 }

@@ -15,9 +15,9 @@
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::storage::common::kv::KvStorage;
-use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
+use rocksdb_engine::keys::meta::storage_key_mqtt_node_sub_group_leader;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;

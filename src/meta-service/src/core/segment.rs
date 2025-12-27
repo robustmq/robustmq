@@ -54,7 +54,7 @@ pub async fn create_segment(
         let segment: EngineSegment = build_segment(shard_info, cache_manager, segment_seq).await?;
 
         sync_save_segment_info(raft_manager, &segment).await?;
-        update_cache_by_set_segment(call_manager, client_pool, &segment).await?;
+        update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
 
         create_segment_metadata(
             cache_manager,
@@ -205,7 +205,7 @@ pub async fn update_segment_status(
             drop(segment);
 
             sync_save_segment_info(raft_manager, &segment_clone).await?;
-            update_cache_by_set_segment(broker_call_manager, client_pool, &segment_clone).await?;
+            update_cache_by_set_segment(broker_call_manager, client_pool, segment_clone).await?;
         }
     }
 

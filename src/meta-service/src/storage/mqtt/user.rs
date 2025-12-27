@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MqttUser;
 
-use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_prefix};
+use rocksdb_engine::keys::meta::{storage_key_mqtt_user, storage_key_mqtt_user_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,

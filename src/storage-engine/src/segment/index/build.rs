@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    core::error::StorageEngineError,
-    segment::{
-        keys::{
-            key_segment, offset_segment_position, segment_index_prefix, tag_segment,
-            timestamp_segment_time,
-        },
-        SegmentIdentity,
-    },
-};
+use crate::core::error::StorageEngineError;
+use crate::segment::SegmentIdentity;
 use common_base::utils::serialize::serialize;
 use rocksdb::WriteBatch;
+use rocksdb_engine::keys::engine::{
+    engine_key_index, offset_segment_position, segment_index_prefix, tag_segment,
+    timestamp_segment_time,
+};
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{
@@ -44,7 +40,7 @@ pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
-    let prefix_key_name = segment_index_prefix(segment_iden);
+    let prefix_key_name = segment_index_prefix(&segment_iden.shard_name, segment_iden.segment);
     let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -125,12 +121,17 @@ pub fn save_index(
                     timestamp: 0,
                 };
                 let serialized_data = serialize(&index_data)?;
-                let key = offset_segment_position(segment_iden, data.offset);
+                let key = offset_segment_position(
+                    &segment_iden.shard_name,
+                    segment_iden.segment,
+                    data.offset,
+                );
                 batch.put_cf(&cf, key.as_bytes(), &serialized_data);
             }
             IndexTypeEnum::Key => {
                 if let Some(k) = &data.key {
-                    let key = key_segment(segment_iden, k.clone());
+                    let key =
+                        engine_key_index(&segment_iden.shard_name, segment_iden.segment, k.clone());
                     let index_data = IndexData {
                         offset: data.offset,
                         position,
@@ -148,13 +149,19 @@ pub fn save_index(
                         timestamp: 0,
                     };
                     let serialized_data = serialize(&index_data)?;
-                    let key = tag_segment(segment_iden, t.clone(), data.offset);
+                    let key = tag_segment(
+                        &segment_iden.shard_name,
+                        segment_iden.segment,
+                        t.clone(),
+                        data.offset,
+                    );
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
             IndexTypeEnum::Time => {
                 if let Some(t) = data.timestamp {
-                    let key = timestamp_segment_time(segment_iden, t);
+                    let key =
+                        timestamp_segment_time(&segment_iden.shard_name, segment_iden.segment, t);
                     let index_data = IndexData {
                         offset: data.offset,
                         position,

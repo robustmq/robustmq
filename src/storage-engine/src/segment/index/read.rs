@@ -14,11 +14,12 @@
 
 use crate::core::error::StorageEngineError;
 use crate::segment::index::build::IndexData;
-use crate::segment::keys::{
-    key_segment, offset_segment_position_prefix, tag_segment_prefix, timestamp_segment_time_prefix,
-};
 use crate::segment::SegmentIdentity;
 use common_base::{error::common::CommonError, utils::serialize};
+use rocksdb_engine::keys::engine::{
+    engine_key_index, offset_segment_position_prefix, tag_segment_prefix,
+    timestamp_segment_time_prefix,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
@@ -39,7 +40,7 @@ pub fn get_index_data_by_offset(
     segment_iden: &SegmentIdentity,
     start_offset: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = offset_segment_position_prefix(segment_iden);
+    let prefix_key = offset_segment_position_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -81,7 +82,7 @@ pub fn get_index_data_by_tag(
     tag: String,
     record_num: usize,
 ) -> Result<Vec<IndexData>, StorageEngineError> {
-    let prefix_key = tag_segment_prefix(segment_iden, tag);
+    let prefix_key = tag_segment_prefix(&segment_iden.shard_name, segment_iden.segment, tag);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -124,7 +125,7 @@ pub fn get_index_data_by_timestamp(
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = timestamp_segment_time_prefix(segment_iden);
+    let prefix_key = timestamp_segment_time_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -165,6 +166,6 @@ pub fn get_index_data_by_key(
     key: String,
 ) -> Result<Option<IndexData>, StorageEngineError> {
     let cf = get_storage_cf(rocksdb_engine_handler)?;
-    let key = key_segment(segment_iden, key);
+    let key = engine_key_index(&segment_iden.shard_name, segment_iden.segment, key);
     Ok(rocksdb_engine_handler.read::<IndexData>(cf, &key)?)
 }

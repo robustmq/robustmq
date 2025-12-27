@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::keys::key_resource_config;
 use common_base::error::common::CommonError;
+use rocksdb_engine::keys::meta::key_resource_config;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata, engine_save_by_meta_metadata,

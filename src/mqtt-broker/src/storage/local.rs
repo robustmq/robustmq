@@ -20,15 +20,14 @@ use rocksdb_engine::{
     storage::broker::{engine_prefix_list_by_broker, engine_save_by_broker},
 };
 
-use crate::{
-    handler::{
-        error::MqttBrokerError, flapping_detect::BanLog, sub_slow::SlowSubscribeData,
-        system_alarm::SystemAlarmEventMessage,
-    },
-    storage::keys::{
-        ban_log_key, ban_log_prefix_key, slow_sub_log_key, slow_sub_log_prefix_key,
-        system_event_key, system_event_prefix_key,
-    },
+use rocksdb_engine::keys::broker::{
+    ban_log_key, ban_log_prefix_key, slow_sub_log_key, slow_sub_log_prefix_key, system_event_key,
+    system_event_prefix_key,
+};
+
+use crate::handler::{
+    error::MqttBrokerError, flapping_detect::BanLog, sub_slow::SlowSubscribeData,
+    system_alarm::SystemAlarmEventMessage,
 };
 
 pub struct LocalStorage {
@@ -43,7 +42,7 @@ impl LocalStorage {
     }
 
     pub async fn save_system_event(&self, alarm: SystemAlarmEventMessage) -> ResultCommonError {
-        let key = system_event_key(&alarm);
+        let key = system_event_key(&alarm.name, alarm.create_time as i64);
         engine_save_by_broker(&self.rocksdb_engine_handler, &key, alarm)
     }
 
@@ -57,7 +56,7 @@ impl LocalStorage {
     }
 
     pub async fn save_ban_log(&self, log: BanLog) -> ResultCommonError {
-        let key = ban_log_key(&log);
+        let key = ban_log_key(&log.ban_type, &log.resource_name, log.create_time as i64);
         engine_save_by_broker(&self.rocksdb_engine_handler, &key, log)
     }
 
@@ -69,7 +68,7 @@ impl LocalStorage {
     }
 
     pub async fn save_slow_sub_log(&self, log: SlowSubscribeData) -> ResultCommonError {
-        let key = slow_sub_log_key(&log);
+        let key = slow_sub_log_key(&log.client_id, &log.topic_name);
         engine_save_by_broker(&self.rocksdb_engine_handler, &key, log)
     }
 

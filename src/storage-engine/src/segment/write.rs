@@ -18,7 +18,10 @@ use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use crate::segment::file::open_segment_write;
 use crate::segment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::segment::offset::{get_shard_offset, save_shard_offset};
-use crate::segment::scroll::{is_trigger_next_segment_scroll, trigger_next_segment_scroll};
+use crate::segment::scroll::{
+    is_start_or_end_offset, is_trigger_next_segment_scroll, trigger_next_segment_scroll,
+    trigger_update_start_or_end_info,
+};
 use crate::segment::SegmentIdentity;
 use bytes::Bytes;
 use common_base::tools::now_second;
@@ -484,6 +487,16 @@ async fn batch_write(
         {
             error!("{}", e);
         }
+    }
+
+    // trigger start/end info update
+    if is_start_or_end_offset(cache_manager, segment_iden, &offsets) {
+        trigger_update_start_or_end_info(
+            cache_manager.clone(),
+            client_pool.clone(),
+            segment_iden.clone(),
+            offsets.clone(),
+        );
     }
 
     Ok(Some(SegmentWriteResp {

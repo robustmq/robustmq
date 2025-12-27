@@ -33,7 +33,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_common::{
-    BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRequest,
+    BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
@@ -134,12 +134,12 @@ pub async fn update_mqtt_cache_metadata(
     schema_manager: &Arc<SchemaRegisterManager>,
     message_storage_adapter: &ArcStorageAdapter,
     metrics_manager: &Arc<MQTTMetricsCache>,
-    request: &UpdateCacheRequest,
+    record: &UpdateCacheRecord,
 ) -> ResultMqttBrokerError {
-    match request.resource_type() {
-        BrokerUpdateCacheResourceType::Node => match request.action_type() {
+    match record.resource_type() {
+        BrokerUpdateCacheResourceType::Node => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let node = serialize::deserialize::<BrokerNode>(&request.data)?;
+                let node = serialize::deserialize::<BrokerNode>(&record.data)?;
                 info!(
                     "Node {} is online. Node information: {:?}",
                     node.node_id, node
@@ -147,7 +147,7 @@ pub async fn update_mqtt_cache_metadata(
                 cache_manager.broker_cache.add_node(node);
             }
             BrokerUpdateCacheActionType::Delete => {
-                let node = serialize::deserialize::<BrokerNode>(&request.data)?;
+                let node = serialize::deserialize::<BrokerNode>(&record.data)?;
                 info!(
                     "Node {} has been taken offline. Node information: {:?}",
                     node.node_id, node
@@ -156,30 +156,30 @@ pub async fn update_mqtt_cache_metadata(
             }
         },
 
-        BrokerUpdateCacheResourceType::Session => match request.action_type() {
+        BrokerUpdateCacheResourceType::Session => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let session = serialize::deserialize::<MqttSession>(&request.data)?;
+                let session = serialize::deserialize::<MqttSession>(&record.data)?;
                 cache_manager.add_session(&session.client_id, &session);
             }
             BrokerUpdateCacheActionType::Delete => {
-                let session = serialize::deserialize::<MqttSession>(&request.data)?;
+                let session = serialize::deserialize::<MqttSession>(&record.data)?;
                 cache_manager.remove_session(&session.client_id);
             }
         },
-        BrokerUpdateCacheResourceType::User => match request.action_type() {
+        BrokerUpdateCacheResourceType::User => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let user = serialize::deserialize::<MqttUser>(&request.data)?;
+                let user = serialize::deserialize::<MqttUser>(&record.data)?;
                 cache_manager.add_user(user);
             }
             BrokerUpdateCacheActionType::Delete => {
-                let user = serialize::deserialize::<MqttUser>(&request.data)?;
+                let user = serialize::deserialize::<MqttUser>(&record.data)?;
                 cache_manager.del_user(user.username);
             }
         },
 
-        BrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
+        BrokerUpdateCacheResourceType::Subscribe => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
+                let subscribe = serialize::deserialize::<MqttSubscribe>(&record.data)?;
                 subscribe_manager.add_subscribe(&subscribe);
 
                 subscribe_manager
@@ -192,7 +192,7 @@ pub async fn update_mqtt_cache_metadata(
                     .await;
             }
             BrokerUpdateCacheActionType::Delete => {
-                let subscribe = serialize::deserialize::<MqttSubscribe>(&request.data)?;
+                let subscribe = serialize::deserialize::<MqttSubscribe>(&record.data)?;
                 subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
                 subscribe_manager
                     .add_wait_parse_data(ParseSubscribeData {
@@ -205,9 +205,9 @@ pub async fn update_mqtt_cache_metadata(
             }
         },
 
-        BrokerUpdateCacheResourceType::Topic => match request.action_type() {
+        BrokerUpdateCacheResourceType::Topic => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
+                let topic = serialize::deserialize::<MQTTTopic>(&record.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
                 subscribe_manager
                     .add_wait_parse_data(ParseSubscribeData {
@@ -220,7 +220,7 @@ pub async fn update_mqtt_cache_metadata(
             }
 
             BrokerUpdateCacheActionType::Delete => {
-                let topic = serialize::deserialize::<MQTTTopic>(&request.data)?;
+                let topic = serialize::deserialize::<MQTTTopic>(&record.data)?;
                 delete_topic(
                     cache_manager,
                     &topic.topic_name,
@@ -239,34 +239,34 @@ pub async fn update_mqtt_cache_metadata(
                     .await;
             }
         },
-        BrokerUpdateCacheResourceType::Connector => match request.action_type() {
+        BrokerUpdateCacheResourceType::Connector => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let connector = serialize::deserialize::<MQTTConnector>(&request.data)?;
+                let connector = serialize::deserialize::<MQTTConnector>(&record.data)?;
                 connector_manager.add_connector(&connector);
             }
             BrokerUpdateCacheActionType::Delete => {
-                let connector = serialize::deserialize::<MQTTConnector>(&request.data)?;
+                let connector = serialize::deserialize::<MQTTConnector>(&record.data)?;
                 connector_manager.remove_connector(&connector.connector_name);
             }
         },
-        BrokerUpdateCacheResourceType::Schema => match request.action_type() {
+        BrokerUpdateCacheResourceType::Schema => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let schema = serialize::deserialize::<SchemaData>(&request.data)?;
+                let schema = serialize::deserialize::<SchemaData>(&record.data)?;
                 schema_manager.add_schema(schema);
             }
             BrokerUpdateCacheActionType::Delete => {
-                let schema = serialize::deserialize::<SchemaData>(&request.data)?;
+                let schema = serialize::deserialize::<SchemaData>(&record.data)?;
                 schema_manager.remove_schema(&schema.name);
             }
         },
-        BrokerUpdateCacheResourceType::SchemaResource => match request.action_type() {
+        BrokerUpdateCacheResourceType::SchemaResource => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let schema_resource = serialize::deserialize::<SchemaResourceBind>(&request.data)?;
+                let schema_resource = serialize::deserialize::<SchemaResourceBind>(&record.data)?;
                 schema_manager.add_bind(&schema_resource);
             }
 
             BrokerUpdateCacheActionType::Delete => {
-                let schema_resource = serialize::deserialize::<SchemaResourceBind>(&request.data)?;
+                let schema_resource = serialize::deserialize::<SchemaResourceBind>(&record.data)?;
                 schema_manager.remove_bind(&schema_resource);
             }
         },

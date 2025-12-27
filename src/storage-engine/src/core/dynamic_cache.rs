@@ -22,7 +22,7 @@ use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::broker::broker_common::{
-    BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRequest,
+    BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -30,15 +30,15 @@ use std::sync::Arc;
 pub async fn update_storage_cache_metadata(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: &UpdateCacheRequest,
+    record: &UpdateCacheRecord,
 ) -> Result<(), StorageEngineError> {
-    match request.resource_type() {
+    match record.resource_type() {
         BrokerUpdateCacheResourceType::Shard => {
             parse_shard(
                 cache_manager,
                 rocksdb_engine_handler,
-                request.action_type(),
-                &request.data,
+                record.action_type(),
+                &record.data,
             )
             .await?;
         }
@@ -47,8 +47,8 @@ pub async fn update_storage_cache_metadata(
             parse_segment(
                 cache_manager,
                 rocksdb_engine_handler,
-                request.action_type(),
-                &request.data,
+                record.action_type(),
+                &record.data,
             )
             .await?;
         }
@@ -57,14 +57,15 @@ pub async fn update_storage_cache_metadata(
             parse_segment_meta(
                 cache_manager,
                 rocksdb_engine_handler,
-                request.action_type(),
-                &request.data,
+                record.action_type(),
+                &record.data,
             )
             .await?;
         }
 
         _ => {}
     }
+
     Ok(())
 }
 
