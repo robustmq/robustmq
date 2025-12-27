@@ -13,9 +13,7 @@
 // limitations under the License.
 
 pub mod connection;
+pub mod gc;
 pub mod manager;
 pub mod packet;
-
-pub struct StorageEngineClient {}
-
-impl StorageEngineClient {}
+pub mod pool;

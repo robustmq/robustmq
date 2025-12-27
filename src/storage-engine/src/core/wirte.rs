@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    clients::manager::ClientConnectionManager,
     core::{cache::StorageCacheManager, error::StorageEngineError},
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
@@ -30,6 +31,7 @@ pub async fn batch_write(
     cache_manager: &Arc<StorageCacheManager>,
     memory_storage_engine: &Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    client_connection_manager: &Arc<ClientConnectionManager>,
     shard_name: &str,
     records: &[Record],
 ) -> Result<Vec<u64>, StorageEngineError> {
@@ -42,7 +44,7 @@ pub async fn batch_write(
     let conf = broker_config();
 
     let offsets = if conf.broker_id == active_segment.leader {
-        write_data_to_remote().await?
+        write_data_to_remote(client_connection_manager, shard_name, records).await?
     } else {
         match shard.engine_type {
             EngineType::Memory => {
@@ -65,7 +67,11 @@ pub async fn batch_write(
     Ok(offsets)
 }
 
-async fn write_data_to_remote() -> Result<Vec<u64>, StorageEngineError> {
+async fn write_data_to_remote(
+    _client_connection_manager: &Arc<ClientConnectionManager>,
+    _shard_name: &str,
+    _records: &[Record],
+) -> Result<Vec<u64>, StorageEngineError> {
     Ok(Vec::new())
 }
 

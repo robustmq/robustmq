@@ -15,18 +15,18 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use common_base::tools::now_second;
-use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::storage::codec::{StorageEngineCodec, StorageEnginePacket};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
-use tracing::error;
+use tracing::{error, warn};
 
-pub(crate) const MODULE_WRITE: &str = "write";
-pub(crate) const MODULE_READ: &str = "read";
+const MAX_RETRY_TIMES: u32 = 10;
+const RETRY_SLEEP_MS: u64 = 100;
 
 pub struct ClientConnection {
     pub stream: Framed<TcpStream, StorageEngineCodec>,
@@ -35,101 +35,94 @@ pub struct ClientConnection {
 
 pub struct NodeConnection {
     pub node_id: u64,
-    pub cache_manager: Arc<StorageCacheManager>,
-    pub connection: DashMap<String, ClientConnection>,
+    cache_manager: Arc<StorageCacheManager>,
+    connection: Mutex<Option<ClientConnection>>,
 }
 
 impl NodeConnection {
     pub fn new(node_id: u64, cache_manager: Arc<StorageCacheManager>) -> Self {
-        let connection = DashMap::with_capacity(2);
-        NodeConnection {
+        Self {
             node_id,
             cache_manager,
-            connection,
+            connection: Mutex::new(None),
         }
     }
 
-    pub async fn write_send(
+    pub async fn send(
         &self,
         req_packet: StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        self.send("write", req_packet).await
-    }
-
-    pub async fn read_send(
-        &self,
-        req_packet: StorageEnginePacket,
-    ) -> Result<StorageEnginePacket, StorageEngineError> {
-        self.send("read", req_packet).await
-    }
-
-    async fn send(
-        &self,
-        module: &str,
-        req_packet: StorageEnginePacket,
-    ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let mut times = 3;
-        let response_max_try_mut_times = 10;
-        let response_try_mut_sleep_time_ms = 100;
+        let mut times = 0;
         loop {
-            match self.connection.try_get_mut(module) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.stream.send(req_packet.clone()).await {
-                        Ok(()) => {
-                            if let Some(data) = da.stream.next().await {
-                                match data {
-                                    Ok(da) => return Ok(da),
-                                    Err(e) => {
-                                        return Err(StorageEngineError::ReceivedPacketError(
-                                            self.node_id,
-                                            e.to_string(),
-                                        ));
-                                    }
-                                }
-                            } else {
-                                return Err(StorageEngineError::ReceivedPacketIsEmpty(
-                                    self.node_id,
-                                ));
-                            }
+            if times >= MAX_RETRY_TIMES {
+                return Err(StorageEngineError::NoAvailableConn(self.node_id));
+            }
+
+            let mut conn_guard = self.connection.lock().await;
+
+            if let Some(conn) = conn_guard.as_mut() {
+                match conn.stream.send(req_packet.clone()).await {
+                    Ok(()) => match conn.stream.next().await {
+                        Some(Ok(response)) => {
+                            conn.last_active_time = now_second();
+                            return Ok(response);
                         }
-                        Err(e) => {
-                            if times > response_max_try_mut_times {
-                                return Err(StorageEngineError::SendRequestError(
-                                    self.node_id,
-                                    e.to_string(),
-                                ));
-                            }
-                        }
-                    }
-                }
-                dashmap::try_result::TryResult::Absent => {
-                    let stream = match self.open().await {
-                        Ok(stream) => stream,
-                        Err(e) => {
-                            error!("{}", e);
+                        Some(Err(e)) => {
+                            warn!(
+                                    "Received packet error from node {}: {}, removing connection and retrying",
+                                    self.node_id, e
+                                );
+                            *conn_guard = None;
+                            drop(conn_guard);
+                            times += 1;
+                            sleep(Duration::from_millis(RETRY_SLEEP_MS)).await;
                             continue;
                         }
-                    };
-                    self.connection.insert(
-                        module.to_string(),
-                        ClientConnection {
-                            stream,
-                            last_active_time: now_second(),
-                        },
-                    );
-
-                    if times > response_max_try_mut_times {
-                        return Err(StorageEngineError::NoAvailableConn(self.node_id));
+                        None => {
+                            warn!(
+                                    "Connection to node {} closed unexpectedly, removing connection and retrying",
+                                    self.node_id
+                                );
+                            *conn_guard = None;
+                            drop(conn_guard);
+                            times += 1;
+                            sleep(Duration::from_millis(RETRY_SLEEP_MS)).await;
+                            continue;
+                        }
+                    },
+                    Err(e) => {
+                        warn!(
+                            "Send request to node {} failed: {}, removing connection and retrying",
+                            self.node_id, e
+                        );
+                        *conn_guard = None;
+                        drop(conn_guard);
+                        times += 1;
+                        sleep(Duration::from_millis(RETRY_SLEEP_MS)).await;
+                        continue;
                     }
                 }
-                dashmap::try_result::TryResult::Locked => {
-                    if times > response_max_try_mut_times {
-                        return Err(StorageEngineError::ConnectionIsOccupied(self.node_id));
+            } else {
+                drop(conn_guard);
+                match self.open().await {
+                    Ok(stream) => {
+                        let mut conn_guard = self.connection.lock().await;
+                        *conn_guard = Some(ClientConnection {
+                            stream,
+                            last_active_time: now_second(),
+                        });
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to open connection to node {}: {}, retry {}/{}",
+                            self.node_id, e, times, MAX_RETRY_TIMES
+                        );
+                        times += 1;
+                        sleep(Duration::from_millis(RETRY_SLEEP_MS)).await;
+                        continue;
                     }
                 }
             }
-            times += 1;
-            sleep(Duration::from_millis(response_try_mut_sleep_time_ms)).await;
         }
     }
 
@@ -138,7 +131,7 @@ impl NodeConnection {
             .cache_manager
             .broker_cache
             .node_lists
-            .get(&(self.node_id as u64))
+            .get(&self.node_id)
         else {
             return Err(StorageEngineError::NoAvailableConn(self.node_id));
         };
@@ -147,25 +140,37 @@ impl NodeConnection {
         Ok(Framed::new(socket, StorageEngineCodec::new()))
     }
 
-    pub async fn init_conn(&self, module: &str) -> Result<(), StorageEngineError> {
-        match module {
-            "read" => self.connection.insert(
-                MODULE_READ.to_string(),
-                ClientConnection {
-                    stream: self.open().await?,
-                    last_active_time: now_second(),
-                },
-            ),
-            "write" => self.connection.insert(
-                MODULE_WRITE.to_string(),
-                ClientConnection {
-                    stream: self.open().await?,
-                    last_active_time: now_second(),
-                },
-            ),
-            _ => None,
+    pub async fn connect(&self) -> Result<(), StorageEngineError> {
+        let stream = self.open().await?;
+        let new_conn = ClientConnection {
+            stream,
+            last_active_time: now_second(),
         };
 
+        let mut conn_guard = self.connection.lock().await;
+        if conn_guard.is_some() {
+            warn!("Replaced existing connection on node {}", self.node_id);
+        }
+        *conn_guard = Some(new_conn);
+
+        Ok(())
+    }
+
+    pub async fn get_last_active_time(&self) -> Option<u64> {
+        let conn_guard = self.connection.lock().await;
+        conn_guard.as_ref().map(|c| c.last_active_time)
+    }
+
+    pub async fn close_connection(&self) -> Result<(), StorageEngineError> {
+        use futures::SinkExt;
+
+        let mut conn_guard = self.connection.lock().await;
+        if let Some(conn) = conn_guard.as_mut() {
+            if let Err(e) = conn.stream.close().await {
+                error!("Failed to close connection to node {}: {}", self.node_id, e);
+            }
+        }
+        *conn_guard = None;
         Ok(())
     }
 }

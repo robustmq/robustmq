@@ -24,17 +24,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::AdapterHandler;
 use storage_engine::handler::expire::message_expire;
-pub struct JournalStorageAdapter {
+pub struct StorageEngineAdapter {
     adapter: Arc<AdapterHandler>,
     offset_manager: Arc<OffsetManager>,
 }
 
-impl JournalStorageAdapter {
+impl StorageEngineAdapter {
     pub async fn new(
         adapter: Arc<AdapterHandler>,
         offset_manager: Arc<OffsetManager>,
-    ) -> JournalStorageAdapter {
-        JournalStorageAdapter {
+    ) -> StorageEngineAdapter {
+        StorageEngineAdapter {
             adapter,
             offset_manager,
         }
@@ -42,7 +42,7 @@ impl JournalStorageAdapter {
 }
 
 #[async_trait]
-impl StorageAdapter for JournalStorageAdapter {
+impl StorageAdapter for StorageEngineAdapter {
     async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
         self.adapter.create_shard(shard).await
     }

@@ -19,6 +19,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo, ShardOffset};
 
 use crate::{
+    clients::manager::ClientConnectionManager,
     core::{
         cache::StorageCacheManager,
         shard::{create_shard_to_place, delete_shard_to_place},
@@ -34,6 +35,7 @@ pub struct AdapterHandler {
     cache_manager: Arc<StorageCacheManager>,
     memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    client_connection_manager: Arc<ClientConnectionManager>,
     write_manager: Arc<WriteManager>,
     client_pool: Arc<ClientPool>,
 }
@@ -44,6 +46,7 @@ impl AdapterHandler {
         client_pool: Arc<ClientPool>,
         memory_storage_engine: Arc<MemoryStorageEngine>,
         rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+        client_connection_manager: Arc<ClientConnectionManager>,
         write_manager: Arc<WriteManager>,
     ) -> Self {
         AdapterHandler {
@@ -51,6 +54,7 @@ impl AdapterHandler {
             client_pool,
             memory_storage_engine,
             rocksdb_storage_engine,
+            client_connection_manager,
             write_manager,
         }
     }
@@ -103,6 +107,7 @@ impl AdapterHandler {
             &self.cache_manager,
             &self.memory_storage_engine,
             &self.rocksdb_storage_engine,
+            &self.client_connection_manager,
             shard,
             records,
         )

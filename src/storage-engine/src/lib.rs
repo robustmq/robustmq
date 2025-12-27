@@ -14,7 +14,7 @@
 
 use crate::clients::manager::ClientConnectionManager;
 use crate::server::Server;
-use crate::{clients::manager::start_conn_gc_thread, segment::write::WriteManager};
+use crate::{clients::gc::start_conn_gc_thread, segment::write::WriteManager};
 use core::cache::{load_metadata_cache, StorageCacheManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -93,11 +93,9 @@ impl StorageEngineServer {
 
     fn start_daemon_thread(&self) {
         self.write_manager.start(self.inner_stop.clone());
-        let stop_sx = self.inner_stop.clone();
         start_conn_gc_thread(
-            self.cache_manager.clone(),
             self.client_connection_manager.clone(),
-            stop_sx.subscribe(),
+            self.inner_stop.clone(),
         );
     }
 

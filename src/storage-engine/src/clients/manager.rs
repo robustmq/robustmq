@@ -1,38 +1,44 @@
-use crate::clients::connection::{NodeConnection, MODULE_READ, MODULE_WRITE};
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::clients::gc::CONNECTION_IDLE_TIMEOUT_SECS;
+use crate::clients::pool::ConnectionPool;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use futures::SinkExt;
 use protocol::storage::codec::StorageEnginePacket;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::select;
-use tokio::sync::broadcast::Receiver;
-use tokio::time::sleep;
 use tracing::error;
+
+pub const CONN_TYPE_READ: &str = "read";
+pub const CONN_TYPE_WRITE: &str = "write";
 
 pub struct ClientConnectionManager {
     cache_manager: Arc<StorageCacheManager>,
-    // (node_id, (index,NodeConnection))
-    node_conns: DashMap<u64, DashMap<u32, NodeConnection>>,
-    read_conn_atom: AtomicU64,
-    write_conn_atom: AtomicU64,
-    node_connection_num: u32,
+    read_pools: DashMap<u64, ConnectionPool>,
+    write_pools: DashMap<u64, ConnectionPool>,
+    pool_size: u32,
 }
 
 impl ClientConnectionManager {
-    pub fn new(cache_manager: Arc<StorageCacheManager>, node_connection_num: u32) -> Self {
-        let node_conns = DashMap::with_capacity(2);
-        let read_conn_atom = AtomicU64::new(0);
-        let write_conn_atom = AtomicU64::new(0);
-        ClientConnectionManager {
-            node_conns,
+    pub fn new(cache_manager: Arc<StorageCacheManager>, pool_size: u32) -> Self {
+        Self {
             cache_manager,
-            read_conn_atom,
-            write_conn_atom,
-            node_connection_num,
+            read_pools: DashMap::with_capacity(8),
+            write_pools: DashMap::with_capacity(8),
+            pool_size,
         }
     }
 
@@ -41,28 +47,18 @@ impl ClientConnectionManager {
         node_id: u64,
         req_packet: StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let new_node_id = node_id as i64;
-        if !self.node_conns.contains_key(&new_node_id) {
-            let conn = NodeConnection::new(new_node_id, self.cache_manager.clone());
-            conn.init_conn(MODULE_WRITE).await?;
-            self.node_conns.insert(new_node_id, conn);
-        }
+        let pool = self.write_pools.entry(node_id).or_insert_with(|| {
+            ConnectionPool::new(
+                node_id,
+                CONN_TYPE_WRITE,
+                self.cache_manager.clone(),
+                self.pool_size,
+            )
+        });
 
-        let conn = self.node_conns.get(&new_node_id).unwrap();
-        conn.write_send(req_packet).await
-    }
-
-    async fn try_init_write_conn(&self, node_id: u64) -> Result<(), StorageEngineError> {
-        let index = self
-            .write_conn_atom
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let seq = index % self.node_connection_num as u64;
-        if !self.node_conns.contains_key(&node_id) {
-            let conn = NodeConnection::new(node_id, self.cache_manager.clone());
-            conn.init_conn(MODULE_WRITE).await?;
-            self.node_conns.insert(new_node_id, conn);
-        }
-        Ok(())
+        let seq = pool.get_next_seq();
+        let conn = pool.get_or_create_conn(seq).await?;
+        conn.send(req_packet).await
     }
 
     pub async fn read_send(
@@ -70,83 +66,106 @@ impl ClientConnectionManager {
         node_id: u64,
         req_packet: StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        if !self.node_conns.contains_key(&node_id) {
-            let conn = NodeConnection::new(node_id, self.cache_manager.clone());
-            conn.init_conn(MODULE_READ).await?;
-            self.node_conns.insert(node_id, conn);
-        }
+        let pool = self.read_pools.entry(node_id).or_insert_with(|| {
+            ConnectionPool::new(
+                node_id,
+                CONN_TYPE_READ,
+                self.cache_manager.clone(),
+                self.pool_size,
+            )
+        });
 
-        let conn = self.node_conns.get(&new_node_id).unwrap();
-        conn.read_send(req_packet).await
+        let seq = pool.get_next_seq();
+        let conn = pool.get_or_create_conn(seq).await?;
+        conn.send(req_packet).await
     }
 
-    pub fn get_inactive_conn(&self) -> Vec<(u64, String)> {
+    pub async fn get_inactive_conn(&self) -> Vec<(u64, u64, &'static str)> {
         let mut results = Vec::new();
-        for list in self.node_conns.iter() {
-            for node in list.iter() {
-                for conn in node.connection.iter() {
-                    if (now_second() - conn.last_active_time) > 600 {
-                        results.push((node.node_id, conn.key().to_string()));
+
+        for pool_entry in self.read_pools.iter() {
+            let node_id = *pool_entry.key();
+            let conn_type = pool_entry.value().conn_type;
+            for conn_entry in pool_entry.value().connections.iter() {
+                let seq = *conn_entry.key();
+                let node_conn = conn_entry.value();
+
+                if let Some(last_active) = node_conn.get_last_active_time().await {
+                    if (now_second() - last_active) > CONNECTION_IDLE_TIMEOUT_SECS {
+                        results.push((node_id, seq, conn_type));
                     }
                 }
             }
         }
+
+        for pool_entry in self.write_pools.iter() {
+            let node_id = *pool_entry.key();
+            let conn_type = pool_entry.value().conn_type;
+            for conn_entry in pool_entry.value().connections.iter() {
+                let seq = *conn_entry.key();
+                let node_conn = conn_entry.value();
+
+                if let Some(last_active) = node_conn.get_last_active_time().await {
+                    if (now_second() - last_active) > CONNECTION_IDLE_TIMEOUT_SECS {
+                        results.push((node_id, seq, conn_type));
+                    }
+                }
+            }
+        }
+
         results
     }
 
-    pub async fn close_conn_by_node(&self, node_id: u64, conn_type: &str) {
-        if let Some(list) = self.node_conns.get(&node_id) {
-            for node in list.iter() {
-                if let Some(mut conn) = node.connection.get_mut(conn_type) {
-                    if let Err(e) = conn.stream.close().await {
-                        error!("{}", e);
-                    }
-                }
-                node.connection.remove(conn_type);
+    pub async fn close_conn(&self, node_id: u64, seq: u64, conn_type: &'static str) {
+        let pool = match conn_type {
+            CONN_TYPE_READ => self.read_pools.get(&node_id),
+            CONN_TYPE_WRITE => self.write_pools.get(&node_id),
+            _ => return,
+        };
+
+        let Some(pool) = pool else {
+            return;
+        };
+
+        if let Some(node_conn) = pool.connections.get(&seq) {
+            if let Err(e) = node_conn.close_connection().await {
+                error!(
+                    "Failed to close connection: node={}, seq={}, type={}, error={}",
+                    node_id, seq, conn_type, e
+                );
             }
-            self.node_conns.remove(&node_id);
+        }
+
+        pool.connections.remove(&seq);
+
+        if pool.connections.is_empty() {
+            drop(pool);
+            match conn_type {
+                CONN_TYPE_READ => self.read_pools.remove(&node_id),
+                CONN_TYPE_WRITE => self.write_pools.remove(&node_id),
+                _ => None,
+            };
         }
     }
 
     pub async fn close(&self) {
-        for list in self.node_conns.iter() {
-            for node in list.iter() {
-                for mut conn in node.connection.iter_mut() {
-                    if let Err(e) = conn.stream.close().await {
-                        error!("{}", e);
-                    }
+        for pool_entry in self.read_pools.iter() {
+            for node_conn in pool_entry.value().connections.iter() {
+                if let Err(e) = node_conn.close_connection().await {
+                    error!("Failed to close read connection: {}", e);
                 }
             }
         }
-    }
-}
 
-pub fn start_conn_gc_thread(
-    cache_manager: Arc<StorageCacheManager>,
-    connection_manager: Arc<ClientConnectionManager>,
-    mut stop_recv: Receiver<bool>,
-) {
-    tokio::spawn(async move {
-        loop {
-            select! {
-                val = stop_recv.recv() =>{
-                    if let Err(flag) = val {
-                        break;
-                    }
-                },
-                _ = gc_conn(cache_manager.clone(),connection_manager.clone())=>{
-                    sleep(Duration::from_secs(10)).await;
+        for pool_entry in self.write_pools.iter() {
+            for node_conn in pool_entry.value().connections.iter() {
+                if let Err(e) = node_conn.close_connection().await {
+                    error!("Failed to close write connection: {}", e);
                 }
             }
         }
-    });
-}
 
-async fn gc_conn(
-    cache_manager: Arc<StorageCacheManager>,
-    connection_manager: Arc<ClientConnectionManager>,
-) {
-    for raw in connection_manager.get_inactive_conn() {
-        connection_manager.close_conn_by_node(raw.0, &raw.1).await;
+        self.read_pools.clear();
+        self.write_pools.clear();
     }
 }
