@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::segment::write::WriteManager;
+use crate::clients::manager::ClientConnectionManager;
 use crate::server::Server;
+use crate::{clients::manager::start_conn_gc_thread, segment::write::WriteManager};
 use core::cache::{load_metadata_cache, StorageCacheManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -38,6 +39,7 @@ pub struct StorageEngineParams {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub connection_manager: Arc<ConnectionManager>,
     pub write_manager: Arc<WriteManager>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
 }
 
 pub struct StorageEngineServer {
@@ -48,6 +50,7 @@ pub struct StorageEngineServer {
     write_manager: Arc<WriteManager>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
+    client_connection_manager: Arc<ClientConnectionManager>,
 }
 
 impl StorageEngineServer {
@@ -59,6 +62,7 @@ impl StorageEngineServer {
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             connection_manager: params.connection_manager,
             write_manager: params.write_manager,
+            client_connection_manager: params.client_connection_manager,
             main_stop,
             inner_stop,
         }
@@ -89,6 +93,12 @@ impl StorageEngineServer {
 
     fn start_daemon_thread(&self) {
         self.write_manager.start(self.inner_stop.clone());
+        let stop_sx = self.inner_stop.clone();
+        start_conn_gc_thread(
+            self.cache_manager.clone(),
+            self.client_connection_manager.clone(),
+            stop_sx.subscribe(),
+        );
     }
 
     async fn waiting_stop(&self) {

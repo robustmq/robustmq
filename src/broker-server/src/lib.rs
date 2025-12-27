@@ -67,9 +67,9 @@ use storage_adapter::{
     storage::ArcStorageAdapter,
 };
 use storage_engine::{
-    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine, segment::write::WriteManager, StorageEngineParams,
-    StorageEngineServer,
+    clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
+    memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
+    segment::write::WriteManager, StorageEngineParams, StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
@@ -418,12 +418,14 @@ impl BrokerServer {
             client_pool.clone(),
             config.storage_runtime.io_thread_num,
         ));
+        let client_connection_manager =
+            Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
         StorageEngineParams {
             cache_manager,
             client_pool,
             rocksdb_engine_handler,
             connection_manager,
-
+            client_connection_manager,
             write_manager,
         }
     }

@@ -113,6 +113,21 @@ pub enum StorageEngineError {
 
     #[error("{0}")]
     CommonErrorStr(String),
+
+    #[error("Failed to send request to node {0} with error message :{1}")]
+    SendRequestError(i64, String),
+
+    #[error("request is sent to node {0} and the received return packet is empty")]
+    ReceivedPacketIsEmpty(i64),
+
+    #[error("Send request to node {0}, received wrong packet, error message :{1}")]
+    ReceivedPacketError(i64, String),
+
+    #[error("Sending a request to node {0}, obtaining a connection failed, and the connection is occupied for a long time.")]
+    ConnectionIsOccupied(i64),
+
+    #[error("Sending a request to node {0} failed to get a connection, possibly to create a connection.")]
+    NoAvailableConn(i64),
 }
 
 impl From<CommonError> for StorageEngineError {
@@ -164,6 +179,11 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::ReadSegmentFileError(_) => "ReadSegmentFileError".to_string(),
         StorageEngineError::NoOffsetInformation(_) => "NoOffsetInformation".to_string(),
         StorageEngineError::CommonErrorStr(_) => "NoOffsetInformation".to_string(),
+        StorageEngineError::SendRequestError(_, _) => "SendRequestError".to_string(),
+        StorageEngineError::ReceivedPacketIsEmpty(_) => "ReceivedPacketIsEmpty".to_string(),
+        StorageEngineError::ReceivedPacketError(_, _) => "ReceivedPacketError".to_string(),
+        StorageEngineError::ConnectionIsOccupied(_) => "ConnectionIsOccupied".to_string(),
+        StorageEngineError::NoAvailableConn(_) => "NoAvailableConn".to_string(),
     }
 }
 

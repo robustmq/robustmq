@@ -18,22 +18,40 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record, ShardInfo, ShardOffset};
 
-use crate::core::{
-    cache::StorageCacheManager,
-    shard::{create_shard_to_place, delete_shard_to_place},
+use crate::{
+    core::{
+        cache::StorageCacheManager,
+        shard::{create_shard_to_place, delete_shard_to_place},
+        wirte::batch_write,
+    },
+    memory::engine::MemoryStorageEngine,
+    rocksdb::engine::RocksDBStorageEngine,
+    segment::write::WriteManager,
 };
 
 #[derive(Clone)]
 pub struct AdapterHandler {
     cache_manager: Arc<StorageCacheManager>,
+    memory_storage_engine: Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    write_manager: Arc<WriteManager>,
     client_pool: Arc<ClientPool>,
 }
 
 impl AdapterHandler {
-    pub fn new(cache_manager: Arc<StorageCacheManager>, client_pool: Arc<ClientPool>) -> Self {
+    pub fn new(
+        cache_manager: Arc<StorageCacheManager>,
+        client_pool: Arc<ClientPool>,
+        memory_storage_engine: Arc<MemoryStorageEngine>,
+        rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+        write_manager: Arc<WriteManager>,
+    ) -> Self {
         AdapterHandler {
             cache_manager,
             client_pool,
+            memory_storage_engine,
+            rocksdb_storage_engine,
+            write_manager,
         }
     }
 
@@ -77,10 +95,22 @@ impl AdapterHandler {
 
     pub async fn batch_write(
         &self,
-        _shard: &str,
-        _records: &[Record],
+        shard: &str,
+        records: &[Record],
     ) -> Result<Vec<u64>, CommonError> {
-        Ok(Vec::new())
+        match batch_write(
+            &self.write_manager,
+            &self.cache_manager,
+            &self.memory_storage_engine,
+            &self.rocksdb_storage_engine,
+            shard,
+            records,
+        )
+        .await
+        {
+            Ok(offsets) => Ok(offsets),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
+        }
     }
 
     pub async fn read_by_offset(
