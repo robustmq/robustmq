@@ -16,10 +16,11 @@ use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::ShardInfo;
 use metadata_struct::adapter::{read_config::ReadConfig, ShardOffset};
+use metadata_struct::storage::record::StorageEngineRecord;
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::memory::engine::MemoryStorageEngine;
 
@@ -33,16 +34,20 @@ pub trait StorageAdapter {
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 
-    async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError>;
+    async fn write(&self, shard: &str, data: &StorageAdapterRecord) -> Result<u64, CommonError>;
 
-    async fn batch_write(&self, shard: &str, data: &[Record]) -> Result<Vec<u64>, CommonError>;
+    async fn batch_write(
+        &self,
+        shard: &str,
+        data: &[StorageAdapterRecord],
+    ) -> Result<Vec<u64>, CommonError>;
 
     async fn read_by_offset(
         &self,
         shard: &str,
         offset: u64,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError>;
+    ) -> Result<Vec<StorageEngineRecord>, CommonError>;
 
     async fn read_by_tag(
         &self,
@@ -50,9 +55,13 @@ pub trait StorageAdapter {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError>;
+    ) -> Result<Vec<StorageEngineRecord>, CommonError>;
 
-    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError>;
+    async fn read_by_key(
+        &self,
+        shard: &str,
+        key: &str,
+    ) -> Result<Vec<StorageEngineRecord>, CommonError>;
 
     async fn get_offset_by_timestamp(
         &self,

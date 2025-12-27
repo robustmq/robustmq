@@ -23,7 +23,7 @@ use crate::{
 };
 use axum::async_trait;
 use metadata_struct::{
-    adapter::record::Record, mqtt::bridge::config_pulsar::PulsarConnectorConfig,
+    adapter::record::StorageAdapterRecord, mqtt::bridge::config_pulsar::PulsarConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
 use storage_adapter::storage::ArcStorageAdapter;
@@ -59,7 +59,7 @@ impl ConnectorSink for PulsarBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         producer: &mut pulsar::producer::Producer<pulsar::TokioExecutor>,
     ) -> ResultMqttBrokerError {
         for record in records {

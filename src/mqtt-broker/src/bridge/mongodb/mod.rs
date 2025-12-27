@@ -18,7 +18,7 @@ use std::time::Duration;
 use axum::async_trait;
 use bson::Document;
 use metadata_struct::{
-    adapter::record::Record, mqtt::bridge::config_mongodb::MongoDBConnectorConfig,
+    adapter::record::StorageAdapterRecord, mqtt::bridge::config_mongodb::MongoDBConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
 use mongodb::{
@@ -92,7 +92,10 @@ impl MongoDBBridgePlugin {
         })
     }
 
-    fn record_to_document(&self, record: &Record) -> Result<Document, MqttBrokerError> {
+    fn record_to_document(
+        &self,
+        record: &StorageAdapterRecord,
+    ) -> Result<Document, MqttBrokerError> {
         bson::to_document(record).map_err(|e| {
             MqttBrokerError::BsonSerializationError(format!(
                 "Failed to serialize record with key '{:?}' at timestamp {}: {}",
@@ -154,7 +157,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         collection: &mut Collection<Document>,
     ) -> ResultMqttBrokerError {
         if records.is_empty() {

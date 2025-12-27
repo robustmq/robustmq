@@ -14,7 +14,6 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::core::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use crate::segment::file::open_segment_write;
 use crate::segment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::segment::offset::{get_shard_offset, save_shard_offset};
@@ -27,6 +26,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::record::{StorageEngineRecord, StorageEngineRecordMetadata};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::hash::Hasher;
@@ -48,6 +48,7 @@ pub struct WriteChannelData {
 
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
+    pub header: Option<Vec<metadata_struct::storage::record::Header>>,
     pub key: Option<String>,
     pub value: Bytes,
     pub tags: Option<Vec<String>>,
@@ -276,14 +277,15 @@ pub fn create_io_thread(
                     let record_offset = start_offset;
                     shard_pkid_list.insert(row.pkid, record_offset);
                     shard_list.push(StorageEngineRecord {
-                        metadata: StorageEngineRecordMetadata {
-                            offset: record_offset,
-                            shard: shard_name.clone(),
+                        metadata: StorageEngineRecordMetadata::new(
+                            record_offset,
+                            &shard_name,
                             segment,
-                            key: row.key.clone(),
-                            tags: row.tags.clone(),
-                            create_t,
-                        },
+                            &row.header,
+                            &row.key,
+                            &row.tags,
+                            &row.value,
+                        ),
                         data: row.value,
                     });
 
@@ -511,24 +513,27 @@ async fn batch_write(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::record::StorageEngineRecordMetadata;
     use crate::core::test::test_init_segment;
     use crate::segment::file::SegmentFile;
     use bytes::Bytes;
-    use common_base::tools::now_second;
+    use metadata_struct::storage::record::StorageEngineRecordMetadata;
 
     fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageEngineRecord> {
         (0..count)
-            .map(|i| StorageEngineRecord {
-                metadata: StorageEngineRecordMetadata {
-                    offset: i as u64,
-                    shard: shard.to_string(),
-                    segment,
-                    key: Some(format!("key-{}", i)),
-                    tags: Some(vec![format!("tag-{}", i)]),
-                    create_t: now_second(),
-                },
-                data: Bytes::from(format!("data-{}", i)),
+            .map(|i| {
+                let data = Bytes::from(format!("data-{}", i));
+                StorageEngineRecord {
+                    metadata: StorageEngineRecordMetadata::new(
+                        i as u64,
+                        shard,
+                        segment,
+                        &None,
+                        &Some(format!("key-{}", i)),
+                        &Some(vec![format!("tag-{}", i)]),
+                        &data,
+                    ),
+                    data,
+                }
             })
             .collect()
     }
@@ -634,6 +639,7 @@ mod tests {
         for i in 0..10 {
             data_list.push(WriteChannelDataRecord {
                 pkid: i,
+                header: None,
                 key: Some(format!("key-{}", i)),
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{}", i)),
@@ -687,6 +693,7 @@ mod tests {
 
         let data_list = vec![WriteChannelDataRecord {
             pkid: 1,
+            header: None,
             key: Some("key-1".to_string()),
             tags: None,
             value: Bytes::from("data-1"),
@@ -736,6 +743,7 @@ mod tests {
 
         let data_list = vec![WriteChannelDataRecord {
             pkid: 1,
+            header: None,
             key: Some("key-1".to_string()),
             tags: None,
             value: Bytes::from("data-1"),
@@ -762,6 +770,7 @@ mod tests {
 
         let data_list = vec![WriteChannelDataRecord {
             pkid: 1,
+            header: None,
             key: Some("key-1".to_string()),
             tags: None,
             value: Bytes::from("data-1"),

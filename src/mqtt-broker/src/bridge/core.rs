@@ -25,7 +25,7 @@ use common_base::{
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    adapter::record::Record,
+    adapter::record::StorageAdapterRecord,
     mqtt::bridge::{
         connector::{FailureHandlingStrategy, MQTTConnector},
         connector_type::ConnectorType,
@@ -86,7 +86,7 @@ pub trait ConnectorSink: Send + Sync {
 
     async fn send_batch(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         resource: &mut Self::SinkResource,
     ) -> ResultMqttBrokerError;
 

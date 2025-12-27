@@ -16,9 +16,10 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
+use metadata_struct::storage::record::StorageEngineRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::memory::engine::MemoryStorageEngine;
@@ -56,13 +57,17 @@ impl StorageAdapter for MemoryStorageAdapter {
         self.memory_storage_engine.delete_shard(shard_name).await
     }
 
-    async fn batch_write(&self, shard: &str, messages: &[Record]) -> Result<Vec<u64>, CommonError> {
+    async fn batch_write(
+        &self,
+        shard: &str,
+        messages: &[StorageAdapterRecord],
+    ) -> Result<Vec<u64>, CommonError> {
         self.memory_storage_engine
             .batch_write(shard, messages)
             .await
     }
 
-    async fn write(&self, shard: &str, data: &Record) -> Result<u64, CommonError> {
+    async fn write(&self, shard: &str, data: &StorageAdapterRecord) -> Result<u64, CommonError> {
         self.memory_storage_engine.write(shard, data).await
     }
 
@@ -71,7 +76,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard: &str,
         offset: u64,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         self.memory_storage_engine
             .read_by_offset(shard, offset, read_config)
             .await
@@ -83,13 +88,17 @@ impl StorageAdapter for MemoryStorageAdapter {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &ReadConfig,
-    ) -> Result<Vec<Record>, CommonError> {
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         self.memory_storage_engine
             .read_by_tag(shard, tag, start_offset, read_config)
             .await
     }
 
-    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<Record>, CommonError> {
+    async fn read_by_key(
+        &self,
+        shard: &str,
+        key: &str,
+    ) -> Result<Vec<StorageEngineRecord>, CommonError> {
         self.memory_storage_engine.read_by_key(shard, key).await
     }
 
@@ -146,7 +155,9 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
-    use storage_engine::memory::engine::MemoryStorageEngine;
+    use storage_engine::{
+        memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
+    };
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
@@ -164,10 +175,12 @@ mod tests {
         let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
             StorageDriverMemoryConfig::default(),
         ));
+        let rocksdb_storage_engine =
+            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         build_message_storage_driver(
             offset_manager.clone(),
             memory_storage_engine,
-            rocksdb_engine_handler.clone(),
+            rocksdb_storage_engine.clone(),
             config,
         )
         .await

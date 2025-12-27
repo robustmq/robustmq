@@ -14,7 +14,7 @@
 
 use std::time::Duration;
 
-use metadata_struct::adapter::record::Record;
+use metadata_struct::adapter::record::StorageAdapterRecord;
 use metadata_struct::mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
@@ -77,7 +77,7 @@ impl Sender {
             .replace(' ', "\\ ")
     }
 
-    fn record_to_line(record: &Record) -> Result<String, MqttBrokerError> {
+    fn record_to_line(record: &StorageAdapterRecord) -> Result<String, MqttBrokerError> {
         let mut tags = Vec::new();
         if let Some(headers) = &record.header {
             tags.reserve(headers.len());
@@ -90,9 +90,7 @@ impl Sender {
         let tags = tags.join(",");
 
         let mut fields = Vec::with_capacity(4);
-        if let Some(offset) = record.offset {
-            fields.push(format!("offset={offset}i"));
-        }
+        fields.push(format!("pkid={}i", record.pkid));
 
         let data_json = serde_json::to_string(&record.data).map_err(|e| {
             MqttBrokerError::CommonError(format!("Failed to serialize record data: {}", e))
@@ -106,7 +104,6 @@ impl Sender {
         let escaped_tags = Self::escape_field_value(&tags_json);
         fields.push(format!(r#"tags="{}""#, escaped_tags));
 
-        fields.push(format!("crc_num={}i", record.crc_num));
         let fields = fields.join(",");
 
         let measurement = Self::escape_measurement(record.key.as_deref().unwrap_or("unknown"));
@@ -116,7 +113,7 @@ impl Sender {
         ))
     }
 
-    pub async fn send(&self, data: &Record) -> ResultMqttBrokerError {
+    pub async fn send(&self, data: &StorageAdapterRecord) -> ResultMqttBrokerError {
         let line = Self::record_to_line(data)?;
         let res = self.client.post(&self.url).body(line).send().await?;
 
@@ -136,7 +133,7 @@ impl Sender {
         Ok(())
     }
 
-    pub async fn send_batch(&self, records: &[Record]) -> ResultMqttBrokerError {
+    pub async fn send_batch(&self, records: &[StorageAdapterRecord]) -> ResultMqttBrokerError {
         if records.is_empty() {
             return Ok(());
         }
@@ -181,7 +178,7 @@ mod tests {
             "greptime_pwd".to_string(),
         );
         let sender = Sender::new(&config).expect("Failed to create sender");
-        let mut record = Record::from_string("test".to_string());
+        let mut record = StorageAdapterRecord::from_string("test".to_string());
         record.set_key("test".to_string());
         record.set_header(vec![Header {
             name: "h1".to_string(),
@@ -214,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_record_to_line() {
-        let mut record = Record::from_string("test data".to_string());
+        let mut record = StorageAdapterRecord::from_string("test data".to_string());
         record.set_key("sensor_data".to_string());
         record.set_header(vec![Header {
             name: "location".to_string(),

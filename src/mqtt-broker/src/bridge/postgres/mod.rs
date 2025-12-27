@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use metadata_struct::{
-    adapter::record::Record, mqtt::bridge::config_postgres::PostgresConnectorConfig,
+    adapter::record::StorageAdapterRecord, mqtt::bridge::config_postgres::PostgresConnectorConfig,
     mqtt::bridge::connector::MQTTConnector,
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
@@ -48,7 +48,7 @@ impl PostgresBridgePlugin {
 
     async fn single_insert(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         pool: &Pool<Postgres>,
     ) -> ResultMqttBrokerError {
         for record in records {
@@ -110,7 +110,7 @@ impl PostgresBridgePlugin {
 
     async fn batch_insert(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         pool: &Pool<Postgres>,
     ) -> ResultMqttBrokerError {
         let mut value_placeholders = Vec::with_capacity(records.len());
@@ -205,7 +205,7 @@ impl ConnectorSink for PostgresBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[Record],
+        records: &[StorageAdapterRecord],
         pool: &mut Pool<Postgres>,
     ) -> ResultMqttBrokerError {
         if records.is_empty() {
