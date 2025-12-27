@@ -61,12 +61,12 @@ pub async fn list_segment_by_req(
     req: &ListSegmentRequest,
 ) -> Result<ListSegmentReply, MetaServiceError> {
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-    let binary_segments = if req.shard_name.is_empty() && req.segment_no == -1 {
+    let binary_segments = if req.shard_name.is_empty() && req.segment == -1 {
         segment_storage.all_segment()?
-    } else if !req.shard_name.is_empty() && req.segment_no == -1 {
+    } else if !req.shard_name.is_empty() && req.segment == -1 {
         segment_storage.list_by_shard(&req.shard_name)?
     } else {
-        match segment_storage.get(&req.shard_name, req.segment_no as u32)? {
+        match segment_storage.get(&req.shard_name, req.segment as u32)? {
             Some(segment) => vec![segment],
             None => Vec::new(),
         }
@@ -149,7 +149,7 @@ pub async fn delete_segment_by_req(
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
-    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment_seq)?;
+    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
 
     if segment.status != SegmentStatus::SealUp {
         return Err(MetaServiceError::NoAllowDeleteSegment(
@@ -181,7 +181,7 @@ pub async fn seal_up_segment_req(
     req: &SealUpSegmentRequest,
 ) -> Result<SealUpSegmentReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
-    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment_seq)?;
+    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
 
     if segment.status != SegmentStatus::Write {
         return Err(MetaServiceError::SegmentWrongState(segment.name()));
@@ -205,12 +205,12 @@ pub async fn list_segment_meta_by_req(
     req: &ListSegmentMetaRequest,
 ) -> Result<ListSegmentMetaReply, MetaServiceError> {
     let storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
-    let binary_segments = if req.shard_name.is_empty() && req.segment_no == -1 {
+    let binary_segments = if req.shard_name.is_empty() && req.segment == -1 {
         storage.all_segment()?
-    } else if !req.shard_name.is_empty() && req.segment_no == -1 {
+    } else if !req.shard_name.is_empty() && req.segment == -1 {
         storage.list_by_shard(&req.shard_name)?
     } else {
-        match storage.get(&req.shard_name, req.segment_no as u32)? {
+        match storage.get(&req.shard_name, req.segment as u32)? {
             Some(segment_meta) => vec![segment_meta],
             None => Vec::new(),
         }
@@ -234,7 +234,7 @@ pub async fn update_start_time_by_segment_meta_by_req(
     req: &UpdateStartTimeBySegmentMetaRequest,
 ) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
-    validate_segment_exists(cache_manager, &req.shard_name, req.segment_no)?;
+    validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
 
     update_start_timestamp_by_segment_metadata(
         cache_manager,
@@ -242,7 +242,7 @@ pub async fn update_start_time_by_segment_meta_by_req(
         call_manager,
         client_pool,
         &req.shard_name,
-        req.segment_no,
+        req.segment,
         req.start_timestamp,
     )
     .await?;

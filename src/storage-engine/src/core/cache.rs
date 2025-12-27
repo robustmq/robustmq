@@ -231,7 +231,7 @@ pub async fn load_metadata_cache(
 
     // load segment
     let request = ListSegmentRequest {
-        segment_no: -1,
+        segment: -1,
         ..Default::default()
     };
     let list = list_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
@@ -246,7 +246,7 @@ pub async fn load_metadata_cache(
 
     // load segment data
     let request = ListSegmentMetaRequest {
-        segment_no: -1,
+        segment: -1,
         ..Default::default()
     };
     let list = list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
