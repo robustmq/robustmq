@@ -18,9 +18,7 @@ use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::StorageAdapterRecord};
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
-use metadata_struct::storage::convert::{
-    convert_adapter_record_to_engine, convert_engine_record_to_adapter,
-};
+use metadata_struct::storage::convert::convert_adapter_record_to_engine;
 use metadata_struct::storage::record::StorageEngineRecord;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::*;
@@ -36,7 +34,7 @@ struct OffsetInfo {
     pub offset: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct IndexInfo {
     pub shard_name: String,
     pub offset: u64,
@@ -184,12 +182,11 @@ impl RocksDBStorageEngine {
         timestamp: u64,
     ) -> Result<Option<IndexInfo>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
-        let mut result = None;
         let timestamp_index_prefix = timestamp_index_prefix(shard);
         let mut iter = self.db.db.raw_iterator_cf(&cf);
         iter.seek(&timestamp_index_prefix);
 
-        let mut prefix_index = None;
+        let mut last_index = None;
         while iter.valid() {
             let Some(key_bytes) = iter.key() else {
                 break;
@@ -212,16 +209,20 @@ impl RocksDBStorageEngine {
             }
 
             let index = deserialize::<IndexInfo>(value_byte)?;
-            if index.create_time > timestamp {
-                result = prefix_index;
-                break;
+
+            if last_index.is_none() {
+                last_index = Some(index.clone());
             }
 
-            prefix_index = Some(index);
+            if index.create_time > timestamp {
+                return Ok(last_index);
+            }
+            last_index = Some(index);
+
             iter.next();
         }
 
-        Ok(result)
+        Ok(last_index)
     }
 
     async fn read_data_by_time(
@@ -229,16 +230,17 @@ impl RocksDBStorageEngine {
         shard: &str,
         start_index: &Option<IndexInfo>,
         timestamp: u64,
-    ) -> Result<Option<StorageAdapterRecord>, CommonError> {
+    ) -> Result<Option<u64>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
-        let timestamp_index_prefix = if let Some(si) = start_index {
+        let seek_key = if let Some(si) = start_index {
             shard_record_key(shard, si.offset)
         } else {
             shard_record_key_prefix(shard)
         };
+        let prefix = shard_record_key_prefix(shard);
 
         let mut iter = self.db.db.raw_iterator_cf(&cf);
-        iter.seek(&timestamp_index_prefix);
+        iter.seek(&seek_key);
 
         while iter.valid() {
             let Some(key_bytes) = iter.key() else {
@@ -257,15 +259,14 @@ impl RocksDBStorageEngine {
                 }
             };
 
-            if !key.starts_with(&timestamp_index_prefix) {
+            if !key.starts_with(&prefix) {
                 break;
             }
 
-            let engine_record = deserialize::<StorageEngineRecord>(value_byte)?;
-            // Return the first record with timestamp >= target timestamp
-            // This matches the Memory adapter semantics
-            if engine_record.metadata.create_t >= timestamp {
-                return Ok(Some(convert_engine_record_to_adapter(engine_record)));
+            if let Ok(engine_record) = deserialize::<StorageEngineRecord>(value_byte) {
+                if engine_record.metadata.create_t >= timestamp {
+                    return Ok(Some(engine_record.metadata.offset));
+                }
             }
 
             iter.next();
@@ -517,14 +518,13 @@ impl RocksDBStorageEngine {
     ) -> Result<Option<ShardOffset>, CommonError> {
         let index: Option<IndexInfo> = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
-            if self
+            if let Some(found_offset) = self
                 .read_data_by_time(shard, &Some(idx.clone()), timestamp)
                 .await?
-                .is_some()
             {
                 return Ok(Some(ShardOffset {
                     shard_name: shard.to_string(),
-                    offset: idx.offset,
+                    offset: found_offset,
                     ..Default::default()
                 }));
             }
