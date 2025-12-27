@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    core::error::StorageEngineError,
-    segment::{
-        index::segment::SegmentIndexManager, keys::offset_segment_cursor_offset, SegmentIdentity,
-    },
-};
+use crate::core::error::StorageEngineError;
+use crate::segment::{index::segment::SegmentIndexManager, SegmentIdentity};
+use rocksdb_engine::keys::engine::offset_segment_cursor_offset;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{

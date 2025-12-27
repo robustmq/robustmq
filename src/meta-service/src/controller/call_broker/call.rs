@@ -22,19 +22,19 @@ use dashmap::DashMap;
 use grpc_clients::broker::common::call::broker_common_update_cache;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
-use protocol::broker::broker_common::BrokerUpdateCacheActionType;
-use protocol::broker::broker_common::BrokerUpdateCacheResourceType;
 use protocol::broker::broker_common::UpdateCacheRecord;
 use protocol::broker::broker_common::UpdateCacheRequest;
+use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
 const BROKER_CALL_CHANNEL_SIZE: usize = 1000;
+const BATCH_SIZE: usize = 100;
+const BATCH_CHECK_INTERVAL_MS: u64 = 10;
 
 pub async fn start_call_thread(
     node: BrokerNode,
@@ -45,7 +45,7 @@ pub async fn start_call_thread(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         if let Some(node_send) = call_manager.get_node_sender(node.node_id) {
-            let mut raw_stop_rx = stop_send.subscribe();
+            let mut stop_recv = stop_send.subscribe();
             let mut data_recv = node_send.sender.subscribe();
 
             if ready_tx.send(()).is_err() {
@@ -58,45 +58,67 @@ pub async fn start_call_thread(
             );
 
             loop {
-                select! {
-                    val = raw_stop_rx.recv() =>{
-                        match val {
-                            Ok(flag) => {
-                                if flag {
-                                    info!("Stopped inner communication thread for Broker node {}", node.node_id);
-                                    break;
-                                }
-                            }
-                            Err(e) => {
-                                error!("Stop channel error for node {}: {}", node.node_id, e);
+                match stop_recv.try_recv() {
+                    Ok(flag) => {
+                        if flag {
+                            info!(
+                                "Stopped inner communication thread for Broker node {}",
+                                node.node_id
+                            );
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
+                        error!("Stop channel closed for node {}", node.node_id);
+                        break;
+                    }
+                    Err(_) => {}
+                }
+
+                let mut batch = Vec::new();
+                loop {
+                    match data_recv.try_recv() {
+                        Ok(msg) => {
+                            batch.push(msg);
+                            if batch.len() >= BATCH_SIZE {
                                 break;
                             }
                         }
-                    },
-                    val = data_recv.recv()=>{
-                        match val {
-                            Ok(data) => {
-                                if is_ignore_push(&node, &data){
-                                    continue;
-                                }
-                                call_mqtt_update_cache(&client_pool, &call_manager.broker_cache, &node.node_inner_addr, &data).await;
-                            }
-                            Err(e) => {
-                                match e {
-                                    tokio::sync::broadcast::error::RecvError::Lagged(skipped) => {
-                                        warn!(
-                                            "Communication thread for node {} lagged, skipped {} messages",
-                                            node.node_id, skipped
-                                        );
-                                    }
-                                    tokio::sync::broadcast::error::RecvError::Closed => {
-                                        info!("Data channel closed for node {}, stopping thread", node.node_id);
-                                        break;
-                                    }
-                                }
-                            }
+                        Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+                        Err(tokio::sync::broadcast::error::TryRecvError::Lagged(skipped)) => {
+                            warn!(
+                                "Communication thread for node {} lagged, skipped {} messages",
+                                node.node_id, skipped
+                            );
+                        }
+                        Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
+                            info!(
+                                "Data channel closed for node {}, stopping thread",
+                                node.node_id
+                            );
+                            break;
                         }
                     }
+                }
+
+                if batch.is_empty() {
+                    tokio::time::sleep(Duration::from_millis(BATCH_CHECK_INTERVAL_MS)).await;
+                    continue;
+                }
+
+                let filtered: Vec<BrokerCallMessage> = batch
+                    .into_iter()
+                    .filter(|msg| !is_ignore_push(&node, msg))
+                    .collect();
+
+                if !filtered.is_empty() {
+                    call_mqtt_update_cache(
+                        &client_pool,
+                        &call_manager.broker_cache,
+                        &node.node_inner_addr,
+                        &filtered,
+                    )
+                    .await;
                 }
             }
         } else {
@@ -130,7 +152,7 @@ async fn call_mqtt_update_cache(
     client_pool: &Arc<ClientPool>,
     broker_cache: &Arc<BrokerCacheManager>,
     addr: &str,
-    data: &Vec<BrokerCallMessage>,
+    data: &[BrokerCallMessage],
 ) {
     let records = data
         .iter()
@@ -150,6 +172,25 @@ async fn call_mqtt_update_cache(
     };
 }
 
+pub async fn send_cache_update<F>(
+    call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    action_type: BrokerUpdateCacheActionType,
+    resource_type: BrokerUpdateCacheResourceType,
+    encode_fn: F,
+) -> Result<(), MetaServiceError>
+where
+    F: FnOnce() -> Result<Vec<u8>, MetaServiceError>,
+{
+    let data = encode_fn()?;
+    let message = BrokerCallMessage {
+        action_type,
+        resource_type,
+        data,
+    };
+    add_call_message(call_manager, client_pool, message).await
+}
+
 pub async fn add_call_message(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -158,12 +199,12 @@ pub async fn add_call_message(
     for raw in call_manager.broker_cache.node_list().iter() {
         match call_manager.node_sender.entry(raw.node_id) {
             Entry::Occupied(entry) => {
-                if let Err(e) = entry.get().sender.send(message.clone()) {
-                    error!(
+                entry.get().sender.send(message.clone()).map_err(|e| {
+                    MetaServiceError::CommonError(format!(
                         "Failed to send message to Broker node {}: {}",
                         raw.node_id, e
-                    );
-                }
+                    ))
+                })?;
             }
             Entry::Vacant(entry) => {
                 let (sx, _) = broadcast::channel::<BrokerCallMessage>(BROKER_CALL_CHANNEL_SIZE);
@@ -188,22 +229,27 @@ pub async fn add_call_message(
 
                 call_manager.node_thread_handle.insert(raw.node_id, handle);
 
-                if tokio::time::timeout(Duration::from_secs(1), ready_rx)
+                tokio::time::timeout(Duration::from_secs(1), ready_rx)
                     .await
-                    .is_err()
-                {
-                    warn!(
-                        "Timeout waiting for thread to be ready for node {}",
-                        raw.node_id
-                    );
-                }
+                    .map_err(|_| {
+                        MetaServiceError::CommonError(format!(
+                            "Timeout waiting for thread to be ready for node {}",
+                            raw.node_id
+                        ))
+                    })?
+                    .map_err(|_| {
+                        MetaServiceError::CommonError(format!(
+                            "Failed to receive ready signal from thread for node {}",
+                            raw.node_id
+                        ))
+                    })?;
 
-                if let Err(e) = sx.send(message.clone()) {
-                    error!(
-                        "Failed to send initial message to newly started Broker node {}: {}",
+                sx.send(message.clone()).map_err(|e| {
+                    MetaServiceError::CommonError(format!(
+                        "Failed to send message to Broker node {}: {}",
                         raw.node_id, e
-                    );
-                }
+                    ))
+                })?;
             }
         }
     }

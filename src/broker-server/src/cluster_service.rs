@@ -18,7 +18,7 @@ use mqtt_broker::{
 };
 use protocol::broker::broker_common::{
     broker_common_service_server::BrokerCommonService, BrokerUpdateCacheResourceType,
-    UpdateCacheReply, UpdateCacheRequest,
+    UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
@@ -44,9 +44,12 @@ impl BrokerCommonService for GrpcBrokerCommonService {
         request: Request<UpdateCacheRequest>,
     ) -> Result<Response<UpdateCacheReply>, Status> {
         let req = request.into_inner();
-        if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, &req).await {
-            return Err(Status::internal(e.to_string()));
+        for record in req.records.iter() {
+            if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, record).await {
+                return Err(Status::internal(e.to_string()));
+            }
         }
+
         Ok(Response::new(UpdateCacheReply::default()))
     }
 }
@@ -54,9 +57,9 @@ impl BrokerCommonService for GrpcBrokerCommonService {
 async fn update_cache(
     mqtt_params: &MqttBrokerServerParams,
     storage_params: &StorageEngineParams,
-    req: &UpdateCacheRequest,
+    record: &UpdateCacheRecord,
 ) -> ResultCommonError {
-    match req.resource_type() {
+    match record.resource_type() {
         // MQTT Broker
         BrokerUpdateCacheResourceType::Session
         | BrokerUpdateCacheResourceType::User
@@ -72,7 +75,7 @@ async fn update_cache(
                 &mqtt_params.schema_manager,
                 &mqtt_params.message_storage_adapter,
                 &mqtt_params.metrics_cache_manager,
-                req,
+                record,
             )
             .await
             {
@@ -91,7 +94,7 @@ async fn update_cache(
             if let Err(e) = update_storage_cache_metadata(
                 &storage_params.cache_manager,
                 &storage_params.rocksdb_engine_handler,
-                req,
+                record,
             )
             .await
             {

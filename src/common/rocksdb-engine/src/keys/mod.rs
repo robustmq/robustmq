@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod auto_subscribe;
-pub mod blacklist;
-pub mod connector;
-pub mod local;
-pub mod message;
-pub mod schema;
-pub mod session;
-pub mod topic;
-pub mod user;
+pub mod broker;
+pub mod engine;
+pub mod meta;
+pub mod storage;
+
+pub const PREFIX_META: &str = "/meta/";
+pub const PREFIX_BROKER: &str = "/broker/";
+pub const PREFIX_STORAGE: &str = "/storage/";
+pub const PREFIX_ENGINE: &str = "/engine/";
+pub const SEP: char = '/';

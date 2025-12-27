@@ -20,7 +20,7 @@ use rocksdb_engine::storage::meta_data::{
 };
 
 use crate::core::error::MetaServiceError;
-use crate::storage::keys::storage_key_mqtt_last_will;
+use rocksdb_engine::keys::meta::storage_key_mqtt_last_will;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 
 pub struct MqttLastWillStorage {

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rocksdb::key::*;
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::tools::now_second;
@@ -23,12 +22,11 @@ use metadata_struct::adapter::MessageExpireConfig;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use metadata_struct::adapter::{ShardInfo, ShardOffset};
 use rocksdb::WriteBatch;
+use rocksdb_engine::keys::storage::*;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
-
-mod key;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct OffsetInfo {

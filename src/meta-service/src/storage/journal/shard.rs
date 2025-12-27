@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::keys::{key_all_shard, key_shard};
 use common_base::error::common::CommonError;
 use metadata_struct::storage::shard::EngineShard;
+use rocksdb_engine::keys::meta::{key_all_shard, key_shard};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,

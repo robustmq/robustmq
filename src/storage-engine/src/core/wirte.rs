@@ -14,28 +14,20 @@
 
 use crate::core::{cache::StorageCacheManager, error::StorageEngineError};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::{
-    adapter::record::Record,
-    storage::{segment::EngineSegment, shard::EngineShard},
-};
+use metadata_struct::{adapter::record::Record, storage::shard::EngineShard};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn _batch_write(
     _client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
-    shard: &str,
+    shard_name: &str,
     _records: &[Record],
 ) -> Result<Vec<u64>, StorageEngineError> {
-    let _shard_info = if let Some(shard_info) = cache_manager.shards.get(shard) {
-        shard_info.clone()
-    } else {
-        return Err(StorageEngineError::ShardNotExist(shard.to_string()));
+    let Some(_shard) = cache_manager.shards.get(shard_name) else {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    // let segment = get_active_segment(client_pool, cache_manager, shard).await?;
-    // let config = broker_config();
-    // if segment.leader == config.broker_id {}
     Ok(Vec::new())
 }
 
@@ -63,15 +55,3 @@ async fn _write_to_local(
 }
 
 async fn _write_to_leader() {}
-
-async fn _get_active_segment(
-    _client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<StorageCacheManager>,
-    shard: &str,
-) -> Result<EngineSegment, StorageEngineError> {
-    if let Some(segment) = cache_manager.get_active_segment(shard) {
-        return Ok(segment);
-    }
-
-    Err(StorageEngineError::NotActiveSegment(shard.to_string()))
-}

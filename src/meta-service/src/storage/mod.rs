@@ -14,5 +14,4 @@
 
 pub mod common;
 pub mod journal;
-pub mod keys;
 pub mod mqtt;

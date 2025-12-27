@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::storage::keys::{
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use rocksdb_engine::keys::meta::{
     storage_key_mqtt_schema, storage_key_mqtt_schema_bind,
     storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
 };
-use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,

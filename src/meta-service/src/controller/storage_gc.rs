@@ -90,7 +90,7 @@ pub async fn gc_segment_thread(
             continue;
         }
 
-        update_cache_by_delete_segment(call_manager, client_pool, &segment).await?;
+        update_cache_by_delete_segment(call_manager, client_pool, segment.clone()).await?;
         delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
     }
     Ok(())
