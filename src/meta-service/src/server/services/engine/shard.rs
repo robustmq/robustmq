@@ -27,13 +27,14 @@ use protocol::meta::meta_service_journal::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
+use tracing::info;
 
 pub async fn list_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListShardRequest,
 ) -> Result<ListShardReply, MetaServiceError> {
     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
-    let binary_shards = if req.shard_name.is_empty() {
+    let shards = if req.shard_name.is_empty() {
         shard_storage.all_shard()?
     } else {
         match shard_storage.get(&req.shard_name)? {
@@ -41,8 +42,6 @@ pub async fn list_shard_by_req(
             None => Vec::new(),
         }
     };
-
-    let shards: Vec<EngineShard> = binary_shards.into_iter().collect();
 
     let shards_data = shards
         .into_iter()
@@ -61,7 +60,6 @@ pub async fn create_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
-    // Check that the number of available nodes is sufficient
     let num = cache_manager.node_list.len() as u32;
     let shard_config: EngineShardConfig = EngineShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
@@ -92,7 +90,13 @@ pub async fn create_shard_by_req(
     )
     .await?;
 
-    let replica: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
+    let replica = segment.replicas.iter().map(|rep| rep.node_id).collect();
+
+    info!(
+        "Created shard '{}' with initial segment {}",
+        req.shard_name, segment.segment_seq
+    );
+
     Ok(CreateShardReply {
         segment_no: segment.segment_seq,
         replica,
@@ -106,9 +110,9 @@ pub async fn delete_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, MetaServiceError> {
-    if cache_manager.shard_list.contains_key(&req.shard_name) {
+    if !cache_manager.shard_list.contains_key(&req.shard_name) {
         return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
-    };
+    }
 
     update_shard_status(
         raft_manager,
@@ -121,6 +125,8 @@ pub async fn delete_shard_by_req(
     .await?;
 
     cache_manager.add_wait_delete_shard(&req.shard_name);
+
+    info!("Marked shard '{}' for deletion", req.shard_name);
 
     Ok(DeleteShardReply::default())
 }

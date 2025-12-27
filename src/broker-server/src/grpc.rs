@@ -141,12 +141,9 @@ fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServ
 }
 
 fn get_storage_engine_inner_handler(
-    params: &StorageEngineParams,
+    _params: &StorageEngineParams,
 ) -> GrpcBrokerStorageServerService {
-    GrpcBrokerStorageServerService::new(
-        params.cache_manager.clone(),
-        params.rocksdb_engine_handler.clone(),
-    )
+    GrpcBrokerStorageServerService::new()
 }
 
 #[derive(Debug, Clone, Default)]

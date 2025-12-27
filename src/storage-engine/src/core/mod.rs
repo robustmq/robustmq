@@ -18,7 +18,6 @@ pub mod error;
 pub mod read;
 pub mod record;
 pub mod segment;
-pub mod services;
 pub mod shard;
 pub mod test;
 pub mod tool;

@@ -102,11 +102,11 @@ fn segment_base(segment_iden: &SegmentIdentity) -> String {
 
 /// Key for storing the current offset of a shard
 ///
-/// Format: `/o/{shard}`
+/// Format: `/o/{shard}/{segment}`
 ///
 /// This is stored separately from the index and used for offset management.
-pub(crate) fn offset_segment_offset(shard: &str) -> String {
-    format!("{}{}", OFFSET_PREFIX, shard)
+pub(crate) fn offset_segment_cursor_offset(shard: &str, segment: u32) -> String {
+    format!("{}{}{}{}", OFFSET_PREFIX, shard, SEP, segment)
 }
 
 /// Key for the start offset of a segment

@@ -18,41 +18,5 @@ syntax = "proto3";
 package broker.storage;
 
 service BrokerStorageService {
-  rpc DeleteShardFile(DeleteShardFileRequest) returns (DeleteShardFileReply) {}
-  rpc GetShardDeleteStatus(GetShardDeleteStatusRequest) returns (GetShardDeleteStatusReply) {}
-  rpc DeleteSegmentFile(DeleteSegmentFileRequest) returns (DeleteSegmentFileReply) {}
-  rpc GetSegmentDeleteStatus(GetSegmentDeleteStatusRequest) returns (GetSegmentDeleteStatusReply) {}
-}
 
-
-message DeleteShardFileRequest {
-  string shard_name = 3;
-}
-
-message DeleteShardFileReply {}
-
-message GetShardDeleteStatusRequest {
-  string shard_name = 3;
-}
-
-message GetShardDeleteStatusReply {
-  bool status = 1;
-}
-
-message DeleteSegmentFileRequest {
-
-  string shard_name = 3;
-  uint32 segment = 4;
-}
-
-message DeleteSegmentFileReply {}
-
-message GetSegmentDeleteStatusRequest {
-
-  string shard_name = 3;
-  uint32 segment = 4;
-}
-
-message GetSegmentDeleteStatusReply {
-  bool status = 1;
 }

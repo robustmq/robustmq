@@ -14,6 +14,7 @@
 
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::CacheManager;
+use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::engine::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
@@ -61,21 +62,52 @@ impl GrpcEngineService {
         }
     }
 
-    // Helper: Validate request and convert errors
     fn validate_request<T: Validator>(&self, req: &T) -> Result<(), Status> {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))
     }
 
-    // Helper: Convert MetaServiceError to Status
-    fn to_status<E: ToString>(e: E) -> Status {
-        Status::internal(e.to_string())
+    fn to_status(e: MetaServiceError) -> Status {
+        let msg = e.to_string();
+        match e {
+            MetaServiceError::ShardDoesNotExist(_)
+            | MetaServiceError::SegmentDoesNotExist(_)
+            | MetaServiceError::SegmentMetaDoesNotExist(_)
+            | MetaServiceError::NodeDoesNotExist(_)
+            | MetaServiceError::UserDoesNotExist(_)
+            | MetaServiceError::TopicDoesNotExist(_)
+            | MetaServiceError::SessionDoesNotExist(_)
+            | MetaServiceError::ConnectorNotFound(_)
+            | MetaServiceError::SchemaDoesNotExist(_)
+            | MetaServiceError::SubscribeDoesNotExist(_)
+            | MetaServiceError::WillMessageDoesNotExist(_)
+            | MetaServiceError::SchemaNotFound(_)
+            | MetaServiceError::ClusterDoesNotExist(_) => Status::not_found(msg),
+
+            MetaServiceError::TopicAlreadyExist(_)
+            | MetaServiceError::ConnectorAlreadyExist(_)
+            | MetaServiceError::UserAlreadyExist(_)
+            | MetaServiceError::SchemaAlreadyExist(_) => Status::already_exists(msg),
+
+            MetaServiceError::RequestParamsNotEmpty(_)
+            | MetaServiceError::InvalidSegmentGreaterThan(_, _)
+            | MetaServiceError::InvalidSegmentLessThan(_, _) => Status::invalid_argument(msg),
+
+            MetaServiceError::NotEnoughEngineNodes(_, _)
+            | MetaServiceError::ShardHasEnoughSegment(_)
+            | MetaServiceError::NumberOfReplicasIsIncorrect(_, _)
+            | MetaServiceError::NoAvailableBrokerNode
+            | MetaServiceError::SegmentStateError(_, _, _)
+            | MetaServiceError::NoAllowDeleteSegment(_, _)
+            | MetaServiceError::SegmentWrongState(_) => Status::failed_precondition(msg),
+
+            _ => Status::internal(msg),
+        }
     }
 }
 
 #[tonic::async_trait]
 impl EngineService for GrpcEngineService {
-    // Shard
     async fn list_shard(
         &self,
         request: Request<ListShardRequest>,
@@ -127,7 +159,6 @@ impl EngineService for GrpcEngineService {
         .map(Response::new)
     }
 
-    // Segment
     async fn list_segment(
         &self,
         request: Request<ListSegmentRequest>,
@@ -198,7 +229,6 @@ impl EngineService for GrpcEngineService {
         .map(Response::new)
     }
 
-    // Segment Metadata
     async fn list_segment_meta(
         &self,
         request: Request<ListSegmentMetaRequest>,

@@ -38,6 +38,21 @@ pub async fn update_cache_by_set_shard(
     Ok(())
 }
 
+pub async fn update_cache_by_delete_shard(
+    broker_call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    shard_info: EngineShard,
+) -> Result<(), MetaServiceError> {
+    let data = shard_info.encode()?;
+    let message = BrokerCallMessage {
+        action_type: BrokerUpdateCacheActionType::Delete,
+        resource_type: BrokerUpdateCacheResourceType::Shard,
+        data,
+    };
+    add_call_message(broker_call_manager, client_pool, message).await?;
+    Ok(())
+}
+
 pub async fn update_cache_by_set_segment(
     broker_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -46,6 +61,21 @@ pub async fn update_cache_by_set_segment(
     let data = segment_info.encode()?;
     let message = BrokerCallMessage {
         action_type: BrokerUpdateCacheActionType::Set,
+        resource_type: BrokerUpdateCacheResourceType::Segment,
+        data,
+    };
+    add_call_message(broker_call_manager, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_delete_segment(
+    broker_call_manager: &Arc<BrokerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_info: &EngineSegment,
+) -> Result<(), MetaServiceError> {
+    let data = segment_info.encode()?;
+    let message = BrokerCallMessage {
+        action_type: BrokerUpdateCacheActionType::Delete,
         resource_type: BrokerUpdateCacheResourceType::Segment,
         data,
     };

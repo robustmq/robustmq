@@ -24,7 +24,7 @@ use crate::raft::manager::MultiRaftManager;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::SegmentStatus;
+use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
@@ -33,6 +33,28 @@ use protocol::meta::meta_service_journal::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
+
+fn validate_shard_exists(
+    cache_manager: &Arc<CacheManager>,
+    shard_name: &str,
+) -> Result<(), MetaServiceError> {
+    if !cache_manager.shard_list.contains_key(shard_name) {
+        return Err(MetaServiceError::ShardDoesNotExist(shard_name.to_string()));
+    }
+    Ok(())
+}
+
+fn validate_segment_exists(
+    cache_manager: &Arc<CacheManager>,
+    shard_name: &str,
+    segment_seq: u32,
+) -> Result<EngineSegment, MetaServiceError> {
+    cache_manager
+        .get_segment(shard_name, segment_seq)
+        .ok_or_else(|| {
+            MetaServiceError::SegmentDoesNotExist(format!("{}-{}", shard_name, segment_seq))
+        })
+}
 
 pub async fn list_segment_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -67,14 +89,16 @@ pub async fn create_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
-    let shard = if let Some(shard) = cache_manager.shard_list.get(&req.shard_name) {
-        shard.clone()
-    } else {
-        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
-    };
+    let shard = cache_manager
+        .shard_list
+        .get(&req.shard_name)
+        .ok_or_else(|| MetaServiceError::ShardDoesNotExist(req.shard_name.clone()))?;
 
     if req.current_segment as u32 != shard.active_segment_seq {
-        return Err(MetaServiceError::CommonError("".to_string()));
+        return Err(MetaServiceError::CommonError(format!(
+            "Segment {} is not the active segment for shard {}, current active is {}",
+            req.current_segment, req.shard_name, shard.active_segment_seq
+        )));
     }
 
     let next_segment = (req.current_segment + 1) as u32;
@@ -124,19 +148,8 @@ pub async fn delete_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
-    if !cache_manager.shard_list.contains_key(&req.shard_name) {
-        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
-    };
-
-    let segment = if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq)
-    {
-        segment
-    } else {
-        return Err(MetaServiceError::SegmentDoesNotExist(format!(
-            "{}-{}",
-            req.shard_name, req.segment_seq
-        )));
-    };
+    validate_shard_exists(cache_manager, &req.shard_name)?;
+    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment_seq)?;
 
     if segment.status != SegmentStatus::SealUp {
         return Err(MetaServiceError::NoAllowDeleteSegment(
@@ -167,22 +180,11 @@ pub async fn seal_up_segment_req(
     client_pool: &Arc<ClientPool>,
     req: &SealUpSegmentRequest,
 ) -> Result<SealUpSegmentReply, MetaServiceError> {
-    if !cache_manager.shard_list.contains_key(&req.shard_name) {
-        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
-    };
-
-    let segment = if let Some(segment) = cache_manager.get_segment(&req.shard_name, req.segment_seq)
-    {
-        segment
-    } else {
-        return Err(MetaServiceError::SegmentDoesNotExist(format!(
-            "{}-{}",
-            req.shard_name, req.segment_seq
-        )));
-    };
+    validate_shard_exists(cache_manager, &req.shard_name)?;
+    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment_seq)?;
 
     if segment.status != SegmentStatus::Write {
-        return Err(MetaServiceError::CommonError("".to_string()));
+        return Err(MetaServiceError::SegmentWrongState(segment.name()));
     }
 
     seal_up_segment(
@@ -231,19 +233,8 @@ pub async fn update_start_time_by_segment_meta_by_req(
     client_pool: &Arc<ClientPool>,
     req: &UpdateStartTimeBySegmentMetaRequest,
 ) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {
-    if !cache_manager.shard_list.contains_key(&req.shard_name) {
-        return Err(MetaServiceError::ShardDoesNotExist(req.shard_name.clone()));
-    };
-
-    if cache_manager
-        .get_segment(&req.shard_name, req.segment_no)
-        .is_none()
-    {
-        return Err(MetaServiceError::SegmentDoesNotExist(format!(
-            "{}_{}",
-            req.shard_name, req.segment_no
-        )));
-    };
+    validate_shard_exists(cache_manager, &req.shard_name)?;
+    validate_segment_exists(cache_manager, &req.shard_name, req.segment_no)?;
 
     update_start_timestamp_by_segment_metadata(
         cache_manager,
@@ -255,5 +246,6 @@ pub async fn update_start_time_by_segment_meta_by_req(
         req.start_timestamp,
     )
     .await?;
+
     Ok(UpdateStartTimeBySegmentMetaReply::default())
 }

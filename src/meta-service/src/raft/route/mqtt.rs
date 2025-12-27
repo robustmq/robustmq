@@ -244,7 +244,7 @@ impl DataRouteMqtt {
         let req = CreateConnectorRequest::decode(value.as_ref())?;
         let connector = MQTTConnector::decode(&req.connector)?;
         storage.save(&req.connector_name, &connector)?;
-        self.cache_manager.add_connector(&connector);
+        self.cache_manager.add_connector(connector);
         Ok(())
     }
 

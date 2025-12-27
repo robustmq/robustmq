@@ -380,7 +380,7 @@ mod tests {
             let broker_id = (broker_idx + 1) as u64;
             for j in 0..connector_count {
                 cache_manager.add_connector(
-                    &MQTTConnector {
+                    MQTTConnector {
                         connector_name: format!("conn_b{}_n{}", broker_id, j),
                         connector_type: ConnectorType::LocalFile,
                         topic_name: "test_topic".to_string(),
@@ -468,7 +468,7 @@ mod tests {
         // Add unassigned connectors
         for i in 0..3 {
             cache_manager.add_connector(
-                &MQTTConnector {
+                MQTTConnector {
                     connector_name: format!("unassigned_{}", i),
                     connector_type: ConnectorType::LocalFile,
                     topic_name: "test_topic".to_string(),

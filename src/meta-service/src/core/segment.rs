@@ -27,8 +27,10 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::shard::EngineShard;
-use rand::{thread_rng, Rng};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::sync::Arc;
+use tracing::{info, warn};
 
 pub async fn create_segment(
     cache_manager: &Arc<CacheManager>,
@@ -39,27 +41,33 @@ pub async fn create_segment(
     segment_seq: u32,
     start_offset: u64,
 ) -> Result<EngineSegment, MetaServiceError> {
-    let segment =
-        if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_seq) {
-            segment
-        } else {
-            // create segment
-            let segment: EngineSegment = build_segment(shard_info, cache_manager, 0).await?;
-            sync_save_segment_info(raft_manager, &segment).await?;
-            update_cache_by_set_segment(call_manager, client_pool, &segment.clone()).await?;
+    let segment = if let Some(segment) =
+        cache_manager.get_segment(&shard_info.shard_name, segment_seq)
+    {
+        segment
+    } else {
+        info!(
+            "Creating new segment: shard={}, segment={}, start_offset={}",
+            shard_info.shard_name, segment_seq, start_offset
+        );
 
-            // create segment metadata
-            create_segment_metadata(
-                cache_manager,
-                raft_manager,
-                call_manager,
-                client_pool,
-                &segment,
-                start_offset as i64,
-            )
-            .await?;
-            segment
-        };
+        let segment: EngineSegment = build_segment(shard_info, cache_manager, segment_seq).await?;
+
+        sync_save_segment_info(raft_manager, &segment).await?;
+        update_cache_by_set_segment(call_manager, client_pool, &segment).await?;
+
+        create_segment_metadata(
+            cache_manager,
+            raft_manager,
+            call_manager,
+            client_pool,
+            &segment,
+            start_offset as i64,
+        )
+        .await?;
+
+        segment
+    };
     Ok(segment)
 }
 
@@ -71,6 +79,11 @@ pub async fn seal_up_segment(
     segment: &EngineSegment,
     last_timestamp: u64,
 ) -> Result<(), MetaServiceError> {
+    info!(
+        "Sealing up segment: shard={}, segment={}, last_timestamp={}",
+        segment.shard_name, segment.segment_seq, last_timestamp
+    );
+
     update_segment_status(
         cache_manager,
         call_manager,
@@ -92,6 +105,7 @@ pub async fn seal_up_segment(
         last_timestamp,
     )
     .await?;
+
     Ok(())
 }
 
@@ -100,7 +114,13 @@ pub async fn delete_segment_by_real(
     raft_manager: &Arc<MultiRaftManager>,
     segment: &EngineSegment,
 ) -> Result<(), MetaServiceError> {
+    info!(
+        "Deleting segment: shard={}, segment={}",
+        segment.shard_name, segment.segment_seq
+    );
+
     sync_delete_segment_info(raft_manager, segment).await?;
+
     if let Some(meta_list) = cache_manager.segment_meta_list.get(&segment.shard_name) {
         if let Some(meta) = meta_list.get(&segment.segment_seq) {
             sync_delete_segment_metadata_info(raft_manager, &meta).await?;
@@ -120,42 +140,47 @@ async fn build_segment(
     }
 
     let node_list: Vec<BrokerNode> = cache_manager.get_engine_node_list();
-    if node_list.len() < shard_info.config.replica_num as usize {
+    let replica_num = shard_info.config.replica_num as usize;
+
+    if node_list.len() < replica_num {
         return Err(MetaServiceError::NotEnoughEngineNodes(
             shard_info.config.replica_num,
             node_list.len() as u32,
         ));
     }
 
-    //todo Get the node copies at random
-    let node_ids: Vec<u64> = node_list.iter().map(|raw| raw.node_id).collect();
+    let mut rng = thread_rng();
+    let selected_nodes: Vec<&BrokerNode> =
+        node_list.choose_multiple(&mut rng, replica_num).collect();
 
     let mut replicas = Vec::new();
-    for i in 0..node_ids.len() {
-        let node_id = *node_ids.get(i).unwrap();
-        let fold = calc_node_fold(cache_manager, node_id)?;
+    for (i, node) in selected_nodes.iter().enumerate() {
+        let fold = calc_node_fold(cache_manager, node.node_id)?;
         replicas.push(Replica {
             replica_seq: i as u64,
-            node_id,
+            node_id: node.node_id,
             fold,
         });
     }
 
-    if replicas.len() != (shard_info.config.replica_num as usize) {
+    if replicas.len() != replica_num {
         return Err(MetaServiceError::NumberOfReplicasIsIncorrect(
             shard_info.config.replica_num,
             replicas.len(),
         ));
     }
 
+    let leader = calc_leader_node(&replicas)?;
+    let isr: Vec<u64> = replicas.iter().map(|rep| rep.node_id).collect();
+
     Ok(EngineSegment {
         shard_name: shard_info.shard_name.clone(),
         leader_epoch: 0,
         status: SegmentStatus::Write,
         segment_seq: segment_no,
-        leader: calc_leader_node(&replicas),
-        replicas: replicas.clone(),
-        isr: replicas.iter().map(|rep| rep.node_id).collect(),
+        leader,
+        replicas,
+        isr,
     })
 }
 
@@ -170,11 +195,20 @@ pub async fn update_segment_status(
 ) -> Result<(), MetaServiceError> {
     if let Some(segment_list) = cache_manager.segment_list.get(shard_name) {
         if let Some(mut segment) = segment_list.get_mut(&segment_seq) {
+            info!(
+                "Updating segment status: shard={}, segment={}, old_status={:?}, new_status={:?}",
+                shard_name, segment_seq, segment.status, status
+            );
+
             segment.status = status;
-            sync_save_segment_info(raft_manager, &segment.clone()).await?;
-            update_cache_by_set_segment(broker_call_manager, client_pool, &segment.clone()).await?;
+            let segment_clone = segment.clone();
+            drop(segment);
+
+            sync_save_segment_info(raft_manager, &segment_clone).await?;
+            update_cache_by_set_segment(broker_call_manager, client_pool, &segment_clone).await?;
         }
     }
+
     Ok(())
 }
 
@@ -184,12 +218,15 @@ async fn sync_save_segment_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::StorageEngineSetSegment,
-        Bytes::copy_from_slice(&Bytes::copy_from_slice(&segment.encode()?)),
+        Bytes::from(segment.encode()?),
     );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
+
+    raft_manager
+        .write_metadata(data)
+        .await?
+        .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+
+    Ok(())
 }
 
 async fn sync_delete_segment_info(
@@ -198,32 +235,45 @@ async fn sync_delete_segment_info(
 ) -> Result<(), MetaServiceError> {
     let data = StorageData::new(
         StorageDataType::StorageEngineDeleteSegment,
-        Bytes::copy_from_slice(&segment.encode()?),
+        Bytes::from(segment.encode()?),
     );
-    if (raft_manager.write_metadata(data).await?).is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
+
+    raft_manager
+        .write_metadata(data)
+        .await?
+        .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+
+    Ok(())
 }
 
-fn calc_leader_node(replicas: &[Replica]) -> u64 {
-    replicas.first().unwrap().node_id
+fn calc_leader_node(replicas: &[Replica]) -> Result<u64, MetaServiceError> {
+    replicas.first().map(|rep| rep.node_id).ok_or_else(|| {
+        warn!("Cannot calculate leader node: replica list is empty");
+        MetaServiceError::CommonError("Replica list is empty".to_string())
+    })
 }
 
 fn calc_node_fold(
     cache_manager: &Arc<CacheManager>,
     node_id: u64,
 ) -> Result<String, MetaServiceError> {
-    let node = if let Some(node) = cache_manager.get_broker_node(node_id) {
-        node
-    } else {
-        return Err(MetaServiceError::NodeDoesNotExist(node_id));
-    };
+    let node = cache_manager
+        .get_broker_node(node_id)
+        .ok_or_else(|| MetaServiceError::NodeDoesNotExist(node_id))?;
 
-    let fold_list = node.storage_fold.clone();
+    if node.storage_fold.is_empty() {
+        return Err(MetaServiceError::CommonError(format!(
+            "Node {} has no storage folders configured",
+            node_id
+        )));
+    }
+
+    let fold_list = &node.storage_fold;
     let mut rng = thread_rng();
-    let index = rng.gen_range(0..fold_list.len());
-    let random_element = fold_list.get(index).unwrap();
+    let random_element = fold_list.choose(&mut rng).ok_or_else(|| {
+        MetaServiceError::CommonError("Failed to select storage folder".to_string())
+    })?;
+
     Ok(random_element.clone())
 }
 
