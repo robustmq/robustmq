@@ -146,7 +146,9 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
-    use storage_engine::memory::engine::MemoryStorageEngine;
+    use storage_engine::{
+        memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
+    };
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
@@ -164,10 +166,12 @@ mod tests {
         let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
             StorageDriverMemoryConfig::default(),
         ));
+        let rocksdb_storage_engine =
+            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         build_message_storage_driver(
             offset_manager.clone(),
             memory_storage_engine,
-            rocksdb_engine_handler.clone(),
+            rocksdb_storage_engine.clone(),
             config,
         )
         .await

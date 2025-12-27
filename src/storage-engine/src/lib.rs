@@ -26,6 +26,7 @@ pub mod clients;
 pub mod core;
 pub mod handler;
 pub mod memory;
+pub mod rocksdb;
 pub mod segment;
 pub mod server;
 
