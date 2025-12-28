@@ -146,6 +146,14 @@ impl StorageCacheManager {
         Vec::new()
     }
 
+    pub fn get_segment_leader_nodes(&self, shard_name: &str) -> Vec<u64> {
+        let segments = self.get_segments_list_by_shard(shard_name);
+        let mut node_ids: Vec<u64> = segments.iter().map(|seg| seg.leader).collect();
+        node_ids.sort_unstable();
+        node_ids.dedup();
+        node_ids
+    }
+
     pub fn get_active_segment(&self, shard_name: &str) -> Option<EngineSegment> {
         if let Some(shard) = self.shards.get(shard_name) {
             let segment_iden = SegmentIdentity {

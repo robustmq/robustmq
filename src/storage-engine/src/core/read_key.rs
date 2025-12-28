@@ -17,7 +17,12 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
-    core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
+    core::{
+        batch_call::{call_read_data_by_all_node, merge_records},
+        cache::StorageCacheManager,
+        error::StorageEngineError,
+        segment::segment_validator,
+    },
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
     segment::{file::open_segment_write, read::segment_read_by_key, SegmentIdentity},
@@ -38,6 +43,15 @@ pub struct ReadByKeyParams {
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub shard_name: String,
+    pub key: String,
+}
+
+pub struct ReadByRemoteKeyParams {
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub shard_name: String,
+    pub segment: u32,
     pub key: String,
 }
 
@@ -63,7 +77,15 @@ pub async fn read_by_key(
 
     let conf = broker_config();
     let results = if conf.broker_id == active_segment.leader {
-        read_by_remote(client_connection_manager, conf.broker_id, shard_name, key).await?
+        read_by_remote(ReadByRemoteKeyParams {
+            cache_manager: cache_manager.clone(),
+            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+            client_connection_manager: client_connection_manager.clone(),
+            shard_name: shard_name.to_string(),
+            segment: active_segment.segment_seq,
+            key: key.to_string(),
+        })
+        .await?
     } else {
         match shard.engine_type {
             EngineType::Memory => read_by_memory(memory_storage_engine, shard_name, key).await?,
@@ -84,11 +106,19 @@ pub async fn read_by_key(
 }
 
 pub async fn read_by_remote(
-    client_connection_manager: &Arc<ClientConnectionManager>,
-    target_broker_id: u64,
-    shard_name: &str,
-    key: &str,
+    params: ReadByRemoteKeyParams,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+    let cache_manager = &params.cache_manager;
+    let rocksdb_engine_handler = &params.rocksdb_engine_handler;
+    let client_connection_manager = &params.client_connection_manager;
+    let shard_name = params.shard_name.as_str();
+    let segment = params.segment;
+    let key = params.key.as_str();
+
+    let Some(shard) = cache_manager.shards.get(shard_name) else {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+    };
+
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Key,
@@ -99,16 +129,43 @@ pub async fn read_by_remote(
         options: ReadReqOptions::default(),
     }];
     let read_req = build_read_req(messages);
-    let resp = client_connection_manager
-        .write_send(target_broker_id, StorageEnginePacket::ReadReq(read_req))
-        .await?;
 
-    match resp {
-        StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            target_broker_id,
-            format!("Expected ReadResp, got {:?}", packet),
-        )),
+    match shard.engine_type {
+        EngineType::Segment => {
+            let local_records = read_by_segment(
+                cache_manager,
+                rocksdb_engine_handler,
+                shard_name,
+                segment,
+                key,
+            )
+            .await?;
+
+            let conf = broker_config();
+            let remote_records = call_read_data_by_all_node(
+                cache_manager,
+                client_connection_manager,
+                conf.broker_id,
+                read_req,
+            )
+            .await?;
+
+            Ok(merge_records(local_records, remote_records))
+        }
+        _ => {
+            let conf = broker_config();
+            let resp = client_connection_manager
+                .write_send(conf.broker_id, StorageEnginePacket::ReadReq(read_req))
+                .await?;
+
+            match resp {
+                StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
+                packet => Err(StorageEngineError::ReceivedPacketError(
+                    conf.broker_id,
+                    format!("Expected ReadResp, got {:?}", packet),
+                )),
+            }
+        }
     }
 }
 
