@@ -202,7 +202,6 @@ mod tests {
     use crate::rocksdb::engine::RocksDBStorageEngine;
     use crate::{core::test::test_base_write_data, handler::data::read_data_req};
     use common_base::utils::serialize::deserialize;
-    use common_config::broker::broker_config;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
