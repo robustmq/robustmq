@@ -15,6 +15,7 @@
 pub mod cache;
 pub mod dynamic_cache;
 pub mod error;
+pub mod offset_index;
 pub mod read_key;
 pub mod read_offset;
 pub mod read_tag;

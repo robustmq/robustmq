@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::segment::index::build::IndexData;
 use crate::segment::SegmentIdentity;
@@ -35,8 +36,17 @@ fn get_storage_cf(
         })
 }
 
-pub fn get_in_segment_by_offset() -> Result<Option<u32>, StorageEngineError> {
-    Ok(None)
+pub fn get_in_segment_by_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard: &str,
+    offset: u64,
+) -> Result<Option<u32>, StorageEngineError> {
+    let index = cache_manager.get_offset_index(shard).ok_or_else(|| {
+        StorageEngineError::CommonErrorStr(format!("Offset index not found for shard: {}", shard))
+    })?;
+
+    let offset_i64 = offset as i64;
+    Ok(index.find_segment(offset_i64))
 }
 
 pub fn get_index_data_by_offset(
