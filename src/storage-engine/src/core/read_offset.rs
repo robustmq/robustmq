@@ -20,7 +20,10 @@ use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
-    segment::{file::open_segment_write, read::segment_read_by_offset, SegmentIdentity},
+    segment::{
+        file::open_segment_write, index::read::get_in_segment_by_offset,
+        read::segment_read_by_offset, SegmentIdentity,
+    },
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::{
@@ -59,14 +62,24 @@ pub async fn read_by_offset(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
-        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
-    };
+    let segment =
+        if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
+            let segment_iden = SegmentIdentity::new(shard_name, segment_no);
+            let Some(segment) = cache_manager.get_segment(&segment_iden) else {
+                return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+            };
+            segment
+        } else {
+            let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
+                return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+            };
+            active_segment
+        };
 
-    segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+    segment_validator(cache_manager, shard_name, segment.segment_seq)?;
 
     let conf = broker_config();
-    let results = if conf.broker_id == active_segment.leader {
+    let results = if conf.broker_id == segment.leader {
         read_by_remote(
             client_connection_manager,
             conf.broker_id,
@@ -89,7 +102,7 @@ pub async fn read_by_offset(
                     rocksdb_engine_handler,
                     shard_name,
                     offset,
-                    active_segment.segment_seq,
+                    segment.segment_seq,
                     read_config,
                 )
                 .await?
