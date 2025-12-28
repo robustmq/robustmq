@@ -63,7 +63,7 @@ pub fn tag_segment(shard: &str, segment: u32, tag: String, offset: u64) -> Strin
     format!("{}tag/{}/{}", segment_base(shard, segment), tag, offset)
 }
 
-pub fn tag_segment_prefix(shard: &str, segment: u32, tag: String) -> String {
+pub fn tag_segment_prefix(shard: &str, segment: u32, tag: &str) -> String {
     format!("{}tag/{}/", segment_base(shard, segment), tag)
 }
 

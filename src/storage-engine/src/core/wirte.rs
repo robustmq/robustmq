@@ -17,7 +17,7 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_write_req, write_resp_parse},
     },
-    core::{cache::StorageCacheManager, error::StorageEngineError},
+    core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
     segment::{
@@ -45,9 +45,13 @@ pub async fn batch_write(
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
+
     let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
+
+    segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+
     let conf = broker_config();
 
     let offsets = if conf.broker_id == active_segment.leader {
@@ -55,7 +59,6 @@ pub async fn batch_write(
             client_connection_manager,
             active_segment.leader,
             shard_name,
-            active_segment.segment_seq,
             records,
         )
         .await?
@@ -85,14 +88,13 @@ async fn write_data_to_remote(
     client_connection_manager: &Arc<ClientConnectionManager>,
     target_broker_id: u64,
     shard_name: &str,
-    segment: u32,
     records: &[AdapterWriteRecord],
 ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let messages = records
         .iter()
         .map(serialize)
         .collect::<Result<Vec<_>, _>>()?;
-    let write_req = build_write_req(shard_name.to_string(), segment, messages);
+    let write_req = build_write_req(shard_name.to_string(), messages);
     let resp = client_connection_manager
         .write_send(target_broker_id, StorageEnginePacket::WriteReq(write_req))
         .await?;

@@ -19,8 +19,15 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::shard::EngineType;
 use metadata_struct::storage::storage_record::StorageRecord;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 
+use crate::core::error::StorageEngineError;
+use crate::core::read_key::{read_by_key, ReadByKeyParams};
+use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
+use crate::core::read_tag::{read_by_tag, ReadByTagParams};
+use crate::segment::index::read::get_index_data_by_timestamp;
 use crate::{
     clients::manager::ClientConnectionManager,
     core::{
@@ -39,6 +46,7 @@ pub struct AdapterHandler {
     memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     client_connection_manager: Arc<ClientConnectionManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
     client_pool: Arc<ClientPool>,
 }
@@ -50,6 +58,7 @@ impl AdapterHandler {
         memory_storage_engine: Arc<MemoryStorageEngine>,
         rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
         client_connection_manager: Arc<ClientConnectionManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
         write_manager: Arc<WriteManager>,
     ) -> Self {
         AdapterHandler {
@@ -57,6 +66,7 @@ impl AdapterHandler {
             client_pool,
             memory_storage_engine,
             rocksdb_storage_engine,
+            rocksdb_engine_handler,
             client_connection_manager,
             write_manager,
         }
@@ -126,36 +136,104 @@ impl AdapterHandler {
 
     pub async fn read_by_offset(
         &self,
-        _shard: &str,
-        _offset: u64,
-        _read_config: &AdapterReadConfig,
+        shard: &str,
+        offset: u64,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        Ok(Vec::new())
+        match read_by_offset(ReadByOffsetParams {
+            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
+            cache_manager: self.cache_manager.clone(),
+            memory_storage_engine: self.memory_storage_engine.clone(),
+            rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
+            client_connection_manager: self.client_connection_manager.clone(),
+            shard_name: shard.to_string(),
+            offset,
+            read_config: read_config.clone(),
+        })
+        .await
+        {
+            Ok(data) => Ok(data),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
+        }
     }
 
     pub async fn read_by_tag(
         &self,
-        _shard: &str,
-        _tag: &str,
-        _start_offset: Option<u64>,
-        _read_config: &AdapterReadConfig,
+        shard: &str,
+        tag: &str,
+        start_offset: Option<u64>,
+        read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        Ok(Vec::new())
+        match read_by_tag(ReadByTagParams {
+            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
+            cache_manager: self.cache_manager.clone(),
+            memory_storage_engine: self.memory_storage_engine.clone(),
+            rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
+            client_connection_manager: self.client_connection_manager.clone(),
+            shard_name: shard.to_string(),
+            tag: tag.to_string(),
+            start_offset,
+            read_config: read_config.clone(),
+        })
+        .await
+        {
+            Ok(data) => Ok(data),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
+        }
     }
 
     pub async fn read_by_key(
         &self,
-        _shard: &str,
-        _key: &str,
+        shard: &str,
+        key: &str,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        Ok(Vec::new())
+        match read_by_key(ReadByKeyParams {
+            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
+            cache_manager: self.cache_manager.clone(),
+            memory_storage_engine: self.memory_storage_engine.clone(),
+            rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
+            client_connection_manager: self.client_connection_manager.clone(),
+            shard_name: shard.to_string(),
+            key: key.to_string(),
+        })
+        .await
+        {
+            Ok(data) => Ok(data),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
+        }
     }
 
     pub async fn get_offset_by_timestamp(
         &self,
-        _shard: &str,
-        _timestamp: u64,
+        shard: &str,
+        timestamp: u64,
     ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
+        match self.get_offset_by_timestamp0(shard, timestamp).await {
+            Ok(data) => Ok(data),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
+        }
+    }
+
+    async fn get_offset_by_timestamp0(
+        &self,
+        shard_name: &str,
+        timestamp: u64,
+    ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
+        let Some(_shard) = self.cache_manager.shards.get(shard_name) else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        };
+        //    let result = match shard.engine_type {
+        //         EngineType::Memory => {
+        //             self.memory_storage_engine
+        //                 .get_offset_by_timestamp(shard_name, timestamp)
+        //                 .await?
+        //         }
+        //         EngineType::RocksDB => self.rocksdb_storage_engine.get_offset_by_timestamp(shard_name, timestamp).await?,
+        //         EngineType::Segment => {
+        //            get_index_data_by_timestamp(rocksdb_engine_handler, segment_iden, start_timestamp)
+        //             .await?
+        //         }
+        //     }
         Ok(None)
     }
 }

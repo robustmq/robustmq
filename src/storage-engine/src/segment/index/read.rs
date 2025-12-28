@@ -35,6 +35,10 @@ fn get_storage_cf(
         })
 }
 
+pub fn get_in_segment_by_offset() -> Result<Option<u32>, StorageEngineError> {
+    Ok(None)
+}
+
 pub fn get_index_data_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
@@ -78,8 +82,8 @@ pub fn get_index_data_by_offset(
 pub fn get_index_data_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-    start_offset: u64,
-    tag: String,
+    start_offset: Option<u64>,
+    tag: &str,
     record_num: usize,
 ) -> Result<Vec<IndexData>, StorageEngineError> {
     let prefix_key = tag_segment_prefix(&segment_iden.shard_name, segment_iden.segment, tag);
@@ -99,9 +103,11 @@ pub fn get_index_data_by_tag(
 
                 let index_data = serialize::deserialize::<IndexData>(val)?;
 
-                if index_data.offset < start_offset {
-                    iter.next();
-                    continue;
+                if let Some(st) = start_offset {
+                    if index_data.offset < st {
+                        iter.next();
+                        continue;
+                    }
                 }
 
                 results.push(index_data);

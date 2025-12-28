@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::storage::adapter_read_config::AdapterWriteRespRow;
+use metadata_struct::storage::{
+    adapter_read_config::AdapterWriteRespRow, storage_record::StorageRecord,
+};
 use protocol::storage::protocol::{
     ApiKey, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody, ReqHeader, RespHeader,
     StorageEngineNetworkError, WriteReq, WriteReqBody, WriteResp, WriteRespBody, WriteRespMessage,
@@ -20,14 +22,13 @@ use protocol::storage::protocol::{
 
 use crate::core::error::StorageEngineError;
 
-pub fn build_write_req(shard_name: String, segment: u32, messages: Vec<Vec<u8>>) -> WriteReq {
+pub fn build_write_req(shard_name: String, messages: Vec<Vec<u8>>) -> WriteReq {
     WriteReq {
         header: ReqHeader {
             api_key: ApiKey::Write,
         },
         body: WriteReqBody {
             shard_name,
-            segment,
             messages,
         },
     }
@@ -93,4 +94,8 @@ pub fn write_resp_parse(resp: &WriteResp) -> Result<Vec<AdapterWriteRespRow>, St
         }
     }
     Ok(results)
+}
+
+pub fn read_resp_parse(resp: &ReadResp) -> Result<Vec<StorageRecord>, StorageEngineError> {
+    Ok(Vec::new())
 }

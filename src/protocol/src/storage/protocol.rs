@@ -125,15 +125,13 @@ impl RespHeader {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct WriteReqBody {
     pub shard_name: String,
-    pub segment: u32,
     pub messages: Vec<Vec<u8>>,
 }
 
 impl WriteReqBody {
-    pub fn new(shard_name: String, segment: u32, messages: Vec<Vec<u8>>) -> Self {
+    pub fn new(shard_name: String, messages: Vec<Vec<u8>>) -> Self {
         Self {
             shard_name,
-            segment,
             messages,
         }
     }
@@ -206,15 +204,13 @@ impl WriteRespMessageStatus {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct WriteRespMessage {
     pub shard_name: String,
-    pub segment: u32,
     pub messages: Vec<WriteRespMessageStatus>,
 }
 
 impl WriteRespMessage {
-    pub fn new(shard_name: String, segment: u32, messages: Vec<WriteRespMessageStatus>) -> Self {
+    pub fn new(shard_name: String, messages: Vec<WriteRespMessageStatus>) -> Self {
         Self {
             shard_name,
-            segment,
             messages,
         }
     }
@@ -279,37 +275,37 @@ impl WriteResp {
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct ReadReqFilter {
-    pub timestamp: u64,
-    pub offset: u64,
-    pub key: String,
-    pub tag: String,
+    pub timestamp: Option<u64>,
+    pub offset: Option<u64>,
+    pub key: Option<String>,
+    pub tag: Option<String>,
 }
 
 impl ReadReqFilter {
     pub fn by_offset(offset: u64) -> Self {
         Self {
-            offset,
+            offset: Some(offset),
             ..Default::default()
         }
     }
 
     pub fn by_key(key: String) -> Self {
         Self {
-            key,
+            key: Some(key),
             ..Default::default()
         }
     }
 
     pub fn by_tag(tag: String) -> Self {
         Self {
-            tag,
+            tag: Some(tag),
             ..Default::default()
         }
     }
 
     pub fn by_timestamp(timestamp: u64) -> Self {
         Self {
-            timestamp,
+            timestamp: Some(timestamp),
             ..Default::default()
         }
     }
@@ -342,7 +338,6 @@ impl ReadReqOptions {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct ReadReqMessage {
     pub shard_name: String,
-    pub segment: u32,
     pub read_type: ReadType,
     pub filter: ReadReqFilter,
     pub options: ReadReqOptions,
@@ -351,14 +346,12 @@ pub struct ReadReqMessage {
 impl ReadReqMessage {
     pub fn new(
         shard_name: String,
-        segment: u32,
         read_type: ReadType,
         filter: ReadReqFilter,
         options: ReadReqOptions,
     ) -> Self {
         Self {
             shard_name,
-            segment,
             read_type,
             filter,
             options,
@@ -481,8 +474,7 @@ mod tests {
     fn test_read_request_encode_decode() {
         let filter = ReadReqFilter::by_offset(100);
         let options = ReadReqOptions::new(1024 * 1024, 100);
-        let message =
-            ReadReqMessage::new("shard1".to_string(), 1, ReadType::Offset, filter, options);
+        let message = ReadReqMessage::new("shard1".to_string(), ReadType::Offset, filter, options);
         let body = ReadReqBody::new(vec![message]);
         let req = ReadReq::new(body);
 
@@ -491,7 +483,6 @@ mod tests {
 
         assert_eq!(decoded.body.messages.len(), 1);
         assert_eq!(decoded.body.messages[0].shard_name, "shard1");
-        assert_eq!(decoded.body.messages[0].segment, 1);
-        assert_eq!(decoded.body.messages[0].filter.offset, 100);
+        assert_eq!(decoded.body.messages[0].filter.offset.unwrap(), 100);
     }
 }

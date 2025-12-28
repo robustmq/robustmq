@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    core::cache::StorageCacheManager, handler::command::StorageEngineHandlerCommand,
-    segment::write::WriteManager,
+    clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
+    handler::command::StorageEngineHandlerCommand, memory::engine::MemoryStorageEngine,
+    rocksdb::engine::RocksDBStorageEngine, segment::write::WriteManager,
 };
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
@@ -32,6 +33,19 @@ use tokio::sync::broadcast;
 use tracing::error;
 
 pub mod inner;
+
+pub struct ServerParams {
+    pub client_pool: Arc<ClientPool>,
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub write_manager: Arc<WriteManager>,
+    pub broker_cache: Arc<BrokerCacheManager>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
+}
+
 pub struct Server {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<StorageCacheManager>,
@@ -39,24 +53,23 @@ pub struct Server {
     write_manager: Arc<WriteManager>,
     connection_manager: Arc<ConnectionManager>,
     broker_cache: Arc<BrokerCacheManager>,
+    memory_storage_engine: Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    client_connection_manager: Arc<ClientConnectionManager>,
 }
 
 impl Server {
-    pub fn new(
-        client_pool: Arc<ClientPool>,
-        cache_manager: Arc<StorageCacheManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        connection_manager: Arc<ConnectionManager>,
-        write_manager: Arc<WriteManager>,
-        broker_cache: Arc<BrokerCacheManager>,
-    ) -> Server {
+    pub fn new(params: ServerParams) -> Server {
         Server {
-            client_pool,
-            cache_manager,
-            rocksdb_engine_handler,
-            connection_manager,
-            broker_cache,
-            write_manager,
+            client_pool: params.client_pool,
+            cache_manager: params.cache_manager,
+            rocksdb_engine_handler: params.rocksdb_engine_handler,
+            connection_manager: params.connection_manager,
+            broker_cache: params.broker_cache,
+            write_manager: params.write_manager,
+            memory_storage_engine: params.memory_storage_engine,
+            rocksdb_storage_engine: params.rocksdb_storage_engine,
+            client_connection_manager: params.client_connection_manager,
         }
     }
 
@@ -94,6 +107,9 @@ impl Server {
             self.cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
             self.write_manager.clone(),
+            self.memory_storage_engine.clone(),
+            self.rocksdb_storage_engine.clone(),
+            self.client_connection_manager.clone(),
         ));
         Arc::new(storage)
     }

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use common_base::tools::now_second;
+use common_base::utils::serialize;
 use common_base::utils::serialize::{deserialize, serialize};
-use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
@@ -27,6 +27,8 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
+
+use crate::core::error::StorageEngineError;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct OffsetInfo {
@@ -56,23 +58,23 @@ impl RocksDBStorageEngine {
         }
     }
 
-    fn get_cf(&self) -> Result<Arc<rocksdb::BoundColumnFamily<'_>>, Box<CommonError>> {
+    fn get_cf(&self) -> Result<Arc<rocksdb::BoundColumnFamily<'_>>, StorageEngineError> {
         self.db.cf_handle(DB_COLUMN_FAMILY_BROKER).ok_or_else(|| {
-            Box::new(CommonError::CommonError(format!(
+            StorageEngineError::CommonErrorStr(format!(
                 "Column family '{}' not found",
                 DB_COLUMN_FAMILY_BROKER
-            )))
+            ))
         })
     }
 
-    fn save_latest_offset(&self, shard_name: &str, offset: u64) -> Result<(), Box<CommonError>> {
+    fn save_latest_offset(&self, shard_name: &str, offset: u64) -> Result<(), StorageEngineError> {
         let cf = self.get_cf()?;
         let key = latest_offset_key(shard_name);
         self.db.write(cf, &key, &offset).map_err(Box::new)?;
         Ok(())
     }
 
-    fn get_latest_offset(&self, shard_name: &str) -> Result<u64, Box<CommonError>> {
+    fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
         let cf = self.get_cf()?;
         let key = latest_offset_key(shard_name);
         Ok(self
@@ -82,7 +84,11 @@ impl RocksDBStorageEngine {
             .unwrap_or(0))
     }
 
-    fn _save_earliest_offset(&self, shard_name: &str, offset: u64) -> Result<(), Box<CommonError>> {
+    fn _save_earliest_offset(
+        &self,
+        shard_name: &str,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
         let cf = self.get_cf()?;
         let key = earliest_offset_key(shard_name);
         if !self.db.exist(cf.clone(), &key) {
@@ -91,7 +97,7 @@ impl RocksDBStorageEngine {
         Ok(())
     }
 
-    fn _get_earliest_offset(&self, shard_name: &str) -> Result<u64, Box<CommonError>> {
+    fn _get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
         let cf = self.get_cf()?;
         let key = earliest_offset_key(shard_name);
         Ok(self
@@ -105,7 +111,7 @@ impl RocksDBStorageEngine {
         &self,
         shard_name: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -118,8 +124,8 @@ impl RocksDBStorageEngine {
 
         let _guard = lock.lock().await;
 
-        let cf = self.get_cf().map_err(|e| *e)?;
-        let mut offset = self.get_latest_offset(shard_name).map_err(|e| *e)?;
+        let cf = self.get_cf()?;
+        let mut offset = self.get_latest_offset(shard_name)?;
 
         let mut results = Vec::with_capacity(messages.len());
         let mut batch = WriteBatch::default();
@@ -176,8 +182,7 @@ impl RocksDBStorageEngine {
         }
 
         self.db.write_batch(batch)?;
-        self.save_latest_offset(shard_name, offset)
-            .map_err(|e| *e)?;
+        self.save_latest_offset(shard_name, offset)?;
         Ok(results)
     }
 
@@ -185,8 +190,8 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<IndexInfo>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Option<IndexInfo>, StorageEngineError> {
+        let cf = self.get_cf()?;
         let timestamp_index_prefix = timestamp_index_prefix(shard);
         let mut iter = self.db.db.raw_iterator_cf(&cf);
         iter.seek(&timestamp_index_prefix);
@@ -235,8 +240,8 @@ impl RocksDBStorageEngine {
         shard: &str,
         start_index: &Option<IndexInfo>,
         timestamp: u64,
-    ) -> Result<Option<u64>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Option<u64>, StorageEngineError> {
+        let cf = self.get_cf()?;
         let seek_key = if let Some(si) = start_index {
             shard_record_key(shard, si.offset)
         } else {
@@ -282,13 +287,13 @@ impl RocksDBStorageEngine {
 }
 
 impl RocksDBStorageEngine {
-    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
+    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), StorageEngineError> {
         let shard_name = &shard.shard_name;
-        let cf = self.get_cf().map_err(|e| *e)?;
+        let cf = self.get_cf()?;
         let shard_info_key = shard_info_key(shard_name);
 
         if self.db.exist(cf.clone(), &shard_info_key) {
-            return Err(CommonError::CommonError(format!(
+            return Err(StorageEngineError::CommonErrorStr(format!(
                 "shard {shard_name} already exists"
             )));
         }
@@ -313,8 +318,8 @@ impl RocksDBStorageEngine {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Vec<AdapterShardInfo>, StorageEngineError> {
+        let cf = self.get_cf()?;
         if let Some(shard_name) = shard {
             let key = shard_info_key(&shard_name);
             if let Some(v) = self.db.read::<AdapterShardInfo>(cf.clone(), &key)? {
@@ -332,12 +337,12 @@ impl RocksDBStorageEngine {
         }
     }
 
-    pub async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    pub async fn delete_shard(&self, shard: &str) -> Result<(), StorageEngineError> {
+        let cf = self.get_cf()?;
         let shard_info_key = shard_info_key(shard);
 
         if !self.db.exist(cf.clone(), &shard_info_key) {
-            return Err(CommonError::CommonError(format!(
+            return Err(StorageEngineError::CommonErrorStr(format!(
                 "shard {shard} does not exist"
             )));
         }
@@ -375,26 +380,25 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         message: &AdapterWriteRecord,
-    ) -> Result<AdapterWriteRespRow, CommonError> {
+    ) -> Result<AdapterWriteRespRow, StorageEngineError> {
         let results = self
             .batch_write_internal(shard, std::slice::from_ref(message))
             .await?;
 
         if results.is_empty() {
-            return Err(CommonError::CommonError("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr("".to_string()));
         }
 
-        results
-            .first()
-            .cloned()
-            .ok_or_else(|| CommonError::CommonError("Empty offset result from write".to_string()))
+        results.first().cloned().ok_or_else(|| {
+            StorageEngineError::CommonErrorStr("Empty offset result from write".to_string())
+        })
     }
 
     pub async fn batch_write(
         &self,
         shard: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -407,8 +411,8 @@ impl RocksDBStorageEngine {
         shard: &str,
         offset: u64,
         read_config: &AdapterReadConfig,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+        let cf = self.get_cf()?;
 
         let keys: Vec<String> = (offset..offset.saturating_add(read_config.max_record_num))
             .map(|i| shard_record_key(shard, i))
@@ -441,8 +445,8 @@ impl RocksDBStorageEngine {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &AdapterReadConfig,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+        let cf = self.get_cf()?;
         let tag_offset_key_prefix = tag_index_tag_prefix(shard, tag);
         let tag_entries = self.db.read_prefix(cf.clone(), &tag_offset_key_prefix)?;
 
@@ -499,15 +503,15 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         key: &str,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+        let cf = self.get_cf()?;
         let key_index = key_index_key(shard, key);
 
         let key_offset_bytes = match self.db.db.get_cf(&cf, &key_index) {
             Ok(Some(data)) => data,
             Ok(_) => return Ok(Vec::new()),
             Err(e) => {
-                return Err(CommonError::CommonError(format!(
+                return Err(StorageEngineError::CommonErrorStr(format!(
                     "Failed to read key offset: {e:?}"
                 )))
             }
@@ -527,7 +531,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
         let index: Option<IndexInfo> = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
             if let Some(found_offset) = self
@@ -547,8 +551,8 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
-        let cf = self.get_cf().map_err(|e| *e)?;
+    ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
+        let cf = self.get_cf()?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);
 
         let mut offsets = Vec::new();
@@ -569,12 +573,12 @@ impl RocksDBStorageEngine {
         &self,
         group_name: &str,
         offsets: &HashMap<String, u64>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), StorageEngineError> {
         if offsets.is_empty() {
             return Ok(());
         }
 
-        let cf = self.get_cf().map_err(|e| *e)?;
+        let cf = self.get_cf()?;
         let mut batch = WriteBatch::default();
 
         for (shard_name, offset) in offsets.iter() {

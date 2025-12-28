@@ -420,12 +420,19 @@ impl BrokerServer {
         ));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+            StorageDriverMemoryConfig::default(),
+        ));
+        let rocksdb_storage_engine =
+            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         StorageEngineParams {
             cache_manager,
             client_pool,
             rocksdb_engine_handler,
             connection_manager,
             client_connection_manager,
+            memory_storage_engine,
+            rocksdb_storage_engine,
             write_manager,
         }
     }

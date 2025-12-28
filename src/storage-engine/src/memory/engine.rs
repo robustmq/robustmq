@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
@@ -22,6 +21,8 @@ use metadata_struct::storage::convert::convert_adapter_record_to_engine;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use crate::core::error::StorageEngineError;
 
 #[derive(Clone, Debug, Default)]
 pub struct ShardState {
@@ -127,7 +128,7 @@ impl MemoryStorageEngine {
         &self,
         shard_name: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -206,7 +207,7 @@ impl MemoryStorageEngine {
             return Ok(offset_res);
         }
 
-        Err(CommonError::CommonError(format!(
+        Err(StorageEngineError::CommonErrorStr(format!(
             "shard {} data not found",
             shard_name
         )))
@@ -214,9 +215,9 @@ impl MemoryStorageEngine {
 }
 
 impl MemoryStorageEngine {
-    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
+    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), StorageEngineError> {
         if self.shard_info.contains_key(&shard.shard_name) {
-            return Err(CommonError::CommonError(format!(
+            return Err(StorageEngineError::CommonErrorStr(format!(
                 "shard {} data already exist",
                 shard.shard_name
             )));
@@ -237,7 +238,7 @@ impl MemoryStorageEngine {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
+    ) -> Result<Vec<AdapterShardInfo>, StorageEngineError> {
         if let Some(shard_name) = shard {
             Ok(self
                 .shard_info
@@ -253,9 +254,9 @@ impl MemoryStorageEngine {
         }
     }
 
-    pub async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {
+    pub async fn delete_shard(&self, shard_name: &str) -> Result<(), StorageEngineError> {
         if !self.shard_info.contains_key(shard_name) {
-            return Err(CommonError::CommonError(format!(
+            return Err(StorageEngineError::CommonErrorStr(format!(
                 "shard {} data not found",
                 shard_name
             )));
@@ -278,7 +279,7 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
         self.internal_batch_write(shard, messages).await
     }
 
@@ -286,13 +287,13 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         data: &AdapterWriteRecord,
-    ) -> Result<AdapterWriteRespRow, CommonError> {
+    ) -> Result<AdapterWriteRespRow, StorageEngineError> {
         let results = self
             .internal_batch_write(shard, std::slice::from_ref(data))
             .await?;
 
         if results.is_empty() {
-            return Err(CommonError::CommonError("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr("".to_string()));
         }
 
         Ok(results.first().unwrap().clone())
@@ -303,7 +304,7 @@ impl MemoryStorageEngine {
         shard: &str,
         offset: u64,
         read_config: &AdapterReadConfig,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let Some(data_map) = self.shard_data.get(shard) else {
             return Ok(Vec::new());
         };
@@ -335,7 +336,7 @@ impl MemoryStorageEngine {
         tag: &str,
         start_offset: Option<u64>,
         read_config: &AdapterReadConfig,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let Some(tag_map) = self.tag_index.get(shard) else {
             return Ok(Vec::new());
         };
@@ -382,7 +383,7 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         key: &str,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let Some(key_map) = self.key_index.get(shard) else {
             return Ok(Vec::new());
         };
@@ -406,7 +407,7 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
         if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
@@ -423,7 +424,7 @@ impl MemoryStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
         let Some(group_map) = self.group_data.get(group_name) else {
             return Ok(Vec::new());
         };
@@ -445,7 +446,7 @@ impl MemoryStorageEngine {
         &self,
         group_name: &str,
         offset: &HashMap<String, u64>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), StorageEngineError> {
         if offset.is_empty() {
             return Ok(());
         }
