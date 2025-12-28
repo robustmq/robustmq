@@ -15,8 +15,8 @@
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
 use metadata_struct::storage::storage_record::StorageRecord;
@@ -32,7 +32,7 @@ pub struct ShardState {
 #[derive(Clone)]
 pub struct MemoryStorageEngine {
     //(shard, (ShardInfo))
-    pub shard_info: DashMap<String, ShardInfo>,
+    pub shard_info: DashMap<String, AdapterShardInfo>,
     //(shard, (offset,Record))
     pub shard_data: DashMap<String, DashMap<u64, StorageRecord>>,
     //(group, (shard, offset))
@@ -127,7 +127,7 @@ impl MemoryStorageEngine {
         &self,
         shard_name: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -156,7 +156,11 @@ impl MemoryStorageEngine {
 
         if let Some(data_map) = self.shard_data.get(shard_name) {
             for msg in messages.iter() {
-                offset_res.push(offset);
+                offset_res.push(AdapterWriteRespRow {
+                    pkid: msg.pkid,
+                    offset,
+                    ..Default::default()
+                });
 
                 // Convert StorageAdapterRecord to StorageEngineRecord
                 let engine_record =
@@ -210,7 +214,7 @@ impl MemoryStorageEngine {
 }
 
 impl MemoryStorageEngine {
-    pub async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
         if self.shard_info.contains_key(&shard.shard_name) {
             return Err(CommonError::CommonError(format!(
                 "shard {} data already exist",
@@ -230,7 +234,10 @@ impl MemoryStorageEngine {
         Ok(())
     }
 
-    pub async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+    pub async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
         if let Some(shard_name) = shard {
             Ok(self
                 .shard_info
@@ -271,15 +278,24 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         self.internal_batch_write(shard, messages).await
     }
 
-    pub async fn write(&self, shard: &str, data: &AdapterWriteRecord) -> Result<u64, CommonError> {
-        let offsets = self
+    pub async fn write(
+        &self,
+        shard: &str,
+        data: &AdapterWriteRecord,
+    ) -> Result<AdapterWriteRespRow, CommonError> {
+        let results = self
             .internal_batch_write(shard, std::slice::from_ref(data))
             .await?;
-        Ok(offsets[0])
+
+        if results.is_empty() {
+            return Err(CommonError::CommonError("".to_string()));
+        }
+
+        Ok(results.first().unwrap().clone())
     }
 
     pub async fn read_by_offset(
@@ -390,11 +406,11 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
         if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
-            return Ok(Some(ShardOffset {
+            return Ok(Some(AdapterReadShardOffset {
                 shard_name: shard.to_string(),
                 offset,
                 ..Default::default()
@@ -407,14 +423,14 @@ impl MemoryStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-    ) -> Result<Vec<ShardOffset>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
         let Some(group_map) = self.group_data.get(group_name) else {
             return Ok(Vec::new());
         };
 
         let offsets = group_map
             .iter()
-            .map(|entry| ShardOffset {
+            .map(|entry| AdapterReadShardOffset {
                 group: group_name.to_string(),
                 shard_name: entry.key().clone(),
                 offset: *entry.value(),

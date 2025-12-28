@@ -20,7 +20,7 @@ use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
-use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
@@ -161,7 +161,7 @@ pub async fn try_init_topic(
             .list_shard(Some(topic_name.to_string()))
             .await?;
         if list.is_empty() {
-            let shard = ShardInfo {
+            let shard = AdapterShardInfo {
                 shard_name: topic_name.to_owned(),
                 replica_num: 1,
             };

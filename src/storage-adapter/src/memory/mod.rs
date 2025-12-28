@@ -15,8 +15,10 @@
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::{MessageExpireConfig, ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{
+    AdapterMessageExpireConfig, AdapterReadShardOffset, AdapterShardInfo,
+};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
@@ -44,11 +46,14 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
         self.memory_storage_engine.create_shard(shard).await
     }
 
-    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
         self.memory_storage_engine.list_shard(shard).await
     }
 
@@ -60,13 +65,17 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         self.memory_storage_engine
             .batch_write(shard, messages)
             .await
     }
 
-    async fn write(&self, shard: &str, data: &AdapterWriteRecord) -> Result<u64, CommonError> {
+    async fn write(
+        &self,
+        shard: &str,
+        data: &AdapterWriteRecord,
+    ) -> Result<AdapterWriteRespRow, CommonError> {
         self.memory_storage_engine.write(shard, data).await
     }
 
@@ -101,13 +110,16 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
         self.memory_storage_engine
             .get_offset_by_timestamp(shard, timestamp)
             .await
     }
 
-    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
+    async fn get_offset_by_group(
+        &self,
+        group_name: &str,
+    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
         self.memory_storage_engine
             .get_offset_by_group(group_name)
             .await
@@ -123,7 +135,10 @@ impl StorageAdapter for MemoryStorageAdapter {
             .await
     }
 
-    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
+    async fn message_expire(
+        &self,
+        _config: &AdapterMessageExpireConfig,
+    ) -> Result<(), CommonError> {
         Ok(())
     }
 

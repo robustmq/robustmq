@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::adapter_record::{AdapterWriteRecord, Header as AdapterHeader};
+use crate::storage::adapter_record::{
+    AdapterWriteRecord, AdapterWriteRecordHeader as AdapterHeader,
+};
 use crate::storage::storage_record::{
     Header as StorageHeader, StorageRecord, StorageRecordMetadata,
 };

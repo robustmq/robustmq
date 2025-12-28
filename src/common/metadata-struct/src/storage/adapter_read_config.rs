@@ -26,3 +26,23 @@ impl AdapterReadConfig {
         }
     }
 }
+
+#[derive(Default, Clone, Debug)]
+pub struct AdapterWriteRespRow {
+    pub offset: u64,
+    pub pkid: u64,
+    pub error: Option<String>,
+}
+
+impl AdapterWriteRespRow {
+    pub fn is_error(&self) -> bool {
+        self.error.is_some()
+    }
+
+    pub fn error_info(&self) -> String {
+        if let Some(err) = self.error.clone() {
+            return err;
+        }
+        "AdapterWriteRespRow Null Error".to_string()
+    }
+}

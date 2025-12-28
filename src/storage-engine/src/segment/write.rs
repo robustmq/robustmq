@@ -26,6 +26,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::adapter_read_config::AdapterWriteRespRow;
 use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -57,7 +58,7 @@ pub struct WriteChannelDataRecord {
 /// the response of the write request from the segment write thread
 #[derive(Default, Debug, Clone)]
 pub struct SegmentWriteResp {
-    pub offsets: Arc<HashMap<u64, u64>>,
+    pub offsets: Vec<AdapterWriteRespRow>,
     pub last_offset: u64,
     pub error: Option<String>,
 }
@@ -500,8 +501,17 @@ async fn batch_write(
         );
     }
 
+    let offsets: Vec<AdapterWriteRespRow> = pkid_offset_list
+        .iter()
+        .map(|raw| AdapterWriteRespRow {
+            pkid: *raw.0,
+            offset: *raw.1,
+            ..Default::default()
+        })
+        .collect();
+
     Ok(Some(SegmentWriteResp {
-        offsets: Arc::new(pkid_offset_list.clone()),
+        offsets,
         last_offset: *last_offset,
         ..Default::default()
     }))
@@ -655,8 +665,8 @@ mod tests {
         assert_eq!(resp.offsets.len(), 10);
         assert_eq!(resp.last_offset, 9);
 
-        for i in 0..10 {
-            assert_eq!(*resp.offsets.get(&i).unwrap(), i);
+        for row in &resp.offsets {
+            assert_eq!(row.pkid, row.offset);
         }
 
         let segment_file =

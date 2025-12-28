@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 
@@ -62,17 +62,20 @@ impl AdapterHandler {
         }
     }
 
-    pub async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
         if let Err(e) = create_shard_to_place(&self.cache_manager, &self.client_pool, shard).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
     }
 
-    pub async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+    pub async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
         if let Some(shard_name) = shard {
             if let Some(raw) = self.cache_manager.shards.get(&shard_name) {
-                return Ok(vec![ShardInfo {
+                return Ok(vec![AdapterShardInfo {
                     shard_name: raw.shard_name.clone(),
                     replica_num: 1,
                 }]);
@@ -84,7 +87,7 @@ impl AdapterHandler {
             .cache_manager
             .shards
             .iter()
-            .map(|raw| ShardInfo {
+            .map(|raw| AdapterShardInfo {
                 shard_name: raw.shard_name.clone(),
                 replica_num: 1,
             })
@@ -104,7 +107,7 @@ impl AdapterHandler {
         &self,
         shard: &str,
         records: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         match batch_write(
             &self.write_manager,
             &self.cache_manager,
@@ -152,7 +155,7 @@ impl AdapterHandler {
         &self,
         _shard: &str,
         _timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
         Ok(None)
     }
 }

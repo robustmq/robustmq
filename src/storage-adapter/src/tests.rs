@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 use common_base::tools::unique_id;
-use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
@@ -25,13 +25,13 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1_name = unique_id();
     let shard2_name = unique_id();
 
-    let shard1 = ShardInfo {
+    let shard1 = AdapterShardInfo {
         shard_name: shard1_name.clone(),
         replica_num: 3,
     };
     adapter.create_shard(&shard1).await.unwrap();
     adapter
-        .create_shard(&ShardInfo {
+        .create_shard(&AdapterShardInfo {
             shard_name: shard2_name.clone(),
             ..Default::default()
         })
@@ -62,7 +62,7 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
     };
 
     adapter
-        .create_shard(&ShardInfo {
+        .create_shard(&AdapterShardInfo {
             shard_name: shard_name.clone(),
             ..Default::default()
         })
@@ -79,10 +79,14 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
     r2.tags = Some(vec!["b".to_string(), "c".to_string()]);
     r2.timestamp = 2000;
 
-    assert_eq!(
-        adapter.batch_write(&shard_name, &[r1, r2]).await.unwrap(),
-        vec![0, 1]
-    );
+    let offsets: Vec<u64> = adapter
+        .batch_write(&shard_name, &[r1, r2])
+        .await
+        .unwrap()
+        .iter()
+        .map(|raw| raw.offset)
+        .collect();
+    assert_eq!(offsets, vec![0, 1]);
     assert_eq!(
         adapter
             .read_by_offset(&shard_name, 0, &cfg)
@@ -176,14 +180,14 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
     let g3 = unique_id();
 
     adapter
-        .create_shard(&ShardInfo {
+        .create_shard(&AdapterShardInfo {
             shard_name: s1.clone(),
             ..Default::default()
         })
         .await
         .unwrap();
     adapter
-        .create_shard(&ShardInfo {
+        .create_shard(&AdapterShardInfo {
             shard_name: s2.clone(),
             ..Default::default()
         })
@@ -238,7 +242,7 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
     };
 
     adapter
-        .create_shard(&ShardInfo {
+        .create_shard(&AdapterShardInfo {
             shard_name: shard_name.clone(),
             ..Default::default()
         })
@@ -254,8 +258,8 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
 
     let offsets = adapter.batch_write(&shard_name, &records).await.unwrap();
     assert_eq!(offsets.len(), 15000);
-    assert_eq!(offsets[0], 0);
-    assert_eq!(offsets[14999], 14999);
+    assert_eq!(offsets[0].offset, 0);
+    assert_eq!(offsets[14999].offset, 14999);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 1000)

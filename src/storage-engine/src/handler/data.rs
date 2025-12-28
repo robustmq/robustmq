@@ -108,16 +108,18 @@ pub async fn write_data_req(
     }
 
     let response = write_manager.write(segment_iden, record_list).await?;
-
+    if let Some(err) = response.error {
+        return Err(StorageEngineError::CommonErrorStr(err));
+    }
     let resp_message = WriteRespMessage {
         shard_name: segment_iden.shard_name.clone(),
         segment: segment_iden.segment,
         messages: response
             .offsets
             .iter()
-            .map(|(pkid, offset)| WriteRespMessageStatus {
-                pkid: *pkid,
-                offset: *offset,
+            .map(|row| WriteRespMessageStatus {
+                pkid: row.pkid,
+                offset: row.offset,
                 ..Default::default()
             })
             .collect(),

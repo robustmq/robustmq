@@ -37,7 +37,7 @@ use meta_service::{
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
-use metadata_struct::storage::adapter_offset::MessageExpireConfig;
+use metadata_struct::storage::adapter_offset::AdapterMessageExpireConfig;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
@@ -323,7 +323,7 @@ impl BrokerServer {
         // message expire
         let storage = self.mqtt_params.message_storage_adapter.clone();
         server_runtime.spawn(async move {
-            message_expire_thread(storage.clone(), MessageExpireConfig::default()).await;
+            message_expire_thread(storage.clone(), AdapterMessageExpireConfig::default()).await;
         });
 
         // awaiting stop

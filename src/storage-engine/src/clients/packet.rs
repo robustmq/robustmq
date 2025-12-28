@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use metadata_struct::storage::adapter_read_config::AdapterWriteRespRow;
 use protocol::storage::protocol::{
     ApiKey, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody, ReqHeader, RespHeader,
     StorageEngineNetworkError, WriteReq, WriteReqBody, WriteResp, WriteRespBody, WriteRespMessage,
@@ -68,19 +69,28 @@ pub fn build_read_resp(
 }
 
 // todo: In the future, there may be situations where some records are successfully written while others fail.
-pub fn write_resp_parse(resp: &WriteResp) -> Result<Vec<u64>, StorageEngineError> {
+pub fn write_resp_parse(resp: &WriteResp) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     if let Some(err) = &resp.header.error {
         return Err(StorageEngineError::CommonErrorStr(err.to_str()));
     }
 
-    let mut offsets = Vec::new();
+    let mut results = Vec::new();
     for msg in &resp.body.status {
         for raw in &msg.messages {
-            if let Some(err) = &raw.error {
-                return Err(StorageEngineError::CommonErrorStr(err.to_str()));
+            if let Some(err) = raw.error.clone() {
+                results.push(AdapterWriteRespRow {
+                    pkid: raw.pkid,
+                    error: Some(err.to_str()),
+                    ..Default::default()
+                });
+            } else {
+                results.push(AdapterWriteRespRow {
+                    pkid: raw.pkid,
+                    offset: raw.offset,
+                    ..Default::default()
+                });
             }
-            offsets.push(raw.offset);
         }
     }
-    Ok(offsets)
+    Ok(results)
 }

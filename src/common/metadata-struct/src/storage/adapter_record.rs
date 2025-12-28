@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::storage;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Header {
+pub struct AdapterWriteRecordHeader {
     pub name: String,
     pub value: String,
 }
@@ -28,7 +28,7 @@ pub struct Header {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AdapterWriteRecord {
     pub pkid: u64,
-    pub header: Option<Vec<Header>>,
+    pub header: Option<Vec<AdapterWriteRecordHeader>>,
     pub key: Option<String>,
     pub tags: Option<Vec<String>>,
     pub data: Bytes,
@@ -106,7 +106,7 @@ impl AdapterWriteRecord {
     }
 
     /// Set header (chainable)
-    pub fn with_header(mut self, header: Vec<Header>) -> Self {
+    pub fn with_header(mut self, header: Vec<AdapterWriteRecordHeader>) -> Self {
         self.header = Some(header);
         self
     }
@@ -128,7 +128,7 @@ impl AdapterWriteRecord {
     }
 
     /// Set header (mutable)
-    pub fn set_header(&mut self, headers: Vec<Header>) {
+    pub fn set_header(&mut self, headers: Vec<AdapterWriteRecordHeader>) {
         self.header = Some(headers);
     }
 
@@ -153,7 +153,7 @@ impl AdapterWriteRecord {
     }
 
     /// Get header slice
-    pub fn header(&self) -> &[Header] {
+    pub fn header(&self) -> &[AdapterWriteRecordHeader] {
         self.header.as_deref().unwrap_or(&[])
     }
 
@@ -215,7 +215,7 @@ mod tests {
     fn test_record_bincode_serialization() {
         let record = AdapterWriteRecord {
             pkid: 1,
-            header: Some(vec![Header {
+            header: Some(vec![AdapterWriteRecordHeader {
                 name: "test_header".to_string(),
                 value: "test_value".to_string(),
             }]),

@@ -27,7 +27,9 @@ use crate::{
 };
 use common_base::utils::serialize::serialize;
 use common_config::broker::broker_config;
-use metadata_struct::{storage::adapter_record::AdapterWriteRecord, storage::shard::EngineType};
+use metadata_struct::storage::{
+    adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord, shard::EngineType,
+};
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 
@@ -39,7 +41,7 @@ pub async fn batch_write(
     client_connection_manager: &Arc<ClientConnectionManager>,
     shard_name: &str,
     records: &[AdapterWriteRecord],
-) -> Result<Vec<u64>, StorageEngineError> {
+) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
@@ -85,7 +87,7 @@ async fn write_data_to_remote(
     shard_name: &str,
     segment: u32,
     records: &[AdapterWriteRecord],
-) -> Result<Vec<u64>, StorageEngineError> {
+) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let messages = records
         .iter()
         .map(serialize)
@@ -108,7 +110,7 @@ async fn write_memory_to_local(
     memory_storage_engine: &Arc<MemoryStorageEngine>,
     shard_name: &str,
     records: &[AdapterWriteRecord],
-) -> Result<Vec<u64>, StorageEngineError> {
+) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let offsets = memory_storage_engine
         .batch_write(shard_name, records)
         .await?;
@@ -119,7 +121,7 @@ async fn write_rocksdb_to_local(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     shard_name: &str,
     records: &[AdapterWriteRecord],
-) -> Result<Vec<u64>, StorageEngineError> {
+) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let offsets = rocksdb_storage_engine
         .batch_write(shard_name, records)
         .await?;
@@ -131,7 +133,7 @@ async fn write_segment_to_local(
     shard_name: &str,
     segment: u32,
     records: &[AdapterWriteRecord],
-) -> Result<Vec<u64>, StorageEngineError> {
+) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let segment_iden = SegmentIdentity::new(shard_name, segment);
     let data_list = records
         .iter()
@@ -152,5 +154,9 @@ async fn write_segment_to_local(
         })
         .collect();
     let resp = write_manager.write(&segment_iden, data_list).await?;
-    Ok(resp.offsets.iter().map(|raw| *raw.1).collect())
+    if let Some(err) = resp.error {
+        return Err(StorageEngineError::CommonErrorStr(err));
+    }
+
+    Ok(resp.offsets)
 }

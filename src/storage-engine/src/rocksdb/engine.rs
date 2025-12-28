@@ -16,8 +16,8 @@ use common_base::tools::now_second;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_base::{error::common::CommonError, utils::serialize};
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
 use metadata_struct::storage::storage_record::StorageRecord;
@@ -105,7 +105,7 @@ impl RocksDBStorageEngine {
         &self,
         shard_name: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -121,11 +121,15 @@ impl RocksDBStorageEngine {
         let cf = self.get_cf().map_err(|e| *e)?;
         let mut offset = self.get_latest_offset(shard_name).map_err(|e| *e)?;
 
-        let mut offset_res = Vec::with_capacity(messages.len());
+        let mut results = Vec::with_capacity(messages.len());
         let mut batch = WriteBatch::default();
 
         for msg in messages {
-            offset_res.push(offset);
+            results.push(AdapterWriteRespRow {
+                pkid: msg.pkid,
+                offset,
+                ..Default::default()
+            });
 
             // Convert StorageAdapterRecord to StorageEngineRecord
             let engine_record = convert_adapter_record_to_engine(msg.clone(), shard_name, offset);
@@ -174,7 +178,7 @@ impl RocksDBStorageEngine {
         self.db.write_batch(batch)?;
         self.save_latest_offset(shard_name, offset)
             .map_err(|e| *e)?;
-        Ok(offset_res)
+        Ok(results)
     }
 
     async fn search_index_by_timestamp(
@@ -278,7 +282,7 @@ impl RocksDBStorageEngine {
 }
 
 impl RocksDBStorageEngine {
-    pub async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+    pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
         let shard_name = &shard.shard_name;
         let cf = self.get_cf().map_err(|e| *e)?;
         let shard_info_key = shard_info_key(shard_name);
@@ -306,11 +310,14 @@ impl RocksDBStorageEngine {
         Ok(())
     }
 
-    pub async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+    pub async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
         if let Some(shard_name) = shard {
             let key = shard_info_key(&shard_name);
-            if let Some(v) = self.db.read::<ShardInfo>(cf.clone(), &key)? {
+            if let Some(v) = self.db.read::<AdapterShardInfo>(cf.clone(), &key)? {
                 Ok(vec![v])
             } else {
                 Ok(Vec::new())
@@ -319,7 +326,7 @@ impl RocksDBStorageEngine {
             let raw_shard_info = self.db.read_prefix(cf.clone(), &shard_info_key_prefix())?;
             let mut result = Vec::new();
             for (_, v) in raw_shard_info {
-                result.push(serialize::deserialize::<ShardInfo>(v.as_slice())?);
+                result.push(serialize::deserialize::<AdapterShardInfo>(v.as_slice())?);
             }
             Ok(result)
         }
@@ -368,12 +375,16 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         message: &AdapterWriteRecord,
-    ) -> Result<u64, CommonError> {
-        let offsets = self
+    ) -> Result<AdapterWriteRespRow, CommonError> {
+        let results = self
             .batch_write_internal(shard, std::slice::from_ref(message))
             .await?;
 
-        offsets
+        if results.is_empty() {
+            return Err(CommonError::CommonError("".to_string()));
+        }
+
+        results
             .first()
             .cloned()
             .ok_or_else(|| CommonError::CommonError("Empty offset result from write".to_string()))
@@ -383,7 +394,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -516,14 +527,14 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
         let index: Option<IndexInfo> = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
             if let Some(found_offset) = self
                 .read_data_by_time(shard, &Some(idx.clone()), timestamp)
                 .await?
             {
-                return Ok(Some(ShardOffset {
+                return Ok(Some(AdapterReadShardOffset {
                     shard_name: shard.to_string(),
                     offset: found_offset,
                     ..Default::default()
@@ -536,14 +547,14 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-    ) -> Result<Vec<ShardOffset>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
         let cf = self.get_cf().map_err(|e| *e)?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);
 
         let mut offsets = Vec::new();
         for (_, v) in self.db.read_prefix(cf, &group_record_offsets_key_prefix)? {
             let info = deserialize::<OffsetInfo>(&v)?;
-            offsets.push(ShardOffset {
+            offsets.push(AdapterReadShardOffset {
                 group: info.group_name,
                 shard_name: info.shard_name,
                 offset: info.offset,

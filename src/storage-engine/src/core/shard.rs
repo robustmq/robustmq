@@ -19,7 +19,7 @@ use crate::segment::file::data_fold_shard;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -92,7 +92,7 @@ pub fn is_delete_by_shard(shard_name: &str) -> Result<bool, StorageEngineError> 
 pub async fn create_shard_to_place(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
-    shard: &ShardInfo,
+    shard: &AdapterShardInfo,
 ) -> Result<(), StorageEngineError> {
     let shard_name = &shard.shard_name;
     let config = EngineShardConfig {

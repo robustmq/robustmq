@@ -148,7 +148,7 @@ mod test {
     use metadata_struct::{
         delay_info::DelayMessageInfo,
         storage::{
-            adapter_offset::ShardInfo, adapter_read_config::AdapterReadConfig,
+            adapter_offset::AdapterShardInfo, adapter_read_config::AdapterReadConfig,
             adapter_record::AdapterWriteRecord,
         },
     };
@@ -163,14 +163,14 @@ mod test {
         let target_shard_name = unique_id();
         let delay_shard_name = unique_id();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: target_shard_name.clone(),
                 ..Default::default()
             })
             .await
             .unwrap();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: delay_shard_name.clone(),
                 ..Default::default()
             })
@@ -220,7 +220,7 @@ mod test {
 
         let target_topic = unique_id();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: target_topic.clone(),
                 ..Default::default()
             })

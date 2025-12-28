@@ -19,7 +19,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::ShardOffset;
+use metadata_struct::storage::adapter_offset::AdapterReadShardOffset;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{base::get_cf_handle, family::DB_COLUMN_FAMILY_BROKER},
@@ -52,7 +52,7 @@ impl OffsetCacheManager {
         let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
         for (shard_name, offset) in offset.iter() {
             let key = self.offset_key(group_name, shard_name);
-            let shard_offset = ShardOffset {
+            let shard_offset = AdapterReadShardOffset {
                 shard_name: shard_name.to_string(),
                 offset: *offset,
                 ..Default::default()
@@ -71,7 +71,7 @@ impl OffsetCacheManager {
     }
 
     pub async fn try_comparison_and_save_offset(&self) -> Result<(), CommonError> {
-        let groups: DashMap<String, Vec<ShardOffset>> = DashMap::new();
+        let groups: DashMap<String, Vec<AdapterReadShardOffset>> = DashMap::new();
 
         // Only read offsets for groups with pending updates (flag=true)
         {
@@ -92,7 +92,7 @@ impl OffsetCacheManager {
                     .rocksdb_engine_handler
                     .read_prefix(cf.clone(), &key_prefix)?
                 {
-                    let data = deserialize::<ShardOffset>(&val)?;
+                    let data = deserialize::<AdapterReadShardOffset>(&val)?;
                     group_offsets.push(data);
                 }
 
@@ -102,7 +102,7 @@ impl OffsetCacheManager {
             }
         }
 
-        let updates: DashMap<String, Vec<ShardOffset>> = DashMap::new();
+        let updates: DashMap<String, Vec<AdapterReadShardOffset>> = DashMap::new();
 
         for group_raw in groups.iter() {
             let group = group_raw.key();
@@ -161,7 +161,9 @@ impl OffsetCacheManager {
         Ok(())
     }
 
-    pub async fn get_local_offset(&self) -> Result<DashMap<String, Vec<ShardOffset>>, CommonError> {
+    pub async fn get_local_offset(
+        &self,
+    ) -> Result<DashMap<String, Vec<AdapterReadShardOffset>>, CommonError> {
         let results = DashMap::with_capacity(16);
         let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
 
@@ -179,7 +181,7 @@ impl OffsetCacheManager {
                 .rocksdb_engine_handler
                 .read_prefix(cf.clone(), &key_prefix)?
             {
-                let data = deserialize::<ShardOffset>(&val)?;
+                let data = deserialize::<AdapterReadShardOffset>(&val)?;
                 group_data.push(data);
             }
 

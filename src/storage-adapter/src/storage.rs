@@ -16,8 +16,10 @@ use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
-use metadata_struct::storage::adapter_offset::{MessageExpireConfig, ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{
+    AdapterMessageExpireConfig, AdapterReadShardOffset, AdapterShardInfo,
+};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::{collections::HashMap, sync::Arc};
@@ -27,19 +29,24 @@ pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
 #[async_trait]
 pub trait StorageAdapter {
-    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError>;
+    async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError>;
+    async fn list_shard(&self, shard: Option<String>)
+        -> Result<Vec<AdapterShardInfo>, CommonError>;
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 
-    async fn write(&self, shard: &str, data: &AdapterWriteRecord) -> Result<u64, CommonError>;
+    async fn write(
+        &self,
+        shard: &str,
+        data: &AdapterWriteRecord,
+    ) -> Result<AdapterWriteRespRow, CommonError>;
 
     async fn batch_write(
         &self,
         shard: &str,
         data: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError>;
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError>;
 
     async fn read_by_offset(
         &self,
@@ -62,9 +69,12 @@ pub trait StorageAdapter {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError>;
+    ) -> Result<Option<AdapterReadShardOffset>, CommonError>;
 
-    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError>;
+    async fn get_offset_by_group(
+        &self,
+        group_name: &str,
+    ) -> Result<Vec<AdapterReadShardOffset>, CommonError>;
 
     async fn commit_offset(
         &self,
@@ -72,7 +82,7 @@ pub trait StorageAdapter {
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 
-    async fn message_expire(&self, config: &MessageExpireConfig) -> Result<(), CommonError>;
+    async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
 }

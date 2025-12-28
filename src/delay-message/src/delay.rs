@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
@@ -103,13 +103,17 @@ pub(crate) async fn persist_delay_message(
     shard_name: &str,
     data: AdapterWriteRecord,
 ) -> Result<u64, CommonError> {
-    let offset = message_storage_adapter.write(shard_name, &data).await?;
+    let resp = message_storage_adapter.write(shard_name, &data).await?;
+    if resp.is_error() {
+        return Err(CommonError::CommonError(resp.error_info()));
+    }
+
     debug!(
         "Delay message persisted to shard {} at offset {}",
-        shard_name, offset
+        shard_name, resp.offset
     );
 
-    Ok(offset)
+    Ok(resp.offset)
 }
 
 pub(crate) async fn init_delay_message_shard(
@@ -123,7 +127,7 @@ pub(crate) async fn init_delay_message_shard(
             .list_shard(Some(shard_name.clone()))
             .await?;
         if results.is_empty() {
-            let shard = ShardInfo {
+            let shard = AdapterShardInfo {
                 shard_name: shard_name.clone(),
                 replica_num: 1,
             };
@@ -137,7 +141,7 @@ pub(crate) async fn init_delay_message_shard(
         .list_shard(Some(DELAY_QUEUE_INFO_SHARD_NAME.to_string()))
         .await?;
     if results.is_empty() {
-        let shard = ShardInfo {
+        let shard = AdapterShardInfo {
             shard_name: DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
             replica_num: 1,
         };
@@ -163,7 +167,9 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord};
+    use metadata_struct::storage::{
+        adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
+    };
     use storage_adapter::storage::build_memory_storage_driver;
 
     use crate::{
@@ -212,7 +218,7 @@ mod test {
         let shard_name = "test".to_string();
         let data = AdapterWriteRecord::from_string("test".to_string());
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.clone(),
                 ..Default::default()
             })

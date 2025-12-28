@@ -166,7 +166,7 @@ impl Sender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::storage::adapter_record::Header;
+    use metadata_struct::storage::adapter_record::AdapterWriteRecordHeader;
 
     #[tokio::test]
     #[ignore = "reason"]
@@ -180,7 +180,7 @@ mod tests {
         let sender = Sender::new(&config).expect("Failed to create sender");
         let mut record = AdapterWriteRecord::from_string("test".to_string());
         record.set_key("test".to_string());
-        record.set_header(vec![Header {
+        record.set_header(vec![AdapterWriteRecordHeader {
             name: "h1".to_string(),
             value: "v1".to_string(),
         }]);
@@ -213,7 +213,7 @@ mod tests {
     fn test_record_to_line() {
         let mut record = AdapterWriteRecord::from_string("test data".to_string());
         record.set_key("sensor_data".to_string());
-        record.set_header(vec![Header {
+        record.set_header(vec![AdapterWriteRecordHeader {
             name: "location".to_string(),
             value: "room 1".to_string(),
         }]);
