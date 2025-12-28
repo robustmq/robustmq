@@ -96,6 +96,6 @@ pub fn write_resp_parse(resp: &WriteResp) -> Result<Vec<AdapterWriteRespRow>, St
     Ok(results)
 }
 
-pub fn read_resp_parse(resp: &ReadResp) -> Result<Vec<StorageRecord>, StorageEngineError> {
+pub fn read_resp_parse(_resp: &ReadResp) -> Result<Vec<StorageRecord>, StorageEngineError> {
     Ok(Vec::new())
 }

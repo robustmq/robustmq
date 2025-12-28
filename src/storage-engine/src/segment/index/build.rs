@@ -336,8 +336,7 @@ mod tests {
         save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
 
         let results =
-            get_index_data_by_tag(&rocksdb, &segment_iden, Some(0), &"urgent".to_string(), 10)
-                .unwrap();
+            get_index_data_by_tag(&rocksdb, &segment_iden, Some(0), "urgent", 10).unwrap();
         assert_eq!(results.len(), 3);
         assert_eq!(results[0].offset, 100);
         assert_eq!(results[0].position, 1000);
@@ -346,21 +345,14 @@ mod tests {
         assert_eq!(results[2].offset, 400);
         assert_eq!(results[2].position, 4000);
 
-        let results = get_index_data_by_tag(
-            &rocksdb,
-            &segment_iden,
-            Some(150),
-            &"urgent".to_string(),
-            10,
-        )
-        .unwrap();
+        let results =
+            get_index_data_by_tag(&rocksdb, &segment_iden, Some(150), "urgent", 10).unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].offset, 200);
         assert_eq!(results[1].offset, 400);
 
         let results =
-            get_index_data_by_tag(&rocksdb, &segment_iden, Some(0), &"normal".to_string(), 10)
-                .unwrap();
+            get_index_data_by_tag(&rocksdb, &segment_iden, Some(0), "normal", 10).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].offset, 300);
     }

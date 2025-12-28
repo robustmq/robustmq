@@ -12,22 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::error::common::CommonError;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
-use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::EngineType;
-use metadata_struct::storage::storage_record::StorageRecord;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-
 use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
-use crate::segment::index::read::get_index_data_by_timestamp;
 use crate::{
     clients::manager::ClientConnectionManager,
     core::{
@@ -39,6 +27,14 @@ use crate::{
     rocksdb::engine::RocksDBStorageEngine,
     segment::write::WriteManager,
 };
+use common_base::error::common::CommonError;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::storage_record::StorageRecord;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AdapterHandler {
@@ -217,7 +213,7 @@ impl AdapterHandler {
     async fn get_offset_by_timestamp0(
         &self,
         shard_name: &str,
-        timestamp: u64,
+        _timestamp: u64,
     ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
         let Some(_shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));

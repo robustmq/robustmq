@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
+
 use crate::clients::manager::ClientConnectionManager;
 use crate::memory::engine::MemoryStorageEngine;
 use crate::rocksdb::engine::RocksDBStorageEngine;

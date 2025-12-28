@@ -20,7 +20,6 @@ use crate::memory::engine::MemoryStorageEngine;
 use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::write::WriteManager;
 use axum::async_trait;
-use common_config::broker::broker_config;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;
@@ -123,7 +122,6 @@ impl Command for StorageEngineHandlerCommand {
 
             StorageEnginePacket::ReadReq(request) => {
                 let req_body = request.body;
-                let config = broker_config();
                 let (resp_body, error) = match read_data_req(
                     &self.cache_manager,
                     &self.memory_storage_engine,
@@ -131,7 +129,6 @@ impl Command for StorageEngineHandlerCommand {
                     &self.client_connection_manager,
                     &self.rocksdb_engine_handler,
                     &req_body,
-                    config.broker_id,
                 )
                 .await
                 {

@@ -115,7 +115,6 @@ pub async fn read_data_req(
     client_connection_manager: &Arc<ClientConnectionManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req_body: &ReadReqBody,
-    node_id: u64,
 ) -> Result<Vec<Vec<u8>>, StorageEngineError> {
     let mut results = Vec::new();
     for raw in req_body.messages.iter() {
@@ -241,7 +240,6 @@ mod tests {
                 },
             }],
         };
-        let conf = broker_config();
         let res = read_data_req(
             &cache_manager,
             &memory_storage_engine,
@@ -249,7 +247,6 @@ mod tests {
             &client_connection_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.broker_id,
         )
         .await;
         assert!(res.is_ok());
@@ -280,7 +277,7 @@ mod tests {
                 },
             }],
         };
-        let conf = broker_config();
+
         let res = read_data_req(
             &cache_manager,
             &memory_storage_engine,
@@ -288,7 +285,6 @@ mod tests {
             &client_connection_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.broker_id,
         )
         .await;
         assert!(res.is_ok());
@@ -315,7 +311,7 @@ mod tests {
                 },
             }],
         };
-        let conf = broker_config();
+
         let res = read_data_req(
             &cache_manager,
             &memory_storage_engine,
@@ -323,7 +319,6 @@ mod tests {
             &client_connection_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.broker_id,
         )
         .await;
         assert!(res.is_ok());

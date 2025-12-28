@@ -96,7 +96,7 @@ pub async fn segment_read_by_tag(
 mod tests {
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{core::test::test_base_write_data, segment::file::SegmentFile};
-    use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
+    use protocol::storage::protocol::ReadReqOptions;
 
     #[tokio::test]
     async fn read_by_offset_test() {
