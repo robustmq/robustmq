@@ -31,7 +31,7 @@ use crate::{
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
-    AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -208,7 +208,7 @@ impl AdapterHandler {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError> {
         match self
             .get_offset_by_timestamp0(shard, timestamp, strategy)
             .await
@@ -223,7 +223,7 @@ impl AdapterHandler {
         shard_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
+    ) -> Result<Option<AdapterConsumerGroupOffset>, StorageEngineError> {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };

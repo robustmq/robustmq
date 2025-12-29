@@ -17,7 +17,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterReadShardOffset};
+use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
 use protocol::meta::meta_service_common::{
     GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
@@ -43,7 +43,7 @@ impl OffsetStorageManager {
         &self,
         group: &str,
         _strategy: AdapterOffsetStrategy,
-    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         let request = GetOffsetDataRequest {
             group: group.to_owned(),
         };
@@ -51,7 +51,7 @@ impl OffsetStorageManager {
 
         let mut results = Vec::new();
         for raw in reply.offsets {
-            results.push(AdapterReadShardOffset {
+            results.push(AdapterConsumerGroupOffset {
                 shard_name: raw.shard_name,
                 offset: raw.offset,
                 ..Default::default()
@@ -85,7 +85,7 @@ impl OffsetStorageManager {
 
     pub async fn batch_commit_offset(
         &self,
-        offset_datas: &DashMap<String, Vec<AdapterReadShardOffset>>,
+        offset_datas: &DashMap<String, Vec<AdapterConsumerGroupOffset>>,
     ) -> Result<(), CommonError> {
         let mut offsets = Vec::new();
         for data in offset_datas.iter() {

@@ -28,11 +28,19 @@ pub enum AdapterOffsetStrategy {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub struct AdapterReadShardOffset {
+pub struct AdapterConsumerGroupOffset {
     pub group: String,
     pub shard_name: String,
     pub segment_no: u32,
     pub offset: u64,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct AdapterShardOffsetInfo {
+    pub shard_name: String,
+    pub start_offset: u64,
+    pub high_water_mark: u64,
+    pub end_offset: u64,
 }
 
 #[derive(Default, Clone)]

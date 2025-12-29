@@ -15,7 +15,7 @@
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::{
-    AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -410,11 +410,11 @@ impl MemoryStorageEngine {
         shard: &str,
         timestamp: u64,
         _strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
+    ) -> Result<Option<AdapterConsumerGroupOffset>, StorageEngineError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
         if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
-            return Ok(Some(AdapterReadShardOffset {
+            return Ok(Some(AdapterConsumerGroupOffset {
                 shard_name: shard.to_string(),
                 offset,
                 ..Default::default()
@@ -428,14 +428,14 @@ impl MemoryStorageEngine {
         &self,
         group_name: &str,
         _strategy: AdapterOffsetStrategy,
-    ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
         let Some(group_map) = self.group_data.get(group_name) else {
             return Ok(Vec::new());
         };
 
         let offsets = group_map
             .iter()
-            .map(|entry| AdapterReadShardOffset {
+            .map(|entry| AdapterConsumerGroupOffset {
                 group: group_name.to_string(),
                 shard_name: entry.key().clone(),
                 offset: *entry.value(),

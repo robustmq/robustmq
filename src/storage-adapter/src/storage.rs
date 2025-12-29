@@ -17,7 +17,7 @@ use axum::async_trait;
 use common_base::error::common::CommonError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use metadata_struct::storage::adapter_offset::{
-    AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -70,13 +70,13 @@ pub trait StorageAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterReadShardOffset>, CommonError>;
+    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError>;
 
     async fn get_offset_by_group(
         &self,
         group_name: &str,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Vec<AdapterReadShardOffset>, CommonError>;
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError>;
 
     async fn commit_offset(
         &self,

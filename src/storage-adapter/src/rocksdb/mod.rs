@@ -16,7 +16,7 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -122,7 +122,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError> {
         self.rocksdb_storage_engine
             .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
@@ -133,7 +133,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         &self,
         group_name: &str,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         self.rocksdb_storage_engine
             .get_offset_by_group(group_name, strategy)
             .await

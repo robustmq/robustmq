@@ -17,7 +17,7 @@ use common_base::utils::serialize;
 use common_base::utils::serialize::{deserialize, serialize};
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::{
-    AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -534,14 +534,14 @@ impl RocksDBStorageEngine {
         shard: &str,
         timestamp: u64,
         _strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
+    ) -> Result<Option<AdapterConsumerGroupOffset>, StorageEngineError> {
         let index: Option<IndexInfo> = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
             if let Some(found_offset) = self
                 .read_data_by_time(shard, &Some(idx.clone()), timestamp)
                 .await?
             {
-                return Ok(Some(AdapterReadShardOffset {
+                return Ok(Some(AdapterConsumerGroupOffset {
                     shard_name: shard.to_string(),
                     offset: found_offset,
                     ..Default::default()
@@ -555,14 +555,14 @@ impl RocksDBStorageEngine {
         &self,
         group_name: &str,
         _strategy: AdapterOffsetStrategy,
-    ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
         let cf = self.get_cf()?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);
 
         let mut offsets = Vec::new();
         for (_, v) in self.db.read_prefix(cf, &group_record_offsets_key_prefix)? {
             let info = deserialize::<OffsetInfo>(&v)?;
-            offsets.push(AdapterReadShardOffset {
+            offsets.push(AdapterConsumerGroupOffset {
                 group: info.group_name,
                 shard_name: info.shard_name,
                 offset: info.offset,
