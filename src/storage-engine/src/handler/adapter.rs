@@ -16,8 +16,7 @@ use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
-use crate::segment::index::read::get_in_segment_by_timestamp;
-use crate::segment::SegmentIdentity;
+use crate::core::shard::get_shard_offset_by_timestamp;
 use crate::{
     clients::manager::ClientConnectionManager,
     core::{
@@ -29,7 +28,6 @@ use crate::{
     rocksdb::engine::RocksDBStorageEngine,
     segment::write::WriteManager,
 };
-use broker_core::cache;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
@@ -229,7 +227,7 @@ impl AdapterHandler {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
-        let _result = match shard.engine_type {
+        let result = match shard.engine_type {
             EngineType::Memory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
@@ -240,26 +238,14 @@ impl AdapterHandler {
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
-            EngineType::Segment => {
-                let segment = if let Some(segment) =
-                    get_in_segment_by_timestamp(&self.cache_manager, shard_name, timestamp as i64)?
-                {
-                    segment
-                } else {
-                    match strategy {
-                        AdapterOffsetStrategy::Earliest => {
-                            return Ok(Some(AdapterReadShardOffset::default()));
-                        }
-                        AdapterOffsetStrategy::Latest => {
-                            return Ok(Some(AdapterReadShardOffset::default()));
-                        }
-                    }
-                };
-                // get_index_data_by_timestamp(rocksdb_engine_handler, segment_iden, start_timestamp)
-                //     .await?
-                None
-            }
+            EngineType::Segment => Some(get_shard_offset_by_timestamp(
+                &self.cache_manager,
+                &self.rocksdb_engine_handler,
+                shard_name,
+                timestamp,
+                strategy,
+            )?),
         };
-        Ok(None)
+        Ok(result)
     }
 }

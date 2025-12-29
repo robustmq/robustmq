@@ -55,10 +55,7 @@ pub fn get_in_segment_by_timestamp(
     timestamp: i64,
 ) -> Result<Option<u32>, StorageEngineError> {
     let index = cache_manager.get_offset_index(shard).ok_or_else(|| {
-        StorageEngineError::CommonErrorStr(format!(
-            "Offset index not found for shard: {}",
-            shard
-        ))
+        StorageEngineError::CommonErrorStr(format!("Offset index not found for shard: {}", shard))
     })?;
 
     Ok(index.find_segment_by_timestamp(timestamp))
