@@ -203,9 +203,8 @@ pub fn get_shard_offset_by_timestamp(
 ) -> Result<AdapterConsumerGroupOffset, StorageEngineError> {
     if let Some(segment) = get_in_segment_by_timestamp(cache_manager, shard_name, timestamp as i64)?
     {
-        let segment_iden = SegmentIdentity::new(shard_name, segment);
         if let Some(index_data) =
-            get_index_data_by_timestamp(rocksdb_engine_handler, &segment_iden, timestamp)?
+            get_index_data_by_timestamp(rocksdb_engine_handler, shard_name, timestamp)?
         {
             Ok(AdapterConsumerGroupOffset {
                 shard_name: shard_name.to_string(),

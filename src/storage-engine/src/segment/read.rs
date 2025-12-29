@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use super::file::SegmentFile;
-use super::SegmentIdentity;
 use crate::{
     core::error::StorageEngineError,
     segment::{
@@ -30,13 +29,13 @@ use std::sync::Arc;
 pub async fn segment_read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
-    segment_iden: &SegmentIdentity,
+    shard_name: &str,
     offset: u64,
     max_size: u64,
     max_record: u64,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let start_position = if let Some(position) =
-        get_index_data_by_offset(rocksdb_engine_handler, segment_iden, offset)?
+        get_index_data_by_offset(rocksdb_engine_handler, shard_name, offset)?
     {
         position.position
     } else {
@@ -55,10 +54,10 @@ pub async fn segment_read_by_offset(
 pub async fn segment_read_by_key(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
-    segment_iden: &SegmentIdentity,
+    shard_name: &str,
     key: &str,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let index_data = get_index_data_by_key(rocksdb_engine_handler, segment_iden, key.to_string())?;
+    let index_data = get_index_data_by_key(rocksdb_engine_handler, shard_name, key.to_string())?;
 
     let positions = if let Some(index) = index_data {
         vec![index.position]
@@ -75,14 +74,14 @@ pub async fn segment_read_by_key(
 pub async fn segment_read_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
-    segment_iden: &SegmentIdentity,
+    shard_name: &str,
     tag: &str,
     start_offset: Option<u64>,
     max_record: u64,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let index_data_list = get_index_data_by_tag(
         rocksdb_engine_handler,
-        segment_iden,
+        shard_name,
         start_offset,
         tag,
         max_record as usize,
@@ -110,7 +109,7 @@ mod tests {
         let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
             &segment_file,
-            &segment_iden,
+            &segment_iden.shard_name,
             5,
             max_size,
             max_record,
@@ -130,7 +129,7 @@ mod tests {
         let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
             &segment_file,
-            &segment_iden,
+            &segment_iden.shard_name,
             10,
             max_size,
             max_record,
@@ -156,9 +155,14 @@ mod tests {
                 .unwrap();
 
         let key = "key-5".to_string();
-        let resp = segment_read_by_key(&rocksdb_engine_handler, &segment_file, &segment_iden, &key)
-            .await
-            .unwrap();
+        let resp = segment_read_by_key(
+            &rocksdb_engine_handler,
+            &segment_file,
+            &segment_iden.shard_name,
+            &key,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(resp.len(), 1);
         let meata = resp.first().unwrap().record.metadata.clone();
@@ -183,7 +187,7 @@ mod tests {
         let res = segment_read_by_tag(
             &rocksdb_engine_handler,
             &segment_file,
-            &segment_iden,
+            &segment_iden.shard_name,
             &tag,
             None,
             read_options.max_record,

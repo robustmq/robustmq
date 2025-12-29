@@ -17,7 +17,12 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
-    core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
+    core::{
+        cache::StorageCacheManager,
+        error::StorageEngineError,
+        segment::segment_validator,
+        shard::{get_shard_earliest_offset, get_shard_latest_offset},
+    },
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
     segment::{
@@ -27,7 +32,9 @@ use crate::{
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::{
-    adapter_read_config::AdapterReadConfig, shard::EngineType, storage_record::StorageRecord,
+    adapter_read_config::AdapterReadConfig,
+    shard::{EngineShard, EngineType},
+    storage_record::StorageRecord,
 };
 use protocol::storage::{
     codec::StorageEnginePacket,
@@ -62,19 +69,18 @@ pub async fn read_by_offset(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    let segment =
-        if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
-            let segment_iden = SegmentIdentity::new(shard_name, segment_no);
-            let Some(segment) = cache_manager.get_segment(&segment_iden) else {
-                return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
-            };
-            segment
-        } else {
-            let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
-                return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
-            };
-            active_segment
-        };
+    let segment_no = get_segment_no_by_offset(
+        cache_manager,
+        rocksdb_engine_handler,
+        &shard,
+        shard_name,
+        offset,
+    )?;
+
+    let segment_iden = SegmentIdentity::new(shard_name, segment_no);
+    let Some(segment) = cache_manager.get_segment(&segment_iden) else {
+        return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
+    };
 
     segment_validator(cache_manager, shard_name, segment.segment_seq)?;
 
@@ -102,7 +108,7 @@ pub async fn read_by_offset(
     } else {
         read_by_remote(
             client_connection_manager,
-            conf.broker_id,
+            segment.leader,
             shard_name,
             offset,
             read_config,
@@ -180,11 +186,42 @@ async fn read_by_segment(
     let data_list = segment_read_by_offset(
         rocksdb_engine_handler,
         &segment_file,
-        &segment_iden,
+        shard_name,
         offset,
         read_config.max_size,
         read_config.max_record_num,
     )
     .await?;
-    Ok(data_list.iter().map(|raw| raw.record.clone()).collect())
+    Ok(data_list.into_iter().map(|raw| raw.record).collect())
+}
+
+fn get_segment_no_by_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard: &EngineShard,
+    shard_name: &str,
+    offset: u64,
+) -> Result<u32, StorageEngineError> {
+    match shard.engine_type {
+        EngineType::Memory | EngineType::RocksDB => Ok(shard.active_segment_seq),
+        EngineType::Segment => {
+            if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
+                Ok(segment_no)
+            } else {
+                let earliest_offset = get_shard_earliest_offset(cache_manager, shard_name)?;
+                let latest_offset =
+                    get_shard_latest_offset(cache_manager, rocksdb_engine_handler, shard_name)?;
+                if offset <= earliest_offset.offset {
+                    Ok(earliest_offset.segment_no)
+                } else if offset >= latest_offset.offset {
+                    Ok(latest_offset.segment_no)
+                } else {
+                    Err(StorageEngineError::CommonErrorStr(format!(
+                        "Offset {} is within range [{}, {}] but no segment found",
+                        offset, earliest_offset.offset, latest_offset.offset
+                    )))
+                }
+            }
+        }
+    }
 }

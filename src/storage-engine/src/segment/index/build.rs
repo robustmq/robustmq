@@ -17,8 +17,7 @@ use crate::segment::SegmentIdentity;
 use common_base::utils::serialize::serialize;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::engine::{
-    engine_key_index, offset_segment_position, segment_index_prefix, tag_segment,
-    timestamp_segment_time,
+    index_key_key, index_position_key, index_tag_key, index_timestamp_key, segment_base_by_segment,
 };
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
@@ -40,7 +39,7 @@ pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
-    let prefix_key_name = segment_index_prefix(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key_name = segment_base_by_segment(&segment_iden.shard_name, segment_iden.segment);
     let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -121,17 +120,12 @@ pub fn save_index(
                     timestamp: 0,
                 };
                 let serialized_data = serialize(&index_data)?;
-                let key = offset_segment_position(
-                    &segment_iden.shard_name,
-                    segment_iden.segment,
-                    data.offset,
-                );
+                let key = index_position_key(&segment_iden.shard_name, data.offset);
                 batch.put_cf(&cf, key.as_bytes(), &serialized_data);
             }
             IndexTypeEnum::Key => {
                 if let Some(k) = &data.key {
-                    let key =
-                        engine_key_index(&segment_iden.shard_name, segment_iden.segment, k.clone());
+                    let key = index_key_key(&segment_iden.shard_name, k.clone());
                     let index_data = IndexData {
                         offset: data.offset,
                         position,
@@ -149,19 +143,13 @@ pub fn save_index(
                         timestamp: 0,
                     };
                     let serialized_data = serialize(&index_data)?;
-                    let key = tag_segment(
-                        &segment_iden.shard_name,
-                        segment_iden.segment,
-                        t.clone(),
-                        data.offset,
-                    );
+                    let key = index_tag_key(&segment_iden.shard_name, t.clone(), data.offset);
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
             IndexTypeEnum::Time => {
                 if let Some(t) = data.timestamp {
-                    let key =
-                        timestamp_segment_time(&segment_iden.shard_name, segment_iden.segment, t);
+                    let key = index_timestamp_key(&segment_iden.shard_name, t);
                     let index_data = IndexData {
                         offset: data.offset,
                         position,
@@ -222,19 +210,19 @@ mod tests {
 
         save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
 
-        let result = get_index_data_by_offset(&rocksdb, &segment_iden, 0).unwrap();
+        let result = get_index_data_by_offset(&rocksdb, &segment_iden.shard_name, 0).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 0);
         assert_eq!(data.position, 100);
 
-        let result = get_index_data_by_offset(&rocksdb, &segment_iden, 15000).unwrap();
+        let result = get_index_data_by_offset(&rocksdb, &segment_iden.shard_name, 15000).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 10000);
         assert_eq!(data.position, 50000);
 
-        let result = get_index_data_by_offset(&rocksdb, &segment_iden, 25000).unwrap();
+        let result = get_index_data_by_offset(&rocksdb, &segment_iden.shard_name, 25000).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 20000);
@@ -276,21 +264,24 @@ mod tests {
         save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
 
         let result =
-            get_index_data_by_key(&rocksdb, &segment_iden, "user-123".to_string()).unwrap();
+            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, "user-123".to_string())
+                .unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 100);
         assert_eq!(data.position, 1000);
 
         let result =
-            get_index_data_by_key(&rocksdb, &segment_iden, "order-456".to_string()).unwrap();
+            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, "order-456".to_string())
+                .unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 200);
         assert_eq!(data.position, 2000);
 
         let result =
-            get_index_data_by_key(&rocksdb, &segment_iden, "not-exist".to_string()).unwrap();
+            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, "not-exist".to_string())
+                .unwrap();
         assert!(result.is_none());
     }
 
@@ -336,7 +327,8 @@ mod tests {
         save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
 
         let results =
-            get_index_data_by_tag(&rocksdb, &segment_iden, Some(0), "urgent", 10).unwrap();
+            get_index_data_by_tag(&rocksdb, &segment_iden.shard_name, Some(0), "urgent", 10)
+                .unwrap();
         assert_eq!(results.len(), 3);
         assert_eq!(results[0].offset, 100);
         assert_eq!(results[0].position, 1000);
@@ -346,13 +338,15 @@ mod tests {
         assert_eq!(results[2].position, 4000);
 
         let results =
-            get_index_data_by_tag(&rocksdb, &segment_iden, Some(150), "urgent", 10).unwrap();
+            get_index_data_by_tag(&rocksdb, &segment_iden.shard_name, Some(150), "urgent", 10)
+                .unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].offset, 200);
         assert_eq!(results[1].offset, 400);
 
         let results =
-            get_index_data_by_tag(&rocksdb, &segment_iden, Some(0), "normal", 10).unwrap();
+            get_index_data_by_tag(&rocksdb, &segment_iden.shard_name, Some(0), "normal", 10)
+                .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].offset, 300);
     }
@@ -391,28 +385,28 @@ mod tests {
 
         save_index(&rocksdb, &segment_iden, &index_data, &offset_positions).unwrap();
 
-        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 1000).unwrap();
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden.shard_name, 1000).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 0);
         assert_eq!(data.position, 100);
         assert_eq!(data.timestamp, 1000);
 
-        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 1500).unwrap();
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden.shard_name, 1500).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 0);
         assert_eq!(data.position, 100);
         assert_eq!(data.timestamp, 1000);
 
-        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 2500).unwrap();
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden.shard_name, 2500).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 10000);
         assert_eq!(data.position, 50000);
         assert_eq!(data.timestamp, 2000);
 
-        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden, 3500).unwrap();
+        let result = get_index_data_by_timestamp(&rocksdb, &segment_iden.shard_name, 3500).unwrap();
         assert!(result.is_some());
         let data = result.unwrap();
         assert_eq!(data.offset, 20000);

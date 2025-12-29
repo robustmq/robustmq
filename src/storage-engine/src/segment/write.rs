@@ -162,14 +162,9 @@ impl IoWork {
         Ok(offset)
     }
 
-    pub fn save_offset(
-        &self,
-        shard_name: &str,
-        segment: u32,
-        offset: u64,
-    ) -> Result<(), StorageEngineError> {
+    pub fn save_offset(&self, shard_name: &str, offset: u64) -> Result<(), StorageEngineError> {
         self.offset_data.insert(shard_name.to_string(), offset);
-        save_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name, segment, offset)?;
+        save_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name, offset)?;
         Ok(())
     }
 }
@@ -379,11 +374,7 @@ fn success_save_offset(
     segment_iden: &SegmentIdentity,
 ) -> bool {
     if let Some(max_offset) = pkid_offset_list.values().max() {
-        if let Err(ex) = io_work.save_offset(
-            &segment_iden.shard_name,
-            segment_iden.segment,
-            *max_offset + 1,
-        ) {
+        if let Err(ex) = io_work.save_offset(&segment_iden.shard_name, *max_offset + 1) {
             call_error_response(shard_sender_list, segment_iden, &ex.to_string());
             return false;
         }
@@ -633,8 +624,7 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
 
         use crate::segment::offset::save_shard_cursor_offset;
-        save_shard_cursor_offset(&rocksdb, &segment_iden.shard_name, segment_iden.segment, 0)
-            .unwrap();
+        save_shard_cursor_offset(&rocksdb, &segment_iden.shard_name, 0).unwrap();
         let client_poll = Arc::new(ClientPool::new(100));
 
         let write_manager =
@@ -731,13 +721,7 @@ mod tests {
             segment: 999,
         };
 
-        save_shard_cursor_offset(
-            &rocksdb,
-            &non_exist_segment.shard_name,
-            non_exist_segment.segment,
-            0,
-        )
-        .unwrap();
+        save_shard_cursor_offset(&rocksdb, &non_exist_segment.shard_name, 0).unwrap();
 
         let write_manager = WriteManager::new(
             rocksdb.clone(),

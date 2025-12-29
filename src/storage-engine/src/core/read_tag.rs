@@ -245,7 +245,7 @@ async fn read_by_segment(
     let data_list = segment_read_by_tag(
         rocksdb_engine_handler,
         &segment_file,
-        &segment_iden,
+        shard_name,
         tag,
         start_offset,
         read_config.max_record_num,

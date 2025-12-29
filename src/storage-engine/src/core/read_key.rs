@@ -195,6 +195,6 @@ async fn read_by_segment(
     let segment_iden = SegmentIdentity::new(shard_name, segment);
     let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
     let data_list =
-        segment_read_by_key(rocksdb_engine_handler, &segment_file, &segment_iden, key).await?;
+        segment_read_by_key(rocksdb_engine_handler, &segment_file, shard_name, key).await?;
     Ok(data_list.iter().map(|raw| raw.record.clone()).collect())
 }
