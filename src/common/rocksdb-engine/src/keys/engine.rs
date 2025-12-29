@@ -52,7 +52,7 @@ pub fn index_position_key(shard: &str, segment: u32, offset: u64) -> String {
 }
 
 pub fn index_position_key_prefix(shard: &str, segment: u32) -> String {
-    format!("{}/position/", segment_base(shard, segment))
+    format!("{}position/", segment_base(shard, segment))
 }
 
 pub fn index_timestamp_key(shard: &str, segment: u32, time_sec: u64) -> String {
