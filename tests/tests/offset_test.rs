@@ -17,6 +17,7 @@ mod tests {
     use common_base::tools::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, time::Duration};
     use storage_adapter::offset::OffsetManager;
@@ -39,7 +40,10 @@ mod tests {
             .await
             .unwrap();
 
-        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
+        let rep_offset = offset_manager
+            .get_offset(&group_name, AdapterOffsetStrategy::Earliest)
+            .await
+            .unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);
@@ -72,7 +76,10 @@ mod tests {
             .unwrap();
 
         sleep(Duration::from_secs(2)).await;
-        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
+        let rep_offset = offset_manager
+            .get_offset(&group_name, AdapterOffsetStrategy::Earliest)
+            .await
+            .unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);

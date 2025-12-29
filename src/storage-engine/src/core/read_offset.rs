@@ -75,7 +75,7 @@ pub async fn read_by_offset(
             };
             active_segment
         };
-    println!("{:?}", segment);
+
     segment_validator(cache_manager, shard_name, segment.segment_seq)?;
 
     let conf = broker_config();

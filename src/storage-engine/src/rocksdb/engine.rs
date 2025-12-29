@@ -533,7 +533,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
-        strategy: AdapterOffsetStrategy,
+        _strategy: AdapterOffsetStrategy,
     ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
         let index: Option<IndexInfo> = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
@@ -554,7 +554,7 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-        strategy: AdapterOffsetStrategy,
+        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
         let cf = self.get_cf()?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);

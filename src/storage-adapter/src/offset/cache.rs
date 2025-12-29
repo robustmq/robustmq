@@ -19,7 +19,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::AdapterReadShardOffset;
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterReadShardOffset};
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{base::get_cf_handle, family::DB_COLUMN_FAMILY_BROKER},
@@ -107,7 +107,10 @@ impl OffsetCacheManager {
         for group_raw in groups.iter() {
             let group = group_raw.key();
             let local_offsets = group_raw.value();
-            let remote_offsets = self.offset_storage.get_offset(group).await?;
+            let remote_offsets = self
+                .offset_storage
+                .get_offset(group, AdapterOffsetStrategy::Earliest)
+                .await?;
 
             let mut remote_map = HashMap::new();
             for remote_offset in remote_offsets {

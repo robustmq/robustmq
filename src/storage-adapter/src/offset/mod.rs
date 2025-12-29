@@ -98,6 +98,6 @@ impl OffsetManager {
         if self.enable_cache {
             self.offset_cache_storage.flush().await?;
         }
-        self.offset_storage.get_offset(group).await
+        self.offset_storage.get_offset(group, strategy).await
     }
 }

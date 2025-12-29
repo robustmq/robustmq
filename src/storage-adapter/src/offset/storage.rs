@@ -17,7 +17,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::AdapterReadShardOffset;
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterReadShardOffset};
 use protocol::meta::meta_service_common::{
     GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
@@ -42,6 +42,7 @@ impl OffsetStorageManager {
     pub async fn get_offset(
         &self,
         group: &str,
+        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
         let request = GetOffsetDataRequest {
             group: group.to_owned(),
