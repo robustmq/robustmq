@@ -17,7 +17,7 @@ use crate::segment::SegmentIdentity;
 use common_base::utils::serialize::serialize;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::engine::{
-    index_key_key, index_position_key, index_tag_key, index_timestamp_key, segment_base_by_segment,
+    index_key_key, index_position_key, index_tag_key, index_timestamp_key, segment_base,
 };
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
@@ -30,6 +30,7 @@ use std::{collections::HashMap, sync::Arc};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct IndexData {
+    pub segment: u32,
     pub offset: u64,
     pub timestamp: u64,
     pub position: u64,
@@ -39,7 +40,7 @@ pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
-    let prefix_key_name = segment_base_by_segment(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key_name = segment_base(&segment_iden.shard_name, segment_iden.segment);
     let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -115,6 +116,7 @@ pub fn save_index(
         match data.index_type {
             IndexTypeEnum::Offset => {
                 let index_data = IndexData {
+                    segment: segment_iden.segment,
                     offset: data.offset,
                     position,
                     timestamp: 0,
@@ -127,6 +129,7 @@ pub fn save_index(
                 if let Some(k) = &data.key {
                     let key = index_key_key(&segment_iden.shard_name, k.clone());
                     let index_data = IndexData {
+                        segment: segment_iden.segment,
                         offset: data.offset,
                         position,
                         timestamp: 0,
@@ -138,6 +141,7 @@ pub fn save_index(
             IndexTypeEnum::Tag => {
                 if let Some(t) = &data.tag {
                     let index_data = IndexData {
+                        segment: segment_iden.segment,
                         offset: data.offset,
                         position,
                         timestamp: 0,
@@ -151,6 +155,7 @@ pub fn save_index(
                 if let Some(t) = data.timestamp {
                     let key = index_timestamp_key(&segment_iden.shard_name, t);
                     let index_data = IndexData {
+                        segment: segment_iden.segment,
                         offset: data.offset,
                         position,
                         timestamp: t,

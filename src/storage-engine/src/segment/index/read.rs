@@ -73,26 +73,28 @@ pub fn get_index_data_by_offset(
     let mut last_valid_index = None;
 
     while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(&prefix_key) {
-                    break;
-                }
-
-                let index_data = serialize::deserialize::<IndexData>(val)?;
-
-                if index_data.offset <= start_offset {
-                    last_valid_index = Some(index_data);
-                    iter.next();
-                } else {
-                    break;
-                }
-            } else {
-                iter.next();
-            }
-        } else {
+        let Some(key) = iter.key() else {
             iter.next();
+            continue;
+        };
+
+        let Some(val) = iter.value() else {
+            iter.next();
+            continue;
+        };
+
+        let key = String::from_utf8(key.to_vec())?;
+        if !key.starts_with(&prefix_key) {
+            break;
+        }
+
+        let index_data = serialize::deserialize::<IndexData>(val)?;
+
+        if index_data.offset <= start_offset {
+            last_valid_index = Some(index_data);
+            iter.next();
+        } else {
+            break;
         }
     }
 
@@ -114,33 +116,36 @@ pub fn get_index_data_by_tag(
 
     let mut results = Vec::new();
     while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(&prefix_key) {
-                    break;
-                }
-
-                let index_data = serialize::deserialize::<IndexData>(val)?;
-
-                if let Some(st) = start_offset {
-                    if index_data.offset < st {
-                        iter.next();
-                        continue;
-                    }
-                }
-
-                results.push(index_data);
-                if results.len() >= record_num {
-                    break;
-                }
-                iter.next();
-            } else {
-                iter.next();
-            }
-        } else {
+        let Some(key) = iter.key() else {
             iter.next();
+            continue;
+        };
+
+        let Some(val) = iter.value() else {
+            iter.next();
+            continue;
+        };
+
+        let key = String::from_utf8(key.to_vec())?;
+        if !key.starts_with(&prefix_key) {
+            break;
         }
+
+        let index_data = serialize::deserialize::<IndexData>(val)?;
+
+        if let Some(st) = start_offset {
+            if index_data.offset < st {
+                iter.next();
+                continue;
+            }
+        }
+
+        results.push(index_data);
+        if results.len() >= record_num {
+            break;
+        }
+        
+        iter.next();
     }
 
     Ok(results)
@@ -160,26 +165,28 @@ pub fn get_index_data_by_timestamp(
     let mut last_valid_index = None;
 
     while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(&prefix_key) {
-                    break;
-                }
-
-                let index_data = serialize::deserialize::<IndexData>(val)?;
-
-                if index_data.timestamp <= start_timestamp {
-                    last_valid_index = Some(index_data);
-                    iter.next();
-                } else {
-                    break;
-                }
-            } else {
-                iter.next();
-            }
-        } else {
+        let Some(key) = iter.key() else {
             iter.next();
+            continue;
+        };
+
+        let Some(val) = iter.value() else {
+            iter.next();
+            continue;
+        };
+
+        let key = String::from_utf8(key.to_vec())?;
+        if !key.starts_with(&prefix_key) {
+            break;
+        }
+
+        let index_data = serialize::deserialize::<IndexData>(val)?;
+
+        if index_data.timestamp <= start_timestamp {
+            last_valid_index = Some(index_data);
+            iter.next();
+        } else {
+            break;
         }
     }
 

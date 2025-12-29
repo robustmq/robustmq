@@ -15,62 +15,62 @@
 use super::PREFIX_ENGINE;
 
 #[inline]
-fn segment_base_by_shard(shard: &str) -> String {
+fn shard_base(shard: &str) -> String {
     format!("{}/{}/", PREFIX_ENGINE, shard)
 }
 
 #[inline]
-pub fn segment_base_by_segment(shard: &str, segment: u32) -> String {
-    format!("{}segment/{}/{}/", PREFIX_ENGINE, shard, segment)
+pub fn segment_base(shard: &str, segment: u32) -> String {
+    format!("{}segment/{}/{:010}/", PREFIX_ENGINE, shard, segment)
 }
 
 // shard cursor offset
 pub fn offset_segment_cursor_offset(shard: &str) -> String {
-    format!("{}cursor/offset", segment_base_by_shard(shard))
+    format!("{}cursor/offset", shard_base(shard))
 }
 
 // Segment start/end  offset/timestamp
 pub fn offset_segment_start(shard: &str, segment: u32) -> String {
-    format!("{}offset/start", segment_base_by_segment(shard, segment))
+    format!("{}offset/start", segment_base(shard, segment))
 }
 
 pub fn offset_segment_end(shard: &str, segment: u32) -> String {
-    format!("{}offset/end", segment_base_by_segment(shard, segment))
+    format!("{}offset/end", segment_base(shard, segment))
 }
 
 pub fn timestamp_segment_start(shard: &str, segment: u32) -> String {
-    format!("{}timestamp/start", segment_base_by_segment(shard, segment))
+    format!("{}timestamp/start", segment_base(shard, segment))
 }
 
 pub fn timestamp_segment_end(shard: &str, segment: u32) -> String {
-    format!("{}timestamp/end", segment_base_by_segment(shard, segment))
+    format!("{}timestamp/end", segment_base(shard, segment))
 }
 
 // index(position/timestamp/tag/key)
 pub fn index_position_key(shard: &str, offset: u64) -> String {
-    format!("{}position/{}", segment_base_by_shard(shard), offset)
+    format!("{}position/{:020}", shard_base(shard), offset)
 }
 
 pub fn index_position_key_prefix(shard: &str) -> String {
-    format!("{}/position/", segment_base_by_shard(shard))
+    format!("{}/position/", shard_base(shard))
 }
 
 pub fn index_timestamp_key(shard: &str, time_sec: u64) -> String {
-    format!("{}timestamp/{}", segment_base_by_shard(shard), time_sec)
+    format!("{}timestamp/{:020}", shard_base(shard), time_sec)
 }
 
 pub fn index_timestamp_key_prefix(shard: &str) -> String {
-    format!("{}timestamp/", segment_base_by_shard(shard))
+    format!("{}timestamp/", shard_base(shard))
 }
 
 pub fn index_tag_key(shard: &str, tag: String, offset: u64) -> String {
-    format!("{}tag/{}/{}", segment_base_by_shard(shard), tag, offset)
+    format!("{}tag/{}/{:020}", shard_base(shard), tag, offset)
 }
 
 pub fn index_tag_key_prefix(shard: &str, tag: &str) -> String {
-    format!("{}tag/{}/", segment_base_by_shard(shard), tag)
+    format!("{}tag/{}/", shard_base(shard), tag)
 }
 
 pub fn index_key_key(shard: &str, key: String) -> String {
-    format!("{}key/{}", segment_base_by_shard(shard), key)
+    format!("{}key/{}", shard_base(shard), key)
 }
