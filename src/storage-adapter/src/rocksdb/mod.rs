@@ -167,7 +167,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
 mod tests {
     use crate::{
         driver::build_message_storage_driver,
-        offset::OffsetManager,
         storage::ArcStorageAdapter,
         tests::{
             test_consumer_group_offset, test_shard_lifecycle,
@@ -178,7 +177,6 @@ mod tests {
         memory::StorageDriverMemoryConfig, rocksdb::StorageDriverRocksDBConfig,
         StorageAdapterConfig, StorageAdapterType,
     };
-    use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
     use storage_engine::{
@@ -187,11 +185,6 @@ mod tests {
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
-        let client_pool = Arc::new(ClientPool::new(2));
-        let offset_manager = Arc::new(OffsetManager::new(
-            client_pool.clone(),
-            rocksdb_engine_handler.clone(),
-        ));
         let config = StorageAdapterConfig {
             storage_type: StorageAdapterType::RocksDB,
             rocksdb_config: Some(StorageDriverRocksDBConfig::default()),
@@ -203,7 +196,6 @@ mod tests {
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         build_message_storage_driver(
-            offset_manager.clone(),
             memory_storage_engine,
             rocksdb_storage_engine.clone(),
             config,

@@ -32,6 +32,7 @@ pub mod core;
 pub mod handler;
 pub mod isr;
 pub mod memory;
+pub mod offset;
 pub mod rocksdb;
 pub mod segment;
 pub mod server;

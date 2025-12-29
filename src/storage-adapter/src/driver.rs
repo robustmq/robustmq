@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    memory::MemoryStorageAdapter, offset::OffsetManager, rocksdb::RocksDBStorageAdapter,
-    storage::ArcStorageAdapter,
+    memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter, storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
 use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
@@ -22,7 +21,6 @@ use std::sync::Arc;
 use storage_engine::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine};
 
 pub async fn build_message_storage_driver(
-    _offset_manager: Arc<OffsetManager>,
     memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     config: StorageAdapterConfig,

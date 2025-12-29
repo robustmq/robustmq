@@ -20,5 +20,4 @@ pub mod memory;
 pub mod rocksdb;
 pub mod tests;
 // pub mod mysql;
-pub mod offset;
 pub mod storage;
