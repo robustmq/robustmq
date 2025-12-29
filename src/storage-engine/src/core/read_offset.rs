@@ -108,7 +108,7 @@ pub async fn read_by_offset(
     } else {
         read_by_remote(
             client_connection_manager,
-            segment.leader,
+            conf.broker_id,
             shard_name,
             offset,
             read_config,
@@ -186,7 +186,7 @@ async fn read_by_segment(
     let data_list = segment_read_by_offset(
         rocksdb_engine_handler,
         &segment_file,
-        shard_name,
+        &segment_iden,
         offset,
         read_config.max_size,
         read_config.max_record_num,

@@ -47,20 +47,20 @@ pub fn timestamp_segment_end(shard: &str, segment: u32) -> String {
 }
 
 // index(position/timestamp/tag/key)
-pub fn index_position_key(shard: &str, offset: u64) -> String {
-    format!("{}position/{:020}", shard_base(shard), offset)
+pub fn index_position_key(shard: &str, segment: u32, offset: u64) -> String {
+    format!("{}position/{:020}", segment_base(shard, segment), offset)
 }
 
-pub fn index_position_key_prefix(shard: &str) -> String {
-    format!("{}/position/", shard_base(shard))
+pub fn index_position_key_prefix(shard: &str, segment: u32) -> String {
+    format!("{}/position/", segment_base(shard, segment))
 }
 
-pub fn index_timestamp_key(shard: &str, time_sec: u64) -> String {
-    format!("{}timestamp/{:020}", shard_base(shard), time_sec)
+pub fn index_timestamp_key(shard: &str, segment: u32, time_sec: u64) -> String {
+    format!("{}timestamp/{:020}", segment_base(shard, segment), time_sec)
 }
 
-pub fn index_timestamp_key_prefix(shard: &str) -> String {
-    format!("{}timestamp/", shard_base(shard))
+pub fn index_timestamp_key_prefix(shard: &str, segment: u32) -> String {
+    format!("{}timestamp/", segment_base(shard, segment))
 }
 
 pub fn index_tag_key(shard: &str, tag: String, offset: u64) -> String {

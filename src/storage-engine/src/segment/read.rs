@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::file::SegmentFile;
+use super::SegmentIdentity;
 use crate::{
     core::error::StorageEngineError,
     segment::{
@@ -29,13 +30,13 @@ use std::sync::Arc;
 pub async fn segment_read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
-    shard_name: &str,
+    segment_iden: &SegmentIdentity,
     offset: u64,
     max_size: u64,
     max_record: u64,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let start_position = if let Some(position) =
-        get_index_data_by_offset(rocksdb_engine_handler, shard_name, offset)?
+        get_index_data_by_offset(rocksdb_engine_handler, segment_iden, offset)?
     {
         position.position
     } else {
@@ -109,7 +110,7 @@ mod tests {
         let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
             &segment_file,
-            &segment_iden.shard_name,
+            &segment_iden,
             5,
             max_size,
             max_record,
@@ -129,7 +130,7 @@ mod tests {
         let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
             &segment_file,
-            &segment_iden.shard_name,
+            &segment_iden,
             10,
             max_size,
             max_record,

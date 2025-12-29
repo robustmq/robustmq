@@ -15,6 +15,7 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::segment::index::build::IndexData;
+use crate::segment::SegmentIdentity;
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb_engine::keys::engine::{
     index_key_key, index_position_key_prefix, index_tag_key_prefix, index_timestamp_key_prefix,
@@ -61,10 +62,10 @@ pub fn get_in_segment_by_timestamp(
 
 pub fn get_index_data_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    shard_name: &str,
+    segment_iden: &SegmentIdentity,
     start_offset: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = index_position_key_prefix(shard_name);
+    let prefix_key = index_position_key_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -144,7 +145,7 @@ pub fn get_index_data_by_tag(
         if results.len() >= record_num {
             break;
         }
-        
+
         iter.next();
     }
 
@@ -153,10 +154,10 @@ pub fn get_index_data_by_tag(
 
 pub fn get_index_data_by_timestamp(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    shard_name: &str,
+    segment_iden: &SegmentIdentity,
     start_timestamp: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = index_timestamp_key_prefix(shard_name);
+    let prefix_key = index_timestamp_key_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);

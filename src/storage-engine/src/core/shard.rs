@@ -16,7 +16,7 @@ use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
-use crate::segment::index::read::get_index_data_by_timestamp;
+use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp};
 use crate::segment::offset::get_shard_cursor_offset;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
@@ -201,15 +201,24 @@ pub fn get_shard_offset_by_timestamp(
     timestamp: u64,
     strategy: AdapterOffsetStrategy,
 ) -> Result<AdapterConsumerGroupOffset, StorageEngineError> {
-    if let Some(index_data) =
-        get_index_data_by_timestamp(rocksdb_engine_handler, shard_name, timestamp)?
+    if let Some(segment) = get_in_segment_by_timestamp(cache_manager, shard_name, timestamp as i64)?
     {
-        Ok(AdapterConsumerGroupOffset {
-            shard_name: shard_name.to_string(),
-            segment_no: index_data.segment,
-            offset: index_data.offset,
-            ..Default::default()
-        })
+        let segment_iden = SegmentIdentity::new(shard_name, segment);
+        if let Some(index_data) =
+            get_index_data_by_timestamp(rocksdb_engine_handler, &segment_iden, timestamp)?
+        {
+            Ok(AdapterConsumerGroupOffset {
+                shard_name: shard_name.to_string(),
+                segment_no: segment,
+                offset: index_data.offset,
+                ..Default::default()
+            })
+        } else {
+            Err(StorageEngineError::CommonErrorStr(format!(
+                "No index data found for timestamp {} in segment {}",
+                timestamp, segment
+            )))
+        }
     } else {
         match strategy {
             AdapterOffsetStrategy::Earliest => get_shard_earliest_offset(cache_manager, shard_name),
