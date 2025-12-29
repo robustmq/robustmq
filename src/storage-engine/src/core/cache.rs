@@ -181,7 +181,12 @@ impl StorageCacheManager {
 
         let mut index = self.segment_offset_index.entry(shard_name).or_default();
 
-        index.add(segment.segment_seq, segment.start_offset);
+        index.add(
+            segment.segment_seq,
+            segment.start_offset,
+            segment.start_timestamp,
+            segment.end_timestamp,
+        );
     }
 
     pub fn get_segment_meta(

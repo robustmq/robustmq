@@ -75,20 +75,11 @@ pub async fn read_by_offset(
             };
             active_segment
         };
-
+    println!("{:?}", segment);
     segment_validator(cache_manager, shard_name, segment.segment_seq)?;
 
     let conf = broker_config();
     let results = if conf.broker_id == segment.leader {
-        read_by_remote(
-            client_connection_manager,
-            conf.broker_id,
-            shard_name,
-            offset,
-            read_config,
-        )
-        .await?
-    } else {
         match shard.engine_type {
             EngineType::Memory => {
                 read_by_memory(memory_storage_engine, shard_name, offset, read_config).await?
@@ -108,6 +99,15 @@ pub async fn read_by_offset(
                 .await?
             }
         }
+    } else {
+        read_by_remote(
+            client_connection_manager,
+            conf.broker_id,
+            shard_name,
+            offset,
+            read_config,
+        )
+        .await?
     };
     Ok(results)
 }

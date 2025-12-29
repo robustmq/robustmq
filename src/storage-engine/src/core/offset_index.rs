@@ -16,6 +16,8 @@
 pub struct SegmentOffsetRange {
     pub segment_seq: u32,
     pub start_offset: i64,
+    pub start_timestamp: i64,
+    pub end_timestamp: i64,
 }
 
 #[derive(Clone, Default)]
@@ -28,17 +30,27 @@ impl SegmentOffsetIndex {
         Self::default()
     }
 
-    pub fn add(&mut self, segment_seq: u32, start_offset: i64) {
+    pub fn add(
+        &mut self,
+        segment_seq: u32,
+        start_offset: i64,
+        start_timestamp: i64,
+        end_timestamp: i64,
+    ) {
         if let Some(pos) = self
             .ranges
             .iter()
             .position(|r| r.segment_seq == segment_seq)
         {
             self.ranges[pos].start_offset = start_offset;
+            self.ranges[pos].start_timestamp = start_timestamp;
+            self.ranges[pos].end_timestamp = end_timestamp;
         } else {
             self.ranges.push(SegmentOffsetRange {
                 segment_seq,
                 start_offset,
+                start_timestamp,
+                end_timestamp,
             });
         }
     }
@@ -64,6 +76,14 @@ impl SegmentOffsetIndex {
             None
         }
     }
+
+    pub fn find_earliest_offset_by_timestamp(&self, timestamp: i64) -> Option<i64> {
+        self.ranges
+            .iter()
+            .filter(|r| r.start_timestamp <= timestamp && timestamp <= r.end_timestamp)
+            .map(|r| r.start_offset)
+            .min()
+    }
 }
 
 #[cfg(test)]
@@ -74,10 +94,10 @@ mod tests {
     fn test_offset_index() {
         let mut index = SegmentOffsetIndex::new();
 
-        index.add(2, 2000);
-        index.add(0, 0);
-        index.add(1, 1000);
-        index.add(0, 100);
+        index.add(2, 2000, 3000, 3999);
+        index.add(0, 0, 1000, 1999);
+        index.add(1, 1000, 2000, 2999);
+        index.add(0, 100, 1100, 1999);
 
         assert_eq!(index.ranges.len(), 3);
 
@@ -86,6 +106,11 @@ mod tests {
         assert_eq!(index.find_segment(150), Some(0));
         assert_eq!(index.find_segment(1500), Some(1));
         assert_eq!(index.find_segment(2500), Some(2));
+
+        assert_eq!(index.find_earliest_offset_by_timestamp(1500), Some(100));
+        assert_eq!(index.find_earliest_offset_by_timestamp(2500), Some(1000));
+        assert_eq!(index.find_earliest_offset_by_timestamp(3500), Some(2000));
+        assert_eq!(index.find_earliest_offset_by_timestamp(5000), None);
 
         index.delete(1);
 

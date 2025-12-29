@@ -85,18 +85,6 @@ pub async fn read_by_tag(
 
     let conf = broker_config();
     let results = if conf.broker_id == active_segment.leader {
-        read_by_remote(ReadByRemoteTagParams {
-            cache_manager: cache_manager.clone(),
-            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
-            client_connection_manager: client_connection_manager.clone(),
-            shard_name: shard_name.to_string(),
-            segment: active_segment.segment_seq,
-            tag: tag.to_string(),
-            start_offset,
-            read_config: read_config.clone(),
-        })
-        .await?
-    } else {
         match shard.engine_type {
             EngineType::Memory => {
                 read_by_memory(
@@ -131,6 +119,18 @@ pub async fn read_by_tag(
                 .await?
             }
         }
+    } else {
+        read_by_remote(ReadByRemoteTagParams {
+            cache_manager: cache_manager.clone(),
+            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+            client_connection_manager: client_connection_manager.clone(),
+            shard_name: shard_name.to_string(),
+            segment: active_segment.segment_seq,
+            tag: tag.to_string(),
+            start_offset,
+            read_config: read_config.clone(),
+        })
+        .await?
     };
     Ok(results)
 }

@@ -207,22 +207,17 @@ mod tests {
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use std::sync::Arc;
-    use std::time::Duration;
-    use tokio::time::sleep;
 
     #[tokio::test]
     async fn read_data_req_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_base_write_data(30).await;
 
-        // Create required instances for the test
         let memory_storage_engine = Arc::new(MemoryStorageEngine::default());
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
-
-        sleep(Duration::from_secs(10)).await;
 
         // offset
         let req_body = ReadReqBody {
@@ -248,8 +243,8 @@ mod tests {
             &req_body,
         )
         .await;
-        assert!(res.is_ok());
         let resp = res.unwrap();
+
         assert_eq!(resp.len(), 2);
 
         let mut i = 5;

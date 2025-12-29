@@ -46,7 +46,6 @@ pub async fn segment_read_by_offset(
     let res = segment_file
         .read_by_offset(start_position, offset, max_size, max_record)
         .await?;
-
     Ok(res)
 }
 
@@ -113,8 +112,8 @@ mod tests {
             &segment_file,
             &segment_iden,
             5,
-            max_record,
             max_size,
+            max_record,
         )
         .await
         .unwrap();
@@ -133,8 +132,8 @@ mod tests {
             &segment_file,
             &segment_iden,
             10,
-            max_record,
             max_size,
+            max_record,
         )
         .await
         .unwrap();
