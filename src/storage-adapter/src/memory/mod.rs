@@ -16,7 +16,7 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterMessageExpireConfig, AdapterReadShardOffset, AdapterShardInfo,
+    AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -128,9 +128,10 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard: &str,
         timestamp: u64,
+        strategy: AdapterOffsetStrategy,
     ) -> Result<Option<AdapterReadShardOffset>, CommonError> {
         self.memory_storage_engine
-            .get_offset_by_timestamp(shard, timestamp)
+            .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }
@@ -138,9 +139,10 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn get_offset_by_group(
         &self,
         group_name: &str,
+        strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
         self.memory_storage_engine
-            .get_offset_by_group(group_name)
+            .get_offset_by_group(group_name, strategy)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }

@@ -20,6 +20,13 @@ pub struct AdapterShardInfo {
     pub replica_num: u32,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub enum AdapterOffsetStrategy {
+    #[default]
+    Earliest,
+    Latest,
+}
+
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct AdapterReadShardOffset {
     pub group: String,

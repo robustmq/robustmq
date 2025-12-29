@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
@@ -83,7 +84,7 @@ impl MessageStorage {
     ) -> Result<u64, CommonError> {
         for row in self
             .storage_adapter
-            .get_offset_by_group(group_id)
+            .get_offset_by_group(group_id, AdapterOffsetStrategy::Earliest)
             .await?
             .iter()
         {

@@ -14,7 +14,9 @@
 
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
+use metadata_struct::storage::adapter_offset::{
+    AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
@@ -407,6 +409,7 @@ impl MemoryStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
+        _strategy: AdapterOffsetStrategy,
     ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
@@ -424,6 +427,7 @@ impl MemoryStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
+        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
         let Some(group_map) = self.group_data.get(group_name) else {
             return Ok(Vec::new());

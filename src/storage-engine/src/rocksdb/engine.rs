@@ -16,7 +16,9 @@ use common_base::tools::now_second;
 use common_base::utils::serialize;
 use common_base::utils::serialize::{deserialize, serialize};
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
+use metadata_struct::storage::adapter_offset::{
+    AdapterOffsetStrategy, AdapterReadShardOffset, AdapterShardInfo,
+};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_adapter_record_to_engine;
@@ -531,6 +533,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: &str,
         timestamp: u64,
+        strategy: AdapterOffsetStrategy,
     ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
         let index: Option<IndexInfo> = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
@@ -551,6 +554,7 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
+        strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterReadShardOffset>, StorageEngineError> {
         let cf = self.get_cf()?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);

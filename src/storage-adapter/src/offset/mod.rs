@@ -19,7 +19,7 @@ use common_base::{
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::AdapterReadShardOffset;
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterReadShardOffset};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
@@ -92,6 +92,7 @@ impl OffsetManager {
     pub async fn get_offset(
         &self,
         group: &str,
+        strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterReadShardOffset>, CommonError> {
         // If cache is enabled, flush pending updates before reading to ensure consistency
         if self.enable_cache {
