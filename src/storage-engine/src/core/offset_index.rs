@@ -77,12 +77,12 @@ impl SegmentOffsetIndex {
         }
     }
 
-    pub fn find_earliest_offset_by_timestamp(&self, timestamp: i64) -> Option<i64> {
+    pub fn find_segment_by_timestamp(&self, timestamp: i64) -> Option<u32> {
         self.ranges
             .iter()
             .filter(|r| r.start_timestamp <= timestamp && timestamp <= r.end_timestamp)
-            .map(|r| r.start_offset)
-            .min()
+            .min_by_key(|r| r.start_offset)
+            .map(|r| r.segment_seq)
     }
 }
 
@@ -107,15 +107,17 @@ mod tests {
         assert_eq!(index.find_segment(1500), Some(1));
         assert_eq!(index.find_segment(2500), Some(2));
 
-        assert_eq!(index.find_earliest_offset_by_timestamp(1500), Some(100));
-        assert_eq!(index.find_earliest_offset_by_timestamp(2500), Some(1000));
-        assert_eq!(index.find_earliest_offset_by_timestamp(3500), Some(2000));
-        assert_eq!(index.find_earliest_offset_by_timestamp(5000), None);
+        assert_eq!(index.find_segment_by_timestamp(1500), Some(0));
+        assert_eq!(index.find_segment_by_timestamp(2500), Some(1));
+        assert_eq!(index.find_segment_by_timestamp(3500), Some(2));
+        assert_eq!(index.find_segment_by_timestamp(5000), None);
 
         index.delete(1);
 
         assert_eq!(index.ranges.len(), 2);
         assert_eq!(index.find_segment(150), Some(0));
         assert_eq!(index.find_segment(2500), Some(2));
+        assert_eq!(index.find_segment_by_timestamp(2500), None);
+        assert_eq!(index.find_segment_by_timestamp(3500), Some(2));
     }
 }

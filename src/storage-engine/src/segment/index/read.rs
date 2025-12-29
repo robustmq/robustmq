@@ -49,6 +49,21 @@ pub fn get_in_segment_by_offset(
     Ok(index.find_segment(offset_i64))
 }
 
+pub fn get_in_segment_by_timestamp(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard: &str,
+    timestamp: i64,
+) -> Result<Option<u32>, StorageEngineError> {
+    let index = cache_manager.get_offset_index(shard).ok_or_else(|| {
+        StorageEngineError::CommonErrorStr(format!(
+            "Offset index not found for shard: {}",
+            shard
+        ))
+    })?;
+
+    Ok(index.find_segment_by_timestamp(timestamp))
+}
+
 pub fn get_index_data_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,

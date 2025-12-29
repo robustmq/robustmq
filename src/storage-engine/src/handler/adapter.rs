@@ -16,6 +16,7 @@ use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
+use crate::segment::index::read::get_in_segment_by_timestamp;
 use crate::{
     clients::manager::ClientConnectionManager,
     core::{
@@ -32,6 +33,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{AdapterReadShardOffset, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::shard::EngineType;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -213,23 +215,30 @@ impl AdapterHandler {
     async fn get_offset_by_timestamp0(
         &self,
         shard_name: &str,
-        _timestamp: u64,
+        timestamp: u64,
     ) -> Result<Option<AdapterReadShardOffset>, StorageEngineError> {
-        let Some(_shard) = self.cache_manager.shards.get(shard_name) else {
+        let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
-        //    let result = match shard.engine_type {
-        //         EngineType::Memory => {
-        //             self.memory_storage_engine
-        //                 .get_offset_by_timestamp(shard_name, timestamp)
-        //                 .await?
-        //         }
-        //         EngineType::RocksDB => self.rocksdb_storage_engine.get_offset_by_timestamp(shard_name, timestamp).await?,
-        //         EngineType::Segment => {
-        //            get_index_data_by_timestamp(rocksdb_engine_handler, segment_iden, start_timestamp)
-        //             .await?
-        //         }
-        //     }
+        let _result = match shard.engine_type {
+            EngineType::Memory => {
+                self.memory_storage_engine
+                    .get_offset_by_timestamp(shard_name, timestamp)
+                    .await?
+            }
+            EngineType::RocksDB => {
+                self.rocksdb_storage_engine
+                    .get_offset_by_timestamp(shard_name, timestamp)
+                    .await?
+            }
+            EngineType::Segment => {
+                let segment =
+                    get_in_segment_by_timestamp(&self.cache_manager, shard_name, timestamp as i64)?;
+                // get_index_data_by_timestamp(rocksdb_engine_handler, segment_iden, start_timestamp)
+                //     .await?
+                None
+            }
+        };
         Ok(None)
     }
 }
