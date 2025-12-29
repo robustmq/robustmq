@@ -20,7 +20,6 @@ mod tests {
     use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, time::Duration};
-    use storage_adapter::offset::OffsetManager;
     use tokio::{sync::broadcast, time::sleep};
 
     #[tokio::test]
