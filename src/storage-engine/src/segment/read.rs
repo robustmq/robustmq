@@ -15,14 +15,14 @@
 use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
-    core::error::StorageEngineError,
+    core::{cache::StorageCacheManager, error::StorageEngineError},
     segment::{
-        file::ReadData,
+        file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
     },
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 /// handle read requests by offset
 ///
@@ -53,28 +53,24 @@ pub async fn segment_read_by_offset(
 ///
 /// Use index (if there's any) to find all start byte positions of the records with the given key
 pub async fn segment_read_by_key(
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file: &SegmentFile,
     shard_name: &str,
     key: &str,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let index_data = get_index_data_by_key(rocksdb_engine_handler, shard_name, key.to_string())?;
 
-    let positions = if let Some(index) = index_data {
-        vec![index.position]
-    } else {
-        return Ok(Vec::new());
-    };
-
-    segment_file.read_by_positions(positions).await
+    if let Some(index) = index_data {
+        let segment_iden = SegmentIdentity::new(shard_name, index.segment);
+        let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+        return segment_file.read_by_positions(vec![index.position]).await;
+    }
+    Ok(Vec::new())
 }
 
-/// handle read requests by tag
-///
-/// Similar to [`read_by_key`], but use tag index
 pub async fn segment_read_by_tag(
+    cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file: &SegmentFile,
     shard_name: &str,
     tag: &str,
     start_offset: Option<u64>,
@@ -87,8 +83,26 @@ pub async fn segment_read_by_tag(
         tag,
         max_record as usize,
     )?;
-    let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    segment_file.read_by_positions(positions).await
+
+    let mut segment_positions = HashMap::new();
+
+    for index_data in index_data_list {
+        segment_positions
+            .entry(index_data.segment)
+            .or_insert_with(Vec::new)
+            .push(index_data.position);
+    }
+
+    let mut all_results = Vec::new();
+
+    for (segment_no, positions) in segment_positions {
+        let segment_iden = SegmentIdentity::new(shard_name, segment_no);
+        let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+        let data_list = segment_file.read_by_positions(positions).await?;
+        all_results.extend(data_list);
+    }
+
+    Ok(all_results)
 }
 
 #[cfg(test)]
@@ -148,17 +162,13 @@ mod tests {
 
     #[tokio::test]
     async fn read_by_key_test() {
-        let (segment_iden, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
-
-        let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
-                .await
-                .unwrap();
+        let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
+            test_base_write_data(30).await;
 
         let key = "key-5".to_string();
         let resp = segment_read_by_key(
+            &cache_manager,
             &rocksdb_engine_handler,
-            &segment_file,
             &segment_iden.shard_name,
             &key,
         )
@@ -172,12 +182,8 @@ mod tests {
 
     #[tokio::test]
     async fn read_by_tag_test() {
-        let (segment_iden, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
-
-        let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
-                .await
-                .unwrap();
+        let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
+            test_base_write_data(30).await;
 
         let read_options = ReadReqOptions {
             max_record: 10,
@@ -186,8 +192,8 @@ mod tests {
 
         let tag = "tag-5".to_string();
         let res = segment_read_by_tag(
+            &cache_manager,
             &rocksdb_engine_handler,
-            &segment_file,
             &segment_iden.shard_name,
             &tag,
             None,
