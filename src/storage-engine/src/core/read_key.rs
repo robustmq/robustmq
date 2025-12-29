@@ -25,13 +25,13 @@ use crate::{
     },
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
-    segment::{file::open_segment_write, read::segment_read_by_key, SegmentIdentity},
+    segment::read::segment_read_by_key,
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::{shard::EngineType, storage_record::StorageRecord};
 use protocol::storage::{
     codec::StorageEnginePacket,
-    protocol::{ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
+    protocol::{ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -69,56 +69,77 @@ pub async fn read_by_key(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
-        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
-    };
+    if shard.engine_type == EngineType::Memory || shard.engine_type == EngineType::RocksDB {
+        let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        };
 
-    segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
-
-    let conf = broker_config();
-    let results = if conf.broker_id == active_segment.leader {
-        match shard.engine_type {
-            EngineType::Memory => read_by_memory(memory_storage_engine, shard_name, key).await?,
-            EngineType::RocksDB => read_by_rocksdb(rocksdb_storage_engine, shard_name, key).await?,
-            EngineType::Segment => {
-                read_by_segment(
-                    cache_manager,
-                    rocksdb_engine_handler,
-                    shard_name,
-                    active_segment.segment_seq,
-                    key,
-                )
-                .await?
+        segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+        let conf = broker_config();
+        let results = if conf.broker_id == active_segment.leader {
+            match shard.engine_type {
+                EngineType::Memory => {
+                    read_by_memory(memory_storage_engine, shard_name, key).await?
+                }
+                EngineType::RocksDB => {
+                    read_by_rocksdb(rocksdb_storage_engine, shard_name, key).await?
+                }
+                _ => Vec::new(),
             }
-        }
-    } else {
-        read_by_remote(ReadByRemoteKeyParams {
-            cache_manager: cache_manager.clone(),
-            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
-            client_connection_manager: client_connection_manager.clone(),
-            shard_name: shard_name.to_string(),
-            segment: active_segment.segment_seq,
-            key: key.to_string(),
-        })
-        .await?
-    };
-    Ok(results)
+        } else {
+            read_by_remote(ReadByRemoteKeyParams {
+                cache_manager: cache_manager.clone(),
+                rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+                client_connection_manager: client_connection_manager.clone(),
+                shard_name: shard_name.to_string(),
+                segment: active_segment.segment_seq,
+                key: key.to_string(),
+            })
+            .await?
+        };
+        return Ok(results);
+    }
+
+    if shard.engine_type == EngineType::Segment {
+        let local_records =
+            read_by_segment(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
+
+        let conf = broker_config();
+        let read_req = build_req(&params.shard_name, &params.key);
+        let remote_records = call_read_data_by_all_node(
+            cache_manager,
+            client_connection_manager,
+            conf.broker_id,
+            read_req,
+        )
+        .await?;
+
+        return Ok(merge_records(local_records, remote_records));
+    }
+
+    Ok(Vec::new())
 }
 
 pub async fn read_by_remote(
     params: ReadByRemoteKeyParams,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let cache_manager = &params.cache_manager;
-    let rocksdb_engine_handler = &params.rocksdb_engine_handler;
     let client_connection_manager = &params.client_connection_manager;
-    let shard_name = params.shard_name.as_str();
-    let segment = params.segment;
-    let key = params.key.as_str();
+    let read_req = build_req(&params.shard_name, &params.key);
+    let conf = broker_config();
+    let resp = client_connection_manager
+        .write_send(conf.broker_id, StorageEnginePacket::ReadReq(read_req))
+        .await?;
 
-    let Some(shard) = cache_manager.shards.get(shard_name) else {
-        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
-    };
+    match resp {
+        StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
+        packet => Err(StorageEngineError::ReceivedPacketError(
+            conf.broker_id,
+            format!("Expected ReadResp, got {:?}", packet),
+        )),
+    }
+}
 
+fn build_req(shard_name: &str, key: &str) -> ReadReq {
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Key,
@@ -128,45 +149,7 @@ pub async fn read_by_remote(
         },
         options: ReadReqOptions::default(),
     }];
-    let read_req = build_read_req(messages);
-
-    match shard.engine_type {
-        EngineType::Segment => {
-            let local_records = read_by_segment(
-                cache_manager,
-                rocksdb_engine_handler,
-                shard_name,
-                segment,
-                key,
-            )
-            .await?;
-
-            let conf = broker_config();
-            let remote_records = call_read_data_by_all_node(
-                cache_manager,
-                client_connection_manager,
-                conf.broker_id,
-                read_req,
-            )
-            .await?;
-
-            Ok(merge_records(local_records, remote_records))
-        }
-        _ => {
-            let conf = broker_config();
-            let resp = client_connection_manager
-                .write_send(conf.broker_id, StorageEnginePacket::ReadReq(read_req))
-                .await?;
-
-            match resp {
-                StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
-                packet => Err(StorageEngineError::ReceivedPacketError(
-                    conf.broker_id,
-                    format!("Expected ReadResp, got {:?}", packet),
-                )),
-            }
-        }
-    }
+    build_read_req(messages)
 }
 
 async fn read_by_memory(
@@ -189,12 +172,9 @@ async fn read_by_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
-    segment: u32,
     key: &str,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let segment_iden = SegmentIdentity::new(shard_name, segment);
-    let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
     let data_list =
-        segment_read_by_key(rocksdb_engine_handler, &segment_file, &segment_iden, key).await?;
+        segment_read_by_key(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
     Ok(data_list.iter().map(|raw| raw.record.clone()).collect())
 }

@@ -18,8 +18,7 @@ use crate::segment::index::build::IndexData;
 use crate::segment::SegmentIdentity;
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb_engine::keys::engine::{
-    engine_key_index, offset_segment_position_prefix, tag_segment_prefix,
-    timestamp_segment_time_prefix,
+    index_key_key, index_position_key_prefix, index_tag_key_prefix, index_timestamp_key_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
@@ -66,7 +65,7 @@ pub fn get_index_data_by_offset(
     segment_iden: &SegmentIdentity,
     start_offset: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = offset_segment_position_prefix(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key = index_position_key_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -75,26 +74,28 @@ pub fn get_index_data_by_offset(
     let mut last_valid_index = None;
 
     while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(&prefix_key) {
-                    break;
-                }
-
-                let index_data = serialize::deserialize::<IndexData>(val)?;
-
-                if index_data.offset <= start_offset {
-                    last_valid_index = Some(index_data);
-                    iter.next();
-                } else {
-                    break;
-                }
-            } else {
-                iter.next();
-            }
-        } else {
+        let Some(key) = iter.key() else {
             iter.next();
+            continue;
+        };
+
+        let Some(val) = iter.value() else {
+            iter.next();
+            continue;
+        };
+
+        let key = String::from_utf8(key.to_vec())?;
+        if !key.starts_with(&prefix_key) {
+            break;
+        }
+
+        let index_data = serialize::deserialize::<IndexData>(val)?;
+
+        if index_data.offset <= start_offset {
+            last_valid_index = Some(index_data);
+            iter.next();
+        } else {
+            break;
         }
     }
 
@@ -103,12 +104,12 @@ pub fn get_index_data_by_offset(
 
 pub fn get_index_data_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
+    shard_name: &str,
     start_offset: Option<u64>,
     tag: &str,
     record_num: usize,
 ) -> Result<Vec<IndexData>, StorageEngineError> {
-    let prefix_key = tag_segment_prefix(&segment_iden.shard_name, segment_iden.segment, tag);
+    let prefix_key = index_tag_key_prefix(shard_name, tag);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -116,33 +117,36 @@ pub fn get_index_data_by_tag(
 
     let mut results = Vec::new();
     while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(&prefix_key) {
-                    break;
-                }
-
-                let index_data = serialize::deserialize::<IndexData>(val)?;
-
-                if let Some(st) = start_offset {
-                    if index_data.offset < st {
-                        iter.next();
-                        continue;
-                    }
-                }
-
-                results.push(index_data);
-                if results.len() >= record_num {
-                    break;
-                }
-                iter.next();
-            } else {
-                iter.next();
-            }
-        } else {
+        let Some(key) = iter.key() else {
             iter.next();
+            continue;
+        };
+
+        let Some(val) = iter.value() else {
+            iter.next();
+            continue;
+        };
+
+        let key = String::from_utf8(key.to_vec())?;
+        if !key.starts_with(&prefix_key) {
+            break;
         }
+
+        let index_data = serialize::deserialize::<IndexData>(val)?;
+
+        if let Some(st) = start_offset {
+            if index_data.offset < st {
+                iter.next();
+                continue;
+            }
+        }
+
+        results.push(index_data);
+        if results.len() >= record_num {
+            break;
+        }
+
+        iter.next();
     }
 
     Ok(results)
@@ -153,7 +157,7 @@ pub fn get_index_data_by_timestamp(
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = timestamp_segment_time_prefix(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key = index_timestamp_key_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -162,26 +166,28 @@ pub fn get_index_data_by_timestamp(
     let mut last_valid_index = None;
 
     while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(&prefix_key) {
-                    break;
-                }
-
-                let index_data = serialize::deserialize::<IndexData>(val)?;
-
-                if index_data.timestamp <= start_timestamp {
-                    last_valid_index = Some(index_data);
-                    iter.next();
-                } else {
-                    break;
-                }
-            } else {
-                iter.next();
-            }
-        } else {
+        let Some(key) = iter.key() else {
             iter.next();
+            continue;
+        };
+
+        let Some(val) = iter.value() else {
+            iter.next();
+            continue;
+        };
+
+        let key = String::from_utf8(key.to_vec())?;
+        if !key.starts_with(&prefix_key) {
+            break;
+        }
+
+        let index_data = serialize::deserialize::<IndexData>(val)?;
+
+        if index_data.timestamp <= start_timestamp {
+            last_valid_index = Some(index_data);
+            iter.next();
+        } else {
+            break;
         }
     }
 
@@ -190,10 +196,10 @@ pub fn get_index_data_by_timestamp(
 
 pub fn get_index_data_by_key(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
+    shard_name: &str,
     key: String,
 ) -> Result<Option<IndexData>, StorageEngineError> {
     let cf = get_storage_cf(rocksdb_engine_handler)?;
-    let key = engine_key_index(&segment_iden.shard_name, segment_iden.segment, key);
+    let key = index_key_key(shard_name, key);
     Ok(rocksdb_engine_handler.read::<IndexData>(cf, &key)?)
 }
