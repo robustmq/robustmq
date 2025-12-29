@@ -16,8 +16,10 @@ use crate::offset::OffsetManager;
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::{MessageExpireConfig, ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{
+    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
@@ -43,11 +45,14 @@ impl StorageEngineAdapter {
 
 #[async_trait]
 impl StorageAdapter for StorageEngineAdapter {
-    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
         self.adapter.create_shard(shard).await
     }
 
-    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
         self.adapter.list_shard(shard).await
     }
 
@@ -55,14 +60,18 @@ impl StorageAdapter for StorageEngineAdapter {
         self.adapter.delete_shard(shard).await
     }
 
-    async fn write(&self, shard: &str, record: &AdapterWriteRecord) -> Result<u64, CommonError> {
+    async fn write(
+        &self,
+        shard: &str,
+        record: &AdapterWriteRecord,
+    ) -> Result<AdapterWriteRespRow, CommonError> {
         let res = self
             .adapter
             .batch_write(shard, std::slice::from_ref(record))
             .await?;
 
         if let Some(offset) = res.first() {
-            return Ok(*offset);
+            return Ok(offset.clone());
         }
 
         return Err(CommonError::CommonError(
@@ -76,7 +85,7 @@ impl StorageAdapter for StorageEngineAdapter {
         &self,
         shard: &str,
         records: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         self.adapter.batch_write(shard, records).await
     }
 
@@ -111,12 +120,19 @@ impl StorageAdapter for StorageEngineAdapter {
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError> {
-        self.adapter.get_offset_by_timestamp(shard, timestamp).await
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError> {
+        self.adapter
+            .get_offset_by_timestamp(shard, timestamp, strategy)
+            .await
     }
 
-    async fn get_offset_by_group(&self, group: &str) -> Result<Vec<ShardOffset>, CommonError> {
-        self.offset_manager.get_offset(group).await
+    async fn get_offset_by_group(
+        &self,
+        group: &str,
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
+        self.offset_manager.get_offset(group, strategy).await
     }
 
     async fn commit_offset(
@@ -127,7 +143,7 @@ impl StorageAdapter for StorageEngineAdapter {
         self.offset_manager.commit_offset(group_name, offset).await
     }
 
-    async fn message_expire(&self, config: &MessageExpireConfig) -> Result<(), CommonError> {
+    async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError> {
         message_expire(config).await
     }
 

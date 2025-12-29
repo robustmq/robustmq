@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
+
 use common_base::error::common::CommonError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;
@@ -25,7 +27,10 @@ pub enum StorageEngineError {
     FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("{0}")]
-    CommonError(Box<CommonError>),
+    FromBoxCommonError(#[from] Box<CommonError>),
+
+    #[error("{0}")]
+    FromCommonError(#[from] CommonError),
 
     #[error("{0}")]
     StdIoError(#[from] std::io::Error),
@@ -59,6 +64,9 @@ pub enum StorageEngineError {
 
     #[error("No Segment is available for Shard {0}")]
     NotAvailableSegments(String),
+
+    #[error("{0}")]
+    FromRocksdbError(#[from] rocksdb::Error),
 
     #[error("Shard {0} Not Active, is triggering the creation of an active Segment")]
     NotActiveSegment(String),
@@ -130,15 +138,11 @@ pub enum StorageEngineError {
     NoAvailableConn(u64),
 }
 
-impl From<CommonError> for StorageEngineError {
-    fn from(error: CommonError) -> Self {
-        StorageEngineError::CommonError(Box::new(error))
-    }
-}
-
 pub fn get_journal_server_code(e: &StorageEngineError) -> String {
     match e {
-        StorageEngineError::CommonError(_) => "CommonError".to_string(),
+        StorageEngineError::FromBoxCommonError(_) => "CommonError".to_string(),
+        StorageEngineError::FromCommonError(_) => "FromCommonError".to_string(),
+        StorageEngineError::FromRocksdbError(_) => "FromRocksdbError".to_string(),
         StorageEngineError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
         StorageEngineError::MpscSegmentWriteDataSendError(_) => {
             "MpscSegmentWriteDataSendError".to_string()

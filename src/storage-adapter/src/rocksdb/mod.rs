@@ -15,8 +15,10 @@
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::{MessageExpireConfig, ShardInfo, ShardOffset};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::storage::adapter_offset::{
+    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+};
+use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::{collections::HashMap, sync::Arc};
@@ -37,30 +39,50 @@ impl RocksDBStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for RocksDBStorageAdapter {
-    async fn create_shard(&self, shard: &ShardInfo) -> Result<(), CommonError> {
-        self.rocksdb_storage_engine.create_shard(shard).await
+    async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
+        self.rocksdb_storage_engine
+            .create_shard(shard)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<ShardInfo>, CommonError> {
-        self.rocksdb_storage_engine.list_shard(shard).await
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
+        self.rocksdb_storage_engine
+            .list_shard(shard)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError> {
-        self.rocksdb_storage_engine.delete_shard(shard).await
+        self.rocksdb_storage_engine
+            .delete_shard(shard)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn write(&self, shard: &str, message: &AdapterWriteRecord) -> Result<u64, CommonError> {
-        self.rocksdb_storage_engine.write(shard, message).await
+    async fn write(
+        &self,
+        shard: &str,
+        message: &AdapterWriteRecord,
+    ) -> Result<AdapterWriteRespRow, CommonError> {
+        self.rocksdb_storage_engine
+            .write(shard, message)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn batch_write(
         &self,
         shard: &str,
         messages: &[AdapterWriteRecord],
-    ) -> Result<Vec<u64>, CommonError> {
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         self.rocksdb_storage_engine
             .batch_write(shard, messages)
             .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn read_by_offset(
@@ -72,6 +94,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.rocksdb_storage_engine
             .read_by_offset(shard, offset, read_config)
             .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn read_by_tag(
@@ -84,26 +107,37 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.rocksdb_storage_engine
             .read_by_tag(shard, tag, start_offset, read_config)
             .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<StorageRecord>, CommonError> {
-        self.rocksdb_storage_engine.read_by_key(shard, key).await
+        self.rocksdb_storage_engine
+            .read_by_key(shard, key)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn get_offset_by_timestamp(
         &self,
         shard: &str,
         timestamp: u64,
-    ) -> Result<Option<ShardOffset>, CommonError> {
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError> {
         self.rocksdb_storage_engine
-            .get_offset_by_timestamp(shard, timestamp)
+            .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
+    async fn get_offset_by_group(
+        &self,
+        group_name: &str,
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         self.rocksdb_storage_engine
-            .get_offset_by_group(group_name)
+            .get_offset_by_group(group_name, strategy)
             .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn commit_offset(
@@ -114,9 +148,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.rocksdb_storage_engine
             .commit_offset(group_name, offsets)
             .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn message_expire(&self, _config: &MessageExpireConfig) -> Result<(), CommonError> {
+    async fn message_expire(
+        &self,
+        _config: &AdapterMessageExpireConfig,
+    ) -> Result<(), CommonError> {
         Ok(())
     }
 

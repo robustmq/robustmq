@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::segment::index::build::IndexData;
 use crate::segment::SegmentIdentity;
@@ -33,6 +34,31 @@ fn get_storage_cf(
             CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_STORAGE_ENGINE.to_string())
                 .into()
         })
+}
+
+pub fn get_in_segment_by_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard: &str,
+    offset: u64,
+) -> Result<Option<u32>, StorageEngineError> {
+    let index = cache_manager.get_offset_index(shard).ok_or_else(|| {
+        StorageEngineError::CommonErrorStr(format!("Offset index not found for shard: {}", shard))
+    })?;
+
+    let offset_i64 = offset as i64;
+    Ok(index.find_segment(offset_i64))
+}
+
+pub fn get_in_segment_by_timestamp(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard: &str,
+    timestamp: i64,
+) -> Result<Option<u32>, StorageEngineError> {
+    let index = cache_manager.get_offset_index(shard).ok_or_else(|| {
+        StorageEngineError::CommonErrorStr(format!("Offset index not found for shard: {}", shard))
+    })?;
+
+    Ok(index.find_segment_by_timestamp(timestamp))
 }
 
 pub fn get_index_data_by_offset(
@@ -78,8 +104,8 @@ pub fn get_index_data_by_offset(
 pub fn get_index_data_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
-    start_offset: u64,
-    tag: String,
+    start_offset: Option<u64>,
+    tag: &str,
     record_num: usize,
 ) -> Result<Vec<IndexData>, StorageEngineError> {
     let prefix_key = tag_segment_prefix(&segment_iden.shard_name, segment_iden.segment, tag);
@@ -99,9 +125,11 @@ pub fn get_index_data_by_tag(
 
                 let index_data = serialize::deserialize::<IndexData>(val)?;
 
-                if index_data.offset < start_offset {
-                    iter.next();
-                    continue;
+                if let Some(st) = start_offset {
+                    if index_data.offset < st {
+                        iter.next();
+                        continue;
+                    }
                 }
 
                 results.push(index_data);

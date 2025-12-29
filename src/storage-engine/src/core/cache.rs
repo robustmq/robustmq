@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::StorageEngineError;
+use crate::core::offset_index::SegmentOffsetIndex;
 use crate::segment::file::SegmentFile;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -43,6 +44,9 @@ pub struct StorageCacheManager {
     // (shard_name, (segment_no, JournalSegmentMetadata))
     pub segment_metadatas: DashMap<String, DashMap<u32, EngineSegmentMetadata>>,
 
+    // (shard_name, SegmentOffsetIndex)
+    pub segment_offset_index: DashMap<String, SegmentOffsetIndex>,
+
     // (segment_name, SegmentIdentity)
     pub leader_segments: DashMap<String, SegmentIdentity>,
 
@@ -58,6 +62,7 @@ impl StorageCacheManager {
         let shards = DashMap::with_capacity(8);
         let segments = DashMap::with_capacity(8);
         let segment_metadatas = DashMap::with_capacity(8);
+        let segment_offset_index = DashMap::with_capacity(8);
         let leader_segments = DashMap::with_capacity(8);
         let segment_file_writer = DashMap::with_capacity(2);
         let is_next_segment = DashMap::with_capacity(2);
@@ -65,6 +70,7 @@ impl StorageCacheManager {
             shards,
             segments,
             segment_metadatas,
+            segment_offset_index,
             leader_segments,
             broker_cache,
             segment_file_writer,
@@ -81,6 +87,7 @@ impl StorageCacheManager {
         self.shards.remove(shard_name);
         self.segments.remove(shard_name);
         self.segment_metadatas.remove(shard_name);
+        self.segment_offset_index.remove(shard_name);
 
         for raw in self.leader_segments.iter() {
             if raw.shard_name == shard_name {
@@ -107,21 +114,20 @@ impl StorageCacheManager {
     }
 
     pub fn delete_segment(&self, segment: &SegmentIdentity) {
-        // delete segment
         if let Some(list) = self.segments.get(&segment.shard_name) {
             list.remove(&segment.segment);
         }
 
-        // delete segment_metadata
         if let Some(list) = self.segment_metadatas.get(&segment.shard_name) {
             list.remove(&segment.segment);
         }
 
-        // delete leader segment
         self.leader_segments.remove(&segment.name());
-
-        // delete segment writer
         self.segment_file_writer.remove(&segment.name());
+
+        if let Some(mut index) = self.segment_offset_index.get_mut(&segment.shard_name) {
+            index.delete(segment.segment);
+        }
     }
 
     pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<EngineSegment> {
@@ -140,6 +146,14 @@ impl StorageCacheManager {
         Vec::new()
     }
 
+    pub fn get_segment_leader_nodes(&self, shard_name: &str) -> Vec<u64> {
+        let segments = self.get_segments_list_by_shard(shard_name);
+        let mut node_ids: Vec<u64> = segments.iter().map(|seg| seg.leader).collect();
+        node_ids.sort_unstable();
+        node_ids.dedup();
+        node_ids
+    }
+
     pub fn get_active_segment(&self, shard_name: &str) -> Option<EngineSegment> {
         if let Some(shard) = self.shards.get(shard_name) {
             let segment_iden = SegmentIdentity {
@@ -156,12 +170,23 @@ impl StorageCacheManager {
 
     // Segment Meta
     pub fn set_segment_meta(&self, segment: EngineSegmentMetadata) {
+        let shard_name = segment.shard_name.clone();
+
         let data_list = self
             .segment_metadatas
-            .entry(segment.shard_name.clone())
+            .entry(shard_name.clone())
             .or_insert(DashMap::with_capacity(8));
 
-        data_list.insert(segment.segment_seq, segment);
+        data_list.insert(segment.segment_seq, segment.clone());
+
+        let mut index = self.segment_offset_index.entry(shard_name).or_default();
+
+        index.add(
+            segment.segment_seq,
+            segment.start_offset,
+            segment.start_timestamp,
+            segment.end_timestamp,
+        );
     }
 
     pub fn get_segment_meta(
@@ -203,6 +228,19 @@ impl StorageCacheManager {
     pub fn add_leader_segment(&self, segment_iden: &SegmentIdentity) {
         self.leader_segments
             .insert(segment_iden.name(), segment_iden.clone());
+    }
+
+    // Segment Offset Index
+    pub fn get_offset_index(&self, shard_name: &str) -> Option<SegmentOffsetIndex> {
+        self.segment_offset_index
+            .get(shard_name)
+            .map(|entry| entry.clone())
+    }
+
+    pub fn sort_offset_index(&self, shard_name: &str) {
+        if let Some(mut index) = self.segment_offset_index.get_mut(shard_name) {
+            index.sort();
+        }
     }
 }
 
@@ -257,6 +295,10 @@ pub async fn load_metadata_cache(
     for segment_bytes in list.segments {
         let meta = EngineSegmentMetadata::decode(&segment_bytes)?;
         cache_manager.set_segment_meta(meta);
+    }
+
+    for shard in cache_manager.shards.iter() {
+        cache_manager.sort_offset_index(&shard.shard_name);
     }
     Ok(())
 }

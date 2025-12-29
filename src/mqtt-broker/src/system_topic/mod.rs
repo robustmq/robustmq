@@ -397,7 +397,7 @@ mod test {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use metadata_struct::storage::adapter_offset::ShardInfo;
+    use metadata_struct::storage::adapter_offset::AdapterShardInfo;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use std::sync::Arc;
     use storage_adapter::storage::build_memory_storage_driver;
@@ -410,7 +410,7 @@ mod test {
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let message_storage_adapter = build_memory_storage_driver();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
                 replica_num: 1,
             })
@@ -468,7 +468,7 @@ mod test {
         let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
                 replica_num: 1,
             })

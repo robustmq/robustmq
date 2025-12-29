@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
+
 use crate::clients::manager::ClientConnectionManager;
+use crate::memory::engine::MemoryStorageEngine;
+use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::server::Server;
 use crate::{clients::gc::start_conn_gc_thread, segment::write::WriteManager};
 use core::cache::{load_metadata_cache, StorageCacheManager};
@@ -40,6 +44,8 @@ pub struct StorageEngineParams {
     pub connection_manager: Arc<ConnectionManager>,
     pub write_manager: Arc<WriteManager>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
 }
 
 pub struct StorageEngineServer {
@@ -51,6 +57,8 @@ pub struct StorageEngineServer {
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
     client_connection_manager: Arc<ClientConnectionManager>,
+    memory_storage_engine: Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
 }
 
 impl StorageEngineServer {
@@ -63,6 +71,8 @@ impl StorageEngineServer {
             connection_manager: params.connection_manager,
             write_manager: params.write_manager,
             client_connection_manager: params.client_connection_manager,
+            memory_storage_engine: params.memory_storage_engine,
+            rocksdb_storage_engine: params.rocksdb_storage_engine,
             main_stop,
             inner_stop,
         }
@@ -79,14 +89,17 @@ impl StorageEngineServer {
     }
 
     fn start_tcp_server(&self) {
-        let tcp_server = Server::new(
-            self.client_pool.clone(),
-            self.cache_manager.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.connection_manager.clone(),
-            self.write_manager.clone(),
-            self.cache_manager.broker_cache.clone(),
-        );
+        let tcp_server = Server::new(crate::server::ServerParams {
+            client_pool: self.client_pool.clone(),
+            cache_manager: self.cache_manager.clone(),
+            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
+            connection_manager: self.connection_manager.clone(),
+            write_manager: self.write_manager.clone(),
+            broker_cache: self.cache_manager.broker_cache.clone(),
+            memory_storage_engine: self.memory_storage_engine.clone(),
+            rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
+            client_connection_manager: self.client_connection_manager.clone(),
+        });
         let stop_sx = self.inner_stop.clone();
         tokio::spawn(async move { tcp_server.start(stop_sx).await });
     }

@@ -144,6 +144,7 @@ async fn parse_segment_meta(
             )?;
 
             cache_manager.set_segment_meta(meta);
+            cache_manager.sort_offset_index(&segment_iden.shard_name);
         }
 
         BrokerUpdateCacheActionType::Delete => {}

@@ -14,32 +14,42 @@
 
 use serde::{Deserialize, Serialize};
 
-pub enum OffsetStrategy {
-    Earliest,
-    Latest,
-}
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct ShardInfo {
+pub struct AdapterShardInfo {
     pub shard_name: String,
     pub replica_num: u32,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub enum AdapterOffsetStrategy {
+    #[default]
+    Earliest,
+    Latest,
+}
+
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub struct ShardOffset {
+pub struct AdapterConsumerGroupOffset {
     pub group: String,
     pub shard_name: String,
     pub segment_no: u32,
     pub offset: u64,
 }
 
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct AdapterShardOffsetInfo {
+    pub shard_name: String,
+    pub start_offset: u64,
+    pub high_water_mark: u64,
+    pub end_offset: u64,
+}
+
 #[derive(Default, Clone)]
-pub struct MessageExpireConfig {
+pub struct AdapterMessageExpireConfig {
     // data_size: Option<u32>,
     timestamp: Option<u32>,
 }
 
-impl MessageExpireConfig {
+impl AdapterMessageExpireConfig {
     /// Get the retention period in seconds
     pub fn get_timestamp(&self) -> Option<u32> {
         self.timestamp
@@ -56,11 +66,4 @@ impl MessageExpireConfig {
             timestamp: Some(timestamp),
         }
     }
-}
-
-#[derive(Default, Clone)]
-pub enum MessageExpireStrategy {
-    #[default]
-    // DataSize,
-    Timestamp,
 }

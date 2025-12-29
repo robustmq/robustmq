@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
@@ -39,7 +40,14 @@ impl MessageStorage {
             .storage_adapter
             .batch_write(shard_name, &record)
             .await?;
-        Ok(results)
+        let mut offsets = Vec::new();
+        for row in results {
+            if row.is_error() {
+                return Err(CommonError::CommonError(row.error_info()));
+            }
+            offsets.push(row.offset);
+        }
+        Ok(offsets)
     }
 
     pub async fn read_topic_message(
@@ -76,7 +84,7 @@ impl MessageStorage {
     ) -> Result<u64, CommonError> {
         for row in self
             .storage_adapter
-            .get_offset_by_group(group_id)
+            .get_offset_by_group(group_id, AdapterOffsetStrategy::Earliest)
             .await?
             .iter()
         {
@@ -107,7 +115,9 @@ impl MessageStorage {
 mod tests {
     use super::*;
     use common_config::storage::memory::StorageDriverMemoryConfig;
-    use metadata_struct::storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord};
+    use metadata_struct::storage::{
+        adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
+    };
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
     use storage_engine::memory::engine::MemoryStorageEngine;
@@ -126,7 +136,7 @@ mod tests {
         let shard_name = "topic1";
         storage
             .storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.to_string(),
                 replica_num: 1,
             })
@@ -164,7 +174,7 @@ mod tests {
         let storage = create_test_storage().await;
         storage
             .storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: "t1".to_string(),
                 replica_num: 1,
             })
@@ -173,7 +183,7 @@ mod tests {
 
         storage
             .storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: "t2".to_string(),
                 replica_num: 1,
             })
@@ -200,7 +210,7 @@ mod tests {
         let shard_name = "topic1";
         storage
             .storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.to_string(),
                 replica_num: 1,
             })

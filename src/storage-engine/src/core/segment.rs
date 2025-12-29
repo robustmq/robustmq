@@ -23,6 +23,32 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::{error, info};
 
+pub fn segment_validator(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard_name: &str,
+    segment: u32,
+) -> Result<(), StorageEngineError> {
+    let segment_iden = SegmentIdentity::new(shard_name, segment);
+    let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
+        segment
+    } else {
+        return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
+    };
+
+    if !segment.allow_read() {
+        return Err(StorageEngineError::SegmentStatusError(
+            segment_iden.name(),
+            segment.status.to_string(),
+        ));
+    }
+
+    if cache_manager.get_segment_meta(&segment_iden).is_none() {
+        return Err(StorageEngineError::SegmentFileMetaNotExists(
+            segment_iden.name(),
+        ));
+    }
+    Ok(())
+}
 pub async fn delete_local_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

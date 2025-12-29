@@ -429,7 +429,7 @@ mod tests {
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
-        mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::ShardInfo,
+        mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::AdapterShardInfo,
     };
     use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter};
 
@@ -527,7 +527,7 @@ mod tests {
 
         let shard_name = connector.topic_name.clone();
         storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name,
                 ..Default::default()
             })

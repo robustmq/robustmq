@@ -24,7 +24,7 @@ use rocksdb_engine::{
 };
 use std::sync::Arc;
 
-pub fn save_shard_offset(
+pub fn save_shard_cursor_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard: &str,
     current_segment: u32,
@@ -39,7 +39,7 @@ pub fn save_shard_offset(
     )?)
 }
 
-pub fn get_shard_offset(
+pub fn get_shard_cursor_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard: &str,
     current_segment: u32,
@@ -61,7 +61,7 @@ pub fn get_shard_offset(
         return Err(StorageEngineError::NoOffsetInformation(shard.to_string()));
     }
 
-    save_shard_offset(
+    save_shard_cursor_offset(
         rocksdb_engine_handler,
         shard,
         current_segment,
@@ -84,17 +84,17 @@ mod tests {
         let expected_offset = 12345u64;
         let segment = 8;
 
-        save_shard_offset(&rocksdb, shard, segment, expected_offset).unwrap();
+        save_shard_cursor_offset(&rocksdb, shard, segment, expected_offset).unwrap();
 
-        let actual_offset = get_shard_offset(&rocksdb, shard, segment).unwrap();
+        let actual_offset = get_shard_cursor_offset(&rocksdb, shard, segment).unwrap();
 
         assert_eq!(actual_offset, expected_offset);
 
-        save_shard_offset(&rocksdb, shard, segment, 99999).unwrap();
-        let updated_offset = get_shard_offset(&rocksdb, shard, segment).unwrap();
+        save_shard_cursor_offset(&rocksdb, shard, segment, 99999).unwrap();
+        let updated_offset = get_shard_cursor_offset(&rocksdb, shard, segment).unwrap();
         assert_eq!(updated_offset, 99999);
 
-        let result = get_shard_offset(&rocksdb, "non_existent_shard", segment);
+        let result = get_shard_cursor_offset(&rocksdb, "non_existent_shard", segment);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -107,7 +107,7 @@ mod tests {
         offset_manager
             .save_start_offset(&segment_iden, 100)
             .unwrap();
-        let result = get_shard_offset(&rocksdb, "non_existent_shard", segment).unwrap();
+        let result = get_shard_cursor_offset(&rocksdb, "non_existent_shard", segment).unwrap();
         assert_eq!(result, 100);
     }
 }

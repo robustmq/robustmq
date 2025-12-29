@@ -63,9 +63,13 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    message_storage_adapter
+    let resp = message_storage_adapter
         .write(&delay_message.target_shard_name, &record)
-        .await
+        .await?;
+    if resp.is_error() {
+        return Err(CommonError::CommonError(resp.error_info()));
+    }
+    Ok(resp.offset)
 }
 
 pub(crate) async fn read_offset_data(
@@ -99,7 +103,7 @@ mod test {
     use common_base::tools::unique_id;
     use metadata_struct::{
         delay_info::DelayMessageInfo,
-        storage::{adapter_offset::ShardInfo, adapter_record::AdapterWriteRecord},
+        storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
     };
     use std::{sync::Arc, time::Duration};
     use storage_adapter::storage::build_memory_storage_driver;
@@ -110,7 +114,7 @@ mod test {
         let message_storage_adapter = build_memory_storage_driver();
         let shard_name = "s1".to_string();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.clone(),
                 ..Default::default()
             })
@@ -138,7 +142,7 @@ mod test {
         let message_storage_adapter = build_memory_storage_driver();
         let shard_name = "s1".to_string();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.clone(),
                 ..Default::default()
             })
@@ -153,7 +157,7 @@ mod test {
 
         let target_shard_name = unique_id();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: target_shard_name.clone(),
                 ..Default::default()
             })
@@ -203,7 +207,7 @@ mod test {
 
         let target_topic = unique_id();
         message_storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: target_topic.clone(),
                 ..Default::default()
             })

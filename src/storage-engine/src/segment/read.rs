@@ -21,22 +21,22 @@ use crate::{
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
     },
 };
-use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 /// handle read requests by offset
 ///
 /// Use index (if there's any) to find the last nearest start byte position given the offset
-pub async fn read_by_offset(
+pub async fn segment_read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
     segment_iden: &SegmentIdentity,
-    filter: &ReadReqFilter,
-    read_options: &ReadReqOptions,
+    offset: u64,
+    max_size: u64,
+    max_record: u64,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let start_position = if let Some(position) =
-        get_index_data_by_offset(rocksdb_engine_handler, segment_iden, filter.offset)?
+        get_index_data_by_offset(rocksdb_engine_handler, segment_iden, offset)?
     {
         position.position
     } else {
@@ -44,28 +44,21 @@ pub async fn read_by_offset(
     };
 
     let res = segment_file
-        .read_by_offset(
-            start_position,
-            filter.offset,
-            read_options.max_size,
-            read_options.max_record,
-        )
+        .read_by_offset(start_position, offset, max_size, max_record)
         .await?;
-
     Ok(res)
 }
 
 /// handle read requests by key
 ///
 /// Use index (if there's any) to find all start byte positions of the records with the given key
-pub async fn read_by_key(
+pub async fn segment_read_by_key(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
     segment_iden: &SegmentIdentity,
-    filter: &ReadReqFilter,
+    key: &str,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let index_data =
-        get_index_data_by_key(rocksdb_engine_handler, segment_iden, filter.key.clone())?;
+    let index_data = get_index_data_by_key(rocksdb_engine_handler, segment_iden, key.to_string())?;
 
     let positions = if let Some(index) = index_data {
         vec![index.position]
@@ -79,19 +72,20 @@ pub async fn read_by_key(
 /// handle read requests by tag
 ///
 /// Similar to [`read_by_key`], but use tag index
-pub async fn read_by_tag(
+pub async fn segment_read_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
     segment_iden: &SegmentIdentity,
-    filter: &ReadReqFilter,
-    read_options: &ReadReqOptions,
+    tag: &str,
+    start_offset: Option<u64>,
+    max_record: u64,
 ) -> Result<Vec<ReadData>, StorageEngineError> {
     let index_data_list = get_index_data_by_tag(
         rocksdb_engine_handler,
         segment_iden,
-        filter.offset,
-        filter.tag.clone(),
-        read_options.max_record as usize,
+        start_offset,
+        tag,
+        max_record as usize,
     )?;
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
     segment_file.read_by_positions(positions).await
@@ -99,9 +93,9 @@ pub async fn read_by_tag(
 
 #[cfg(test)]
 mod tests {
-    use super::{read_by_key, read_by_offset, read_by_tag};
+    use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{core::test::test_base_write_data, segment::file::SegmentFile};
-    use protocol::storage::protocol::{ReadReqFilter, ReadReqOptions};
+    use protocol::storage::protocol::ReadReqOptions;
 
     #[tokio::test]
     async fn read_by_offset_test() {
@@ -111,21 +105,15 @@ mod tests {
                 .await
                 .unwrap();
 
-        let read_options = ReadReqOptions {
-            max_record: 2,
-            max_size: 1024 * 1024 * 1024,
-        };
-
-        let filter = ReadReqFilter {
-            offset: 5,
-            ..Default::default()
-        };
-        let resp = read_by_offset(
+        let max_record = 2;
+        let max_size = 1024 * 1024 * 1024;
+        let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
             &segment_file,
             &segment_iden,
-            &filter,
-            &read_options,
+            5,
+            max_size,
+            max_record,
         )
         .await
         .unwrap();
@@ -138,20 +126,14 @@ mod tests {
             i += 1;
         }
 
-        let read_options = ReadReqOptions {
-            max_record: 5,
-            max_size: 1024 * 1024 * 1024,
-        };
-        let filter = ReadReqFilter {
-            offset: 10,
-            ..Default::default()
-        };
-        let resp = read_by_offset(
+        let max_record = 5;
+        let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
             &segment_file,
             &segment_iden,
-            &filter,
-            &read_options,
+            10,
+            max_size,
+            max_record,
         )
         .await
         .unwrap();
@@ -174,19 +156,9 @@ mod tests {
                 .unwrap();
 
         let key = "key-5".to_string();
-        let filter = ReadReqFilter {
-            key: key.clone(),
-            offset: 0,
-            ..Default::default()
-        };
-        let resp = read_by_key(
-            &rocksdb_engine_handler,
-            &segment_file,
-            &segment_iden,
-            &filter,
-        )
-        .await
-        .unwrap();
+        let resp = segment_read_by_key(&rocksdb_engine_handler, &segment_file, &segment_iden, &key)
+            .await
+            .unwrap();
 
         assert_eq!(resp.len(), 1);
         let meata = resp.first().unwrap().record.metadata.clone();
@@ -208,17 +180,13 @@ mod tests {
         };
 
         let tag = "tag-5".to_string();
-        let filter = ReadReqFilter {
-            tag: tag.clone(),
-            offset: 0,
-            ..Default::default()
-        };
-        let res = read_by_tag(
+        let res = segment_read_by_tag(
             &rocksdb_engine_handler,
             &segment_file,
             &segment_iden,
-            &filter,
-            &read_options,
+            &tag,
+            None,
+            read_options.max_record,
         )
         .await;
         println!("{res:?}");

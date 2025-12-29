@@ -70,7 +70,7 @@ impl<'a> Producer<'a> {
 mod tests {
     use super::*;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::adapter_record::Header;
+    use metadata_struct::storage::adapter_record::AdapterWriteRecordHeader;
 
     // Test PulsarProducer works
     // Run `docker run --rm -it -p 6650:6650 -p 8080:8080 --name pulsar apachepulsar/pulsar:2.11.0 bin/pulsar standalone -nfw -nss` to set up pulsar instance, then run test.
@@ -90,7 +90,7 @@ mod tests {
         if let Ok(mut p) = p {
             let mut record = AdapterWriteRecord::from_string("test".to_string());
             record.set_key("test".to_string());
-            record.set_header(vec![Header {
+            record.set_header(vec![AdapterWriteRecordHeader {
                 name: "h1".to_string(),
                 value: "v1".to_string(),
             }]);

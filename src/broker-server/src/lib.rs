@@ -37,7 +37,7 @@ use meta_service::{
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
-use metadata_struct::storage::adapter_offset::MessageExpireConfig;
+use metadata_struct::storage::adapter_offset::AdapterMessageExpireConfig;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
@@ -323,7 +323,7 @@ impl BrokerServer {
         // message expire
         let storage = self.mqtt_params.message_storage_adapter.clone();
         server_runtime.spawn(async move {
-            message_expire_thread(storage.clone(), MessageExpireConfig::default()).await;
+            message_expire_thread(storage.clone(), AdapterMessageExpireConfig::default()).await;
         });
 
         // awaiting stop
@@ -420,12 +420,19 @@ impl BrokerServer {
         ));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+            StorageDriverMemoryConfig::default(),
+        ));
+        let rocksdb_storage_engine =
+            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         StorageEngineParams {
             cache_manager,
             client_pool,
             rocksdb_engine_handler,
             connection_manager,
             client_connection_manager,
+            memory_storage_engine,
+            rocksdb_storage_engine,
             write_manager,
         }
     }

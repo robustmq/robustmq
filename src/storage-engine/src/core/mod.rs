@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod batch_call;
 pub mod cache;
 pub mod dynamic_cache;
 pub mod error;
-pub mod read;
+pub mod offset_index;
+pub mod read_key;
+pub mod read_offset;
+pub mod read_tag;
 pub mod segment;
 pub mod shard;
 pub mod test;

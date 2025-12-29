@@ -12,56 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::clients::manager::ClientConnectionManager;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::segment::file::SegmentFile;
-use crate::segment::read::{read_by_key, read_by_offset, read_by_tag};
-use crate::segment::write::{WriteChannelDataRecord, WriteManager};
-use crate::segment::SegmentIdentity;
+use crate::core::read_key::{read_by_key, ReadByKeyParams};
+use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
+use crate::core::read_tag::{read_by_tag, ReadByTagParams};
+use crate::core::wirte::batch_write;
+use crate::memory::engine::MemoryStorageEngine;
+use crate::rocksdb::engine::RocksDBStorageEngine;
+use crate::segment::write::WriteManager;
 use common_base::utils::serialize::{deserialize, serialize};
-use common_config::broker::broker_config;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use protocol::storage::protocol::{
-    ReadReqBody, ReadType, WriteRespMessage, WriteRespMessageStatus,
+    ReadReqBody, ReadType, StorageEngineNetworkError, WriteRespMessage, WriteRespMessageStatus,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 fn params_validator(
     cache_manager: &Arc<StorageCacheManager>,
-    segment_identity: &SegmentIdentity,
+    shard_name: &str,
 ) -> Result<(), StorageEngineError> {
-    if !cache_manager
-        .shards
-        .contains_key(&segment_identity.shard_name)
-    {
-        return Err(StorageEngineError::ShardNotExist(
-            segment_identity.shard_name.to_string(),
-        ));
-    }
-
-    let segment = if let Some(segment) = cache_manager.get_segment(segment_identity) {
-        segment
-    } else {
-        return Err(StorageEngineError::SegmentNotExist(segment_identity.name()));
-    };
-
-    if !segment.allow_read() {
-        return Err(StorageEngineError::SegmentStatusError(
-            segment_identity.name(),
-            segment.status.to_string(),
-        ));
-    }
-
-    let conf = broker_config();
-    if segment.leader != conf.broker_id {
-        return Err(StorageEngineError::NotLeader(segment_identity.name()));
-    }
-
-    if cache_manager.get_segment_meta(segment_identity).is_none() {
-        return Err(StorageEngineError::SegmentFileMetaNotExists(
-            segment_identity.name(),
-        ));
+    if !cache_manager.shards.contains_key(shard_name) {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
     }
 
     Ok(())
@@ -71,61 +46,63 @@ fn params_validator(
 pub async fn write_data_req(
     cache_manager: &Arc<StorageCacheManager>,
     write_manager: &Arc<WriteManager>,
-    segment_iden: &SegmentIdentity,
+    memory_storage_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    client_connection_manager: &Arc<ClientConnectionManager>,
+    shard_name: &str,
     messages: &[Vec<u8>],
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     if messages.is_empty() {
         return Ok(Vec::new());
     }
 
-    params_validator(cache_manager, segment_iden)?;
-
-    let mut results = Vec::new();
+    params_validator(cache_manager, shard_name)?;
 
     let mut record_list = Vec::new();
     for message_bytes in messages {
         let adapter_record = deserialize::<AdapterWriteRecord>(message_bytes)?;
-
-        // todo data validator
-        let header = adapter_record.header.as_ref().map(|headers| {
-            headers
-                .iter()
-                .map(|h| metadata_struct::storage::storage_record::Header {
-                    name: h.name.clone(),
-                    value: h.value.clone(),
-                })
-                .collect()
-        });
-
-        let record = WriteChannelDataRecord {
-            pkid: adapter_record.pkid,
-            header,
-            key: adapter_record.key.clone(),
-            tags: adapter_record.tags.clone(),
-            value: adapter_record.data.clone(),
-        };
-        record_list.push(record);
+        record_list.push(adapter_record);
     }
 
-    let response = write_manager.write(segment_iden, record_list).await?;
+    let response = batch_write(
+        write_manager,
+        cache_manager,
+        memory_storage_engine,
+        rocksdb_storage_engine,
+        client_connection_manager,
+        shard_name,
+        &record_list,
+    )
+    .await?;
+
+    let messages: Vec<WriteRespMessageStatus> = response
+        .iter()
+        .map(|row| {
+            if row.is_error() {
+                WriteRespMessageStatus {
+                    pkid: row.pkid,
+                    error: Some(StorageEngineNetworkError::new(
+                        "InternalError".to_string(),
+                        row.error_info(),
+                    )),
+                    ..Default::default()
+                }
+            } else {
+                WriteRespMessageStatus {
+                    pkid: row.pkid,
+                    offset: row.offset,
+                    ..Default::default()
+                }
+            }
+        })
+        .collect();
 
     let resp_message = WriteRespMessage {
-        shard_name: segment_iden.shard_name.clone(),
-        segment: segment_iden.segment,
-        messages: response
-            .offsets
-            .iter()
-            .map(|(pkid, offset)| WriteRespMessageStatus {
-                pkid: *pkid,
-                offset: *offset,
-                ..Default::default()
-            })
-            .collect(),
+        shard_name: shard_name.to_string(),
+        messages,
     };
 
-    results.push(resp_message);
-
-    Ok(results)
+    Ok(vec![resp_message])
 }
 
 /// handle all read requests from Journal Client
@@ -133,75 +110,86 @@ pub async fn write_data_req(
 /// Redirect read requests to the corresponding handler according to the read type
 pub async fn read_data_req(
     cache_manager: &Arc<StorageCacheManager>,
+    memory_storage_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    client_connection_manager: &Arc<ClientConnectionManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req_body: &ReadReqBody,
-    node_id: u64,
 ) -> Result<Vec<Vec<u8>>, StorageEngineError> {
     let mut results = Vec::new();
     for raw in req_body.messages.iter() {
-        let segment_iden = SegmentIdentity {
-            shard_name: raw.shard_name.to_string(),
-            segment: raw.segment,
+        // Create AdapterReadConfig from options
+        let read_config = AdapterReadConfig {
+            max_record_num: raw.options.max_record,
+            max_size: raw.options.max_size,
         };
-
-        let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
-            segment
-        } else {
-            return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
-        };
-
-        let fold = if let Some(fold) = segment.get_fold(node_id) {
-            fold
-        } else {
-            return Err(StorageEngineError::SegmentDataDirectoryNotFound(
-                segment_iden.name(),
-                node_id,
-            ));
-        };
-
-        let segment_file =
-            SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold).await?;
-
-        let filter = raw.filter.clone();
-
-        let read_options = raw.options.clone();
 
         let read_data_list = match raw.read_type {
             ReadType::Offset => {
-                read_by_offset(
-                    rocksdb_engine_handler,
-                    &segment_file,
-                    &segment_iden,
-                    &filter,
-                    &read_options,
-                )
+                let offset = raw.filter.offset.ok_or(StorageEngineError::CommonErrorStr(
+                    "Offset is required for Offset read type".to_string(),
+                ))?;
+
+                read_by_offset(ReadByOffsetParams {
+                    rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+                    cache_manager: cache_manager.clone(),
+                    memory_storage_engine: memory_storage_engine.clone(),
+                    rocksdb_storage_engine: rocksdb_storage_engine.clone(),
+                    client_connection_manager: client_connection_manager.clone(),
+                    shard_name: raw.shard_name.clone(),
+                    offset,
+                    read_config,
+                })
                 .await?
             }
 
             ReadType::Key => {
-                read_by_key(
-                    rocksdb_engine_handler,
-                    &segment_file,
-                    &segment_iden,
-                    &filter,
-                )
+                let key = raw
+                    .filter
+                    .key
+                    .clone()
+                    .ok_or(StorageEngineError::CommonErrorStr(
+                        "Key is required for Key read type".to_string(),
+                    ))?;
+
+                read_by_key(ReadByKeyParams {
+                    rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+                    cache_manager: cache_manager.clone(),
+                    memory_storage_engine: memory_storage_engine.clone(),
+                    rocksdb_storage_engine: rocksdb_storage_engine.clone(),
+                    client_connection_manager: client_connection_manager.clone(),
+                    shard_name: raw.shard_name.clone(),
+                    key,
+                })
                 .await?
             }
 
             ReadType::Tag => {
-                read_by_tag(
-                    rocksdb_engine_handler,
-                    &segment_file,
-                    &segment_iden,
-                    &filter,
-                    &read_options,
-                )
+                let tag = raw
+                    .filter
+                    .tag
+                    .clone()
+                    .ok_or(StorageEngineError::CommonErrorStr(
+                        "Tag is required for Tag read type".to_string(),
+                    ))?;
+
+                read_by_tag(ReadByTagParams {
+                    rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+                    cache_manager: cache_manager.clone(),
+                    memory_storage_engine: memory_storage_engine.clone(),
+                    rocksdb_storage_engine: rocksdb_storage_engine.clone(),
+                    client_connection_manager: client_connection_manager.clone(),
+                    shard_name: raw.shard_name.clone(),
+                    tag,
+                    start_offset: raw.filter.offset,
+                    read_config,
+                })
                 .await?
             }
         };
 
         for read_data in read_data_list {
-            results.push(serialize(&read_data.record)?);
+            results.push(serialize(&read_data)?);
         }
     }
     Ok(results)
@@ -209,32 +197,35 @@ pub async fn read_data_req(
 
 #[cfg(test)]
 mod tests {
+    use crate::clients::manager::ClientConnectionManager;
+    use crate::memory::engine::MemoryStorageEngine;
+    use crate::rocksdb::engine::RocksDBStorageEngine;
     use crate::{core::test::test_base_write_data, handler::data::read_data_req};
     use common_base::utils::serialize::deserialize;
-    use common_config::broker::broker_config;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
-    use std::time::Duration;
-    use tokio::time::sleep;
+    use std::sync::Arc;
 
     #[tokio::test]
-    #[ignore]
     async fn read_data_req_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_base_write_data(30).await;
 
-        sleep(Duration::from_secs(10)).await;
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::default());
+        let rocksdb_storage_engine =
+            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
+        let client_connection_manager =
+            Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
 
         // offset
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment,
                 read_type: ReadType::Offset,
                 filter: ReadReqFilter {
-                    offset: 5,
+                    offset: Some(5),
                     ..Default::default()
                 },
                 options: ReadReqOptions {
@@ -243,16 +234,17 @@ mod tests {
                 },
             }],
         };
-        let conf = broker_config();
         let res = read_data_req(
             &cache_manager,
+            &memory_storage_engine,
+            &rocksdb_storage_engine,
+            &client_connection_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.broker_id,
         )
         .await;
-        assert!(res.is_ok());
         let resp = res.unwrap();
+
         assert_eq!(resp.len(), 2);
 
         let mut i = 5;
@@ -267,11 +259,10 @@ mod tests {
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment,
                 read_type: ReadType::Key,
                 filter: ReadReqFilter {
-                    offset: 0,
-                    key: key.clone(),
+                    offset: Some(0),
+                    key: Some(key.clone()),
                     ..Default::default()
                 },
                 options: ReadReqOptions {
@@ -280,12 +271,14 @@ mod tests {
                 },
             }],
         };
-        let conf = broker_config();
+
         let res = read_data_req(
             &cache_manager,
+            &memory_storage_engine,
+            &rocksdb_storage_engine,
+            &client_connection_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.broker_id,
         )
         .await;
         assert!(res.is_ok());
@@ -300,11 +293,10 @@ mod tests {
         let req_body = ReadReqBody {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
-                segment: segment_iden.segment,
                 read_type: ReadType::Tag,
                 filter: ReadReqFilter {
-                    offset: 0,
-                    tag: tag.clone(),
+                    offset: Some(0),
+                    tag: Some(tag.clone()),
                     ..Default::default()
                 },
                 options: ReadReqOptions {
@@ -313,12 +305,14 @@ mod tests {
                 },
             }],
         };
-        let conf = broker_config();
+
         let res = read_data_req(
             &cache_manager,
+            &memory_storage_engine,
+            &rocksdb_storage_engine,
+            &client_connection_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.broker_id,
         )
         .await;
         assert!(res.is_ok());

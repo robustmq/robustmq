@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::clients::manager::ClientConnectionManager;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::handler::data::{read_data_req, write_data_req};
+use crate::memory::engine::MemoryStorageEngine;
+use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::write::WriteManager;
-use crate::segment::SegmentIdentity;
 use axum::async_trait;
-use common_config::broker::broker_config;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;
@@ -38,6 +39,9 @@ pub struct StorageEngineHandlerCommand {
     cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
+    memory_storage_engine: Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    client_connection_manager: Arc<ClientConnectionManager>,
 }
 
 impl StorageEngineHandlerCommand {
@@ -45,11 +49,17 @@ impl StorageEngineHandlerCommand {
         cache_manager: Arc<StorageCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         write_manager: Arc<WriteManager>,
+        memory_storage_engine: Arc<MemoryStorageEngine>,
+        rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+        client_connection_manager: Arc<ClientConnectionManager>,
     ) -> Self {
         StorageEngineHandlerCommand {
             cache_manager,
             rocksdb_engine_handler,
             write_manager,
+            memory_storage_engine,
+            rocksdb_storage_engine,
+            client_connection_manager,
         }
     }
 }
@@ -72,16 +82,15 @@ impl Command for StorageEngineHandlerCommand {
 
         match pack {
             StorageEnginePacket::WriteReq(request) => {
-                let segment_iden = SegmentIdentity {
-                    shard_name: request.body.shard_name,
-                    segment: request.body.segment,
-                };
                 let messages = request.body.messages;
 
                 let (resp_body, error) = match write_data_req(
                     &self.cache_manager,
                     &self.write_manager,
-                    &segment_iden,
+                    &self.memory_storage_engine,
+                    &self.rocksdb_storage_engine,
+                    &self.client_connection_manager,
+                    &request.body.shard_name,
                     &messages,
                 )
                 .await
@@ -113,12 +122,13 @@ impl Command for StorageEngineHandlerCommand {
 
             StorageEnginePacket::ReadReq(request) => {
                 let req_body = request.body;
-                let config = broker_config();
                 let (resp_body, error) = match read_data_req(
                     &self.cache_manager,
+                    &self.memory_storage_engine,
+                    &self.rocksdb_storage_engine,
+                    &self.client_connection_manager,
                     &self.rocksdb_engine_handler,
                     &req_body,
-                    config.broker_id,
                 )
                 .await
                 {

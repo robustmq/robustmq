@@ -18,12 +18,15 @@ use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use bytes::Bytes;
-use common_base::tools::unique_id;
+use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::{EngineSegment, Replica};
+use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+use metadata_struct::storage::shard::{
+    EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
@@ -35,7 +38,7 @@ use tokio::time::sleep;
 pub fn test_build_segment() -> SegmentIdentity {
     SegmentIdentity {
         shard_name: unique_id(),
-        segment: 10,
+        segment: 0,
     }
 }
 
@@ -61,6 +64,27 @@ pub async fn test_init_segment() -> (
     let segment_iden = test_build_segment();
     let fold = test_build_data_fold().first().unwrap().to_string();
 
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+    ))));
+
+    let shard = EngineShard {
+        shard_uid: unique_id(),
+        shard_name: segment_iden.shard_name.clone(),
+        start_segment_seq: 0,
+        active_segment_seq: 0,
+        last_segment_seq: 0,
+        status: EngineShardStatus::Run,
+        config: EngineShardConfig {
+            replica_num: 1,
+            max_segment_size: 1024 * 1024 * 1024,
+        },
+        engine_type: EngineType::Segment,
+        replica_num: 1,
+        create_time: now_second(),
+    };
+    cache_manager.set_shard(shard);
+
     let segment = EngineSegment {
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment,
@@ -69,12 +93,11 @@ pub async fn test_init_segment() -> (
             node_id: 1,
             fold: fold.clone(),
         }],
-        ..Default::default()
+        leader: 1,
+        leader_epoch: 0,
+        status: SegmentStatus::Write,
+        isr: vec![1],
     };
-
-    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
-        BrokerConfig::default(),
-    ))));
 
     create_local_segment(&cache_manager, &segment)
         .await
@@ -83,8 +106,10 @@ pub async fn test_init_segment() -> (
     cache_manager.set_segment_meta(EngineSegmentMetadata {
         shard_name: segment_iden.shard_name.clone(),
         segment_seq: segment_iden.segment,
+        start_offset: 0,
         ..Default::default()
     });
+    cache_manager.sort_offset_index(&segment_iden.shard_name);
 
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
@@ -100,8 +125,8 @@ pub async fn test_base_write_data(
 ) {
     let (segment_iden, cache_manager, fold, rocksdb_engine_handler) = test_init_segment().await;
 
-    use crate::segment::offset::save_shard_offset;
-    save_shard_offset(
+    use crate::segment::offset::save_shard_cursor_offset;
+    save_shard_cursor_offset(
         &rocksdb_engine_handler,
         &segment_iden.shard_name,
         segment_iden.segment,
@@ -133,8 +158,8 @@ pub async fn test_base_write_data(
             value: Bytes::from(format!("data-{i}")),
         });
     }
-    write_manager.write(&segment_iden, data_list).await.unwrap();
 
+    let _res = write_manager.write(&segment_iden, data_list).await.unwrap();
     stop_send.send(true).ok();
     sleep(Duration::from_millis(100)).await;
 

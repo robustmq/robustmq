@@ -16,10 +16,14 @@ use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
+use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp};
+use crate::segment::offset::get_shard_cursor_offset;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::ShardInfo;
+use metadata_struct::storage::adapter_offset::{
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
+};
 use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -84,15 +88,10 @@ pub fn is_delete_by_shard(shard_name: &str) -> Result<bool, StorageEngineError> 
     Ok(true)
 }
 
-/// invoke `create_shard` in meta service
-///
-/// After meta service receives the request and creates the shard, it will invoke a `update_cache` call back to the journal server. Journal server will update its cache
-///
-/// Will wait for 3s for the cache update to take effect
 pub async fn create_shard_to_place(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
-    shard: &ShardInfo,
+    shard: &AdapterShardInfo,
 ) -> Result<(), StorageEngineError> {
     let shard_name = &shard.shard_name;
     let config = EngineShardConfig {
@@ -127,11 +126,6 @@ pub async fn create_shard_to_place(
     Ok(())
 }
 
-/// invoke `delete_shard` in meta service
-///
-/// After meta service receives the request and deletes the shard, it will invoke a `delete_shard_file` and `delete_segment` call back to the journal server. Journal server will mark the shard as being deleted
-///
-/// A background thread will delete the shard and its segments. No need to wait for the deletion to complete
 pub async fn delete_shard_to_place(
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
@@ -148,4 +142,89 @@ pub async fn delete_shard_to_place(
     )
     .await?;
     Ok(())
+}
+
+pub fn get_shard_earliest_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard_name: &str,
+) -> Result<AdapterConsumerGroupOffset, StorageEngineError> {
+    let shard = cache_manager
+        .shards
+        .get(shard_name)
+        .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
+
+    let segment_iden = SegmentIdentity::new(shard_name, shard.start_segment_seq);
+    let segment_meta = cache_manager
+        .get_segment_meta(&segment_iden)
+        .ok_or_else(|| StorageEngineError::SegmentNotExist(segment_iden.name()))?;
+
+    if segment_meta.start_offset < 0 {
+        return Err(StorageEngineError::CommonErrorStr(format!(
+            "Invalid start offset {} for shard {} segment {}",
+            segment_meta.start_offset, shard_name, shard.start_segment_seq
+        )));
+    }
+
+    Ok(AdapterConsumerGroupOffset {
+        shard_name: shard_name.to_string(),
+        segment_no: shard.start_segment_seq,
+        offset: segment_meta.start_offset as u64,
+        ..Default::default()
+    })
+}
+
+pub fn get_shard_latest_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard_name: &str,
+) -> Result<AdapterConsumerGroupOffset, StorageEngineError> {
+    let shard = cache_manager
+        .shards
+        .get(shard_name)
+        .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
+
+    let offset =
+        get_shard_cursor_offset(rocksdb_engine_handler, shard_name, shard.active_segment_seq)?;
+
+    Ok(AdapterConsumerGroupOffset {
+        shard_name: shard_name.to_string(),
+        segment_no: shard.active_segment_seq,
+        offset,
+        ..Default::default()
+    })
+}
+
+pub fn get_shard_offset_by_timestamp(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard_name: &str,
+    timestamp: u64,
+    strategy: AdapterOffsetStrategy,
+) -> Result<AdapterConsumerGroupOffset, StorageEngineError> {
+    if let Some(segment) = get_in_segment_by_timestamp(cache_manager, shard_name, timestamp as i64)?
+    {
+        let segment_iden = SegmentIdentity::new(shard_name, segment);
+        if let Some(index_data) =
+            get_index_data_by_timestamp(rocksdb_engine_handler, &segment_iden, timestamp)?
+        {
+            Ok(AdapterConsumerGroupOffset {
+                shard_name: shard_name.to_string(),
+                segment_no: segment,
+                offset: index_data.offset,
+                ..Default::default()
+            })
+        } else {
+            Err(StorageEngineError::CommonErrorStr(format!(
+                "No index data found for timestamp {} in segment {}",
+                timestamp, segment
+            )))
+        }
+    } else {
+        match strategy {
+            AdapterOffsetStrategy::Earliest => get_shard_earliest_offset(cache_manager, shard_name),
+            AdapterOffsetStrategy::Latest => {
+                get_shard_latest_offset(cache_manager, rocksdb_engine_handler, shard_name)
+            }
+        }
+    }
 }

@@ -264,8 +264,8 @@ mod tests {
             config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
         },
         storage::{
-            adapter_offset::ShardInfo,
-            adapter_record::{AdapterWriteRecord, Header},
+            adapter_offset::AdapterShardInfo,
+            adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
         },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
@@ -288,7 +288,7 @@ mod tests {
 
         // prepare some data for testing
         storage_adapter
-            .create_shard(&ShardInfo {
+            .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.clone(),
                 ..Default::default()
             })
@@ -300,7 +300,7 @@ mod tests {
         for i in 0..1000 {
             let record = AdapterWriteRecord {
                 pkid: i,
-                header: Some(vec![Header {
+                header: Some(vec![AdapterWriteRecordHeader {
                     name: "test_name".to_string(),
                     value: "test_value".to_string(),
                 }]),
