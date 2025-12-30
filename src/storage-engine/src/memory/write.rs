@@ -20,10 +20,7 @@ use metadata_struct::storage::{
     convert::convert_adapter_record_to_engine,
 };
 
-use crate::{
-    core::error::StorageEngineError,
-    memory::engine::{MemoryStorageEngine, ShardState},
-};
+use crate::{core::error::StorageEngineError, memory::engine::MemoryStorageEngine};
 
 impl MemoryStorageEngine {
     pub async fn batch_write(
@@ -75,9 +72,15 @@ impl MemoryStorageEngine {
             .entry(shard_name_str.clone())
             .or_insert(DashMap::with_capacity(2));
 
-        // validator
-        if current_shard_data_list.len() > self.config.max_records_per_shard {
-            //todo
+        // remove old data
+        let next_num = current_shard_data_list.len() + messages.len();
+        if next_num > self.config.max_records_per_shard {
+            let offset = self.get_earliest_offset(shard_name)?;
+            let discard_num = (current_shard_data_list.len() as f64 * 0.2) as u64;
+            for i in offset..(offset + discard_num) {
+                current_shard_data_list.remove(&i);
+            }
+            self.save_earliest_offset(shard_name, offset + discard_num)?;
         }
 
         // save data
@@ -99,13 +102,7 @@ impl MemoryStorageEngine {
             offset += 1;
         }
 
-        self.shard_state.insert(
-            shard_name.to_string(),
-            ShardState {
-                earliest_offset: 0,
-                latest_offset: offset,
-            },
-        );
+        self.save_latest_offset(shard_name, offset)?;
         Ok(offset_res)
     }
 }
