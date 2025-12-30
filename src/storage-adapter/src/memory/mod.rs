@@ -172,8 +172,6 @@ impl StorageAdapter for MemoryStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use crate::{
         driver::build_message_storage_driver,
         storage::ArcStorageAdapter,
@@ -186,9 +184,8 @@ mod tests {
         memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType,
     };
     use rocksdb_engine::test::test_rocksdb_instance;
-    use storage_engine::{
-        memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
-    };
+    use std::sync::Arc;
+    use storage_engine::rocksdb::engine::RocksDBStorageEngine;
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
@@ -198,18 +195,11 @@ mod tests {
             ..Default::default()
         };
 
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
-            StorageDriverMemoryConfig::default(),
-        ));
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
-        build_message_storage_driver(
-            memory_storage_engine,
-            rocksdb_storage_engine.clone(),
-            config,
-        )
-        .await
-        .unwrap()
+        build_message_storage_driver(rocksdb_storage_engine.clone(), config)
+            .await
+            .unwrap()
     }
 
     #[tokio::test]

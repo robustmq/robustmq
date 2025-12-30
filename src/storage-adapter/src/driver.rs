@@ -16,17 +16,21 @@ use crate::{
     memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter, storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
-use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
+use common_config::storage::{
+    memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType,
+};
 use std::sync::Arc;
 use storage_engine::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine};
 
 pub async fn build_message_storage_driver(
-    memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
-        StorageAdapterType::Memory => Arc::new(MemoryStorageAdapter::new(memory_storage_engine)),
+        StorageAdapterType::Memory => {
+            let engine = MemoryStorageEngine::create_full(StorageDriverMemoryConfig::default());
+            Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
+        }
 
         // StorageAdapterType::Journal => Arc::new(
         //     JournalStorageAdapter::new(offset_manager, config.journal_config.unwrap_or_default())

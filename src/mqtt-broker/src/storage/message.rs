@@ -123,7 +123,7 @@ mod tests {
     use storage_engine::memory::engine::MemoryStorageEngine;
 
     async fn create_test_storage() -> MessageStorage {
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::create_full(
             StorageDriverMemoryConfig::default(),
         ));
         let storage_adapter = Arc::new(MemoryStorageAdapter::new(memory_storage_engine));

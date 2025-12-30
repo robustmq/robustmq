@@ -90,7 +90,7 @@ pub trait StorageAdapter {
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {
-    let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+    let memory_storage_engine = Arc::new(MemoryStorageEngine::create_full(
         StorageDriverMemoryConfig::default(),
     ));
     Arc::new(MemoryStorageAdapter::new(memory_storage_engine))

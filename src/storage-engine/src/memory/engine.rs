@@ -27,41 +27,57 @@ use std::sync::Arc;
 use crate::core::error::StorageEngineError;
 
 #[derive(Clone, Debug, Default)]
-pub struct ShardState {
+struct ShardState {
     pub earliest_offset: u64,
     pub latest_offset: u64,
 }
 
-#[derive(Clone)]
-pub struct MemoryStorageEngine {
-    //(shard, (ShardInfo))
-    pub shard_info: DashMap<String, AdapterShardInfo>,
-    //(shard, (offset,Record))
-    pub shard_data: DashMap<String, DashMap<u64, StorageRecord>>,
-    //(group, (shard, offset))
-    pub group_data: DashMap<String, DashMap<String, u64>>,
-    //(shard, (tag, (offset)))
-    pub tag_index: DashMap<String, DashMap<String, Vec<u64>>>,
-    //(shard, (key, offset))
-    pub key_index: DashMap<String, DashMap<String, u64>>,
-    //(shard, (timestamp, offset))
-    pub timestamp_index: DashMap<String, DashMap<u64, u64>>,
-    //(shard, ShardState)
-    pub shard_state: DashMap<String, ShardState>,
-    //(shard, lock)
-    pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
-    pub config: StorageDriverMemoryConfig,
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+enum MemoryStorageType {
+    #[default]
+    Full,
+    Storage,
 }
 
-impl Default for MemoryStorageEngine {
-    fn default() -> Self {
-        Self::new(StorageDriverMemoryConfig::default())
-    }
+#[derive(Clone)]
+pub struct MemoryStorageEngine {
+    // ====inner struct====
+    //(shard, lock)
+    shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
+    config: StorageDriverMemoryConfig,
+    engine_type: MemoryStorageType,
+
+    // ====Metadata data====
+    //(shard, (ShardInfo))
+    shard_info: DashMap<String, AdapterShardInfo>,
+    //(group, (shard, offset))
+    group_data: DashMap<String, DashMap<String, u64>>,
+    //(shard, ShardState)
+    shard_state: DashMap<String, ShardState>,
+
+    // ====Message Data====
+    //(shard, (offset,Record))
+    shard_data: DashMap<String, DashMap<u64, StorageRecord>>,
+    //(shard, (tag, (offset)))
+    tag_index: DashMap<String, DashMap<String, Vec<u64>>>,
+    //(shard, (key, offset))
+    key_index: DashMap<String, DashMap<String, u64>>,
+    //(shard, (timestamp, offset))
+    timestamp_index: DashMap<String, DashMap<u64, u64>>,
 }
 
 impl MemoryStorageEngine {
-    pub fn new(config: StorageDriverMemoryConfig) -> Self {
+    pub fn create_full(config: StorageDriverMemoryConfig) -> Self {
+        MemoryStorageEngine::new(MemoryStorageType::Full, config)
+    }
+
+    pub fn create_storage(config: StorageDriverMemoryConfig) -> Self {
+        MemoryStorageEngine::new(MemoryStorageType::Storage, config)
+    }
+
+    fn new(engine_type: MemoryStorageType, config: StorageDriverMemoryConfig) -> Self {
         MemoryStorageEngine {
+            engine_type,
             shard_info: DashMap::with_capacity(8),
             shard_data: DashMap::with_capacity(8),
             shard_state: DashMap::with_capacity(8),
@@ -158,6 +174,10 @@ impl MemoryStorageEngine {
         }
 
         if let Some(data_map) = self.shard_data.get(shard_name) {
+            if data_map.len() > self.config.max_records_per_shard {
+                //todo
+            }
+
             for msg in messages.iter() {
                 offset_res.push(AdapterWriteRespRow {
                     pkid: msg.pkid,
@@ -214,16 +234,19 @@ impl MemoryStorageEngine {
             shard_name
         )))
     }
+    fn storage_type_check(&self) -> Result<(), StorageEngineError> {
+        if self.engine_type == MemoryStorageType::Storage {
+            return Err(StorageEngineError::NotSupportMemoryStorageType(
+                "create_shard".to_string(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl MemoryStorageEngine {
     pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), StorageEngineError> {
-        if self.shard_info.contains_key(&shard.shard_name) {
-            return Err(StorageEngineError::CommonErrorStr(format!(
-                "shard {} data already exist",
-                shard.shard_name
-            )));
-        }
+        self.storage_type_check()?;
 
         self.shard_data
             .insert(shard.shard_name.clone(), DashMap::with_capacity(8));
@@ -241,6 +264,8 @@ impl MemoryStorageEngine {
         &self,
         shard: Option<String>,
     ) -> Result<Vec<AdapterShardInfo>, StorageEngineError> {
+        self.storage_type_check()?;
+
         if let Some(shard_name) = shard {
             Ok(self
                 .shard_info
@@ -257,6 +282,8 @@ impl MemoryStorageEngine {
     }
 
     pub async fn delete_shard(&self, shard_name: &str) -> Result<(), StorageEngineError> {
+        self.storage_type_check()?;
+
         if !self.shard_info.contains_key(shard_name) {
             return Err(StorageEngineError::CommonErrorStr(format!(
                 "shard {} data not found",
