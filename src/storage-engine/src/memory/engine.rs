@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
@@ -41,6 +42,7 @@ pub struct MemoryStorageEngine {
     pub config: StorageDriverMemoryConfig,
     pub engine_type: MemoryStorageType,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub cache_manager: Arc<StorageCacheManager>,
 
     // ====Metadata data====
     //(shard, (ShardInfo))
@@ -64,24 +66,38 @@ pub struct MemoryStorageEngine {
 impl MemoryStorageEngine {
     pub fn create_full(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        cache_manager: Arc<StorageCacheManager>,
         config: StorageDriverMemoryConfig,
     ) -> Self {
-        MemoryStorageEngine::new(rocksdb_engine_handler, MemoryStorageType::Full, config)
+        MemoryStorageEngine::new(
+            rocksdb_engine_handler,
+            cache_manager,
+            MemoryStorageType::Full,
+            config,
+        )
     }
 
     pub fn create_storage(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        cache_manager: Arc<StorageCacheManager>,
         config: StorageDriverMemoryConfig,
     ) -> Self {
-        MemoryStorageEngine::new(rocksdb_engine_handler, MemoryStorageType::Storage, config)
+        MemoryStorageEngine::new(
+            rocksdb_engine_handler,
+            cache_manager,
+            MemoryStorageType::Storage,
+            config,
+        )
     }
 
     fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        cache_manager: Arc<StorageCacheManager>,
         engine_type: MemoryStorageType,
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine {
+            cache_manager,
             rocksdb_engine_handler,
             engine_type,
             shard_info: DashMap::with_capacity(8),

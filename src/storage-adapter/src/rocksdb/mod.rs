@@ -173,12 +173,14 @@ mod tests {
             test_timestamp_index_with_multiple_entries, test_write_and_read,
         },
     };
-    use common_config::storage::{
-        rocksdb::StorageDriverRocksDBConfig, StorageAdapterConfig, StorageAdapterType,
+    use broker_core::cache::BrokerCacheManager;
+    use common_config::{
+        config::BrokerConfig,
+        storage::{rocksdb::StorageDriverRocksDBConfig, StorageAdapterConfig, StorageAdapterType},
     };
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
-    use storage_engine::rocksdb::engine::RocksDBStorageEngine;
+    use storage_engine::{core::cache::StorageCacheManager, rocksdb::engine::RocksDBStorageEngine};
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
@@ -190,9 +192,13 @@ mod tests {
 
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
+
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         build_message_storage_driver(
             rocksdb_storage_engine.clone(),
             rocksdb_engine_handler.clone(),
+            cache_manager,
             config,
         )
         .await

@@ -24,6 +24,7 @@ tracing.workspace = true
 axum.workspace = true
 common-base.workspace = true
 grpc-clients.workspace = true
+broker-core.workspace = true
 protocol.workspace = true
 tokio.workspace = true
 dashmap.workspace = true

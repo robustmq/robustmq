@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::offset::{cache::OffsetCacheManager, storage::OffsetStorageManager};
+use crate::group::{cache::OffsetCacheManager, storage::OffsetStorageManager};
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,

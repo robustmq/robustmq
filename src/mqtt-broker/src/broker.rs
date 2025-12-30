@@ -41,7 +41,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use storage_engine::offset::OffsetManager;
+use storage_engine::group::OffsetManager;
 use tokio::sync::broadcast::{self};
 use tokio::sync::mpsc;
 use tracing::{error, info};

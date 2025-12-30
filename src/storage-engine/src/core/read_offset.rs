@@ -21,7 +21,7 @@ use crate::{
         cache::StorageCacheManager,
         error::StorageEngineError,
         segment::segment_validator,
-        shard::{get_shard_earliest_offset, get_shard_latest_offset},
+        shard_offset::{get_earliest_offset, get_latest_offset},
     },
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
@@ -208,17 +208,18 @@ fn get_segment_no_by_offset(
             if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
                 Ok(segment_no)
             } else {
-                let earliest_offset = get_shard_earliest_offset(cache_manager, shard_name)?;
+                let earliest_offset =
+                    get_earliest_offset(rocksdb_engine_handler, cache_manager, shard_name)?;
                 let latest_offset =
-                    get_shard_latest_offset(cache_manager, rocksdb_engine_handler, shard_name)?;
-                if offset <= earliest_offset.offset {
-                    Ok(earliest_offset.segment_no)
-                } else if offset >= latest_offset.offset {
-                    Ok(latest_offset.segment_no)
+                    get_latest_offset(rocksdb_engine_handler, cache_manager, shard_name)?;
+                if offset <= earliest_offset {
+                    Ok(shard.start_segment_seq)
+                } else if offset >= latest_offset {
+                    Ok(shard.active_segment_seq)
                 } else {
                     Err(StorageEngineError::CommonErrorStr(format!(
                         "Offset {} is within range [{}, {}] but no segment found",
-                        offset, earliest_offset.offset, latest_offset.offset
+                        offset, earliest_offset, latest_offset
                     )))
                 }
             }

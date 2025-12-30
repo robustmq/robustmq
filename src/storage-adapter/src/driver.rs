@@ -21,17 +21,22 @@ use common_config::storage::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use storage_engine::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine};
+use storage_engine::{
+    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
+    rocksdb::engine::RocksDBStorageEngine,
+};
 
 pub async fn build_message_storage_driver(
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    storage_cache_manager: Arc<StorageCacheManager>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
         StorageAdapterType::Memory => {
             let engine = MemoryStorageEngine::create_full(
                 rocksdb_engine_handler.clone(),
+                storage_cache_manager.clone(),
                 StorageDriverMemoryConfig::default(),
             );
             Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))

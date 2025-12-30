@@ -1,13 +1,27 @@
-use std::collections::HashMap;
-
-use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use crate::{
-    core::error::StorageEngineError,
+    core::{
+        error::StorageEngineError,
+        shard_offset::{get_earliest_offset, get_latest_offset},
+    },
     memory::engine::{MemoryStorageEngine, MemoryStorageType, ShardState},
-    segment::offset::get_shard_cursor_offset,
 };
+use dashmap::DashMap;
+use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+use std::collections::HashMap;
 
 impl MemoryStorageEngine {
     pub async fn get_offset_by_timestamp(
@@ -88,13 +102,11 @@ impl MemoryStorageEngine {
                 if let Some(state) = self.shard_state.get(shard_name) {
                     Ok(state.latest_offset)
                 } else {
-                    if let Some(offset) =
-                        get_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name)?
-                    {
-                        Ok(offset)
-                    } else {
-                        Ok(0)
-                    }
+                    get_latest_offset(
+                        &self.rocksdb_engine_handler,
+                        &self.cache_manager,
+                        shard_name,
+                    )
                 }
             }
         }
@@ -116,13 +128,11 @@ impl MemoryStorageEngine {
                 if let Some(state) = self.shard_state.get(shard_name) {
                     Ok(state.latest_offset)
                 } else {
-                    if let Some(offset) =
-                        get_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name)?
-                    {
-                        Ok(offset)
-                    } else {
-                        Ok(0)
-                    }
+                    get_earliest_offset(
+                        &self.rocksdb_engine_handler,
+                        &self.cache_manager,
+                        shard_name,
+                    )
                 }
             }
         }
