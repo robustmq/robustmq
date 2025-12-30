@@ -27,40 +27,27 @@ impl MemoryStorageEngine {
     ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
         match self.engine_type {
             MemoryStorageType::Standalone => {
-                let group_map = self
-                    .group_data
-                    .entry(group_name.to_string())
-                    .or_insert(DashMap::with_capacity(8));
-
-                Ok(group_map
-                    .iter()
-                    .map(|entry| AdapterConsumerGroupOffset {
-                        group: group_name.to_string(),
-                        shard_name: entry.key().clone(),
-                        offset: *entry.value(),
-                        ..Default::default()
-                    })
-                    .collect())
+                if let Some(group_map) = self.group_data.get(group_name) {
+                    Ok(Self::build_offset_list(group_name, &group_map))
+                } else {
+                    Ok(Vec::new())
+                }
             }
             MemoryStorageType::EngineStorage => {
-                if let Some(group_map) = self.group_data.get(group_name) {
-                    Ok(group_map
-                        .iter()
-                        .map(|entry| AdapterConsumerGroupOffset {
-                            group: group_name.to_string(),
-                            shard_name: entry.key().clone(),
-                            offset: *entry.value(),
-                            ..Default::default()
-                        })
-                        .collect())
-                } else {
-                    let data = self.offset_manager.get_offset(group_name).await?;
-                    let group_info = DashMap::with_capacity(8);
-                    for raw in data.clone() {
-                        group_info.insert(raw.shard_name, raw.offset);
+                match self.group_data.entry(group_name.to_string()) {
+                    dashmap::mapref::entry::Entry::Occupied(entry) => {
+                        Ok(Self::build_offset_list(group_name, entry.get()))
                     }
-                    self.group_data.insert(group_name.to_string(), group_info);
-                    Ok(data)
+                    dashmap::mapref::entry::Entry::Vacant(entry) => {
+                        let data = self.offset_manager.get_offset(group_name).await?;
+                        let capacity = data.len().max(8);
+                        let group_info = DashMap::with_capacity(capacity);
+                        for item in &data {
+                            group_info.insert(item.shard_name.clone(), item.offset);
+                        }
+                        entry.insert(group_info);
+                        Ok(data)
+                    }
                 }
             }
         }
@@ -74,14 +61,6 @@ impl MemoryStorageEngine {
         if offset.is_empty() {
             return Ok(());
         }
-        let group_map = self
-            .group_data
-            .entry(group_name.to_string())
-            .or_insert_with(|| DashMap::with_capacity(offset.len()));
-
-        for (shard_name, offset_val) in offset.iter() {
-            group_map.insert(shard_name.clone(), *offset_val);
-        }
 
         if self.engine_type == MemoryStorageType::EngineStorage {
             self.offset_manager
@@ -89,6 +68,31 @@ impl MemoryStorageEngine {
                 .await?;
         }
 
+        let capacity = offset.len().max(8);
+        let group_map = self
+            .group_data
+            .entry(group_name.to_string())
+            .or_insert_with(|| DashMap::with_capacity(capacity));
+
+        for (shard_name, &offset_val) in offset.iter() {
+            group_map.insert(shard_name.clone(), offset_val);
+        }
+
         Ok(())
+    }
+
+    fn build_offset_list(
+        group_name: &str,
+        group_map: &DashMap<String, u64>,
+    ) -> Vec<AdapterConsumerGroupOffset> {
+        group_map
+            .iter()
+            .map(|entry| AdapterConsumerGroupOffset {
+                group: group_name.to_string(),
+                shard_name: entry.key().clone(),
+                offset: *entry.value(),
+                ..Default::default()
+            })
+            .collect()
     }
 }

@@ -38,23 +38,18 @@ impl MemoryStorageEngine {
         }
 
         match strategy {
-            AdapterOffsetStrategy::Earliest => {
-                let offset = self.get_earliest_offset(shard)?;
-                Ok(Some(offset))
-            }
-            AdapterOffsetStrategy::Latest => {
-                let offset = self.get_latest_offset(shard)?;
-                Ok(Some(offset))
-            }
+            AdapterOffsetStrategy::Earliest => Ok(Some(self.get_earliest_offset(shard)?)),
+            AdapterOffsetStrategy::Latest => Ok(Some(self.get_latest_offset(shard)?)),
         }
     }
 
     pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
+        if self.engine_type == MemoryStorageType::EngineStorage {
+            save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
+        }
+
         if let Some(mut state) = self.shard_state.get_mut(shard) {
             state.latest_offset = offset;
-            if self.engine_type == MemoryStorageType::EngineStorage {
-                save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
-            }
             Ok(())
         } else {
             Err(StorageEngineError::CommonErrorStr(format!(
@@ -67,15 +62,12 @@ impl MemoryStorageEngine {
     pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
         match self.engine_type {
             MemoryStorageType::Standalone => {
-                let shard_state: ShardState = self
-                    .shard_state
-                    .entry(shard_name.to_owned())
-                    .or_default()
-                    .clone();
-
-                Ok(shard_state.latest_offset)
+                if let Some(state) = self.shard_state.get(shard_name) {
+                    Ok(state.latest_offset)
+                } else {
+                    Ok(0)
+                }
             }
-
             MemoryStorageType::EngineStorage => {
                 if let Some(state) = self.shard_state.get(shard_name) {
                     Ok(state.latest_offset)
@@ -88,11 +80,12 @@ impl MemoryStorageEngine {
     }
 
     pub fn save_earliest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
+        if self.engine_type == MemoryStorageType::EngineStorage {
+            save_earliest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
+        }
+
         if let Some(mut state) = self.shard_state.get_mut(shard) {
             state.earliest_offset = offset;
-            if self.engine_type == MemoryStorageType::EngineStorage {
-                save_earliest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
-            }
             Ok(())
         } else {
             Err(StorageEngineError::CommonErrorStr(format!(
@@ -105,18 +98,15 @@ impl MemoryStorageEngine {
     pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
         match self.engine_type {
             MemoryStorageType::Standalone => {
-                let shard_state: ShardState = self
-                    .shard_state
-                    .entry(shard_name.to_owned())
-                    .or_default()
-                    .clone();
-
-                Ok(shard_state.earliest_offset)
+                if let Some(state) = self.shard_state.get(shard_name) {
+                    Ok(state.earliest_offset)
+                } else {
+                    Ok(0)
+                }
             }
-
             MemoryStorageType::EngineStorage => {
                 if let Some(state) = self.shard_state.get(shard_name) {
-                    Ok(state.latest_offset)
+                    Ok(state.earliest_offset)
                 } else {
                     let (earliest_offset, _) = self.recover_shard_data(shard_name)?;
                     Ok(earliest_offset)
@@ -128,22 +118,11 @@ impl MemoryStorageEngine {
     fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
         let ts_map = self.timestamp_index.get(shard)?;
 
-        let mut entries: Vec<(u64, u64)> = ts_map
+        ts_map
             .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
-            .collect();
-
-        entries.sort_by_key(|(ts, _)| *ts);
-
-        let mut found_offset = None;
-        for (ts, offset) in entries {
-            if ts > timestamp {
-                break;
-            }
-            found_offset = Some(offset);
-        }
-
-        found_offset
+            .filter(|entry| *entry.key() <= timestamp)
+            .max_by_key(|entry| *entry.key())
+            .map(|entry| *entry.value())
     }
 
     fn read_data_by_time(
@@ -158,7 +137,10 @@ impl MemoryStorageEngine {
         let start = start_offset.unwrap_or(0);
         let end = shard_state.latest_offset;
 
-        for offset in start..end {
+        const MAX_SCAN: u64 = 10000;
+        let scan_end = end.min(start + MAX_SCAN);
+
+        for offset in start..scan_end {
             let Some(record) = data_map.get(&offset) else {
                 continue;
             };
