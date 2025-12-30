@@ -190,9 +190,13 @@ mod tests {
 
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
-        build_message_storage_driver(rocksdb_storage_engine.clone(), config)
-            .await
-            .unwrap()
+        build_message_storage_driver(
+            rocksdb_storage_engine.clone(),
+            rocksdb_engine_handler.clone(),
+            config,
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]

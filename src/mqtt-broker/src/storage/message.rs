@@ -118,12 +118,15 @@ mod tests {
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
     };
+    use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
     use storage_engine::memory::engine::MemoryStorageEngine;
 
     async fn create_test_storage() -> MessageStorage {
+        let rocksdb_engine = test_rocksdb_instance();
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_full(
+            rocksdb_engine,
             StorageDriverMemoryConfig::default(),
         ));
         let storage_adapter = Arc::new(MemoryStorageAdapter::new(memory_storage_engine));

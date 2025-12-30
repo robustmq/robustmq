@@ -16,7 +16,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::segment::file::open_segment_write;
 use crate::segment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
-use crate::segment::offset::{get_shard_cursor_offset, save_shard_cursor_offset};
+use crate::segment::offset::{get_shard_cursor_offset_by_segment, save_shard_cursor_offset};
 use crate::segment::scroll::{
     is_start_or_end_offset, is_trigger_next_segment_scroll, trigger_next_segment_scroll,
     trigger_update_start_or_end_info,
@@ -157,7 +157,7 @@ impl IoWork {
             return Ok(*offset);
         }
 
-        let offset = get_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name, segment)?;
+        let offset = get_shard_cursor_offset_by_segment(&self.rocksdb_engine_handler, shard_name, segment)?;
         self.offset_data.insert(shard_name.to_string(), offset);
         Ok(offset)
     }

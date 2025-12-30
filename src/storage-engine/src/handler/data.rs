@@ -215,6 +215,7 @@ mod tests {
             test_base_write_data(30).await;
 
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
+            rocksdb_engine_handler.clone(),
             StorageDriverMemoryConfig::default(),
         ));
         let rocksdb_storage_engine =

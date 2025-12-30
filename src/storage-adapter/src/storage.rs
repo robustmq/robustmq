@@ -22,6 +22,7 @@ use metadata_struct::storage::adapter_offset::{
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
+use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::memory::engine::MemoryStorageEngine;
 
@@ -90,7 +91,9 @@ pub trait StorageAdapter {
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {
+    let rocksdb_engine_handler = test_rocksdb_instance();
     let memory_storage_engine = Arc::new(MemoryStorageEngine::create_full(
+        rocksdb_engine_handler,
         StorageDriverMemoryConfig::default(),
     ));
     Arc::new(MemoryStorageAdapter::new(memory_storage_engine))

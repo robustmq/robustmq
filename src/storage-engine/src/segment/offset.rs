@@ -38,7 +38,7 @@ pub fn save_shard_cursor_offset(
     )?)
 }
 
-pub fn get_shard_cursor_offset(
+pub fn get_shard_cursor_offset_by_segment(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard: &str,
     active_segment: u32,
@@ -64,6 +64,22 @@ pub fn get_shard_cursor_offset(
     Ok(start_offset as u64)
 }
 
+pub fn get_shard_cursor_offset(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard: &str,
+) -> Result<Option<u64>, StorageEngineError> {
+    let key = offset_segment_cursor_offset(shard);
+    if let Some(res) = engine_get_by_engine::<u64>(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
+        &key,
+    )? {
+        return Ok(Some(res.data));
+    }
+
+    Ok(None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,15 +95,15 @@ mod tests {
 
         save_shard_cursor_offset(&rocksdb, shard, expected_offset).unwrap();
 
-        let actual_offset = get_shard_cursor_offset(&rocksdb, shard, segment).unwrap();
+        let actual_offset = get_shard_cursor_offset_by_segment(&rocksdb, shard, segment).unwrap();
 
         assert_eq!(actual_offset, expected_offset);
 
         save_shard_cursor_offset(&rocksdb, shard, 99999).unwrap();
-        let updated_offset = get_shard_cursor_offset(&rocksdb, shard, segment).unwrap();
+        let updated_offset = get_shard_cursor_offset_by_segment(&rocksdb, shard, segment).unwrap();
         assert_eq!(updated_offset, 99999);
 
-        let result = get_shard_cursor_offset(&rocksdb, "non_existent_shard", segment);
+        let result = get_shard_cursor_offset_by_segment(&rocksdb, "non_existent_shard", segment);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -100,7 +116,8 @@ mod tests {
         offset_manager
             .save_start_offset(&segment_iden, 100)
             .unwrap();
-        let result = get_shard_cursor_offset(&rocksdb, "non_existent_shard", segment).unwrap();
+        let result =
+            get_shard_cursor_offset_by_segment(&rocksdb, "non_existent_shard", segment).unwrap();
         assert_eq!(result, 100);
     }
 }

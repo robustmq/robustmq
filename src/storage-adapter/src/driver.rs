@@ -19,16 +19,21 @@ use common_base::error::common::CommonError;
 use common_config::storage::{
     memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType,
 };
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use storage_engine::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine};
 
 pub async fn build_message_storage_driver(
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
         StorageAdapterType::Memory => {
-            let engine = MemoryStorageEngine::create_full(StorageDriverMemoryConfig::default());
+            let engine = MemoryStorageEngine::create_full(
+                rocksdb_engine_handler.clone(),
+                StorageDriverMemoryConfig::default(),
+            );
             Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
         }
 

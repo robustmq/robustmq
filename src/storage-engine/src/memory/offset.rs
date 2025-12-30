@@ -1,0 +1,130 @@
+use std::collections::HashMap;
+
+use dashmap::DashMap;
+use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+
+use crate::{
+    core::error::StorageEngineError,
+    memory::engine::{MemoryStorageEngine, MemoryStorageType, ShardState},
+    segment::offset::get_shard_cursor_offset,
+};
+
+impl MemoryStorageEngine {
+    pub async fn get_offset_by_timestamp(
+        &self,
+        shard: &str,
+        timestamp: u64,
+        _strategy: AdapterOffsetStrategy,
+    ) -> Result<Option<AdapterConsumerGroupOffset>, StorageEngineError> {
+        let index_offset = self.search_index_by_timestamp(shard, timestamp);
+
+        if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
+            return Ok(Some(AdapterConsumerGroupOffset {
+                shard_name: shard.to_string(),
+                offset,
+                ..Default::default()
+            }));
+        }
+
+        Ok(None)
+    }
+
+    pub async fn get_offset_by_group(
+        &self,
+        group_name: &str,
+        _strategy: AdapterOffsetStrategy,
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
+        let Some(group_map) = self.group_data.get(group_name) else {
+            return Ok(Vec::new());
+        };
+
+        let offsets = group_map
+            .iter()
+            .map(|entry| AdapterConsumerGroupOffset {
+                group: group_name.to_string(),
+                shard_name: entry.key().clone(),
+                offset: *entry.value(),
+                ..Default::default()
+            })
+            .collect();
+
+        Ok(offsets)
+    }
+
+    pub async fn commit_offset(
+        &self,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
+    ) -> Result<(), StorageEngineError> {
+        if offset.is_empty() {
+            return Ok(());
+        }
+
+        let group_map = self
+            .group_data
+            .entry(group_name.to_string())
+            .or_insert_with(|| DashMap::with_capacity(offset.len()));
+
+        for (shard_name, offset_val) in offset.iter() {
+            group_map.insert(shard_name.clone(), *offset_val);
+        }
+
+        Ok(())
+    }
+
+    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        match self.engine_type {
+            MemoryStorageType::Full => {
+                let shard_state: ShardState = self
+                    .shard_state
+                    .entry(shard_name.to_owned())
+                    .or_default()
+                    .clone();
+
+                Ok(shard_state.latest_offset)
+            }
+
+            MemoryStorageType::Storage => {
+                if let Some(state) = self.shard_state.get(shard_name) {
+                    Ok(state.latest_offset)
+                } else {
+                    if let Some(offset) =
+                        get_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name)?
+                    {
+                        Ok(offset)
+                    } else {
+                        Ok(0)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        match self.engine_type {
+            MemoryStorageType::Full => {
+                let shard_state: ShardState = self
+                    .shard_state
+                    .entry(shard_name.to_owned())
+                    .or_default()
+                    .clone();
+
+                Ok(shard_state.earliest_offset)
+            }
+
+            MemoryStorageType::Storage => {
+                if let Some(state) = self.shard_state.get(shard_name) {
+                    Ok(state.latest_offset)
+                } else {
+                    if let Some(offset) =
+                        get_shard_cursor_offset(&self.rocksdb_engine_handler, shard_name)?
+                    {
+                        Ok(offset)
+                    } else {
+                        Ok(0)
+                    }
+                }
+            }
+        }
+    }
+}

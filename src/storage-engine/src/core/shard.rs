@@ -17,7 +17,7 @@ use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
 use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp};
-use crate::segment::offset::get_shard_cursor_offset;
+use crate::segment::offset::get_shard_cursor_offset_by_segment;
 use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -184,7 +184,7 @@ pub fn get_shard_latest_offset(
         .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
 
     let offset =
-        get_shard_cursor_offset(rocksdb_engine_handler, shard_name, shard.active_segment_seq)?;
+        get_shard_cursor_offset_by_segment(rocksdb_engine_handler, shard_name, shard.active_segment_seq)?;
 
     Ok(AdapterConsumerGroupOffset {
         shard_name: shard_name.to_string(),
