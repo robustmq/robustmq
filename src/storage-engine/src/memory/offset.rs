@@ -22,9 +22,7 @@ use crate::{
     },
     memory::engine::{MemoryStorageEngine, MemoryStorageType, ShardState},
 };
-use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
-use std::collections::HashMap;
 
 impl MemoryStorageEngine {
     pub async fn get_offset_by_timestamp(
@@ -44,49 +42,6 @@ impl MemoryStorageEngine {
         }
 
         Ok(None)
-    }
-
-    pub async fn get_offset_by_group(
-        &self,
-        group_name: &str,
-        _strategy: AdapterOffsetStrategy,
-    ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
-        let Some(group_map) = self.group_data.get(group_name) else {
-            return Ok(Vec::new());
-        };
-
-        let offsets = group_map
-            .iter()
-            .map(|entry| AdapterConsumerGroupOffset {
-                group: group_name.to_string(),
-                shard_name: entry.key().clone(),
-                offset: *entry.value(),
-                ..Default::default()
-            })
-            .collect();
-
-        Ok(offsets)
-    }
-
-    pub async fn commit_offset(
-        &self,
-        group_name: &str,
-        offset: &HashMap<String, u64>,
-    ) -> Result<(), StorageEngineError> {
-        if offset.is_empty() {
-            return Ok(());
-        }
-
-        let group_map = self
-            .group_data
-            .entry(group_name.to_string())
-            .or_insert_with(|| DashMap::with_capacity(offset.len()));
-
-        for (shard_name, offset_val) in offset.iter() {
-            group_map.insert(shard_name.clone(), *offset_val);
-        }
-
-        Ok(())
     }
 
     pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
