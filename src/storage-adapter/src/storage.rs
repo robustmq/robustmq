@@ -14,7 +14,9 @@
 
 use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
+use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
@@ -22,7 +24,9 @@ use metadata_struct::storage::adapter_offset::{
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
+use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
+use storage_engine::core::cache::StorageCacheManager;
 use storage_engine::memory::engine::MemoryStorageEngine;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
@@ -90,7 +94,12 @@ pub trait StorageAdapter {
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {
-    let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+    let rocksdb_engine_handler = test_rocksdb_instance();
+    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+    let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+    let memory_storage_engine = Arc::new(MemoryStorageEngine::create_full(
+        rocksdb_engine_handler,
+        cache_manager,
         StorageDriverMemoryConfig::default(),
     ));
     Arc::new(MemoryStorageAdapter::new(memory_storage_engine))

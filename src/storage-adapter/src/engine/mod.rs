@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::offset::OffsetManager;
 use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -28,18 +27,11 @@ use storage_engine::handler::adapter::AdapterHandler;
 use storage_engine::handler::expire::message_expire;
 pub struct StorageEngineAdapter {
     adapter: Arc<AdapterHandler>,
-    offset_manager: Arc<OffsetManager>,
 }
 
 impl StorageEngineAdapter {
-    pub async fn new(
-        adapter: Arc<AdapterHandler>,
-        offset_manager: Arc<OffsetManager>,
-    ) -> StorageEngineAdapter {
-        StorageEngineAdapter {
-            adapter,
-            offset_manager,
-        }
+    pub async fn new(adapter: Arc<AdapterHandler>) -> StorageEngineAdapter {
+        StorageEngineAdapter { adapter }
     }
 }
 
@@ -129,18 +121,18 @@ impl StorageAdapter for StorageEngineAdapter {
 
     async fn get_offset_by_group(
         &self,
-        group: &str,
-        strategy: AdapterOffsetStrategy,
+        _group: &str,
+        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        self.offset_manager.get_offset(group, strategy).await
+        Ok(Vec::new())
     }
 
     async fn commit_offset(
         &self,
-        group_name: &str,
-        offset: &HashMap<String, u64>,
+        _group_name: &str,
+        _offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        self.offset_manager.commit_offset(group_name, offset).await
+        Ok(())
     }
 
     async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError> {

@@ -42,9 +42,9 @@ pub struct StorageAdapterConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StorageAdapterType {
-    // Engine,
     #[default]
     Memory,
+    // Engine,
     // Mysql,
     RocksDB,
     MinIO,

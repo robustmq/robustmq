@@ -29,6 +29,7 @@ use tracing::{error, info};
 
 pub mod clients;
 pub mod core;
+pub mod group;
 pub mod handler;
 pub mod isr;
 pub mod memory;

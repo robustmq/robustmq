@@ -63,13 +63,13 @@ use std::{
     time::Duration,
 };
 use storage_adapter::{
-    driver::build_message_storage_driver, expire::message_expire_thread, offset::OffsetManager,
-    storage::ArcStorageAdapter,
+    driver::build_message_storage_driver, expire::message_expire_thread, storage::ArcStorageAdapter,
 };
 use storage_engine::{
     clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
-    memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
-    segment::write::WriteManager, StorageEngineParams, StorageEngineServer,
+    group::OffsetManager, memory::engine::MemoryStorageEngine,
+    rocksdb::engine::RocksDBStorageEngine, segment::write::WriteManager, StorageEngineParams,
+    StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
@@ -129,20 +129,18 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
         ));
 
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
-            StorageDriverMemoryConfig::default(),
-        ));
+        let storage_cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
+
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
-
-        let raw_offset_manager = offset_manager.clone();
-        let raw_memory_storage_engine = memory_storage_engine.clone();
+        let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_rocksdb_storage_engine = rocksdb_storage_engine.clone();
+        let raw_storage_cache_manager = storage_cache_manager.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
-                raw_offset_manager.clone(),
-                raw_memory_storage_engine.clone(),
                 raw_rocksdb_storage_engine.clone(),
+                raw_rocksdb_engine_handler.clone(),
+                raw_storage_cache_manager.clone(),
                 config.message_storage.clone(),
             )
             .await
@@ -167,7 +165,7 @@ impl BrokerServer {
         let journal_params = BrokerServer::build_storage_engine_params(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
-            broker_cache.clone(),
+            storage_cache_manager.clone(),
             connection_manager.clone(),
         );
 
@@ -406,11 +404,10 @@ impl BrokerServer {
     fn build_storage_engine_params(
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        broker_cache: Arc<BrokerCacheManager>,
+        cache_manager: Arc<StorageCacheManager>,
         connection_manager: Arc<NetworkConnectionManager>,
     ) -> StorageEngineParams {
         let config = broker_config();
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
 
         let write_manager = Arc::new(WriteManager::new(
             rocksdb_engine_handler.clone(),
@@ -420,7 +417,9 @@ impl BrokerServer {
         ));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
         let rocksdb_storage_engine =

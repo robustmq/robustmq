@@ -114,20 +114,14 @@ impl MessageStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_config::storage::memory::StorageDriverMemoryConfig;
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
     };
-    use std::sync::Arc;
-    use storage_adapter::memory::MemoryStorageAdapter;
-    use storage_engine::memory::engine::MemoryStorageEngine;
+    use storage_adapter::storage::build_memory_storage_driver;
 
     async fn create_test_storage() -> MessageStorage {
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
-            StorageDriverMemoryConfig::default(),
-        ));
-        let storage_adapter = Arc::new(MemoryStorageAdapter::new(memory_storage_engine));
-        MessageStorage::new(storage_adapter)
+        let memory_storage_engine = build_memory_storage_driver();
+        MessageStorage::new(memory_storage_engine)
     }
 
     #[tokio::test]

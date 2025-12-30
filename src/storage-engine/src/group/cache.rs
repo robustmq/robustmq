@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::offset::storage::OffsetStorageManager;
+use crate::group::storage::OffsetStorageManager;
 use common_base::{
     error::common::CommonError,
     utils::serialize::{deserialize, serialize},

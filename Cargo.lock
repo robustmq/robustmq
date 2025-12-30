@@ -6400,6 +6400,7 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-adapter",
+ "storage-engine",
  "tokio",
  "tokio-util",
  "tonic",
@@ -7458,6 +7459,7 @@ name = "storage-adapter"
 version = "0.2.8"
 dependencies = [
  "axum",
+ "broker-core",
  "bytes",
  "common-base",
  "common-config",

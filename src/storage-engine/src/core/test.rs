@@ -14,6 +14,7 @@
 
 use super::cache::StorageCacheManager;
 use crate::core::segment::create_local_segment;
+use crate::core::shard_offset::save_latest_offset_by_shard;
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -124,9 +125,7 @@ pub async fn test_base_write_data(
     Arc<RocksDBEngine>,
 ) {
     let (segment_iden, cache_manager, fold, rocksdb_engine_handler) = test_init_segment().await;
-
-    use crate::segment::offset::save_shard_cursor_offset;
-    save_shard_cursor_offset(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
+    save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
 
     let client_poll = Arc::new(ClientPool::new(100));
 

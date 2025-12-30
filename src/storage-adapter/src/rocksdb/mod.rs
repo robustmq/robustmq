@@ -167,45 +167,38 @@ impl StorageAdapter for RocksDBStorageAdapter {
 mod tests {
     use crate::{
         driver::build_message_storage_driver,
-        offset::OffsetManager,
         storage::ArcStorageAdapter,
         tests::{
             test_consumer_group_offset, test_shard_lifecycle,
             test_timestamp_index_with_multiple_entries, test_write_and_read,
         },
     };
-    use common_config::storage::{
-        memory::StorageDriverMemoryConfig, rocksdb::StorageDriverRocksDBConfig,
-        StorageAdapterConfig, StorageAdapterType,
+    use broker_core::cache::BrokerCacheManager;
+    use common_config::{
+        config::BrokerConfig,
+        storage::{rocksdb::StorageDriverRocksDBConfig, StorageAdapterConfig, StorageAdapterType},
     };
-    use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
-    use storage_engine::{
-        memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
-    };
+    use storage_engine::{core::cache::StorageCacheManager, rocksdb::engine::RocksDBStorageEngine};
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
-        let client_pool = Arc::new(ClientPool::new(2));
-        let offset_manager = Arc::new(OffsetManager::new(
-            client_pool.clone(),
-            rocksdb_engine_handler.clone(),
-        ));
         let config = StorageAdapterConfig {
             storage_type: StorageAdapterType::RocksDB,
             rocksdb_config: Some(StorageDriverRocksDBConfig::default()),
             ..Default::default()
         };
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
-            StorageDriverMemoryConfig::default(),
-        ));
+
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
+
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         build_message_storage_driver(
-            offset_manager.clone(),
-            memory_storage_engine,
             rocksdb_storage_engine.clone(),
+            rocksdb_engine_handler.clone(),
+            cache_manager,
             config,
         )
         .await

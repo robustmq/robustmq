@@ -22,6 +22,7 @@ pub mod read_offset;
 pub mod read_tag;
 pub mod segment;
 pub mod shard;
+pub mod shard_offset;
 pub mod test;
 pub mod tool;
 pub mod wirte;

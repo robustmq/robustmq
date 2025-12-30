@@ -13,22 +13,34 @@
 // limitations under the License.
 
 use crate::{
-    memory::MemoryStorageAdapter, offset::OffsetManager, rocksdb::RocksDBStorageAdapter,
-    storage::ArcStorageAdapter,
+    memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter, storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
-use common_config::storage::{StorageAdapterConfig, StorageAdapterType};
+use common_config::storage::{
+    memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType,
+};
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use storage_engine::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine};
+use storage_engine::{
+    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
+    rocksdb::engine::RocksDBStorageEngine,
+};
 
 pub async fn build_message_storage_driver(
-    _offset_manager: Arc<OffsetManager>,
-    memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    storage_cache_manager: Arc<StorageCacheManager>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
-        StorageAdapterType::Memory => Arc::new(MemoryStorageAdapter::new(memory_storage_engine)),
+        StorageAdapterType::Memory => {
+            let engine = MemoryStorageEngine::create_full(
+                rocksdb_engine_handler.clone(),
+                storage_cache_manager.clone(),
+                StorageDriverMemoryConfig::default(),
+            );
+            Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
+        }
 
         // StorageAdapterType::Journal => Arc::new(
         //     JournalStorageAdapter::new(offset_manager, config.journal_config.unwrap_or_default())

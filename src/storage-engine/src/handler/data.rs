@@ -202,6 +202,7 @@ mod tests {
     use crate::rocksdb::engine::RocksDBStorageEngine;
     use crate::{core::test::test_base_write_data, handler::data::read_data_req};
     use common_base::utils::serialize::deserialize;
+    use common_config::storage::memory::StorageDriverMemoryConfig;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
@@ -213,7 +214,11 @@ mod tests {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_base_write_data(30).await;
 
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::default());
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            StorageDriverMemoryConfig::default(),
+        ));
         let rocksdb_storage_engine =
             Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
         let client_connection_manager =

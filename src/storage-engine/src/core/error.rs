@@ -136,11 +136,17 @@ pub enum StorageEngineError {
 
     #[error("Sending a request to node {0} failed to get a connection, possibly to create a connection.")]
     NoAvailableConn(u64),
+
+    #[error("MemoryStorage Storage type of storage does not support this X operation.")]
+    NotSupportMemoryStorageType(String),
 }
 
 pub fn get_journal_server_code(e: &StorageEngineError) -> String {
     match e {
         StorageEngineError::FromBoxCommonError(_) => "CommonError".to_string(),
+        StorageEngineError::NotSupportMemoryStorageType(_) => {
+            "NotSupportMemoryStorageType".to_string()
+        }
         StorageEngineError::FromCommonError(_) => "FromCommonError".to_string(),
         StorageEngineError::FromRocksdbError(_) => "FromRocksdbError".to_string(),
         StorageEngineError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
