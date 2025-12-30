@@ -22,40 +22,30 @@ use crate::{
     },
     memory::engine::{MemoryStorageEngine, MemoryStorageType, ShardState},
 };
-use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
 
 impl MemoryStorageEngine {
     pub async fn get_offset_by_timestamp(
         &self,
         shard: &str,
         timestamp: u64,
-        _strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterConsumerGroupOffset>, StorageEngineError> {
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<Option<u64>, StorageEngineError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
         if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
-            return Ok(Some(AdapterConsumerGroupOffset {
-                shard_name: shard.to_string(),
-                offset,
-                ..Default::default()
-            }));
+            return Ok(Some(offset));
         }
 
-        Ok(None)
-    }
-
-    pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
-        if let Some(mut state) = self.shard_state.get_mut(shard) {
-            state.latest_offset = offset;
-            if self.engine_type == MemoryStorageType::EngineStorage {
-                save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
+        match strategy {
+            AdapterOffsetStrategy::Earliest => {
+                let offset = self.get_earliest_offset(shard)?;
+                Ok(Some(offset))
             }
-            Ok(())
-        } else {
-            Err(StorageEngineError::CommonErrorStr(format!(
-                "Shard [{}] state not found when saving latest offset",
-                shard
-            )))
+            AdapterOffsetStrategy::Latest => {
+                let offset = self.get_latest_offset(shard)?;
+                Ok(Some(offset))
+            }
         }
     }
 
@@ -103,6 +93,21 @@ impl MemoryStorageEngine {
         }
 
         None
+    }
+
+    pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
+        if let Some(mut state) = self.shard_state.get_mut(shard) {
+            state.latest_offset = offset;
+            if self.engine_type == MemoryStorageType::EngineStorage {
+                save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
+            }
+            Ok(())
+        } else {
+            Err(StorageEngineError::CommonErrorStr(format!(
+                "Shard [{}] state not found when saving latest offset",
+                shard
+            )))
+        }
     }
 
     pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {

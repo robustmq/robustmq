@@ -113,7 +113,7 @@ impl StorageAdapter for StorageEngineAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError> {
+    ) -> Result<Option<u64>, CommonError> {
         self.adapter
             .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
