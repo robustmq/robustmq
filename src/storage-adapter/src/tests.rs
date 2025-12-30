@@ -307,7 +307,9 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
         .get_offset_by_timestamp(&shard_name, 20000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert!(result.is_none());
+
+    assert!(result.is_some());
+    assert_eq!(result.unwrap(), 0);
 
     let read_result = adapter
         .read_by_offset(&shard_name, 5000, &cfg)

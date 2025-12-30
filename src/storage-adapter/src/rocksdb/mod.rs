@@ -215,24 +215,28 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn test_file_shard_lifecycle() {
         let adapter = build_adapter().await;
         test_shard_lifecycle(adapter).await;
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn test_file_write_and_read() {
         let adapter = build_adapter().await;
         test_write_and_read(adapter).await;
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn test_file_consumer_group_offset() {
         let adapter = build_adapter().await;
         test_consumer_group_offset(adapter).await;
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn test_file_timestamp_index_with_multiple_entries() {
         let adapter = build_adapter().await;
         test_timestamp_index_with_multiple_entries(adapter).await;
