@@ -107,10 +107,7 @@ impl OffsetCacheManager {
         for group_raw in groups.iter() {
             let group = group_raw.key();
             let local_offsets = group_raw.value();
-            let remote_offsets = self
-                .offset_storage
-                .get_offset(group, AdapterOffsetStrategy::Earliest)
-                .await?;
+            let remote_offsets = self.offset_storage.get_offset(group).await?;
 
             let mut remote_map = HashMap::new();
             for remote_offset in remote_offsets {

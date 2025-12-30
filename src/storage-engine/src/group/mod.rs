@@ -19,7 +19,7 @@ use common_base::{
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
@@ -92,12 +92,11 @@ impl OffsetManager {
     pub async fn get_offset(
         &self,
         group: &str,
-        strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         // If cache is enabled, flush pending updates before reading to ensure consistency
         if self.enable_cache {
             self.offset_cache_storage.flush().await?;
         }
-        self.offset_storage.get_offset(group, strategy).await
+        self.offset_storage.get_offset(group).await
     }
 }

@@ -40,10 +40,7 @@ mod tests {
             .await
             .unwrap();
 
-        let rep_offset = offset_manager
-            .get_offset(&group_name, AdapterOffsetStrategy::Earliest)
-            .await
-            .unwrap();
+        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);
@@ -76,10 +73,7 @@ mod tests {
             .unwrap();
 
         sleep(Duration::from_secs(2)).await;
-        let rep_offset = offset_manager
-            .get_offset(&group_name, AdapterOffsetStrategy::Earliest)
-            .await
-            .unwrap();
+        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);
