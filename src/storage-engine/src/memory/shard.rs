@@ -26,14 +26,23 @@ impl MemoryStorageEngine {
     pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), StorageEngineError> {
         self.storage_type_check()?;
 
+        if self.shard_info.contains_key(&shard.shard_name) {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Shard [{}] already exists",
+                shard.shard_name
+            )));
+        }
+
+        let shard_name = shard.shard_name.clone();
+        let capacity = self.config.max_records_per_shard.min(1024);
+
         self.shard_data
-            .insert(shard.shard_name.clone(), DashMap::with_capacity(8));
-        self.shard_info
-            .insert(shard.shard_name.clone(), shard.clone());
+            .insert(shard_name.clone(), DashMap::with_capacity(capacity));
+        self.shard_info.insert(shard_name.clone(), shard.clone());
         self.shard_state
-            .insert(shard.shard_name.clone(), ShardState::default());
+            .insert(shard_name.clone(), ShardState::default());
         self.shard_write_locks
-            .entry(shard.shard_name.clone())
+            .entry(shard_name)
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())));
         Ok(())
     }
@@ -62,15 +71,25 @@ impl MemoryStorageEngine {
     pub async fn delete_shard(&self, shard_name: &str) -> Result<(), StorageEngineError> {
         self.storage_type_check()?;
 
-        if !self.shard_info.contains_key(shard_name) {
+        let lock = self
+            .shard_write_locks
+            .get(shard_name)
+            .map(|entry| entry.clone());
+
+        let _guard = if let Some(ref l) = lock {
+            Some(l.lock().await)
+        } else {
+            None
+        };
+
+        if self.shard_info.remove(shard_name).is_none() {
             return Err(StorageEngineError::CommonErrorStr(format!(
-                "shard {} data not found",
+                "Shard [{}] not found",
                 shard_name
             )));
         }
 
         self.shard_data.remove(shard_name);
-        self.shard_info.remove(shard_name);
         self.shard_state.remove(shard_name);
         self.shard_write_locks.remove(shard_name);
         self.remove_indexes(shard_name);

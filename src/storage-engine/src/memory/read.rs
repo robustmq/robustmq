@@ -73,7 +73,8 @@ impl MemoryStorageEngine {
             return Ok(Vec::new());
         };
 
-        let mut records = Vec::new();
+        let capacity = read_config.max_record_num.min(offsets_list.len() as u64) as usize;
+        let mut records = Vec::with_capacity(capacity);
         let mut total_size = 0;
 
         for &offset in offsets_list.iter() {
