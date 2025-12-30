@@ -49,52 +49,6 @@ impl MemoryStorageEngine {
         }
     }
 
-    pub fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
-        let ts_map = self.timestamp_index.get(shard)?;
-
-        let mut entries: Vec<(u64, u64)> = ts_map
-            .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
-            .collect();
-
-        entries.sort_by_key(|(ts, _)| *ts);
-
-        let mut found_offset = None;
-        for (ts, offset) in entries {
-            if ts > timestamp {
-                break;
-            }
-            found_offset = Some(offset);
-        }
-
-        found_offset
-    }
-
-    pub fn read_data_by_time(
-        &self,
-        shard: &str,
-        start_offset: Option<u64>,
-        timestamp: u64,
-    ) -> Option<u64> {
-        let data_map = self.shard_data.get(shard)?;
-        let shard_state = self.shard_state.get(shard)?;
-
-        let start = start_offset.unwrap_or(0);
-        let end = shard_state.latest_offset;
-
-        for offset in start..end {
-            let Some(record) = data_map.get(&offset) else {
-                continue;
-            };
-
-            if record.metadata.create_t >= timestamp {
-                return Some(offset);
-            }
-        }
-
-        None
-    }
-
     pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
         if let Some(mut state) = self.shard_state.get_mut(shard) {
             state.latest_offset = offset;
@@ -171,7 +125,53 @@ impl MemoryStorageEngine {
         }
     }
 
-    pub fn recover_shard_data(&self, shard_name: &str) -> Result<(u64, u64), StorageEngineError> {
+    fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
+        let ts_map = self.timestamp_index.get(shard)?;
+
+        let mut entries: Vec<(u64, u64)> = ts_map
+            .iter()
+            .map(|entry| (*entry.key(), *entry.value()))
+            .collect();
+
+        entries.sort_by_key(|(ts, _)| *ts);
+
+        let mut found_offset = None;
+        for (ts, offset) in entries {
+            if ts > timestamp {
+                break;
+            }
+            found_offset = Some(offset);
+        }
+
+        found_offset
+    }
+
+    fn read_data_by_time(
+        &self,
+        shard: &str,
+        start_offset: Option<u64>,
+        timestamp: u64,
+    ) -> Option<u64> {
+        let data_map = self.shard_data.get(shard)?;
+        let shard_state = self.shard_state.get(shard)?;
+
+        let start = start_offset.unwrap_or(0);
+        let end = shard_state.latest_offset;
+
+        for offset in start..end {
+            let Some(record) = data_map.get(&offset) else {
+                continue;
+            };
+
+            if record.metadata.create_t >= timestamp {
+                return Some(offset);
+            }
+        }
+
+        None
+    }
+
+    fn recover_shard_data(&self, shard_name: &str) -> Result<(u64, u64), StorageEngineError> {
         let earliest_offset = get_earliest_offset(
             &self.rocksdb_engine_handler,
             &self.cache_manager,
