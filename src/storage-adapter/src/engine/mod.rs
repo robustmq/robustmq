@@ -122,7 +122,6 @@ impl StorageAdapter for StorageEngineAdapter {
     async fn get_offset_by_group(
         &self,
         _group: &str,
-        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         Ok(Vec::new())
     }

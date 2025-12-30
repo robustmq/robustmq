@@ -554,7 +554,6 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
         let cf = self.get_cf()?;
         let group_record_offsets_key_prefix = group_record_offsets_key_prefix(group_name);

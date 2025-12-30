@@ -199,10 +199,7 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .await
         .unwrap();
 
-    let offsets = adapter
-        .get_offset_by_group(&g1, AdapterOffsetStrategy::Earliest)
-        .await
-        .unwrap();
+    let offsets = adapter.get_offset_by_group(&g1).await.unwrap();
     assert_eq!(offsets.len(), 2);
     assert_eq!(
         offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
@@ -217,10 +214,7 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .commit_offset(&g1, &HashMap::from([(s1.clone(), 150)]))
         .await
         .unwrap();
-    let offsets = adapter
-        .get_offset_by_group(&g1, AdapterOffsetStrategy::Earliest)
-        .await
-        .unwrap();
+    let offsets = adapter.get_offset_by_group(&g1).await.unwrap();
     assert_eq!(
         offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
         150
@@ -230,23 +224,9 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .commit_offset(&g2, &HashMap::from([(s1, 300)]))
         .await
         .unwrap();
-    assert_eq!(
-        adapter
-            .get_offset_by_group(&g2, AdapterOffsetStrategy::Earliest)
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
+    assert_eq!(adapter.get_offset_by_group(&g2).await.unwrap().len(), 1);
 
-    assert_eq!(
-        adapter
-            .get_offset_by_group(&g3, AdapterOffsetStrategy::Earliest)
-            .await
-            .unwrap()
-            .len(),
-        0
-    );
+    assert_eq!(adapter.get_offset_by_group(&g3).await.unwrap().len(), 0);
 
     assert!(adapter
         .commit_offset(&g1, &HashMap::from([(s3, 100)]))

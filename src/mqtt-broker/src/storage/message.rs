@@ -84,7 +84,7 @@ impl MessageStorage {
     ) -> Result<u64, CommonError> {
         for row in self
             .storage_adapter
-            .get_offset_by_group(group_id, AdapterOffsetStrategy::Earliest)
+            .get_offset_by_group(group_id)
             .await?
             .iter()
         {

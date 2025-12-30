@@ -17,7 +17,7 @@ use crate::{
     memory::engine::{MemoryStorageEngine, MemoryStorageType},
 };
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset};
+use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use std::collections::HashMap;
 
 impl MemoryStorageEngine {
@@ -74,7 +74,6 @@ impl MemoryStorageEngine {
         if offset.is_empty() {
             return Ok(());
         }
-
         let group_map = self
             .group_data
             .entry(group_name.to_string())
@@ -82,6 +81,12 @@ impl MemoryStorageEngine {
 
         for (shard_name, offset_val) in offset.iter() {
             group_map.insert(shard_name.clone(), *offset_val);
+        }
+
+        if self.engine_type == MemoryStorageType::EngineStorage {
+            self.offset_manager
+                .commit_offset(group_name, offset)
+                .await?;
         }
 
         Ok(())

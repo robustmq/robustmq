@@ -132,10 +132,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
     async fn get_offset_by_group(
         &self,
         group_name: &str,
-        strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         self.rocksdb_storage_engine
-            .get_offset_by_group(group_name, strategy)
+            .get_offset_by_group(group_name)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }

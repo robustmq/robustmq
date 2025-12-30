@@ -139,7 +139,6 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn get_offset_by_group(
         &self,
         group_name: &str,
-        strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         self.memory_storage_engine
             .get_offset_by_group(group_name)
