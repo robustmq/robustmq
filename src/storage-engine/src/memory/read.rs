@@ -22,18 +22,18 @@ impl MemoryStorageEngine {
     pub async fn read_by_offset(
         &self,
         shard: &str,
-        offset: u64,
+        start_offset: u64,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let Some(data_map) = self.shard_data.get(shard) else {
             return Ok(Vec::new());
         };
 
-        let mut records = Vec::new();
+        let mut records = Vec::with_capacity(read_config.max_record_num as usize);
         let mut total_size = 0;
-        let end_offset = offset.saturating_add(read_config.max_record_num);
+        let end_offset = start_offset.saturating_add(read_config.max_record_num);
 
-        for current_offset in offset..end_offset {
+        for current_offset in start_offset..end_offset {
             let Some(record) = data_map.get(&current_offset) else {
                 break;
             };
@@ -45,6 +45,10 @@ impl MemoryStorageEngine {
 
             total_size += record_bytes;
             records.push(record.clone());
+
+            if records.len() >= read_config.max_record_num as usize {
+                break;
+            }
         }
 
         Ok(records)
@@ -121,51 +125,5 @@ impl MemoryStorageEngine {
         };
 
         Ok(vec![record.clone()])
-    }
-
-    pub fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
-        let ts_map = self.timestamp_index.get(shard)?;
-
-        let mut entries: Vec<(u64, u64)> = ts_map
-            .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
-            .collect();
-
-        entries.sort_by_key(|(ts, _)| *ts);
-
-        let mut found_offset = None;
-        for (ts, offset) in entries {
-            if ts > timestamp {
-                break;
-            }
-            found_offset = Some(offset);
-        }
-
-        found_offset
-    }
-
-    pub fn read_data_by_time(
-        &self,
-        shard: &str,
-        start_offset: Option<u64>,
-        timestamp: u64,
-    ) -> Option<u64> {
-        let data_map = self.shard_data.get(shard)?;
-        let shard_state = self.shard_state.get(shard)?;
-
-        let start = start_offset.unwrap_or(0);
-        let end = shard_state.latest_offset;
-
-        for offset in start..end {
-            let Some(record) = data_map.get(&offset) else {
-                continue;
-            };
-
-            if record.metadata.create_t >= timestamp {
-                return Some(offset);
-            }
-        }
-
-        None
     }
 }

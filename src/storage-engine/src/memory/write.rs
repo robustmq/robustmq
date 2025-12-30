@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::{core::error::StorageEngineError, memory::engine::MemoryStorageEngine};
 use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    convert::convert_adapter_record_to_engine,
+    convert::convert_adapter_record_to_engine, storage_record::StorageRecord,
 };
-
-use crate::{core::error::StorageEngineError, memory::engine::MemoryStorageEngine};
+use std::sync::Arc;
 
 impl MemoryStorageEngine {
     pub async fn batch_write(
@@ -41,7 +39,10 @@ impl MemoryStorageEngine {
             .await?;
 
         if results.is_empty() {
-            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Write to shard [{}] returned empty result",
+                shard
+            )));
         }
 
         Ok(results.first().unwrap().clone())
@@ -57,31 +58,23 @@ impl MemoryStorageEngine {
         }
 
         // lock
+        let shard_name_str = shard_name.to_string();
         let lock = self
             .shard_write_locks
-            .entry(shard_name.to_string())
+            .entry(shard_name_str.clone())
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
             .clone();
 
         let _guard = lock.lock().await;
 
         // init
-        let shard_name_str = shard_name.to_string();
+        let capacity = self.config.max_records_per_shard.min(1024);
         let current_shard_data_list = self
             .shard_data
             .entry(shard_name_str.clone())
-            .or_insert(DashMap::with_capacity(2));
+            .or_insert_with(|| DashMap::with_capacity(capacity));
 
-        // remove old data
-        let next_num = current_shard_data_list.len() + messages.len();
-        if next_num > self.config.max_records_per_shard {
-            let offset = self.get_earliest_offset(shard_name)?;
-            let discard_num = (current_shard_data_list.len() as f64 * 0.2) as u64;
-            for i in offset..(offset + discard_num) {
-                current_shard_data_list.remove(&i);
-            }
-            self.save_earliest_offset(shard_name, offset + discard_num)?;
-        }
+        self.try_remove_old_data(shard_name, &current_shard_data_list, messages.len())?;
 
         // save data
         let mut offset_res = Vec::with_capacity(messages.len());
@@ -104,5 +97,24 @@ impl MemoryStorageEngine {
 
         self.save_latest_offset(shard_name, offset)?;
         Ok(offset_res)
+    }
+
+    fn try_remove_old_data(
+        &self,
+        shard_name: &str,
+        current_shard_data: &DashMap<u64, StorageRecord>,
+        new_message_count: usize,
+    ) -> Result<(), StorageEngineError> {
+        let next_num = current_shard_data.len() + new_message_count;
+        if next_num > self.config.max_records_per_shard {
+            let offset = self.get_earliest_offset(shard_name)?;
+            let discard_num = (current_shard_data.len() as f64 * 0.2) as u64;
+            for i in offset..(offset + discard_num) {
+                current_shard_data.remove(&i);
+            }
+            self.save_earliest_offset(shard_name, offset + discard_num)?;
+            // todo remove old index
+        }
+        Ok(())
     }
 }
