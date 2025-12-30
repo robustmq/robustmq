@@ -22,11 +22,12 @@ use common_config::storage::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use storage_engine::{
-    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
+    core::cache::StorageCacheManager, group::OffsetManager, memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
 };
 
 pub async fn build_message_storage_driver(
+    offset_manager: Arc<OffsetManager>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     storage_cache_manager: Arc<StorageCacheManager>,
@@ -37,6 +38,7 @@ pub async fn build_message_storage_driver(
             let engine = MemoryStorageEngine::create_full(
                 rocksdb_engine_handler.clone(),
                 storage_cache_manager.clone(),
+                offset_manager.clone(),
                 StorageDriverMemoryConfig::default(),
             );
             Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))

@@ -19,7 +19,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::{base::get_cf_handle, family::DB_COLUMN_FAMILY_BROKER},

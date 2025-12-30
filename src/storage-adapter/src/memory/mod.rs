@@ -142,7 +142,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         self.memory_storage_engine
-            .get_offset_by_group(group_name, strategy)
+            .get_offset_by_group(group_name)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }
@@ -185,9 +185,13 @@ mod tests {
         config::BrokerConfig,
         storage::{memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType},
     };
+    use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
-    use storage_engine::{core::cache::StorageCacheManager, rocksdb::engine::RocksDBStorageEngine};
+    use storage_engine::{
+        core::cache::StorageCacheManager, group::OffsetManager,
+        rocksdb::engine::RocksDBStorageEngine,
+    };
 
     async fn build_adapter() -> ArcStorageAdapter {
         let rocksdb_engine_handler = test_rocksdb_instance();
@@ -202,7 +206,13 @@ mod tests {
 
         let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let client_pool = Arc::new(ClientPool::new(8));
+        let offset_manager = Arc::new(OffsetManager::new(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+        ));
         build_message_storage_driver(
+            offset_manager,
             rocksdb_storage_engine.clone(),
             rocksdb_engine_handler.clone(),
             cache_manager,
