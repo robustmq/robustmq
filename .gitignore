@@ -22,6 +22,8 @@
 /target/nextest/
 src/admin-server/data/
 src/storage-engine/data/
+src/delay-message/data/
+src/mqtt-broker/data/
 
 # Test data and temporary files
 /target/tmp/

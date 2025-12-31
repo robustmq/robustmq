@@ -32,9 +32,7 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
-};
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineType;
@@ -210,7 +208,7 @@ impl AdapterHandler {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterConsumerGroupOffset>, CommonError> {
+    ) -> Result<Option<u64>, CommonError> {
         match self
             .get_offset_by_timestamp0(shard, timestamp, strategy)
             .await
@@ -225,7 +223,7 @@ impl AdapterHandler {
         shard_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<AdapterConsumerGroupOffset>, StorageEngineError> {
+    ) -> Result<Option<u64>, StorageEngineError> {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
@@ -243,10 +241,7 @@ impl AdapterHandler {
             EngineType::Segment => {
                 let offset =
                     self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?;
-                Some(AdapterConsumerGroupOffset {
-                    offset,
-                    ..Default::default()
-                })
+                Some(offset)
             }
         };
         Ok(result)

@@ -12,32 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{core::error::StorageEngineError, memory::engine::MemoryStorageEngine};
+use crate::{
+    core::error::StorageEngineError,
+    memory::engine::{MemoryStorageEngine, MemoryStorageType},
+};
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use std::collections::HashMap;
 
 impl MemoryStorageEngine {
     pub async fn get_offset_by_group(
         &self,
         group_name: &str,
-        _strategy: AdapterOffsetStrategy,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
-        let Some(group_map) = self.group_data.get(group_name) else {
-            return Ok(Vec::new());
-        };
-
-        let offsets = group_map
-            .iter()
-            .map(|entry| AdapterConsumerGroupOffset {
-                group: group_name.to_string(),
-                shard_name: entry.key().clone(),
-                offset: *entry.value(),
-                ..Default::default()
-            })
-            .collect();
-
-        Ok(offsets)
+        match self.engine_type {
+            MemoryStorageType::Standalone => {
+                if let Some(group_map) = self.group_data.get(group_name) {
+                    Ok(Self::build_offset_list(group_name, &group_map))
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            MemoryStorageType::EngineStorage => {
+                match self.group_data.entry(group_name.to_string()) {
+                    dashmap::mapref::entry::Entry::Occupied(entry) => {
+                        Ok(Self::build_offset_list(group_name, entry.get()))
+                    }
+                    dashmap::mapref::entry::Entry::Vacant(entry) => {
+                        let data = self.offset_manager.get_offset(group_name).await?;
+                        let capacity = data.len().max(8);
+                        let group_info = DashMap::with_capacity(capacity);
+                        for item in &data {
+                            group_info.insert(item.shard_name.clone(), item.offset);
+                        }
+                        entry.insert(group_info);
+                        Ok(data)
+                    }
+                }
+            }
+        }
     }
 
     pub async fn commit_offset(
@@ -49,15 +62,37 @@ impl MemoryStorageEngine {
             return Ok(());
         }
 
+        if self.engine_type == MemoryStorageType::EngineStorage {
+            self.offset_manager
+                .commit_offset(group_name, offset)
+                .await?;
+        }
+
+        let capacity = offset.len().max(8);
         let group_map = self
             .group_data
             .entry(group_name.to_string())
-            .or_insert_with(|| DashMap::with_capacity(offset.len()));
+            .or_insert_with(|| DashMap::with_capacity(capacity));
 
-        for (shard_name, offset_val) in offset.iter() {
-            group_map.insert(shard_name.clone(), *offset_val);
+        for (shard_name, &offset_val) in offset.iter() {
+            group_map.insert(shard_name.clone(), offset_val);
         }
 
         Ok(())
+    }
+
+    fn build_offset_list(
+        group_name: &str,
+        group_map: &DashMap<String, u64>,
+    ) -> Vec<AdapterConsumerGroupOffset> {
+        group_map
+            .iter()
+            .map(|entry| AdapterConsumerGroupOffset {
+                group: group_name.to_string(),
+                shard_name: entry.key().clone(),
+                offset: *entry.value(),
+                ..Default::default()
+            })
+            .collect()
     }
 }

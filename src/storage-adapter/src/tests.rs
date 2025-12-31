@@ -199,10 +199,7 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .await
         .unwrap();
 
-    let offsets = adapter
-        .get_offset_by_group(&g1, AdapterOffsetStrategy::Earliest)
-        .await
-        .unwrap();
+    let offsets = adapter.get_offset_by_group(&g1).await.unwrap();
     assert_eq!(offsets.len(), 2);
     assert_eq!(
         offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
@@ -217,10 +214,7 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .commit_offset(&g1, &HashMap::from([(s1.clone(), 150)]))
         .await
         .unwrap();
-    let offsets = adapter
-        .get_offset_by_group(&g1, AdapterOffsetStrategy::Earliest)
-        .await
-        .unwrap();
+    let offsets = adapter.get_offset_by_group(&g1).await.unwrap();
     assert_eq!(
         offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
         150
@@ -230,23 +224,9 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .commit_offset(&g2, &HashMap::from([(s1, 300)]))
         .await
         .unwrap();
-    assert_eq!(
-        adapter
-            .get_offset_by_group(&g2, AdapterOffsetStrategy::Earliest)
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
+    assert_eq!(adapter.get_offset_by_group(&g2).await.unwrap().len(), 1);
 
-    assert_eq!(
-        adapter
-            .get_offset_by_group(&g3, AdapterOffsetStrategy::Earliest)
-            .await
-            .unwrap()
-            .len(),
-        0
-    );
+    assert_eq!(adapter.get_offset_by_group(&g3).await.unwrap().len(), 0);
 
     assert!(adapter
         .commit_offset(&g1, &HashMap::from([(s3, 100)]))
@@ -285,49 +265,51 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
         .get_offset_by_timestamp(&shard_name, 1000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 0);
+    assert_eq!(result.unwrap(), 0);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 3500, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 2500);
+    assert_eq!(result.unwrap(), 2500);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 6000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 5000);
+    assert_eq!(result.unwrap(), 5000);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 8000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 7000);
+    assert_eq!(result.unwrap(), 7000);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 11000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 10000);
+    assert_eq!(result.unwrap(), 10000);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 14500, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 13500);
+    assert_eq!(result.unwrap(), 13500);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 500, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap().offset, 0);
+    assert_eq!(result.unwrap(), 0);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 20000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert!(result.is_none());
+
+    assert!(result.is_some());
+    assert_eq!(result.unwrap(), 0);
 
     let read_result = adapter
         .read_by_offset(&shard_name, 5000, &cfg)
