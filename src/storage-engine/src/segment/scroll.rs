@@ -227,7 +227,7 @@ mod tests {
     use broker_core::cache::BrokerCacheManager;
     use common_config::broker::default_broker_config;
     use metadata_struct::storage::shard::{
-        EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+        EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
     };
 
     #[test]
@@ -302,7 +302,7 @@ mod tests {
                 replica_num: 1,
                 max_segment_size: 1000000,
             },
-            engine_type: EngineType::Segment,
+            engine_type: EngineStorageType::Segment,
             replica_num: 1,
             create_time: 0,
         };

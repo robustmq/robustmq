@@ -132,6 +132,7 @@ mod tests {
             .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.to_string(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -170,6 +171,7 @@ mod tests {
             .create_shard(&AdapterShardInfo {
                 shard_name: "t1".to_string(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -179,6 +181,7 @@ mod tests {
             .create_shard(&AdapterShardInfo {
                 shard_name: "t2".to_string(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -206,6 +209,7 @@ mod tests {
             .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.to_string(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();

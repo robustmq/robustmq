@@ -16,7 +16,7 @@ use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
     segment::{index::segment::SegmentIndexManager, SegmentIdentity},
 };
-use metadata_struct::storage::shard::EngineType;
+use metadata_struct::storage::shard::EngineStorageType;
 use rocksdb_engine::{
     keys::engine::{shard_earliest_offset, shard_high_watermark_offset, shard_latest_offset},
     rocksdb::RocksDBEngine,
@@ -132,7 +132,7 @@ pub fn get_earliest_offset(
         .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
 
     match shard.engine_type {
-        EngineType::Memory | EngineType::RocksDB => {
+        EngineStorageType::Memory | EngineStorageType::RocksDB => {
             if let Some(offset) = read_earliest_offset_by_shard(rocksdb_engine_handler, shard_name)?
             {
                 Ok(offset)
@@ -141,7 +141,7 @@ pub fn get_earliest_offset(
             }
         }
 
-        EngineType::Segment => {
+        EngineStorageType::Segment => {
             let segment_iden = SegmentIdentity::new(shard_name, shard.start_segment_seq);
             let segment_meta = cache_manager
                 .get_segment_meta(&segment_iden)
@@ -173,9 +173,9 @@ pub fn get_latest_offset(
     }
 
     match shard.engine_type {
-        EngineType::Memory | EngineType::RocksDB => Ok(0),
+        EngineStorageType::Memory | EngineStorageType::RocksDB => Ok(0),
 
-        EngineType::Segment => {
+        EngineStorageType::Segment => {
             let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
             let segment_iden = SegmentIdentity::new(shard_name, shard.active_segment_seq);
             let start_offset = segment_index_manager.get_start_offset(&segment_iden)?;

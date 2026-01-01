@@ -17,7 +17,7 @@ use crate::{
     rocksdb::engine::RocksDBStorageEngine,
 };
 use common_base::utils::serialize::{self};
-use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardInfo, AdapterShardInfo};
 use rocksdb_engine::keys::storage::{
     key_index_prefix, shard_info_key, shard_info_key_prefix, shard_record_key_prefix,
     tag_index_prefix, timestamp_index_prefix,
@@ -56,7 +56,7 @@ impl RocksDBStorageEngine {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, StorageEngineError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, StorageEngineError> {
         self.storage_type_check()?;
 
         let cf = self.get_cf()?;
@@ -66,7 +66,11 @@ impl RocksDBStorageEngine {
                 .rocksdb_engine_handler
                 .read::<AdapterShardInfo>(cf.clone(), &key)?
             {
-                Ok(vec![v])
+                Ok(vec![AdapterReadShardInfo {
+                    shard_name: v.shard_name.clone(),
+                    replica_num: v.replica_num,
+                    ..Default::default()
+                }])
             } else {
                 Ok(Vec::new())
             }
@@ -76,7 +80,12 @@ impl RocksDBStorageEngine {
                 .read_prefix(cf.clone(), &shard_info_key_prefix())?;
             let mut result = Vec::new();
             for (_, v) in raw_shard_info {
-                result.push(serialize::deserialize::<AdapterShardInfo>(v.as_slice())?);
+                let info = serialize::deserialize::<AdapterShardInfo>(v.as_slice())?;
+                result.push(AdapterReadShardInfo {
+                    shard_name: info.shard_name.clone(),
+                    replica_num: info.replica_num,
+                    ..Default::default()
+                });
             }
             Ok(result)
         }

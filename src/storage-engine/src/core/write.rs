@@ -28,7 +28,8 @@ use crate::{
 use common_base::utils::serialize::serialize;
 use common_config::broker::broker_config;
 use metadata_struct::storage::{
-    adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord, shard::EngineType,
+    adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
+    shard::EngineStorageType,
 };
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
@@ -64,13 +65,13 @@ pub async fn batch_write(
         .await?
     } else {
         match shard.engine_type {
-            EngineType::Memory => {
+            EngineStorageType::Memory => {
                 write_memory_to_local(memory_storage_engine, shard_name, records).await?
             }
-            EngineType::RocksDB => {
+            EngineStorageType::RocksDB => {
                 write_rocksdb_to_local(rocksdb_storage_engine, shard_name, records).await?
             }
-            EngineType::Segment => {
+            EngineStorageType::Segment => {
                 write_segment_to_local(
                     write_manager,
                     shard_name,

@@ -164,6 +164,7 @@ pub async fn try_init_topic(
             let shard = AdapterShardInfo {
                 shard_name: topic_name.to_owned(),
                 replica_num: 1,
+                ..Default::default()
             };
             message_storage_adapter.create_shard(&shard).await?;
         }

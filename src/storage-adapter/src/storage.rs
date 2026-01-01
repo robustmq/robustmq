@@ -20,7 +20,7 @@ use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -37,8 +37,10 @@ pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(&self, shard: Option<String>)
-        -> Result<Vec<AdapterShardInfo>, CommonError>;
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterReadShardInfo>, CommonError>;
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 

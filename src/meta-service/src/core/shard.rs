@@ -23,7 +23,7 @@ use bytes::Bytes;
 use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::shard::{
-    EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+    EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -54,7 +54,7 @@ pub async fn create_shard(
         status: EngineShardStatus::Run,
         config: shard_config.clone(),
         replica_num: shard_config.replica_num,
-        engine_type: EngineType::Segment,
+        engine_type: EngineStorageType::Segment,
         create_time: now_second(),
     };
 

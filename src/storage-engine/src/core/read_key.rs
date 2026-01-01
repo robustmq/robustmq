@@ -28,7 +28,7 @@ use crate::{
     segment::read::segment_read_by_key,
 };
 use common_config::broker::broker_config;
-use metadata_struct::storage::{shard::EngineType, storage_record::StorageRecord};
+use metadata_struct::storage::{shard::EngineStorageType, storage_record::StorageRecord};
 use protocol::storage::{
     codec::StorageEnginePacket,
     protocol::{ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
@@ -69,7 +69,9 @@ pub async fn read_by_key(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    if shard.engine_type == EngineType::Memory || shard.engine_type == EngineType::RocksDB {
+    if shard.engine_type == EngineStorageType::Memory
+        || shard.engine_type == EngineStorageType::RocksDB
+    {
         let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
@@ -78,10 +80,10 @@ pub async fn read_by_key(
         let conf = broker_config();
         let results = if conf.broker_id == active_segment.leader {
             match shard.engine_type {
-                EngineType::Memory => {
+                EngineStorageType::Memory => {
                     read_by_memory(memory_storage_engine, shard_name, key).await?
                 }
-                EngineType::RocksDB => {
+                EngineStorageType::RocksDB => {
                     read_by_rocksdb(rocksdb_storage_engine, shard_name, key).await?
                 }
                 _ => Vec::new(),
@@ -100,7 +102,7 @@ pub async fn read_by_key(
         return Ok(results);
     }
 
-    if shard.engine_type == EngineType::Segment {
+    if shard.engine_type == EngineStorageType::Segment {
         let local_records =
             read_by_segment(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
 

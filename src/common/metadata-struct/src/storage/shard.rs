@@ -25,7 +25,7 @@ pub struct EngineShard {
     pub last_segment_seq: u32,
     pub status: EngineShardStatus,
     pub config: EngineShardConfig,
-    pub engine_type: EngineType,
+    pub engine_type: EngineStorageType,
     pub replica_num: u32,
     pub create_time: u64,
 }
@@ -65,9 +65,9 @@ impl EngineShardConfig {
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum EngineType {
-    #[default]
+pub enum EngineStorageType {
     Segment,
+    #[default]
     Memory,
     RocksDB,
 }

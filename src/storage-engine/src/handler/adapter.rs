@@ -32,10 +32,12 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
+use metadata_struct::storage::adapter_offset::{
+    AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
+};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::EngineType;
+use metadata_struct::storage::shard::EngineStorageType;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -82,12 +84,13 @@ impl AdapterHandler {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, CommonError> {
         if let Some(shard_name) = shard {
             if let Some(raw) = self.cache_manager.shards.get(&shard_name) {
-                return Ok(vec![AdapterShardInfo {
+                return Ok(vec![AdapterReadShardInfo {
                     shard_name: raw.shard_name.clone(),
                     replica_num: 1,
+                    ..Default::default()
                 }]);
             }
             return Ok(Vec::new());
@@ -97,9 +100,10 @@ impl AdapterHandler {
             .cache_manager
             .shards
             .iter()
-            .map(|raw| AdapterShardInfo {
+            .map(|raw| AdapterReadShardInfo {
                 shard_name: raw.shard_name.clone(),
                 replica_num: 1,
+                ..Default::default()
             })
             .collect();
 
@@ -228,17 +232,17 @@ impl AdapterHandler {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
         let result = match shard.engine_type {
-            EngineType::Memory => {
+            EngineStorageType::Memory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
-            EngineType::RocksDB => {
+            EngineStorageType::RocksDB => {
                 self.rocksdb_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
-            EngineType::Segment => {
+            EngineStorageType::Segment => {
                 let offset =
                     self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?;
                 Some(offset)

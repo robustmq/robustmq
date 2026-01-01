@@ -4018,6 +4018,7 @@ version = "0.2.8"
 dependencies = [
  "bytes",
  "common-base",
+ "common-config",
  "dashmap",
  "protocol",
  "pulsar",

@@ -17,7 +17,7 @@ use crate::{
     memory::engine::MemoryStorageEngine,
 };
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardInfo, AdapterShardInfo};
 use std::sync::Arc;
 
 impl MemoryStorageEngine {
@@ -48,20 +48,33 @@ impl MemoryStorageEngine {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, StorageEngineError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, StorageEngineError> {
         self.storage_type_check()?;
 
         if let Some(shard_name) = shard {
             Ok(self
                 .shard_info
                 .get(&shard_name)
-                .map(|info| vec![info.clone()])
+                .map(|info| {
+                    vec![AdapterReadShardInfo {
+                        shard_name: info.shard_name.clone(),
+                        replica_num: info.replica_num,
+                        ..Default::default()
+                    }]
+                })
                 .unwrap_or_default())
         } else {
             Ok(self
                 .shard_info
                 .iter()
-                .map(|entry| entry.value().clone())
+                .map(|entry| {
+                    let info = entry.value().clone();
+                    AdapterReadShardInfo {
+                        shard_name: info.shard_name,
+                        replica_num: info.replica_num,
+                        ..Default::default()
+                    }
+                })
                 .collect())
         }
     }

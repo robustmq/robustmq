@@ -29,7 +29,7 @@ use crate::{
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::{
-    adapter_read_config::AdapterReadConfig, shard::EngineType, storage_record::StorageRecord,
+    adapter_read_config::AdapterReadConfig, shard::EngineStorageType, storage_record::StorageRecord,
 };
 use protocol::storage::{
     codec::StorageEnginePacket,
@@ -77,7 +77,9 @@ pub async fn read_by_tag(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    if shard.engine_type == EngineType::Memory || shard.engine_type == EngineType::RocksDB {
+    if shard.engine_type == EngineStorageType::Memory
+        || shard.engine_type == EngineStorageType::RocksDB
+    {
         let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
@@ -87,7 +89,7 @@ pub async fn read_by_tag(
         let conf = broker_config();
         let results = if conf.broker_id == active_segment.leader {
             match shard.engine_type {
-                EngineType::Memory => {
+                EngineStorageType::Memory => {
                     read_by_memory(
                         memory_storage_engine,
                         shard_name,
@@ -97,7 +99,7 @@ pub async fn read_by_tag(
                     )
                     .await?
                 }
-                EngineType::RocksDB => {
+                EngineStorageType::RocksDB => {
                     read_by_rocksdb(
                         rocksdb_storage_engine,
                         shard_name,
@@ -125,7 +127,7 @@ pub async fn read_by_tag(
         return Ok(results);
     }
 
-    if shard.engine_type == EngineType::Segment {
+    if shard.engine_type == EngineStorageType::Segment {
         let read_req = build_req(
             &params.shard_name,
             &params.tag,

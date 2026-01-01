@@ -33,7 +33,7 @@ use crate::{
 use common_config::broker::broker_config;
 use metadata_struct::storage::{
     adapter_read_config::AdapterReadConfig,
-    shard::{EngineShard, EngineType},
+    shard::{EngineShard, EngineStorageType},
     storage_record::StorageRecord,
 };
 use protocol::storage::{
@@ -87,13 +87,13 @@ pub async fn read_by_offset(
     let conf = broker_config();
     let results = if conf.broker_id == segment.leader {
         match shard.engine_type {
-            EngineType::Memory => {
+            EngineStorageType::Memory => {
                 read_by_memory(memory_storage_engine, shard_name, offset, read_config).await?
             }
-            EngineType::RocksDB => {
+            EngineStorageType::RocksDB => {
                 read_by_rocksdb(rocksdb_storage_engine, shard_name, offset, read_config).await?
             }
-            EngineType::Segment => {
+            EngineStorageType::Segment => {
                 read_by_segment(
                     cache_manager,
                     rocksdb_engine_handler,
@@ -203,8 +203,8 @@ fn get_segment_no_by_offset(
     offset: u64,
 ) -> Result<u32, StorageEngineError> {
     match shard.engine_type {
-        EngineType::Memory | EngineType::RocksDB => Ok(shard.active_segment_seq),
-        EngineType::Segment => {
+        EngineStorageType::Memory | EngineStorageType::RocksDB => Ok(shard.active_segment_seq),
+        EngineStorageType::Segment => {
             if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
                 Ok(segment_no)
             } else {

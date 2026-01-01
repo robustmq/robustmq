@@ -159,7 +159,7 @@ mod tests {
                 max_segment_size: 1024000,
             },
             replica_num: 3,
-            engine_type: metadata_struct::storage::shard::EngineType::Segment,
+            engine_type: metadata_struct::storage::shard::EngineStorageType::Segment,
             create_time: now_second(),
         }
     }
