@@ -139,11 +139,17 @@ pub enum StorageEngineError {
 
     #[error("MemoryStorage Storage type of storage does not support this X operation.")]
     NotSupportMemoryStorageType(String),
+
+    #[error("RocksDBStorage Storage type of storage does not support this X operation.")]
+    NotSupportRocksDBStorageType(String),
 }
 
 pub fn get_journal_server_code(e: &StorageEngineError) -> String {
     match e {
         StorageEngineError::FromBoxCommonError(_) => "CommonError".to_string(),
+        StorageEngineError::NotSupportRocksDBStorageType(_) => {
+            "NotSupportRocksDBStorageType".to_string()
+        }
         StorageEngineError::NotSupportMemoryStorageType(_) => {
             "NotSupportMemoryStorageType".to_string()
         }

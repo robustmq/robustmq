@@ -200,9 +200,6 @@ mod tests {
             ..Default::default()
         };
 
-        let rocksdb_storage_engine =
-            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
-
         let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let client_pool = Arc::new(ClientPool::new(8));
@@ -210,6 +207,13 @@ mod tests {
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
         ));
+
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_standalone(
+            cache_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            offset_manager.clone(),
+        ));
+
         build_message_storage_driver(
             offset_manager,
             rocksdb_storage_engine.clone(),

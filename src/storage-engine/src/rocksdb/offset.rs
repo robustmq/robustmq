@@ -1,0 +1,225 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use common_base::utils::serialize::deserialize;
+use metadata_struct::storage::{
+    adapter_offset::AdapterOffsetStrategy, storage_record::StorageRecord,
+};
+use rocksdb_engine::keys::storage::{
+    shard_record_key, shard_record_key_prefix, timestamp_index_prefix,
+};
+
+use crate::{
+    core::{
+        error::StorageEngineError,
+        shard::ShardState,
+        shard_offset::{
+            get_earliest_offset, get_latest_offset, save_earliest_offset_by_shard,
+            save_latest_offset_by_shard,
+        },
+    },
+    rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
+};
+
+impl RocksDBStorageEngine {
+    pub async fn get_offset_by_timestamp(
+        &self,
+        shard: &str,
+        timestamp: u64,
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<Option<u64>, StorageEngineError> {
+        let index = self.search_index_by_timestamp(shard, timestamp).await?;
+        if let Some(idx) = index {
+            if let Some(found_offset) = self
+                .read_data_by_time(shard, &Some(idx.clone()), timestamp)
+                .await?
+            {
+                return Ok(Some(found_offset));
+            }
+        }
+        match strategy {
+            AdapterOffsetStrategy::Earliest => Ok(Some(self.get_earliest_offset(shard)?)),
+            AdapterOffsetStrategy::Latest => Ok(Some(self.get_latest_offset(shard)?)),
+        }
+    }
+
+    async fn search_index_by_timestamp(
+        &self,
+        shard: &str,
+        timestamp: u64,
+    ) -> Result<Option<IndexInfo>, StorageEngineError> {
+        let cf = self.get_cf()?;
+        let timestamp_index_prefix = timestamp_index_prefix(shard);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(&timestamp_index_prefix);
+
+        let mut last_index = None;
+        while iter.valid() {
+            let Some(key_bytes) = iter.key() else {
+                break;
+            };
+
+            let Some(value_byte) = iter.value() else {
+                break;
+            };
+
+            let key = match String::from_utf8(key_bytes.to_vec()) {
+                Ok(k) => k,
+                Err(_) => {
+                    iter.next();
+                    continue;
+                }
+            };
+
+            if !key.starts_with(&timestamp_index_prefix) {
+                break;
+            }
+
+            let index = deserialize::<IndexInfo>(value_byte)?;
+
+            if last_index.is_none() {
+                last_index = Some(index.clone());
+            }
+
+            if index.create_time > timestamp {
+                return Ok(last_index);
+            }
+            last_index = Some(index);
+
+            iter.next();
+        }
+
+        Ok(last_index)
+    }
+
+    async fn read_data_by_time(
+        &self,
+        shard: &str,
+        start_index: &Option<IndexInfo>,
+        timestamp: u64,
+    ) -> Result<Option<u64>, StorageEngineError> {
+        let cf = self.get_cf()?;
+        let seek_key = if let Some(si) = start_index {
+            shard_record_key(shard, si.offset)
+        } else {
+            shard_record_key_prefix(shard)
+        };
+        let prefix = shard_record_key_prefix(shard);
+
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(&seek_key);
+
+        while iter.valid() {
+            let Some(key_bytes) = iter.key() else {
+                break;
+            };
+
+            let Some(value_byte) = iter.value() else {
+                break;
+            };
+
+            let key = match String::from_utf8(key_bytes.to_vec()) {
+                Ok(k) => k,
+                Err(_) => {
+                    iter.next();
+                    continue;
+                }
+            };
+
+            if !key.starts_with(&prefix) {
+                break;
+            }
+
+            if let Ok(engine_record) = deserialize::<StorageRecord>(value_byte) {
+                if engine_record.metadata.create_t >= timestamp {
+                    return Ok(Some(engine_record.metadata.offset));
+                }
+            }
+
+            iter.next();
+        }
+
+        Ok(None)
+    }
+
+    pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
+        save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
+
+        if let Some(mut state) = self.shard_state.get_mut(shard) {
+            state.latest_offset = offset;
+            Ok(())
+        } else {
+            Err(StorageEngineError::CommonErrorStr(format!(
+                "Shard [{}] state not found when saving latest offset",
+                shard
+            )))
+        }
+    }
+
+    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        if let Some(state) = self.shard_state.get(shard_name) {
+            Ok(state.latest_offset)
+        } else {
+            let (_, latest_offset) = self.recover_shard_data(shard_name)?;
+            Ok(latest_offset)
+        }
+    }
+
+    pub fn save_earliest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
+        save_earliest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
+
+        if let Some(mut state) = self.shard_state.get_mut(shard) {
+            state.earliest_offset = offset;
+            Ok(())
+        } else {
+            Err(StorageEngineError::CommonErrorStr(format!(
+                "Shard [{}] state not found when saving earliest offset",
+                shard
+            )))
+        }
+    }
+
+    pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        if let Some(state) = self.shard_state.get(shard_name) {
+            Ok(state.earliest_offset)
+        } else {
+            let (earliest_offset, _) = self.recover_shard_data(shard_name)?;
+            Ok(earliest_offset)
+        }
+    }
+
+    fn recover_shard_data(&self, shard_name: &str) -> Result<(u64, u64), StorageEngineError> {
+        let earliest_offset = get_earliest_offset(
+            &self.rocksdb_engine_handler,
+            &self.cache_manager,
+            shard_name,
+        )?;
+
+        let latest_offset = get_latest_offset(
+            &self.rocksdb_engine_handler,
+            &self.cache_manager,
+            shard_name,
+        )?;
+
+        self.shard_state.insert(
+            shard_name.to_string(),
+            ShardState {
+                earliest_offset,
+                latest_offset,
+            },
+        );
+
+        Ok((earliest_offset, latest_offset))
+    }
+}

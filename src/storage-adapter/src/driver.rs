@@ -35,7 +35,7 @@ pub async fn build_message_storage_driver(
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
         StorageAdapterType::Memory => {
-            let engine = MemoryStorageEngine::create_full(
+            let engine = MemoryStorageEngine::create_standalone(
                 rocksdb_engine_handler.clone(),
                 storage_cache_manager.clone(),
                 offset_manager.clone(),

@@ -226,8 +226,11 @@ mod tests {
             offset_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
-        let rocksdb_storage_engine =
-            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
+            cache_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            offset_manager.clone(),
+        ));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
 

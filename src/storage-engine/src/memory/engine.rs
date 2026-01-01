@@ -14,6 +14,7 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::shard::{ShardState, StorageEngineRunType};
 use crate::group::OffsetManager;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
@@ -22,26 +23,13 @@ use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-#[derive(Clone, Debug, Default)]
-pub struct ShardState {
-    pub earliest_offset: u64,
-    pub latest_offset: u64,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum MemoryStorageType {
-    #[default]
-    Standalone,
-    EngineStorage,
-}
-
 #[derive(Clone)]
 pub struct MemoryStorageEngine {
     // ====inner struct====
     //(shard, lock)
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     pub config: StorageDriverMemoryConfig,
-    pub engine_type: MemoryStorageType,
+    pub engine_type: StorageEngineRunType,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
@@ -66,7 +54,7 @@ pub struct MemoryStorageEngine {
 }
 
 impl MemoryStorageEngine {
-    pub fn create_full(
+    pub fn create_standalone(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<StorageCacheManager>,
         offset_manager: Arc<OffsetManager>,
@@ -76,7 +64,7 @@ impl MemoryStorageEngine {
             rocksdb_engine_handler,
             cache_manager,
             offset_manager,
-            MemoryStorageType::Standalone,
+            StorageEngineRunType::Standalone,
             config,
         )
     }
@@ -91,7 +79,7 @@ impl MemoryStorageEngine {
             rocksdb_engine_handler,
             cache_manager,
             offset_manager,
-            MemoryStorageType::EngineStorage,
+            StorageEngineRunType::EngineStorage,
             config,
         )
     }
@@ -100,7 +88,7 @@ impl MemoryStorageEngine {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<StorageCacheManager>,
         offset_manager: Arc<OffsetManager>,
-        engine_type: MemoryStorageType,
+        engine_type: StorageEngineRunType,
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine {
@@ -121,7 +109,7 @@ impl MemoryStorageEngine {
     }
 
     pub fn storage_type_check(&self) -> Result<(), StorageEngineError> {
-        if self.engine_type == MemoryStorageType::EngineStorage {
+        if self.engine_type == StorageEngineRunType::EngineStorage {
             return Err(StorageEngineError::NotSupportMemoryStorageType(
                 "create_shard".to_string(),
             ));

@@ -30,6 +30,19 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tracing::{error, info};
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum StorageEngineRunType {
+    #[default]
+    Standalone,
+    EngineStorage,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ShardState {
+    pub earliest_offset: u64,
+    pub latest_offset: u64,
+}
+
 pub fn delete_local_shard(
     cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
