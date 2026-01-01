@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::{
+    core::{error::StorageEngineError, shard::ShardState},
+    memory::engine::MemoryStorageEngine,
+};
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
-
-use crate::{
-    core::error::StorageEngineError,
-    memory::engine::{MemoryStorageEngine, ShardState},
-};
+use std::sync::Arc;
 
 impl MemoryStorageEngine {
     pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), StorageEngineError> {

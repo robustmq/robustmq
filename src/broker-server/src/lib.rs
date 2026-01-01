@@ -115,7 +115,9 @@ impl BrokerServer {
             config.network.lock_max_try_mut_times as i32,
             config.network.lock_try_mut_sleep_time_ms,
         ));
-        let place_params = main_runtime.block_on(async {
+
+        // meta params
+        let meta_params = main_runtime.block_on(async {
             BrokerServer::build_meta_service(
                 client_pool.clone(),
                 rocksdb_engine_handler.clone(),
@@ -131,8 +133,12 @@ impl BrokerServer {
 
         let storage_cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
 
-        let rocksdb_storage_engine =
-            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
+        // storage adapter driver
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_standalone(
+            storage_cache_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            offset_manager.clone(),
+        ));
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_rocksdb_storage_engine = rocksdb_storage_engine.clone();
         let raw_storage_cache_manager = storage_cache_manager.clone();
@@ -164,7 +170,7 @@ impl BrokerServer {
             offset_manager.clone(),
         );
 
-        let journal_params = BrokerServer::build_storage_engine_params(
+        let engine_params = BrokerServer::build_storage_engine_params(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
             offset_manager.clone(),
@@ -175,8 +181,8 @@ impl BrokerServer {
         BrokerServer {
             broker_cache,
             main_runtime,
-            place_params,
-            journal_params,
+            place_params: meta_params,
+            journal_params: engine_params,
             config: config.clone(),
             mqtt_params,
             client_pool,
@@ -427,8 +433,11 @@ impl BrokerServer {
             offset_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
-        let rocksdb_storage_engine =
-            Arc::new(RocksDBStorageEngine::new(rocksdb_engine_handler.clone()));
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
+            cache_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            offset_manager.clone(),
+        ));
         StorageEngineParams {
             cache_manager,
             client_pool,

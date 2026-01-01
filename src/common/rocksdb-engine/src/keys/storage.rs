@@ -37,16 +37,6 @@ pub fn shard_record_key_prefix(shard: &str) -> String {
 }
 
 #[inline(always)]
-pub fn earliest_offset_key(shard: &str) -> String {
-    format!("{}offset/earliest/{}", PREFIX_STORAGE, shard)
-}
-
-#[inline(always)]
-pub fn latest_offset_key(shard: &str) -> String {
-    format!("{}offset/latest/{}", PREFIX_STORAGE, shard)
-}
-
-#[inline(always)]
 pub fn key_index_key(shard: &str, record_key: &str) -> String {
     format!("{}index/key/{}/{}", PREFIX_STORAGE, shard, record_key)
 }
@@ -113,17 +103,12 @@ mod tests {
 
     #[test]
     fn test_all_key_formats() {
-        let cases: [(_, &'static str); 15] = [
+        let cases: [(_, &'static str); 13] = [
             (
                 shard_record_key("shard1", 123),
                 "/storage/record/shard1/00000000000000000123",
             ),
             (shard_record_key_prefix("shard1"), "/storage/record/shard1/"),
-            (
-                earliest_offset_key("shard1"),
-                "/storage/offset/earliest/shard1",
-            ),
-            (latest_offset_key("shard1"), "/storage/offset/latest/shard1"),
             (
                 key_index_key("shard1", "mykey"),
                 "/storage/index/key/shard1/mykey",

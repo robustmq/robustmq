@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    core::error::StorageEngineError,
-    memory::engine::{MemoryStorageEngine, MemoryStorageType},
+    core::{error::StorageEngineError, shard::StorageEngineRunType},
+    memory::engine::MemoryStorageEngine,
 };
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
@@ -26,14 +26,14 @@ impl MemoryStorageEngine {
         group_name: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, StorageEngineError> {
         match self.engine_type {
-            MemoryStorageType::Standalone => {
+            StorageEngineRunType::Standalone => {
                 if let Some(group_map) = self.group_data.get(group_name) {
                     Ok(Self::build_offset_list(group_name, &group_map))
                 } else {
                     Ok(Vec::new())
                 }
             }
-            MemoryStorageType::EngineStorage => {
+            StorageEngineRunType::EngineStorage => {
                 match self.group_data.entry(group_name.to_string()) {
                     dashmap::mapref::entry::Entry::Occupied(entry) => {
                         Ok(Self::build_offset_list(group_name, entry.get()))
@@ -62,7 +62,7 @@ impl MemoryStorageEngine {
             return Ok(());
         }
 
-        if self.engine_type == MemoryStorageType::EngineStorage {
+        if self.engine_type == StorageEngineRunType::EngineStorage {
             self.offset_manager
                 .commit_offset(group_name, offset)
                 .await?;

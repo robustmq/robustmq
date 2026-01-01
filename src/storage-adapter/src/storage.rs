@@ -103,7 +103,7 @@ pub fn build_memory_storage_driver() -> ArcStorageAdapter {
         client_pool.clone(),
         rocksdb_engine_handler.clone(),
     ));
-    let memory_storage_engine = Arc::new(MemoryStorageEngine::create_full(
+    let memory_storage_engine = Arc::new(MemoryStorageEngine::create_standalone(
         rocksdb_engine_handler,
         cache_manager,
         offset_manager,
