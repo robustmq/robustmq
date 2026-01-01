@@ -148,28 +148,30 @@ pub async fn delete_segment_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
-    validate_shard_exists(cache_manager, &req.shard_name)?;
-    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
+    for raw in req.segment_list.iter() {
+        validate_shard_exists(cache_manager, &raw.shard_name)?;
+        let segment = validate_segment_exists(cache_manager, &raw.shard_name, raw.segment)?;
 
-    if segment.status != SegmentStatus::SealUp {
-        return Err(MetaServiceError::NoAllowDeleteSegment(
-            segment.name(),
-            segment.status.to_string(),
-        ));
+        if segment.status != SegmentStatus::SealUp {
+            return Err(MetaServiceError::NoAllowDeleteSegment(
+                segment.name(),
+                segment.status.to_string(),
+            ));
+        }
+
+        update_segment_status(
+            cache_manager,
+            call_manager,
+            raft_manager,
+            client_pool,
+            &segment.shard_name,
+            segment.segment_seq,
+            SegmentStatus::PreDelete,
+        )
+        .await?;
+
+        cache_manager.add_wait_delete_segment(&segment);
     }
-
-    update_segment_status(
-        cache_manager,
-        call_manager,
-        raft_manager,
-        client_pool,
-        &segment.shard_name,
-        segment.segment_seq,
-        SegmentStatus::PreDelete,
-    )
-    .await?;
-
-    cache_manager.add_wait_delete_segment(&segment);
     Ok(DeleteSegmentReply::default())
 }
 

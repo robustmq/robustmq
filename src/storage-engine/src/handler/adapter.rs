@@ -219,12 +219,12 @@ impl StorageEngineHandler {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError> {
+    ) -> Result<u64, CommonError> {
         match self
             .get_offset_by_timestamp0(shard, timestamp, strategy)
             .await
         {
-            Ok(data) => Ok(data),
+            Ok(offset) => Ok(offset),
             Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
@@ -249,7 +249,7 @@ impl StorageEngineHandler {
         shard_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, StorageEngineError> {
+    ) -> Result<u64, StorageEngineError> {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
@@ -265,9 +265,7 @@ impl StorageEngineHandler {
                     .await?
             }
             EngineStorageType::Segment => {
-                let offset =
-                    self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?;
-                Some(offset)
+                self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }
         };
         Ok(result)

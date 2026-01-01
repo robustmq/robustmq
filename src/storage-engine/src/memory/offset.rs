@@ -31,16 +31,16 @@ impl MemoryStorageEngine {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, StorageEngineError> {
+    ) -> Result<u64, StorageEngineError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
         if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
-            return Ok(Some(offset));
+            return Ok(offset);
         }
 
         match strategy {
-            AdapterOffsetStrategy::Earliest => Ok(Some(self.get_earliest_offset(shard)?)),
-            AdapterOffsetStrategy::Latest => Ok(Some(self.get_latest_offset(shard)?)),
+            AdapterOffsetStrategy::Earliest => Ok(self.get_earliest_offset(shard)?),
+            AdapterOffsetStrategy::Latest => Ok(self.get_latest_offset(shard)?),
         }
     }
 

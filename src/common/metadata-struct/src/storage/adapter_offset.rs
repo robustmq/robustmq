@@ -22,14 +22,29 @@ use crate::storage::shard::EngineStorageType;
 pub struct AdapterShardInfo {
     pub shard_name: String,
     pub replica_num: u32,
+    pub config: AdapterShardConfig,
     pub storage_adapter_type: Option<StorageAdapterType>,
     pub engine_storage_type: Option<EngineStorageType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterShardConfig {
+    pub retention_sec: u64,
+}
+
+impl Default for AdapterShardConfig {
+    fn default() -> Self {
+        Self {
+            retention_sec: 86400, // 1 day in seconds
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterReadShardInfo {
     pub shard_name: String,
     pub replica_num: u32,
+    pub config: AdapterShardConfig,
     pub storage_adapter_type: Option<StorageAdapterType>,
     pub engine_storage_type: Option<EngineStorageType>,
     pub extend_info: Option<Bytes>,

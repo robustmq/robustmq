@@ -76,7 +76,7 @@ pub trait StorageAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError>;
+    ) -> Result<u64, CommonError>;
 
     async fn get_offset_by_group(
         &self,

@@ -62,13 +62,14 @@ impl RocksDBStorageEngine {
         let cf = self.get_cf()?;
         if let Some(shard_name) = shard {
             let key = shard_info_key(&shard_name);
-            if let Some(v) = self
+            if let Some(info) = self
                 .rocksdb_engine_handler
                 .read::<AdapterShardInfo>(cf.clone(), &key)?
             {
                 Ok(vec![AdapterReadShardInfo {
-                    shard_name: v.shard_name.clone(),
-                    replica_num: v.replica_num,
+                    shard_name: info.shard_name.clone(),
+                    replica_num: info.replica_num,
+                    config: info.config,
                     ..Default::default()
                 }])
             } else {
@@ -84,6 +85,7 @@ impl RocksDBStorageEngine {
                 result.push(AdapterReadShardInfo {
                     shard_name: info.shard_name.clone(),
                     replica_num: info.replica_num,
+                    config: info.config,
                     ..Default::default()
                 });
             }

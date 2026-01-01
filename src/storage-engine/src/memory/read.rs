@@ -184,6 +184,6 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(offset_by_ts, Some(5));
+        assert_eq!(offset_by_ts, 5);
     }
 }

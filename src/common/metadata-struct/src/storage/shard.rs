@@ -48,10 +48,21 @@ pub enum EngineShardStatus {
     Deleting,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EngineShardConfig {
     pub replica_num: u32,
     pub max_segment_size: u64,
+    pub retention_sec: u64,
+}
+
+impl Default for EngineShardConfig {
+    fn default() -> Self {
+        Self {
+            replica_num: 1,
+            max_segment_size: 1073741824,
+            retention_sec: 86400,
+        }
+    }
 }
 
 impl EngineShardConfig {

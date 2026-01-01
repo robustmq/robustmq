@@ -95,6 +95,7 @@ pub async fn test_init_segment() -> (
         config: EngineShardConfig {
             replica_num: 1,
             max_segment_size: 1024 * 1024 * 1024,
+            ..Default::default()
         },
         engine_type: EngineStorageType::Segment,
         replica_num: 1,

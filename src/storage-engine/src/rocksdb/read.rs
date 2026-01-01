@@ -228,6 +228,6 @@ mod tests {
             .get_offset_by_timestamp(&shard_name, 1500, AdapterOffsetStrategy::Latest)
             .await
             .unwrap();
-        assert_eq!(offset_by_ts, Some(5));
+        assert_eq!(offset_by_ts, 5);
     }
 }

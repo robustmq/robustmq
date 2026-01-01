@@ -298,10 +298,7 @@ mod tests {
             active_segment_seq: segment_iden.segment,
             last_segment_seq: segment_iden.segment,
             status: EngineShardStatus::Run,
-            config: EngineShardConfig {
-                replica_num: 1,
-                max_segment_size: 1000000,
-            },
+            config: EngineShardConfig::default(),
             engine_type: EngineStorageType::Segment,
             replica_num: 1,
             create_time: 0,

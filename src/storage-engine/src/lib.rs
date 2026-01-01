@@ -18,6 +18,7 @@ use crate::clients::manager::ClientConnectionManager;
 use crate::handler::adapter::StorageEngineHandler;
 use crate::memory::engine::MemoryStorageEngine;
 use crate::rocksdb::engine::RocksDBStorageEngine;
+use crate::segment::expire::start_segment_expire_thread;
 use crate::server::Server;
 use crate::{clients::gc::start_conn_gc_thread, segment::write::WriteManager};
 use core::cache::{load_metadata_cache, StorageCacheManager};
@@ -113,6 +114,23 @@ impl StorageEngineServer {
             self.client_connection_manager.clone(),
             self.inner_stop.clone(),
         );
+
+        // segment engine
+        let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
+        let stop_sx = self.inner_stop.clone();
+        tokio::spawn(async move {
+            start_segment_expire_thread(client_pool, cache_manager, &stop_sx).await
+        });
+
+        // rocksdb engine
+        let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
+        let stop_sx = self.inner_stop.clone();
+        tokio::spawn(async move {
+            rocksdb_storage_engine
+                .start_expire_thread(&stop_sx)
+                .await;
+        });
     }
 
     async fn waiting_stop(&self) {

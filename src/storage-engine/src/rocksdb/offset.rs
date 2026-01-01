@@ -37,23 +37,23 @@ impl RocksDBStorageEngine {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, StorageEngineError> {
+    ) -> Result<u64, StorageEngineError> {
         let index = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
             if let Some(found_offset) = self
                 .read_data_by_time(shard, &Some(idx.clone()), timestamp)
                 .await?
             {
-                return Ok(Some(found_offset));
+                return Ok(found_offset);
             }
         }
         match strategy {
-            AdapterOffsetStrategy::Earliest => Ok(Some(self.get_earliest_offset(shard)?)),
-            AdapterOffsetStrategy::Latest => Ok(Some(self.get_latest_offset(shard)?)),
+            AdapterOffsetStrategy::Earliest => Ok(self.get_earliest_offset(shard)?),
+            AdapterOffsetStrategy::Latest => Ok(self.get_latest_offset(shard)?),
         }
     }
 
-    async fn search_index_by_timestamp(
+    pub async fn search_index_by_timestamp(
         &self,
         shard: &str,
         timestamp: u64,

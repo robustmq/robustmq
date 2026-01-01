@@ -79,9 +79,12 @@ message CreateNextSegmentRequest {
 message CreateNextSegmentReply {}
 
 message DeleteSegmentRequest {
+  repeated  DeleteSegmentRaw segment_list = 1;
+}
+
+message DeleteSegmentRaw {
   string shard_name = 3;
   uint32 segment = 4;
-  
 }
 
 message DeleteSegmentReply {}

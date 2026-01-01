@@ -106,6 +106,7 @@ pub async fn create_shard_to_place(
     let config = EngineShardConfig {
         replica_num: shard.replica_num,
         max_segment_size: 1073741824,
+        retention_sec: shard.config.retention_sec,
     };
 
     let conf: &common_config::config::BrokerConfig = broker_config();

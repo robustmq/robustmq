@@ -129,7 +129,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError> {
+    ) -> Result<u64, CommonError> {
         self.memory_storage_engine
             .get_offset_by_timestamp(shard, timestamp, strategy)
             .await

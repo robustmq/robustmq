@@ -266,51 +266,50 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
         .get_offset_by_timestamp(&shard_name, 1000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 0);
+    assert_eq!(result, 0);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 3500, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 2500);
+    assert_eq!(result, 2500);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 6000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 5000);
+    assert_eq!(result, 5000);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 8000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 7000);
+    assert_eq!(result, 7000);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 11000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 10000);
+    assert_eq!(result, 10000);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 14500, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 13500);
+    assert_eq!(result, 13500);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 500, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
-    assert_eq!(result.unwrap(), 0);
+    assert_eq!(result, 0);
 
     let result = adapter
         .get_offset_by_timestamp(&shard_name, 20000, AdapterOffsetStrategy::Earliest)
         .await
         .unwrap();
 
-    assert!(result.is_some());
-    assert_eq!(result.unwrap(), 0);
+    assert_eq!(result, 0);
 
     let read_result = adapter
         .read_by_offset(&shard_name, 5000, &cfg)

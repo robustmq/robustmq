@@ -63,7 +63,7 @@ pub struct GetOffsetByTimestampReq {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetOffsetByTimestampResp {
-    pub offset: Option<u64>,
+    pub offset: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -157,8 +157,7 @@ pub async fn shard_create(
     let shard_info = AdapterShardInfo {
         shard_name: params.shard_name.clone(),
         replica_num: params.replica_num,
-        storage_adapter_type: None,
-        engine_storage_type: None,
+        ..Default::default()
     };
 
     if let Err(e) = state
