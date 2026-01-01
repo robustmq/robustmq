@@ -11,3 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn offset_manager_storage() {}
+}
