@@ -22,9 +22,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
 use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::shard::{
-    EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
-};
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use std::sync::Arc;
 use tracing::info;
 

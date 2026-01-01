@@ -242,18 +242,20 @@ impl StorageEngineHandler {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
-        
-        let result = match shard.engine_type {
+
+        let result = match shard.get_engine_type()? {
             EngineStorageType::Memory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
+
             EngineStorageType::RocksDB => {
                 self.rocksdb_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
+
             EngineStorageType::Segment => {
                 self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }

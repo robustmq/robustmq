@@ -17,7 +17,6 @@ use crate::core::error::StorageEngineError;
 use crate::core::shard::{ShardState, StorageEngineRunType};
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;

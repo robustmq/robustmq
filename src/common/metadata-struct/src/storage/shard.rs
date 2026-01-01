@@ -53,6 +53,15 @@ impl EngineShard {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
+
+    pub fn get_engine_type(&self) -> Result<EngineStorageType, CommonError> {
+        if let Some(engine_type) = self.config.engine_storage_type.clone() {
+            return Ok(engine_type);
+        }
+        Err(CommonError::CommonError(
+            "Value of EngineStorageType should not be None.".to_string(),
+        ))
+    }
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

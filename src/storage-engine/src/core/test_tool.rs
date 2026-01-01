@@ -41,9 +41,7 @@ use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::{
-    EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
-};
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
@@ -92,13 +90,7 @@ pub async fn test_init_segment() -> (
         active_segment_seq: 0,
         last_segment_seq: 0,
         status: EngineShardStatus::Run,
-        config: EngineShardConfig {
-            replica_num: 1,
-            max_segment_size: 1024 * 1024 * 1024,
-            ..Default::default()
-        },
-        engine_type: EngineStorageType::Segment,
-        replica_num: 1,
+        config: EngineShardConfig::default(),
         create_time: now_second(),
     };
     cache_manager.set_shard(shard);

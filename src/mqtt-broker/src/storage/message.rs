@@ -115,9 +115,9 @@ mod tests {
     use super::*;
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
+        shard::EngineShardConfig,
     };
     use storage_adapter::storage::build_memory_storage_driver;
-
     async fn create_test_storage() -> MessageStorage {
         let memory_storage_engine = build_memory_storage_driver();
         MessageStorage::new(memory_storage_engine)
@@ -131,8 +131,7 @@ mod tests {
             .storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.to_string(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             })
             .await
             .unwrap();
@@ -170,8 +169,7 @@ mod tests {
             .storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: "t1".to_string(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             })
             .await
             .unwrap();
@@ -180,8 +178,7 @@ mod tests {
             .storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: "t2".to_string(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             })
             .await
             .unwrap();
@@ -208,8 +205,7 @@ mod tests {
             .storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: shard_name.to_string(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             })
             .await
             .unwrap();

@@ -16,10 +16,11 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -53,10 +54,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn list_shard(
-        &self,
-        shard: Option<String>,
-    ) -> Result<Vec<AdapterReadShardInfo>, CommonError> {
+    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<EngineShard>, CommonError> {
         self.memory_storage_engine
             .list_shard(shard)
             .await

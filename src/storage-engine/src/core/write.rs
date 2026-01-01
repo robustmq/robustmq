@@ -64,7 +64,7 @@ pub async fn batch_write(
         )
         .await?
     } else {
-        match shard.engine_type {
+        match shard.get_engine_type()? {
             EngineStorageType::Memory => {
                 write_memory_to_local(memory_storage_engine, shard_name, records).await?
             }

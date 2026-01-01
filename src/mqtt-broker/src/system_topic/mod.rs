@@ -399,6 +399,7 @@ mod test {
     use metadata_struct::mqtt::topic::MQTTTopic;
     use metadata_struct::storage::adapter_offset::AdapterShardInfo;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::storage::shard::EngineShardConfig;
     use std::sync::Arc;
     use storage_adapter::storage::build_memory_storage_driver;
 
@@ -412,8 +413,7 @@ mod test {
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             })
             .await
             .unwrap();
@@ -471,8 +471,7 @@ mod test {
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             })
             .await
             .unwrap();

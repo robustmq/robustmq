@@ -22,6 +22,7 @@ use common_config::storage::{memory::StorageDriverMemoryConfig, StorageAdapterTy
 use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::shard::EngineShardConfig;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -61,8 +62,7 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
 
     let shard1 = AdapterShardInfo {
         shard_name: shard1_name.clone(),
-        replica_num: 3,
-        ..Default::default()
+        config: EngineShardConfig::default(),
     };
     adapter.create_shard(&shard1).await.unwrap();
     adapter
@@ -75,7 +75,9 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
 
     assert_eq!(adapter.list_shard(None).await.unwrap().len(), 2);
     assert_eq!(
-        adapter.list_shard(Some(shard1_name.clone())).await.unwrap()[0].replica_num,
+        adapter.list_shard(Some(shard1_name.clone())).await.unwrap()[0]
+            .config
+            .replica_num,
         3
     );
 

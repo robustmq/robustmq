@@ -22,6 +22,7 @@ use common_base::http_response::{error_response, success_response};
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
+use metadata_struct::storage::shard::EngineShardConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -85,14 +86,13 @@ pub struct CommitOffsetReq {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ShardListRow {
     pub shard_name: String,
-    pub replica_num: u32,
+    pub config: EngineShardConfig,
 }
 
 impl Queryable for ShardListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "shard_name" => Some(self.shard_name.clone()),
-            "replica_num" => Some(self.replica_num.to_string()),
             _ => None,
         }
     }
@@ -128,7 +128,7 @@ pub async fn shard_list(
         .into_iter()
         .map(|shard| ShardListRow {
             shard_name: shard.shard_name,
-            replica_num: shard.replica_num,
+            config: shard.config.clone(),
         })
         .collect();
 
@@ -156,8 +156,7 @@ pub async fn shard_create(
 
     let shard_info = AdapterShardInfo {
         shard_name: params.shard_name.clone(),
-        replica_num: params.replica_num,
-        ..Default::default()
+        config: EngineShardConfig::default(),
     };
 
     if let Err(e) = state

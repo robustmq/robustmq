@@ -69,9 +69,8 @@ pub async fn read_by_key(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
 
-    if shard.engine_type == EngineStorageType::Memory
-        || shard.engine_type == EngineStorageType::RocksDB
-    {
+    let engine_type = shard.get_engine_type()?;
+    if engine_type == EngineStorageType::Memory || engine_type == EngineStorageType::RocksDB {
         let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
@@ -79,7 +78,7 @@ pub async fn read_by_key(
         segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
         let conf = broker_config();
         let results = if conf.broker_id == active_segment.leader {
-            match shard.engine_type {
+            match engine_type {
                 EngineStorageType::Memory => {
                     read_by_memory(memory_storage_engine, shard_name, key).await?
                 }
@@ -102,7 +101,7 @@ pub async fn read_by_key(
         return Ok(results);
     }
 
-    if shard.engine_type == EngineStorageType::Segment {
+    if engine_type == EngineStorageType::Segment {
         let local_records =
             read_by_segment(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
 
