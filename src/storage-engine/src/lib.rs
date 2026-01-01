@@ -15,6 +15,7 @@
 #![allow(clippy::result_large_err)]
 
 use crate::clients::manager::ClientConnectionManager;
+use crate::handler::adapter::StorageEngineHandler;
 use crate::memory::engine::MemoryStorageEngine;
 use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::server::Server;
@@ -47,6 +48,7 @@ pub struct StorageEngineParams {
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub memory_storage_engine: Arc<MemoryStorageEngine>,
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    pub storage_engine_handler: Arc<StorageEngineHandler>,
 }
 
 pub struct StorageEngineServer {

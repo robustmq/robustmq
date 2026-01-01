@@ -14,7 +14,7 @@
 
 use crate::state::HttpState;
 use axum::{extract::State, Json};
-use common_base::http_response::success_response;
+use common_base::http_response::{error_response, success_response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -33,13 +33,38 @@ pub struct ShardDetailReq {
 }
 
 pub async fn shard_list(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<ShardListReq>,
+) -> String {
+    let result = match state
+        .engine_context
+        .engine_adapter_handler
+        .list_shard(params.shard_name)
+        .await
+    {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+    success_response("shard_list")
+}
+
+pub async fn shard_create(
     State(_state): State<Arc<HttpState>>,
     Json(_params): Json<ShardListReq>,
 ) -> String {
     success_response("shard_list")
 }
 
-pub async fn shard_detail(
+pub async fn shard_delete(
+    State(_state): State<Arc<HttpState>>,
+    Json(_params): Json<ShardListReq>,
+) -> String {
+    success_response("shard_list")
+}
+
+pub async fn segment_list(
     State(_state): State<Arc<HttpState>>,
     Json(_params): Json<ShardDetailReq>,
 ) -> String {

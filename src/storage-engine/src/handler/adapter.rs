@@ -43,7 +43,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct AdapterHandler {
+pub struct StorageEngineHandler {
     cache_manager: Arc<StorageCacheManager>,
     memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
@@ -53,7 +53,7 @@ pub struct AdapterHandler {
     client_pool: Arc<ClientPool>,
 }
 
-impl AdapterHandler {
+impl StorageEngineHandler {
     pub fn new(
         cache_manager: Arc<StorageCacheManager>,
         client_pool: Arc<ClientPool>,
@@ -63,7 +63,7 @@ impl AdapterHandler {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         write_manager: Arc<WriteManager>,
     ) -> Self {
-        AdapterHandler {
+        StorageEngineHandler {
             cache_manager,
             client_pool,
             memory_storage_engine,

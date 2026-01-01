@@ -15,7 +15,7 @@
 use crate::{connection::network_connection_gc, grpc::start_grpc_server};
 use admin_server::{
     server::AdminServer,
-    state::{HttpState, MQTTContext},
+    state::{HttpState, MQTTContext, StorageEngineContext},
 };
 use broker_core::{
     cache::BrokerCacheManager,
@@ -64,9 +64,9 @@ use std::{
 use storage_adapter::{driver::build_message_storage_driver, storage::ArcStorageAdapter};
 use storage_engine::{
     clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
-    group::OffsetManager, memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine, segment::write::WriteManager, StorageEngineParams,
-    StorageEngineServer,
+    group::OffsetManager, handler::adapter::StorageEngineHandler,
+    memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
+    segment::write::WriteManager, StorageEngineParams, StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
@@ -80,7 +80,7 @@ pub struct BrokerServer {
     main_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
-    journal_params: StorageEngineParams,
+    engine_params: StorageEngineParams,
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     rate_limiter_manager: Arc<RateLimiterManager>,
@@ -129,24 +129,28 @@ impl BrokerServer {
             config.storage_offset.enable_cache,
         ));
 
-        let storage_cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
-
         // storage adapter driver
-        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_standalone(
-            storage_cache_manager.clone(),
+        let engine_params = BrokerServer::build_storage_engine_params(
+            client_pool.clone(),
             rocksdb_engine_handler.clone(),
+            broker_cache.clone(),
+            connection_manager.clone(),
             offset_manager.clone(),
-        ));
+        );
+
+        // build storage driver
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
-        let raw_rocksdb_storage_engine = rocksdb_storage_engine.clone();
-        let raw_storage_cache_manager = storage_cache_manager.clone();
+        let raw_rocksdb_storage_engine = engine_params.rocksdb_storage_engine.clone();
+        let raw_storage_cache_manager = engine_params.cache_manager.clone();
         let raw_offset_manager = offset_manager.clone();
+        let raw_storage_engine_handler = engine_params.storage_engine_handler.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
                 raw_offset_manager.clone(),
                 raw_rocksdb_storage_engine.clone(),
                 raw_rocksdb_engine_handler.clone(),
                 raw_storage_cache_manager.clone(),
+                raw_storage_engine_handler.clone(),
                 config.message_storage.clone(),
             )
             .await
@@ -168,19 +172,11 @@ impl BrokerServer {
             offset_manager.clone(),
         );
 
-        let engine_params = BrokerServer::build_storage_engine_params(
-            client_pool.clone(),
-            rocksdb_engine_handler.clone(),
-            offset_manager.clone(),
-            storage_cache_manager.clone(),
-            connection_manager.clone(),
-        );
-
         BrokerServer {
             broker_cache,
             main_runtime,
             place_params: meta_params,
-            journal_params: engine_params,
+            engine_params,
             config: config.clone(),
             mqtt_params,
             client_pool,
@@ -195,7 +191,7 @@ impl BrokerServer {
         // start grpc server
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
-        let journal_params = self.journal_params.clone();
+        let journal_params = self.engine_params.clone();
         let broker_cache = self.broker_cache.clone();
         let server_runtime =
             create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
@@ -221,6 +217,9 @@ impl BrokerServer {
                 metrics_manager: self.mqtt_params.metrics_cache_manager.clone(),
                 connector_manager: self.mqtt_params.connector_manager.clone(),
                 schema_manager: self.mqtt_params.schema_manager.clone(),
+            },
+            engine_context: StorageEngineContext {
+                engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
             },
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache,
@@ -287,7 +286,7 @@ impl BrokerServer {
 
         if is_engine_node(&config.roles) {
             journal_stop_send = Some(stop_send.clone());
-            let server = StorageEngineServer::new(self.journal_params.clone(), stop_send);
+            let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
             journal_runtime.spawn(async move {
                 server.start().await;
             });
@@ -405,20 +404,19 @@ impl BrokerServer {
     fn build_storage_engine_params(
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        offset_manager: Arc<OffsetManager>,
-        cache_manager: Arc<StorageCacheManager>,
+        broker_cache: Arc<BrokerCacheManager>,
         connection_manager: Arc<NetworkConnectionManager>,
+        offset_manager: Arc<OffsetManager>,
     ) -> StorageEngineParams {
         let config = broker_config();
 
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
         let write_manager = Arc::new(WriteManager::new(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
             client_pool.clone(),
             config.storage_runtime.io_thread_num,
         ));
-        let client_connection_manager =
-            Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
@@ -430,6 +428,19 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
             offset_manager.clone(),
         ));
+
+        let client_connection_manager =
+            Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
+
+        let storage_engine_handler = Arc::new(StorageEngineHandler::new(
+            cache_manager.clone(),
+            client_pool.clone(),
+            memory_storage_engine.clone(),
+            rocksdb_storage_engine.clone(),
+            client_connection_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            write_manager.clone(),
+        ));
         StorageEngineParams {
             cache_manager,
             client_pool,
@@ -439,6 +450,7 @@ impl BrokerServer {
             memory_storage_engine,
             rocksdb_storage_engine,
             write_manager,
+            storage_engine_handler,
         }
     }
 

@@ -13,13 +13,58 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use broker_core::cache::BrokerCacheManager;
 use common_base::tools::unique_id;
+use common_config::config::BrokerConfig;
+use common_config::storage::{memory::StorageDriverMemoryConfig, StorageAdapterType};
+use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use rocksdb_engine::test::test_rocksdb_instance;
+use storage_engine::{
+    core::cache::StorageCacheManager, group::OffsetManager, memory::engine::MemoryStorageEngine,
+    rocksdb::engine::RocksDBStorageEngine,
+};
 
+use crate::memory::MemoryStorageAdapter;
+use crate::rocksdb::RocksDBStorageAdapter;
 use crate::storage::ArcStorageAdapter;
+
+pub async fn build_adapter(storage_type: StorageAdapterType) -> ArcStorageAdapter {
+    let rocksdb_engine_handler = test_rocksdb_instance();
+    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+    let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+    let client_pool = Arc::new(ClientPool::new(8));
+    let offset_manager = Arc::new(OffsetManager::new(
+        client_pool.clone(),
+        rocksdb_engine_handler.clone(),
+        true,
+    ));
+
+    match storage_type {
+        StorageAdapterType::Memory => {
+            let engine = Arc::new(MemoryStorageEngine::create_standalone(
+                rocksdb_engine_handler,
+                cache_manager,
+                offset_manager,
+                StorageDriverMemoryConfig::default(),
+            ));
+            Arc::new(MemoryStorageAdapter::new(engine))
+        }
+        StorageAdapterType::RocksDB => {
+            let engine = Arc::new(RocksDBStorageEngine::create_standalone(
+                cache_manager,
+                rocksdb_engine_handler,
+                offset_manager,
+            ));
+            Arc::new(RocksDBStorageAdapter::new(engine))
+        }
+        _ => panic!("Unsupported storage type for testing"),
+    }
+}
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1_name = unique_id();
@@ -54,8 +99,6 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
 }
 
 pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
-    println!("=== NEW CODE LOADED: test_write_and_read ===");
-
     let shard_name = unique_id();
     let cfg = AdapterReadConfig {
         max_record_num: 10,
@@ -138,38 +181,6 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
         adapter.read_by_key(&shard_name, "k3").await.unwrap().len(),
         0
     );
-
-    println!("=== REACHED LINE 127: Timestamp test skipped ===");
-
-    // SKIP: Timestamp index test (需要大量数据才能生成索引)
-    // 基础测试只有2条记录，索引间隔是5000条
-    // TODO: Fix timestamp index query
-    // let result = adapter
-    //     .get_offset_by_timestamp(&shard_name, 1500)
-    //     .await;
-    //
-    // match result {
-    //     Ok(Some(offset_info)) => {
-    //         assert_eq!(offset_info.offset, 1);
-    //     }
-    //     Ok(None) => {
-    //         eprintln!("ERROR: get_offset_by_timestamp returned Ok(None) for timestamp 1500");
-    //         eprintln!("Shard: {}", shard_name);
-    //         eprintln!("Test data: r1(offset=0, ts=1000), r2(offset=1, ts=2000)");
-    //         panic!("get_offset_by_timestamp returned None");
-    //     }
-    //     Err(e) => {
-    //         eprintln!("ERROR: get_offset_by_timestamp returned error: {}", e);
-    //         eprintln!("Shard: {}", shard_name);
-    //         eprintln!("Test data: r1(offset=0, ts=1000), r2(offset=1, ts=2000)");
-    //         panic!("get_offset_by_timestamp failed");
-    //     }
-    // }
-    // assert!(adapter
-    //     .get_offset_by_timestamp(&shard_name, 5000)
-    //     .await
-    //     .unwrap()
-    //     .is_none());
 }
 
 pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {

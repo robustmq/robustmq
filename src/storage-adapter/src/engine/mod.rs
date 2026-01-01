@@ -23,13 +23,13 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
-use storage_engine::handler::adapter::AdapterHandler;
+use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct StorageEngineAdapter {
-    adapter: Arc<AdapterHandler>,
+    adapter: Arc<StorageEngineHandler>,
 }
 
 impl StorageEngineAdapter {
-    pub async fn new(adapter: Arc<AdapterHandler>) -> StorageEngineAdapter {
+    pub async fn new(adapter: Arc<StorageEngineHandler>) -> StorageEngineAdapter {
         StorageEngineAdapter { adapter }
     }
 }

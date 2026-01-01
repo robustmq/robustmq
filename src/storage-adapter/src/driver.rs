@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter, storage::ArcStorageAdapter,
+    engine::StorageEngineAdapter, memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter,
+    storage::ArcStorageAdapter,
 };
 use common_base::error::common::CommonError;
 use common_config::storage::{
@@ -22,8 +23,8 @@ use common_config::storage::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use storage_engine::{
-    core::cache::StorageCacheManager, group::OffsetManager, memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine,
+    core::cache::StorageCacheManager, group::OffsetManager, handler::adapter::StorageEngineHandler,
+    memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
 };
 
 pub async fn build_message_storage_driver(
@@ -31,6 +32,7 @@ pub async fn build_message_storage_driver(
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     storage_cache_manager: Arc<StorageCacheManager>,
+    engine_adapter_handler: Arc<StorageEngineHandler>,
     config: StorageAdapterConfig,
 ) -> Result<ArcStorageAdapter, CommonError> {
     let storage: ArcStorageAdapter = match config.storage_type {
@@ -44,14 +46,10 @@ pub async fn build_message_storage_driver(
             Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
         }
 
-        // StorageAdapterType::Journal => Arc::new(
-        //     JournalStorageAdapter::new(offset_manager, config.journal_config.unwrap_or_default())
-        //         .await?,
-        // ),
+        StorageAdapterType::Engine => {
+            Arc::new(StorageEngineAdapter::new(engine_adapter_handler).await)
+        }
 
-        // StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
-        //     config.mysql_config.unwrap_or_default(),
-        // )?),
         StorageAdapterType::RocksDB => {
             Arc::new(RocksDBStorageAdapter::new(rocksdb_storage_engine.clone()))
         }
@@ -61,6 +59,9 @@ pub async fn build_message_storage_driver(
             return Err(CommonError::UnavailableStorageType);
         }
 
+        // StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
+        //     config.mysql_config.unwrap_or_default(),
+        // )?),
         StorageAdapterType::MinIO => {
             // Arc::new(MinIoStorageAdapter::new(
             // config.minio_config.unwrap_or_default(),
