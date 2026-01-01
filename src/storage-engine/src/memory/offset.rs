@@ -178,3 +178,34 @@ impl MemoryStorageEngine {
         Ok((earliest_offset, latest_offset))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_build_memory_engine;
+    use common_base::tools::unique_id;
+
+    #[tokio::test]
+    async fn test_latest_offset() {
+        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+        engine.save_latest_offset(&shard_name, 100).unwrap();
+        let offset = engine.get_latest_offset(&shard_name).unwrap();
+        assert_eq!(offset, 100);
+    }
+
+    #[tokio::test]
+    async fn test_earliest_offset() {
+        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+        engine.save_earliest_offset(&shard_name, 50).unwrap();
+        let offset = engine.get_earliest_offset(&shard_name).unwrap();
+        assert_eq!(offset, 50);
+    }
+}

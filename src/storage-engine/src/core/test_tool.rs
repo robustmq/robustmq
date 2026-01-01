@@ -193,3 +193,34 @@ pub fn test_build_engine(engine_type: StorageEngineRunType) -> RocksDBStorageEng
         }
     }
 }
+
+pub fn test_build_memory_engine(
+    engine_type: StorageEngineRunType,
+) -> crate::memory::engine::MemoryStorageEngine {
+    let db = test_rocksdb_instance();
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+    ))));
+    let client_pool = Arc::new(ClientPool::new(10));
+    let offset_manager = Arc::new(OffsetManager::new(client_pool, db.clone(), true));
+    let config = common_config::storage::memory::StorageDriverMemoryConfig::default();
+
+    match engine_type {
+        StorageEngineRunType::Standalone => {
+            crate::memory::engine::MemoryStorageEngine::create_standalone(
+                db,
+                cache_manager,
+                offset_manager,
+                config,
+            )
+        }
+        StorageEngineRunType::EngineStorage => {
+            crate::memory::engine::MemoryStorageEngine::create_storage(
+                db,
+                cache_manager,
+                offset_manager,
+                config,
+            )
+        }
+    }
+}

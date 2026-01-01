@@ -148,3 +148,53 @@ impl MemoryStorageEngine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_build_memory_engine;
+    use common_base::tools::unique_id;
+
+    #[tokio::test]
+    async fn test_try_remove_old_data() {
+        let mut engine =
+            test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        engine.config.max_records_per_shard = 10;
+        let shard_name = unique_id();
+        engine.shard_state.insert(
+            shard_name.clone(),
+            crate::core::shard::ShardState::default(),
+        );
+        let messages: Vec<AdapterWriteRecord> = (0..10)
+            .map(|i| AdapterWriteRecord {
+                pkid: i,
+                key: Some(format!("key{}", i)),
+                tags: Some(vec![format!("tag{}", i % 3)]),
+                timestamp: 1000 + i * 100,
+                ..Default::default()
+            })
+            .collect();
+
+        engine.batch_write(&shard_name, &messages).await.unwrap();
+        let new_message = AdapterWriteRecord {
+            pkid: 100,
+            key: Some("key100".to_string()),
+            tags: Some(vec!["tag100".to_string()]),
+            timestamp: 2000,
+            ..Default::default()
+        };
+        engine.write(&shard_name, &new_message).await.unwrap();
+        let data = engine.shard_data.get(&shard_name).unwrap();
+        assert_eq!(data.len(), 9);
+        assert!(!data.contains_key(&0));
+        assert!(!data.contains_key(&1));
+        assert!(data.contains_key(&2));
+        assert!(data.contains_key(&10));
+        let earliest = engine.get_earliest_offset(&shard_name).unwrap();
+        assert_eq!(earliest, 2);
+        let key_map = engine.key_index.get(&shard_name).unwrap();
+        assert!(!key_map.contains_key("key0"));
+        assert!(!key_map.contains_key("key1"));
+        assert!(key_map.contains_key("key2"));
+    }
+}

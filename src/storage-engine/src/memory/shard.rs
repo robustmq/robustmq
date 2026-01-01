@@ -99,3 +99,41 @@ impl MemoryStorageEngine {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::core::shard::StorageEngineRunType;
+    use crate::core::test_tool::test_build_memory_engine;
+    use common_base::tools::unique_id;
+    use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+
+    #[tokio::test]
+    async fn test_engine_storage_type_error() {
+        let engine = test_build_memory_engine(StorageEngineRunType::EngineStorage);
+        let shard = AdapterShardInfo {
+            shard_name: unique_id(),
+            ..Default::default()
+        };
+        assert!(engine.create_shard(&shard).await.is_err());
+        assert!(engine.list_shard(None).await.is_err());
+        assert!(engine.delete_shard(&shard.shard_name).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_standalone_shard_operations() {
+        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        let shard = AdapterShardInfo {
+            shard_name: shard_name.clone(),
+            ..Default::default()
+        };
+
+        engine.create_shard(&shard).await.unwrap();
+        let list1 = engine.list_shard(None).await.unwrap();
+        assert!(!list1.is_empty());
+
+        engine.delete_shard(&shard_name).await.unwrap();
+        let list2 = engine.list_shard(Some(shard_name)).await.unwrap();
+        assert!(list2.is_empty());
+    }
+}

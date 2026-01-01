@@ -117,3 +117,17 @@ impl MemoryStorageEngine {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_build_memory_engine;
+
+    #[test]
+    fn test_storage_type_check() {
+        let standalone = test_build_memory_engine(StorageEngineRunType::Standalone);
+        assert!(standalone.storage_type_check().is_ok());
+        let engine_storage = test_build_memory_engine(StorageEngineRunType::EngineStorage);
+        assert!(engine_storage.storage_type_check().is_err());
+    }
+}

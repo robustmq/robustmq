@@ -96,3 +96,30 @@ impl MemoryStorageEngine {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_build_memory_engine;
+    use common_base::tools::unique_id;
+
+    #[tokio::test]
+    async fn test_standalone_commit_and_get() {
+        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let group_name = unique_id();
+        let shard1 = unique_id();
+        let shard2 = unique_id();
+        let mut offsets = HashMap::new();
+        offsets.insert(shard1.clone(), 100);
+        offsets.insert(shard2.clone(), 200);
+        engine.commit_offset(&group_name, &offsets).await.unwrap();
+        let result = engine.get_offset_by_group(&group_name).await.unwrap();
+        assert_eq!(result.len(), 2);
+        assert!(result
+            .iter()
+            .any(|o| o.shard_name == shard1 && o.offset == 100));
+        assert!(result
+            .iter()
+            .any(|o| o.shard_name == shard2 && o.offset == 200));
+    }
+}
