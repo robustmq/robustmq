@@ -17,6 +17,7 @@ use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::shard_offset::{get_earliest_offset, get_latest_offset};
+use crate::group::OffsetManager;
 use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp};
 use crate::segment::SegmentIdentity;
 use crate::{
@@ -33,14 +34,26 @@ use crate::{
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
-    AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineStorageType;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::collections::HashMap;
 use std::sync::Arc;
+
+pub struct StorageEngineHandlerParams {
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub write_manager: Arc<WriteManager>,
+    pub offset_manager: Arc<OffsetManager>,
+}
 
 #[derive(Clone)]
 pub struct StorageEngineHandler {
@@ -51,26 +64,20 @@ pub struct StorageEngineHandler {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
     client_pool: Arc<ClientPool>,
+    offset_manager: Arc<OffsetManager>,
 }
 
 impl StorageEngineHandler {
-    pub fn new(
-        cache_manager: Arc<StorageCacheManager>,
-        client_pool: Arc<ClientPool>,
-        memory_storage_engine: Arc<MemoryStorageEngine>,
-        rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
-        client_connection_manager: Arc<ClientConnectionManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        write_manager: Arc<WriteManager>,
-    ) -> Self {
+    pub fn new(params: StorageEngineHandlerParams) -> Self {
         StorageEngineHandler {
-            cache_manager,
-            client_pool,
-            memory_storage_engine,
-            rocksdb_storage_engine,
-            rocksdb_engine_handler,
-            client_connection_manager,
-            write_manager,
+            cache_manager: params.cache_manager,
+            client_pool: params.client_pool,
+            memory_storage_engine: params.memory_storage_engine,
+            rocksdb_storage_engine: params.rocksdb_storage_engine,
+            rocksdb_engine_handler: params.rocksdb_engine_handler,
+            client_connection_manager: params.client_connection_manager,
+            write_manager: params.write_manager,
+            offset_manager: params.offset_manager,
         }
     }
 
@@ -220,6 +227,21 @@ impl StorageEngineHandler {
             Ok(data) => Ok(data),
             Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
+    }
+
+    pub async fn get_offset_by_group(
+        &self,
+        group_name: &str,
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
+        self.offset_manager.get_offset(group_name).await
+    }
+
+    pub async fn commit_offset(
+        &self,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
+    ) -> Result<(), CommonError> {
+        self.offset_manager.commit_offset(group_name, offset).await
     }
 
     async fn get_offset_by_timestamp0(

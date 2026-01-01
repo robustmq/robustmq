@@ -12,44 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
+use crate::memory::MemoryStorageAdapter;
+use crate::rocksdb::RocksDBStorageAdapter;
+use crate::storage::ArcStorageAdapter;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::unique_id;
 use common_config::config::BrokerConfig;
 use common_config::storage::{memory::StorageDriverMemoryConfig, StorageAdapterType};
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use rocksdb_engine::test::test_rocksdb_instance;
+use std::collections::HashMap;
+use std::sync::Arc;
 use storage_engine::{
-    core::cache::StorageCacheManager, group::OffsetManager, memory::engine::MemoryStorageEngine,
+    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
 };
-
-use crate::memory::MemoryStorageAdapter;
-use crate::rocksdb::RocksDBStorageAdapter;
-use crate::storage::ArcStorageAdapter;
 
 pub async fn build_adapter(storage_type: StorageAdapterType) -> ArcStorageAdapter {
     let rocksdb_engine_handler = test_rocksdb_instance();
     let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
     let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-    let client_pool = Arc::new(ClientPool::new(8));
-    let offset_manager = Arc::new(OffsetManager::new(
-        client_pool.clone(),
-        rocksdb_engine_handler.clone(),
-        true,
-    ));
 
     match storage_type {
         StorageAdapterType::Memory => {
             let engine = Arc::new(MemoryStorageEngine::create_standalone(
                 rocksdb_engine_handler,
                 cache_manager,
-                offset_manager,
                 StorageDriverMemoryConfig::default(),
             ));
             Arc::new(MemoryStorageAdapter::new(engine))
@@ -58,7 +48,6 @@ pub async fn build_adapter(storage_type: StorageAdapterType) -> ArcStorageAdapte
             let engine = Arc::new(RocksDBStorageEngine::create_standalone(
                 cache_manager,
                 rocksdb_engine_handler,
-                offset_manager,
             ));
             Arc::new(RocksDBStorageAdapter::new(engine))
         }

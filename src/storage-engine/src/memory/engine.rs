@@ -15,7 +15,6 @@
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::shard::{ShardState, StorageEngineRunType};
-use crate::group::OffsetManager;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
@@ -32,7 +31,6 @@ pub struct MemoryStorageEngine {
     pub engine_type: StorageEngineRunType,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
-    pub offset_manager: Arc<OffsetManager>,
 
     // ====Metadata data====
     //(shard, (ShardInfo))
@@ -57,13 +55,11 @@ impl MemoryStorageEngine {
     pub fn create_standalone(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<StorageCacheManager>,
-        offset_manager: Arc<OffsetManager>,
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine::new(
             rocksdb_engine_handler,
             cache_manager,
-            offset_manager,
             StorageEngineRunType::Standalone,
             config,
         )
@@ -72,13 +68,11 @@ impl MemoryStorageEngine {
     pub fn create_storage(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<StorageCacheManager>,
-        offset_manager: Arc<OffsetManager>,
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine::new(
             rocksdb_engine_handler,
             cache_manager,
-            offset_manager,
             StorageEngineRunType::EngineStorage,
             config,
         )
@@ -87,14 +81,12 @@ impl MemoryStorageEngine {
     fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<StorageCacheManager>,
-        offset_manager: Arc<OffsetManager>,
         engine_type: StorageEngineRunType,
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine {
             cache_manager,
             rocksdb_engine_handler,
-            offset_manager,
             engine_type,
             shard_info: DashMap::with_capacity(8),
             shard_data: DashMap::with_capacity(8),

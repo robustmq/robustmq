@@ -142,11 +142,9 @@ impl BrokerServer {
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_rocksdb_storage_engine = engine_params.rocksdb_storage_engine.clone();
         let raw_storage_cache_manager = engine_params.cache_manager.clone();
-        let raw_offset_manager = offset_manager.clone();
         let raw_storage_engine_handler = engine_params.storage_engine_handler.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
-                raw_offset_manager.clone(),
                 raw_rocksdb_storage_engine.clone(),
                 raw_rocksdb_engine_handler.clone(),
                 raw_storage_cache_manager.clone(),
@@ -420,26 +418,27 @@ impl BrokerServer {
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
-            offset_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
         let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
             cache_manager.clone(),
             rocksdb_engine_handler.clone(),
-            offset_manager.clone(),
         ));
 
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
 
         let storage_engine_handler = Arc::new(StorageEngineHandler::new(
-            cache_manager.clone(),
-            client_pool.clone(),
-            memory_storage_engine.clone(),
-            rocksdb_storage_engine.clone(),
-            client_connection_manager.clone(),
-            rocksdb_engine_handler.clone(),
-            write_manager.clone(),
+            storage_engine::handler::adapter::StorageEngineHandlerParams {
+                cache_manager: cache_manager.clone(),
+                client_pool: client_pool.clone(),
+                memory_storage_engine: memory_storage_engine.clone(),
+                rocksdb_storage_engine: rocksdb_storage_engine.clone(),
+                client_connection_manager: client_connection_manager.clone(),
+                rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+                write_manager: write_manager.clone(),
+                offset_manager: offset_manager.clone(),
+            },
         ));
         StorageEngineParams {
             cache_manager,

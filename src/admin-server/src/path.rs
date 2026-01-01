@@ -29,7 +29,10 @@ pub const CLUSTER_CONFIG_GET_PATH: &str = "/cluster/config/get";
 pub const STORAGE_ENGINE_SHARD_LIST_PATH: &str = "/storage-engine/shard/list";
 pub const STORAGE_ENGINE_SHARD_CREATE_PATH: &str = "/storage-engine/shard/create";
 pub const STORAGE_ENGINE_SHARD_DELETE_PATH: &str = "/storage-engine/shard/delete";
-pub const STORAGE_ENGINE_SEGMENT_LIST_PATH: &str = "/storage-engine/segment-list";
+pub const STORAGE_ENGINE_SEGMENT_LIST_PATH: &str = "/storage-engine/segment/list";
+pub const STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH: &str = "/storage-engine/offset/timestamp";
+pub const STORAGE_ENGINE_OFFSET_BY_GROUP_PATH: &str = "/storage-engine/offset/group";
+pub const STORAGE_ENGINE_OFFSET_COMMIT_PATH: &str = "/storage-engine/offset/commit";
 
 // MQTT Overview API paths
 pub const MQTT_OVERVIEW_PATH: &str = "/mqtt/overview";

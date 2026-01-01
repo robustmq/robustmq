@@ -30,7 +30,6 @@ use super::cache::StorageCacheManager;
 use crate::core::segment::create_local_segment;
 use crate::core::shard::StorageEngineRunType;
 use crate::core::shard_offset::save_latest_offset_by_shard;
-use crate::group::OffsetManager;
 use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
@@ -181,15 +180,13 @@ pub fn test_build_engine(engine_type: StorageEngineRunType) -> RocksDBStorageEng
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
     ))));
-    let client_pool = Arc::new(ClientPool::new(10));
-    let offset_manager = Arc::new(OffsetManager::new(client_pool, db.clone(), true));
 
     match engine_type {
         StorageEngineRunType::Standalone => {
-            RocksDBStorageEngine::create_standalone(cache_manager, db, offset_manager)
+            RocksDBStorageEngine::create_standalone(cache_manager, db)
         }
         StorageEngineRunType::EngineStorage => {
-            RocksDBStorageEngine::create_storage(cache_manager, db, offset_manager)
+            RocksDBStorageEngine::create_storage(cache_manager, db)
         }
     }
 }
@@ -201,26 +198,14 @@ pub fn test_build_memory_engine(
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
     ))));
-    let client_pool = Arc::new(ClientPool::new(10));
-    let offset_manager = Arc::new(OffsetManager::new(client_pool, db.clone(), true));
     let config = common_config::storage::memory::StorageDriverMemoryConfig::default();
 
     match engine_type {
         StorageEngineRunType::Standalone => {
-            crate::memory::engine::MemoryStorageEngine::create_standalone(
-                db,
-                cache_manager,
-                offset_manager,
-                config,
-            )
+            crate::memory::engine::MemoryStorageEngine::create_standalone(db, cache_manager, config)
         }
         StorageEngineRunType::EngineStorage => {
-            crate::memory::engine::MemoryStorageEngine::create_storage(
-                db,
-                cache_manager,
-                offset_manager,
-                config,
-            )
+            crate::memory::engine::MemoryStorageEngine::create_storage(db, cache_manager, config)
         }
     }
 }

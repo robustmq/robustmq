@@ -120,17 +120,17 @@ impl StorageAdapter for StorageEngineAdapter {
 
     async fn get_offset_by_group(
         &self,
-        _group: &str,
+        group: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        Ok(Vec::new())
+        self.adapter.get_offset_by_group(group).await
     }
 
     async fn commit_offset(
         &self,
-        _group_name: &str,
-        _offset: &HashMap<String, u64>,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        Ok(())
+        self.adapter.commit_offset(group_name, offset).await
     }
 
     async fn close(&self) -> Result<(), CommonError> {

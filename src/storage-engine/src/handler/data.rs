@@ -198,13 +198,11 @@ pub async fn read_data_req(
 #[cfg(test)]
 mod tests {
     use crate::clients::manager::ClientConnectionManager;
-    use crate::group::OffsetManager;
     use crate::memory::engine::MemoryStorageEngine;
     use crate::rocksdb::engine::RocksDBStorageEngine;
     use crate::{core::test_tool::test_base_write_data, handler::data::read_data_req};
     use common_base::utils::serialize::deserialize;
     use common_config::storage::memory::StorageDriverMemoryConfig;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
@@ -215,22 +213,15 @@ mod tests {
     async fn read_data_req_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_base_write_data(30).await;
-        let client_pool = Arc::new(ClientPool::new(8));
-        let offset_manager = Arc::new(OffsetManager::new(
-            client_pool.clone(),
-            rocksdb_engine_handler.clone(),
-            true,
-        ));
+
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
-            offset_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
         let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
             cache_manager.clone(),
             rocksdb_engine_handler.clone(),
-            offset_manager.clone(),
         ));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));

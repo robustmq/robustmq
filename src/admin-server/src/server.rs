@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use crate::cluster::index;
-use crate::engine::shard::{shard_create, shard_delete, shard_list};
+use crate::engine::shard::{
+    commit_offset, get_offset_by_group, get_offset_by_timestamp, segment_list, shard_create,
+    shard_delete, shard_list,
+};
 use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{cluster_config_get, cluster_config_set, cluster_info},
@@ -121,10 +124,22 @@ impl AdminServer {
 
     fn engine_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route(STORAGE_ENGINE_SHARD_LIST_PATH, get(shard_list))
+            // shard
+            .route(STORAGE_ENGINE_SHARD_LIST_PATH, post(shard_list))
             .route(STORAGE_ENGINE_SHARD_CREATE_PATH, post(shard_create))
             .route(STORAGE_ENGINE_SHARD_DELETE_PATH, post(shard_delete))
-            .route(STORAGE_ENGINE_SEGMENT_LIST_PATH, post(cluster_config_set))
+            // segment
+            .route(STORAGE_ENGINE_SEGMENT_LIST_PATH, post(segment_list))
+            // offset
+            .route(
+                STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH,
+                post(get_offset_by_timestamp),
+            )
+            .route(
+                STORAGE_ENGINE_OFFSET_BY_GROUP_PATH,
+                post(get_offset_by_group),
+            )
+            .route(STORAGE_ENGINE_OFFSET_COMMIT_PATH, post(commit_offset))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
