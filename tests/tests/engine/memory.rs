@@ -11,11 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-pub fn journal_tcp_addr_vec() -> Vec<String> {
-    vec![journal_tcp_addr()]
-}
-
-pub fn journal_tcp_addr() -> String {
-    "127.0.0.1:3110".to_string()
-}
