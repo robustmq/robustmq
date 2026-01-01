@@ -11,10 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::AdapterMessageExpireConfig;
-
-pub async fn message_expire(_config: &AdapterMessageExpireConfig) -> Result<(), CommonError> {
-    Ok(())
-}

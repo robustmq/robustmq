@@ -16,7 +16,7 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -148,13 +148,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .commit_offset(group_name, offsets)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))
-    }
-
-    async fn message_expire(
-        &self,
-        _config: &AdapterMessageExpireConfig,
-    ) -> Result<(), CommonError> {
-        Ok(())
     }
 
     async fn close(&self) -> Result<(), CommonError> {

@@ -20,7 +20,7 @@ use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -88,8 +88,6 @@ pub trait StorageAdapter {
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
-
-    async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
 }

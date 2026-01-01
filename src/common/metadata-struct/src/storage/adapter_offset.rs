@@ -42,28 +42,3 @@ pub struct AdapterShardOffsetInfo {
     pub high_water_mark: u64,
     pub end_offset: u64,
 }
-
-#[derive(Default, Clone)]
-pub struct AdapterMessageExpireConfig {
-    // data_size: Option<u32>,
-    timestamp: Option<u32>,
-}
-
-impl AdapterMessageExpireConfig {
-    /// Get the retention period in seconds
-    pub fn get_timestamp(&self) -> Option<u32> {
-        self.timestamp
-    }
-
-    /// Set the retention period in seconds
-    pub fn set_timestamp(&mut self, timestamp: Option<u32>) {
-        self.timestamp = timestamp;
-    }
-
-    /// Create a new config with timestamp retention
-    pub fn with_timestamp(timestamp: u32) -> Self {
-        Self {
-            timestamp: Some(timestamp),
-        }
-    }
-}

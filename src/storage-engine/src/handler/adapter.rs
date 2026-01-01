@@ -24,7 +24,7 @@ use crate::{
     core::{
         cache::StorageCacheManager,
         shard::{create_shard_to_place, delete_shard_to_place},
-        wirte::batch_write,
+        write::batch_write,
     },
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,

@@ -37,7 +37,6 @@ use meta_service::{
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };
-use metadata_struct::storage::adapter_offset::AdapterMessageExpireConfig;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
@@ -62,9 +61,7 @@ use std::{
     thread::sleep,
     time::Duration,
 };
-use storage_adapter::{
-    driver::build_message_storage_driver, expire::message_expire_thread, storage::ArcStorageAdapter,
-};
+use storage_adapter::{driver::build_message_storage_driver, storage::ArcStorageAdapter};
 use storage_engine::{
     clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
     group::OffsetManager, memory::engine::MemoryStorageEngine,
@@ -326,12 +323,6 @@ impl BrokerServer {
         let raw_stop_send = stop_send;
         server_runtime.spawn(async move {
             offset_cache.offset_save_thread(raw_stop_send).await;
-        });
-
-        // message expire
-        let storage = self.mqtt_params.message_storage_adapter.clone();
-        server_runtime.spawn(async move {
-            message_expire_thread(storage.clone(), AdapterMessageExpireConfig::default()).await;
         });
 
         // awaiting stop

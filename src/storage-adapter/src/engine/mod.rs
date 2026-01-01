@@ -16,7 +16,7 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -24,7 +24,6 @@ use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::AdapterHandler;
-use storage_engine::handler::expire::message_expire;
 pub struct StorageEngineAdapter {
     adapter: Arc<AdapterHandler>,
 }
@@ -132,10 +131,6 @@ impl StorageAdapter for StorageEngineAdapter {
         _offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         Ok(())
-    }
-
-    async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError> {
-        message_expire(config).await
     }
 
     async fn close(&self) -> Result<(), CommonError> {
