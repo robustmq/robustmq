@@ -140,12 +140,10 @@ impl BrokerServer {
 
         // build storage driver
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
-        let raw_rocksdb_storage_engine = engine_params.rocksdb_storage_engine.clone();
         let raw_storage_cache_manager = engine_params.cache_manager.clone();
         let raw_storage_engine_handler = engine_params.storage_engine_handler.clone();
         let message_storage_adapter = main_runtime.block_on(async move {
             let storage = match build_message_storage_driver(
-                raw_rocksdb_storage_engine.clone(),
                 raw_rocksdb_engine_handler.clone(),
                 raw_storage_cache_manager.clone(),
                 raw_storage_engine_handler.clone(),

@@ -28,7 +28,6 @@ use storage_engine::{
 };
 
 pub async fn build_message_storage_driver(
-    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     storage_cache_manager: Arc<StorageCacheManager>,
     engine_adapter_handler: Arc<StorageEngineHandler>,
@@ -49,7 +48,11 @@ pub async fn build_message_storage_driver(
         }
 
         StorageAdapterType::RocksDB => {
-            Arc::new(RocksDBStorageAdapter::new(rocksdb_storage_engine.clone()))
+            let engine = Arc::new(RocksDBStorageEngine::create_standalone(
+                storage_cache_manager.clone(),
+                rocksdb_engine_handler.clone(),
+            ));
+            Arc::new(RocksDBStorageAdapter::new(engine.clone()))
         }
 
         StorageAdapterType::S3 => {

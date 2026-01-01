@@ -56,12 +56,12 @@ impl FromStr for StorageAdapterType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "engine" => Ok(StorageAdapterType::Engine),
-            "memory" => Ok(StorageAdapterType::Memory),
+            "Engine" => Ok(StorageAdapterType::Engine),
+            "Memory" => Ok(StorageAdapterType::Memory),
             // "mysql" => Ok(StorageAdapterType::Mysql),
-            "rocksdb" => Ok(StorageAdapterType::RocksDB), // "rocksdb" is an alias for backward compatibility
-            "minio" => Ok(StorageAdapterType::MinIO),
-            "s3" => Ok(StorageAdapterType::S3),
+            "RocksDB" => Ok(StorageAdapterType::RocksDB), // "rocksdb" is an alias for backward compatibility
+            "MinIO" => Ok(StorageAdapterType::MinIO),
+            "S3" => Ok(StorageAdapterType::S3),
             _ => Err(()),
         }
     }
