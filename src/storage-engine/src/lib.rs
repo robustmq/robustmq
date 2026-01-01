@@ -127,9 +127,7 @@ impl StorageEngineServer {
         let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
         let stop_sx = self.inner_stop.clone();
         tokio::spawn(async move {
-            rocksdb_storage_engine
-                .start_expire_thread(&stop_sx)
-                .await;
+            rocksdb_storage_engine.start_expire_thread(&stop_sx).await;
         });
     }
 

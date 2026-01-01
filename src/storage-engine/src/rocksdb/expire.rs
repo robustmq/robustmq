@@ -42,16 +42,19 @@ impl RocksDBStorageEngine {
     }
 
     async fn scan_and_delete_expire_data(&self) -> Result<(), StorageEngineError> {
-        let cf = self.get_cf()?;
-        let raw_shard_info = self
-            .rocksdb_engine_handler
-            .read_prefix(cf.clone(), &shard_info_key_prefix())?;
+        let shard_infos = {
+            let cf = self.get_cf()?;
+            let raw_shard_info = self
+                .rocksdb_engine_handler
+                .read_prefix(cf.clone(), &shard_info_key_prefix())?;
 
-        let mut shard_infos = Vec::new();
-        for (_, v) in raw_shard_info {
-            let info = serialize::deserialize::<AdapterShardInfo>(v.as_slice())?;
-            shard_infos.push(info);
-        }
+            let mut shard_infos = Vec::new();
+            for (_, v) in raw_shard_info {
+                let info = serialize::deserialize::<AdapterShardInfo>(v.as_slice())?;
+                shard_infos.push(info);
+            }
+            shard_infos
+        };
 
         if shard_infos.is_empty() {
             return Ok(());
