@@ -201,7 +201,7 @@ mod tests {
     use crate::group::OffsetManager;
     use crate::memory::engine::MemoryStorageEngine;
     use crate::rocksdb::engine::RocksDBStorageEngine;
-    use crate::{core::test::test_base_write_data, handler::data::read_data_req};
+    use crate::{core::test_tool::test_base_write_data, handler::data::read_data_req};
     use common_base::utils::serialize::deserialize;
     use common_config::storage::memory::StorageDriverMemoryConfig;
     use grpc_clients::pool::ClientPool;
@@ -219,6 +219,7 @@ mod tests {
         let offset_manager = Arc::new(OffsetManager::new(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
+            true,
         ));
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
             rocksdb_engine_handler.clone(),

@@ -206,6 +206,7 @@ mod tests {
         let offset_manager = Arc::new(OffsetManager::new(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
+            true,
         ));
 
         let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_standalone(

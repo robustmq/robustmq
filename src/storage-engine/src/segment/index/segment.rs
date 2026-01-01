@@ -194,7 +194,7 @@ impl SegmentIndexManager {
 #[cfg(test)]
 mod tests {
     use super::SegmentIndexManager;
-    use crate::core::test::test_build_segment;
+    use crate::core::test_tool::test_build_segment;
     use rocksdb_engine::test::test_rocksdb_instance;
 
     #[test]

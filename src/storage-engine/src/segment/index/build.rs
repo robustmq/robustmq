@@ -180,7 +180,7 @@ pub fn save_index(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::test::test_build_segment;
+    use crate::core::test_tool::test_build_segment;
     use crate::segment::index::read::{
         get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag,
         get_index_data_by_timestamp,

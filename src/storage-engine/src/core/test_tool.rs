@@ -12,9 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::cache::StorageCacheManager;
 use crate::core::segment::create_local_segment;
+use crate::core::shard::StorageEngineRunType;
 use crate::core::shard_offset::save_latest_offset_by_shard;
+use crate::group::OffsetManager;
+use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -157,4 +174,22 @@ pub async fn test_base_write_data(
     sleep(Duration::from_millis(100)).await;
 
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
+}
+
+pub fn test_build_engine(engine_type: StorageEngineRunType) -> RocksDBStorageEngine {
+    let db = test_rocksdb_instance();
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+    ))));
+    let client_pool = Arc::new(ClientPool::new(10));
+    let offset_manager = Arc::new(OffsetManager::new(client_pool, db.clone(), true));
+
+    match engine_type {
+        StorageEngineRunType::Standalone => {
+            RocksDBStorageEngine::create_standalone(cache_manager, db, offset_manager)
+        }
+        StorageEngineRunType::EngineStorage => {
+            RocksDBStorageEngine::create_storage(cache_manager, db, offset_manager)
+        }
+    }
 }

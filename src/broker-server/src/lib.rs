@@ -129,6 +129,7 @@ impl BrokerServer {
         let offset_manager = Arc::new(OffsetManager::new(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
+            config.storage_offset.enable_cache,
         ));
 
         let storage_cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
