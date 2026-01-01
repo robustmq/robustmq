@@ -34,11 +34,11 @@ use crate::{
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::EngineStorageType;
+use metadata_struct::storage::shard::{EngineShard, EngineStorageType};
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -88,17 +88,10 @@ impl StorageEngineHandler {
         Ok(())
     }
 
-    pub async fn list_shard(
-        &self,
-        shard: Option<String>,
-    ) -> Result<Vec<AdapterReadShardInfo>, CommonError> {
+    pub async fn list_shard(&self, shard: Option<String>) -> Result<Vec<EngineShard>, CommonError> {
         if let Some(shard_name) = shard {
             if let Some(raw) = self.cache_manager.shards.get(&shard_name) {
-                return Ok(vec![AdapterReadShardInfo {
-                    shard_name: raw.shard_name.clone(),
-                    replica_num: 1,
-                    ..Default::default()
-                }]);
+                return Ok(vec![raw.clone()]);
             }
             return Ok(Vec::new());
         }
@@ -107,11 +100,7 @@ impl StorageEngineHandler {
             .cache_manager
             .shards
             .iter()
-            .map(|raw| AdapterReadShardInfo {
-                shard_name: raw.shard_name.clone(),
-                replica_num: 1,
-                ..Default::default()
-            })
+            .map(|raw| raw.clone())
             .collect();
 
         Ok(res)
@@ -253,6 +242,7 @@ impl StorageEngineHandler {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
+        
         let result = match shard.engine_type {
             EngineStorageType::Memory => {
                 self.memory_storage_engine

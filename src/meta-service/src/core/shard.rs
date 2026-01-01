@@ -53,8 +53,6 @@ pub async fn create_shard(
         last_segment_seq: 0,
         status: EngineShardStatus::Run,
         config: shard_config.clone(),
-        replica_num: shard_config.replica_num,
-        engine_type: EngineStorageType::Segment,
         create_time: now_second(),
     };
 

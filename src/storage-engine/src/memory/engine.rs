@@ -18,6 +18,7 @@ use crate::core::shard::{ShardState, StorageEngineRunType};
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -34,7 +35,7 @@ pub struct MemoryStorageEngine {
 
     // ====Metadata data====
     //(shard, (ShardInfo))
-    pub shard_info: DashMap<String, AdapterShardInfo>,
+    pub shard_info: DashMap<String, EngineShard>,
     //(group, (shard, offset))
     pub group_data: DashMap<String, DashMap<String, u64>>,
     //(shard, ShardState)

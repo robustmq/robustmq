@@ -12,42 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::Bytes;
-use common_config::storage::StorageAdapterType;
+use crate::storage::shard::EngineShardConfig;
 use serde::{Deserialize, Serialize};
-
-use crate::storage::shard::EngineStorageType;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterShardInfo {
     pub shard_name: String,
-    pub replica_num: u32,
-    pub config: AdapterShardConfig,
-    pub storage_adapter_type: Option<StorageAdapterType>,
-    pub engine_storage_type: Option<EngineStorageType>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdapterShardConfig {
-    pub retention_sec: u64,
-}
-
-impl Default for AdapterShardConfig {
-    fn default() -> Self {
-        Self {
-            retention_sec: 86400, // 1 day in seconds
-        }
-    }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct AdapterReadShardInfo {
-    pub shard_name: String,
-    pub replica_num: u32,
-    pub config: AdapterShardConfig,
-    pub storage_adapter_type: Option<StorageAdapterType>,
-    pub engine_storage_type: Option<EngineStorageType>,
-    pub extend_info: Option<Bytes>,
+    pub config: EngineShardConfig,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

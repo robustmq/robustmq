@@ -154,8 +154,8 @@ mod tests {
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};
     use metadata_struct::storage::{
-        adapter_offset::AdapterShardConfig, adapter_read_config::AdapterReadConfig,
-        adapter_record::AdapterWriteRecord,
+        adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,
+        shard::EngineShardConfig,
     };
 
     #[tokio::test]
@@ -166,10 +166,7 @@ mod tests {
 
         let shard_info = AdapterShardInfo {
             shard_name: shard_name.clone(),
-            replica_num: 1,
-            config: AdapterShardConfig { retention_sec: 10 },
-            storage_adapter_type: None,
-            engine_storage_type: None,
+            config: EngineShardConfig::default(),
         };
         engine.create_shard(&shard_info).await.unwrap();
 
