@@ -50,3 +50,37 @@ impl MemoryStorageEngine {
         self.timestamp_index.remove(shard_key);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_build_memory_engine;
+    use common_base::tools::unique_id;
+
+    #[tokio::test]
+    async fn test_index_operations() {
+        let engine = test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        let msg = AdapterWriteRecord {
+            pkid: 1,
+            key: Some("test_key".to_string()),
+            tags: Some(vec!["test_tag".to_string()]),
+            timestamp: 1000,
+            ..Default::default()
+        };
+        engine.save_index(&shard_name, 100, &msg);
+        assert!(engine
+            .key_index
+            .get(&shard_name)
+            .unwrap()
+            .contains_key("test_key"));
+        assert!(engine
+            .tag_index
+            .get(&shard_name)
+            .unwrap()
+            .contains_key("test_tag"));
+        engine.remove_indexes(&shard_name);
+        assert!(!engine.key_index.contains_key(&shard_name));
+        assert!(!engine.tag_index.contains_key(&shard_name));
+    }
+}

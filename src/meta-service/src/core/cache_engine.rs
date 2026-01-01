@@ -154,12 +154,9 @@ mod tests {
             active_segment_seq: 0,
             last_segment_seq: 0,
             status: metadata_struct::storage::shard::EngineShardStatus::Run,
-            config: metadata_struct::storage::shard::EngineShardConfig {
-                replica_num: 3,
-                max_segment_size: 1024000,
-            },
+            config: metadata_struct::storage::shard::EngineShardConfig::default(),
             replica_num: 3,
-            engine_type: metadata_struct::storage::shard::EngineType::Segment,
+            engine_type: metadata_struct::storage::shard::EngineStorageType::Segment,
             create_time: now_second(),
         }
     }

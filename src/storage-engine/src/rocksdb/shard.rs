@@ -17,7 +17,7 @@ use crate::{
     rocksdb::engine::RocksDBStorageEngine,
 };
 use common_base::utils::serialize::{self};
-use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+use metadata_struct::storage::adapter_offset::{AdapterReadShardInfo, AdapterShardInfo};
 use rocksdb_engine::keys::storage::{
     key_index_prefix, shard_info_key, shard_info_key_prefix, shard_record_key_prefix,
     tag_index_prefix, timestamp_index_prefix,
@@ -56,17 +56,22 @@ impl RocksDBStorageEngine {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, StorageEngineError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, StorageEngineError> {
         self.storage_type_check()?;
 
         let cf = self.get_cf()?;
         if let Some(shard_name) = shard {
             let key = shard_info_key(&shard_name);
-            if let Some(v) = self
+            if let Some(info) = self
                 .rocksdb_engine_handler
                 .read::<AdapterShardInfo>(cf.clone(), &key)?
             {
-                Ok(vec![v])
+                Ok(vec![AdapterReadShardInfo {
+                    shard_name: info.shard_name.clone(),
+                    replica_num: info.replica_num,
+                    config: info.config,
+                    ..Default::default()
+                }])
             } else {
                 Ok(Vec::new())
             }
@@ -76,7 +81,13 @@ impl RocksDBStorageEngine {
                 .read_prefix(cf.clone(), &shard_info_key_prefix())?;
             let mut result = Vec::new();
             for (_, v) in raw_shard_info {
-                result.push(serialize::deserialize::<AdapterShardInfo>(v.as_slice())?);
+                let info = serialize::deserialize::<AdapterShardInfo>(v.as_slice())?;
+                result.push(AdapterReadShardInfo {
+                    shard_name: info.shard_name.clone(),
+                    replica_num: info.replica_num,
+                    config: info.config,
+                    ..Default::default()
+                });
             }
             Ok(result)
         }
@@ -124,5 +135,43 @@ impl RocksDBStorageEngine {
         self.shard_write_locks.remove(shard);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::shard::StorageEngineRunType;
+    use crate::core::test_tool::test_build_engine;
+    use common_base::tools::unique_id;
+    use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+
+    #[tokio::test]
+    async fn test_engine_storage_type_error() {
+        let engine = test_build_engine(StorageEngineRunType::EngineStorage);
+        let shard = AdapterShardInfo {
+            shard_name: unique_id(),
+            ..Default::default()
+        };
+        assert!(engine.create_shard(&shard).await.is_err());
+        assert!(engine.list_shard(None).await.is_err());
+        assert!(engine.delete_shard(&shard.shard_name).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_standalone_shard_operations() {
+        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        let shard = AdapterShardInfo {
+            shard_name: shard_name.clone(),
+            ..Default::default()
+        };
+
+        engine.create_shard(&shard).await.unwrap();
+        let list1 = engine.list_shard(None).await.unwrap();
+        assert!(!list1.is_empty());
+
+        engine.delete_shard(&shard_name).await.unwrap();
+        let list2 = engine.list_shard(Some(shard_name)).await.unwrap();
+        assert!(list2.is_empty());
     }
 }

@@ -528,7 +528,7 @@ async fn batch_write(
 mod tests {
     use super::*;
     use crate::core::shard_offset::save_latest_offset_by_shard;
-    use crate::core::test::test_init_segment;
+    use crate::core::test_tool::test_init_segment;
     use crate::segment::file::SegmentFile;
     use bytes::Bytes;
     use metadata_struct::storage::storage_record::StorageRecordMetadata;

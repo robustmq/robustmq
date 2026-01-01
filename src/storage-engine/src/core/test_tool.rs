@@ -12,9 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::cache::StorageCacheManager;
 use crate::core::segment::create_local_segment;
+use crate::core::shard::StorageEngineRunType;
 use crate::core::shard_offset::save_latest_offset_by_shard;
+use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::write::{WriteChannelDataRecord, WriteManager};
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -26,7 +42,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::{
-    EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+    EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::test::test_rocksdb_instance;
@@ -79,8 +95,9 @@ pub async fn test_init_segment() -> (
         config: EngineShardConfig {
             replica_num: 1,
             max_segment_size: 1024 * 1024 * 1024,
+            ..Default::default()
         },
-        engine_type: EngineType::Segment,
+        engine_type: EngineStorageType::Segment,
         replica_num: 1,
         create_time: now_second(),
     };
@@ -157,4 +174,39 @@ pub async fn test_base_write_data(
     sleep(Duration::from_millis(100)).await;
 
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
+}
+
+pub fn test_build_engine(engine_type: StorageEngineRunType) -> RocksDBStorageEngine {
+    let db = test_rocksdb_instance();
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+    ))));
+
+    match engine_type {
+        StorageEngineRunType::Standalone => {
+            RocksDBStorageEngine::create_standalone(cache_manager, db)
+        }
+        StorageEngineRunType::EngineStorage => {
+            RocksDBStorageEngine::create_storage(cache_manager, db)
+        }
+    }
+}
+
+pub fn test_build_memory_engine(
+    engine_type: StorageEngineRunType,
+) -> crate::memory::engine::MemoryStorageEngine {
+    let db = test_rocksdb_instance();
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+    ))));
+    let config = common_config::storage::memory::StorageDriverMemoryConfig::default();
+
+    match engine_type {
+        StorageEngineRunType::Standalone => {
+            crate::memory::engine::MemoryStorageEngine::create_standalone(db, cache_manager, config)
+        }
+        StorageEngineRunType::EngineStorage => {
+            crate::memory::engine::MemoryStorageEngine::create_storage(db, cache_manager, config)
+        }
+    }
 }

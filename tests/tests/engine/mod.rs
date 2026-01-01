@@ -12,13 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::storage::adapter_offset::AdapterMessageExpireConfig;
-use tracing::error;
-
-use crate::storage::ArcStorageAdapter;
-
-pub async fn message_expire_thread(driver: ArcStorageAdapter, config: AdapterMessageExpireConfig) {
-    if let Err(e) = driver.message_expire(&config).await {
-        error!("{}", e);
-    }
-}
+pub mod base;
+pub mod mqtt;

@@ -413,6 +413,7 @@ mod test {
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -471,6 +472,7 @@ mod test {
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
                 replica_num: 1,
+                ..Default::default()
             })
             .await
             .unwrap();

@@ -31,16 +31,16 @@ impl MemoryStorageEngine {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, StorageEngineError> {
+    ) -> Result<u64, StorageEngineError> {
         let index_offset = self.search_index_by_timestamp(shard, timestamp);
 
         if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
-            return Ok(Some(offset));
+            return Ok(offset);
         }
 
         match strategy {
-            AdapterOffsetStrategy::Earliest => Ok(Some(self.get_earliest_offset(shard)?)),
-            AdapterOffsetStrategy::Latest => Ok(Some(self.get_latest_offset(shard)?)),
+            AdapterOffsetStrategy::Earliest => Ok(self.get_earliest_offset(shard)?),
+            AdapterOffsetStrategy::Latest => Ok(self.get_latest_offset(shard)?),
         }
     }
 
@@ -176,5 +176,36 @@ impl MemoryStorageEngine {
         );
 
         Ok((earliest_offset, latest_offset))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_build_memory_engine;
+    use common_base::tools::unique_id;
+
+    #[tokio::test]
+    async fn test_latest_offset() {
+        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+        engine.save_latest_offset(&shard_name, 100).unwrap();
+        let offset = engine.get_latest_offset(&shard_name).unwrap();
+        assert_eq!(offset, 100);
+    }
+
+    #[tokio::test]
+    async fn test_earliest_offset() {
+        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+        engine.save_earliest_offset(&shard_name, 50).unwrap();
+        let offset = engine.get_earliest_offset(&shard_name).unwrap();
+        assert_eq!(offset, 50);
     }
 }

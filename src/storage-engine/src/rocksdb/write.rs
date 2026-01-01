@@ -62,7 +62,7 @@ impl RocksDBStorageEngine {
         self.batch_write_internal(shard, messages).await
     }
 
-    pub async fn batch_write_internal(
+    async fn batch_write_internal(
         &self,
         shard_name: &str,
         messages: &[AdapterWriteRecord],

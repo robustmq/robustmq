@@ -17,6 +17,7 @@ use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::shard_offset::{get_earliest_offset, get_latest_offset};
+use crate::group::OffsetManager;
 use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp};
 use crate::segment::SegmentIdentity;
 use crate::{
@@ -24,7 +25,7 @@ use crate::{
     core::{
         cache::StorageCacheManager,
         shard::{create_shard_to_place, delete_shard_to_place},
-        wirte::batch_write,
+        write::batch_write,
     },
     memory::engine::MemoryStorageEngine,
     rocksdb::engine::RocksDBStorageEngine,
@@ -32,16 +33,30 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
+use metadata_struct::storage::adapter_offset::{
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
+};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::EngineType;
+use metadata_struct::storage::shard::EngineStorageType;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::collections::HashMap;
 use std::sync::Arc;
 
+pub struct StorageEngineHandlerParams {
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub write_manager: Arc<WriteManager>,
+    pub offset_manager: Arc<OffsetManager>,
+}
+
 #[derive(Clone)]
-pub struct AdapterHandler {
+pub struct StorageEngineHandler {
     cache_manager: Arc<StorageCacheManager>,
     memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
@@ -49,26 +64,20 @@ pub struct AdapterHandler {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
     client_pool: Arc<ClientPool>,
+    offset_manager: Arc<OffsetManager>,
 }
 
-impl AdapterHandler {
-    pub fn new(
-        cache_manager: Arc<StorageCacheManager>,
-        client_pool: Arc<ClientPool>,
-        memory_storage_engine: Arc<MemoryStorageEngine>,
-        rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
-        client_connection_manager: Arc<ClientConnectionManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        write_manager: Arc<WriteManager>,
-    ) -> Self {
-        AdapterHandler {
-            cache_manager,
-            client_pool,
-            memory_storage_engine,
-            rocksdb_storage_engine,
-            rocksdb_engine_handler,
-            client_connection_manager,
-            write_manager,
+impl StorageEngineHandler {
+    pub fn new(params: StorageEngineHandlerParams) -> Self {
+        StorageEngineHandler {
+            cache_manager: params.cache_manager,
+            client_pool: params.client_pool,
+            memory_storage_engine: params.memory_storage_engine,
+            rocksdb_storage_engine: params.rocksdb_storage_engine,
+            rocksdb_engine_handler: params.rocksdb_engine_handler,
+            client_connection_manager: params.client_connection_manager,
+            write_manager: params.write_manager,
+            offset_manager: params.offset_manager,
         }
     }
 
@@ -82,12 +91,13 @@ impl AdapterHandler {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, CommonError> {
         if let Some(shard_name) = shard {
             if let Some(raw) = self.cache_manager.shards.get(&shard_name) {
-                return Ok(vec![AdapterShardInfo {
+                return Ok(vec![AdapterReadShardInfo {
                     shard_name: raw.shard_name.clone(),
                     replica_num: 1,
+                    ..Default::default()
                 }]);
             }
             return Ok(Vec::new());
@@ -97,9 +107,10 @@ impl AdapterHandler {
             .cache_manager
             .shards
             .iter()
-            .map(|raw| AdapterShardInfo {
+            .map(|raw| AdapterReadShardInfo {
                 shard_name: raw.shard_name.clone(),
                 replica_num: 1,
+                ..Default::default()
             })
             .collect();
 
@@ -208,14 +219,29 @@ impl AdapterHandler {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError> {
+    ) -> Result<u64, CommonError> {
         match self
             .get_offset_by_timestamp0(shard, timestamp, strategy)
             .await
         {
-            Ok(data) => Ok(data),
+            Ok(offset) => Ok(offset),
             Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
+    }
+
+    pub async fn get_offset_by_group(
+        &self,
+        group_name: &str,
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
+        self.offset_manager.get_offset(group_name).await
+    }
+
+    pub async fn commit_offset(
+        &self,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
+    ) -> Result<(), CommonError> {
+        self.offset_manager.commit_offset(group_name, offset).await
     }
 
     async fn get_offset_by_timestamp0(
@@ -223,25 +249,23 @@ impl AdapterHandler {
         shard_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, StorageEngineError> {
+    ) -> Result<u64, StorageEngineError> {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
         let result = match shard.engine_type {
-            EngineType::Memory => {
+            EngineStorageType::Memory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
-            EngineType::RocksDB => {
+            EngineStorageType::RocksDB => {
                 self.rocksdb_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
-            EngineType::Segment => {
-                let offset =
-                    self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?;
-                Some(offset)
+            EngineStorageType::Segment => {
+                self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }
         };
         Ok(result)

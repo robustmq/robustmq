@@ -19,13 +19,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AdapterWriteRecordHeader {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AdapterWriteRecord {
     pub pkid: u64,
     pub header: Option<Vec<AdapterWriteRecordHeader>>,

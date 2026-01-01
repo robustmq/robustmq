@@ -18,9 +18,8 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -28,7 +27,6 @@ use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::core::cache::StorageCacheManager;
-use storage_engine::group::OffsetManager;
 use storage_engine::memory::engine::MemoryStorageEngine;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
@@ -37,8 +35,10 @@ pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(&self, shard: Option<String>)
-        -> Result<Vec<AdapterShardInfo>, CommonError>;
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterReadShardInfo>, CommonError>;
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 
@@ -76,7 +76,7 @@ pub trait StorageAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError>;
+    ) -> Result<u64, CommonError>;
 
     async fn get_offset_by_group(
         &self,
@@ -89,8 +89,6 @@ pub trait StorageAdapter {
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 
-    async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError>;
-
     async fn close(&self) -> Result<(), CommonError>;
 }
 
@@ -98,15 +96,10 @@ pub fn build_memory_storage_driver() -> ArcStorageAdapter {
     let rocksdb_engine_handler = test_rocksdb_instance();
     let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
     let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-    let client_pool = Arc::new(ClientPool::new(8));
-    let offset_manager = Arc::new(OffsetManager::new(
-        client_pool.clone(),
-        rocksdb_engine_handler.clone(),
-    ));
+
     let memory_storage_engine = Arc::new(MemoryStorageEngine::create_standalone(
         rocksdb_engine_handler,
         cache_manager,
-        offset_manager,
         StorageDriverMemoryConfig::default(),
     ));
     Arc::new(MemoryStorageAdapter::new(memory_storage_engine))

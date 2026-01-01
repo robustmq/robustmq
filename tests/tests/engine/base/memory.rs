@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::AdapterMessageExpireConfig;
-
-pub async fn message_expire(_config: &AdapterMessageExpireConfig) -> Result<(), CommonError> {
-    Ok(())
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn offset_manager_storage() {}
 }

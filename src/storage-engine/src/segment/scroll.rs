@@ -222,12 +222,12 @@ fn calc_file_rate(file_size: u64, max_size: u64) -> u32 {
 mod tests {
     use super::*;
     use crate::core::cache::StorageCacheManager;
-    use crate::core::test::{test_build_data_fold, test_build_segment, test_init_conf};
+    use crate::core::test_tool::{test_build_data_fold, test_build_segment, test_init_conf};
     use crate::segment::file::SegmentFile;
     use broker_core::cache::BrokerCacheManager;
     use common_config::broker::default_broker_config;
     use metadata_struct::storage::shard::{
-        EngineShard, EngineShardConfig, EngineShardStatus, EngineType,
+        EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
     };
 
     #[test]
@@ -298,11 +298,8 @@ mod tests {
             active_segment_seq: segment_iden.segment,
             last_segment_seq: segment_iden.segment,
             status: EngineShardStatus::Run,
-            config: EngineShardConfig {
-                replica_num: 1,
-                max_segment_size: 1000000,
-            },
-            engine_type: EngineType::Segment,
+            config: EngineShardConfig::default(),
+            engine_type: EngineStorageType::Segment,
             replica_num: 1,
             create_time: 0,
         };

@@ -12,12 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Bytes;
+use common_config::storage::StorageAdapterType;
 use serde::{Deserialize, Serialize};
+
+use crate::storage::shard::EngineStorageType;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterShardInfo {
     pub shard_name: String,
     pub replica_num: u32,
+    pub config: AdapterShardConfig,
+    pub storage_adapter_type: Option<StorageAdapterType>,
+    pub engine_storage_type: Option<EngineStorageType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterShardConfig {
+    pub retention_sec: u64,
+}
+
+impl Default for AdapterShardConfig {
+    fn default() -> Self {
+        Self {
+            retention_sec: 86400, // 1 day in seconds
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterReadShardInfo {
+    pub shard_name: String,
+    pub replica_num: u32,
+    pub config: AdapterShardConfig,
+    pub storage_adapter_type: Option<StorageAdapterType>,
+    pub engine_storage_type: Option<EngineStorageType>,
+    pub extend_info: Option<Bytes>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -41,29 +71,4 @@ pub struct AdapterShardOffsetInfo {
     pub start_offset: u64,
     pub high_water_mark: u64,
     pub end_offset: u64,
-}
-
-#[derive(Default, Clone)]
-pub struct AdapterMessageExpireConfig {
-    // data_size: Option<u32>,
-    timestamp: Option<u32>,
-}
-
-impl AdapterMessageExpireConfig {
-    /// Get the retention period in seconds
-    pub fn get_timestamp(&self) -> Option<u32> {
-        self.timestamp
-    }
-
-    /// Set the retention period in seconds
-    pub fn set_timestamp(&mut self, timestamp: Option<u32>) {
-        self.timestamp = timestamp;
-    }
-
-    /// Create a new config with timestamp retention
-    pub fn with_timestamp(timestamp: u32) -> Self {
-        Self {
-            timestamp: Some(timestamp),
-        }
-    }
 }

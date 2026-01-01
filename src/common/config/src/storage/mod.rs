@@ -44,7 +44,7 @@ pub struct StorageAdapterConfig {
 pub enum StorageAdapterType {
     #[default]
     Memory,
-    // Engine,
+    Engine,
     // Mysql,
     RocksDB,
     MinIO,
@@ -56,7 +56,7 @@ impl FromStr for StorageAdapterType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            // "engine" => Ok(StorageAdapterType::Engine),
+            "engine" => Ok(StorageAdapterType::Engine),
             "memory" => Ok(StorageAdapterType::Memory),
             // "mysql" => Ok(StorageAdapterType::Mysql),
             "rocksdb" => Ok(StorageAdapterType::RocksDB), // "rocksdb" is an alias for backward compatibility
@@ -75,10 +75,10 @@ mod tests {
 
     #[test]
     fn storage_type_from_str() {
-        // assert_eq!(
-        //     StorageAdapterType::from_str("engine").unwrap(),
-        //     StorageAdapterType::Engine
-        // );
+        assert_eq!(
+            StorageAdapterType::from_str("engine").unwrap(),
+            StorageAdapterType::Engine
+        );
         assert_eq!(
             StorageAdapterType::from_str("memory").unwrap(),
             StorageAdapterType::Memory

@@ -16,7 +16,7 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -49,7 +49,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
     async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, CommonError> {
         self.rocksdb_storage_engine
             .list_shard(shard)
             .await
@@ -122,7 +122,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError> {
+    ) -> Result<u64, CommonError> {
         self.rocksdb_storage_engine
             .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
@@ -150,13 +150,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn message_expire(
-        &self,
-        _config: &AdapterMessageExpireConfig,
-    ) -> Result<(), CommonError> {
-        Ok(())
-    }
-
     async fn close(&self) -> Result<(), CommonError> {
         Ok(())
     }
@@ -164,85 +157,37 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        driver::build_message_storage_driver,
-        storage::ArcStorageAdapter,
-        tests::{
-            test_consumer_group_offset, test_shard_lifecycle,
-            test_timestamp_index_with_multiple_entries, test_write_and_read,
-        },
+    use crate::tests::{
+        build_adapter, test_consumer_group_offset, test_shard_lifecycle,
+        test_timestamp_index_with_multiple_entries, test_write_and_read,
     };
-    use broker_core::cache::BrokerCacheManager;
-    use common_config::{
-        config::BrokerConfig,
-        storage::{rocksdb::StorageDriverRocksDBConfig, StorageAdapterConfig, StorageAdapterType},
-    };
-    use grpc_clients::pool::ClientPool;
-    use rocksdb_engine::test::test_rocksdb_instance;
-    use std::sync::Arc;
-    use storage_engine::{
-        core::cache::StorageCacheManager, group::OffsetManager,
-        rocksdb::engine::RocksDBStorageEngine,
-    };
-
-    async fn build_adapter() -> ArcStorageAdapter {
-        let rocksdb_engine_handler = test_rocksdb_instance();
-        let config = StorageAdapterConfig {
-            storage_type: StorageAdapterType::RocksDB,
-            rocksdb_config: Some(StorageDriverRocksDBConfig::default()),
-            ..Default::default()
-        };
-
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let client_pool = Arc::new(ClientPool::new(8));
-        let offset_manager = Arc::new(OffsetManager::new(
-            client_pool.clone(),
-            rocksdb_engine_handler.clone(),
-        ));
-
-        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_standalone(
-            cache_manager.clone(),
-            rocksdb_engine_handler.clone(),
-            offset_manager.clone(),
-        ));
-
-        build_message_storage_driver(
-            offset_manager,
-            rocksdb_storage_engine.clone(),
-            rocksdb_engine_handler.clone(),
-            cache_manager,
-            config,
-        )
-        .await
-        .unwrap()
-    }
+    use common_config::storage::StorageAdapterType;
 
     #[tokio::test]
     #[ignore = "reason"]
     async fn test_file_shard_lifecycle() {
-        let adapter = build_adapter().await;
+        let adapter = build_adapter(StorageAdapterType::RocksDB).await;
         test_shard_lifecycle(adapter).await;
     }
 
     #[tokio::test]
     #[ignore = "reason"]
     async fn test_file_write_and_read() {
-        let adapter = build_adapter().await;
+        let adapter = build_adapter(StorageAdapterType::RocksDB).await;
         test_write_and_read(adapter).await;
     }
 
     #[tokio::test]
     #[ignore = "reason"]
     async fn test_file_consumer_group_offset() {
-        let adapter = build_adapter().await;
+        let adapter = build_adapter(StorageAdapterType::RocksDB).await;
         test_consumer_group_offset(adapter).await;
     }
 
     #[tokio::test]
     #[ignore = "reason"]
     async fn test_file_timestamp_index_with_multiple_entries() {
-        let adapter = build_adapter().await;
+        let adapter = build_adapter(StorageAdapterType::RocksDB).await;
         test_timestamp_index_with_multiple_entries(adapter).await;
     }
 }

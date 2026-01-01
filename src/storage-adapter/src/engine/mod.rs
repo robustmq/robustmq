@@ -16,21 +16,20 @@ use crate::storage::StorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterMessageExpireConfig, AdapterOffsetStrategy, AdapterShardInfo,
+    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterReadShardInfo, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
-use storage_engine::handler::adapter::AdapterHandler;
-use storage_engine::handler::expire::message_expire;
+use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct StorageEngineAdapter {
-    adapter: Arc<AdapterHandler>,
+    adapter: Arc<StorageEngineHandler>,
 }
 
 impl StorageEngineAdapter {
-    pub async fn new(adapter: Arc<AdapterHandler>) -> StorageEngineAdapter {
+    pub async fn new(adapter: Arc<StorageEngineHandler>) -> StorageEngineAdapter {
         StorageEngineAdapter { adapter }
     }
 }
@@ -44,7 +43,7 @@ impl StorageAdapter for StorageEngineAdapter {
     async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterShardInfo>, CommonError> {
+    ) -> Result<Vec<AdapterReadShardInfo>, CommonError> {
         self.adapter.list_shard(shard).await
     }
 
@@ -113,7 +112,7 @@ impl StorageAdapter for StorageEngineAdapter {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, CommonError> {
+    ) -> Result<u64, CommonError> {
         self.adapter
             .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
@@ -121,21 +120,17 @@ impl StorageAdapter for StorageEngineAdapter {
 
     async fn get_offset_by_group(
         &self,
-        _group: &str,
+        group: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        Ok(Vec::new())
+        self.adapter.get_offset_by_group(group).await
     }
 
     async fn commit_offset(
         &self,
-        _group_name: &str,
-        _offset: &HashMap<String, u64>,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        Ok(())
-    }
-
-    async fn message_expire(&self, config: &AdapterMessageExpireConfig) -> Result<(), CommonError> {
-        message_expire(config).await
+        self.adapter.commit_offset(group_name, offset).await
     }
 
     async fn close(&self) -> Result<(), CommonError> {

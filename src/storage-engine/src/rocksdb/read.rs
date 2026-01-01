@@ -167,3 +167,67 @@ impl RocksDBStorageEngine {
         Ok(vec![record])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::shard::{ShardState, StorageEngineRunType};
+    use crate::core::test_tool::test_build_engine;
+    use common_base::tools::unique_id;
+    use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
+    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+
+    #[tokio::test]
+    async fn test_batch_write_and_read_by_offset() {
+        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+
+        let messages: Vec<AdapterWriteRecord> = (0..10)
+            .map(|i| AdapterWriteRecord {
+                pkid: i,
+                key: Some(format!("key{}", i)),
+                tags: Some(vec![format!("tag{}", i % 3)]),
+                timestamp: 1000 + i * 100,
+                ..Default::default()
+            })
+            .collect();
+
+        let write_result = engine.batch_write(&shard_name, &messages).await.unwrap();
+        assert_eq!(write_result.len(), 10);
+        assert_eq!(write_result[0].offset, 0);
+        assert_eq!(write_result[9].offset, 9);
+
+        let read_config = AdapterReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        };
+        let records = engine
+            .read_by_offset(&shard_name, 0, &read_config)
+            .await
+            .unwrap();
+        assert_eq!(records.len(), 10);
+        assert_eq!(records[0].metadata.offset, 0);
+        assert_eq!(records[9].metadata.offset, 9);
+
+        let tag_records = engine
+            .read_by_tag(&shard_name, "tag0", None, &read_config)
+            .await
+            .unwrap();
+        assert_eq!(tag_records.len(), 4);
+        assert_eq!(tag_records[0].metadata.offset, 0);
+        assert_eq!(tag_records[3].metadata.offset, 9);
+
+        let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
+        assert_eq!(key_records.len(), 1);
+        assert_eq!(key_records[0].metadata.offset, 5);
+
+        let offset_by_ts = engine
+            .get_offset_by_timestamp(&shard_name, 1500, AdapterOffsetStrategy::Latest)
+            .await
+            .unwrap();
+        assert_eq!(offset_by_ts, 5);
+    }
+}

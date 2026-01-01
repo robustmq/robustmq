@@ -17,7 +17,6 @@ use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,
 };
-use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -35,12 +34,15 @@ pub struct OffsetManager {
 }
 
 impl OffsetManager {
-    pub fn new(client_pool: Arc<ClientPool>, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let conf = broker_config();
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
+        enable_cache: bool,
+    ) -> Self {
         let offset_storage = OffsetStorageManager::new(client_pool.clone());
         let offset_cache_storage = OffsetCacheManager::new(rocksdb_engine_handler, client_pool);
         OffsetManager {
-            enable_cache: conf.storage_offset.enable_cache,
+            enable_cache,
             offset_storage,
             offset_cache_storage,
         }
@@ -51,6 +53,7 @@ impl OffsetManager {
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
+        println!("{}", self.enable_cache);
         if self.enable_cache {
             self.offset_cache_storage
                 .commit_offset(group_name, offset)

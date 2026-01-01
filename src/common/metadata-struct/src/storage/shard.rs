@@ -25,7 +25,7 @@ pub struct EngineShard {
     pub last_segment_seq: u32,
     pub status: EngineShardStatus,
     pub config: EngineShardConfig,
-    pub engine_type: EngineType,
+    pub engine_type: EngineStorageType,
     pub replica_num: u32,
     pub create_time: u64,
 }
@@ -48,10 +48,21 @@ pub enum EngineShardStatus {
     Deleting,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EngineShardConfig {
     pub replica_num: u32,
     pub max_segment_size: u64,
+    pub retention_sec: u64,
+}
+
+impl Default for EngineShardConfig {
+    fn default() -> Self {
+        Self {
+            replica_num: 1,
+            max_segment_size: 1073741824,
+            retention_sec: 86400,
+        }
+    }
 }
 
 impl EngineShardConfig {
@@ -65,9 +76,9 @@ impl EngineShardConfig {
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum EngineType {
-    #[default]
+pub enum EngineStorageType {
     Segment,
+    #[default]
     Memory,
     RocksDB,
 }

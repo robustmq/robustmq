@@ -40,6 +40,7 @@ tower-http.workspace = true
 rate-limit.workspace = true
 dashmap.workspace = true
 storage-adapter.workspace = true
+storage-engine.workspace = true
 bytes.workspace = true
 validator.workspace = true
 rocksdb-engine.workspace = true

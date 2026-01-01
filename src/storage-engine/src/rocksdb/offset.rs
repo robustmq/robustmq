@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::serialize::deserialize;
-use metadata_struct::storage::{
-    adapter_offset::AdapterOffsetStrategy, storage_record::StorageRecord,
-};
-use rocksdb_engine::keys::storage::{
-    shard_record_key, shard_record_key_prefix, timestamp_index_prefix,
-};
-
 use crate::{
     core::{
         error::StorageEngineError,
@@ -31,6 +23,13 @@ use crate::{
     },
     rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
 };
+use common_base::utils::serialize::deserialize;
+use metadata_struct::storage::{
+    adapter_offset::AdapterOffsetStrategy, storage_record::StorageRecord,
+};
+use rocksdb_engine::keys::storage::{
+    shard_record_key, shard_record_key_prefix, timestamp_index_prefix,
+};
 
 impl RocksDBStorageEngine {
     pub async fn get_offset_by_timestamp(
@@ -38,23 +37,23 @@ impl RocksDBStorageEngine {
         shard: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<Option<u64>, StorageEngineError> {
+    ) -> Result<u64, StorageEngineError> {
         let index = self.search_index_by_timestamp(shard, timestamp).await?;
         if let Some(idx) = index {
             if let Some(found_offset) = self
                 .read_data_by_time(shard, &Some(idx.clone()), timestamp)
                 .await?
             {
-                return Ok(Some(found_offset));
+                return Ok(found_offset);
             }
         }
         match strategy {
-            AdapterOffsetStrategy::Earliest => Ok(Some(self.get_earliest_offset(shard)?)),
-            AdapterOffsetStrategy::Latest => Ok(Some(self.get_latest_offset(shard)?)),
+            AdapterOffsetStrategy::Earliest => Ok(self.get_earliest_offset(shard)?),
+            AdapterOffsetStrategy::Latest => Ok(self.get_latest_offset(shard)?),
         }
     }
 
-    async fn search_index_by_timestamp(
+    pub async fn search_index_by_timestamp(
         &self,
         shard: &str,
         timestamp: u64,
@@ -221,5 +220,39 @@ impl RocksDBStorageEngine {
         );
 
         Ok((earliest_offset, latest_offset))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::shard::StorageEngineRunType;
+    use crate::core::test_tool::test_build_engine;
+    use common_base::tools::unique_id;
+
+    #[tokio::test]
+    async fn test_latest_offset() {
+        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+
+        engine.save_latest_offset(&shard_name, 100).unwrap();
+        let offset = engine.get_latest_offset(&shard_name).unwrap();
+        assert_eq!(offset, 100);
+    }
+
+    #[tokio::test]
+    async fn test_earliest_offset() {
+        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+
+        engine.save_earliest_offset(&shard_name, 50).unwrap();
+        let offset = engine.get_earliest_offset(&shard_name).unwrap();
+        assert_eq!(offset, 50);
     }
 }
