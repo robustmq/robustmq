@@ -57,6 +57,7 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-adapter",
+ "storage-engine",
  "thiserror 1.0.69",
  "tokio",
  "tower-http 0.5.2",

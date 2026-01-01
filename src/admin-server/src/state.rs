@@ -45,3 +45,6 @@ pub struct MQTTContext {
     pub connector_manager: Arc<ConnectorManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
 }
+
+#[derive(Clone)]
+pub struct StorageEngineContext {}
