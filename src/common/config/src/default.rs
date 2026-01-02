@@ -200,7 +200,7 @@ pub fn default_storage_offset() -> StorageOffset {
     StorageOffset { enable_cache: true }
 }
 
-pub fn default_journal_runtime() -> StorageRuntime {
+pub fn default_engine_runtime() -> StorageRuntime {
     StorageRuntime {
         tcp_port: 1778,
         max_segment_size: 1073741824,

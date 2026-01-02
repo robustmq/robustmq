@@ -98,9 +98,9 @@ pub enum MetaServiceError {
     ShardHasEnoughSegment(String),
 
     #[error(
-        "There are not enough nodes available in the cluster, {0} is needed, and currently {1}."
+        "{0},There are not enough nodes available in the cluster, {0} is needed, and currently {1}."
     )]
-    NotEnoughEngineNodes(u32, u32),
+    NotEnoughEngineNodes(String, u32, u32),
 
     #[error("Execution result is empty, please check whether the server logic is normal")]
     ExecutionResultIsEmpty,

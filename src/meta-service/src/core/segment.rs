@@ -144,6 +144,7 @@ async fn build_segment(
 
     if node_list.len() < replica_num {
         return Err(MetaServiceError::NotEnoughEngineNodes(
+            "CreateSegment".to_string(),
             shard_info.config.replica_num,
             node_list.len() as u32,
         ));

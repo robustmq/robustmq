@@ -15,7 +15,7 @@
 use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::route::common::DataRouteCluster;
-use crate::raft::route::journal::DataRouteJournal;
+use crate::raft::route::engine::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
 use bytes::Bytes;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 pub mod common;
 pub mod data;
-pub mod journal;
+pub mod engine;
 pub mod kv;
 pub mod mqtt;
 

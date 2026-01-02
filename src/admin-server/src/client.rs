@@ -794,6 +794,7 @@ mod tests {
                 let response = AdminServerResponse {
                     code: 0,
                     data: TestResponse { value: params.key },
+                    error: None,
                 };
                 axum::Json(response)
             }),

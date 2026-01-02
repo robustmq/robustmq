@@ -21,13 +21,38 @@ use crate::core::error::MetaServiceError;
 use crate::core::segment::delete_segment_by_real;
 use crate::core::shard::{delete_shard_by_real, update_shard_status};
 use crate::raft::manager::MultiRaftManager;
+use common_base::error::common::CommonError;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::SegmentStatus;
 use metadata_struct::storage::shard::EngineShardStatus;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 use tracing::warn;
 
-pub async fn gc_shard_thread(
+pub async fn start_engine_delete_gc_thread(
+    raft_manager: Arc<MultiRaftManager>,
+    cache_manager: Arc<CacheManager>,
+    call_manager: Arc<BrokerCallManager>,
+    client_pool: Arc<ClientPool>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        if let Err(e) = gc_shard(&raft_manager, &cache_manager, &call_manager, &client_pool).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        };
+
+        if let Err(e) = gc_segment(&raft_manager, &call_manager, &cache_manager, &client_pool).await
+        {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, 1000, &stop_send).await;
+}
+
+async fn gc_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     call_manager: &Arc<BrokerCallManager>,
@@ -65,7 +90,7 @@ pub async fn gc_shard_thread(
     Ok(())
 }
 
-pub async fn gc_segment_thread(
+async fn gc_segment(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     cache_manager: &Arc<CacheManager>,

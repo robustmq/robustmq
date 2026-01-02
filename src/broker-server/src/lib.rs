@@ -216,6 +216,7 @@ impl BrokerServer {
             },
             engine_context: StorageEngineContext {
                 engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
+                cache_manager: self.engine_params.cache_manager.clone(),
             },
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache,

@@ -64,6 +64,7 @@ pub async fn create_shard_by_req(
     let shard_config: EngineShardConfig = EngineShardConfig::decode(&req.shard_config)?;
     if num < shard_config.replica_num {
         return Err(MetaServiceError::NotEnoughEngineNodes(
+            "CreateShard".to_string(),
             shard_config.replica_num,
             num,
         ));

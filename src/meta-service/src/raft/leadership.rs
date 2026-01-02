@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    controller::BrokerController, core::cache::CacheManager, raft::manager::MultiRaftManager,
+    controller::{call_broker::call::BrokerCallManager, BrokerController},
+    core::cache::CacheManager,
+    raft::manager::MultiRaftManager,
 };
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -30,6 +32,7 @@ pub fn monitoring_leader_transition(
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     raft_manager: Arc<MultiRaftManager>,
+    call_manager: Arc<BrokerCallManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let mut metrics_rx = raft_manager.mqtt_raft_node.metrics();
@@ -58,8 +61,10 @@ pub fn monitoring_leader_transition(
                                     info!("[mqtt] Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
                                     start_controller(
                                         &rocksdb_engine_handler,
+                                        &raft_manager,
                                         &cache_manager,
                                         &client_pool,
+                                        &call_manager,
                                         controller_stop_recv.clone(),
                                     );
                                     controller_running = true;
@@ -85,13 +90,17 @@ pub fn monitoring_leader_transition(
 
 pub fn start_controller(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<BrokerCallManager>,
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = BrokerController::new(
         rocksdb_engine_handler.clone(),
+        raft_manager.clone(),
         cache_manager.clone(),
+        call_manager.clone(),
         client_pool.clone(),
         stop_send.clone(),
     );
