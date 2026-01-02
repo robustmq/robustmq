@@ -22,6 +22,7 @@ use crate::segment::write::WriteManager;
 use axum::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
+use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
@@ -31,7 +32,7 @@ use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::error;
 
 /// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
@@ -42,6 +43,7 @@ pub struct StorageEngineHandlerCommand {
     memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     client_connection_manager: Arc<ClientConnectionManager>,
+    connection_manager: Arc<ConnectionManager>,
 }
 
 impl StorageEngineHandlerCommand {
@@ -52,6 +54,7 @@ impl StorageEngineHandlerCommand {
         memory_storage_engine: Arc<MemoryStorageEngine>,
         rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
         client_connection_manager: Arc<ClientConnectionManager>,
+        connection_manager: Arc<ConnectionManager>,
     ) -> Self {
         StorageEngineHandlerCommand {
             cache_manager,
@@ -60,6 +63,7 @@ impl StorageEngineHandlerCommand {
             memory_storage_engine,
             rocksdb_storage_engine,
             client_connection_manager,
+            connection_manager,
         }
     }
 }
@@ -78,6 +82,9 @@ impl Command for StorageEngineHandlerCommand {
                 return None;
             }
         };
+
+        self.connection_manager
+            .set_storage_engine_protocol(tcp_connection.connection_id);
 
         match pack {
             StorageEnginePacket::WriteReq(request) => {
@@ -153,7 +160,7 @@ impl Command for StorageEngineHandlerCommand {
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::ReadResp(resp)),
                 );
-                info!("resp pkg:{:?}", response);
+
                 return Some(response);
             }
 

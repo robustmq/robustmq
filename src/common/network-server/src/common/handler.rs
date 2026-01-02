@@ -21,7 +21,9 @@ use common_base::error::client_unavailable_error_by_str;
 use common_base::tools::now_millis;
 use common_metrics::network::metrics_request_queue_size;
 use metadata_struct::connection::NetworkConnectionType;
-use protocol::robust::RobustMQPacket;
+use protocol::robust::{
+    RobustMQPacket, RobustMQPacketWrapper, RobustMQWrapperExtend, StorageEngineWrapperExtend,
+};
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
@@ -118,10 +120,11 @@ async fn process_response(
                 // todo
                 return;
             }
-            RobustMQPacket::StorageEngine(_packet) => {
-                // todo
-                return;
-            }
+            RobustMQPacket::StorageEngine(packet) => RobustMQPacketWrapper {
+                protocol: protocol.clone(),
+                extend: RobustMQWrapperExtend::StorageEngine(StorageEngineWrapperExtend {}),
+                packet: RobustMQPacket::StorageEngine(packet),
+            },
         };
 
         match network_type.clone() {

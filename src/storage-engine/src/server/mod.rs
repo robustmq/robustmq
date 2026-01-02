@@ -110,6 +110,7 @@ impl Server {
             self.memory_storage_engine.clone(),
             self.rocksdb_storage_engine.clone(),
             self.client_connection_manager.clone(),
+            self.connection_manager.clone(),
         ));
         Arc::new(storage)
     }

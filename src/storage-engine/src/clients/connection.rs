@@ -16,7 +16,8 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use common_base::tools::now_second;
 use futures::{SinkExt, StreamExt};
-use protocol::storage::codec::{StorageEngineCodec, StorageEnginePacket};
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -30,7 +31,7 @@ const RETRY_SLEEP_MS: u64 = 100;
 const REQUEST_TIMEOUT_SECS: u64 = 30;
 
 pub struct ClientConnection {
-    pub stream: Framed<TcpStream, StorageEngineCodec>,
+    pub stream: Framed<TcpStream, RobustMQCodec>,
     pub last_active_time: u64,
 }
 
@@ -117,15 +118,19 @@ impl NodeConnection {
         conn: &mut ClientConnection,
         req_packet: &StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
+        let wrapper = RobustMQCodecWrapper::StorageEngine(req_packet.clone());
         conn.stream
-            .send(req_packet.clone())
+            .send(wrapper.clone())
             .await
             .map_err(|e| StorageEngineError::CommonErrorStr(format!("Send error: {}", e)))?;
 
         match conn.stream.next().await {
             Some(Ok(response)) => {
                 conn.last_active_time = now_second();
-                Ok(response)
+                match response {
+                    RobustMQCodecWrapper::StorageEngine(pkg) => Ok(pkg),
+                    _ => Err(StorageEngineError::CommonErrorStr("".to_string())),
+                }
             }
             Some(Err(e)) => Err(StorageEngineError::CommonErrorStr(format!(
                 "Received packet error: {}",
@@ -147,7 +152,7 @@ impl NodeConnection {
         Ok(())
     }
 
-    async fn open(&self) -> Result<Framed<TcpStream, StorageEngineCodec>, StorageEngineError> {
+    async fn open(&self) -> Result<Framed<TcpStream, RobustMQCodec>, StorageEngineError> {
         let Some(node) = self
             .cache_manager
             .broker_cache
@@ -159,7 +164,7 @@ impl NodeConnection {
         let addr = node.engine_addr.clone();
         println!("{:?}", addr);
         let socket = TcpStream::connect(&addr).await?;
-        Ok(Framed::new(socket, StorageEngineCodec::new()))
+        Ok(Framed::new(socket, RobustMQCodec::new()))
     }
 
     pub async fn connect(&self) -> Result<(), StorageEngineError> {
