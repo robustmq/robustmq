@@ -104,7 +104,7 @@ mod tests {
             .unwrap();
         check_response(&delete_result, "delete_shard");
 
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(20)).await;
         let shard_list_after_delete = client
             .get_shard_list::<_, Vec<ShardListRow>>(&list_req)
             .await

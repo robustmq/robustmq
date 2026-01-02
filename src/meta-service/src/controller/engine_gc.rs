@@ -25,11 +25,9 @@ use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::SegmentStatus;
 use metadata_struct::storage::shard::EngineShardStatus;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::warn;
 
 pub async fn start_engine_delete_gc_thread(
     raft_manager: Arc<MultiRaftManager>,
@@ -49,7 +47,7 @@ pub async fn start_engine_delete_gc_thread(
         }
         Ok(())
     };
-    loop_select_ticket(ac_fn, 1000, &stop_send).await;
+    loop_select_ticket(ac_fn, 10000, &stop_send).await;
 }
 
 async fn gc_shard(
@@ -64,15 +62,6 @@ async fn gc_shard(
         } else {
             continue;
         };
-
-        if shard.status != EngineShardStatus::PrepareDelete {
-            warn!(
-                "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
-                shard.shard_name, shard.status
-            );
-            cache_manager.remove_wait_delete_shard(&shard_name);
-            continue;
-        }
 
         update_shard_status(
             raft_manager,
@@ -104,16 +93,6 @@ async fn gc_segment(
             cache_manager.remove_wait_delete_segment(&segment);
             continue;
         };
-
-        if segment.status != SegmentStatus::PreDelete {
-            warn!(
-                "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",
-                segment.name(),
-                segment.status
-            );
-            cache_manager.remove_wait_delete_segment(&segment);
-            continue;
-        }
 
         update_cache_by_delete_segment(call_manager, client_pool, segment.clone()).await?;
         delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
