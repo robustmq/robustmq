@@ -117,7 +117,11 @@ pub async fn create_shard_to_place(
 
     let start = Instant::now();
     loop {
-        if cache_manager.shards.contains_key(shard_name) {
+        let segment_iden = SegmentIdentity::new(shard_name, 0);
+        if cache_manager.shards.contains_key(shard_name)
+            && cache_manager.get_segment(&segment_iden).is_some()
+            && cache_manager.get_segment_meta(&segment_iden).is_some()
+        {
             info!("Shard {} created successfully", shard_name);
             return Ok(());
         }

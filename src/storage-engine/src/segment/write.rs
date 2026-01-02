@@ -47,6 +47,7 @@ pub struct WriteChannelData {
     pub resp_sx: oneshot::Sender<SegmentWriteResp>,
 }
 
+#[derive(Debug, Clone)]
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
     pub header: Option<Vec<metadata_struct::storage::storage_record::Header>>,
@@ -278,7 +279,6 @@ pub fn create_io_thread(
                     };
                     offset
                 };
-
                 let create_t = now_second();
                 let mut start_offset = offset;
                 sender_list.push(channel_data.resp_sx);

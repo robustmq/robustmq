@@ -59,6 +59,7 @@ pub async fn write_data_req(
     params_validator(cache_manager, shard_name)?;
 
     let mut record_list = Vec::new();
+
     for message_bytes in messages {
         let adapter_record = deserialize::<AdapterWriteRecord>(message_bytes)?;
         record_list.push(adapter_record);

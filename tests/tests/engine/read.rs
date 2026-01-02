@@ -29,8 +29,10 @@ mod tests {
         WriteReqBody,
     };
     use std::sync::Arc;
+    use std::time::Duration;
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::core::cache::StorageCacheManager;
+    use tokio::time::sleep;
 
     use crate::mqtt::protocol::common::create_test_env;
 
@@ -48,6 +50,7 @@ mod tests {
             .await
             .unwrap();
         println!("{:?}", create_result);
+        sleep(Duration::from_secs(10)).await;
 
         let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
         let node_id = 1;
@@ -75,7 +78,7 @@ mod tests {
         let write_req = WriteReq::new(WriteReqBody::new(shard_name.clone(), messages));
         let write_packet = StorageEnginePacket::WriteReq(write_req);
         let write_resp = client.write_send(node_id, write_packet).await.unwrap();
-        
+
         match write_resp {
             StorageEnginePacket::WriteResp(resp) => {
                 if let Some(error) = resp.header.error {

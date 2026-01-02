@@ -119,8 +119,14 @@ impl RocksDBEngine {
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
-            Ok(Some(data)) if !data.is_empty() => serialize::deserialize::<T>(&data).map(Some),
-            Ok(_) => Ok(None),
+            Ok(Some(data)) => {
+                if data.is_empty() {
+                    Ok(None)
+                } else {
+                    serialize::deserialize::<T>(&data).map(Some)
+                }
+            }
+            Ok(None) => Ok(None),
             Err(e) => Err(CommonError::CommonError(format!(
                 "Failed to get from CF: {e:?}"
             ))),

@@ -179,7 +179,7 @@ pub fn get_latest_offset(
             let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
             let segment_iden = SegmentIdentity::new(shard_name, shard.active_segment_seq);
             let start_offset = segment_index_manager.get_start_offset(&segment_iden)?;
-            if start_offset <= 0 {
+            if start_offset < 0 {
                 return Err(StorageEngineError::NoOffsetInformation(
                     shard_name.to_string(),
                 ));

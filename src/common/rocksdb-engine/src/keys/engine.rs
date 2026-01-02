@@ -16,7 +16,7 @@ use super::PREFIX_ENGINE;
 
 #[inline]
 fn shard_base(shard: &str) -> String {
-    format!("{}/{}/", PREFIX_ENGINE, shard)
+    format!("{}{}/", PREFIX_ENGINE, shard)
 }
 
 #[inline]
