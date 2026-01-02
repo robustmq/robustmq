@@ -47,6 +47,7 @@ pub struct WriteChannelData {
     pub resp_sx: oneshot::Sender<SegmentWriteResp>,
 }
 
+#[derive(Debug, Clone)]
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
     pub header: Option<Vec<metadata_struct::storage::storage_record::Header>>,
@@ -278,7 +279,6 @@ pub fn create_io_thread(
                     };
                     offset
                 };
-
                 let create_t = now_second();
                 let mut start_offset = offset;
                 sender_list.push(channel_data.resp_sx);
@@ -531,6 +531,7 @@ mod tests {
     use crate::core::test_tool::test_init_segment;
     use crate::segment::file::SegmentFile;
     use bytes::Bytes;
+    use metadata_struct::storage::shard::EngineStorageType;
     use metadata_struct::storage::storage_record::StorageRecordMetadata;
 
     fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageRecord> {
@@ -555,7 +556,8 @@ mod tests {
 
     #[tokio::test]
     async fn batch_write_test() {
-        let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
+        let (segment_iden, cache_manager, fold, rocksdb) =
+            test_init_segment(EngineStorageType::Segment).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
@@ -602,7 +604,8 @@ mod tests {
 
     #[tokio::test]
     async fn batch_write_empty_data_test() {
-        let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
+        let (segment_iden, cache_manager, fold, rocksdb) =
+            test_init_segment(EngineStorageType::Segment).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
@@ -636,7 +639,8 @@ mod tests {
 
     #[tokio::test]
     async fn write_manager_write_test() {
-        let (segment_iden, cache_manager, fold, rocksdb) = test_init_segment().await;
+        let (segment_iden, cache_manager, fold, rocksdb) =
+            test_init_segment(EngineStorageType::Segment).await;
 
         save_latest_offset_by_shard(&rocksdb, &segment_iden.shard_name, 0).unwrap();
         let client_poll = Arc::new(ClientPool::new(100));
@@ -691,7 +695,8 @@ mod tests {
 
     #[tokio::test]
     async fn write_manager_no_offset_error_test() {
-        let (segment_iden, cache_manager, _fold, rocksdb) = test_init_segment().await;
+        let (segment_iden, cache_manager, _fold, rocksdb) =
+            test_init_segment(EngineStorageType::Segment).await;
         let client_poll = Arc::new(ClientPool::new(100));
         let write_manager = WriteManager::new(
             rocksdb.clone(),
@@ -725,7 +730,8 @@ mod tests {
     async fn write_manager_segment_not_exist_error_test() {
         use crate::segment::SegmentIdentity;
 
-        let (_, cache_manager, _fold, rocksdb) = test_init_segment().await;
+        let (_, cache_manager, _fold, rocksdb) =
+            test_init_segment(EngineStorageType::Segment).await;
 
         let client_poll = Arc::new(ClientPool::new(100));
 
@@ -765,7 +771,8 @@ mod tests {
 
     #[tokio::test]
     async fn write_manager_no_io_thread_error_test() {
-        let (segment_iden, cache_manager, _fold, rocksdb) = test_init_segment().await;
+        let (segment_iden, cache_manager, _fold, rocksdb) =
+            test_init_segment(EngineStorageType::Segment).await;
         let client_poll = Arc::new(ClientPool::new(100));
 
         let write_manager = WriteManager::new(

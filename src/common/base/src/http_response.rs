@@ -18,17 +18,23 @@ use serde::{Deserialize, Serialize};
 pub struct AdminServerResponse<T> {
     pub code: u64,
     pub data: T,
+    pub error: Option<String>,
 }
 
 pub fn success_response<T: Serialize>(data: T) -> String {
-    let resp = AdminServerResponse { code: 0, data };
+    let resp = AdminServerResponse {
+        code: 0,
+        data,
+        error: None,
+    };
     serde_json::to_string(&resp).unwrap()
 }
 
 pub fn error_response(err: String) -> String {
     let resp = AdminServerResponse {
         code: 100,
-        data: err,
+        error: Some(err),
+        data: "".to_string(),
     };
     serde_json::to_string(&resp).unwrap()
 }

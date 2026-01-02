@@ -38,11 +38,12 @@ mod tests {
             roles: Vec::new(),
             node_ip: node_ip.clone(),
             node_id,
-            node_inner_addr: "127.0.0.1:1228".to_string(),
+            grpc_addr: "127.0.0.1:1228".to_string(),
             extend: Vec::new(),
             register_time: now_second(),
             start_time: now_second(),
             storage_fold: Vec::new(),
+            ..Default::default()
         };
         let request = RegisterNodeRequest {
             node: node.encode().unwrap(),

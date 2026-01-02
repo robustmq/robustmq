@@ -112,6 +112,7 @@ impl MetaServiceServer {
             self.cache_manager.clone(),
             self.client_pool.clone(),
             self.raft_manager.clone(),
+            self.broker_call_manager.clone(),
             self.main_stop.clone(),
         );
     }

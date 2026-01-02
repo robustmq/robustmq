@@ -93,7 +93,7 @@ impl GrpcEngineService {
             | MetaServiceError::InvalidSegmentGreaterThan(_, _)
             | MetaServiceError::InvalidSegmentLessThan(_, _) => Status::invalid_argument(msg),
 
-            MetaServiceError::NotEnoughEngineNodes(_, _)
+            MetaServiceError::NotEnoughEngineNodes(_, _, _)
             | MetaServiceError::ShardHasEnoughSegment(_)
             | MetaServiceError::NumberOfReplicasIsIncorrect(_, _)
             | MetaServiceError::NoAvailableBrokerNode

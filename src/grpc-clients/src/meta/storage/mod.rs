@@ -29,18 +29,18 @@ use crate::macros::impl_retriable_request;
 pub mod call;
 
 #[derive(Clone)]
-pub struct JournalServiceManager {
+pub struct StorageEngineServiceManager {
     pub addr: String,
 }
 
-impl JournalServiceManager {
+impl StorageEngineServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }
 
 #[tonic::async_trait]
-impl Manager for JournalServiceManager {
+impl Manager for StorageEngineServiceManager {
     type Connection = EngineServiceClient<Channel>;
     type Error = CommonError;
 

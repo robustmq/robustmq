@@ -216,6 +216,7 @@ impl BrokerServer {
             },
             engine_context: StorageEngineContext {
                 engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
+                cache_manager: self.engine_params.cache_manager.clone(),
             },
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache,
@@ -286,7 +287,7 @@ impl BrokerServer {
             journal_runtime.spawn(async move {
                 server.start().await;
             });
-            self.wait_for_journal_ready();
+            self.wait_for_engine_ready();
         }
 
         // start mqtt server
@@ -552,7 +553,7 @@ impl BrokerServer {
         info!("GRPC server startup check completed");
     }
 
-    fn wait_for_journal_ready(&self) {
+    fn wait_for_engine_ready(&self) {
         let journal_port = self.config.storage_runtime.tcp_port;
         let max_wait_time = Duration::from_secs(10);
         let check_interval = Duration::from_millis(100);
@@ -561,7 +562,7 @@ impl BrokerServer {
         while start_time.elapsed() < max_wait_time {
             match std::net::TcpStream::connect(format!("127.0.0.1:{journal_port}")) {
                 Ok(_) => {
-                    info!("Journal server startup check completed");
+                    info!("Storage Engine startup check completed");
                     return;
                 }
                 Err(_) => {
@@ -570,7 +571,7 @@ impl BrokerServer {
             }
         }
 
-        error!("Journal server failed to start within {:?}", max_wait_time);
+        error!("Storage Engine failed to start within {:?}", max_wait_time);
         std::process::exit(1);
     }
 

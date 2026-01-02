@@ -20,7 +20,6 @@ use crate::segment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
-use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::fs::remove_dir_all;
@@ -103,16 +102,11 @@ pub async fn create_shard_to_place(
     shard: &AdapterShardInfo,
 ) -> Result<(), StorageEngineError> {
     let shard_name = &shard.shard_name;
-    let config = EngineShardConfig {
-        replica_num: shard.replica_num,
-        max_segment_size: 1073741824,
-        retention_sec: shard.config.retention_sec,
-    };
 
     let conf: &common_config::config::BrokerConfig = broker_config();
     let request = CreateShardRequest {
         shard_name: shard_name.to_string(),
-        shard_config: config.encode()?,
+        shard_config: shard.config.encode()?,
     };
     grpc_clients::meta::storage::call::create_shard(
         client_pool,
@@ -123,7 +117,11 @@ pub async fn create_shard_to_place(
 
     let start = Instant::now();
     loop {
-        if cache_manager.shards.contains_key(shard_name) {
+        let segment_iden = SegmentIdentity::new(shard_name, 0);
+        if cache_manager.shards.contains_key(shard_name)
+            && cache_manager.get_segment(&segment_iden).is_some()
+            && cache_manager.get_segment_meta(&segment_iden).is_some()
+        {
             info!("Shard {} created successfully", shard_name);
             return Ok(());
         }

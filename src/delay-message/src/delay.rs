@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
@@ -129,8 +129,7 @@ pub(crate) async fn init_delay_message_shard(
         if results.is_empty() {
             let shard = AdapterShardInfo {
                 shard_name: shard_name.clone(),
-                replica_num: 1,
-                ..Default::default()
+                config: EngineShardConfig::default(),
             };
             message_storage_adapter.create_shard(&shard).await?;
             debug!("Created delay message shard: {}", shard_name);
@@ -144,8 +143,7 @@ pub(crate) async fn init_delay_message_shard(
     if results.is_empty() {
         let shard = AdapterShardInfo {
             shard_name: DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
-            replica_num: 1,
-            ..Default::default()
+            config: EngineShardConfig::default(),
         };
         message_storage_adapter.create_shard(&shard).await?;
         debug!(

@@ -131,7 +131,7 @@ pub fn get_earliest_offset(
         .get(shard_name)
         .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
 
-    match shard.engine_type {
+    match shard.get_engine_type()? {
         EngineStorageType::Memory | EngineStorageType::RocksDB => {
             if let Some(offset) = read_earliest_offset_by_shard(rocksdb_engine_handler, shard_name)?
             {
@@ -172,14 +172,14 @@ pub fn get_latest_offset(
         return Ok(offset);
     }
 
-    match shard.engine_type {
+    match shard.get_engine_type()? {
         EngineStorageType::Memory | EngineStorageType::RocksDB => Ok(0),
 
         EngineStorageType::Segment => {
             let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
             let segment_iden = SegmentIdentity::new(shard_name, shard.active_segment_seq);
             let start_offset = segment_index_manager.get_start_offset(&segment_iden)?;
-            if start_offset <= 0 {
+            if start_offset < 0 {
                 return Err(StorageEngineError::NoOffsetInformation(
                     shard_name.to_string(),
                 ));

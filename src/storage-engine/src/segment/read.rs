@@ -107,13 +107,77 @@ pub async fn segment_read_by_tag(
 
 #[cfg(test)]
 mod tests {
+    use std::{sync::Arc, time::Duration};
+
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
-    use crate::{core::test_tool::test_base_write_data, segment::file::SegmentFile};
+    use crate::{
+        core::{
+            cache::StorageCacheManager, shard_offset::save_latest_offset_by_shard,
+            test_tool::test_init_segment,
+        },
+        segment::{
+            file::SegmentFile,
+            write::{WriteChannelDataRecord, WriteManager},
+            SegmentIdentity,
+        },
+    };
+    use bytes::Bytes;
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::storage::shard::EngineStorageType;
     use protocol::storage::protocol::ReadReqOptions;
+    use rocksdb_engine::rocksdb::RocksDBEngine;
+    use tokio::{sync::broadcast, time::sleep};
+
+    #[allow(dead_code)]
+    pub async fn test_base_write_data(
+        engine_storage_type: EngineStorageType,
+        len: u64,
+    ) -> (
+        SegmentIdentity,
+        Arc<StorageCacheManager>,
+        String,
+        Arc<RocksDBEngine>,
+    ) {
+        let (segment_iden, cache_manager, fold, rocksdb_engine_handler) =
+            test_init_segment(engine_storage_type).await;
+        save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
+
+        let client_poll = Arc::new(ClientPool::new(100));
+
+        let write_manager = WriteManager::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            client_poll.clone(),
+            3,
+        );
+
+        let (stop_send, _) = broadcast::channel(2);
+        write_manager.start(stop_send.clone());
+
+        sleep(Duration::from_millis(100)).await;
+
+        let mut data_list = Vec::new();
+        for i in 0..len {
+            data_list.push(WriteChannelDataRecord {
+                pkid: i,
+                header: None,
+                key: Some(format!("key-{}", i)),
+                tags: Some(vec![format!("tag-{}", i)]),
+                value: Bytes::from(format!("data-{i}")),
+            });
+        }
+
+        let _res = write_manager.write(&segment_iden, data_list).await.unwrap();
+        stop_send.send(true).ok();
+        sleep(Duration::from_millis(100)).await;
+
+        (segment_iden, cache_manager, fold, rocksdb_engine_handler)
+    }
 
     #[tokio::test]
     async fn read_by_offset_test() {
-        let (segment_iden, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
+        let (segment_iden, _, fold, rocksdb_engine_handler) =
+            test_base_write_data(EngineStorageType::Segment, 30).await;
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
@@ -163,7 +227,7 @@ mod tests {
     #[tokio::test]
     async fn read_by_key_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
-            test_base_write_data(30).await;
+            test_base_write_data(EngineStorageType::Segment, 30).await;
 
         let key = "key-5".to_string();
         let resp = segment_read_by_key(
@@ -183,7 +247,7 @@ mod tests {
     #[tokio::test]
     async fn read_by_tag_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
-            test_base_write_data(30).await;
+            test_base_write_data(EngineStorageType::Segment, 30).await;
 
         let read_options = ReadReqOptions {
             max_record: 10,

@@ -74,6 +74,7 @@ pub enum SegmentStatus {
     PreSealUp,
     SealUp,
     PreDelete,
+    Deleting,
 }
 
 impl fmt::Display for SegmentStatus {
@@ -83,6 +84,7 @@ impl fmt::Display for SegmentStatus {
             SegmentStatus::PreSealUp => write!(f, "PreSealUp"),
             SegmentStatus::SealUp => write!(f, "SealUp"),
             SegmentStatus::PreDelete => write!(f, "PreDelete"),
+            SegmentStatus::Deleting => write!(f, "Deleting"),
         }
     }
 }

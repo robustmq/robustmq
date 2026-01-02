@@ -179,28 +179,7 @@ impl ConnectionManager {
             debug!("WebSockets response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
-        let _network_type = if let Some(connection) = self.get_connect(connection_id) {
-            connection.connection_type.to_string()
-        } else {
-            "".to_string()
-        };
-
-        if packet_wrapper.protocol.is_mqtt() {
-            match self.write_mqtt_websocket_frame(connection_id, resp).await {
-                Ok(_) => {
-                    return Ok(());
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
-
-        if packet_wrapper.protocol.is_kafka() {
-            // todo
-        }
-
-        Ok(())
+        self.write_websocket_frame0(connection_id, resp).await
     }
 
     pub async fn write_tcp_frame(
@@ -212,25 +191,29 @@ impl ConnectionManager {
             info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
-        let _network_type = if let Some(connection) = self.get_connect(connection_id) {
-            connection.connection_type.to_string()
-        } else {
-            "".to_string()
-        };
-
         if packet_wrapper.protocol.is_mqtt() {
             if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
                 let mqtt_packet = MqttPacketWrapper {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                self.write_mqtt_tcp_frame(connection_id, mqtt_packet)
+
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::MQTT(mqtt_packet))
                     .await?;
+                return Ok(());
             }
         }
 
         if packet_wrapper.protocol.is_kafka() {
             // todo
+        }
+
+        if packet_wrapper.protocol.is_engine() {
+            if let RobustMQPacket::StorageEngine(pack) = packet_wrapper.packet {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
+                    .await?;
+                return Ok(());
+            }
         }
         Ok(())
     }
@@ -241,14 +224,8 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            debug!("Quic response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            debug!("QUIC response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
-
-        let _network_type = if let Some(connection) = self.get_connect(connection_id) {
-            connection.connection_type.to_string()
-        } else {
-            "".to_string()
-        };
 
         if packet_wrapper.protocol.is_mqtt() {
             if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
@@ -256,8 +233,9 @@ impl ConnectionManager {
                     protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
-                self.write_mqtt_quic_frame(connection_id, mqtt_packet)
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::MQTT(mqtt_packet))
                     .await?;
+                return Ok(());
             }
         }
 
@@ -265,6 +243,13 @@ impl ConnectionManager {
             // todo
         }
 
+        if packet_wrapper.protocol.is_engine() {
+            if let RobustMQPacket::StorageEngine(pack) = packet_wrapper.packet {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
+                    .await?;
+                return Ok(());
+            }
+        }
         Ok(())
     }
 }
@@ -302,11 +287,7 @@ impl ConnectionManager {
             .insert(connection_id, quic_framed_write_stream);
     }
 
-    pub async fn write_mqtt_websocket_frame(
-        &self,
-        connection_id: u64,
-        resp: Message,
-    ) -> ResultCommonError {
+    async fn write_websocket_frame0(&self, connection_id: u64, resp: Message) -> ResultCommonError {
         let mut times = 0;
         loop {
             match self.websocket_write_list.try_get_mut(&connection_id) {
@@ -346,14 +327,14 @@ impl ConnectionManager {
         Ok(())
     }
 
-    pub async fn write_mqtt_tcp_frame(
+    async fn write_tcp_frame0(
         &self,
         connection_id: u64,
-        resp: MqttPacketWrapper,
+        resp: RobustMQCodecWrapper,
     ) -> ResultCommonError {
         if let Some(connection) = self.get_connect(connection_id) {
             if connection.connection_type == NetworkConnectionType::Tls {
-                return self.write_mqtt_tcp_tls_frame(connection_id, resp).await;
+                return self.write_tcp_tls_frame(connection_id, resp).await;
             }
         }
 
@@ -361,7 +342,7 @@ impl ConnectionManager {
         loop {
             match self.tcp_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(RobustMQCodecWrapper::MQTT(resp.clone())).await {
+                    match da.send(resp.clone()).await {
                         Ok(_) => {
                             break;
                         }
@@ -395,16 +376,16 @@ impl ConnectionManager {
         Ok(())
     }
 
-    async fn write_mqtt_tcp_tls_frame(
+    async fn write_tcp_tls_frame(
         &self,
         connection_id: u64,
-        resp: MqttPacketWrapper,
+        resp: RobustMQCodecWrapper,
     ) -> ResultCommonError {
         let mut times = 0;
         loop {
             match self.tcp_tls_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(RobustMQCodecWrapper::MQTT(resp.clone())).await {
+                    match da.send(resp.clone()).await {
                         Ok(_) => {
                             break;
                         }
@@ -434,19 +415,16 @@ impl ConnectionManager {
         Ok(())
     }
 
-    async fn write_mqtt_quic_frame(
+    async fn write_quic_frame0(
         &self,
         connection_id: u64,
-        resp: MqttPacketWrapper,
+        resp: RobustMQCodecWrapper,
     ) -> ResultCommonError {
         let mut times = 0;
         loop {
             match self.quic_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    match da
-                        .send(RobustMQCodecWrapper::MQTT(resp.clone()).clone())
-                        .await
-                    {
+                    match da.send(resp.clone()).await {
                         Ok(_) => {
                             break;
                         }
@@ -482,8 +460,18 @@ impl ConnectionManager {
                 3 => connect.set_protocol(RobustMQProtocol::MQTT3),
                 4 => connect.set_protocol(RobustMQProtocol::MQTT4),
                 5 => connect.set_protocol(RobustMQProtocol::MQTT5),
+                10 => connect.set_protocol(RobustMQProtocol::KAFKA),
+                11 => connect.set_protocol(RobustMQProtocol::StorageEngine),
                 _ => {}
             };
+        }
+    }
+
+    pub fn set_storage_engine_protocol(&self, connect_id: u64) {
+        if let Some(mut connect) = self.connections.get_mut(&connect_id) {
+            if connect.protocol.is_none() {
+                connect.set_protocol(RobustMQProtocol::StorageEngine);
+            }
         }
     }
 }

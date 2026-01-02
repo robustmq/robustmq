@@ -1506,7 +1506,7 @@ impl MqttBrokerCommand {
                         "{:<10} {:<20} {:<25} {:<30} {}",
                         node.node_id,
                         node.node_ip,
-                        node.node_inner_addr,
+                        node.grpc_addr,
                         format!("{:?}", node.roles),
                         start_time_local
                     );

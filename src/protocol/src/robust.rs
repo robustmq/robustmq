@@ -47,6 +47,10 @@ impl RobustMQProtocol {
         *self == RobustMQProtocol::KAFKA
     }
 
+    pub fn is_engine(&self) -> bool {
+        *self == RobustMQProtocol::StorageEngine
+    }
+
     pub fn to_u8(&self) -> u8 {
         match *self {
             RobustMQProtocol::MQTT3 => 3,

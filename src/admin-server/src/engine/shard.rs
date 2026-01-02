@@ -22,11 +22,15 @@ use common_base::http_response::{error_response, success_response};
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
+use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use storage_engine::segment::SegmentIdentity;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ShardListReq {
     pub shard_name: Option<String>,
     pub limit: Option<u32>,
@@ -41,7 +45,7 @@ pub struct ShardListReq {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ShardCreateReq {
     pub shard_name: String,
-    pub replica_num: u32,
+    pub config: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,8 +54,19 @@ pub struct ShardDeleteReq {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ShardDetailReq {
+pub struct SegmentListReq {
     pub shard_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SegmentListResp {
+    pub segment_list: Vec<SegmentListRespRaw>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SegmentListRespRaw {
+    pub segment: EngineSegment,
+    pub segment_meta: Option<EngineSegmentMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -82,19 +97,14 @@ pub struct CommitOffsetReq {
     pub offsets: HashMap<String, u64>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ShardListRow {
-    pub shard_name: String,
-    pub replica_num: u32,
+    pub shard_info: EngineShard,
 }
 
 impl Queryable for ShardListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
-        match field {
-            "shard_name" => Some(self.shard_name.clone()),
-            "replica_num" => Some(self.replica_num.to_string()),
-            _ => None,
-        }
+    fn get_field_str(&self, _field: &str) -> Option<String> {
+        None
     }
 }
 
@@ -126,10 +136,7 @@ pub async fn shard_list(
 
     let shards: Vec<ShardListRow> = result
         .into_iter()
-        .map(|shard| ShardListRow {
-            shard_name: shard.shard_name,
-            replica_num: shard.replica_num,
-        })
+        .map(|shard| ShardListRow { shard_info: shard })
         .collect();
 
     let filtered = apply_filters(shards, &options);
@@ -150,14 +157,20 @@ pub async fn shard_create(
         return error_response("shard_name cannot be empty".to_string());
     }
 
-    if params.replica_num == 0 {
-        return error_response("replica_num must be greater than 0".to_string());
+    if params.config.is_empty() {
+        return error_response("config cannot be empty".to_string());
     }
+
+    let config: EngineShardConfig = match serde_json::from_str(&params.config) {
+        Ok(c) => c,
+        Err(e) => {
+            return error_response(format!("Invalid config JSON: {}", e));
+        }
+    };
 
     let shard_info = AdapterShardInfo {
         shard_name: params.shard_name.clone(),
-        replica_num: params.replica_num,
-        ..Default::default()
+        config,
     };
 
     if let Err(e) = state
@@ -193,10 +206,29 @@ pub async fn shard_delete(
 }
 
 pub async fn segment_list(
-    State(_state): State<Arc<HttpState>>,
-    Json(_params): Json<ShardDetailReq>,
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<SegmentListReq>,
 ) -> String {
-    success_response("shard_detail")
+    let segment_list = state
+        .engine_context
+        .cache_manager
+        .get_segments_list_by_shard(&params.shard_name);
+
+    let mut results: Vec<_> = Vec::new();
+    for segment in segment_list {
+        let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
+        let meta = state
+            .engine_context
+            .cache_manager
+            .get_segment_meta(&segment_iden);
+        results.push(SegmentListRespRaw {
+            segment: segment.clone(),
+            segment_meta: meta,
+        });
+    }
+    success_response(SegmentListResp {
+        segment_list: results,
+    })
 }
 
 pub async fn get_offset_by_timestamp(

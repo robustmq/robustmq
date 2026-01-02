@@ -115,7 +115,7 @@ pub async fn start_call_thread(
                     call_mqtt_update_cache(
                         &client_pool,
                         &call_manager.broker_cache,
-                        &node.node_inner_addr,
+                        &node.grpc_addr,
                         &filtered,
                     )
                     .await;
@@ -406,10 +406,8 @@ mod tests {
             extend: vec![],
             node_id,
             node_ip: "127.0.0.1".to_string(),
-            node_inner_addr: format!("127.0.0.1:{}", 9000 + node_id),
-            start_time: 0,
-            register_time: 0,
-            storage_fold: vec![],
+            grpc_addr: format!("127.0.0.1:{}", 9000 + node_id),
+            ..Default::default()
         }
     }
 

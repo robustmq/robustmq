@@ -56,15 +56,7 @@ pub async fn batch_write(
     let conf = broker_config();
 
     let offsets = if conf.broker_id == active_segment.leader {
-        write_data_to_remote(
-            client_connection_manager,
-            active_segment.leader,
-            shard_name,
-            records,
-        )
-        .await?
-    } else {
-        match shard.engine_type {
+        match shard.get_engine_type()? {
             EngineStorageType::Memory => {
                 write_memory_to_local(memory_storage_engine, shard_name, records).await?
             }
@@ -81,6 +73,14 @@ pub async fn batch_write(
                 .await?
             }
         }
+    } else {
+        write_data_to_remote(
+            client_connection_manager,
+            active_segment.leader,
+            shard_name,
+            records,
+        )
+        .await?
     };
     Ok(offsets)
 }

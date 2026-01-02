@@ -13,3 +13,6 @@
 // limitations under the License.
 
 pub mod mqtt;
+
+#[cfg(test)]
+mod tests {}

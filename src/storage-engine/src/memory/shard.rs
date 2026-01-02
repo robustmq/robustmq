@@ -17,7 +17,7 @@ use crate::{
     memory::engine::MemoryStorageEngine,
 };
 use dashmap::DashMap;
-use metadata_struct::storage::adapter_offset::{AdapterReadShardInfo, AdapterShardInfo};
+use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShard};
 use std::sync::Arc;
 
 impl MemoryStorageEngine {
@@ -33,10 +33,12 @@ impl MemoryStorageEngine {
 
         let shard_name = shard.shard_name.clone();
         let capacity = self.config.max_records_per_shard.min(1024);
+        let engine_shard = EngineShard::new(shard.shard_name.clone(), shard.config.clone());
 
         self.shard_data
             .insert(shard_name.clone(), DashMap::with_capacity(capacity));
-        self.shard_info.insert(shard_name.clone(), shard.clone());
+        self.shard_info
+            .insert(shard_name.clone(), engine_shard.clone());
         self.shard_state
             .insert(shard_name.clone(), ShardState::default());
         self.shard_write_locks
@@ -48,33 +50,20 @@ impl MemoryStorageEngine {
     pub async fn list_shard(
         &self,
         shard: Option<String>,
-    ) -> Result<Vec<AdapterReadShardInfo>, StorageEngineError> {
+    ) -> Result<Vec<EngineShard>, StorageEngineError> {
         self.storage_type_check()?;
 
         if let Some(shard_name) = shard {
             Ok(self
                 .shard_info
                 .get(&shard_name)
-                .map(|info| {
-                    vec![AdapterReadShardInfo {
-                        shard_name: info.shard_name.clone(),
-                        replica_num: info.replica_num,
-                        ..Default::default()
-                    }]
-                })
+                .map(|info| vec![info.clone()])
                 .unwrap_or_default())
         } else {
             Ok(self
                 .shard_info
                 .iter()
-                .map(|entry| {
-                    let info = entry.value().clone();
-                    AdapterReadShardInfo {
-                        shard_name: info.shard_name,
-                        replica_num: info.replica_num,
-                        ..Default::default()
-                    }
-                })
+                .map(|entry| entry.value().clone())
                 .collect())
         }
     }

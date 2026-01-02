@@ -226,9 +226,7 @@ mod tests {
     use crate::segment::file::SegmentFile;
     use broker_core::cache::BrokerCacheManager;
     use common_config::broker::default_broker_config;
-    use metadata_struct::storage::shard::{
-        EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
-    };
+    use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 
     #[test]
     fn is_trigger_scroll_test() {
@@ -299,9 +297,7 @@ mod tests {
             last_segment_seq: segment_iden.segment,
             status: EngineShardStatus::Run,
             config: EngineShardConfig::default(),
-            engine_type: EngineStorageType::Segment,
-            replica_num: 1,
-            create_time: 0,
+            create_time: now_second(),
         };
         cache_manager.set_shard(shard);
 
