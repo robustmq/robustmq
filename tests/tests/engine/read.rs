@@ -75,8 +75,15 @@ mod tests {
         let write_req = WriteReq::new(WriteReqBody::new(shard_name.clone(), messages));
         let write_packet = StorageEnginePacket::WriteReq(write_req);
         let write_resp = client.write_send(node_id, write_packet).await.unwrap();
+        
         match write_resp {
             StorageEnginePacket::WriteResp(resp) => {
+                if let Some(error) = resp.header.error {
+                    panic!(
+                        "WriteResp error: code={}, message={}",
+                        error.code, error.error
+                    );
+                }
                 assert_eq!(resp.body.status.len(), 1);
                 assert_eq!(resp.body.status[0].shard_name, shard_name);
                 assert_eq!(resp.body.status[0].messages.len(), 10);
@@ -94,6 +101,12 @@ mod tests {
         let read_resp = client.read_send(node_id, read_packet).await.unwrap();
         match read_resp {
             StorageEnginePacket::ReadResp(resp) => {
+                if let Some(error) = resp.header.error {
+                    panic!(
+                        "ReadResp(Offset) error: code={}, message={}",
+                        error.code, error.error
+                    );
+                }
                 assert_eq!(resp.body.messages.len(), 5);
                 for (idx, record_bytes) in resp.body.messages.iter().enumerate() {
                     let record: StorageRecord = deserialize(record_bytes).unwrap();
@@ -117,6 +130,12 @@ mod tests {
         let read_resp = client.read_send(node_id, read_packet).await.unwrap();
         match read_resp {
             StorageEnginePacket::ReadResp(resp) => {
+                if let Some(error) = resp.header.error {
+                    panic!(
+                        "ReadResp(Key) error: code={}, message={}",
+                        error.code, error.error
+                    );
+                }
                 assert_eq!(resp.body.messages.len(), 1);
                 let record: StorageRecord = deserialize(&resp.body.messages[0]).unwrap();
                 assert_eq!(record.metadata.key.unwrap(), "key-3");
@@ -138,6 +157,12 @@ mod tests {
         let read_resp = client.read_send(node_id, read_packet).await.unwrap();
         match read_resp {
             StorageEnginePacket::ReadResp(resp) => {
+                if let Some(error) = resp.header.error {
+                    panic!(
+                        "ReadResp(Tag) error: code={}, message={}",
+                        error.code, error.error
+                    );
+                }
                 assert!(resp.body.messages.len() >= 3);
                 for record_bytes in resp.body.messages.iter() {
                     let record: StorageRecord = deserialize(record_bytes).unwrap();

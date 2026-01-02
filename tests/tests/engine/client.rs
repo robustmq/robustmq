@@ -51,8 +51,8 @@ mod tests {
             .await;
 
         match &res {
-            Ok(resp) => println!("✅ Success: {:?}", resp),
-            Err(e) => println!("❌ Error: {:?}", e),
+            Ok(resp) => println!("Success: {:?}", resp),
+            Err(e) => println!("Error: {:?}", e),
         }
 
         assert!(res.is_ok(), "Failed to connect: {:?}", res);
