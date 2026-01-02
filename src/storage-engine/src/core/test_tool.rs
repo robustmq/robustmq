@@ -38,10 +38,13 @@ use bytes::Bytes;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
+use common_config::storage::StorageAdapterType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
+use metadata_struct::storage::shard::{
+    EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
@@ -90,7 +93,12 @@ pub async fn test_init_segment() -> (
         active_segment_seq: 0,
         last_segment_seq: 0,
         status: EngineShardStatus::Run,
-        config: EngineShardConfig::default(),
+        config: EngineShardConfig {
+            retention_sec: 10,
+            storage_adapter_type: StorageAdapterType::Engine,
+            engine_storage_type: Some(EngineStorageType::Segment),
+            ..Default::default()
+        },
         create_time: now_second(),
     };
     cache_manager.set_shard(shard);

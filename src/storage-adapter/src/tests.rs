@@ -68,7 +68,7 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     adapter
         .create_shard(&AdapterShardInfo {
             shard_name: shard2_name.clone(),
-            ..Default::default()
+            config: EngineShardConfig::default(),
         })
         .await
         .unwrap();
@@ -78,7 +78,7 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
         adapter.list_shard(Some(shard1_name.clone())).await.unwrap()[0]
             .config
             .replica_num,
-        3
+        1
     );
 
     adapter.delete_shard(&shard1_name).await.unwrap();

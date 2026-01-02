@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{core::error::StorageEngineError, rocksdb::engine::RocksDBStorageEngine};
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::{loop_select_ticket, now_second},
@@ -19,16 +20,13 @@ use common_base::{
 };
 use futures::stream::StreamExt;
 use metadata_struct::storage::{
-    adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo},
-    storage_record::StorageRecord,
+    adapter_offset::AdapterOffsetStrategy, shard::EngineShard, storage_record::StorageRecord,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
     key_index_key, shard_info_key_prefix, shard_record_key, tag_index_key, timestamp_index_key,
 };
 use tokio::sync::broadcast;
-
-use crate::{core::error::StorageEngineError, rocksdb::engine::RocksDBStorageEngine};
 
 impl RocksDBStorageEngine {
     pub async fn start_expire_thread(&self, stop_sx: &broadcast::Sender<bool>) {
@@ -50,7 +48,7 @@ impl RocksDBStorageEngine {
 
             let mut shard_infos = Vec::new();
             for (_, v) in raw_shard_info {
-                let info = serialize::deserialize::<AdapterShardInfo>(v.as_slice())?;
+                let info = serialize::deserialize::<EngineShard>(v.as_slice())?;
                 shard_infos.push(info);
             }
             shard_infos
@@ -75,7 +73,7 @@ impl RocksDBStorageEngine {
 
     async fn scan_and_delete_data_by_shard(
         &self,
-        shard: AdapterShardInfo,
+        shard: EngineShard,
     ) -> Result<(), StorageEngineError> {
         let earliest_timestamp = now_second() - shard.config.retention_sec;
         let earliest_offset = self.get_earliest_offset(&shard.shard_name)?;
@@ -149,13 +147,15 @@ impl RocksDBStorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::core::{shard::StorageEngineRunType, test_tool::test_build_engine};
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};
+    use common_config::storage::StorageAdapterType;
     use metadata_struct::storage::{
-        adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,
-        shard::EngineShardConfig,
+        adapter_offset::AdapterShardInfo,
+        adapter_read_config::AdapterReadConfig,
+        adapter_record::AdapterWriteRecord,
+        shard::{EngineShardConfig, EngineStorageType},
     };
 
     #[tokio::test]
@@ -166,7 +166,12 @@ mod tests {
 
         let shard_info = AdapterShardInfo {
             shard_name: shard_name.clone(),
-            config: EngineShardConfig::default(),
+            config: EngineShardConfig {
+                retention_sec: 10,
+                storage_adapter_type: StorageAdapterType::Engine,
+                engine_storage_type: Some(EngineStorageType::RocksDB),
+                ..Default::default()
+            },
         };
         engine.create_shard(&shard_info).await.unwrap();
 
