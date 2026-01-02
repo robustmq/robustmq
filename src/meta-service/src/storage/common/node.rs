@@ -96,7 +96,7 @@ mod tests {
         let node = get_test_node();
         kv.save(&node).unwrap();
         let test_node = kv.get(1).unwrap().unwrap();
-        assert_eq!(test_node.node_inner_addr, node.node_inner_addr);
+        assert_eq!(test_node.grpc_addr, node.grpc_addr);
     }
 
     #[test]

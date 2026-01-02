@@ -34,6 +34,8 @@ use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tracing::info;
 
+const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
+
 #[derive(Clone, Debug)]
 pub enum RaftStateMachineName {
     METADATA,
@@ -140,6 +142,15 @@ impl MultiRaftManager {
         Ok(())
     }
 
+    fn get_raft_write_timeout(&self) -> Duration {
+        let conf = broker_config();
+        Duration::from_secs(
+            conf.meta_runtime
+                .raft_write_timeout_sec
+                .max(DEFAULT_RAFT_WRITE_TIMEOUT_SEC),
+        )
+    }
+
     pub async fn write_metadata(
         &self,
         data: StorageData,
@@ -156,7 +167,7 @@ impl MultiRaftManager {
         let start = Instant::now();
 
         let result = timeout(
-            Duration::from_secs(5),
+            self.get_raft_write_timeout(),
             self.metadata_raft_node.client_write(data),
         )
         .await;
@@ -198,7 +209,7 @@ impl MultiRaftManager {
         let start = Instant::now();
 
         let result = timeout(
-            Duration::from_secs(5),
+            self.get_raft_write_timeout(),
             self.offset_raft_node.client_write(data),
         )
         .await;
@@ -240,7 +251,7 @@ impl MultiRaftManager {
         let start = Instant::now();
 
         let result = timeout(
-            Duration::from_secs(5),
+            self.get_raft_write_timeout(),
             self.mqtt_raft_node.client_write(data),
         )
         .await;

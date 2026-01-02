@@ -90,7 +90,22 @@ impl RobustMQCodec {
                     })));
                 }
             }
+
+            if protoc.is_engine() {
+                let res = self.storage_engine_codec.decode_data(stream);
+                if let Ok(Some(pkg)) = res {
+                    self.protocol = Some(RobustMQProtocol::StorageEngine);
+                    return Ok(Some(RobustMQCodecWrapper::StorageEngine(pkg)));
+                }
+            }
         } else {
+            // try decode storage engine
+            let res = self.storage_engine_codec.decode_data(stream);
+            if let Ok(Some(pkg)) = res {
+                self.protocol = Some(RobustMQProtocol::StorageEngine);
+                return Ok(Some(RobustMQCodecWrapper::StorageEngine(pkg)));
+            }
+
             // try decode mqtt
             let res = self.mqtt_codec.decode_data(stream);
             if let Ok(Some(pkg)) = res {

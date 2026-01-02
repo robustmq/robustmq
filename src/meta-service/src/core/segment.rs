@@ -296,10 +296,11 @@ mod tests {
             register_time: now_second(),
             start_time: now_second(),
             node_id: 1,
-            node_inner_addr: "".to_string(),
+            grpc_addr: "".to_string(),
             node_ip: "".to_string(),
             storage_fold: vec!["../data/d1".to_string(), "../data/d2".to_string()],
             extend: Vec::new(),
+            ..Default::default()
         };
         cache_manager.add_broker_node(node);
         let res = calc_node_fold(&cache_manager, 1).unwrap();

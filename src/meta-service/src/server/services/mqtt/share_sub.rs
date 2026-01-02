@@ -191,7 +191,6 @@ pub fn get_share_sub_leader_by_req(
 mod tests {
     use super::ShareSubLeader;
     use crate::core::cache::CacheManager;
-    use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::meta::node::BrokerNode;
@@ -258,34 +257,16 @@ mod tests {
         ));
         let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
         cluster_cache.add_broker_node(BrokerNode {
-            roles: Vec::new(),
             node_id: 1,
-            node_ip: "".to_string(),
-            node_inner_addr: "".to_string(),
-            extend: Vec::new(),
-            start_time: now_second(),
-            register_time: now_second(),
-            storage_fold: Vec::new(),
+            ..Default::default()
         });
         cluster_cache.add_broker_node(BrokerNode {
-            roles: Vec::new(),
             node_id: 2,
-            node_ip: "".to_string(),
-            node_inner_addr: "".to_string(),
-            extend: Vec::new(),
-            start_time: now_second(),
-            register_time: now_second(),
-            storage_fold: Vec::new(),
+            ..Default::default()
         });
         cluster_cache.add_broker_node(BrokerNode {
-            roles: Vec::new(),
             node_id: 3,
-            node_ip: "".to_string(),
-            node_inner_addr: "".to_string(),
-            extend: Vec::new(),
-            start_time: now_second(),
-            register_time: now_second(),
-            storage_fold: Vec::new(),
+            ..Default::default()
         });
 
         let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());

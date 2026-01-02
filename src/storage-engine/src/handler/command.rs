@@ -31,7 +31,7 @@ use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::{error, info};
 
 /// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
@@ -72,7 +72,6 @@ impl Command for StorageEngineHandlerCommand {
         _addr: &SocketAddr,
         packet: &RobustMQPacket,
     ) -> Option<ResponsePackage> {
-        debug!("recv packet: {:?}", packet);
         let pack = match packet {
             RobustMQPacket::StorageEngine(pack) => pack.clone(),
             _ => {
@@ -154,6 +153,7 @@ impl Command for StorageEngineHandlerCommand {
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::ReadResp(resp)),
                 );
+                info!("resp pkg:{:?}", response);
                 return Some(response);
             }
 

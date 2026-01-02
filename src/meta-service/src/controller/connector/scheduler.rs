@@ -366,12 +366,13 @@ mod tests {
             cache_manager.add_broker_node(BrokerNode {
                 node_id: i as u64,
                 node_ip: format!("127.0.0.{}", i),
-                node_inner_addr: format!("127.0.0.{}:9000", i),
+                grpc_addr: format!("127.0.0.{}:9000", i),
                 extend: Vec::new(),
                 roles: Vec::new(),
                 start_time: now_second(),
                 register_time: now_second(),
                 storage_fold: Vec::new(),
+                ..Default::default()
             });
         }
 

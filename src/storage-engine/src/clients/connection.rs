@@ -156,7 +156,8 @@ impl NodeConnection {
         else {
             return Err(StorageEngineError::NoAvailableConn(self.node_id));
         };
-        let addr = node.node_inner_addr.clone();
+        let addr = node.engine_addr.clone();
+        println!("{:?}", addr);
         let socket = TcpStream::connect(&addr).await?;
         Ok(Framed::new(socket, StorageEngineCodec::new()))
     }

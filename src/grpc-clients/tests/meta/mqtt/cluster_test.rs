@@ -44,11 +44,12 @@ mod tests {
             roles: Vec::new(),
             node_ip: node_ip.clone(),
             node_id,
-            node_inner_addr: node_inner_addr.clone(),
+            grpc_addr: node_inner_addr.clone(),
             extend: extend_info.clone(),
             register_time: now_second(),
             start_time: now_second(),
             storage_fold: Vec::new(),
+            ..Default::default()
         };
         let request = RegisterNodeRequest {
             node: node.encode().unwrap(),

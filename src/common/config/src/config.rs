@@ -21,7 +21,8 @@ use super::default::{
     default_mqtt_offline_message, default_mqtt_protocol_config, default_mqtt_runtime,
     default_mqtt_schema, default_mqtt_security, default_mqtt_server,
     default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
-    default_place_runtime, default_rocksdb, default_roles, default_runtime, default_storage_offset,
+    default_place_runtime, default_raft_write_timeout_sec, default_rocksdb, default_roles,
+    default_runtime, default_storage_offset,
 };
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
@@ -173,6 +174,8 @@ pub struct Rocksdb {
 pub struct MetaRuntime {
     pub heartbeat_timeout_ms: u64,
     pub heartbeat_check_time_ms: u64,
+    #[serde(default = "default_raft_write_timeout_sec")]
+    pub raft_write_timeout_sec: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

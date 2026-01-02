@@ -199,7 +199,7 @@ pub async fn delete_sessions(
             };
             match broker_mqtt_delete_session(
                 client_pool,
-                std::slice::from_ref(&addr.node_inner_addr),
+                std::slice::from_ref(&addr.grpc_addr),
                 request,
             )
             .await
@@ -260,7 +260,7 @@ pub async fn send_last_will(
     let node_addr: Vec<String> = cache_manager
         .node_list
         .iter()
-        .map(|raw| raw.node_inner_addr.to_string())
+        .map(|raw| raw.grpc_addr.to_string())
         .collect();
 
     if node_addr.is_empty() {
