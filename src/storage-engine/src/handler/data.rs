@@ -197,30 +197,65 @@ pub async fn read_data_req(
 
 #[cfg(test)]
 mod tests {
+    use crate::core::shard_offset::save_latest_offset_by_shard;
+    use crate::core::test_tool::test_init_segment;
     use crate::handler::data::read_data_req;
     use crate::memory::engine::MemoryStorageEngine;
     use crate::rocksdb::engine::RocksDBStorageEngine;
+    use crate::segment::write::WriteManager;
     use crate::{clients::manager::ClientConnectionManager, handler::data::write_data_req};
-    use common_base::utils::serialize::deserialize;
+    use bytes::Bytes;
+    use common_base::tools::now_second;
+    use common_base::utils::serialize::{self, deserialize};
     use common_config::storage::memory::StorageDriverMemoryConfig;
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
     use metadata_struct::storage::shard::EngineStorageType;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::sync::broadcast;
+    use tokio::time::sleep;
 
     #[tokio::test]
-    async fn read_data_req_test() {
-        write_data_req(
-            &cache_manager,
-            write_manager,
-            memory_storage_engine,
-            rocksdb_storage_engine,
-            client_connection_manager,
-            shard_name,
-            messages,
-        );
+    async fn read_data_req_test_by_segment() {
+        read_data_req_test(EngineStorageType::Segment).await;
+    }
+
+    #[tokio::test]
+    async fn read_data_req_test_by_memory() {
+        read_data_req_test(EngineStorageType::Memory).await;
+    }
+
+    #[tokio::test]
+    async fn read_data_req_test_by_rocksdb() {
+        read_data_req_test(EngineStorageType::RocksDB).await;
+    }
+
+    async fn read_data_req_test(engine_storage_type: EngineStorageType) {
+        let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
+            test_init_segment(engine_storage_type.clone()).await;
+        save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
+
+        let shard_info = cache_manager.shards.get(&segment_iden.shard_name).unwrap();
+        assert_eq!(shard_info.get_engine_type().unwrap(), engine_storage_type);
+
+        let client_poll = Arc::new(ClientPool::new(100));
+
+        let write_manager = Arc::new(WriteManager::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            client_poll.clone(),
+            3,
+        ));
+
+        let (stop_send, _) = broadcast::channel(2);
+        write_manager.start(stop_send.clone());
+
+        sleep(Duration::from_millis(100)).await;
 
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
             rocksdb_engine_handler.clone(),
@@ -233,6 +268,29 @@ mod tests {
         ));
         let client_connection_manager =
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
+        let mut messages = Vec::new();
+        for i in 0..10 {
+            let record = AdapterWriteRecord {
+                pkid: 100 + i,
+                header: None,
+                key: Some(format!("key-{}", i)),
+                tags: Some(vec![format!("tag-{}", i)]),
+                data: Bytes::from("dsfsfsdfsf"),
+                timestamp: now_second(),
+            };
+            messages.push(serialize::serialize(&record).unwrap());
+        }
+        write_data_req(
+            &cache_manager,
+            &write_manager,
+            &memory_storage_engine,
+            &rocksdb_storage_engine,
+            &client_connection_manager,
+            &segment_iden.shard_name,
+            &messages,
+        )
+        .await
+        .unwrap();
 
         // offset
         let req_body = ReadReqBody {
