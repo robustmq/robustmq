@@ -197,12 +197,13 @@ pub async fn read_data_req(
 
 #[cfg(test)]
 mod tests {
-    use crate::clients::manager::ClientConnectionManager;
+    use crate::handler::data::read_data_req;
     use crate::memory::engine::MemoryStorageEngine;
     use crate::rocksdb::engine::RocksDBStorageEngine;
-    use crate::{core::test_tool::test_base_write_data, handler::data::read_data_req};
+    use crate::{clients::manager::ClientConnectionManager, handler::data::write_data_req};
     use common_base::utils::serialize::deserialize;
     use common_config::storage::memory::StorageDriverMemoryConfig;
+    use metadata_struct::storage::shard::EngineStorageType;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
@@ -211,8 +212,15 @@ mod tests {
 
     #[tokio::test]
     async fn read_data_req_test() {
-        let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
-            test_base_write_data(30).await;
+        write_data_req(
+            &cache_manager,
+            write_manager,
+            memory_storage_engine,
+            rocksdb_storage_engine,
+            client_connection_manager,
+            shard_name,
+            messages,
+        );
 
         let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
             rocksdb_engine_handler.clone(),
