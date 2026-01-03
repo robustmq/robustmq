@@ -199,4 +199,93 @@ pub fn get_high_water_offset(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use broker_core::cache::BrokerCacheManager;
+    use common_base::tools::unique_id;
+    use common_config::config::BrokerConfig;
+    use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+    use rocksdb_engine::test::test_rocksdb_instance;
+
+    #[test]
+    fn test_earliest_offset_save_read() {
+        let db = Arc::new(test_rocksdb_instance());
+        let shard_name = unique_id();
+        let offset = 12345u64;
+
+        save_earliest_offset_by_shard(&db, &shard_name, offset).unwrap();
+        let result = read_earliest_offset_by_shard(&db, &shard_name).unwrap();
+
+        assert_eq!(result, Some(offset));
+    }
+
+    #[test]
+    fn test_high_watermark_offset_save_read() {
+        let db = Arc::new(test_rocksdb_instance());
+        let shard_name = unique_id();
+        let offset = 67890u64;
+
+        save_high_watermark_offset_by_shard(&db, &shard_name, offset).unwrap();
+        let result = read_high_watermark_offset_by_shard(&db, &shard_name).unwrap();
+
+        assert_eq!(result, Some(offset));
+    }
+
+    #[test]
+    fn test_latest_offset_save_read() {
+        let db = Arc::new(test_rocksdb_instance());
+        let shard_name = unique_id();
+        let offset = 99999u64;
+
+        save_latest_offset_by_shard(&db, &shard_name, offset).unwrap();
+        let result = read_latest_offset_by_shard(&db, &shard_name).unwrap();
+
+        assert_eq!(result, Some(offset));
+    }
+
+    #[test]
+    fn test_get_latest_offset() {
+        let db = Arc::new(test_rocksdb_instance());
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let shard_name = unique_id();
+        let offset = 88888u64;
+
+        let shard = EngineShard {
+            shard_name: shard_name.clone(),
+            config: EngineShardConfig {
+                engine_storage_type: Some(EngineStorageType::Memory),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        cache_manager.shards.insert(shard_name.clone(), shard);
+
+        save_latest_offset_by_shard(&db, &shard_name, offset).unwrap();
+        let result = get_latest_offset(&db, &cache_manager, &shard_name).unwrap();
+
+        assert_eq!(result, offset);
+    }
+
+    #[test]
+    fn test_get_latest_offset_default() {
+        let db = Arc::new(test_rocksdb_instance());
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let shard_name = unique_id();
+
+        let shard = EngineShard {
+            shard_name: shard_name.clone(),
+            config: EngineShardConfig {
+                engine_storage_type: Some(EngineStorageType::Memory),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        cache_manager.shards.insert(shard_name.clone(), shard);
+
+        let result = get_latest_offset(&db, &cache_manager, &shard_name).unwrap();
+
+        assert_eq!(result, 0);
+    }
+}

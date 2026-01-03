@@ -33,11 +33,9 @@ mod tests {
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::core::cache::StorageCacheManager;
     use tokio::time::sleep;
-
     use crate::mqtt::protocol::common::create_test_env;
 
     #[tokio::test]
-    #[ignore = "reason"]
     async fn shard_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();

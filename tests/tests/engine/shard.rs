@@ -43,7 +43,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "reason"]
     async fn shard_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
