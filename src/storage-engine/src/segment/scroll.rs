@@ -77,48 +77,6 @@ pub fn trigger_update_start_or_end_info(
     });
 }
 
-async fn trigger_update_start_or_end_info0(
-    cache_manager: &Arc<StorageCacheManager>,
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    offsets: &[u64],
-) -> Result<(), StorageEngineError> {
-    if let Some(meta) = cache_manager.get_segment_meta(segment_iden) {
-        let start_offset = meta.start_offset.max(0) as u64;
-        let end_offset = meta.end_offset.max(0) as u64;
-        let is_start = offsets.contains(&start_offset);
-        let is_end = offsets.contains(&end_offset);
-
-        if is_start || is_end {
-            let conf = broker_config();
-
-            if is_start {
-                let request = UpdateStartTimeBySegmentMetaRequest {
-                    shard_name: segment_iden.shard_name.clone(),
-                    segment: segment_iden.segment,
-                    start_timestamp: now_second(),
-                };
-                update_start_time_by_segment_meta(
-                    client_pool,
-                    &conf.get_meta_service_addr(),
-                    request,
-                )
-                .await?;
-            }
-
-            if is_end {
-                let request = SealUpSegmentRequest {
-                    shard_name: segment_iden.shard_name.clone(),
-                    segment: segment_iden.segment,
-                    end_timestamp: now_second(),
-                };
-                seal_up_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
-            }
-        }
-    }
-    Ok(())
-}
-
 pub async fn trigger_next_segment_scroll(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -159,6 +117,48 @@ pub async fn trigger_next_segment_scroll(
         cache_manager.remove_next_segment(&segment_iden.shard_name);
     }
 
+    Ok(())
+}
+
+async fn trigger_update_start_or_end_info0(
+    cache_manager: &Arc<StorageCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_iden: &SegmentIdentity,
+    offsets: &[u64],
+) -> Result<(), StorageEngineError> {
+    if let Some(meta) = cache_manager.get_segment_meta(segment_iden) {
+        let start_offset = meta.start_offset.max(0) as u64;
+        let end_offset = meta.end_offset.max(0) as u64;
+        let is_start = offsets.contains(&start_offset);
+        let is_end = offsets.contains(&end_offset);
+
+        if is_start || is_end {
+            let conf = broker_config();
+
+            if is_start {
+                let request = UpdateStartTimeBySegmentMetaRequest {
+                    shard_name: segment_iden.shard_name.clone(),
+                    segment: segment_iden.segment,
+                    start_timestamp: now_second(),
+                };
+                update_start_time_by_segment_meta(
+                    client_pool,
+                    &conf.get_meta_service_addr(),
+                    request,
+                )
+                .await?;
+            }
+
+            if is_end {
+                let request = SealUpSegmentRequest {
+                    shard_name: segment_iden.shard_name.clone(),
+                    segment: segment_iden.segment,
+                    end_timestamp: now_second(),
+                };
+                seal_up_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
+            }
+        }
+    }
     Ok(())
 }
 

@@ -17,7 +17,7 @@ use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
 use common_config::storage::mysql::StorageDriverMySQLConfig;
-use metadata_struct::adapter::record::{Header as AdapterHeader, StorageAdapterRecord};
+use protocol::storage::storage_adapter_record::{Header as AdapterHeader, StorageAdapterRecord};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::storage::convert::convert_adapter_headers_to_storage;
 use metadata_struct::storage::record::{Header as StorageHeader, StorageEngineRecord, StorageEngineRecordMetadata};

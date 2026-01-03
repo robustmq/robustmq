@@ -199,12 +199,12 @@ pub async fn update_segment_status(
             );
 
             segment.status = status;
-            let segment_clone = segment.clone();
-            drop(segment);
-
-            sync_save_segment_info(raft_manager, &segment_clone).await?;
-            update_cache_by_set_segment(broker_call_manager, client_pool, segment_clone).await?;
         }
+    }
+
+    if let Some(segment) = cache_manager.get_segment(shard_name, segment_seq) {
+        sync_save_segment_info(raft_manager, &segment).await?;
+        update_cache_by_set_segment(broker_call_manager, client_pool, segment).await?;
     }
 
     Ok(())

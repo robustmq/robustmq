@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod client;
-pub mod read;
-pub mod shard;
+pub mod client_test;
+pub mod read_test;
+pub mod shard_test;
