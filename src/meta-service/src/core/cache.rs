@@ -117,11 +117,13 @@ impl CacheManager {
 
     pub fn get_engine_node_list(&self) -> Vec<BrokerNode> {
         let mut results = Vec::new();
+        println!("nl:{:?}", self.node_list);
         for node in self.node_list.iter() {
             if is_engine_node(&node.roles) {
                 results.push(node.clone());
             }
         }
+        println!("results:{:?}", results);
         results
     }
 
