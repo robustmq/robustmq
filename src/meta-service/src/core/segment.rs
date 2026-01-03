@@ -121,12 +121,9 @@ pub async fn delete_segment_by_real(
 
     sync_delete_segment_info(raft_manager, segment).await?;
 
-    if let Some(meta_list) = cache_manager.segment_meta_list.get(&segment.shard_name) {
-        if let Some(meta) = meta_list.get(&segment.segment_seq) {
-            sync_delete_segment_metadata_info(raft_manager, &meta).await?;
-        }
+    if let Some(meta) = cache_manager.get_segment_meta(&segment.shard_name, segment.segment_seq) {
+        sync_delete_segment_metadata_info(raft_manager, &meta).await?;
     }
-
     Ok(())
 }
 

@@ -58,8 +58,11 @@ where
     })?;
 
     update_fn(&mut meta);
-    sync_save_segment_metadata_info(raft_manager, &meta).await?;
-    update_cache_by_set_segment_meta(call_manager, client_pool, (*meta).clone()).await?;
+    let new_meta = meta.clone();
+    drop(meta);
+    drop(meta_list);
+    sync_save_segment_metadata_info(raft_manager, &new_meta).await?;
+    update_cache_by_set_segment_meta(call_manager, client_pool, new_meta).await?;
 
     Ok(())
 }

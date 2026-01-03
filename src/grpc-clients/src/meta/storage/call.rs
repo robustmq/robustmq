@@ -23,7 +23,7 @@ use protocol::meta::meta_service_journal::{
 
 use crate::pool::ClientPool;
 
-macro_rules! generate_journal_service_call {
+macro_rules! generate_storage_engine_service_call {
     ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
         pub async fn $fn_name(
             client_pool: &ClientPool,
@@ -35,50 +35,50 @@ macro_rules! generate_journal_service_call {
     };
 }
 
-generate_journal_service_call!(list_shard, ListShardRequest, ListShardReply, ListShard);
-generate_journal_service_call!(
+generate_storage_engine_service_call!(list_shard, ListShardRequest, ListShardReply, ListShard);
+generate_storage_engine_service_call!(
     create_shard,
     CreateShardRequest,
     CreateShardReply,
     CreateShard
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     delete_shard,
     DeleteShardRequest,
     DeleteShardReply,
     DeleteShard
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     list_segment,
     ListSegmentRequest,
     ListSegmentReply,
     ListSegment
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     create_next_segment,
     CreateNextSegmentRequest,
     CreateNextSegmentReply,
     CreateSegment
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     delete_segment,
     DeleteSegmentRequest,
     DeleteSegmentReply,
     DeleteSegment
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     seal_up_segment,
     SealUpSegmentRequest,
     SealUpSegmentReply,
     UpdateSegmentStatus
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     list_segment_meta,
     ListSegmentMetaRequest,
     ListSegmentMetaReply,
     ListSegmentMeta
 );
-generate_journal_service_call!(
+generate_storage_engine_service_call!(
     update_start_time_by_segment_meta,
     UpdateStartTimeBySegmentMetaRequest,
     UpdateStartTimeBySegmentMetaReply,

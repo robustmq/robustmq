@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 mod tests {
+    use crate::mqtt::protocol::common::create_test_env;
     use admin_server::engine::shard::ShardCreateReq;
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
@@ -33,7 +34,6 @@ mod tests {
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::core::cache::StorageCacheManager;
     use tokio::time::sleep;
-    use crate::mqtt::protocol::common::create_test_env;
 
     #[tokio::test]
     async fn shard_test() {

@@ -16,14 +16,18 @@
 mod tests {
     use std::time::Duration;
 
+    use crate::common::get_placement_addr;
     use crate::mqtt::protocol::common::create_test_env;
     use admin_server::engine::shard::{
         SegmentListReq, SegmentListResp, ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow,
     };
-    use common_base::http_response::AdminServerResponse;
     use common_base::tools::unique_id;
+    use common_base::{http_response::AdminServerResponse, tools::now_second};
     use common_config::storage::StorageAdapterType;
+    use grpc_clients::meta::storage::call::update_start_time_by_segment_meta;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::storage::shard::{EngineShardStatus, EngineStorageType};
+    use protocol::meta::meta_service_journal::UpdateStartTimeBySegmentMetaRequest;
     use tokio::time::sleep;
 
     fn check_response(result: &str, operation: &str) {
@@ -122,5 +126,78 @@ mod tests {
         let segment_resp = segment_data.data;
         println!("get_segment_list after delete data: {:#?}", segment_resp);
         assert_eq!(segment_resp.segment_list.len(), 0);
+    }
+
+    #[tokio::test]
+    pub async fn update_start_or_end_test() {
+        let client = create_test_env().await;
+        let shard_name = unique_id();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"Segment"}"#.to_string();
+
+        // create shard
+        let create_result = client
+            .create_shard(&ShardCreateReq {
+                shard_name: shard_name.clone(),
+                config,
+            })
+            .await
+            .unwrap();
+        check_response(&create_result, "create_shard");
+
+        sleep(Duration::from_secs(3)).await;
+
+        // list meta
+        let segment_req = SegmentListReq {
+            shard_name: shard_name.clone(),
+        };
+        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
+        check_response(&segment_resp_str, "get_segment_list");
+        let segment_data: AdminServerResponse<SegmentListResp> =
+            serde_json::from_str(&segment_resp_str).unwrap();
+        let segment_resp = segment_data.data;
+        println!("get_segment_list data: {:#?}", segment_resp);
+        assert_eq!(segment_resp.segment_list.len(), 1);
+        let segment = segment_resp.segment_list.first().unwrap();
+        assert_eq!(segment.segment.segment_seq, 0);
+        let meta = segment.segment_meta.clone().unwrap();
+        assert_eq!(meta.start_offset, 0);
+        assert_eq!(meta.end_offset, -1);
+        assert_eq!(meta.start_timestamp, -1);
+        assert_eq!(meta.end_timestamp, -1);
+
+        // update start_time/end_time
+        let t = now_second();
+        let request = UpdateStartTimeBySegmentMetaRequest {
+            shard_name: shard_name.clone(),
+            segment: 0,
+            start_timestamp: t,
+        };
+        let client_pool = ClientPool::new(2);
+
+        println!("request:{:?}", request);
+        update_start_time_by_segment_meta(&client_pool, &[get_placement_addr()], request)
+            .await
+            .unwrap();
+
+        sleep(Duration::from_secs(3)).await;
+
+        // list segment meta
+        let segment_req = SegmentListReq {
+            shard_name: shard_name.clone(),
+        };
+        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
+        check_response(&segment_resp_str, "get_segment_list");
+        let segment_data: AdminServerResponse<SegmentListResp> =
+            serde_json::from_str(&segment_resp_str).unwrap();
+        let segment_resp = segment_data.data;
+        println!("get_segment_list data: {:#?}", segment_resp);
+        assert_eq!(segment_resp.segment_list.len(), 1);
+        let segment = segment_resp.segment_list.first().unwrap();
+        assert_eq!(segment.segment.segment_seq, 0);
+        let meta = segment.segment_meta.clone().unwrap();
+        assert_eq!(meta.start_offset, 0);
+        assert_eq!(meta.end_offset, -1);
+        assert_eq!(meta.start_timestamp, t as i64);
+        assert_eq!(meta.end_timestamp, -1);
     }
 }

@@ -43,11 +43,9 @@ impl DataRouteJournal {
 
     pub async fn set_shard(&self, value: Bytes) -> Result<Bytes, MetaServiceError> {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-
         let shard_info = EngineShard::decode(&value)?;
         shard_storage.save(&shard_info)?;
         self.cache_manager.set_shard(shard_info);
-
         Ok(value)
     }
 
@@ -89,7 +87,6 @@ impl DataRouteJournal {
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(meta.clone())?;
         self.cache_manager.set_segment_meta(meta);
-
         Ok(value)
     }
 

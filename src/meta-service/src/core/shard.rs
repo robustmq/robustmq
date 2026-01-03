@@ -97,7 +97,6 @@ where
         update_fn(&mut shard);
         let shard_clone = shard.clone();
         drop(shard);
-
         sync_save_shard_info(raft_manager, &shard_clone).await?;
         update_cache_by_set_shard(call_manager, client_pool, shard_clone).await?;
     }

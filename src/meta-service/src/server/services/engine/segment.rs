@@ -237,7 +237,6 @@ pub async fn update_start_time_by_segment_meta_by_req(
 ) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
     validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
-
     update_start_timestamp_by_segment_metadata(
         cache_manager,
         raft_manager,
