@@ -17,6 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::common::get_placement_addr;
+    use common_base::role::{ROLE_BROKER, ROLE_ENGINE, ROLE_META};
     use common_base::tools::now_second;
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
@@ -35,15 +36,19 @@ mod tests {
         let node_id: u64 = 1;
 
         let node = BrokerNode {
-            roles: Vec::new(),
+            roles: vec![
+                ROLE_BROKER.to_string(),
+                ROLE_ENGINE.to_string(),
+                ROLE_META.to_string(),
+            ],
             node_ip: node_ip.clone(),
             node_id,
             grpc_addr: "127.0.0.1:1228".to_string(),
             extend: Vec::new(),
             register_time: now_second(),
             start_time: now_second(),
-            storage_fold: Vec::new(),
-            ..Default::default()
+            storage_fold: vec!["./data/broker/engine".to_string()],
+            engine_addr: "127.0.0.1:1778".to_string(),
         };
         let request = RegisterNodeRequest {
             node: node.encode().unwrap(),

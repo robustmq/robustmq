@@ -20,9 +20,9 @@ use metadata_struct::{
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
-use crate::{pop::read_offset_data, DelayMessageManager};
+use crate::{pop::delay_message_process, DelayMessageManager};
 
 pub const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
 
@@ -87,8 +87,8 @@ pub async fn recover_delay_queue(
                 let storage = message_storage_adapter.clone();
                 let info = delay_info.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = send_expired_delay_message(&storage, &info).await {
-                        error!(
+                    if let Err(e) = delay_message_process(&storage, &info).await {
+                        debug!(
                             "Failed to send expired delay message (shard: {}, offset: {}): {:?}",
                             info.delay_shard_name, info.offset, e
                         );
@@ -105,35 +105,6 @@ pub async fn recover_delay_queue(
         offset += 1;
     }
     info!("Delay queue index was successfully constructed from the persistent store. Number of data items: {}", total_num);
-}
-
-async fn send_expired_delay_message(
-    message_storage_adapter: &ArcStorageAdapter,
-    delay_info: &DelayMessageInfo,
-) -> Result<(), CommonError> {
-    let record = read_offset_data(
-        message_storage_adapter,
-        &delay_info.delay_shard_name,
-        delay_info.offset,
-    )
-    .await?
-    .ok_or_else(|| {
-        CommonError::CommonError(format!(
-            "Expired delay message not found: shard={}, offset={}",
-            delay_info.delay_shard_name, delay_info.offset
-        ))
-    })?;
-
-    message_storage_adapter
-        .write(&delay_info.target_shard_name, &record)
-        .await?;
-
-    info!(
-        "Expired delay message sent successfully: {} -> {} (offset: {})",
-        delay_info.delay_shard_name, delay_info.target_shard_name, delay_info.offset
-    );
-
-    Ok(())
 }
 
 #[cfg(test)]

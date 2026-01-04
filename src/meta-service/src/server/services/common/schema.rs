@@ -183,8 +183,8 @@ pub async fn list_bind_schema_req(
 
     // List all schema binds
     if !has_schema && !has_resource {
-        return Ok(schema_storage
-            .list()?
+        let results = schema_storage.list_bind()?;
+        return Ok(results
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?);
@@ -192,8 +192,8 @@ pub async fn list_bind_schema_req(
 
     // List by resource
     if !has_schema && has_resource {
-        return Ok(schema_storage
-            .list_bind_by_resource(&req.resource_name)?
+        let results = schema_storage.list_bind_by_resource(&req.resource_name)?;
+        return Ok(results
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?);

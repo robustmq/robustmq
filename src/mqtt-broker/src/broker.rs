@@ -201,7 +201,7 @@ impl MqttBrokerServer {
         );
         tokio::spawn(async move {
             if let Err(e) = system_alarm.start().await {
-                error!("Failed to start system alarm monitoring thread. System health alerts and notifications will not be sent. This is a non-critical error but monitoring capabilities are impaired. Error: {}", e);
+                error!("Failed to start system alarm monitoring: {}", e);
             }
         });
     }
@@ -210,7 +210,8 @@ impl MqttBrokerServer {
         let server = self.server.clone();
         tokio::spawn(async move {
             if let Err(e) = server.start().await {
-                panic!("Failed to start MQTT broker server. This is a critical error that prevents the broker from accepting client connections. Error: {}", e);
+                error!("Failed to start MQTT broker server: {}", e);
+                std::process::exit(1);
             }
         });
     }
@@ -273,18 +274,24 @@ impl MqttBrokerServer {
             )
             .await
             {
-                panic!("Failed to start delay message manager for cluster '{}'. Delay message functionality will be unavailable. Check storage adapter connectivity and shard configuration. Error: {}", conf.cluster_name, e);
+                error!(
+                    "Failed to start delay message manager for cluster '{}': {}",
+                    conf.cluster_name, e
+                );
+                std::process::exit(1);
             }
         });
     }
 
     async fn start_init(&self) {
         if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
-            panic!("Failed to initialize system user during broker startup. This is required for internal system operations. Check meta service connectivity and authentication configuration. Error: {}", e);
+            error!("Failed to initialize system user: {}", e);
+            std::process::exit(1);
         }
 
         if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
-            panic!("Failed to synchronize offset data between local cache and remote storage during startup. This may indicate storage adapter issues or data consistency problems. Error: {}", e);
+            error!("Failed to synchronize offset data: {}", e);
+            std::process::exit(1);
         }
 
         if let Err(e) = load_metadata_cache(
@@ -296,7 +303,8 @@ impl MqttBrokerServer {
         )
         .await
         {
-            panic!("Failed to load metadata cache during broker initialization. This includes topics, users, ACLs, connectors, and schemas. Check meta service availability and network connectivity. Error: {}", e);
+            error!("Failed to load metadata cache: {}", e);
+            std::process::exit(1);
         }
     }
 
@@ -321,17 +329,17 @@ impl MqttBrokerServer {
                         )
                         .await
                         {
-                            error!("Failed to gracefully stop broker components (delay message manager or connection manager). Some resources may not be properly cleaned up. Error: {}", e);
+                            error!("Failed to stop broker components: {}", e);
                         }
                         info!("Service has been stopped successfully. Exiting the process.");
                     }
                     Err(e) => {
-                        error!("Failed to broadcast internal stop signal to daemon threads. Some background tasks may not terminate properly. Error: {}", e);
+                        error!("Failed to broadcast internal stop signal: {}", e);
                     }
                 }
             }
             Err(e) => {
-                error!("Failed to receive shutdown signal from main stop channel. The broker may not shutdown gracefully. Error: {}", e);
+                error!("Failed to receive shutdown signal: {}", e);
             }
         }
     }

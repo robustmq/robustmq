@@ -15,7 +15,7 @@
 use crate::core::error::MetaServiceError;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use rocksdb_engine::keys::meta::{
-    storage_key_mqtt_schema, storage_key_mqtt_schema_bind,
+    storage_key_mqtt_schema, storage_key_mqtt_schema_bind, storage_key_mqtt_schema_bind_prefix,
     storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -35,7 +35,7 @@ impl SchemaStorage {
             rocksdb_engine_handler,
         }
     }
-
+    // Schema
     pub fn save(&self, schema_name: &str, schema: &SchemaData) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_schema(schema_name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, schema)?;
@@ -57,8 +57,7 @@ impl SchemaStorage {
         if let Some(data) =
             engine_get_by_meta_metadata::<SchemaData>(&self.rocksdb_engine_handler, &key)?
         {
-            let topic: SchemaData = data.data;
-            return Ok(Some(topic));
+            return Ok(Some(data.data));
         }
         Ok(None)
     }
@@ -67,6 +66,17 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema(schema_name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
+    }
+
+    // Schema Bind
+    pub fn list_bind(&self) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_schema_bind_prefix();
+        let data = engine_prefix_list_by_meta_metadata::<SchemaResourceBind>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+
+        Ok(data.iter().map(|raw| raw.data.clone()).collect())
     }
 
     pub fn save_bind(&self, bind_data: &SchemaResourceBind) -> Result<(), MetaServiceError> {
@@ -84,11 +94,8 @@ impl SchemaStorage {
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
-        let mut results = Vec::new();
-        for raw in data {
-            results.push(raw.data);
-        }
-        Ok(results)
+
+        Ok(data.iter().map(|raw| raw.data.clone()).collect())
     }
 
     pub fn get_bind(

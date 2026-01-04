@@ -273,6 +273,4 @@ fi
 
 # Run tests
 echo "Running integration tests..."
-cargo nextest run --fail-fast --package grpc-clients 
-cargo nextest run --fail-fast --package robustmq-test  --test mod -- mqtt
-cargo nextest run --fail-fast --package robustmq-test  --test mod -- engine
+cargo nextest run --fail-fast --package grpc-clients --package robustmq-test 

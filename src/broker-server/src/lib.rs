@@ -153,7 +153,8 @@ impl BrokerServer {
             {
                 Ok(storage) => storage,
                 Err(e) => {
-                    panic!("{}", e.to_string());
+                    error!("Failed to build message storage driver: {}", e);
+                    std::process::exit(1);
                 }
             };
             storage
@@ -199,7 +200,8 @@ impl BrokerServer {
             if let Err(e) =
                 start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
             {
-                panic!("{e}")
+                error!("Failed to start GRPC server: {}", e);
+                std::process::exit(1);
             }
         });
 
@@ -347,7 +349,8 @@ impl BrokerServer {
             {
                 Ok(data) => data,
                 Err(e) => {
-                    panic!("{}", e);
+                    error!("Failed to create MultiRaftManager: {}", e);
+                    std::process::exit(1);
                 }
             },
         );

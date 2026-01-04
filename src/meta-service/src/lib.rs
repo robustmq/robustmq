@@ -103,7 +103,8 @@ impl MetaServiceServer {
     async fn start_raft_machine(&self) {
         // create raft node
         if let Err(e) = self.raft_manager.start().await {
-            panic!("{}", e);
+            error!("Failed to start Raft manager: {}", e);
+            std::process::exit(1);
         }
 
         // monitor leader switch
@@ -145,7 +146,8 @@ impl MetaServiceServer {
 
     pub fn start_init(&self) {
         if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
-            panic!("Failed to load Cache,{e}");
+            error!("Failed to load cache: {}", e);
+            std::process::exit(1);
         }
     }
 
