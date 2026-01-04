@@ -39,7 +39,7 @@ use protocol::broker::broker_common::{
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::info;
 
 pub async fn load_metadata_cache(

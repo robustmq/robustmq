@@ -24,7 +24,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{core::cache::StorageCacheManager, handler::adapter::StorageEngineHandler};
 
 #[derive(Clone)]

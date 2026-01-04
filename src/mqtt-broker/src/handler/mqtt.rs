@@ -65,7 +65,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, warn};
 
 #[derive(Clone)]

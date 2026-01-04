@@ -62,7 +62,7 @@ use std::{
     thread::sleep,
     time::Duration,
 };
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{
     clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
     group::OffsetManager, handler::adapter::StorageEngineHandler,

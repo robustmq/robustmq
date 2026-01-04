@@ -20,7 +20,7 @@ use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 

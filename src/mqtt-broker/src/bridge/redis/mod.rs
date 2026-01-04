@@ -24,7 +24,7 @@ use metadata_struct::{
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, info, warn};
 
 use crate::handler::error::MqttBrokerError;

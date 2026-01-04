@@ -20,7 +20,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
 use crate::handler::tool::ResultMqttBrokerError;

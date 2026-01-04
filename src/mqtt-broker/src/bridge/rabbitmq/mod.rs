@@ -24,7 +24,7 @@ use metadata_struct::{
     mqtt::bridge::config_rabbitmq::RabbitMQConnectorConfig, mqtt::bridge::connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, error, info, warn};
 
 use crate::handler::tool::ResultMqttBrokerError;

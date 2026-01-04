@@ -28,7 +28,7 @@ use regex::Regex;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 
 pub fn payload_format_validator(

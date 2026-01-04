@@ -34,7 +34,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info};
 

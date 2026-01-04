@@ -20,7 +20,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
 
 use crate::handler::tool::ResultMqttBrokerError;

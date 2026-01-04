@@ -25,7 +25,7 @@ use mongodb::{
     options::{ClientOptions, InsertManyOptions, WriteConcern},
     Client, Collection,
 };
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, error, info, warn};
 
 use crate::handler::error::MqttBrokerError;

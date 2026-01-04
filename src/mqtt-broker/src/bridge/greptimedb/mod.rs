@@ -20,7 +20,7 @@ use metadata_struct::{
     mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 
-use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
+use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
 use crate::{
