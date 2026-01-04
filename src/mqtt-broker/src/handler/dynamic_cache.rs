@@ -15,6 +15,7 @@
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
 use crate::bridge::manager::ConnectorManager;
+use crate::handler::error::MqttBrokerError;
 use crate::handler::tool::ResultMqttBrokerError;
 use crate::handler::topic::delete_topic;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
@@ -48,72 +49,92 @@ pub async fn load_metadata_cache(
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
 ) -> ResultMqttBrokerError {
-    // load cluster config
-    let cluster = build_cluster_config(client_pool).await?;
+    let cluster = build_cluster_config(client_pool).await.map_err(|e| {
+        MqttBrokerError::CommonError(format!("Failed to load cluster config: {}", e))
+    })?;
     cache_manager.broker_cache.set_cluster_config(cluster).await;
 
-    // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
-    let topic_list = topic_storage.all().await?;
+    let topic_list = topic_storage
+        .all()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load topics: {}", e)))?;
     for topic in topic_list.iter() {
         cache_manager.add_topic(&topic.topic_name, &topic.clone());
     }
 
-    // load all user
-    let user_list = auth_driver.read_all_user().await?;
+    let user_list = auth_driver
+        .read_all_user()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
     for user in user_list.iter() {
         cache_manager.add_user(user.clone());
     }
 
-    // load all acl
-    let acl_list = auth_driver.read_all_acl().await?;
+    let acl_list = auth_driver
+        .read_all_acl()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load ACLs: {}", e)))?;
     for acl in acl_list.iter() {
         cache_manager.add_acl(acl.clone());
     }
 
-    // load all blacklist
-    let blacklist_list = auth_driver.read_all_blacklist().await?;
+    let blacklist_list = auth_driver
+        .read_all_blacklist()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load blacklist: {}", e)))?;
     for blacklist in blacklist_list.iter() {
         cache_manager.add_blacklist(blacklist.clone());
     }
 
-    // load All topic_rewrite rule
     let topic_storage = TopicStorage::new(client_pool.clone());
-    let topic_rewrite_rules = topic_storage.all_topic_rewrite_rule().await?;
+    let topic_rewrite_rules = topic_storage.all_topic_rewrite_rule().await.map_err(|e| {
+        MqttBrokerError::CommonError(format!("Failed to load topic rewrite rules: {}", e))
+    })?;
     for topic_rewrite_rule in topic_rewrite_rules.iter() {
         cache_manager.add_topic_rewrite_rule(topic_rewrite_rule.clone());
     }
 
-    // load all connectors
     let connector_storage = ConnectorStorage::new(client_pool.clone());
-    let connectors = connector_storage.list_all_connectors().await?;
+    let connectors = connector_storage
+        .list_all_connectors()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load connectors: {}", e)))?;
     for connector in connectors.iter() {
         connector_manager.add_connector(connector);
     }
 
-    // load all schemas
     let schema_storage = SchemaStorage::new(client_pool.clone());
-    let schemas = schema_storage.list("".to_string()).await?;
+    let schemas = schema_storage
+        .list("".to_string())
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load schemas: {}", e)))?;
     for schema in schemas.iter() {
         schema_manager.add_schema(schema.clone());
     }
 
-    // load all schema binds
     let schema_storage = SchemaStorage::new(client_pool.clone());
-    let schemas = schema_storage.list_bind().await?;
-    for schema in schemas.iter() {
+    let schema_binds = schema_storage
+        .list_bind()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load schema binds: {}", e)))?;
+    for schema in schema_binds.iter() {
         schema_manager.add_bind(schema);
     }
 
-    // load all auto subscribe rule
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
-    let auto_subscribe_rules = auto_subscribe_storage.list_auto_subscribe_rule().await?;
+    let auto_subscribe_rules = auto_subscribe_storage
+        .list_auto_subscribe_rule()
+        .await
+        .map_err(|e| {
+            MqttBrokerError::CommonError(format!("Failed to load auto subscribe rules: {}", e))
+        })?;
     for auto_subscribe_rule in auto_subscribe_rules.iter() {
         cache_manager.add_auto_subscribe_rule(auto_subscribe_rule.clone());
     }
 
     info!(
-        "Cache loading successful.topic:{},user:{},acl:{},blacklist:{},topic_rewrite_rule:{},connectors:{},schemas:{},auto_subscribe_rules:{}",
+        "Cache loading successful: topics={}, users={}, acls={}, blacklist={}, topic_rewrite_rules={}, connectors={}, schemas={}, auto_subscribe_rules={}",
         topic_list.len(),
         user_list.len(),
         acl_list.len(),

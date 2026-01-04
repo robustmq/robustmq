@@ -18,6 +18,7 @@ use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
+use common_config::storage::StorageAdapterType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
@@ -164,7 +165,13 @@ pub async fn try_init_topic(
         if list.is_empty() {
             let shard = AdapterShardInfo {
                 shard_name: topic_name.to_owned(),
-                config: EngineShardConfig::default(),
+                config: EngineShardConfig {
+                    replica_num: 1,
+                    max_segment_size: 1073741824,
+                    retention_sec: 86400,
+                    storage_adapter_type: StorageAdapterType::Memory,
+                    engine_storage_type: None,
+                },
             };
             message_storage_adapter.create_shard(&shard).await?;
         }

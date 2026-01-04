@@ -121,12 +121,9 @@ pub async fn delete_segment_by_real(
 
     sync_delete_segment_info(raft_manager, segment).await?;
 
-    if let Some(meta_list) = cache_manager.segment_meta_list.get(&segment.shard_name) {
-        if let Some(meta) = meta_list.get(&segment.segment_seq) {
-            sync_delete_segment_metadata_info(raft_manager, &meta).await?;
-        }
+    if let Some(meta) = cache_manager.get_segment_meta(&segment.shard_name, segment.segment_seq) {
+        sync_delete_segment_metadata_info(raft_manager, &meta).await?;
     }
-
     Ok(())
 }
 
@@ -141,7 +138,7 @@ async fn build_segment(
 
     let node_list: Vec<BrokerNode> = cache_manager.get_engine_node_list();
     let replica_num = shard_info.config.replica_num as usize;
-
+    println!("node_list:{:?}", node_list);
     if node_list.len() < replica_num {
         return Err(MetaServiceError::NotEnoughEngineNodes(
             "CreateSegment".to_string(),
@@ -202,12 +199,12 @@ pub async fn update_segment_status(
             );
 
             segment.status = status;
-            let segment_clone = segment.clone();
-            drop(segment);
-
-            sync_save_segment_info(raft_manager, &segment_clone).await?;
-            update_cache_by_set_segment(broker_call_manager, client_pool, segment_clone).await?;
         }
+    }
+
+    if let Some(segment) = cache_manager.get_segment(shard_name, segment_seq) {
+        sync_save_segment_info(raft_manager, &segment).await?;
+        update_cache_by_set_segment(broker_call_manager, client_pool, segment).await?;
     }
 
     Ok(())

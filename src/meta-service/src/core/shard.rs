@@ -95,13 +95,12 @@ where
 {
     if let Some(mut shard) = cache_manager.shard_list.get_mut(shard_name) {
         update_fn(&mut shard);
-        let shard_clone = shard.clone();
-        drop(shard);
-
-        sync_save_shard_info(raft_manager, &shard_clone).await?;
-        update_cache_by_set_shard(call_manager, client_pool, shard_clone).await?;
     }
 
+    if let Some(shard) = cache_manager.get_shard(shard_name) {
+        sync_save_shard_info(raft_manager, &shard).await?;
+        update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+    }
     Ok(())
 }
 

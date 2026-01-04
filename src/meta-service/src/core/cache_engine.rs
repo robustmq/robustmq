@@ -24,6 +24,13 @@ impl CacheManager {
         self.shard_list.insert(shard.shard_name.clone(), shard);
     }
 
+    pub fn get_shard(&self, shard_name: &str) -> Option<EngineShard> {
+        if let Some(shard) = self.shard_list.get(shard_name) {
+            return Some(shard.clone());
+        }
+        None
+    }
+
     pub fn remove_shard(&self, shard_name: &str) {
         self.shard_list.remove(shard_name);
         self.segment_list.remove(shard_name);

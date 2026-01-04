@@ -68,7 +68,7 @@ pub async fn send_last_will_message_by_req(
         "Received will message from meta service, source client id: {},data:{:?}",
         req.client_id, data.client_id
     );
-    send_last_will_message(
+    if let Err(e) = send_last_will_message(
         req.client_id.as_str(),
         cache_manager,
         client_pool,
@@ -76,6 +76,9 @@ pub async fn send_last_will_message_by_req(
         &data.last_will_properties,
         message_storage_adapter.clone(),
     )
-    .await?;
+    .await
+    {
+        debug!("send_last_will_message:{}", e);
+    }
     Ok(SendLastWillMessageReply::default())
 }

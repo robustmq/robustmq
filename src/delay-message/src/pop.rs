@@ -22,7 +22,7 @@ use metadata_struct::{
 };
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::error;
+use tracing::{debug, error, info};
 
 pub async fn pop_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
@@ -38,7 +38,7 @@ pub async fn pop_delay_queue(
             // Spawn task to send delay message to avoid blocking the pop loop
             let storage = message_storage_adapter.clone();
             tokio::spawn(async move {
-                if let Err(e) = send_delay_message_to_shard(&storage, delay_message).await {
+                if let Err(e) = send_delay_message_to_shard(&storage, &delay_message).await {
                     error!("{}", e);
                 }
             });
@@ -46,9 +46,26 @@ pub async fn pop_delay_queue(
     }
 }
 
+pub async fn delay_message_process(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_message: &DelayMessageInfo,
+) -> Result<u64, CommonError> {
+    // todo mark delete
+    let offset = match send_delay_message_to_shard(message_storage_adapter, delay_message).await {
+        Ok(offset) => offset as i64,
+        Err(e) => {
+            debug!("{}", e);
+            -1
+        }
+    };
+    // todo remove data
+
+    Ok(offset as u64)
+}
+
 async fn send_delay_message_to_shard(
     message_storage_adapter: &ArcStorageAdapter,
-    delay_message: DelayMessageInfo,
+    delay_message: &DelayMessageInfo,
 ) -> Result<u64, CommonError> {
     let Some(record) = read_offset_data(
         message_storage_adapter,
@@ -69,6 +86,10 @@ async fn send_delay_message_to_shard(
     if resp.is_error() {
         return Err(CommonError::CommonError(resp.error_info()));
     }
+    info!(
+        "Expired delay message sent successfully: {} -> {} (offset: {})",
+        delay_message.delay_shard_name, delay_message.target_shard_name, delay_message.offset
+    );
     Ok(resp.offset)
 }
 
@@ -173,7 +194,7 @@ mod test {
                 shard_no: 0,
             };
             if let Err(e) =
-                send_delay_message_to_shard(&message_storage_adapter, delay_message).await
+                send_delay_message_to_shard(&message_storage_adapter, &delay_message).await
             {
                 println!(" {:?}", e);
             }

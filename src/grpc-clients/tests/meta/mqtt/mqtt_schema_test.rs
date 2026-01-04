@@ -16,6 +16,7 @@
 mod test {
     use std::sync::Arc;
 
+    use common_base::tools::unique_id;
     use grpc_clients::{
         meta::common::call::{create_schema, delete_schema, list_schema, update_schema},
         pool::ClientPool,
@@ -39,7 +40,7 @@ mod test {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
 
-        let schema_name = "test_schema".to_string();
+        let schema_name = unique_id();
 
         let mut schema_data = SchemaData {
             name: schema_name.clone(),
@@ -73,7 +74,7 @@ mod test {
         }
 
         let list_request = ListSchemaRequest {
-            schema_name: "".to_string(),
+            schema_name: schema_name.clone(),
         };
 
         match list_schema(&client_pool, &addrs, list_request.clone()).await {

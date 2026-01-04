@@ -21,6 +21,7 @@ license.workspace = true
 
 [dependencies]
 common-base.workspace = true
+common-config.workspace = true
 storage-adapter.workspace = true
 metadata-struct.workspace = true
 dashmap.workspace = true

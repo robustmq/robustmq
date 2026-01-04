@@ -96,8 +96,7 @@ impl SchemaStorage {
     pub async fn list_bind(&self) -> Result<Vec<SchemaResourceBind>, CommonError> {
         let config = broker_config();
         let request = ListBindSchemaRequest {
-            schema_name: "".to_string(),
-            resource_name: "".to_string(),
+            ..Default::default()
         };
 
         let reply =

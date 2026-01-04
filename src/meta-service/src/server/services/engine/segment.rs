@@ -90,8 +90,7 @@ pub async fn create_segment_by_req(
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
     let shard = cache_manager
-        .shard_list
-        .get(&req.shard_name)
+        .get_shard(&req.shard_name)
         .ok_or_else(|| MetaServiceError::ShardDoesNotExist(req.shard_name.clone()))?;
 
     if req.current_segment as u32 != shard.active_segment_seq {
@@ -102,6 +101,7 @@ pub async fn create_segment_by_req(
     }
 
     let next_segment = (req.current_segment + 1) as u32;
+
     if shard.last_segment_seq >= next_segment {
         return Ok(CreateNextSegmentReply {});
     }
@@ -237,7 +237,6 @@ pub async fn update_start_time_by_segment_meta_by_req(
 ) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
     validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
-
     update_start_timestamp_by_segment_metadata(
         cache_manager,
         raft_manager,
