@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::driver::ArcStorageAdapter;
 use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
@@ -29,8 +30,6 @@ use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::core::cache::StorageCacheManager;
 use storage_engine::memory::engine::MemoryStorageEngine;
-
-pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
 #[async_trait]
 pub trait StorageAdapter {

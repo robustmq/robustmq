@@ -36,6 +36,7 @@ use tracing::debug;
 pub mod delay;
 pub mod persist;
 pub mod pop;
+pub mod storage;
 
 pub async fn start_delay_message_manager(
     delay_message_manager: &Arc<DelayMessageManager>,

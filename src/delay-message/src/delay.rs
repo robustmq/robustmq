@@ -18,7 +18,7 @@ use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
@@ -32,7 +32,7 @@ const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-message-shard-";
 
 pub(crate) fn start_recover_delay_queue(
     delay_message_manager: &Arc<DelayMessageManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     shard_num: u64,
 ) {
     let read_config = AdapterReadConfig {
@@ -60,7 +60,7 @@ pub(crate) fn start_recover_delay_queue(
 
 pub(crate) fn start_delay_message_pop(
     delay_message_manager: &Arc<DelayMessageManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     shard_num: u64,
 ) {
     info!("Starting delay message pop threads (shards: {})", shard_num);
@@ -100,7 +100,7 @@ pub(crate) fn start_delay_message_pop(
 }
 
 pub(crate) async fn persist_delay_message(
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     shard_name: &str,
     data: AdapterWriteRecord,
 ) -> Result<u64, CommonError> {
@@ -118,7 +118,7 @@ pub(crate) async fn persist_delay_message(
 }
 
 pub(crate) async fn init_delay_message_shard(
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     shard_num: u64,
 ) -> Result<(), CommonError> {
     let mut created_count = 0;
