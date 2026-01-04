@@ -16,7 +16,7 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 
 // MQTT Packet Received and Sent
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED: &str =
@@ -77,12 +77,12 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH: &str =
 pub(crate) async fn report_broker_metrics_packets(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED,
         || async {
             "".to_string()
@@ -94,7 +94,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT,
         || async {
             "".to_string()
@@ -106,7 +106,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT,
         || async {
             "".to_string()
@@ -118,7 +118,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK,
         || async {
             "".to_string()
@@ -130,7 +130,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED,
         || async {
             "".to_string()
@@ -142,7 +142,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT,
         || async {
             "".to_string()
@@ -154,7 +154,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED,
         || async {
             "".to_string()
@@ -166,7 +166,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT,
         || async {
             "".to_string()
@@ -178,7 +178,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED,
         || async {
             "".to_string()
@@ -190,7 +190,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED,
         || async {
             "".to_string()
@@ -202,7 +202,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT,
         || async {
             "".to_string()
@@ -214,7 +214,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED,
         || async {
             "".to_string()
@@ -226,7 +226,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED,
         || async {
             "".to_string()
@@ -238,7 +238,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT,
         || async {
             "".to_string()
@@ -250,7 +250,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED,
         || async {
             "".to_string()
@@ -262,7 +262,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED,
         || async {
             "".to_string()
@@ -274,7 +274,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
         || async {
             "".to_string()
@@ -286,7 +286,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT,
         || async {
             "".to_string()
@@ -297,7 +297,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH,
         || async {
             "".to_string()
@@ -308,7 +308,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK,
         || async {
             "".to_string()
@@ -319,7 +319,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
         || async {
             "".to_string()
@@ -330,7 +330,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
         || async {
             "".to_string()
@@ -342,7 +342,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ,
         || async {
             "".to_string()
@@ -353,7 +353,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
         || async {
             "".to_string()
@@ -365,7 +365,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
         || async {
             "".to_string()
@@ -376,7 +376,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
         || async {
             "".to_string()
@@ -387,7 +387,7 @@ pub(crate) async fn report_broker_metrics_packets(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
         || async {
             "".to_string()

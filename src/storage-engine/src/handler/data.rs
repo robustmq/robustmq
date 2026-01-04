@@ -223,17 +223,17 @@ mod tests {
 
     #[tokio::test]
     async fn read_data_req_test_by_segment() {
-        read_data_req_test(EngineStorageType::Segment).await;
+        read_data_req_test(EngineStorageType::EngineSegment).await;
     }
 
     #[tokio::test]
     async fn read_data_req_test_by_memory() {
-        read_data_req_test(EngineStorageType::Memory).await;
+        read_data_req_test(EngineStorageType::EngineMemory).await;
     }
 
     #[tokio::test]
     async fn read_data_req_test_by_rocksdb() {
-        read_data_req_test(EngineStorageType::RocksDB).await;
+        read_data_req_test(EngineStorageType::EngineRocksDB).await;
     }
 
     async fn read_data_req_test(engine_storage_type: EngineStorageType) {

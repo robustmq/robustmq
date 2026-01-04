@@ -80,14 +80,14 @@ pub async fn send(
 }
 
 async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64>, CommonError> {
-    let message_storage = MessageStorage::new(state.storage_adapter.clone());
+    let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
     let config = broker_config();
     let client_id = format!("{}_{}", config.cluster_name, config.broker_id);
 
     if let Err(e) = try_init_topic(
         &params.topic,
         &state.mqtt_context.cache_manager,
-        &state.storage_adapter,
+        &state.storage_driver_manager,
         &state.client_pool,
     )
     .await
@@ -145,7 +145,7 @@ pub async fn read_inner(
     state: Arc<HttpState>,
     params: ReadReq,
 ) -> Result<Vec<ReadMessageRow>, CommonError> {
-    let message_storage = MessageStorage::new(state.storage_adapter.clone());
+    let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
     let mut results = Vec::new();
     let data = message_storage
         .read_topic_message(&params.topic, params.offset, 100)

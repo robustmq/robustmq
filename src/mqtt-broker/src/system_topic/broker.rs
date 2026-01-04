@@ -20,7 +20,7 @@ use common_base::version::version;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
 use super::{
@@ -33,12 +33,12 @@ use crate::handler::cache::MQTTCacheManager;
 pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
     if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
         let _ = write_topic_data(
-            message_storage_adapter,
+            storage_driver_manager,
             metadata_cache,
             client_pool,
             topic_name,
@@ -51,12 +51,12 @@ pub(crate) async fn report_cluster_status(
 pub(crate) async fn report_broker_version(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_VERSION,
         || async { version() },
     )
@@ -66,13 +66,13 @@ pub(crate) async fn report_broker_version(
 pub(crate) async fn report_broker_time(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     //  report system uptime
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_UPTIME,
         || async {
             let start_long_time: u64 = now_second() - metadata_cache.broker_cache.get_start_time();
@@ -85,7 +85,7 @@ pub(crate) async fn report_broker_time(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_DATETIME,
         || async { now_second().to_string() },
     )
@@ -95,12 +95,12 @@ pub(crate) async fn report_broker_time(
 pub(crate) async fn report_broker_sysdescr(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_SYSDESCR,
         || async { format!("report broker sysdescr error,error:{}", os_info::get()) },
     )

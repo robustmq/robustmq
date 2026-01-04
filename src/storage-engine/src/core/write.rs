@@ -57,13 +57,13 @@ pub async fn batch_write(
 
     let offsets = if conf.broker_id == active_segment.leader {
         match shard.get_engine_type()? {
-            EngineStorageType::Memory => {
+            EngineStorageType::EngineMemory => {
                 write_memory_to_local(memory_storage_engine, shard_name, records).await?
             }
-            EngineStorageType::RocksDB => {
+            EngineStorageType::EngineRocksDB => {
                 write_rocksdb_to_local(rocksdb_storage_engine, shard_name, records).await?
             }
-            EngineStorageType::Segment => {
+            EngineStorageType::EngineSegment => {
                 write_segment_to_local(
                     write_manager,
                     shard_name,

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::{error::common::CommonError, tools::now_second};
+use common_config::storage::StorageAdapterType;
 use common_metrics::mqtt::statistics::{
     record_mqtt_delay_queue_remaining_capacity_set, record_mqtt_delay_queue_total_capacity_set,
     record_mqtt_delay_queue_used_capacity_set,
@@ -28,47 +29,72 @@ use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
 };
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
 use tracing::debug;
 
+use crate::storage::get_delay_message_storage_driver;
+
 pub mod delay;
 pub mod persist;
 pub mod pop;
+pub mod storage;
 
 pub async fn start_delay_message_manager(
     delay_message_manager: &Arc<DelayMessageManager>,
-    message_storage_adapter: &ArcStorageAdapter,
     shard_num: u64,
 ) -> Result<(), CommonError> {
     delay_message_manager.start().await;
-    init_delay_message_shard(message_storage_adapter, shard_num).await?;
 
-    start_recover_delay_queue(delay_message_manager, message_storage_adapter, shard_num);
+    init_delay_message_shard(
+        &delay_message_manager.message_storage_adapter,
+        &delay_message_manager.storage_adapter_type,
+        shard_num,
+    )
+    .await?;
 
-    start_delay_message_pop(delay_message_manager, message_storage_adapter, shard_num);
+    start_recover_delay_queue(
+        delay_message_manager,
+        &delay_message_manager.message_storage_adapter,
+        shard_num,
+    );
+
+    start_delay_message_pop(
+        delay_message_manager,
+        &delay_message_manager.message_storage_adapter,
+        shard_num,
+    );
 
     Ok(())
 }
 
 pub struct DelayMessageManager {
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_adapter_type: StorageAdapterType,
     shard_num: u64,
-    message_storage_adapter: ArcStorageAdapter,
     incr_no: AtomicU64,
     delay_queue_list: DashMap<u64, DelayQueue<DelayMessageInfo>>,
     delay_queue_pop_thread: DashMap<u64, broadcast::Sender<bool>>,
 }
 
 impl DelayMessageManager {
-    pub fn new(shard_num: u64, message_storage_adapter: ArcStorageAdapter) -> Self {
-        DelayMessageManager {
+    pub async fn new(
+        storage_driver_manager: Arc<StorageDriverManager>,
+        storage_adapter_type: StorageAdapterType,
+        shard_num: u64,
+    ) -> Result<Self, CommonError> {
+        let message_storage_adapter =
+            get_delay_message_storage_driver(&storage_driver_manager, &storage_adapter_type)?;
+        let driver = DelayMessageManager {
             shard_num,
             message_storage_adapter,
+            storage_adapter_type,
             incr_no: AtomicU64::new(0),
             delay_queue_list: DashMap::with_capacity(shard_num as usize),
             delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
-        }
+        };
+        Ok(driver)
     }
 
     pub async fn start(&self) {

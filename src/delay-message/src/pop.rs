@@ -21,7 +21,7 @@ use metadata_struct::{
     storage::convert::convert_engine_record_to_adapter,
 };
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::ArcStorageAdapter;
 use tracing::{debug, error, info};
 
 pub async fn pop_delay_queue(
@@ -80,6 +80,7 @@ async fn send_delay_message_to_shard(
         )));
     };
 
+    // todo Here, depending on the different types, different storage engines need to be selected.
     let resp = message_storage_adapter
         .write(&delay_message.target_shard_name, &record)
         .await?;
@@ -122,17 +123,20 @@ mod test {
         start_delay_message_pop, DelayMessageManager,
     };
     use common_base::tools::unique_id;
+    use common_config::storage::StorageAdapterType;
     use metadata_struct::{
         delay_info::DelayMessageInfo,
         storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
     };
     use std::{sync::Arc, time::Duration};
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::{
+        test_build_memory_storage_driver, test_build_storage_driver_manager,
+    };
     use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn read_offset_data_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_name = "s1".to_string();
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
@@ -160,7 +164,7 @@ mod test {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
     pub async fn send_delay_message_to_shard_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_name = "s1".to_string();
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
@@ -214,20 +218,35 @@ mod test {
     #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
     pub async fn pop_delay_queue_test() {
         let shard_num = 1;
-        let message_storage_adapter = build_memory_storage_driver();
-        let delay_message_manager = Arc::new(DelayMessageManager::new(
-            shard_num,
-            message_storage_adapter.clone(),
-        ));
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let delay_message_manager = Arc::new(
+            DelayMessageManager::new(
+                storage_driver_manager,
+                StorageAdapterType::Memory,
+                shard_num,
+            )
+            .await
+            .unwrap(),
+        );
         delay_message_manager.start().await;
 
-        init_delay_message_shard(&message_storage_adapter, shard_num)
-            .await
-            .unwrap();
-        start_delay_message_pop(&delay_message_manager, &message_storage_adapter, shard_num);
+        init_delay_message_shard(
+            &delay_message_manager.message_storage_adapter,
+            &StorageAdapterType::Memory,
+            shard_num,
+        )
+        .await
+        .unwrap();
+
+        start_delay_message_pop(
+            &delay_message_manager,
+            &delay_message_manager.message_storage_adapter,
+            shard_num,
+        );
 
         let target_topic = unique_id();
-        message_storage_adapter
+        delay_message_manager
+            .message_storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: target_topic.clone(),
                 ..Default::default()
@@ -246,7 +265,12 @@ mod test {
         sleep(Duration::from_millis(500)).await;
         let mut received_data = std::collections::HashSet::new();
         for i in 0..10 {
-            let res = read_offset_data(&message_storage_adapter, &target_topic, i).await;
+            let res = read_offset_data(
+                &delay_message_manager.message_storage_adapter,
+                &target_topic,
+                i,
+            )
+            .await;
             assert!(res.is_ok());
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.pkid, i);

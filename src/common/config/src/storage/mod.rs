@@ -45,7 +45,7 @@ pub enum StorageAdapterType {
     #[default]
     Memory,
     Engine,
-    // Mysql,
+    Mysql,
     RocksDB,
     MinIO,
     S3,
@@ -58,7 +58,7 @@ impl FromStr for StorageAdapterType {
         match s {
             "engine" => Ok(StorageAdapterType::Engine),
             "memory" => Ok(StorageAdapterType::Memory),
-            // "mysql" => Ok(StorageAdapterType::Mysql),
+            "mysql" => Ok(StorageAdapterType::Mysql),
             "rocksdb" => Ok(StorageAdapterType::RocksDB), // "rocksdb" is an alias for backward compatibility
             "minio" => Ok(StorageAdapterType::MinIO),
             "s3" => Ok(StorageAdapterType::S3),

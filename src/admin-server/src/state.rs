@@ -24,7 +24,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{core::cache::StorageCacheManager, handler::adapter::StorageEngineHandler};
 
 #[derive(Clone)]
@@ -36,7 +36,7 @@ pub struct HttpState {
     pub mqtt_context: MQTTContext,
     pub engine_context: StorageEngineContext,
     pub rate_limiter_manager: Arc<RateLimiterManager>,
-    pub storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 #[derive(Clone)]

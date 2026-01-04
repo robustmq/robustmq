@@ -55,7 +55,7 @@ mod tests {
     async fn shard_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"Segment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
 
         let create_result = client
             .create_shard(&ShardCreateReq {
@@ -90,7 +90,7 @@ mod tests {
         );
         assert_eq!(
             shard.shard_info.config.engine_storage_type,
-            Some(EngineStorageType::Segment)
+            Some(EngineStorageType::EngineSegment)
         );
 
         let segment_req = SegmentListReq {
@@ -137,7 +137,7 @@ mod tests {
     pub async fn update_start_or_end_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"Segment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
 
         // create shard
         let create_result = client
@@ -210,7 +210,7 @@ mod tests {
     pub async fn create_next_segment_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"Segment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
 
         // create shard
         let create_result = client
@@ -311,7 +311,7 @@ mod tests {
     pub async fn seal_up_segment_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"Segment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
 
         // create shard
         let create_result = client

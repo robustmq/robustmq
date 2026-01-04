@@ -16,17 +16,21 @@ use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
-use std::collections::HashMap;
-use storage_adapter::storage::ArcStorageAdapter;
+use std::{collections::HashMap, sync::Arc};
+use storage_adapter::driver::StorageDriverManager;
+
+use crate::storage::driver::get_driver_by_mqtt_topic_name;
 
 #[derive(Clone)]
 pub struct MessageStorage {
-    pub storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 impl MessageStorage {
-    pub fn new(storage_adapter: ArcStorageAdapter) -> Self {
-        MessageStorage { storage_adapter }
+    pub fn new(storage_driver_manager: Arc<StorageDriverManager>) -> Self {
+        MessageStorage {
+            storage_driver_manager,
+        }
     }
 
     pub async fn append_topic_message(
@@ -35,10 +39,8 @@ impl MessageStorage {
         record: Vec<AdapterWriteRecord>,
     ) -> Result<Vec<u64>, CommonError> {
         let shard_name = topic_name;
-        let results = self
-            .storage_adapter
-            .batch_write(shard_name, &record)
-            .await?;
+        let driver = get_driver_by_mqtt_topic_name(&self.storage_driver_manager, topic_name)?;
+        let results = driver.batch_write(shard_name, &record).await?;
         let mut offsets = Vec::new();
         for row in results {
             if row.is_error() {
@@ -60,8 +62,8 @@ impl MessageStorage {
         let mut read_config = AdapterReadConfig::new();
         read_config.max_record_num = record_num;
 
-        let engine_records = self
-            .storage_adapter
+        let driver = get_driver_by_mqtt_topic_name(&self.storage_driver_manager, topic_name)?;
+        let engine_records = driver
             .read_by_offset(shard_name, offset, &read_config)
             .await?;
 
@@ -79,15 +81,11 @@ impl MessageStorage {
     pub async fn get_group_offset(
         &self,
         group_id: &str,
-        shard_name: &str,
+        topic_name: &str,
     ) -> Result<u64, CommonError> {
-        for row in self
-            .storage_adapter
-            .get_offset_by_group(group_id)
-            .await?
-            .iter()
-        {
-            if *shard_name == row.shard_name {
+        let driver = get_driver_by_mqtt_topic_name(&self.storage_driver_manager, topic_name)?;
+        for row in driver.get_offset_by_group(group_id).await?.iter() {
+            if *topic_name == row.shard_name {
                 return Ok(row.offset);
             }
         }
@@ -104,33 +102,38 @@ impl MessageStorage {
         let mut offset_data = HashMap::new();
         offset_data.insert(shard_name.to_owned(), offset);
 
-        self.storage_adapter
-            .commit_offset(group_id, &offset_data)
-            .await
+        let driver = get_driver_by_mqtt_topic_name(&self.storage_driver_manager, topic_name)?;
+        driver.commit_offset(group_id, &offset_data).await
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common_base::tools::unique_id;
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
         shard::EngineShardConfig,
     };
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::{test_build_storage_driver_manager, StorageAdapter};
     async fn create_test_storage() -> MessageStorage {
-        let memory_storage_engine = build_memory_storage_driver();
+        let memory_storage_engine = test_build_storage_driver_manager().await.unwrap();
         MessageStorage::new(memory_storage_engine)
     }
 
     #[tokio::test]
     async fn test_message_read_write_with_metadata() {
-        let storage = create_test_storage().await;
-        let shard_name = "topic1";
-        storage
-            .storage_adapter
+        let topic_name = unique_id();
+        let message_storage = create_test_storage().await;
+
+        // create shard
+        let storage_adapter: Arc<dyn StorageAdapter + Send + Sync> =
+            get_driver_by_mqtt_topic_name(&message_storage.storage_driver_manager, &topic_name)
+                .unwrap();
+
+        storage_adapter
             .create_shard(&AdapterShardInfo {
-                shard_name: shard_name.to_string(),
+                shard_name: topic_name.to_string(),
                 config: EngineShardConfig::default(),
             })
             .await
@@ -145,15 +148,15 @@ mod tests {
             })
             .collect();
 
-        let offsets = storage
-            .append_topic_message(shard_name, records)
+        let offsets = message_storage
+            .append_topic_message(&topic_name, records)
             .await
             .unwrap();
         assert_eq!(offsets.len(), 10);
 
         // Test read with offset and limit
-        let msgs = storage
-            .read_topic_message(shard_name, offsets[5], 3)
+        let msgs = message_storage
+            .read_topic_message(&topic_name, offsets[5], 3)
             .await
             .unwrap();
         assert_eq!(msgs.len(), 3);
@@ -164,9 +167,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_group_offset_isolation() {
-        let storage = create_test_storage().await;
-        storage
-            .storage_adapter
+        let topic_name = unique_id();
+        let message_storage = create_test_storage().await;
+        let storage_adapter: Arc<dyn StorageAdapter + Send + Sync> =
+            get_driver_by_mqtt_topic_name(&message_storage.storage_driver_manager, &topic_name)
+                .unwrap();
+
+        storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: "t1".to_string(),
                 config: EngineShardConfig::default(),
@@ -174,8 +181,7 @@ mod tests {
             .await
             .unwrap();
 
-        storage
-            .storage_adapter
+        storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: "t2".to_string(),
                 config: EngineShardConfig::default(),
@@ -184,27 +190,50 @@ mod tests {
             .unwrap();
 
         // Initial offset is 0
-        assert_eq!(storage.get_group_offset("g1", "t1").await.unwrap(), 0);
+        assert_eq!(
+            message_storage.get_group_offset("g1", "t1").await.unwrap(),
+            0
+        );
 
         // Multiple groups with multiple topics
-        storage.commit_group_offset("g1", "t1", 10).await.unwrap();
-        storage.commit_group_offset("g1", "t2", 20).await.unwrap();
-        storage.commit_group_offset("g2", "t1", 30).await.unwrap();
+        message_storage
+            .commit_group_offset("g1", "t1", 10)
+            .await
+            .unwrap();
+        message_storage
+            .commit_group_offset("g1", "t2", 20)
+            .await
+            .unwrap();
+        message_storage
+            .commit_group_offset("g2", "t1", 30)
+            .await
+            .unwrap();
 
         // Verify isolation
-        assert_eq!(storage.get_group_offset("g1", "t1").await.unwrap(), 10);
-        assert_eq!(storage.get_group_offset("g1", "t2").await.unwrap(), 20);
-        assert_eq!(storage.get_group_offset("g2", "t1").await.unwrap(), 30);
+        assert_eq!(
+            message_storage.get_group_offset("g1", "t1").await.unwrap(),
+            10
+        );
+        assert_eq!(
+            message_storage.get_group_offset("g1", "t2").await.unwrap(),
+            20
+        );
+        assert_eq!(
+            message_storage.get_group_offset("g2", "t1").await.unwrap(),
+            30
+        );
     }
 
     #[tokio::test]
     async fn test_consumer_flow() {
-        let storage = create_test_storage().await;
-        let shard_name = "topic1";
-        storage
-            .storage_adapter
+        let topic_name = unique_id();
+        let message_storage = create_test_storage().await;
+        let storage_adapter: Arc<dyn StorageAdapter + Send + Sync> =
+            get_driver_by_mqtt_topic_name(&message_storage.storage_driver_manager, &topic_name)
+                .unwrap();
+        storage_adapter
             .create_shard(&AdapterShardInfo {
-                shard_name: shard_name.to_string(),
+                shard_name: topic_name.to_string(),
                 config: EngineShardConfig::default(),
             })
             .await
@@ -214,27 +243,33 @@ mod tests {
         let records: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord::from_string(format!("Msg{}", i)))
             .collect();
-        let offsets = storage
-            .append_topic_message(shard_name, records)
+        let offsets = message_storage
+            .append_topic_message(&topic_name, records)
             .await
             .unwrap();
 
         // First consume: read and commit
-        let offset = storage.get_group_offset("group", shard_name).await.unwrap();
-        let batch1 = storage
-            .read_topic_message(shard_name, offset, 5)
+        let offset = message_storage
+            .get_group_offset("group", &topic_name)
+            .await
+            .unwrap();
+        let batch1 = message_storage
+            .read_topic_message(&topic_name, offset, 5)
             .await
             .unwrap();
         assert_eq!(batch1.len(), 5);
-        storage
-            .commit_group_offset("group", shard_name, offsets[5])
+        message_storage
+            .commit_group_offset("group", &topic_name, offsets[5])
             .await
             .unwrap();
 
         // Second consume: continue from last committed
-        let offset = storage.get_group_offset("group", shard_name).await.unwrap();
-        let batch2 = storage
-            .read_topic_message(shard_name, offset, 5)
+        let offset = message_storage
+            .get_group_offset("group", &topic_name)
+            .await
+            .unwrap();
+        let batch2 = message_storage
+            .read_topic_message(&topic_name, offset, 5)
             .await
             .unwrap();
         assert_eq!(batch2.len(), 5);

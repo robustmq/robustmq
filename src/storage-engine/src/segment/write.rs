@@ -557,7 +557,7 @@ mod tests {
     #[tokio::test]
     async fn batch_write_test() {
         let (segment_iden, cache_manager, fold, rocksdb) =
-            test_init_segment(EngineStorageType::Segment).await;
+            test_init_segment(EngineStorageType::EngineSegment).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
@@ -605,7 +605,7 @@ mod tests {
     #[tokio::test]
     async fn batch_write_empty_data_test() {
         let (segment_iden, cache_manager, fold, rocksdb) =
-            test_init_segment(EngineStorageType::Segment).await;
+            test_init_segment(EngineStorageType::EngineSegment).await;
 
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
@@ -640,7 +640,7 @@ mod tests {
     #[tokio::test]
     async fn write_manager_write_test() {
         let (segment_iden, cache_manager, fold, rocksdb) =
-            test_init_segment(EngineStorageType::Segment).await;
+            test_init_segment(EngineStorageType::EngineSegment).await;
 
         save_latest_offset_by_shard(&rocksdb, &segment_iden.shard_name, 0).unwrap();
         let client_poll = Arc::new(ClientPool::new(100));
@@ -696,7 +696,7 @@ mod tests {
     #[tokio::test]
     async fn write_manager_no_offset_error_test() {
         let (segment_iden, cache_manager, _fold, rocksdb) =
-            test_init_segment(EngineStorageType::Segment).await;
+            test_init_segment(EngineStorageType::EngineSegment).await;
         let client_poll = Arc::new(ClientPool::new(100));
         let write_manager = WriteManager::new(
             rocksdb.clone(),
@@ -731,7 +731,7 @@ mod tests {
         use crate::segment::SegmentIdentity;
 
         let (_, cache_manager, _fold, rocksdb) =
-            test_init_segment(EngineStorageType::Segment).await;
+            test_init_segment(EngineStorageType::EngineSegment).await;
 
         let client_poll = Arc::new(ClientPool::new(100));
 
@@ -772,7 +772,7 @@ mod tests {
     #[tokio::test]
     async fn write_manager_no_io_thread_error_test() {
         let (segment_iden, cache_manager, _fold, rocksdb) =
-            test_init_segment(EngineStorageType::Segment).await;
+            test_init_segment(EngineStorageType::EngineSegment).await;
         let client_poll = Arc::new(ClientPool::new(100));
 
         let write_manager = WriteManager::new(

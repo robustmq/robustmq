@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use sysinfo::{Pid, ProcessExt, System, SystemExt};
 use tokio::sync::broadcast;
 use tokio::time::sleep;
@@ -56,7 +56,7 @@ pub struct SystemAlarmEventMessage {
 pub struct SystemAlarm {
     client_pool: Arc<ClientPool>,
     metadata_cache: Arc<MQTTCacheManager>,
-    message_storage_adapter: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
 }
@@ -65,14 +65,14 @@ impl SystemAlarm {
     pub fn new(
         client_pool: Arc<ClientPool>,
         metadata_cache: Arc<MQTTCacheManager>,
-        message_storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         SystemAlarm {
             client_pool,
             metadata_cache,
-            message_storage_adapter,
+            storage_driver_manager,
             rocksdb_engine_handler,
             stop_send,
         }
@@ -125,7 +125,7 @@ impl SystemAlarm {
             st_report_system_alarm_event(
                 &self.client_pool,
                 &self.metadata_cache,
-                &self.message_storage_adapter,
+                &self.storage_driver_manager,
                 &message,
             )
             .await?;

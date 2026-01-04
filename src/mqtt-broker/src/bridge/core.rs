@@ -33,7 +33,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use std::{sync::Arc, time::Duration};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{debug, error, info, warn};
 
@@ -98,7 +98,7 @@ pub trait ConnectorSink: Send + Sync {
 pub async fn run_connector_loop<S: ConnectorSink>(
     sink: &S,
     connector_manager: &Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector_name: String,
     config: BridgePluginReadConfig,
     mut stop_recv: broadcast::Receiver<bool>,
@@ -106,7 +106,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     sink.validate().await?;
 
     let mut resource = sink.init_sink().await?;
-    let message_storage = MessageStorage::new(message_storage);
+    let message_storage = MessageStorage::new(storage_driver_manager);
     let group_name = connector_name.clone();
 
     loop {
@@ -188,12 +188,12 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
 pub async fn start_connector_thread(
     client_pool: Arc<ClientPool>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        check_connector(&message_storage, &connector_manager, &client_pool).await;
+        check_connector(&storage_driver_manager, &connector_manager, &client_pool).await;
         sleep(Duration::from_secs(1)).await;
         Ok(())
     };
@@ -203,7 +203,7 @@ pub async fn start_connector_thread(
 }
 
 async fn check_connector(
-    message_storage: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     connector_manager: &Arc<ConnectorManager>,
     client_pool: &Arc<ClientPool>,
 ) {
@@ -279,7 +279,7 @@ async fn check_connector(
 
         start_thread(
             connector_manager.clone(),
-            message_storage.clone(),
+            storage_driver_manager.clone(),
             raw.clone(),
             thread,
         );
@@ -367,7 +367,7 @@ async fn check_connector(
 
 fn start_thread(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
@@ -381,34 +381,49 @@ fn start_thread(
 
     match connector_type {
         ConnectorType::LocalFile => {
-            start_local_file_connector(connector_manager, message_storage, connector, thread);
+            start_local_file_connector(
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Kafka => {
-            start_kafka_connector(connector_manager, message_storage, connector, thread);
+            start_kafka_connector(connector_manager, storage_driver_manager, connector, thread);
         }
         ConnectorType::GreptimeDB => {
-            start_greptimedb_connector(connector_manager, message_storage, connector, thread);
+            start_greptimedb_connector(
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Pulsar => {
-            start_pulsar_connector(connector_manager, message_storage, connector, thread);
+            start_pulsar_connector(connector_manager, storage_driver_manager, connector, thread);
         }
         ConnectorType::Postgres => {
-            start_postgres_connector(connector_manager, message_storage, connector, thread);
+            start_postgres_connector(connector_manager, storage_driver_manager, connector, thread);
         }
         ConnectorType::MongoDB => {
-            start_mongodb_connector(connector_manager, message_storage, connector, thread);
+            start_mongodb_connector(connector_manager, storage_driver_manager, connector, thread);
         }
         ConnectorType::RabbitMQ => {
-            start_rabbitmq_connector(connector_manager, message_storage, connector, thread);
+            start_rabbitmq_connector(connector_manager, storage_driver_manager, connector, thread);
         }
         ConnectorType::MySQL => {
-            start_mysql_connector(connector_manager, message_storage, connector, thread);
+            start_mysql_connector(connector_manager, storage_driver_manager, connector, thread);
         }
         ConnectorType::Elasticsearch => {
-            start_elasticsearch_connector(connector_manager, message_storage, connector, thread);
+            start_elasticsearch_connector(
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Redis => {
-            start_redis_connector(connector_manager, message_storage, connector, thread);
+            start_redis_connector(connector_manager, storage_driver_manager, connector, thread);
         }
     }
 }
@@ -425,15 +440,17 @@ fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bridge::manager::ConnectorManager;
+    use crate::{
+        bridge::manager::ConnectorManager, storage::driver::get_driver_by_mqtt_topic_name,
+    };
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
         mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::AdapterShardInfo,
     };
-    use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter};
+    use storage_adapter::storage::test_build_storage_driver_manager;
 
-    fn setup() -> (ArcStorageAdapter, Arc<ConnectorManager>) {
+    async fn setup() -> (Arc<StorageDriverManager>, Arc<ConnectorManager>) {
         let namespace = unique_id();
         let config = BrokerConfig {
             cluster_name: namespace.clone(),
@@ -442,7 +459,7 @@ mod tests {
         };
         init_broker_conf_by_config(config);
 
-        let storage_adapter = build_memory_storage_driver();
+        let storage_adapter = test_build_storage_driver_manager().await.unwrap();
         let connector_manager = Arc::new(ConnectorManager::new());
         (storage_adapter, connector_manager)
     }
@@ -495,12 +512,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_start_connector_thread() {
-        let (storage_adapter, connector_manager) = setup();
+        let (storage_driver_manager, connector_manager) = setup().await;
         let (stop_send, _) = broadcast::channel::<bool>(1);
         let client_pool = Arc::new(ClientPool::new(1));
         let start_handle = tokio::spawn(async move {
-            start_connector_thread(client_pool, storage_adapter, connector_manager, stop_send)
-                .await;
+            start_connector_thread(
+                client_pool,
+                storage_driver_manager,
+                connector_manager,
+                stop_send,
+            )
+            .await;
         });
 
         sleep(Duration::from_millis(100)).await;
@@ -515,7 +537,7 @@ mod tests {
             config_local_file::LocalFileConnectorConfig, ConnectorConfig,
         };
 
-        let (storage_adapter, connector_manager) = setup();
+        let (storage_driver_manager, connector_manager) = setup().await;
 
         let mut connector = create_test_connector();
         connector.broker_id = Some(1);
@@ -526,7 +548,10 @@ mod tests {
         connector_manager.add_connector(&connector);
 
         let shard_name = connector.topic_name.clone();
-        storage_adapter
+
+        let message_store =
+            get_driver_by_mqtt_topic_name(&storage_driver_manager, &shard_name).unwrap();
+        message_store
             .create_shard(&AdapterShardInfo {
                 shard_name,
                 ..Default::default()
@@ -535,7 +560,7 @@ mod tests {
             .unwrap();
 
         let client_pool = Arc::new(ClientPool::new(1));
-        check_connector(&storage_adapter, &connector_manager, &client_pool).await;
+        check_connector(&storage_driver_manager, &connector_manager, &client_pool).await;
 
         sleep(Duration::from_millis(100)).await;
 

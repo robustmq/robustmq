@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::driver::ArcStorageAdapter;
 use crate::memory::MemoryStorageAdapter;
 use crate::rocksdb::RocksDBStorageAdapter;
-use crate::storage::ArcStorageAdapter;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::unique_id;
 use common_config::config::BrokerConfig;
