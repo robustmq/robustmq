@@ -74,7 +74,7 @@ pub async fn send_last_will_message_by_req(
         client_pool,
         &data.last_will,
         &data.last_will_properties,
-        &storage_driver_manager,
+        storage_driver_manager,
     )
     .await
     {

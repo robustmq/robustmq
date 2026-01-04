@@ -55,7 +55,7 @@ pub async fn start_delay_message_manager(
     .await?;
 
     start_recover_delay_queue(
-        &delay_message_manager,
+        delay_message_manager,
         &delay_message_manager.message_storage_adapter,
         shard_num,
     );

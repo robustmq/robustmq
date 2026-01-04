@@ -49,7 +49,7 @@ pub async fn send_last_will_message(
     let topic = try_init_topic(
         &topic_name,
         cache_manager,
-        &storage_driver_manager,
+        storage_driver_manager,
         client_pool,
     )
     .await?;

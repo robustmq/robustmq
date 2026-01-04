@@ -386,7 +386,6 @@ pub(crate) async fn write_topic_data(
 
 #[cfg(test)]
 mod test {
-    use crate::storage::message::MessageStorage;
     use crate::system_topic::write_topic_data;
     use crate::{
         handler::tool::test_build_mqtt_cache_manager,
@@ -401,9 +400,7 @@ mod test {
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::shard::EngineShardConfig;
     use std::sync::Arc;
-    use storage_adapter::storage::{
-        test_build_memory_storage_driver, test_build_storage_driver_manager,
-    };
+    use storage_adapter::storage::test_build_storage_driver_manager;
 
     #[tokio::test]
     async fn test_write_topic_data() {
