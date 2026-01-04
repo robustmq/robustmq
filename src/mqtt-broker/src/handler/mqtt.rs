@@ -65,7 +65,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, warn};
 
 #[derive(Clone)]
@@ -73,7 +73,7 @@ pub struct MqttService {
     protocol: MqttProtocol,
     cache_manager: Arc<MQTTCacheManager>,
     connection_manager: Arc<ConnectionManager>,
-    message_storage_adapter: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     delay_message_manager: Arc<DelayMessageManager>,
     subscribe_manager: Arc<SubscribeManager>,
     schema_manager: Arc<SchemaRegisterManager>,
@@ -87,7 +87,7 @@ pub struct MqttServiceContext {
     pub protocol: MqttProtocol,
     pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
@@ -113,7 +113,7 @@ impl MqttService {
             protocol: context.protocol,
             cache_manager: context.cache_manager,
             connection_manager: context.connection_manager,
-            message_storage_adapter: context.message_storage_adapter,
+            storage_driver_manager: context.storage_driver_manager,
             delay_message_manager: context.delay_message_manager,
             subscribe_manager: context.subscribe_manager,
             client_pool: context.client_pool,
@@ -297,7 +297,7 @@ impl MqttService {
         self.cache_manager
             .add_connection(context.connect_id, connection.clone());
         st_report_connected_event(StReportConnectedEventContext {
-            message_storage_adapter: self.message_storage_adapter.clone(),
+            storage_driver_manager: self.storage_driver_manager.clone(),
             metadata_cache: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
             session: session.clone(),
@@ -422,7 +422,7 @@ impl MqttService {
         let topic = match try_init_topic(
             &topic_name,
             &self.cache_manager,
-            &self.message_storage_adapter,
+            &self.storage_driver_manager,
             &self.client_pool,
         )
         .await
@@ -461,7 +461,7 @@ impl MqttService {
 
         // Persisting stores message data
         let offset = match save_message(SaveMessageContext {
-            message_storage_adapter: self.message_storage_adapter.clone(),
+            storage_driver_manager: self.storage_driver_manager.clone(),
             delay_message_manager: self.delay_message_manager.clone(),
             cache_manager: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
@@ -702,7 +702,7 @@ impl MqttService {
         }
 
         st_report_subscribed_event(StReportSubscribedEventContext {
-            message_storage_adapter: self.message_storage_adapter.clone(),
+            storage_driver_manager: self.storage_driver_manager.clone(),
             metadata_cache: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
             connection: connection.clone(),
@@ -816,7 +816,7 @@ impl MqttService {
         }
 
         st_report_unsubscribed_event(StReportUnsubscribedEventContext {
-            message_storage_adapter: self.message_storage_adapter.clone(),
+            storage_driver_manager: self.storage_driver_manager.clone(),
             metadata_cache: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
             connection: connection.clone(),
@@ -848,7 +848,7 @@ impl MqttService {
 
         if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
             st_report_disconnected_event(StReportDisconnectedEventContext {
-                message_storage_adapter: self.message_storage_adapter.clone(),
+                storage_driver_manager: self.storage_driver_manager.clone(),
                 metadata_cache: self.cache_manager.clone(),
                 client_pool: self.client_pool.clone(),
                 session: session.clone(),

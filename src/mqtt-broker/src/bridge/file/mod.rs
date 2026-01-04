@@ -26,7 +26,7 @@ use metadata_struct::{
 };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -215,7 +215,7 @@ impl ConnectorSink for FileBridgePlugin {
 
 pub fn start_local_file_connector(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
@@ -236,7 +236,7 @@ pub fn start_local_file_connector(
         if let Err(e) = run_connector_loop(
             &bridge,
             &connector_manager,
-            message_storage.clone(),
+            storage_driver_manager.clone(),
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
@@ -269,22 +269,26 @@ mod tests {
         },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::test_build_storage_driver_manager;
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
-    use crate::bridge::{
-        core::{run_connector_loop, BridgePluginReadConfig},
-        file::FileBridgePlugin,
-        manager::ConnectorManager,
+    use crate::{
+        bridge::{
+            core::{run_connector_loop, BridgePluginReadConfig},
+            file::FileBridgePlugin,
+            manager::ConnectorManager,
+        },
+        storage::driver::get_driver_by_mqtt_topic_name,
     };
     use tempfile::tempdir;
 
     #[ignore]
     #[tokio::test]
     async fn file_bridge_plugin_test() {
-        let storage_adapter = build_memory_storage_driver();
-
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
         let shard_name = "test_topic".to_string();
+        let storage_adapter =
+            get_driver_by_mqtt_topic_name(&storage_driver_manager, &shard_name).unwrap();
 
         // prepare some data for testing
         storage_adapter
@@ -351,7 +355,6 @@ mod tests {
 
         let record_config_clone = read_config.clone();
         let connector_manager_clone = connector_manager.clone();
-        let storage_adapter_clone = storage_adapter.clone();
         let connector_name_clone = connector_name.clone();
         let stop_recv = stop_send.subscribe();
 
@@ -359,7 +362,7 @@ mod tests {
             run_connector_loop(
                 &file_bridge_plugin,
                 &connector_manager_clone,
-                storage_adapter_clone,
+                storage_driver_manager,
                 connector_name_clone,
                 record_config_clone,
                 stop_recv,

@@ -23,7 +23,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
 use super::{
@@ -34,7 +34,7 @@ use crate::handler::cache::MQTTCacheManager;
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub session: MqttSession,
@@ -46,7 +46,7 @@ pub struct StReportDisconnectedEventContext {
 
 #[derive(Clone)]
 pub struct StReportSubscribedEventContext {
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection: MQTTConnection,
@@ -57,7 +57,7 @@ pub struct StReportSubscribedEventContext {
 
 #[derive(Clone)]
 pub struct StReportUnsubscribedEventContext {
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection: MQTTConnection,
@@ -125,7 +125,7 @@ pub struct SystemTopicUnSubscribedEventMessage {
 
 #[derive(Clone)]
 pub struct StReportConnectedEventContext {
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub metadata_cache: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub session: MqttSession,
@@ -162,7 +162,7 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
                     MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
                     let _ = write_topic_data(
-                        &context.message_storage_adapter,
+                        &context.storage_driver_manager,
                         &context.metadata_cache,
                         &context.client_pool,
                         topic_name,
@@ -204,7 +204,7 @@ pub async fn st_report_disconnected_event(context: StReportDisconnectedEventCont
                     MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
                     let _ = write_topic_data(
-                        &context.message_storage_adapter,
+                        &context.storage_driver_manager,
                         &context.metadata_cache,
                         &context.client_pool,
                         topic_name,
@@ -251,7 +251,7 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
                         MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
                         let _ = write_topic_data(
-                            &context.message_storage_adapter,
+                            &context.storage_driver_manager,
                             &context.metadata_cache,
                             &context.client_pool,
                             topic_name,
@@ -290,7 +290,7 @@ pub async fn st_report_unsubscribed_event(context: StReportUnsubscribedEventCont
                         MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
                         let _ = write_topic_data(
-                            &context.message_storage_adapter,
+                            &context.storage_driver_manager,
                             &context.metadata_cache,
                             &context.client_pool,
                             topic_name,

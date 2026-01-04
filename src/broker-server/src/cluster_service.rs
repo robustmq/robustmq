@@ -73,7 +73,7 @@ async fn update_cache(
                 &mqtt_params.connector_manager,
                 &mqtt_params.subscribe_manager,
                 &mqtt_params.schema_manager,
-                &mqtt_params.message_storage_adapter,
+                &mqtt_params.storage_driver_manager,
                 &mqtt_params.metrics_cache_manager,
                 record,
             )

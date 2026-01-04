@@ -18,10 +18,11 @@ use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
+use crate::storage::build_delay_message_shard_config;
 use crate::{
     persist::{recover_delay_queue, DELAY_QUEUE_INFO_SHARD_NAME},
     pop::pop_delay_queue,
@@ -119,6 +120,7 @@ pub(crate) async fn persist_delay_message(
 
 pub(crate) async fn init_delay_message_shard(
     message_storage_adapter: &ArcStorageAdapter,
+    engine_storage_type: &StorageAdapterType,
     shard_num: u64,
 ) -> Result<(), CommonError> {
     let mut created_count = 0;
@@ -130,13 +132,7 @@ pub(crate) async fn init_delay_message_shard(
         if results.is_empty() {
             let shard = AdapterShardInfo {
                 shard_name: shard_name.clone(),
-                config: EngineShardConfig {
-                    replica_num: 1,
-                    max_segment_size: 1073741824,
-                    retention_sec: 86400,
-                    storage_adapter_type: StorageAdapterType::RocksDB,
-                    engine_storage_type: None,
-                },
+                config: build_delay_message_shard_config(engine_storage_type)?,
             };
             message_storage_adapter.create_shard(&shard).await?;
             debug!("Created delay message shard: {}", shard_name);
@@ -174,10 +170,11 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
+    use common_config::storage::StorageAdapterType;
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
     };
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::test_build_memory_storage_driver;
 
     use crate::{
         get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
@@ -204,9 +201,14 @@ mod test {
 
     #[tokio::test]
     pub async fn init_delay_message_shard_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_num = 1;
-        let res = init_delay_message_shard(&message_storage_adapter, shard_num).await;
+        let res = init_delay_message_shard(
+            &message_storage_adapter,
+            &StorageAdapterType::Memory,
+            shard_num,
+        )
+        .await;
         assert!(res.is_ok());
 
         let shard_name = get_delay_message_shard_name(shard_num - 1);
@@ -221,7 +223,7 @@ mod test {
 
     #[tokio::test]
     pub async fn persist_delay_message_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_name = "test".to_string();
         let data = AdapterWriteRecord::from_string("test".to_string());
         message_storage_adapter

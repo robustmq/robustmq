@@ -16,7 +16,7 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 
 // routes
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT: &str =
@@ -27,12 +27,12 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX: &str =
 pub(crate) async fn report_broker_stat_routes(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT,
         || async {
             "".to_string()
@@ -44,7 +44,7 @@ pub(crate) async fn report_broker_stat_routes(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
         || async {
             "".to_string()

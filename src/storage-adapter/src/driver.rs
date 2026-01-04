@@ -14,12 +14,10 @@
 
 use crate::{
     engine::StorageEngineAdapter, memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter,
-    storage::ArcStorageAdapter,
+    storage::StorageAdapter,
 };
 use common_base::error::common::CommonError;
-use common_config::storage::{
-    memory::StorageDriverMemoryConfig, StorageAdapterConfig, StorageAdapterType,
-};
+use common_config::storage::{memory::StorageDriverMemoryConfig, StorageAdapterType};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use storage_engine::{
@@ -27,49 +25,89 @@ use storage_engine::{
     memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
 };
 
-pub async fn build_message_storage_driver(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    storage_cache_manager: Arc<StorageCacheManager>,
-    engine_adapter_handler: Arc<StorageEngineHandler>,
-    config: StorageAdapterConfig,
-) -> Result<ArcStorageAdapter, CommonError> {
-    let storage: ArcStorageAdapter = match config.storage_type {
-        StorageAdapterType::Memory => {
-            let engine = MemoryStorageEngine::create_standalone(
-                rocksdb_engine_handler.clone(),
-                storage_cache_manager.clone(),
-                StorageDriverMemoryConfig::default(),
-            );
-            Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
-        }
+pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
-        StorageAdapterType::Engine => {
-            Arc::new(StorageEngineAdapter::new(engine_adapter_handler).await)
-        }
+pub struct StorageDriverManager {
+    pub memory_storage: ArcStorageAdapter,
+    pub rocksdb_storage: ArcStorageAdapter,
+    pub engine_storage: ArcStorageAdapter,
+}
 
-        StorageAdapterType::RocksDB => {
-            let engine = Arc::new(RocksDBStorageEngine::create_standalone(
-                storage_cache_manager.clone(),
-                rocksdb_engine_handler.clone(),
-            ));
-            Arc::new(RocksDBStorageAdapter::new(engine.clone()))
-        }
+impl StorageDriverManager {
+    pub async fn new(
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
+        storage_cache_manager: Arc<StorageCacheManager>,
+        engine_adapter_handler: Arc<StorageEngineHandler>,
+    ) -> Result<Self, CommonError> {
+        let memory_storage = StorageDriverManager::build_message_storage_driver(
+            &rocksdb_engine_handler,
+            &storage_cache_manager,
+            &engine_adapter_handler,
+            StorageAdapterType::Memory,
+        )
+        .await?;
+        let rocksdb_storage = StorageDriverManager::build_message_storage_driver(
+            &rocksdb_engine_handler,
+            &storage_cache_manager,
+            &engine_adapter_handler,
+            StorageAdapterType::RocksDB,
+        )
+        .await?;
+        let engine_storage = StorageDriverManager::build_message_storage_driver(
+            &rocksdb_engine_handler,
+            &storage_cache_manager,
+            &engine_adapter_handler,
+            StorageAdapterType::Engine,
+        )
+        .await?;
+        Ok(StorageDriverManager {
+            memory_storage,
+            rocksdb_storage,
+            engine_storage,
+        })
+    }
 
-        StorageAdapterType::S3 => {
-            // Arc::new(S3StorageAdapter::new(config.s3_config.unwrap_or_default()))
-            return Err(CommonError::UnavailableStorageType);
-        }
+    async fn build_message_storage_driver(
+        rocksdb_engine_handler: &Arc<RocksDBEngine>,
+        storage_cache_manager: &Arc<StorageCacheManager>,
+        engine_adapter_handler: &Arc<StorageEngineHandler>,
+        storage_type: StorageAdapterType,
+    ) -> Result<ArcStorageAdapter, CommonError> {
+        let storage: ArcStorageAdapter = match storage_type {
+            StorageAdapterType::Memory => {
+                let engine = MemoryStorageEngine::create_standalone(
+                    rocksdb_engine_handler.clone(),
+                    storage_cache_manager.clone(),
+                    StorageDriverMemoryConfig::default(),
+                );
+                Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
+            }
 
-        // StorageAdapterType::Mysql => Arc::new(MySQLStorageAdapter::new(
-        //     config.mysql_config.unwrap_or_default(),
-        // )?),
-        StorageAdapterType::MinIO => {
-            // Arc::new(MinIoStorageAdapter::new(
-            // config.minio_config.unwrap_or_default(),
-            // )?)
-            return Err(CommonError::UnavailableStorageType);
-        }
-    };
+            StorageAdapterType::Engine => {
+                Arc::new(StorageEngineAdapter::new(engine_adapter_handler.clone()).await)
+            }
 
-    Ok(storage)
+            StorageAdapterType::RocksDB => {
+                let engine = Arc::new(RocksDBStorageEngine::create_standalone(
+                    storage_cache_manager.clone(),
+                    rocksdb_engine_handler.clone(),
+                ));
+                Arc::new(RocksDBStorageAdapter::new(engine.clone()))
+            }
+
+            StorageAdapterType::S3 => {
+                return Err(CommonError::UnavailableStorageType);
+            }
+
+            StorageAdapterType::Mysql => {
+                return Err(CommonError::UnavailableStorageType);
+            }
+
+            StorageAdapterType::MinIO => {
+                return Err(CommonError::UnavailableStorageType);
+            }
+        };
+
+        Ok(storage)
+    }
 }

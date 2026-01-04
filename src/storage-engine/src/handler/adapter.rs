@@ -256,19 +256,19 @@ impl StorageEngineHandler {
         };
 
         let result = match shard.get_engine_type()? {
-            EngineStorageType::Memory => {
+            EngineStorageType::EngineMemory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
 
-            EngineStorageType::RocksDB => {
+            EngineStorageType::EngineRocksDB => {
                 self.rocksdb_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
 
-            EngineStorageType::Segment => {
+            EngineStorageType::EngineSegment => {
                 self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }
         };

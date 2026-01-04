@@ -132,7 +132,7 @@ pub fn get_earliest_offset(
         .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
 
     match shard.get_engine_type()? {
-        EngineStorageType::Memory | EngineStorageType::RocksDB => {
+        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => {
             if let Some(offset) = read_earliest_offset_by_shard(rocksdb_engine_handler, shard_name)?
             {
                 Ok(offset)
@@ -141,7 +141,7 @@ pub fn get_earliest_offset(
             }
         }
 
-        EngineStorageType::Segment => {
+        EngineStorageType::EngineSegment => {
             let segment_iden = SegmentIdentity::new(shard_name, shard.start_segment_seq);
             let segment_meta = cache_manager
                 .get_segment_meta(&segment_iden)
@@ -173,9 +173,9 @@ pub fn get_latest_offset(
     }
 
     match shard.get_engine_type()? {
-        EngineStorageType::Memory | EngineStorageType::RocksDB => Ok(0),
+        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => Ok(0),
 
-        EngineStorageType::Segment => {
+        EngineStorageType::EngineSegment => {
             let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
             let segment_iden = SegmentIdentity::new(shard_name, shard.active_segment_seq);
             let start_offset = segment_index_manager.get_start_offset(&segment_iden)?;
@@ -254,7 +254,7 @@ mod tests {
         let shard = EngineShard {
             shard_name: shard_name.clone(),
             config: EngineShardConfig {
-                engine_storage_type: Some(EngineStorageType::Memory),
+                engine_storage_type: Some(EngineStorageType::EngineMemory),
                 ..Default::default()
             },
             ..Default::default()
@@ -277,7 +277,7 @@ mod tests {
         let shard = EngineShard {
             shard_name: shard_name.clone(),
             config: EngineShardConfig {
-                engine_storage_type: Some(EngineStorageType::Memory),
+                engine_storage_type: Some(EngineStorageType::EngineMemory),
                 ..Default::default()
             },
             ..Default::default()

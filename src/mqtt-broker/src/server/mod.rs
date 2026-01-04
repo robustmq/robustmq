@@ -32,7 +32,7 @@ use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::error;
 
@@ -50,7 +50,7 @@ pub struct TcpServerContext {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub cache_manager: Arc<MQTTCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub client_pool: Arc<ClientPool>,
@@ -65,7 +65,7 @@ impl Server {
         let conf = broker_config();
         let command_context = CommandContext {
             cache_manager: context.cache_manager.clone(),
-            message_storage_adapter: context.message_storage_adapter.clone(),
+            storage_driver_manager: context.storage_driver_manager.clone(),
             delay_message_manager: context.delay_message_manager.clone(),
             subscribe_manager: context.subscribe_manager.clone(),
             client_pool: context.client_pool.clone(),

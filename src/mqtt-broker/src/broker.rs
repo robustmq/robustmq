@@ -40,7 +40,7 @@ use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use storage_engine::group::OffsetManager;
 use tokio::sync::broadcast::{self};
 use tokio::sync::mpsc;
@@ -50,7 +50,7 @@ use tracing::{error, info};
 pub struct MqttBrokerServerParams {
     pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub connector_manager: Arc<ConnectorManager>,
@@ -66,7 +66,7 @@ pub struct MqttBrokerServerParams {
 pub struct MqttBrokerServer {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
-    message_storage_adapter: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     connector_manager: Arc<ConnectorManager>,
@@ -88,7 +88,7 @@ impl MqttBrokerServer {
             subscribe_manager: params.subscribe_manager.clone(),
             cache_manager: params.cache_manager.clone(),
             connection_manager: params.connection_manager.clone(),
-            message_storage_adapter: params.message_storage_adapter.clone(),
+            storage_driver_manager: params.storage_driver_manager.clone(),
             delay_message_manager: params.delay_message_manager.clone(),
             schema_manager: params.schema_manager.clone(),
             client_pool: params.client_pool.clone(),
@@ -103,7 +103,7 @@ impl MqttBrokerServer {
             inner_stop,
             cache_manager: params.cache_manager,
             client_pool: params.client_pool,
-            message_storage_adapter: params.message_storage_adapter,
+            storage_driver_manager: params.storage_driver_manager,
             subscribe_manager: params.subscribe_manager,
             connector_manager: params.connector_manager,
             connection_manager: params.connection_manager,
@@ -165,7 +165,7 @@ impl MqttBrokerServer {
         let raw_stop_send = self.inner_stop.clone();
         let system_topic = SystemTopic::new(
             self.cache_manager.clone(),
-            self.message_storage_adapter.clone(),
+            self.storage_driver_manager.clone(),
             self.client_pool.clone(),
         );
         tokio::spawn(async move {
@@ -195,7 +195,7 @@ impl MqttBrokerServer {
         let system_alarm = SystemAlarm::new(
             self.client_pool.clone(),
             self.cache_manager.clone(),
-            self.message_storage_adapter.clone(),
+            self.storage_driver_manager.clone(),
             self.rocksdb_engine_handler.clone(),
             self.inner_stop.clone(),
         );
@@ -217,7 +217,7 @@ impl MqttBrokerServer {
     }
 
     fn start_connector_thread(&self) {
-        let message_storage = self.message_storage_adapter.clone();
+        let message_storage = self.storage_driver_manager.clone();
         let connector_manager = self.connector_manager.clone();
         let stop_send = self.inner_stop.clone();
         let client_poll = self.client_pool.clone();
@@ -232,7 +232,7 @@ impl MqttBrokerServer {
         let stop_send = self.inner_stop.clone();
         let push_manager = PushManager::new(
             self.cache_manager.clone(),
-            self.message_storage_adapter.clone(),
+            self.storage_driver_manager.clone(),
             self.connection_manager.clone(),
             self.rocksdb_engine_handler.clone(),
             self.subscribe_manager.clone(),
@@ -264,12 +264,10 @@ impl MqttBrokerServer {
 
     fn start_delay_message_thread(&self) {
         let delay_message_manager = self.delay_message_manager.clone();
-        let message_storage_adapter = self.message_storage_adapter.clone();
         tokio::spawn(async move {
             let conf = broker_config();
             if let Err(e) = start_delay_message_manager(
                 &delay_message_manager,
-                &message_storage_adapter,
                 delay_message_manager.get_shard_num(),
             )
             .await

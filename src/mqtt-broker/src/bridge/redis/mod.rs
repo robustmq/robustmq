@@ -24,7 +24,7 @@ use metadata_struct::{
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, info, warn};
 
 use crate::handler::error::MqttBrokerError;
@@ -286,7 +286,7 @@ impl ConnectorSink for RedisBridgePlugin {
 
 pub fn start_redis_connector(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
@@ -307,7 +307,7 @@ pub fn start_redis_connector(
         if let Err(e) = run_connector_loop(
             &bridge,
             &connector_manager,
-            message_storage.clone(),
+            storage_driver_manager.clone(),
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
