@@ -69,6 +69,10 @@ pub trait StorageAdapter {
 
     async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<StorageRecord>, CommonError>;
 
+    async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), CommonError>;
+
+    async fn delete_by_offset(&self, shard: &str, offset: u64) -> Result<(), CommonError>;
+
     async fn get_offset_by_timestamp(
         &self,
         shard: &str,

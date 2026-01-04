@@ -105,6 +105,14 @@ impl StorageAdapter for StorageEngineAdapter {
         self.adapter.read_by_key(shard, key).await
     }
 
+    async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), CommonError> {
+        self.adapter.delete_by_key(shard, key).await
+    }
+
+    async fn delete_by_offset(&self, shard: &str, offset: u64) -> Result<(), CommonError> {
+        self.adapter.delete_by_offset(shard, offset).await
+    }
+
     async fn get_offset_by_timestamp(
         &self,
         shard: &str,

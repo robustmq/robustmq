@@ -233,6 +233,18 @@ impl StorageEngineHandler {
         self.offset_manager.commit_offset(group_name, offset).await
     }
 
+    pub async fn delete_by_key(&self, _shard: &str, _key: &str) -> Result<(), CommonError> {
+        Err(CommonError::CommonError(
+            "delete_by_key operation is not supported".to_string(),
+        ))
+    }
+
+    pub async fn delete_by_offset(&self, _shard: &str, _offset: u64) -> Result<(), CommonError> {
+        Err(CommonError::CommonError(
+            "delete_by_offset operation is not supported".to_string(),
+        ))
+    }
+
     async fn get_offset_by_timestamp0(
         &self,
         shard_name: &str,
