@@ -203,7 +203,9 @@ fn get_segment_no_by_offset(
     offset: u64,
 ) -> Result<u32, StorageEngineError> {
     match shard.get_engine_type()? {
-        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => Ok(shard.active_segment_seq),
+        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => {
+            Ok(shard.active_segment_seq)
+        }
         EngineStorageType::EngineSegment => {
             if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
                 Ok(segment_no)

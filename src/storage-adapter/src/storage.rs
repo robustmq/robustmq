@@ -95,7 +95,7 @@ pub trait StorageAdapter {
     async fn close(&self) -> Result<(), CommonError>;
 }
 
-pub async fn build_storage_driver_manager() -> Result<Arc<StorageDriverManager>, CommonError> {
+pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverManager>, CommonError> {
     let rocksdb_engine_handler = test_rocksdb_instance();
     let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
     let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
@@ -146,7 +146,7 @@ pub async fn build_storage_driver_manager() -> Result<Arc<StorageDriverManager>,
     Ok(Arc::new(driver))
 }
 
-pub fn build_memory_storage_driver() -> ArcStorageAdapter {
+pub fn test_build_memory_storage_driver() -> ArcStorageAdapter {
     let rocksdb_engine_handler = test_rocksdb_instance();
     let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
     let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));

@@ -28,7 +28,7 @@ use metadata_struct::{
     mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use serde_json::{json, Value};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
 use crate::handler::error::MqttBrokerError;
@@ -178,7 +178,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
 
 pub fn start_elasticsearch_connector(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
@@ -198,7 +198,7 @@ pub fn start_elasticsearch_connector(
         if let Err(e) = run_connector_loop(
             &bridge,
             &connector_manager,
-            message_storage.clone(),
+            storage_driver_manager.clone(),
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

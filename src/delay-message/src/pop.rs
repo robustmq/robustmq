@@ -129,12 +129,14 @@ mod test {
         storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
     };
     use std::{sync::Arc, time::Duration};
-    use storage_adapter::storage::{build_memory_storage_driver, build_storage_driver_manager};
+    use storage_adapter::storage::{
+        test_build_memory_storage_driver, test_build_storage_driver_manager,
+    };
     use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn read_offset_data_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_name = "s1".to_string();
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
@@ -162,7 +164,7 @@ mod test {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
     pub async fn send_delay_message_to_shard_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_name = "s1".to_string();
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
@@ -216,7 +218,7 @@ mod test {
     #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
     pub async fn pop_delay_queue_test() {
         let shard_num = 1;
-        let storage_driver_manager = build_storage_driver_manager().await.unwrap();
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
         let delay_message_manager = Arc::new(
             DelayMessageManager::new(
                 storage_driver_manager,

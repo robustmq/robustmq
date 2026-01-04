@@ -34,7 +34,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tokio::{select, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info};
 
@@ -59,14 +59,14 @@ impl SharePushManager {
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<MQTTCacheManager>,
-        storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         group_name: String,
     ) -> Self {
         SharePushManager {
             subscribe_manager,
-            message_storage: MessageStorage::new(storage_adapter),
+            message_storage: MessageStorage::new(storage_driver_manager),
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,

@@ -78,7 +78,9 @@ pub async fn read_by_tag(
     };
 
     let engine_type = shard.get_engine_type()?;
-    if engine_type == EngineStorageType::EngineMemory || engine_type == EngineStorageType::EngineRocksDB {
+    if engine_type == EngineStorageType::EngineMemory
+        || engine_type == EngineStorageType::EngineRocksDB
+    {
         let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };

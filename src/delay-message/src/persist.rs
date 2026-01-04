@@ -125,12 +125,14 @@ mod test {
         },
     };
     use std::{sync::Arc, time::Duration};
-    use storage_adapter::storage::{build_memory_storage_driver, build_storage_driver_manager};
+    use storage_adapter::storage::{
+        test_build_memory_storage_driver, test_build_storage_driver_manager,
+    };
     use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn persist_delay_info_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
 
         let target_shard_name = unique_id();
         let delay_shard_name = unique_id();
@@ -183,7 +185,7 @@ mod test {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     pub async fn build_delay_queue_test() {
         let shard_num = 1;
-        let storage_driver_manager = build_storage_driver_manager().await.unwrap();
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
         let delay_message_manager = Arc::new(
             DelayMessageManager::new(
                 storage_driver_manager.clone(),

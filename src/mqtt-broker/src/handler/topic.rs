@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use super::error::MqttBrokerError;
-use crate::handler::cache::MQTTCacheManager;
 use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
+use crate::{handler::cache::MQTTCacheManager, storage::driver::get_driver_by_mqtt_topic_name};
 use bytes::Bytes;
 use common_config::storage::StorageAdapterType;
 use grpc_clients::pool::ClientPool;
@@ -28,7 +28,7 @@ use regex::Regex;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tokio::time::sleep;
 
 pub fn payload_format_validator(
@@ -140,7 +140,7 @@ pub async fn get_topic_alias(
 pub async fn try_init_topic(
     topic_name: &str,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<MQTTTopic, MqttBrokerError> {
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
@@ -159,6 +159,9 @@ pub async fn try_init_topic(
         metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer
+        let message_storage_adapter =
+            get_driver_by_mqtt_topic_name(storage_driver_manager, topic_name)?;
+
         let list = message_storage_adapter
             .list_shard(Some(topic_name.to_string()))
             .await?;
@@ -184,10 +187,12 @@ pub async fn try_init_topic(
 pub async fn delete_topic(
     cache_manager: &Arc<MQTTCacheManager>,
     topic_name: &str,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     metrics_manager: &Arc<MQTTMetricsCache>,
 ) -> Result<(), MqttBrokerError> {
+    let message_storage_adapter =
+        get_driver_by_mqtt_topic_name(storage_driver_manager, topic_name)?;
     // delete shard
     let list = message_storage_adapter
         .list_shard(Some(topic_name.to_string()))

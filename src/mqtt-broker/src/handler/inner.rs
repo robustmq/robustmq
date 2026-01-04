@@ -24,7 +24,7 @@ use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::debug;
 
 pub async fn delete_session_by_req(
@@ -53,7 +53,7 @@ pub async fn delete_session_by_req(
 pub async fn send_last_will_message_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
     let data = match MqttLastWillData::decode(&req.last_will_message) {
@@ -74,7 +74,7 @@ pub async fn send_last_will_message_by_req(
         client_pool,
         &data.last_will,
         &data.last_will_properties,
-        message_storage_adapter.clone(),
+        &storage_driver_manager,
     )
     .await
     {

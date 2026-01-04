@@ -32,7 +32,7 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
 
@@ -56,14 +56,14 @@ impl DirectlyPushManager {
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<MQTTCacheManager>,
-        storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         uuid: String,
     ) -> Self {
         DirectlyPushManager {
             subscribe_manager,
-            message_storage: MessageStorage::new(storage_adapter),
+            message_storage: MessageStorage::new(storage_driver_manager),
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,

@@ -174,7 +174,7 @@ mod test {
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
     };
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::test_build_memory_storage_driver;
 
     use crate::{
         get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
@@ -201,7 +201,7 @@ mod test {
 
     #[tokio::test]
     pub async fn init_delay_message_shard_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_num = 1;
         let res = init_delay_message_shard(
             &message_storage_adapter,
@@ -223,7 +223,7 @@ mod test {
 
     #[tokio::test]
     pub async fn persist_delay_message_test() {
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = test_build_memory_storage_driver();
         let shard_name = "test".to_string();
         let data = AdapterWriteRecord::from_string("test".to_string());
         message_storage_adapter

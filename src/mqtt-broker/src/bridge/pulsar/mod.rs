@@ -26,7 +26,7 @@ use metadata_struct::{
     mqtt::bridge::config_pulsar::PulsarConnectorConfig, mqtt::bridge::connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tracing::error;
 mod pulsar_producer;
 
@@ -71,7 +71,7 @@ impl ConnectorSink for PulsarBridgePlugin {
 
 pub fn start_pulsar_connector(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
@@ -92,7 +92,7 @@ pub fn start_pulsar_connector(
         if let Err(e) = run_connector_loop(
             &bridge,
             &connector_manager,
-            message_storage.clone(),
+            storage_driver_manager.clone(),
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

@@ -19,7 +19,7 @@ use common_base::error::ResultCommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 
 // sysmon topic
 pub(crate) const SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE: &str =
@@ -28,7 +28,7 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE: &str =
 pub async fn st_report_system_alarm_event(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     message_event: &SystemAlarmEventMessage,
 ) -> ResultCommonError {
     let data = serde_json::to_string(message_event)?;
@@ -36,7 +36,7 @@ pub async fn st_report_system_alarm_event(
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
         let _ = write_topic_data(
-            message_storage_adapter,
+            storage_driver_manager,
             metadata_cache,
             client_pool,
             topic_name,

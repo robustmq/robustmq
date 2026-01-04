@@ -21,29 +21,28 @@ use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcInnerServices {
     cache_manager: Arc<MQTTCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
-    message_storage_adapter: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 impl GrpcInnerServices {
     pub fn new(
         cache_manager: Arc<MQTTCacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
-
         client_pool: Arc<ClientPool>,
-        message_storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
     ) -> Self {
         GrpcInnerServices {
             cache_manager,
             subscribe_manager,
             client_pool,
-            message_storage_adapter,
+            storage_driver_manager,
         }
     }
 }
@@ -69,7 +68,7 @@ impl BrokerMqttService for GrpcInnerServices {
         send_last_will_message_by_req(
             &self.cache_manager,
             &self.client_pool,
-            &self.message_storage_adapter,
+            &self.storage_driver_manager,
             &req,
         )
         .await

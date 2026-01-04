@@ -16,7 +16,7 @@ use crate::handler::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 
 // subscribe
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT: &str =
@@ -40,12 +40,12 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX: &str =
 pub(crate) async fn report_broker_stat_sub_options(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT,
         || async {
             "".to_string()
@@ -57,7 +57,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
         || async {
             "".to_string()
@@ -69,7 +69,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT,
         || async {
             "".to_string()
@@ -81,7 +81,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX,
         || async {
             "".to_string()
@@ -93,7 +93,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT,
         || async {
             "".to_string()
@@ -105,7 +105,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX,
         || async {
             "".to_string()
@@ -117,7 +117,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
         || async {
             "".to_string()
@@ -129,7 +129,7 @@ pub(crate) async fn report_broker_stat_sub_options(
     report_system_data(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
         || async {
             "".to_string()

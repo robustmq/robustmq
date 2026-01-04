@@ -26,7 +26,7 @@ use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 
 pub async fn send_last_will_message(
     client_id: &str,
@@ -34,7 +34,7 @@ pub async fn send_last_will_message(
     client_pool: &Arc<ClientPool>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-    message_storage_adapter: ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> ResultMqttBrokerError {
     let (topic_name, publish_res, publish_properties) =
         build_publish_message_by_lastwill(last_will, last_will_properties).await?;
@@ -49,7 +49,7 @@ pub async fn send_last_will_message(
     let topic = try_init_topic(
         &topic_name,
         cache_manager,
-        &message_storage_adapter,
+        &storage_driver_manager,
         client_pool,
     )
     .await?;
@@ -65,7 +65,7 @@ pub async fn send_last_will_message(
     .await?;
 
     // Persisting stores message data
-    let message_storage = MessageStorage::new(message_storage_adapter.clone());
+    let message_storage = MessageStorage::new(storage_driver_manager.clone());
 
     let message_expire = build_message_expire(cache_manager, &publish_properties).await;
     if let Some(record) =

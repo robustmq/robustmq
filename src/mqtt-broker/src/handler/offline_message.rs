@@ -30,7 +30,7 @@ use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 
 pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str) -> bool {
     subscribe_manager.topic_subscribes.contains_key(topic)
@@ -38,7 +38,7 @@ pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str
 
 #[derive(Clone)]
 pub struct SaveMessageContext {
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
@@ -94,7 +94,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     }
 
     return save_simple_message(
-        &context.message_storage_adapter,
+        &context.storage_driver_manager,
         &context.publish,
         &context.publish_properties,
         &context.client_id,
@@ -153,7 +153,7 @@ async fn save_delay_message(
 }
 
 async fn save_simple_message(
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     client_id: &str,
@@ -163,7 +163,7 @@ async fn save_simple_message(
     if let Some(record) =
         MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
     {
-        let message_storage = MessageStorage::new(message_storage_adapter.clone());
+        let message_storage = MessageStorage::new(storage_driver_manager.clone());
         let offsets = message_storage
             .append_topic_message(&topic.topic_name, vec![record])
             .await?;

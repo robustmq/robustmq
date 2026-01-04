@@ -20,7 +20,7 @@ use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 
@@ -43,7 +43,7 @@ pub mod share_push;
 
 pub struct PushManager {
     cache_manager: Arc<MQTTCacheManager>,
-    storage_adapter: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connection_manager: Arc<ConnectionManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -54,14 +54,14 @@ pub struct PushManager {
 impl PushManager {
     pub fn new(
         cache_manager: Arc<MQTTCacheManager>,
-        storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         subscribe_manager: Arc<SubscribeManager>,
     ) -> Self {
         PushManager {
             cache_manager,
-            storage_adapter,
+            storage_driver_manager,
             connection_manager,
             rocksdb_engine_handler,
             subscribe_manager,
@@ -140,7 +140,7 @@ impl PushManager {
                 let push_manager = DirectlyPushManager::new(
                     self.subscribe_manager.clone(),
                     self.cache_manager.clone(),
-                    self.storage_adapter.clone(),
+                    self.storage_driver_manager.clone(),
                     self.connection_manager.clone(),
                     self.rocksdb_engine_handler.clone(),
                     bucket_id.clone(),
@@ -232,7 +232,7 @@ impl PushManager {
                 let push_manager = SharePushManager::new(
                     self.subscribe_manager.clone(),
                     self.cache_manager.clone(),
-                    self.storage_adapter.clone(),
+                    self.storage_driver_manager.clone(),
                     self.connection_manager.clone(),
                     self.rocksdb_engine_handler.clone(),
                     group_name.clone(),

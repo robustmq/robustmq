@@ -79,7 +79,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 
 // Cluster status information
@@ -119,19 +119,19 @@ pub mod sysmon;
 
 pub struct SystemTopic {
     pub metadata_cache: Arc<MQTTCacheManager>,
-    pub message_storage_adapter: ArcStorageAdapter,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
 }
 
 impl SystemTopic {
     pub fn new(
         metadata_cache: Arc<MQTTCacheManager>,
-        message_storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         SystemTopic {
             metadata_cache,
-            message_storage_adapter,
+            storage_driver_manager,
             client_pool,
         }
     }
@@ -142,28 +142,28 @@ impl SystemTopic {
             report_broker_info(
                 &self.client_pool,
                 &self.metadata_cache,
-                &self.message_storage_adapter,
+                &self.storage_driver_manager,
             )
             .await;
 
             report_stats_info(
                 &self.client_pool,
                 &self.metadata_cache,
-                &self.message_storage_adapter,
+                &self.storage_driver_manager,
             )
             .await;
 
             report_packet_info(
                 &self.client_pool,
                 &self.metadata_cache,
-                &self.message_storage_adapter,
+                &self.storage_driver_manager,
             )
             .await;
 
             report_broker_stat_routes(
                 &self.client_pool,
                 &self.metadata_cache,
-                &self.message_storage_adapter,
+                &self.storage_driver_manager,
             )
             .await;
 
@@ -180,7 +180,7 @@ impl SystemTopic {
             if let Err(e) = try_init_topic(
                 &new_topic_name,
                 &self.metadata_cache,
-                &self.message_storage_adapter,
+                &self.storage_driver_manager,
                 &self.client_pool,
             )
             .await
@@ -269,31 +269,27 @@ impl SystemTopic {
 pub(crate) async fn report_broker_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    broker::report_cluster_status(client_pool, metadata_cache, message_storage_adapter).await;
-    broker::report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
-    broker::report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
-    broker::report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
+    broker::report_cluster_status(client_pool, metadata_cache, storage_driver_manager).await;
+    broker::report_broker_version(client_pool, metadata_cache, storage_driver_manager).await;
+    broker::report_broker_time(client_pool, metadata_cache, storage_driver_manager).await;
+    broker::report_broker_sysdescr(client_pool, metadata_cache, storage_driver_manager).await;
 }
 
 pub(crate) async fn report_packet_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     // bytes
-    packet::bytes::report_broker_metrics_bytes(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
+    packet::bytes::report_broker_metrics_bytes(client_pool, metadata_cache, storage_driver_manager)
+        .await;
 
     packet::packets::report_broker_metrics_packets(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
     )
     .await;
     // connect
@@ -302,7 +298,7 @@ pub(crate) async fn report_packet_info(
     packet::messages::report_broker_metrics_messages(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
     )
     .await;
 }
@@ -310,13 +306,13 @@ pub(crate) async fn report_packet_info(
 pub(crate) async fn report_stats_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     // client
     stats::client::report_broker_stat_connections(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
     )
     .await;
 
@@ -324,19 +320,19 @@ pub(crate) async fn report_stats_info(
     stats::subscription::report_broker_stat_sub_options(
         client_pool,
         metadata_cache,
-        message_storage_adapter,
+        storage_driver_manager,
     )
     .await;
 
     //topics
-    stats::topics::report_broker_stat_topics(client_pool, metadata_cache, message_storage_adapter)
+    stats::topics::report_broker_stat_topics(client_pool, metadata_cache, storage_driver_manager)
         .await;
 }
 
 pub(crate) async fn report_system_data<F, Fut>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     topic_const: &str,
     data_generator: F,
 ) where
@@ -348,7 +344,7 @@ pub(crate) async fn report_system_data<F, Fut>(
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
         let _ = write_topic_data(
-            message_storage_adapter,
+            storage_driver_manager,
             metadata_cache,
             client_pool,
             topic_name,
@@ -367,7 +363,7 @@ pub(crate) fn replace_topic_name(mut topic_name: String) -> String {
 }
 
 pub(crate) async fn write_topic_data(
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     metadata_cache: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
@@ -376,12 +372,12 @@ pub(crate) async fn write_topic_data(
     let topic = try_init_topic(
         &topic_name,
         &metadata_cache.clone(),
-        &message_storage_adapter.clone(),
+        storage_driver_manager,
         &client_pool.clone(),
     )
     .await?;
 
-    let message_storage = MessageStorage::new(message_storage_adapter.clone());
+    let message_storage = MessageStorage::new(storage_driver_manager.clone());
     message_storage
         .append_topic_message(&topic.topic_name, vec![record])
         .await?;
@@ -390,8 +386,12 @@ pub(crate) async fn write_topic_data(
 
 #[cfg(test)]
 mod test {
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::storage::message::MessageStorage;
     use crate::system_topic::write_topic_data;
+    use crate::{
+        handler::tool::test_build_mqtt_cache_manager,
+        storage::driver::get_driver_by_mqtt_topic_name,
+    };
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
@@ -401,7 +401,9 @@ mod test {
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::shard::EngineShardConfig;
     use std::sync::Arc;
-    use storage_adapter::storage::build_storage_driver_manager;
+    use storage_adapter::storage::{
+        test_build_memory_storage_driver, test_build_storage_driver_manager,
+    };
 
     #[tokio::test]
     async fn test_write_topic_data() {
@@ -409,8 +411,11 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let message_storage_adapter = build_storage_driver_manager();
-        message_storage_adapter
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let message_adapter =
+            get_driver_by_mqtt_topic_name(&storage_driver_manager, &topic_name).unwrap();
+
+        message_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
                 config: EngineShardConfig::default(),
@@ -427,7 +432,7 @@ mod test {
             MqttMessage::build_system_topic_message(topic_name.clone(), data).unwrap();
 
         let _ = write_topic_data(
-            &message_storage_adapter,
+            &storage_driver_manager,
             &cache_manger,
             &client_pool,
             topic_name.clone(),
@@ -442,7 +447,7 @@ mod test {
             max_size: 1024 * 1024 * 1024,
         };
 
-        let results = message_storage_adapter
+        let results = message_adapter
             .read_by_offset(&topic.topic_name, 0, &read_config)
             .await
             .unwrap();
@@ -466,9 +471,13 @@ mod test {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
-        let message_storage_adapter = build_storage_driver_manager();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        message_storage_adapter
+
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let message_adapter =
+            get_driver_by_mqtt_topic_name(&storage_driver_manager, &topic_name).unwrap();
+
+        message_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
                 config: EngineShardConfig::default(),
@@ -481,7 +490,7 @@ mod test {
         super::report_system_data(
             &client_pool,
             &cache_manger,
-            &message_storage_adapter,
+            &storage_driver_manager,
             &topic_name,
             || async { expect_data.clone() },
         )
@@ -493,7 +502,7 @@ mod test {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
-        let results = message_storage_adapter
+        let results = message_adapter
             .read_by_offset(&mqtt_topic.topic_name, 0, &read_config)
             .await
             .unwrap();

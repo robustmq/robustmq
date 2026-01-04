@@ -39,7 +39,7 @@ use protocol::broker::broker_common::{
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tracing::info;
 
 pub async fn load_metadata_cache(
@@ -153,7 +153,7 @@ pub async fn update_mqtt_cache_metadata(
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
-    message_storage_adapter: &ArcStorageAdapter,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     metrics_manager: &Arc<MQTTMetricsCache>,
     record: &UpdateCacheRecord,
 ) -> ResultMqttBrokerError {
@@ -245,7 +245,7 @@ pub async fn update_mqtt_cache_metadata(
                 delete_topic(
                     cache_manager,
                     &topic.topic_name,
-                    message_storage_adapter,
+                    storage_driver_manager,
                     subscribe_manager,
                     metrics_manager,
                 )

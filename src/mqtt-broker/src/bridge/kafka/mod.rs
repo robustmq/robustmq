@@ -20,7 +20,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
-use storage_adapter::storage::ArcStorageAdapter;
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tracing::error;
 
 use crate::handler::tool::ResultMqttBrokerError;
@@ -141,7 +141,7 @@ impl ConnectorSink for KafkaBridgePlugin {
 
 pub fn start_kafka_connector(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: ArcStorageAdapter,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
@@ -162,7 +162,7 @@ pub fn start_kafka_connector(
         if let Err(e) = run_connector_loop(
             &bridge,
             &connector_manager,
-            message_storage.clone(),
+            storage_driver_manager.clone(),
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

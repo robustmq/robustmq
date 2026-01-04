@@ -22,6 +22,7 @@ use broker_core::{
     heartbeat::{check_meta_service_status, register_node, report_heartbeat},
 };
 use common_base::{
+    error::common::CommonError,
     role::{is_broker_node, is_engine_node, is_meta_node},
     runtime::create_runtime,
 };
@@ -61,7 +62,7 @@ use std::{
     thread::sleep,
     time::Duration,
 };
-use storage_adapter::{driver::build_message_storage_driver, storage::ArcStorageAdapter};
+use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use storage_engine::{
     clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
     group::OffsetManager, handler::adapter::StorageEngineHandler,
@@ -142,12 +143,11 @@ impl BrokerServer {
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_storage_cache_manager = engine_params.cache_manager.clone();
         let raw_storage_engine_handler = engine_params.storage_engine_handler.clone();
-        let message_storage_adapter = main_runtime.block_on(async move {
-            let storage = match build_message_storage_driver(
+        let storage_driver_manager = main_runtime.block_on(async move {
+            let storage = match StorageDriverManager::new(
                 raw_rocksdb_engine_handler.clone(),
                 raw_storage_cache_manager.clone(),
                 raw_storage_engine_handler.clone(),
-                config.message_storage.clone(),
             )
             .await
             {
@@ -157,17 +157,33 @@ impl BrokerServer {
                     std::process::exit(1);
                 }
             };
-            storage
+            Arc::new(storage)
         });
 
-        let mqtt_params = BrokerServer::build_broker_mqtt_params(
-            client_pool.clone(),
-            broker_cache.clone(),
-            rocksdb_engine_handler.clone(),
-            connection_manager.clone(),
-            message_storage_adapter,
-            offset_manager.clone(),
-        );
+        let raw_broker_cache = broker_cache.clone();
+        let raw_client_pool = client_pool.clone();
+        let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
+        let raw_connection_manager = connection_manager.clone();
+        let raw_storage_driver_manager = storage_driver_manager.clone();
+        let raw_offset_manager = offset_manager.clone();
+        let mqtt_params = main_runtime.block_on(async move {
+            match BrokerServer::build_broker_mqtt_params(
+                raw_client_pool.clone(),
+                raw_broker_cache.clone(),
+                raw_rocksdb_engine_handler.clone(),
+                raw_connection_manager.clone(),
+                raw_storage_driver_manager,
+                raw_offset_manager.clone(),
+            )
+            .await
+            {
+                Ok(params) => params,
+                Err(e) => {
+                    error!("Failed to build message storage driver: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        });
 
         BrokerServer {
             broker_cache,
@@ -223,7 +239,7 @@ impl BrokerServer {
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache,
             rate_limiter_manager: self.rate_limiter_manager.clone(),
-            storage_adapter: self.mqtt_params.message_storage_adapter.clone(),
+            storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
         });
 
         let http_port = self.config.http_port;
@@ -365,14 +381,15 @@ impl BrokerServer {
         }
     }
 
-    fn build_broker_mqtt_params(
+    async fn build_broker_mqtt_params(
         client_pool: Arc<ClientPool>,
         broker_cache: Arc<BrokerCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         connection_manager: Arc<NetworkConnectionManager>,
-        message_storage_adapter: ArcStorageAdapter,
+        storage_driver_manager: Arc<StorageDriverManager>,
         offset_manager: Arc<OffsetManager>,
-    ) -> MqttBrokerServerParams {
+    ) -> Result<MqttBrokerServerParams, CommonError> {
+        let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
             broker_cache.clone(),
@@ -380,15 +397,21 @@ impl BrokerServer {
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
-        let delay_message_manager =
-            Arc::new(DelayMessageManager::new(1, message_storage_adapter.clone()));
+        let delay_message_manager = Arc::new(
+            DelayMessageManager::new(
+                storage_driver_manager.clone(),
+                config.message_storage.storage_type,
+                1,
+            )
+            .await?,
+        );
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
 
-        MqttBrokerServerParams {
+        Ok(MqttBrokerServerParams {
             cache_manager,
             client_pool,
-            message_storage_adapter,
+            storage_driver_manager,
             subscribe_manager,
             connection_manager,
             connector_manager,
@@ -399,7 +422,7 @@ impl BrokerServer {
             rocksdb_engine_handler,
             broker_cache,
             offset_manager,
-        }
+        })
     }
 
     fn build_storage_engine_params(
