@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::driver::ArcStorageAdapter;
+use crate::driver::{ArcStorageAdapter, StorageDriverManager};
 use crate::memory::MemoryStorageAdapter;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
@@ -28,8 +29,13 @@ use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
+use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::core::cache::StorageCacheManager;
+use storage_engine::group::OffsetManager;
+use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams};
 use storage_engine::memory::engine::MemoryStorageEngine;
+use storage_engine::rocksdb::engine::RocksDBStorageEngine;
+use storage_engine::segment::write::WriteManager;
 
 #[async_trait]
 pub trait StorageAdapter {
@@ -87,6 +93,57 @@ pub trait StorageAdapter {
     ) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
+}
+
+pub async fn build_storage_driver_manager() -> Result<Arc<StorageDriverManager>, CommonError> {
+    let rocksdb_engine_handler = test_rocksdb_instance();
+    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+    let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+
+    let memory_storage_engine = Arc::new(MemoryStorageEngine::create_standalone(
+        rocksdb_engine_handler.clone(),
+        cache_manager.clone(),
+        StorageDriverMemoryConfig::default(),
+    ));
+
+    let client_pool = Arc::new(ClientPool::new(8));
+    let client_connection_manager =
+        Arc::new(ClientConnectionManager::new(cache_manager.clone(), 5));
+    let offset_manager = Arc::new(OffsetManager::new(
+        client_pool.clone(),
+        rocksdb_engine_handler.clone(),
+        true,
+    ));
+    let write_manager = Arc::new(WriteManager::new(
+        rocksdb_engine_handler.clone(),
+        cache_manager.clone(),
+        client_pool.clone(),
+        4,
+    ));
+
+    let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_standalone(
+        cache_manager.clone(),
+        rocksdb_engine_handler.clone(),
+    ));
+
+    let params = StorageEngineHandlerParams {
+        cache_manager: cache_manager.clone(),
+        client_pool,
+        memory_storage_engine,
+        rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+        client_connection_manager,
+        offset_manager,
+        write_manager,
+        rocksdb_storage_engine,
+    };
+    let engine_adapter_handler = Arc::new(StorageEngineHandler::new(params));
+    let driver = StorageDriverManager::new(
+        rocksdb_engine_handler,
+        cache_manager,
+        engine_adapter_handler,
+    )
+    .await?;
+    Ok(Arc::new(driver))
 }
 
 pub fn build_memory_storage_driver() -> ArcStorageAdapter {

@@ -431,7 +431,7 @@ mod tests {
     use metadata_struct::{
         mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::AdapterShardInfo,
     };
-    use storage_adapter::storage::{build_memory_storage_driver, ArcStorageAdapter};
+    use storage_adapter::storage::{build_storage_driver_manager, ArcStorageAdapter};
 
     fn setup() -> (ArcStorageAdapter, Arc<ConnectorManager>) {
         let namespace = unique_id();
@@ -442,7 +442,7 @@ mod tests {
         };
         init_broker_conf_by_config(config);
 
-        let storage_adapter = build_memory_storage_driver();
+        let storage_adapter = build_storage_driver_manager();
         let connector_manager = Arc::new(ConnectorManager::new());
         (storage_adapter, connector_manager)
     }

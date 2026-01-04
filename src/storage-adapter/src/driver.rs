@@ -28,93 +28,69 @@ use storage_engine::{
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 
 pub struct StorageDriverManager {
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    storage_cache_manager: Arc<StorageCacheManager>,
-    engine_adapter_handler: Arc<StorageEngineHandler>,
-
-    memory_storage: Option<ArcStorageAdapter>,
-    rocksdb_storage: Option<ArcStorageAdapter>,
-    engine_storage: Option<ArcStorageAdapter>,
+    pub memory_storage: ArcStorageAdapter,
+    pub rocksdb_storage: ArcStorageAdapter,
+    pub engine_storage: ArcStorageAdapter,
 }
 
 impl StorageDriverManager {
-    pub fn new(
+    pub async fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         storage_cache_manager: Arc<StorageCacheManager>,
         engine_adapter_handler: Arc<StorageEngineHandler>,
-    ) -> Self {
-        StorageDriverManager {
-            rocksdb_engine_handler,
-            storage_cache_manager,
-            engine_adapter_handler,
-            memory_storage: None,
-            rocksdb_storage: None,
-            engine_storage: None,
-        }
-    }
-
-    pub async fn init_driver(&mut self) -> Result<(), CommonError> {
-        self.memory_storage = Some(
-            self.build_message_storage_driver(StorageAdapterType::Memory)
-                .await?,
-        );
-        self.rocksdb_storage = Some(
-            self.build_message_storage_driver(StorageAdapterType::RocksDB)
-                .await?,
-        );
-        self.engine_storage = Some(
-            self.build_message_storage_driver(StorageAdapterType::Engine)
-                .await?,
-        );
-        Ok(())
-    }
-
-    pub async fn get_memory_storage_driver(&self) -> Result<ArcStorageAdapter, CommonError> {
-        if let Some(driver) = self.memory_storage.clone() {
-            return Ok(driver);
-        }
-
-        Err(CommonError::CommonError("".to_string()))
-    }
-
-    pub async fn get_rocksdb_storage_driver(&self) -> Result<ArcStorageAdapter, CommonError> {
-        if let Some(driver) = self.rocksdb_storage.clone() {
-            return Ok(driver);
-        }
-
-        Err(CommonError::CommonError("".to_string()))
-    }
-
-    pub async fn get_engine_storage_driver(&self) -> Result<ArcStorageAdapter, CommonError> {
-        if let Some(driver) = self.engine_storage.clone() {
-            return Ok(driver);
-        }
-
-        Err(CommonError::CommonError("".to_string()))
+    ) -> Result<Self, CommonError> {
+        let memory_storage = StorageDriverManager::build_message_storage_driver(
+            &rocksdb_engine_handler,
+            &storage_cache_manager,
+            &engine_adapter_handler,
+            StorageAdapterType::Memory,
+        )
+        .await?;
+        let rocksdb_storage = StorageDriverManager::build_message_storage_driver(
+            &rocksdb_engine_handler,
+            &storage_cache_manager,
+            &engine_adapter_handler,
+            StorageAdapterType::RocksDB,
+        )
+        .await?;
+        let engine_storage = StorageDriverManager::build_message_storage_driver(
+            &rocksdb_engine_handler,
+            &storage_cache_manager,
+            &engine_adapter_handler,
+            StorageAdapterType::Engine,
+        )
+        .await?;
+        Ok(StorageDriverManager {
+            memory_storage,
+            rocksdb_storage,
+            engine_storage,
+        })
     }
 
     async fn build_message_storage_driver(
-        &self,
+        rocksdb_engine_handler: &Arc<RocksDBEngine>,
+        storage_cache_manager: &Arc<StorageCacheManager>,
+        engine_adapter_handler: &Arc<StorageEngineHandler>,
         storage_type: StorageAdapterType,
     ) -> Result<ArcStorageAdapter, CommonError> {
         let storage: ArcStorageAdapter = match storage_type {
             StorageAdapterType::Memory => {
                 let engine = MemoryStorageEngine::create_standalone(
-                    self.rocksdb_engine_handler.clone(),
-                    self.storage_cache_manager.clone(),
+                    rocksdb_engine_handler.clone(),
+                    storage_cache_manager.clone(),
                     StorageDriverMemoryConfig::default(),
                 );
                 Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
             }
 
             StorageAdapterType::Engine => {
-                Arc::new(StorageEngineAdapter::new(self.engine_adapter_handler.clone()).await)
+                Arc::new(StorageEngineAdapter::new(engine_adapter_handler.clone()).await)
             }
 
             StorageAdapterType::RocksDB => {
                 let engine = Arc::new(RocksDBStorageEngine::create_standalone(
-                    self.storage_cache_manager.clone(),
-                    self.rocksdb_engine_handler.clone(),
+                    storage_cache_manager.clone(),
+                    rocksdb_engine_handler.clone(),
                 ));
                 Arc::new(RocksDBStorageAdapter::new(engine.clone()))
             }

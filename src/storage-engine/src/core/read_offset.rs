@@ -87,13 +87,13 @@ pub async fn read_by_offset(
     let conf = broker_config();
     let results = if conf.broker_id == segment.leader {
         match shard.get_engine_type()? {
-            EngineStorageType::Memory => {
+            EngineStorageType::EngineMemory => {
                 read_by_memory(memory_storage_engine, shard_name, offset, read_config).await?
             }
-            EngineStorageType::RocksDB => {
+            EngineStorageType::EngineRocksDB => {
                 read_by_rocksdb(rocksdb_storage_engine, shard_name, offset, read_config).await?
             }
-            EngineStorageType::Segment => {
+            EngineStorageType::EngineSegment => {
                 read_by_segment(
                     cache_manager,
                     rocksdb_engine_handler,
@@ -203,8 +203,8 @@ fn get_segment_no_by_offset(
     offset: u64,
 ) -> Result<u32, StorageEngineError> {
     match shard.get_engine_type()? {
-        EngineStorageType::Memory | EngineStorageType::RocksDB => Ok(shard.active_segment_seq),
-        EngineStorageType::Segment => {
+        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => Ok(shard.active_segment_seq),
+        EngineStorageType::EngineSegment => {
             if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
                 Ok(segment_no)
             } else {

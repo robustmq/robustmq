@@ -269,7 +269,7 @@ mod tests {
         },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::build_storage_driver_manager;
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
     use crate::bridge::{
@@ -282,7 +282,7 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn file_bridge_plugin_test() {
-        let storage_adapter = build_memory_storage_driver();
+        let storage_adapter = build_storage_driver_manager();
 
         let shard_name = "test_topic".to_string();
 

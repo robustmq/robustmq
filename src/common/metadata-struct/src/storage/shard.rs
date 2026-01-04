@@ -105,8 +105,8 @@ impl EngineShardConfig {
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EngineStorageType {
-    Segment,
+    EngineSegment,
     #[default]
-    Memory,
-    RocksDB,
+    EngineMemory,
+    EngineRocksDB,
 }

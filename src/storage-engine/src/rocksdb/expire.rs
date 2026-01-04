@@ -169,7 +169,7 @@ mod tests {
             config: EngineShardConfig {
                 retention_sec: 10,
                 storage_adapter_type: StorageAdapterType::Engine,
-                engine_storage_type: Some(EngineStorageType::RocksDB),
+                engine_storage_type: Some(EngineStorageType::EngineRocksDB),
                 ..Default::default()
             },
         };

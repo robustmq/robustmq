@@ -90,7 +90,7 @@ mod tests {
         );
         assert_eq!(
             shard.shard_info.config.engine_storage_type,
-            Some(EngineStorageType::Segment)
+            Some(EngineStorageType::EngineSegment)
         );
 
         let segment_req = SegmentListReq {

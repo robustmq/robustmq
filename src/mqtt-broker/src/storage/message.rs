@@ -117,9 +117,9 @@ mod tests {
         adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
         shard::EngineShardConfig,
     };
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::build_storage_driver_manager;
     async fn create_test_storage() -> MessageStorage {
-        let memory_storage_engine = build_memory_storage_driver();
+        let memory_storage_engine = build_storage_driver_manager();
         MessageStorage::new(memory_storage_engine)
     }
 

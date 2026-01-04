@@ -401,7 +401,7 @@ mod test {
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::shard::EngineShardConfig;
     use std::sync::Arc;
-    use storage_adapter::storage::build_memory_storage_driver;
+    use storage_adapter::storage::build_storage_driver_manager;
 
     #[tokio::test]
     async fn test_write_topic_data() {
@@ -409,7 +409,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = build_storage_driver_manager();
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
                 shard_name: topic_name.to_string(),
@@ -466,7 +466,7 @@ mod test {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = test_build_mqtt_cache_manager().await;
-        let message_storage_adapter = build_memory_storage_driver();
+        let message_storage_adapter = build_storage_driver_manager();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         message_storage_adapter
             .create_shard(&AdapterShardInfo {
