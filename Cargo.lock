@@ -1931,6 +1931,7 @@ name = "delay-message"
 version = "0.2.9"
 dependencies = [
  "common-base",
+ "common-config",
  "common-metrics",
  "dashmap",
  "futures",

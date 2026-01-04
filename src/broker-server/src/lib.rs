@@ -269,15 +269,22 @@ impl BrokerServer {
                 let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
                 pc.start().await;
             });
-
-            // check placement ready
-            self.main_runtime.block_on(async {
-                check_meta_service_status(self.client_pool.clone()).await;
-            });
         }
 
-        // start journal server
+        // check placement ready
+        self.main_runtime.block_on(async {
+            check_meta_service_status(self.client_pool.clone()).await;
+        });
+
         let (stop_send, _) = broadcast::channel(2);
+
+        // register node
+        let raw_stop_send = stop_send.clone();
+        server_runtime.block_on(async move {
+            self.register_node(raw_stop_send.clone()).await;
+        });
+
+        // start journal server
         let journal_runtime = create_runtime(
             "journal-runtime",
             self.config.runtime.runtime_worker_threads,
@@ -303,12 +310,6 @@ impl BrokerServer {
                 server.start().await;
             });
         }
-
-        // register node
-        let raw_stop_send = stop_send.clone();
-        server_runtime.block_on(async move {
-            self.register_node(raw_stop_send.clone()).await;
-        });
 
         // connection gc
         let connection_manager = self.connection_manager.clone();

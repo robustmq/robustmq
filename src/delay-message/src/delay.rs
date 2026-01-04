@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use common_config::storage::StorageAdapterType;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
@@ -129,7 +130,13 @@ pub(crate) async fn init_delay_message_shard(
         if results.is_empty() {
             let shard = AdapterShardInfo {
                 shard_name: shard_name.clone(),
-                config: EngineShardConfig::default(),
+                config: EngineShardConfig {
+                    replica_num: 1,
+                    max_segment_size: 1073741824,
+                    retention_sec: 86400,
+                    storage_adapter_type: StorageAdapterType::RocksDB,
+                    engine_storage_type: None,
+                },
             };
             message_storage_adapter.create_shard(&shard).await?;
             debug!("Created delay message shard: {}", shard_name);
