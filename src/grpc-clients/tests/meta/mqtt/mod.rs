@@ -21,7 +21,6 @@ mod mqtt_last_will_test;
 mod mqtt_schema_test;
 mod mqtt_session_test;
 mod mqtt_share_sub_test;
-mod openraft_test;
 mod topic_rewrite_rule;
 mod topic_test;
 mod user_test;

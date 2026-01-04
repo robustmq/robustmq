@@ -162,7 +162,6 @@ impl NodeConnection {
             return Err(StorageEngineError::NoAvailableConn(self.node_id));
         };
         let addr = node.engine_addr.clone();
-        println!("{:?}", addr);
         let socket = TcpStream::connect(&addr).await?;
         Ok(Framed::new(socket, RobustMQCodec::new()))
     }

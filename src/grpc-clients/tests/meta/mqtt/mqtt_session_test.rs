@@ -16,6 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
+    use common_base::tools::unique_id;
     use grpc_clients::meta::mqtt::call::{
         placement_create_session, placement_delete_session, placement_list_session,
         placement_update_session,
@@ -33,7 +34,7 @@ mod tests {
     async fn mqtt_session_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let client_id: String = "test_client_id".to_string();
+        let client_id: String = unique_id();
         let connection_id: u64 = 1;
         let broker_id: u64 = 1;
         let update_broker_id: u64 = 2;

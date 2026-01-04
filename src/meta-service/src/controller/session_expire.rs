@@ -15,7 +15,7 @@
 use crate::core::cache::CacheManager;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
-use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
+use common_base::{tools::now_second, utils::serialize};
 use grpc_clients::{
     broker::mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
     pool::ClientPool,
@@ -83,8 +83,8 @@ impl SessionExpire {
             cf
         } else {
             error!(
-                "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_META_DATA.to_string())
+                "Failed to get RocksDB column family '{}' when scanning expired sessions",
+                DB_COLUMN_FAMILY_META_DATA
             );
             return Vec::new();
         };
@@ -119,9 +119,9 @@ impl SessionExpire {
                 Ok(data) => data.data,
                 Err(e) => {
                     error!(
-                        "Session expired, failed to parse Session data, error message :{},key:{}",
-                        e.to_string(),
-                        result_key
+                        "Failed to deserialize MqttSession from RocksDB when scanning expired sessions: key='{}', error={}",
+                        result_key,
+                        e
                     );
                     iter.next();
                     continue;
@@ -154,7 +154,10 @@ impl SessionExpire {
                 }
                 Err(e) => {
                     sleep(Duration::from_millis(100)).await;
-                    error!("{}", e);
+                    error!(
+                        "Failed to get last will message from RocksDB for client_id='{}', error={}",
+                        lastwill.client_id, e
+                    );
                     continue;
                 }
             }
@@ -208,7 +211,10 @@ pub async fn delete_sessions(
                 Err(e) => {
                     success = false;
                     sleep(Duration::from_secs(1)).await;
-                    warn!("{}", e);
+                    warn!(
+                        "Failed to delete sessions from broker node '{}', client_ids={:?}, error={}",
+                        addr.grpc_addr, client_ids, e
+                    );
                 }
             }
         }
@@ -228,7 +234,10 @@ pub async fn delete_sessions(
                             delay_sec: now_second() + delay,
                         });
                     }
-                    Err(e) => error!("{}", e),
+                    Err(e) => error!(
+                        "Failed to delete expired session from RocksDB, client_id='{}', error={}",
+                        ms.client_id, e
+                    ),
                 }
             }
         }
@@ -272,7 +281,10 @@ pub async fn send_last_will(
     match send_last_will_message(&client_pool, &node_addr, request).await {
         Ok(_) => cache_manager.remove_expire_last_will(&client_id),
         Err(e) => {
-            error!("{}", e);
+            error!(
+                "Failed to send last will message to broker nodes for client_id='{}', nodes={:?}, error={}",
+                client_id, node_addr, e
+            );
         }
     }
 }
