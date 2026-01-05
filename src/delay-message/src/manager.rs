@@ -242,7 +242,9 @@ mod test {
 
         assert_eq!(manager.delay_queue_list.len(), 3);
         assert_eq!(
-            (0..9).map(|_| manager.get_target_shard_no()).collect::<Vec<_>>(),
+            (0..9)
+                .map(|_| manager.get_target_shard_no())
+                .collect::<Vec<_>>(),
             vec![0, 1, 2, 0, 1, 2, 0, 1, 2]
         );
 
@@ -291,7 +293,11 @@ mod test {
             .unwrap();
 
         manager
-            .send(&unique_id(), 10, AdapterWriteRecord::from_string("test".to_string()))
+            .send(
+                &unique_id(),
+                10,
+                AdapterWriteRecord::from_string("test".to_string()),
+            )
             .await
             .unwrap();
         assert_eq!(manager.delay_queue_list.get(&0).unwrap().len(), 1);
