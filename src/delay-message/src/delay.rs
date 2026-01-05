@@ -13,8 +13,6 @@
 // limitations under the License.
 
 use crate::driver::build_delay_message_shard_config;
-use crate::manager::DelayMessageManager;
-use crate::pop::pop_delay_queue;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
@@ -23,54 +21,11 @@ use common_config::storage::StorageAdapterType;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
-use std::sync::Arc;
 use storage_adapter::driver::ArcStorageAdapter;
-use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
-const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-message-shard-";
-pub const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay_queue_index_info_shard";
-
-pub(crate) fn start_delay_message_pop(
-    delay_message_manager: &Arc<DelayMessageManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-    shard_num: u64,
-) {
-    info!("Starting delay message pop threads (shards: {})", shard_num);
-
-    for shard_no in 0..shard_num {
-        let new_delay_message_manager = delay_message_manager.clone();
-        let new_message_storage_adapter = message_storage_adapter.clone();
-
-        let (stop_send, _) = broadcast::channel(2);
-        delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
-
-        tokio::spawn(async move {
-            info!("Delay message pop thread started for shard {}", shard_no);
-            let mut recv = stop_send.subscribe();
-            loop {
-                select! {
-                    val = recv.recv() =>{
-                        if let Ok(flag) = val {
-                            if flag {
-                                info!("Delay message pop thread stopped for shard {}", shard_no);
-                                break;
-                            }
-                        }
-                    }
-                    _ =  pop_delay_queue(
-                        &new_message_storage_adapter,
-                        &new_delay_message_manager,
-                        shard_no,
-                    ) => {
-                        // Yield to other tasks to avoid tight loops when many messages expire
-                        tokio::task::yield_now().await;
-                    }
-                }
-            }
-        });
-    }
-}
+const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-queue-message-shard-";
+pub const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-index-info-shard";
 
 pub(crate) async fn save_delay_message(
     message_storage_adapter: &ArcStorageAdapter,
@@ -197,10 +152,10 @@ mod test {
     use crate::{
         delay::{
             get_delay_message_shard_name, init_delay_message_shard, save_delay_index_info,
-            save_delay_message, start_delay_message_pop, DELAY_QUEUE_INFO_SHARD_NAME,
+            save_delay_message, DELAY_QUEUE_INFO_SHARD_NAME,
         },
         manager::DelayMessageManager,
-        pop::read_offset_data,
+        pop::{read_offset_data, start_delay_message_pop},
         recover::recover_delay_queue,
     };
 

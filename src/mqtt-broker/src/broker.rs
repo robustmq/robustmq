@@ -33,7 +33,7 @@ use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
-use delay_message::manager::{start_delay_message_manager, DelayMessageManager};
+use delay_message::manager::{start_delay_message_manager_thread, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
@@ -266,7 +266,7 @@ impl MqttBrokerServer {
         let delay_message_manager = self.delay_message_manager.clone();
         tokio::spawn(async move {
             let conf = broker_config();
-            if let Err(e) = start_delay_message_manager(
+            if let Err(e) = start_delay_message_manager_thread(
                 &delay_message_manager,
                 delay_message_manager.get_shard_num(),
             )

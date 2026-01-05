@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{
-    get_delay_message_shard_name, init_delay_message_shard, save_delay_message,
-    start_delay_message_pop,
+use crate::{
+    delay::{get_delay_message_shard_name, init_delay_message_shard, save_delay_message},
+    pop::start_delay_message_pop,
 };
 use common_base::{
     error::common::CommonError,
@@ -43,7 +43,7 @@ use crate::{
     recover::start_recover_delay_queue,
 };
 
-pub async fn start_delay_message_manager(
+pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
     shard_num: u64,
 ) -> Result<(), CommonError> {
@@ -129,10 +129,8 @@ impl DelayMessageManager {
             shard_no,
         };
 
-        // persist DelayIndexInfo
         save_delay_index_info(&self.message_storage_adapter, &delay_index_info).await?;
 
-        // DelayInfo into delay queue
         self.send_to_delay_queue(shard_no, &delay_index_info);
 
         Ok(())

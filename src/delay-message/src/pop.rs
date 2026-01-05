@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    delay::{delete_delay_index_info, delete_delay_message},
-    manager::DelayMessageManager,
-};
+use crate::delay::{delete_delay_index_info, delete_delay_message};
+use crate::manager::DelayMessageManager;
 use common_base::error::common::CommonError;
 use futures::StreamExt;
 use metadata_struct::{
@@ -25,8 +23,49 @@ use metadata_struct::{
 };
 use std::sync::Arc;
 use storage_adapter::driver::ArcStorageAdapter;
+use tokio::{select, sync::broadcast};
 use tracing::{debug, error, info};
 
+pub(crate) fn start_delay_message_pop(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    message_storage_adapter: &ArcStorageAdapter,
+    shard_num: u64,
+) {
+    info!("Starting delay message pop threads (shards: {})", shard_num);
+
+    for shard_no in 0..shard_num {
+        let new_delay_message_manager = delay_message_manager.clone();
+        let new_message_storage_adapter = message_storage_adapter.clone();
+
+        let (stop_send, _) = broadcast::channel(2);
+        delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
+
+        tokio::spawn(async move {
+            info!("Delay message pop thread started for shard {}", shard_no);
+            let mut recv = stop_send.subscribe();
+            loop {
+                select! {
+                    val = recv.recv() =>{
+                        if let Ok(flag) = val {
+                            if flag {
+                                info!("Delay message pop thread stopped for shard {}", shard_no);
+                                break;
+                            }
+                        }
+                    }
+                    _ =  pop_delay_queue(
+                        &new_message_storage_adapter,
+                        &new_delay_message_manager,
+                        shard_no,
+                    ) => {
+                        // Yield to other tasks to avoid tight loops when many messages expire
+                        tokio::task::yield_now().await;
+                    }
+                }
+            }
+        });
+    }
+}
 pub async fn pop_delay_queue(
     message_storage_adapter: &ArcStorageAdapter,
     delay_message_manager: &Arc<DelayMessageManager>,
@@ -115,9 +154,9 @@ pub(crate) async fn read_offset_data(
 #[cfg(test)]
 mod test {
     use crate::{
-        delay::{init_delay_message_shard, start_delay_message_pop},
+        delay::init_delay_message_shard,
         manager::DelayMessageManager,
-        pop::{read_offset_data, send_delay_message_to_shard},
+        pop::{read_offset_data, send_delay_message_to_shard, start_delay_message_pop},
     };
     use common_base::tools::unique_id;
     use common_config::storage::StorageAdapterType;
