@@ -303,7 +303,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_SESSION_LIST_PATH), request).await
+        self.get_with_params(&api_path(MQTT_SESSION_LIST_PATH), request)
+            .await
     }
 
     /// Get topic list
