@@ -400,6 +400,7 @@ impl BrokerServer {
         let delay_message_manager = Arc::new(
             DelayMessageManager::new(
                 storage_driver_manager.clone(),
+                client_pool.clone(),
                 config.message_storage.storage_type,
                 1,
             )

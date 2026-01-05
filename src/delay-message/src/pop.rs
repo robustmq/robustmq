@@ -13,14 +13,20 @@
 // limitations under the License.
 
 use crate::delay::{delete_delay_index_info, delete_delay_message};
+use crate::driver::get_storage_driver;
 use crate::manager::DelayMessageManager;
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
+use common_config::storage::StorageAdapterType;
 use futures::StreamExt;
+use grpc_clients::meta::storage::call::list_shard;
+use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::{
     delay_info::DelayMessageIndexInfo, storage::adapter_read_config::AdapterReadConfig,
     storage::adapter_record::AdapterWriteRecord,
     storage::convert::convert_engine_record_to_adapter,
 };
+use protocol::meta::meta_service_journal::ListShardRequest;
 use std::sync::Arc;
 use storage_adapter::driver::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
@@ -84,8 +90,12 @@ pub async fn pop_delay_queue(
 
             // Spawn task to send delay message to avoid blocking the pop loop
             let storage = message_storage_adapter.clone();
+            let raw_delay_message_manager = delay_message_manager.clone();
             tokio::spawn(async move {
-                if let Err(e) = delay_message_process(&storage, &delay_message).await {
+                if let Err(e) =
+                    delay_message_process(&raw_delay_message_manager, &storage, &delay_message)
+                        .await
+                {
                     error!(
                         "Failed to process delay message: shard={}, offset={}, target={}, error={}",
                         delay_message.delay_shard_name,
@@ -100,10 +110,13 @@ pub async fn pop_delay_queue(
 }
 
 pub async fn delay_message_process(
+    delay_message_manager: &Arc<DelayMessageManager>,
     message_storage_adapter: &ArcStorageAdapter,
     delay_info: &DelayMessageIndexInfo,
 ) -> Result<(), CommonError> {
-    let offset = send_delay_message_to_shard(message_storage_adapter, delay_info).await?;
+    let offset =
+        send_delay_message_to_shard(delay_message_manager, message_storage_adapter, delay_info)
+            .await?;
     delete_delay_index_info(message_storage_adapter, delay_info).await?;
     delete_delay_message(message_storage_adapter, delay_info).await?;
     debug!(
@@ -114,9 +127,11 @@ pub async fn delay_message_process(
 }
 
 async fn send_delay_message_to_shard(
+    delay_message_manager: &Arc<DelayMessageManager>,
     message_storage_adapter: &ArcStorageAdapter,
     delay_message: &DelayMessageIndexInfo,
 ) -> Result<u64, CommonError> {
+    // read data
     let Some(record) = read_offset_data(
         message_storage_adapter,
         &delay_message.delay_shard_name,
@@ -130,7 +145,21 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    let resp = message_storage_adapter
+    // send to target topic
+    let target_shard_engine_type = if let Some(engine_type) =
+        get_shard_storage_type(delay_message_manager, delay_message).await?
+    {
+        engine_type
+    } else {
+        return Err(CommonError::CommonError("".to_string()));
+    };
+
+    let target_message_storage_adapter = get_storage_driver(
+        &delay_message_manager.storage_driver_manager,
+        &target_shard_engine_type,
+    )?;
+
+    let resp = target_message_storage_adapter
         .write(&delay_message.target_shard_name, &record)
         .await?;
     if resp.is_error() {
@@ -160,6 +189,39 @@ pub(crate) async fn read_offset_data(
         .into_iter()
         .find(|r| r.metadata.offset == offset)
         .map(convert_engine_record_to_adapter))
+}
+
+async fn get_shard_storage_type(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    delay_message: &DelayMessageIndexInfo,
+) -> Result<Option<StorageAdapterType>, CommonError> {
+    if let Some(engine_type) =
+        delay_message_manager.get_shard_engine_type_list(&delay_message.target_shard_name)
+    {
+        return Ok(Some(engine_type));
+    }
+
+    let conf = broker_config();
+    let request = ListShardRequest {
+        shard_name: delay_message.target_shard_name.clone(),
+    };
+    let reply = list_shard(
+        &delay_message_manager.client_pool,
+        &conf.get_meta_service_addr(),
+        request,
+    )
+    .await?;
+
+    if reply.shards.is_empty() {
+        return Ok(None);
+    }
+    if let Some(info) = reply.shards.first() {
+        let shard: EngineShard = EngineShard::decode(&info)?;
+        delay_message_manager
+            .add_shard_engine_type_list(shard.shard_name, shard.config.storage_adapter_type);
+        return Ok(Some(shard.config.storage_adapter_type));
+    }
+    Ok(None)
 }
 
 #[cfg(test)]

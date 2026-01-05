@@ -26,6 +26,7 @@ use common_metrics::mqtt::statistics::{
     record_mqtt_delay_queue_used_capacity_set,
 };
 use dashmap::DashMap;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     delay_info::DelayMessageIndexInfo, storage::adapter_record::AdapterWriteRecord,
 };
@@ -39,8 +40,7 @@ use tokio_util::time::DelayQueue;
 use tracing::{debug, error};
 
 use crate::{
-    delay::save_delay_index_info, driver::get_delay_message_storage_driver,
-    recover::start_recover_delay_queue,
+    delay::save_delay_index_info, driver::get_storage_driver, recover::start_recover_delay_queue,
 };
 
 pub async fn start_delay_message_manager_thread(
@@ -75,26 +75,31 @@ pub async fn start_delay_message_manager_thread(
 pub struct DelayMessageManager {
     pub message_storage_adapter: ArcStorageAdapter,
     pub storage_adapter_type: StorageAdapterType,
-    shard_num: u64,
-    incr_no: AtomicU64,
+    pub client_pool: Arc<ClientPool>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
     pub delay_queue_list: DashMap<u64, DelayQueue<DelayMessageIndexInfo>>,
     delay_queue_pop_thread: DashMap<u64, broadcast::Sender<bool>>,
     shard_engine_type_list: DashMap<String, StorageAdapterType>,
+    shard_num: u64,
+    incr_no: AtomicU64,
 }
 
 impl DelayMessageManager {
     pub async fn new(
         storage_driver_manager: Arc<StorageDriverManager>,
+        client_pool: Arc<ClientPool>,
         storage_adapter_type: StorageAdapterType,
         shard_num: u64,
     ) -> Result<Self, CommonError> {
         let message_storage_adapter =
-            get_delay_message_storage_driver(&storage_driver_manager, &storage_adapter_type)?;
+            get_storage_driver(&storage_driver_manager, &storage_adapter_type)?;
         let driver = DelayMessageManager {
             shard_num,
             message_storage_adapter,
+            client_pool,
             storage_adapter_type,
             incr_no: AtomicU64::new(0),
+            storage_driver_manager,
             delay_queue_list: DashMap::with_capacity(shard_num as usize),
             delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
             shard_engine_type_list: DashMap::with_capacity(8),

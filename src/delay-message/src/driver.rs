@@ -21,7 +21,7 @@ use common_config::storage::StorageAdapterType;
 use metadata_struct::storage::shard::{EngineShardConfig, EngineStorageType};
 use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 
-pub fn get_delay_message_storage_driver(
+pub(crate) fn get_storage_driver(
     storage_driver_manager: &Arc<StorageDriverManager>,
     engine_storage_type: &StorageAdapterType,
 ) -> Result<ArcStorageAdapter, CommonError> {
