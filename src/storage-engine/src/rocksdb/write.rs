@@ -139,4 +139,105 @@ impl RocksDBStorageEngine {
         self.save_latest_offset(shard_name, offset)?;
         Ok(results)
     }
+
+    pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
+        let index = if let Some(index) = self.get_offset_by_key(shard, key).await? {
+            index
+        } else {
+            return Ok(());
+        };
+
+        self.delete_by_offset(shard, index.offset).await
+    }
+
+    pub async fn delete_by_offset(
+        &self,
+        shard: &str,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
+        let cf = self.get_cf()?;
+        let record_key = shard_record_key(shard, offset);
+
+        let record = match self
+            .rocksdb_engine_handler
+            .read::<metadata_struct::storage::storage_record::StorageRecord>(
+            cf.clone(),
+            &record_key,
+        )? {
+            Some(r) => r,
+            None => return Ok(()),
+        };
+
+        let mut batch = WriteBatch::default();
+
+        batch.delete_cf(&cf, record_key.as_bytes());
+
+        if let Some(key) = &record.metadata.key {
+            let key_index_key = key_index_key(shard, key);
+            batch.delete_cf(&cf, key_index_key.as_bytes());
+        }
+
+        if let Some(tags) = &record.metadata.tags {
+            for tag in tags.iter() {
+                let tag_index_key = tag_index_key(shard, tag, offset);
+                batch.delete_cf(&cf, tag_index_key.as_bytes());
+            }
+        }
+
+        if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
+            let timestamp_index_key = timestamp_index_key(shard, record.metadata.create_t, offset);
+            batch.delete_cf(&cf, timestamp_index_key.as_bytes());
+        }
+
+        self.rocksdb_engine_handler.write_batch(batch)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::shard::{ShardState, StorageEngineRunType};
+    use crate::core::test_tool::test_build_engine;
+    use bytes::Bytes;
+    use common_base::tools::unique_id;
+    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+
+    #[tokio::test]
+    async fn test_write_and_delete() {
+        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine
+            .shard_state
+            .insert(shard_name.clone(), ShardState::default());
+
+        let messages: Vec<AdapterWriteRecord> = (0..5)
+            .map(|i| AdapterWriteRecord {
+                pkid: i,
+                key: Some(format!("key{}", i)),
+                tags: Some(vec![format!("tag{}", i)]),
+                data: Bytes::from(format!("data{}", i)),
+                timestamp: 1000 + i * 100,
+                ..Default::default()
+            })
+            .collect();
+
+        engine.batch_write(&shard_name, &messages).await.unwrap();
+
+        engine.delete_by_key(&shard_name, "key2").await.unwrap();
+
+        let read_config = AdapterReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        };
+
+        let key_records = engine.read_by_key(&shard_name, "key2").await.unwrap();
+        assert_eq!(key_records.len(), 0);
+
+        let tag_records = engine
+            .read_by_tag(&shard_name, "tag2", None, &read_config)
+            .await
+            .unwrap();
+        assert_eq!(tag_records.len(), 0);
+    }
 }

@@ -21,7 +21,7 @@ use crate::{
 };
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
-use delay_message::DelayMessageManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::connection_manager::ConnectionManager;

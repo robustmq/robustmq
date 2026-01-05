@@ -30,7 +30,7 @@ use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
 };
 use common_metrics::core::server::register_prometheus_export;
-use delay_message::DelayMessageManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use meta_service::{
     controller::call_broker::call::BrokerCallManager,

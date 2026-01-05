@@ -48,6 +48,60 @@ impl MemoryStorageEngine {
         Ok(results.first().unwrap().clone())
     }
 
+    pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
+        let offset = if let Some(key_map) = self.key_index.get(shard) {
+            if let Some(offset) = key_map.get(key) {
+                *offset
+            } else {
+                return Ok(());
+            }
+        } else {
+            return Ok(());
+        };
+
+        self.delete_by_offset(shard, offset).await
+    }
+
+    pub async fn delete_by_offset(
+        &self,
+        shard: &str,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
+        let record = if let Some(data_map) = self.shard_data.get(shard) {
+            if let Some((_, record)) = data_map.remove(&offset) {
+                record
+            } else {
+                return Ok(());
+            }
+        } else {
+            return Ok(());
+        };
+
+        if let Some(key) = &record.metadata.key {
+            if let Some(key_map) = self.key_index.get_mut(shard) {
+                key_map.remove(key);
+            }
+        }
+
+        if let Some(tags) = &record.metadata.tags {
+            if let Some(tag_map) = self.tag_index.get_mut(shard) {
+                for tag in tags.iter() {
+                    if let Some(mut offsets) = tag_map.get_mut(tag) {
+                        offsets.retain(|&o| o != offset);
+                    }
+                }
+            }
+        }
+
+        if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
+            if let Some(timestamp_map) = self.timestamp_index.get_mut(shard) {
+                timestamp_map.remove(&record.metadata.create_t);
+            }
+        }
+
+        Ok(())
+    }
+
     async fn internal_batch_write(
         &self,
         shard_name: &str,
@@ -153,7 +207,9 @@ impl MemoryStorageEngine {
 mod tests {
     use super::*;
     use crate::core::test_tool::test_build_memory_engine;
+    use bytes::Bytes;
     use common_base::tools::unique_id;
+    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 
     #[tokio::test]
     async fn test_try_remove_old_data() {
@@ -196,5 +252,44 @@ mod tests {
         assert!(!key_map.contains_key("key0"));
         assert!(!key_map.contains_key("key1"));
         assert!(key_map.contains_key("key2"));
+    }
+
+    #[tokio::test]
+    async fn test_write_and_delete() {
+        let engine = test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        let shard_name = unique_id();
+        engine.shard_state.insert(
+            shard_name.clone(),
+            crate::core::shard::ShardState::default(),
+        );
+
+        let messages: Vec<AdapterWriteRecord> = (0..5)
+            .map(|i| AdapterWriteRecord {
+                pkid: i,
+                key: Some(format!("key{}", i)),
+                tags: Some(vec![format!("tag{}", i)]),
+                data: Bytes::from(format!("data{}", i)),
+                timestamp: 1000 + i * 100,
+                ..Default::default()
+            })
+            .collect();
+
+        engine.batch_write(&shard_name, &messages).await.unwrap();
+
+        engine.delete_by_key(&shard_name, "key2").await.unwrap();
+
+        let read_config = AdapterReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        };
+
+        let key_records = engine.read_by_key(&shard_name, "key2").await.unwrap();
+        assert_eq!(key_records.len(), 0);
+
+        let tag_records = engine
+            .read_by_tag(&shard_name, "tag2", None, &read_config)
+            .await
+            .unwrap();
+        assert_eq!(tag_records.len(), 0);
     }
 }

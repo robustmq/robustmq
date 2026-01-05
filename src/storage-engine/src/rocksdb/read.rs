@@ -141,21 +141,13 @@ impl RocksDBStorageEngine {
         shard: &str,
         key: &str,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let cf = self.get_cf()?;
-        let key_index = key_index_key(shard, key);
-
-        let key_offset_bytes = match self.rocksdb_engine_handler.db.get_cf(&cf, &key_index) {
-            Ok(Some(data)) => data,
-            Ok(_) => return Ok(Vec::new()),
-            Err(e) => {
-                return Err(StorageEngineError::CommonErrorStr(format!(
-                    "Failed to read key offset: {e:?}"
-                )))
-            }
+        let index = if let Some(index) = self.get_offset_by_key(shard, key).await? {
+            index
+        } else {
+            return Ok(Vec::new());
         };
 
-        let index = deserialize::<IndexInfo>(&key_offset_bytes)?;
-
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = self.get_cf()?;
         let shard_record_key = shard_record_key(shard, index.offset);
         let Some(record) = self
             .rocksdb_engine_handler
@@ -165,6 +157,27 @@ impl RocksDBStorageEngine {
         };
 
         Ok(vec![record])
+    }
+
+    pub async fn get_offset_by_key(
+        &self,
+        shard: &str,
+        key: &str,
+    ) -> Result<Option<IndexInfo>, StorageEngineError> {
+        let cf = self.get_cf()?;
+        let key_index = key_index_key(shard, key);
+
+        let key_offset_bytes = match self.rocksdb_engine_handler.db.get_cf(&cf, &key_index) {
+            Ok(Some(data)) => data,
+            Ok(_) => return Ok(None),
+            Err(e) => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Failed to read key offset: {e:?}"
+                )))
+            }
+        };
+
+        Ok(Some(deserialize::<IndexInfo>(&key_offset_bytes)?))
     }
 }
 

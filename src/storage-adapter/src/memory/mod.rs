@@ -122,6 +122,20 @@ impl StorageAdapter for MemoryStorageAdapter {
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
+    async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), CommonError> {
+        self.memory_storage_engine
+            .delete_by_key(shard, key)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
+    }
+
+    async fn delete_by_offset(&self, shard: &str, offset: u64) -> Result<(), CommonError> {
+        self.memory_storage_engine
+            .delete_by_offset(shard, offset)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
+    }
+
     async fn get_offset_by_timestamp(
         &self,
         shard: &str,

@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_config::storage::StorageAdapterType;
-use metadata_struct::storage::shard::EngineShardConfig;
+use metadata_struct::storage::shard::{EngineShardConfig, EngineStorageType};
 use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 
 pub fn get_delay_message_storage_driver(
@@ -58,8 +58,8 @@ pub fn build_delay_message_shard_config(
             replica_num: 1,
             max_segment_size: 1073741824,
             retention_sec: 86400,
-            storage_adapter_type: StorageAdapterType::RocksDB,
-            engine_storage_type: None,
+            storage_adapter_type: StorageAdapterType::Engine,
+            engine_storage_type: Some(EngineStorageType::EngineRocksDB),
         }),
         _ => Err(CommonError::CommonError(format!(
             "Unsupported storage adapter type '{:?}' for delay message shard config",
