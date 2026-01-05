@@ -114,8 +114,9 @@ pub(crate) async fn recover_delay_queue(
 
                 let storage = message_storage_adapter.clone();
                 let info = delay_info.clone();
+                let manager = delay_message_manager.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = delay_message_process(&storage, &info).await {
+                    if let Err(e) = delay_message_process(&manager, &storage, &info).await {
                         debug!(
                             "Failed to send expired delay message (shard: {}, offset: {}): {:?}",
                             info.delay_shard_name, info.offset, e

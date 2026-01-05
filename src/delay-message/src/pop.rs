@@ -235,6 +235,7 @@ mod test {
         delay_info::DelayMessageIndexInfo,
         storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
     };
+    use std::sync::Arc;
     use storage_adapter::storage::test_build_memory_storage_driver;
 
     #[tokio::test]
@@ -242,6 +243,10 @@ mod test {
         let adapter = test_build_memory_storage_driver();
         let delay_shard = unique_id();
         let target_shard = unique_id();
+        let manager = Arc::new(crate::manager::DelayMessageManager::new_for_test(
+            adapter.clone(),
+            1,
+        ));
 
         adapter
             .create_shard(&AdapterShardInfo {
@@ -272,7 +277,7 @@ mod test {
             shard_no: 0,
         };
 
-        let target_offset = send_delay_message_to_shard(&adapter, &delay_info)
+        let target_offset = send_delay_message_to_shard(&manager, &adapter, &delay_info)
             .await
             .unwrap();
 
@@ -291,6 +296,10 @@ mod test {
         let adapter = test_build_memory_storage_driver();
         let delay_shard = unique_id();
         let target_shard = unique_id();
+        let manager = Arc::new(crate::manager::DelayMessageManager::new_for_test(
+            adapter.clone(),
+            1,
+        ));
 
         adapter
             .create_shard(&AdapterShardInfo {
@@ -330,7 +339,9 @@ mod test {
 
         save_delay_index_info(&adapter, &delay_info).await.unwrap();
 
-        delay_message_process(&adapter, &delay_info).await.unwrap();
+        delay_message_process(&manager, &adapter, &delay_info)
+            .await
+            .unwrap();
 
         let target_record = read_offset_data(&adapter, &target_shard, 0)
             .await

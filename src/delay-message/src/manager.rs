@@ -196,6 +196,27 @@ impl DelayMessageManager {
         self.shard_num
     }
 
+    #[cfg(test)]
+    pub fn new_for_test(adapter: ArcStorageAdapter, shard_num: u64) -> Self {
+        let fake_driver_manager = StorageDriverManager {
+            memory_storage: adapter.clone(),
+            rocksdb_storage: adapter.clone(),
+            engine_storage: adapter.clone(),
+        };
+
+        DelayMessageManager {
+            shard_num,
+            message_storage_adapter: adapter,
+            client_pool: Arc::new(ClientPool::new(10)),
+            storage_adapter_type: StorageAdapterType::Memory,
+            storage_driver_manager: Arc::new(fake_driver_manager),
+            incr_no: AtomicU64::new(0),
+            delay_queue_list: DashMap::with_capacity(shard_num as usize),
+            delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
+            shard_engine_type_list: DashMap::with_capacity(8),
+        }
+    }
+
     pub fn add_shard_engine_type_list(
         &self,
         shard_name: String,
@@ -234,15 +255,10 @@ mod test {
 
     #[tokio::test]
     async fn manager_core_test() {
-        let manager = Arc::new(DelayMessageManager {
-            shard_num: 3,
-            message_storage_adapter: test_build_memory_storage_driver(),
-            storage_adapter_type: common_config::storage::StorageAdapterType::Memory,
-            incr_no: AtomicU64::new(0),
-            delay_queue_list: DashMap::with_capacity(3),
-            delay_queue_pop_thread: DashMap::with_capacity(3),
-            shard_engine_type_list: DashMap::with_capacity(8),
-        });
+        let manager = Arc::new(DelayMessageManager::new_for_test(
+            test_build_memory_storage_driver(),
+            3,
+        ));
         manager.start();
 
         assert_eq!(manager.delay_queue_list.len(), 3);
@@ -267,15 +283,10 @@ mod test {
 
     #[tokio::test]
     async fn send_test() {
-        let manager = Arc::new(DelayMessageManager {
-            shard_num: 2,
-            message_storage_adapter: test_build_memory_storage_driver(),
-            storage_adapter_type: common_config::storage::StorageAdapterType::Memory,
-            incr_no: AtomicU64::new(0),
-            delay_queue_list: DashMap::with_capacity(2),
-            delay_queue_pop_thread: DashMap::with_capacity(2),
-            shard_engine_type_list: DashMap::with_capacity(8),
-        });
+        let manager = Arc::new(DelayMessageManager::new_for_test(
+            test_build_memory_storage_driver(),
+            2,
+        ));
         manager.start();
 
         for i in 0..2 {
