@@ -14,7 +14,7 @@
 
 use crate::{
     delay::{get_delay_message_shard_name, init_delay_message_shard, save_delay_message},
-    pop::start_delay_message_pop,
+    pop::spawn_delay_message_pop_threads,
 };
 use common_base::{
     error::common::CommonError,
@@ -36,7 +36,7 @@ use std::{
 use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::{
     delay::save_delay_index_info, driver::get_delay_message_storage_driver,
@@ -47,7 +47,7 @@ pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
     shard_num: u64,
 ) -> Result<(), CommonError> {
-    delay_message_manager.start().await;
+    delay_message_manager.start();
 
     init_delay_message_shard(
         &delay_message_manager.message_storage_adapter,
@@ -60,9 +60,10 @@ pub async fn start_delay_message_manager_thread(
         delay_message_manager,
         &delay_message_manager.message_storage_adapter,
         shard_num,
-    );
+    )
+    .await;
 
-    start_delay_message_pop(
+    spawn_delay_message_pop_threads(
         delay_message_manager,
         &delay_message_manager.message_storage_adapter,
         shard_num,
@@ -101,7 +102,7 @@ impl DelayMessageManager {
         Ok(driver)
     }
 
-    pub async fn start(&self) {
+    pub fn start(&self) {
         for shard_no in 0..self.shard_num {
             self.delay_queue_list.insert(shard_no, DelayQueue::new());
         }
@@ -110,7 +111,7 @@ impl DelayMessageManager {
     pub async fn send(
         &self,
         target_topic: &str,
-        delay_timestamp: u64,
+        delay_seconds: u64,
         data: AdapterWriteRecord,
     ) -> Result<(), CommonError> {
         let shard_no = self.get_target_shard_no();
@@ -125,7 +126,7 @@ impl DelayMessageManager {
             delay_shard_name: delay_shard_name.clone(),
             target_shard_name: target_topic.to_string(),
             offset,
-            delay_timestamp: now_second() + delay_timestamp,
+            delay_timestamp: now_second() + delay_seconds,
             shard_no,
         };
 
@@ -142,6 +143,9 @@ impl DelayMessageManager {
                 stop_send.send(true)?;
             }
         }
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
         Ok(())
     }
 
@@ -163,11 +167,22 @@ impl DelayMessageManager {
             );
 
             delay_queue.insert_at(delay_info.clone(), Instant::now() + delay_duration);
-            record_mqtt_delay_queue_total_capacity_set(shard_no, delay_queue.capacity() as i64);
-            record_mqtt_delay_queue_used_capacity_set(shard_no, delay_queue.len() as i64);
-            record_mqtt_delay_queue_remaining_capacity_set(
+
+            let capacity = delay_queue.capacity() as i64;
+            let used = delay_queue.len() as i64;
+            drop(delay_queue);
+
+            record_mqtt_delay_queue_total_capacity_set(shard_no, capacity);
+            record_mqtt_delay_queue_used_capacity_set(shard_no, used);
+            record_mqtt_delay_queue_remaining_capacity_set(shard_no, capacity - used);
+        } else {
+            error!(
+                "Failed to send to delay queue: shard {} not found, message will be lost: \
+                target={}, offset={}, delay_timestamp={}",
                 shard_no,
-                (delay_queue.capacity() - delay_queue.len()) as i64,
+                delay_info.target_shard_name,
+                delay_info.offset,
+                delay_info.delay_timestamp
             );
         }
     }
@@ -190,10 +205,7 @@ impl DelayMessageManager {
     }
 
     pub fn get_shard_engine_type_list(&self, shard_name: &str) -> Option<StorageAdapterType> {
-        if let Some(engine_type) = self.shard_engine_type_list.get(shard_name) {
-            return Some(*engine_type);
-        }
-        None
+        self.shard_engine_type_list.get(shard_name).map(|v| *v)
     }
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u64, stop_send: broadcast::Sender<bool>) {
@@ -204,5 +216,121 @@ impl DelayMessageManager {
         self.incr_no
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
             % self.shard_num
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::delay::DELAY_QUEUE_INFO_SHARD_NAME;
+    use common_base::tools::{now_second, unique_id};
+    use common_config::storage::StorageAdapterType;
+    use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+    use storage_adapter::storage::test_build_memory_storage_driver;
+
+    fn create_test_manager(shard_num: u64) -> Arc<DelayMessageManager> {
+        let adapter = test_build_memory_storage_driver();
+        let manager = DelayMessageManager {
+            shard_num,
+            message_storage_adapter: adapter,
+            storage_adapter_type: StorageAdapterType::Memory,
+            incr_no: AtomicU64::new(0),
+            delay_queue_list: DashMap::with_capacity(shard_num as usize),
+            delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
+            shard_engine_type_list: DashMap::with_capacity(8),
+        };
+        let delay_manager = Arc::new(manager);
+        delay_manager.start();
+        delay_manager
+    }
+
+    #[tokio::test]
+    async fn start_test() {
+        let shard_num = 3;
+        let manager = create_test_manager(shard_num);
+
+        assert_eq!(manager.delay_queue_list.len(), shard_num as usize);
+        for i in 0..shard_num {
+            assert!(manager.delay_queue_list.contains_key(&i));
+        }
+    }
+
+    #[tokio::test]
+    async fn send_to_delay_queue_test() {
+        let manager = create_test_manager(2);
+
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: unique_id(),
+            delay_shard_name: "test_shard".to_string(),
+            target_shard_name: "target_shard".to_string(),
+            offset: 0,
+            delay_timestamp: now_second() + 10,
+            shard_no: 0,
+        };
+
+        manager.send_to_delay_queue(0, &delay_info);
+
+        let queue = manager.delay_queue_list.get(&0).unwrap();
+        assert_eq!(queue.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn round_robin_test() {
+        let shard_num = 3;
+        let manager = create_test_manager(shard_num);
+
+        let mut results = Vec::new();
+        for _ in 0..9 {
+            results.push(manager.get_target_shard_no());
+        }
+
+        assert_eq!(results, vec![0, 1, 2, 0, 1, 2, 0, 1, 2]);
+    }
+
+    #[tokio::test]
+    async fn send_test() {
+        let manager = create_test_manager(2);
+        let target_shard = unique_id();
+
+        for i in 0..2 {
+            manager
+                .message_storage_adapter
+                .create_shard(&AdapterShardInfo {
+                    shard_name: crate::delay::get_delay_message_shard_name(i),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+        }
+
+        manager
+            .message_storage_adapter
+            .create_shard(&AdapterShardInfo {
+                shard_name: DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let data = AdapterWriteRecord::from_string("test".to_string());
+        manager.send(&target_shard, 10, data).await.unwrap();
+
+        let queue = manager.delay_queue_list.get(&0).unwrap();
+        assert_eq!(queue.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn shard_engine_type_test() {
+        let manager = create_test_manager(2);
+        let shard_name = "test_shard".to_string();
+
+        manager.add_shard_engine_type_list(shard_name.clone(), StorageAdapterType::Memory);
+        assert_eq!(
+            manager.get_shard_engine_type_list(&shard_name),
+            Some(StorageAdapterType::Memory)
+        );
+
+        manager.remove_shard_engine_type_list(&shard_name);
+        assert_eq!(manager.get_shard_engine_type_list(&shard_name), None);
     }
 }
