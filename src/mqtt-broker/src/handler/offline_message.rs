@@ -26,7 +26,7 @@ use super::{
 use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
-use delay_message::DelayMessageManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};

@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::DelayMessageManager;
+use crate::{
+    delay::{delete_delay_index_info, delete_delay_message},
+    manager::DelayMessageManager,
+};
 use common_base::error::common::CommonError;
 use futures::StreamExt;
 use metadata_struct::{
-    delay_info::DelayMessageInfo, storage::adapter_read_config::AdapterReadConfig,
+    delay_info::DelayMessageIndexInfo, storage::adapter_read_config::AdapterReadConfig,
     storage::adapter_record::AdapterWriteRecord,
     storage::convert::convert_engine_record_to_adapter,
 };
@@ -38,7 +41,7 @@ pub async fn pop_delay_queue(
             // Spawn task to send delay message to avoid blocking the pop loop
             let storage = message_storage_adapter.clone();
             tokio::spawn(async move {
-                if let Err(e) = send_delay_message_to_shard(&storage, &delay_message).await {
+                if let Err(e) = delay_message_process(&storage, &delay_message).await {
                     error!("{}", e);
                 }
             });
@@ -48,24 +51,18 @@ pub async fn pop_delay_queue(
 
 pub async fn delay_message_process(
     message_storage_adapter: &ArcStorageAdapter,
-    delay_message: &DelayMessageInfo,
-) -> Result<u64, CommonError> {
-    // todo mark delete
-    let offset = match send_delay_message_to_shard(message_storage_adapter, delay_message).await {
-        Ok(offset) => offset as i64,
-        Err(e) => {
-            debug!("{}", e);
-            -1
-        }
-    };
-    // todo remove data
-
-    Ok(offset as u64)
+    delay_info: &DelayMessageIndexInfo,
+) -> Result<(), CommonError> {
+    let offset = send_delay_message_to_shard(message_storage_adapter, delay_info).await?;
+    delete_delay_index_info(message_storage_adapter, delay_info).await?;
+    delete_delay_message(message_storage_adapter, delay_info).await?;
+    debug!("{},offset:", offset);
+    Ok(())
 }
 
 async fn send_delay_message_to_shard(
     message_storage_adapter: &ArcStorageAdapter,
-    delay_message: &DelayMessageInfo,
+    delay_message: &DelayMessageIndexInfo,
 ) -> Result<u64, CommonError> {
     let Some(record) = read_offset_data(
         message_storage_adapter,
@@ -118,14 +115,14 @@ pub(crate) async fn read_offset_data(
 #[cfg(test)]
 mod test {
     use crate::{
-        delay::init_delay_message_shard,
+        delay::{init_delay_message_shard, start_delay_message_pop},
+        manager::DelayMessageManager,
         pop::{read_offset_data, send_delay_message_to_shard},
-        start_delay_message_pop, DelayMessageManager,
     };
     use common_base::tools::unique_id;
     use common_config::storage::StorageAdapterType;
     use metadata_struct::{
-        delay_info::DelayMessageInfo,
+        delay_info::DelayMessageIndexInfo,
         storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
     };
     use std::{sync::Arc, time::Duration};
@@ -190,7 +187,8 @@ mod test {
             .unwrap();
 
         for i in 0..100 {
-            let delay_message: DelayMessageInfo = DelayMessageInfo {
+            let delay_message: DelayMessageIndexInfo = DelayMessageIndexInfo {
+                unique_id: unique_id(),
                 delay_shard_name: shard_name.to_owned(),
                 target_shard_name: target_shard_name.to_owned(),
                 offset: i,

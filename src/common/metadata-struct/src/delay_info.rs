@@ -15,7 +15,8 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DelayMessageInfo {
+pub struct DelayMessageIndexInfo {
+    pub unique_id: String,
     pub delay_shard_name: String,
     pub target_shard_name: String,
     pub offset: u64,

@@ -50,7 +50,7 @@ use crate::system_topic::event::{
 use common_base::tools::{now_millis, now_second};
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
-use delay_message::DelayMessageManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{

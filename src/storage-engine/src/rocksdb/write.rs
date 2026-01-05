@@ -184,7 +184,7 @@ impl RocksDBStorageEngine {
             }
         }
 
-        if record.metadata.create_t > 0 && offset % 5000 == 0 {
+        if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
             let timestamp_index_key = timestamp_index_key(shard, record.metadata.create_t, offset);
             batch.delete_cf(&cf, timestamp_index_key.as_bytes());
         }

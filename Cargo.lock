@@ -1930,6 +1930,7 @@ dependencies = [
 name = "delay-message"
 version = "0.2.9"
 dependencies = [
+ "bytes",
  "common-base",
  "common-config",
  "common-metrics",

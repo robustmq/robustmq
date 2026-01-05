@@ -30,7 +30,7 @@ use common_metrics::mqtt::event::{
     record_mqtt_subscribe_success, record_mqtt_unsubscribe_success,
 };
 use common_metrics::mqtt::time::record_packet_process_duration;
-use delay_message::DelayMessageManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;

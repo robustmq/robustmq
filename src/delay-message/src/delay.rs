@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::driver::build_delay_message_shard_config;
+use crate::manager::DelayMessageManager;
+use crate::pop::pop_delay_queue;
+use bytes::Bytes;
 use common_base::error::common::CommonError;
+use common_base::tools::now_second;
+use common_base::utils::serialize::serialize;
 use common_config::storage::StorageAdapterType;
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
 use std::sync::Arc;
@@ -22,42 +28,8 @@ use storage_adapter::driver::ArcStorageAdapter;
 use tokio::{select, sync::broadcast};
 use tracing::{debug, info};
 
-use crate::storage::build_delay_message_shard_config;
-use crate::{
-    persist::{recover_delay_queue, DELAY_QUEUE_INFO_SHARD_NAME},
-    pop::pop_delay_queue,
-    DelayMessageManager,
-};
-
 const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-message-shard-";
-
-pub(crate) fn start_recover_delay_queue(
-    delay_message_manager: &Arc<DelayMessageManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-    shard_num: u64,
-) {
-    let read_config = AdapterReadConfig {
-        max_record_num: 100,
-        max_size: 1024 * 1024 * 1024,
-    };
-
-    info!(
-        "Starting delay queue recovery from persistent storage (shards: {})",
-        shard_num
-    );
-
-    let new_delay_message_manager = delay_message_manager.clone();
-    let new_message_storage_adapter = message_storage_adapter.clone();
-    tokio::spawn(async move {
-        recover_delay_queue(
-            &new_message_storage_adapter,
-            &new_delay_message_manager,
-            read_config,
-            shard_num,
-        )
-        .await;
-    });
-}
+pub const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay_queue_index_info_shard";
 
 pub(crate) fn start_delay_message_pop(
     delay_message_manager: &Arc<DelayMessageManager>,
@@ -100,7 +72,7 @@ pub(crate) fn start_delay_message_pop(
     }
 }
 
-pub(crate) async fn persist_delay_message(
+pub(crate) async fn save_delay_message(
     message_storage_adapter: &ArcStorageAdapter,
     shard_name: &str,
     data: AdapterWriteRecord,
@@ -116,6 +88,42 @@ pub(crate) async fn persist_delay_message(
     );
 
     Ok(resp.offset)
+}
+
+pub(crate) async fn delete_delay_message(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_info: &DelayMessageIndexInfo,
+) -> Result<(), CommonError> {
+    message_storage_adapter
+        .delete_by_offset(&delay_info.delay_shard_name, delay_info.offset)
+        .await
+}
+
+pub async fn save_delay_index_info(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_info: &DelayMessageIndexInfo,
+) -> Result<(), CommonError> {
+    let data = serialize(&delay_info)?;
+    let data = AdapterWriteRecord {
+        key: Some(delay_info.unique_id.clone()),
+        data: Bytes::copy_from_slice(&data),
+        timestamp: now_second(),
+        ..Default::default()
+    };
+    message_storage_adapter
+        .write(DELAY_QUEUE_INFO_SHARD_NAME, &data)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn delete_delay_index_info(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_info: &DelayMessageIndexInfo,
+) -> Result<(), CommonError> {
+    message_storage_adapter
+        .delete_by_key(DELAY_QUEUE_INFO_SHARD_NAME, &delay_info.unique_id)
+        .await?;
+    Ok(())
 }
 
 pub(crate) async fn init_delay_message_shard(
@@ -170,15 +178,30 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
+    use std::{sync::Arc, time::Duration};
+
+    use common_base::{tools::unique_id, utils::serialize};
     use common_config::storage::StorageAdapterType;
-    use metadata_struct::storage::{
-        adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord,
+    use metadata_struct::{
+        delay_info::DelayMessageIndexInfo,
+        storage::{
+            adapter_offset::AdapterShardInfo, adapter_read_config::AdapterReadConfig,
+            adapter_record::AdapterWriteRecord,
+        },
     };
-    use storage_adapter::storage::test_build_memory_storage_driver;
+    use storage_adapter::storage::{
+        test_build_memory_storage_driver, test_build_storage_driver_manager,
+    };
+    use tokio::time::sleep;
 
     use crate::{
-        get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
+        delay::{
+            get_delay_message_shard_name, init_delay_message_shard, save_delay_index_info,
+            save_delay_message, start_delay_message_pop, DELAY_QUEUE_INFO_SHARD_NAME,
+        },
+        manager::DelayMessageManager,
         pop::read_offset_data,
+        recover::recover_delay_queue,
     };
 
     #[tokio::test]
@@ -233,7 +256,7 @@ mod test {
             })
             .await
             .unwrap();
-        let res = persist_delay_message(&message_storage_adapter, &shard_name, data).await;
+        let res = save_delay_message(&message_storage_adapter, &shard_name, data).await;
         assert!(res.is_ok());
         let offset = res.unwrap();
 
@@ -243,5 +266,161 @@ mod test {
         assert_eq!(res.pkid, offset);
         let d1 = String::from_utf8(res.data.to_vec()).unwrap();
         assert_eq!(d1, "test".to_string());
+    }
+    #[tokio::test]
+    pub async fn persist_delay_info_test() {
+        let message_storage_adapter = test_build_memory_storage_driver();
+
+        let target_shard_name = unique_id();
+        let delay_shard_name = unique_id();
+        message_storage_adapter
+            .create_shard(&AdapterShardInfo {
+                shard_name: target_shard_name.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        message_storage_adapter
+            .create_shard(&AdapterShardInfo {
+                shard_name: delay_shard_name.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        init_delay_message_shard(&message_storage_adapter, &StorageAdapterType::Memory, 10)
+            .await
+            .unwrap();
+        for i in 0..10 {
+            let delay_info = DelayMessageIndexInfo {
+                unique_id: unique_id(),
+                delay_shard_name: delay_shard_name.to_owned(),
+                target_shard_name: target_shard_name.to_owned(),
+                offset: i,
+                delay_timestamp: 5,
+                shard_no: 0,
+            };
+
+            let res = save_delay_index_info(&message_storage_adapter, &delay_info).await;
+            assert!(res.is_ok());
+        }
+
+        for i in 0..10 {
+            let res =
+                read_offset_data(&message_storage_adapter, DELAY_QUEUE_INFO_SHARD_NAME, i).await;
+            assert!(res.is_ok());
+            let raw = res.unwrap().unwrap();
+            assert_eq!(raw.pkid, i);
+
+            let d = serialize::deserialize::<DelayMessageIndexInfo>(&raw.data).unwrap();
+            assert_eq!(d.target_shard_name, target_shard_name);
+            assert_eq!(d.delay_shard_name, delay_shard_name);
+            assert_eq!(d.offset, i);
+            assert_eq!(d.delay_timestamp, 5);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    pub async fn build_delay_queue_test() {
+        let shard_num = 1;
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let delay_message_manager = Arc::new(
+            DelayMessageManager::new(
+                storage_driver_manager.clone(),
+                StorageAdapterType::Memory,
+                shard_num,
+            )
+            .await
+            .unwrap(),
+        );
+        delay_message_manager.start().await;
+
+        let target_topic = unique_id();
+        delay_message_manager
+            .message_storage_adapter
+            .create_shard(&AdapterShardInfo {
+                shard_name: target_topic.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        init_delay_message_shard(
+            &delay_message_manager.message_storage_adapter,
+            &StorageAdapterType::Memory,
+            10,
+        )
+        .await
+        .unwrap();
+        for i in 0..10 {
+            let data = AdapterWriteRecord::from_string(format!("data{i}"));
+            // Use fixed delay to maintain order
+            let res: Result<(), common_base::error::common::CommonError> =
+                delay_message_manager.send(&target_topic, 2, data).await;
+
+            assert!(res.is_ok());
+        }
+
+        let new_delay_message_manager = Arc::new(
+            DelayMessageManager::new(
+                storage_driver_manager,
+                StorageAdapterType::Memory,
+                shard_num,
+            )
+            .await
+            .unwrap(),
+        );
+        new_delay_message_manager.start().await;
+
+        start_delay_message_pop(
+            &new_delay_message_manager,
+            &new_delay_message_manager.message_storage_adapter,
+            shard_num,
+        );
+
+        // build delay queue
+        let read_config = AdapterReadConfig {
+            max_record_num: 100,
+            max_size: 1024 * 1024 * 1024,
+        };
+
+        recover_delay_queue(
+            &new_delay_message_manager.message_storage_adapter,
+            &new_delay_message_manager,
+            read_config,
+            shard_num,
+        )
+        .await;
+
+        // Wait for all messages to expire (2 seconds + buffer)
+        sleep(Duration::from_secs(3)).await;
+
+        // Give spawned tasks time to complete
+        sleep(Duration::from_millis(500)).await;
+
+        // Collect all messages and verify content (order may vary for concurrent expiry)
+        let mut received_data = std::collections::HashSet::new();
+        for i in 0..10 {
+            let res = read_offset_data(
+                &new_delay_message_manager.message_storage_adapter,
+                &target_topic,
+                i,
+            )
+            .await;
+            assert!(res.is_ok());
+            let raw = res.unwrap().unwrap();
+            assert_eq!(raw.pkid, i);
+
+            let d = String::from_utf8(raw.data.to_vec()).unwrap();
+            received_data.insert(d);
+        }
+
+        // Verify all expected messages were received
+        for i in 0..10 {
+            assert!(
+                received_data.contains(&format!("data{i}")),
+                "Missing data{i} in received messages"
+            );
+        }
     }
 }

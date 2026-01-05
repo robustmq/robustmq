@@ -33,7 +33,7 @@ use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
-use delay_message::{start_delay_message_manager, DelayMessageManager};
+use delay_message::manager::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
