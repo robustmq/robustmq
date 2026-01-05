@@ -151,7 +151,7 @@ impl AdminServer {
             // client
             .route(MQTT_CLIENT_LIST_PATH, get(client_list))
             // session
-            .route(MQTT_SESSION_LIST_PATH, post(session_list))
+            .route(MQTT_SESSION_LIST_PATH, get(session_list))
             // topic
             .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
             .route(MQTT_TOPIC_DETAIL_PATH, post(topic_detail))

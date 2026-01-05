@@ -19,7 +19,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::State;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use serde::{Deserialize, Serialize};
 
@@ -49,13 +49,14 @@ pub struct SessionListRow {
     pub last_will: Option<MqttLastWillData>,
 }
 
+use axum::extract::Query;
 use common_base::http_response::{error_response, success_response};
 use mqtt_broker::storage::session::SessionStorage;
 use std::sync::Arc;
 
 pub async fn session_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SessionListReq>,
+    Query(params): Query<SessionListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
