@@ -65,3 +65,26 @@ impl Topic {
         format!("{}-{}", topic_id, partition)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_encode_decode() {
+        let topic = Topic {
+            topic_id: "test-id".to_string(),
+            topic_name: "test-topic".to_string(),
+            storage_type: StorageType::EngineMemory,
+            partition: 3,
+            replication: 2,
+            storage_name_list: vec!["test-id-0".to_string(), "test-id-1".to_string()],
+            create_time: 1234567890,
+        };
+
+        let encoded = topic.encode().unwrap();
+        let decoded = Topic::decode(&encoded).unwrap();
+
+        assert_eq!(topic, decoded);
+    }
+}

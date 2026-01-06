@@ -47,6 +47,7 @@ impl TopicStorage {
             topic_name: topic.topic_name.clone(),
             content: topic.encode()?,
         };
+
         placement_create_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }

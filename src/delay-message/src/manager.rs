@@ -17,6 +17,7 @@ use crate::{
     delay::{init_inner_topic, save_delay_message},
     pop::spawn_delay_message_pop_threads,
 };
+use broker_core::cache::BrokerCacheManager;
 use common_base::{
     error::common::CommonError,
     tools::{now_second, unique_id},
@@ -41,10 +42,11 @@ use tracing::{debug, error};
 
 pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
+    broker_cache: &Arc<BrokerCacheManager>,
 ) -> Result<(), CommonError> {
     delay_message_manager.start();
 
-    init_inner_topic(delay_message_manager).await?;
+    init_inner_topic(delay_message_manager, broker_cache).await?;
     recover_delay_queue(delay_message_manager).await;
     spawn_delay_message_pop_threads(delay_message_manager, delay_message_manager.delay_queue_num);
 

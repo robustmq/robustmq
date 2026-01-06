@@ -30,7 +30,7 @@ use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 pub fn payload_format_validator(
     payload: &Bytes,
@@ -160,6 +160,28 @@ pub async fn try_init_topic(
         };
         let topic_storage = TopicStorage::new(client_pool.clone());
         topic_storage.create_topic(topic.clone()).await?;
+
+        // wait topic create complete with timeout (30 seconds)
+        let wait_result = timeout(Duration::from_secs(30), async {
+            loop {
+                if metadata_cache
+                    .broker_cache
+                    .get_topic_by_name(topic_name)
+                    .is_some()
+                {
+                    break;
+                }
+                sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await;
+
+        if wait_result.is_err() {
+            return Err(MqttBrokerError::CommonError(format!(
+                "Timeout waiting for topic '{}' to be created after 30 seconds",
+                topic_name
+            )));
+        }
 
         // Create the underlying actual resources
         let config = EngineShardConfig {

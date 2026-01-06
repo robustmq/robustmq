@@ -76,9 +76,9 @@ pub async fn create_topic_by_req(
 ) -> Result<CreateTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    // Check if topic already exists
+    // interface maintains the idempotent semantics.
     if topic_storage.get(&req.topic_name)?.is_some() {
-        return Err(MetaServiceError::TopicAlreadyExist(req.topic_name.clone()));
+        return Ok(CreateTopicReply {});
     }
 
     let data = StorageData::new(StorageDataType::MqttSetTopic, encode_to_bytes(req));

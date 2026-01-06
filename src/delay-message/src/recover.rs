@@ -31,7 +31,6 @@ const PROGRESS_LOG_INTERVAL: u64 = 1000;
 pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessageManager>) {
     info!("Starting delay queue recovery from persistent storage",);
 
-    let mut offset = 0;
     let mut total_num = 0;
     let mut retry_count = 0;
     let mut last_progress_log = 0;
@@ -54,8 +53,8 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
             Err(e) => {
                 retry_count += 1;
                 error!(
-                    "Reading shard {} at offset {} failed (attempt {}/{}): {:?}",
-                    DELAY_QUEUE_INDEX_TOPIC, offset, retry_count, MAX_READ_RETRY, e
+                    "Reading shard {}  failed (attempt {}/{}): {:?}",
+                    DELAY_QUEUE_INDEX_TOPIC, retry_count, MAX_READ_RETRY, e
                 );
 
                 if retry_count >= MAX_READ_RETRY {
@@ -122,10 +121,6 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
                 );
                 last_progress_log = total_num;
             }
-        }
-
-        if let Some(last_record) = data.last() {
-            offset = last_record.metadata.offset + 1;
         }
     }
 
