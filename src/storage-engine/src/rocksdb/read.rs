@@ -171,14 +171,14 @@ impl RocksDBStorageEngine {
 mod tests {
     use super::*;
     use crate::core::shard::ShardState;
-    use crate::core::test_tool::test_build_engine;
+    use crate::core::test_tool::test_build_rocksdb_engine;
     use common_base::tools::unique_id;
     use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
     async fn test_batch_write_and_read_by_offset() {
-        let engine = test_build_engine();
+        let engine = test_build_rocksdb_engine();
         let shard_name = unique_id();
         engine
             .shard_state

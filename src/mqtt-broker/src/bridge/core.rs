@@ -458,9 +458,11 @@ mod tests {
     use crate::bridge::manager::ConnectorManager;
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::{
-        mqtt::bridge::connector::FailureHandlingStrategy, storage::shard::EngineShardConfig,
+    use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
+    use metadata_struct::mqtt::bridge::{
+        config_local_file::LocalFileConnectorConfig, ConnectorConfig,
     };
+    use metadata_struct::mqtt::topic::Topic;
     use storage_adapter::storage::test_build_storage_driver_manager;
 
     async fn setup() -> (Arc<StorageDriverManager>, Arc<ConnectorManager>) {
@@ -546,12 +548,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_connector() {
-        use metadata_struct::mqtt::bridge::{
-            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
-        };
-
         let (storage_driver_manager, connector_manager) = setup().await;
-
         let mut connector = create_test_connector();
         connector.broker_id = Some(1);
         connector.config = ConnectorConfig::LocalFile(LocalFileConnectorConfig {
@@ -561,11 +558,9 @@ mod tests {
         connector_manager.add_connector(&connector);
 
         let topic_name = connector.topic_name.clone();
-
         storage_driver_manager
-            .create_storage_resource(&topic_name, &EngineShardConfig::default())
-            .await
-            .unwrap();
+            .broker_cache
+            .add_topic(&topic_name, &Topic::build_by_name(&topic_name));
 
         let client_pool = Arc::new(ClientPool::new(1));
         check_connector(&storage_driver_manager, &connector_manager, &client_pool).await;

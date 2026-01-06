@@ -41,3 +41,15 @@ pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
         .await;
     cache_manager
 }
+
+pub async fn test_build_mqtt_cache_manager0(
+    broker_cache: Arc<BrokerCacheManager>,
+) -> Arc<MQTTCacheManager> {
+    let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+    let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));
+    cache_manager
+        .broker_cache
+        .set_cluster_config(default_broker_config())
+        .await;
+    cache_manager
+}

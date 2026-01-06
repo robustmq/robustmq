@@ -37,7 +37,7 @@ impl Topic {
         Topic {
             topic_id: unique_id.clone(),
             topic_name: topic_name.to_string(),
-            storage_type: StorageType::EngineRocksDB,
+            storage_type: StorageType::EngineMemory,
             partition: 1,
             replication: 1,
             storage_name_list: Topic::create_partition_name(&unique_id, 1),

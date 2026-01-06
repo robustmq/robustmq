@@ -16,15 +16,20 @@ use crate::driver::StorageDriverManager;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
+use common_base::tools::unique_id;
 use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
+use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::EngineShard;
+use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
@@ -144,4 +149,45 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
     let engine_adapter_handler = Arc::new(StorageEngineHandler::new(params));
     let driver = StorageDriverManager::new(offset_manager, engine_adapter_handler).await?;
     Ok(Arc::new(driver))
+}
+
+pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_name: &str) {
+    let topic = Topic::build_by_name(topic_name);
+    storage_driver_manager
+        .broker_cache
+        .add_topic(topic_name, &topic);
+
+    let shard_name = Topic::build_storage_name(&topic.topic_id, 0);
+
+    storage_driver_manager
+        .engine_storage_handler
+        .cache_manager
+        .set_shard(EngineShard {
+            shard_uid: unique_id(),
+            shard_name: shard_name.clone(),
+            config: EngineShardConfig {
+                storage_type: StorageType::EngineMemory,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+
+    storage_driver_manager
+        .engine_storage_handler
+        .cache_manager
+        .set_segment(&EngineSegment {
+            shard_name: shard_name.clone(),
+            segment_seq: 0,
+            leader: 1,
+            ..Default::default()
+        });
+
+    storage_driver_manager
+        .engine_storage_handler
+        .cache_manager
+        .set_segment_meta(EngineSegmentMetadata {
+            shard_name: shard_name.clone(),
+            segment_seq: 0,
+            ..Default::default()
+        });
 }

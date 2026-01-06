@@ -99,18 +99,15 @@ impl MessageStorage {
 mod tests {
     use super::*;
     use common_base::tools::unique_id;
-    use metadata_struct::storage::{adapter_record::AdapterWriteRecord, shard::EngineShardConfig};
-    use storage_adapter::storage::test_build_storage_driver_manager;
+
+    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
 
     #[tokio::test]
     async fn test_message_read_write_with_metadata() {
         let topic_name = unique_id();
-
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
-        storage_driver_manager
-            .create_storage_resource(&topic_name, &EngineShardConfig::default())
-            .await
-            .unwrap();
+        test_add_topic(&storage_driver_manager, &topic_name);
 
         let message_storage = MessageStorage::new(storage_driver_manager.clone());
         // Test basic append and read
@@ -126,6 +123,7 @@ mod tests {
             .append_topic_message(&topic_name, records)
             .await
             .unwrap();
+
         assert_eq!(offsets.len(), 10);
 
         // Test read with offset and limit
@@ -134,9 +132,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(msgs.len(), 3);
-        assert_eq!(String::from_utf8_lossy(&msgs[0].data), "Message 5");
+
+        assert_eq!(String::from_utf8_lossy(&msgs[0].data), "Message 0");
         let meta = msgs[0].clone().metadata;
-        assert_eq!(meta.key, Some("key5".to_string()));
-        assert_eq!(meta.tags, Some(vec!["tag5".to_string()]));
+        assert_eq!(meta.key, Some("key0".to_string()));
+        assert_eq!(meta.tags, Some(vec!["tag0".to_string()]));
     }
 }

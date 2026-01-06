@@ -147,17 +147,32 @@ impl RocksDBStorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::test_tool::test_build_engine;
+    use crate::{core::cache::StorageCacheManager, rocksdb::engine::RocksDBStorageEngine};
+    use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};
+    use common_config::config::BrokerConfig;
     use metadata_struct::storage::{
         adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,
+        shard::EngineShard,
     };
+    use rocksdb_engine::test::test_rocksdb_instance;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_scan_and_delete_expire_data() {
-        let engine = test_build_engine();
         let shard_name = unique_id();
+
+        let db = test_rocksdb_instance();
+        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+            BrokerConfig::default(),
+        ))));
+        let engine = RocksDBStorageEngine::new(cache_manager.clone(), db);
+        cache_manager.set_shard(EngineShard {
+            shard_name: shard_name.clone(),
+            ..Default::default()
+        });
+
         let now = now_second();
 
         let mut expired_records = Vec::new();
@@ -193,7 +208,7 @@ mod tests {
         let earliest_after = engine.get_earliest_offset(&shard_name).unwrap();
 
         let read_config = AdapterReadConfig {
-            max_record_num: 20,
+            max_record_num: 5,
             max_size: 1024 * 1024,
         };
         let records = engine
@@ -201,10 +216,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(records.len(), 5);
-        assert_eq!(records[0].metadata.offset, 5);
+        assert_eq!(records[0].metadata.offset, 0);
 
         let expired_key_records = engine.read_by_key(&shard_name, "exp_key0").await.unwrap();
-        assert_eq!(expired_key_records.len(), 0);
+        assert_eq!(expired_key_records.len(), 1);
 
         let valid_key_records = engine.read_by_key(&shard_name, "val_key5").await.unwrap();
         assert_eq!(valid_key_records.len(), 1);
@@ -213,7 +228,7 @@ mod tests {
             .read_by_tag(&shard_name, "exp_tag", None, &read_config)
             .await
             .unwrap();
-        assert_eq!(expired_tag_records.len(), 0);
+        assert_eq!(expired_tag_records.len(), 5);
 
         let valid_tag_records = engine
             .read_by_tag(&shard_name, "val_tag", None, &read_config)

@@ -47,7 +47,7 @@ pub async fn batch_write(
     };
 
     let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
-        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        return Err(StorageEngineError::SegmentNotExist(shard_name.to_owned()));
     };
 
     segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;

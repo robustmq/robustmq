@@ -123,7 +123,7 @@ pub async fn test_init_segment(
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
 
-pub fn test_build_engine() -> RocksDBStorageEngine {
+pub fn test_build_rocksdb_engine() -> RocksDBStorageEngine {
     let db = test_rocksdb_instance();
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),

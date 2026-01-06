@@ -109,7 +109,7 @@ impl StorageDriverManager {
             .message_seq
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % topic.partition as u64;
-        let partition_name = Topic::build_storage_name(topic_name, partition as u32);
+        let partition_name = Topic::build_storage_name(&topic.topic_id, partition as u32);
 
         driver.batch_write(&partition_name, data).await
     }
@@ -209,23 +209,20 @@ impl StorageDriverManager {
         let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
             topic
         } else {
-            return Err(CommonError::CommonError("".to_string()));
+            return Err(CommonError::CommonError(format!(
+                "Topic '{}' not found in broker cache",
+                topic_name
+            )));
         };
 
-        let driver = self.get_storage_driver_by_topic(topic_name).await?;
+        let driver = self.get_storage_driver_by_topic(&topic).await?;
         Ok((topic, driver))
     }
 
     async fn get_storage_driver_by_topic(
         &self,
-        topic_name: &str,
+        topic: &Topic,
     ) -> Result<ArcStorageAdapter, CommonError> {
-        let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
-            topic
-        } else {
-            return Err(CommonError::CommonError("".to_string()));
-        };
-
         let storage_type_str = format!("{:?}", topic.storage_type);
         if let Some(driver) = self.driver_list.get(&storage_type_str) {
             return Ok(driver.clone());
@@ -237,8 +234,8 @@ impl StorageDriverManager {
             }
             _ => {
                 return Err(CommonError::CommonError(format!(
-                    "Unsupported storage adapter type '{:?}' for delay message storage",
-                    topic.storage_type
+                    "Unsupported storage type '{:?}' for topic '{}'",
+                    topic.storage_type, topic.topic_name
                 )));
             }
         };

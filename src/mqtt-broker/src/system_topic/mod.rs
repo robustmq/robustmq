@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::MQTTCacheManager;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::handler::error::MqttBrokerError;
 use crate::handler::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::system_topic::packet::bytes::{
@@ -368,7 +368,7 @@ pub(crate) async fn write_topic_data(
     client_pool: &Arc<ClientPool>,
     topic_name: String,
     record: AdapterWriteRecord,
-) -> ResultMqttBrokerError {
+) -> Result<Vec<u64>, MqttBrokerError> {
     let topic = try_init_topic(
         &topic_name,
         &metadata_cache.clone(),
@@ -378,60 +378,53 @@ pub(crate) async fn write_topic_data(
     .await?;
 
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
-    message_storage
+    let resp = message_storage
         .append_topic_message(&topic.topic_name, vec![record])
         .await?;
-    Ok(())
+    Ok(resp)
 }
 
 #[cfg(test)]
 mod test {
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::handler::tool::test_build_mqtt_cache_manager0;
     use crate::system_topic::write_topic_data;
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::Topic;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-    use metadata_struct::storage::shard::EngineShardConfig;
     use std::collections::HashMap;
     use std::sync::Arc;
-    use storage_adapter::storage::test_build_storage_driver_manager;
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
 
     #[tokio::test]
     async fn test_write_topic_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let cache_manger =
+            test_build_mqtt_cache_manager0(storage_driver_manager.broker_cache.clone()).await;
 
-        storage_driver_manager
-            .create_storage_resource(&topic_name, &EngineShardConfig::default())
-            .await
-            .unwrap();
-
-        let mqtt_topic = Topic::build_by_name(&topic_name);
-        cache_manger
-            .broker_cache
-            .add_topic(&topic_name, &mqtt_topic);
+        test_add_topic(&storage_driver_manager, &topic_name);
 
         let data = "test_write_topic_data".to_string();
-
         let topic_message =
             MqttMessage::build_system_topic_message(topic_name.clone(), data).unwrap();
 
-        let _ = write_topic_data(
+        let resp = write_topic_data(
             &storage_driver_manager,
             &cache_manger,
             &client_pool,
             topic_name.clone(),
             topic_message.clone(),
         )
-        .await;
+        .await
+        .unwrap();
 
-        let topic = cache_manger
+        println!("{:?}", resp);
+
+        let topic = storage_driver_manager
             .broker_cache
             .get_topic_by_name(&topic_name)
             .unwrap();
@@ -464,19 +457,13 @@ mod test {
     async fn test_report_system_data() {
         init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
-        let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
 
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let cache_manger =
+            test_build_mqtt_cache_manager0(storage_driver_manager.broker_cache.clone()).await;
 
-        storage_driver_manager
-            .create_storage_resource(&topic_name, &EngineShardConfig::default())
-            .await
-            .unwrap();
-        let mqtt_topic = Topic::build_by_name(&topic_name);
-        cache_manger
-            .broker_cache
-            .add_topic(&topic_name, &mqtt_topic);
+        test_add_topic(&storage_driver_manager, &topic_name);
 
         let expect_data = "test_data".to_string();
         super::report_system_data(
