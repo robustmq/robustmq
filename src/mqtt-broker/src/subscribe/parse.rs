@@ -30,7 +30,7 @@ use crate::{
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MQTTTopic};
+use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::Topic};
 use protocol::{
     broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType},
     mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
@@ -48,7 +48,7 @@ pub struct ParseSubscribeContext {
     pub client_pool: Arc<ClientPool>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub client_id: String,
-    pub topic: MQTTTopic,
+    pub topic: Topic,
     pub protocol: MqttProtocol,
     pub pkid: u16,
     pub filter: Filter,
@@ -59,7 +59,7 @@ pub struct ParseSubscribeContext {
 #[derive(Clone)]
 struct AddDirectlyPushContext {
     pub subscribe_manager: Arc<SubscribeManager>,
-    pub topic: MQTTTopic,
+    pub topic: Topic,
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub sub_identifier: Option<usize>,
@@ -82,7 +82,7 @@ pub struct ParseSubscribeData {
     pub action_type: BrokerUpdateCacheActionType,
     pub resource_type: BrokerUpdateCacheResourceType,
     pub subscribe: Option<MqttSubscribe>,
-    pub topic: Option<MQTTTopic>,
+    pub topic: Option<Topic>,
 }
 
 pub async fn start_update_parse_thread(
@@ -183,7 +183,7 @@ pub async fn parse_subscribe_by_new_topic(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-    topic: &MQTTTopic,
+    topic: &Topic,
 ) -> ResultMqttBrokerError {
     let broker_id = broker_config().broker_id;
     let sub_count = subscribe_manager.subscribe_list.len();
@@ -358,7 +358,7 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::Topic;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
     fn create_test_filter(path: &str) -> Filter {
@@ -397,7 +397,7 @@ mod tests {
     fn test_add_directly_push() {
         let manager = Arc::new(SubscribeManager::new());
         let filter = create_test_filter("topic");
-        let topic = MQTTTopic {
+        let topic = Topic {
             topic_name: "topic".to_string(),
             create_time: now_second(),
         };
@@ -420,7 +420,7 @@ mod tests {
     fn test_add_directly_push_with_wildcard() {
         let manager = Arc::new(SubscribeManager::new());
         let filter = create_test_filter("test/#");
-        let topic = MQTTTopic {
+        let topic = Topic {
             topic_name: "test/topic".to_string(),
             create_time: now_second(),
         };

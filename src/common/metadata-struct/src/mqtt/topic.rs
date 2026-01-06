@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
+use common_base::{error::common::CommonError, utils::serialize};
+use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MQTTTopic {
+pub struct Topic {
+    pub topic_id: String,
     pub topic_name: String,
+    pub storage_type: StorageType,
+    pub partition: u32,
+    pub replication: u32,
+    pub storage_name_list: Vec<String>,
     pub create_time: u64,
 }
 
-impl MQTTTopic {
-    pub fn new(topic_name: String) -> Self {
-        MQTTTopic {
-            topic_name,
-            create_time: now_second(),
-        }
-    }
-
+impl Topic {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }

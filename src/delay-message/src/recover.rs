@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::DELAY_QUEUE_INFO_SHARD_NAME;
+use crate::delay::{DELAY_QUEUE_INDEX, DELAY_QUEUE_INFO_SHARD_NAME};
 use crate::manager::DelayMessageManager;
 use crate::pop::delay_message_process;
 use common_base::tools::now_second;
@@ -28,37 +28,21 @@ use tracing::{debug, error, info, warn};
 const MAX_READ_RETRY: u32 = 3;
 const PROGRESS_LOG_INTERVAL: u64 = 1000;
 
-pub(crate) async fn start_recover_delay_queue(
-    delay_message_manager: &Arc<DelayMessageManager>,
-    message_storage_adapter: &ArcStorageAdapter,
-    shard_num: u64,
-) {
+pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessageManager>) {
+    info!("Starting delay queue recovery from persistent storage",);
+
+    let mut offset = 0;
+    let mut total_num = 0;
+    let mut retry_count = 0;
+    let mut last_progress_log = 0;
     let read_config = AdapterReadConfig {
         max_record_num: 100,
         max_size: 10 * 1024 * 1024,
     };
 
-    info!(
-        "Starting delay queue recovery from persistent storage (shards: {})",
-        shard_num
-    );
-
-    recover_delay_queue(message_storage_adapter, delay_message_manager, read_config).await;
-}
-
-pub(crate) async fn recover_delay_queue(
-    message_storage_adapter: &ArcStorageAdapter,
-    delay_message_manager: &Arc<DelayMessageManager>,
-    read_config: AdapterReadConfig,
-) {
-    let mut offset = 0;
-    let mut total_num = 0;
-    let mut retry_count = 0;
-    let mut last_progress_log = 0;
-
     loop {
         let data = match message_storage_adapter
-            .read_by_offset(DELAY_QUEUE_INFO_SHARD_NAME, offset, &read_config)
+            .read_by_offset(DELAY_QUEUE_INDEX, offset, &read_config)
             .await
         {
             Ok(data) => {
@@ -69,7 +53,7 @@ pub(crate) async fn recover_delay_queue(
                 retry_count += 1;
                 error!(
                     "Reading shard {} at offset {} failed (attempt {}/{}): {:?}",
-                    DELAY_QUEUE_INFO_SHARD_NAME, offset, retry_count, MAX_READ_RETRY, e
+                    DELAY_QUEUE_INDEX, offset, retry_count, MAX_READ_RETRY, e
                 );
 
                 if retry_count >= MAX_READ_RETRY {
@@ -95,7 +79,7 @@ pub(crate) async fn recover_delay_queue(
                 Err(e) => {
                     error!(
                         "Failed to deserialize delay message index at shard={}, offset={}: {:?}",
-                        DELAY_QUEUE_INFO_SHARD_NAME, record.metadata.offset, e
+                        DELAY_QUEUE_INDEX, record.metadata.offset, e
                     );
                     continue;
                 }

@@ -13,20 +13,23 @@
 // limitations under the License.
 
 use crate::driver::build_delay_message_shard_config;
+use crate::manager::DelayMessageManager;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_base::utils::serialize::serialize;
-use common_config::storage::StorageAdapterType;
+use common_config::broker::broker_config;
+use grpc_clients::meta::mqtt::call::placement_create_topic;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig};
-use std::collections::HashSet;
+use protocol::meta::meta_service_mqtt::CreateTopicRequest;
+use std::sync::Arc;
 use storage_adapter::driver::ArcStorageAdapter;
 use tracing::{debug, info};
 
-const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-queue-message-shard-";
-pub const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-index-info-shard";
+pub const DELAY_QUEUE_MESSAGE: &str = "$delay-queue-message";
+pub const DELAY_QUEUE_INDEX: &str = "$delay-queue-index";
 
 pub(crate) async fn save_delay_message(
     message_storage_adapter: &ArcStorageAdapter,
@@ -94,58 +97,45 @@ pub(crate) async fn delete_delay_index_info(
     Ok(())
 }
 
-pub(crate) async fn init_delay_message_shard(
-    message_storage_adapter: &ArcStorageAdapter,
-    engine_storage_type: &StorageAdapterType,
-    shard_num: u64,
+pub(crate) async fn init_inner_topic(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    partition_num: u64,
 ) -> Result<(), CommonError> {
-    let all_shards = message_storage_adapter.list_shard(None).await?;
-    let existing_names: HashSet<_> = all_shards.iter().map(|s| s.shard_name.as_str()).collect();
-
-    let mut created_count = 0;
-    for i in 0..shard_num {
-        let shard_name = get_delay_message_shard_name(i);
-        if !existing_names.contains(shard_name.as_str()) {
-            let shard = AdapterShardInfo {
-                shard_name: shard_name.clone(),
-                config: build_delay_message_shard_config(engine_storage_type)?,
-            };
-            message_storage_adapter.create_shard(&shard).await?;
-            info!("Created delay message shard: {}", shard_name);
-            created_count += 1;
-        }
-    }
-
-    if !existing_names.contains(DELAY_QUEUE_INFO_SHARD_NAME) {
-        let shard = AdapterShardInfo {
-            shard_name: DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
-            config: EngineShardConfig::default(),
+    for topic in vec![
+        DELAY_QUEUE_MESSAGE.to_string(),
+        DELAY_QUEUE_INDEX.to_string(),
+    ] {
+        // create topic metadata
+        let conf = broker_config();
+        let request = CreateTopicRequest {
+            topic_name: topic,
+            content: Vec::new(),
         };
-        message_storage_adapter.create_shard(&shard).await?;
-        info!(
-            "Created delay message shard: {}",
-            DELAY_QUEUE_INFO_SHARD_NAME
-        );
-        created_count += 1;
+        placement_create_topic(
+            &delay_message_manager.client_pool,
+            &conf.get_meta_service_addr(),
+            request,
+        )
+        .await?;
+
+        // create topic message storage
+        let config = build_delay_message_shard_config(StorageType::EngineRocksDB)?;
+        delay_message_manager
+            .storage_driver_manager
+            .create_storage_resource(topic, &config)
+            .await?;
     }
-
-    info!(
-        "Delay message shards initialized: {} total, {} newly created",
-        shard_num + 1,
-        created_count
-    );
-
     Ok(())
 }
 
-pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
+pub(crate) fn get_delay_message_topic_name(no: u64) -> String {
     format!("{DELAY_MESSAGE_SHARD_NAME_PREFIX}{no}")
 }
 
 #[cfg(test)]
 mod test {
     use common_base::{tools::unique_id, utils::serialize};
-    use common_config::storage::StorageAdapterType;
+    use common_config::storage::StorageType;
     use metadata_struct::{
         delay_info::DelayMessageIndexInfo,
         storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
@@ -154,8 +144,8 @@ mod test {
 
     use crate::{
         delay::{
-            delete_delay_index_info, delete_delay_message, get_delay_message_shard_name,
-            init_delay_message_shard, save_delay_index_info, save_delay_message,
+            delete_delay_index_info, delete_delay_message, get_delay_message_topic_name,
+            init_inner_topic, save_delay_index_info, save_delay_message,
             DELAY_QUEUE_INFO_SHARD_NAME,
         },
         pop::read_offset_data,
@@ -164,7 +154,7 @@ mod test {
     #[tokio::test]
     async fn shard_name_format_test() {
         assert_eq!(
-            get_delay_message_shard_name(0),
+            get_delay_message_topic_name(0),
             "$delay-queue-message-shard-0"
         );
     }
@@ -172,7 +162,7 @@ mod test {
     #[tokio::test]
     async fn shard_init_test() {
         let adapter = test_build_memory_storage_driver();
-        init_delay_message_shard(&adapter, &StorageAdapterType::Memory, 2)
+        init_inner_topic(&adapter, &StorageType::EngineMemory, 2)
             .await
             .unwrap();
 
@@ -180,8 +170,8 @@ mod test {
         assert_eq!(all_shards.len(), 3);
 
         let shard_names: Vec<_> = all_shards.iter().map(|s| s.shard_name.as_str()).collect();
-        assert!(shard_names.contains(&get_delay_message_shard_name(0).as_str()));
-        assert!(shard_names.contains(&get_delay_message_shard_name(1).as_str()));
+        assert!(shard_names.contains(&get_delay_message_topic_name(0).as_str()));
+        assert!(shard_names.contains(&get_delay_message_topic_name(1).as_str()));
         assert!(shard_names.contains(&DELAY_QUEUE_INFO_SHARD_NAME));
     }
 
@@ -234,7 +224,7 @@ mod test {
     #[tokio::test]
     async fn index_info_crud_test() {
         let adapter = test_build_memory_storage_driver();
-        init_delay_message_shard(&adapter, &StorageAdapterType::Memory, 1)
+        init_inner_topic(&adapter, &StorageType::EngineMemory, 1)
             .await
             .unwrap();
 

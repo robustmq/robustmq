@@ -35,7 +35,7 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
-use common_config::storage::StorageAdapterType;
+use common_config::storage::StorageType;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::{
@@ -90,7 +90,7 @@ pub async fn test_init_segment(
         status: EngineShardStatus::Run,
         config: EngineShardConfig {
             retention_sec: 10,
-            storage_adapter_type: StorageAdapterType::Engine,
+            storage_adapter_type: StorageType::EngineSegment,
             engine_storage_type: Some(engine_storage_type),
             ..Default::default()
         },

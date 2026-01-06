@@ -23,7 +23,7 @@ mod tests {
     };
     use common_base::tools::unique_id;
     use common_base::{http_response::AdminServerResponse, tools::now_second};
-    use common_config::storage::StorageAdapterType;
+    use common_config::storage::StorageType;
     use grpc_clients::meta::storage::call::{
         create_next_segment, seal_up_segment, update_start_time_by_segment_meta,
     };
@@ -86,7 +86,7 @@ mod tests {
         assert_eq!(shard.shard_info.config.retention_sec, 86400);
         assert_eq!(
             shard.shard_info.config.storage_adapter_type,
-            StorageAdapterType::Engine
+            StorageType::EngineSegment
         );
         assert_eq!(
             shard.shard_info.config.engine_storage_type,

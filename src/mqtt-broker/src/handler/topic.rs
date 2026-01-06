@@ -18,9 +18,9 @@ use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::cache::MQTTCacheManager, storage::driver::get_driver_by_mqtt_topic_name};
 use bytes::Bytes;
-use common_config::storage::StorageAdapterType;
+use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -142,7 +142,7 @@ pub async fn try_init_topic(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
-) -> Result<MQTTTopic, MqttBrokerError> {
+) -> Result<Topic, MqttBrokerError> {
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {
@@ -151,7 +151,7 @@ pub async fn try_init_topic(
         let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
             topic
         } else {
-            let topic = MQTTTopic::new(topic_name.to_owned());
+            let topic = Topic::new(topic_name.to_owned());
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };
@@ -172,7 +172,7 @@ pub async fn try_init_topic(
                     replica_num: 1,
                     max_segment_size: 1073741824,
                     retention_sec: 86400,
-                    storage_adapter_type: StorageAdapterType::Memory,
+                    storage_adapter_type: StorageType::EngineMemory,
                     engine_storage_type: None,
                 },
             };

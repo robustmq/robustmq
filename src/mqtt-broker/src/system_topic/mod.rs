@@ -395,7 +395,7 @@ mod test {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::Topic;
     use metadata_struct::storage::adapter_offset::AdapterShardInfo;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::shard::EngineShardConfig;
@@ -420,7 +420,7 @@ mod test {
             .await
             .unwrap();
 
-        let mqtt_topic = MQTTTopic::new(topic_name.clone());
+        let mqtt_topic = Topic::new(topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
         let data = "test_write_topic_data".to_string();
@@ -481,7 +481,7 @@ mod test {
             })
             .await
             .unwrap();
-        let mqtt_topic = MQTTTopic::new(topic_name.clone());
+        let mqtt_topic = Topic::new(topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
         let expect_data = "test_data".to_string();
         super::report_system_data(

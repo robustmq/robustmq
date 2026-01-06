@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_config::{broker::broker_config, storage::StorageAdapterType};
+use common_config::{broker::broker_config, storage::StorageType};
 use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 
 pub fn get_driver_by_mqtt_topic_name(
@@ -35,12 +35,12 @@ pub fn get_driver_by_system_topic_name(
 
 fn get_driver_by_type(
     storage_driver_manager: &Arc<StorageDriverManager>,
-    storage_type: StorageAdapterType,
+    storage_type: StorageType,
 ) -> Result<ArcStorageAdapter, CommonError> {
     match storage_type {
-        StorageAdapterType::Memory => Ok(storage_driver_manager.memory_storage.clone()),
-        StorageAdapterType::RocksDB => Ok(storage_driver_manager.rocksdb_storage.clone()),
-        StorageAdapterType::Engine => Ok(storage_driver_manager.engine_storage.clone()),
+        StorageType::EngineMemory => Ok(storage_driver_manager.memory_storage.clone()),
+        StorageType::EngineRocksDB => Ok(storage_driver_manager.rocksdb_storage.clone()),
+        StorageType::EngineSegment => Ok(storage_driver_manager.engine_storage.clone()),
         _ => Err(CommonError::CommonError(format!(
             "Unsupported storage adapter type '{:?}' for delay message storage",
             storage_type

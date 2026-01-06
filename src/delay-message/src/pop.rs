@@ -17,7 +17,7 @@ use crate::driver::get_storage_driver;
 use crate::manager::DelayMessageManager;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use common_config::storage::StorageAdapterType;
+use common_config::storage::StorageType;
 use futures::StreamExt;
 use grpc_clients::meta::storage::call::list_shard;
 use metadata_struct::storage::shard::EngineShard;
@@ -189,39 +189,6 @@ pub(crate) async fn read_offset_data(
         .into_iter()
         .find(|r| r.metadata.offset == offset)
         .map(convert_engine_record_to_adapter))
-}
-
-async fn get_shard_storage_type(
-    delay_message_manager: &Arc<DelayMessageManager>,
-    delay_message: &DelayMessageIndexInfo,
-) -> Result<Option<StorageAdapterType>, CommonError> {
-    if let Some(engine_type) =
-        delay_message_manager.get_shard_engine_type_list(&delay_message.target_shard_name)
-    {
-        return Ok(Some(engine_type));
-    }
-
-    let conf = broker_config();
-    let request = ListShardRequest {
-        shard_name: delay_message.target_shard_name.clone(),
-    };
-    let reply = list_shard(
-        &delay_message_manager.client_pool,
-        &conf.get_meta_service_addr(),
-        request,
-    )
-    .await?;
-
-    if reply.shards.is_empty() {
-        return Ok(None);
-    }
-    if let Some(info) = reply.shards.first() {
-        let shard: EngineShard = EngineShard::decode(&info)?;
-        delay_message_manager
-            .add_shard_engine_type_list(shard.shard_name, shard.config.storage_adapter_type);
-        return Ok(Some(shard.config.storage_adapter_type));
-    }
-    Ok(None)
 }
 
 #[cfg(test)]

@@ -20,7 +20,7 @@ use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
@@ -210,7 +210,7 @@ pub async fn update_cache_by_delete_subscribe(
 pub async fn update_cache_by_add_topic(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    topic: MQTTTopic,
+    topic: Topic,
 ) -> Result<(), MetaServiceError> {
     send_cache_update(
         call_manager,
@@ -225,7 +225,7 @@ pub async fn update_cache_by_add_topic(
 pub async fn update_cache_by_delete_topic(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    topic: MQTTTopic,
+    topic: Topic,
 ) -> Result<(), MetaServiceError> {
     send_cache_update(
         call_manager,

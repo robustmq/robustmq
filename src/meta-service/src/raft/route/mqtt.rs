@@ -33,7 +33,7 @@ use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
@@ -87,7 +87,7 @@ impl DataRouteMqtt {
     // Topic
     pub fn create_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
-        let topic = MQTTTopic::decode(&req.content)?;
+        let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.topic_name, topic.clone())?;
         self.cache_manager.add_topic(topic);

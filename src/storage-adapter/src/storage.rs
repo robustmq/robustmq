@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::driver::{ArcStorageAdapter, StorageDriverManager};
-use crate::memory::MemoryStorageAdapter;
+use crate::driver::StorageDriverManager;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
@@ -36,6 +35,7 @@ use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandle
 use storage_engine::memory::engine::MemoryStorageEngine;
 use storage_engine::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::segment::write::WriteManager;
+use topic_mapping::manager::TopicManager;
 
 #[async_trait]
 pub trait StorageAdapter {
@@ -132,7 +132,7 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
 
     let params = StorageEngineHandlerParams {
         cache_manager: cache_manager.clone(),
-        client_pool,
+        client_pool: client_pool.clone(),
         memory_storage_engine,
         rocksdb_engine_handler: rocksdb_engine_handler.clone(),
         client_connection_manager,
@@ -140,25 +140,8 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
         write_manager,
         rocksdb_storage_engine,
     };
+    let topic_manager = Arc::new(TopicManager::new());
     let engine_adapter_handler = Arc::new(StorageEngineHandler::new(params));
-    let driver = StorageDriverManager::new(
-        rocksdb_engine_handler,
-        cache_manager,
-        engine_adapter_handler,
-    )
-    .await?;
+    let driver = StorageDriverManager::new(topic_manager, engine_adapter_handler).await?;
     Ok(Arc::new(driver))
-}
-
-pub fn test_build_memory_storage_driver() -> ArcStorageAdapter {
-    let rocksdb_engine_handler = test_rocksdb_instance();
-    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
-    let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-
-    let memory_storage_engine = Arc::new(MemoryStorageEngine::create_standalone(
-        rocksdb_engine_handler,
-        cache_manager,
-        StorageDriverMemoryConfig::default(),
-    ));
-    Arc::new(MemoryStorageAdapter::new(memory_storage_engine))
 }

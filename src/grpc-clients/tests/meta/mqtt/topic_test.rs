@@ -20,7 +20,7 @@ mod tests {
         placement_create_topic, placement_delete_topic, placement_list_topic,
     };
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::Topic;
     use protocol::meta::meta_service_mqtt::{
         CreateTopicRequest, DeleteTopicRequest, ListTopicRequest,
     };
@@ -33,9 +33,10 @@ mod tests {
         let addrs = vec![get_placement_addr()];
         let topic_name: String = unique_id();
 
-        let mqtt_topic: MQTTTopic = MQTTTopic {
+        let mqtt_topic: Topic = Topic {
             topic_name: topic_name.clone(),
             create_time: now_second(),
+            ..Default::default()
         };
 
         let request = CreateTopicRequest {
@@ -78,7 +79,7 @@ mod tests {
         topic_name: String,
         client_pool: &ClientPool,
         addrs: &[impl AsRef<str>],
-        mqtt_topic: MQTTTopic,
+        mqtt_topic: Topic,
         contain: bool,
     ) {
         let request = ListTopicRequest { topic_name };
@@ -88,7 +89,7 @@ mod tests {
 
         let mut flag: bool = false;
         while let Some(data) = data_stream.message().await.unwrap() {
-            let topic = MQTTTopic::decode(&data.topic).unwrap();
+            let topic = Topic::decode(&data.topic).unwrap();
             if topic == mqtt_topic {
                 flag = true;
             }

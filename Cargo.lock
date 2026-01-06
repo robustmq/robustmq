@@ -7484,6 +7484,7 @@ dependencies = [
  "storage-engine",
  "tempfile",
  "tokio",
+ "topic-mapping",
  "tracing",
 ]
 
@@ -8161,6 +8162,16 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "topic-mapping"
+version = "0.2.9"
+dependencies = [
+ "common-base",
+ "common-config",
+ "dashmap",
+ "metadata-struct",
 ]
 
 [[package]]

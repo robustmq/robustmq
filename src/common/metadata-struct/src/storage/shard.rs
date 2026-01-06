@@ -17,7 +17,7 @@ use common_base::{
     tools::{now_second, unique_id},
     utils::serialize,
 };
-use common_config::storage::StorageAdapterType;
+use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -77,7 +77,6 @@ pub struct EngineShardConfig {
     pub replica_num: u32,
     pub max_segment_size: u64,
     pub retention_sec: u64,
-    pub storage_adapter_type: StorageAdapterType,
     pub engine_storage_type: Option<EngineStorageType>,
 }
 
@@ -87,7 +86,6 @@ impl Default for EngineShardConfig {
             replica_num: 1,
             max_segment_size: 1073741824,
             retention_sec: 86400,
-            storage_adapter_type: StorageAdapterType::Memory,
             engine_storage_type: None,
         }
     }

@@ -14,7 +14,7 @@
 
 use crate::core::error::MetaServiceError;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use rocksdb_engine::keys::meta::{
     storage_key_mqtt_retain_message, storage_key_mqtt_retain_message_prefix,
@@ -44,25 +44,23 @@ impl MqttTopicStorage {
     }
 
     // Topic
-    pub fn save(&self, topic_name: &str, topic: MQTTTopic) -> Result<(), MetaServiceError> {
+    pub fn save(&self, topic_name: &str, topic: Topic) -> Result<(), MetaServiceError> {
         let key = storage_key_mqtt_topic(topic_name);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, topic)?;
         Ok(())
     }
 
-    pub fn list(&self) -> Result<Vec<MQTTTopic>, MetaServiceError> {
+    pub fn list(&self) -> Result<Vec<Topic>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix();
-        let data = engine_prefix_list_by_meta_data::<MQTTTopic>(
-            &self.rocksdb_engine_handler,
-            &prefix_key,
-        )?;
+        let data =
+            engine_prefix_list_by_meta_data::<Topic>(&self.rocksdb_engine_handler, &prefix_key)?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, topic_name: &str) -> Result<Option<MQTTTopic>, MetaServiceError> {
+    pub fn get(&self, topic_name: &str) -> Result<Option<Topic>, MetaServiceError> {
         let key = storage_key_mqtt_topic(topic_name);
         Ok(
-            engine_get_by_meta_data::<MQTTTopic>(&self.rocksdb_engine_handler, &key)?
+            engine_get_by_meta_data::<Topic>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
@@ -158,10 +156,11 @@ mod tests {
         MqttTopicStorage::new(test_rocksdb_instance())
     }
 
-    fn create_topic(topic_name: &str) -> MQTTTopic {
-        MQTTTopic {
+    fn create_topic(topic_name: &str) -> Topic {
+        Topic {
             topic_name: topic_name.to_string(),
             create_time: now_second(),
+            ..Default::default()
         }
     }
 

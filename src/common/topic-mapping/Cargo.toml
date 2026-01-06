@@ -19,3 +19,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+dashmap.workspace = true
+common-base.workspace = true
+common-config.workspace = true
+metadata-struct.workspace = true

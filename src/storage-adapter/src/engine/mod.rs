@@ -25,18 +25,18 @@ use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::StorageEngineHandler;
-pub struct StorageEngineAdapter {
+pub struct EngineStorageAdapter {
     adapter: Arc<StorageEngineHandler>,
 }
 
-impl StorageEngineAdapter {
-    pub async fn new(adapter: Arc<StorageEngineHandler>) -> StorageEngineAdapter {
-        StorageEngineAdapter { adapter }
+impl EngineStorageAdapter {
+    pub async fn new(adapter: Arc<StorageEngineHandler>) -> EngineStorageAdapter {
+        EngineStorageAdapter { adapter }
     }
 }
 
 #[async_trait]
-impl StorageAdapter for StorageEngineAdapter {
+impl StorageAdapter for EngineStorageAdapter {
     async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
         self.adapter.create_shard(shard).await
     }

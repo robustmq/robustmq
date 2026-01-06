@@ -19,7 +19,7 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::Topic;
     use mqtt_broker::storage::topic::TopicStorage;
     use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
@@ -31,7 +31,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(topic_name.clone());
+        let topic = Topic::new(topic_name.clone());
         match topic_storage.save_topic(topic).await {
             Ok(_) => {}
             Err(e) => panic!("{}", e),
@@ -68,7 +68,7 @@ mod tests {
             ..Default::default()
         };
 
-        let topic = MQTTTopic::new(topic_name.clone());
+        let topic = Topic::new(topic_name.clone());
         println!("{:?}", topic);
         topic_storage.save_topic(topic.clone()).await.unwrap();
 

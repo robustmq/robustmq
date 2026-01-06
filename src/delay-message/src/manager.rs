@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use crate::{
-    delay::{get_delay_message_shard_name, init_delay_message_shard, save_delay_message},
+    delay::{get_delay_message_topic_name, init_inner_topic, save_delay_message},
     pop::spawn_delay_message_pop_threads,
 };
 use common_base::{
     error::common::CommonError,
     tools::{now_second, unique_id},
 };
-use common_config::storage::StorageAdapterType;
+use common_config::storage::StorageType;
 use common_metrics::mqtt::statistics::{
     record_mqtt_delay_queue_remaining_capacity_set, record_mqtt_delay_queue_total_capacity_set,
     record_mqtt_delay_queue_used_capacity_set,
@@ -39,9 +39,7 @@ use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
 use tracing::{debug, error};
 
-use crate::{
-    delay::save_delay_index_info, driver::get_storage_driver, recover::start_recover_delay_queue,
-};
+use crate::{delay::save_delay_index_info, recover::recover_delay_queue};
 
 pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
@@ -49,19 +47,9 @@ pub async fn start_delay_message_manager_thread(
 ) -> Result<(), CommonError> {
     delay_message_manager.start();
 
-    init_delay_message_shard(
-        &delay_message_manager.message_storage_adapter,
-        &delay_message_manager.storage_adapter_type,
-        shard_num,
-    )
-    .await?;
+    init_inner_topic(&delay_message_manager, shard_num).await?;
 
-    start_recover_delay_queue(
-        delay_message_manager,
-        &delay_message_manager.message_storage_adapter,
-        shard_num,
-    )
-    .await;
+    recover_delay_queue(delay_message_manager).await;
 
     spawn_delay_message_pop_threads(
         delay_message_manager,
@@ -73,36 +61,24 @@ pub async fn start_delay_message_manager_thread(
 }
 
 pub struct DelayMessageManager {
-    pub message_storage_adapter: ArcStorageAdapter,
-    pub storage_adapter_type: StorageAdapterType,
     pub client_pool: Arc<ClientPool>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub delay_queue_list: DashMap<u64, DelayQueue<DelayMessageIndexInfo>>,
-    delay_queue_pop_thread: DashMap<u64, broadcast::Sender<bool>>,
-    shard_engine_type_list: DashMap<String, StorageAdapterType>,
-    shard_num: u64,
-    incr_no: AtomicU64,
+    pub delay_queue_pop_thread: DashMap<u64, broadcast::Sender<bool>>,
+    pub incr_no: AtomicU64,
 }
 
 impl DelayMessageManager {
     pub async fn new(
-        storage_driver_manager: Arc<StorageDriverManager>,
         client_pool: Arc<ClientPool>,
-        storage_adapter_type: StorageAdapterType,
-        shard_num: u64,
+        storage_driver_manager: Arc<StorageDriverManager>,
     ) -> Result<Self, CommonError> {
-        let message_storage_adapter =
-            get_storage_driver(&storage_driver_manager, &storage_adapter_type)?;
         let driver = DelayMessageManager {
-            shard_num,
-            message_storage_adapter,
             client_pool,
-            storage_adapter_type,
-            incr_no: AtomicU64::new(0),
             storage_driver_manager,
             delay_queue_list: DashMap::with_capacity(shard_num as usize),
             delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
-            shard_engine_type_list: DashMap::with_capacity(8),
+            incr_no: AtomicU64::new(0),
         };
         Ok(driver)
     }
@@ -120,7 +96,7 @@ impl DelayMessageManager {
         data: AdapterWriteRecord,
     ) -> Result<(), CommonError> {
         let shard_no = self.get_target_shard_no();
-        let delay_shard_name = get_delay_message_shard_name(shard_no);
+        let delay_shard_name = get_delay_message_topic_name(shard_no);
 
         // Persist DelayMessage
         let offset =
@@ -202,36 +178,19 @@ impl DelayMessageManager {
             memory_storage: adapter.clone(),
             rocksdb_storage: adapter.clone(),
             engine_storage: adapter.clone(),
+            shard_engine_type_list: DashMap::with_capacity(2),
         };
 
         DelayMessageManager {
             shard_num,
             message_storage_adapter: adapter,
             client_pool: Arc::new(ClientPool::new(10)),
-            storage_adapter_type: StorageAdapterType::Memory,
+            storage_adapter_type: StorageType::EngineMemory,
             storage_driver_manager: Arc::new(fake_driver_manager),
             incr_no: AtomicU64::new(0),
             delay_queue_list: DashMap::with_capacity(shard_num as usize),
             delay_queue_pop_thread: DashMap::with_capacity(shard_num as usize),
-            shard_engine_type_list: DashMap::with_capacity(8),
         }
-    }
-
-    pub fn add_shard_engine_type_list(
-        &self,
-        shard_name: String,
-        engine_storage_type: StorageAdapterType,
-    ) {
-        self.shard_engine_type_list
-            .insert(shard_name, engine_storage_type);
-    }
-
-    pub fn remove_shard_engine_type_list(&self, shard_name: &str) {
-        self.shard_engine_type_list.remove(shard_name);
-    }
-
-    pub fn get_shard_engine_type_list(&self, shard_name: &str) -> Option<StorageAdapterType> {
-        self.shard_engine_type_list.get(shard_name).map(|v| *v)
     }
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u64, stop_send: broadcast::Sender<bool>) {
@@ -293,7 +252,7 @@ mod test {
             manager
                 .message_storage_adapter
                 .create_shard(&AdapterShardInfo {
-                    shard_name: crate::delay::get_delay_message_shard_name(i),
+                    shard_name: crate::delay::get_delay_message_topic_name(i),
                     ..Default::default()
                 })
                 .await

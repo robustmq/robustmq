@@ -13,48 +13,12 @@
 // limitations under the License.
 
 use crate::driver::ArcStorageAdapter;
-use crate::memory::MemoryStorageAdapter;
-use crate::rocksdb::RocksDBStorageAdapter;
-use broker_core::cache::BrokerCacheManager;
 use common_base::tools::unique_id;
-use common_config::config::BrokerConfig;
-use common_config::storage::{memory::StorageDriverMemoryConfig, StorageAdapterType};
 use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShardConfig;
-use rocksdb_engine::test::test_rocksdb_instance;
 use std::collections::HashMap;
-use std::sync::Arc;
-use storage_engine::{
-    core::cache::StorageCacheManager, memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine,
-};
-
-pub async fn build_adapter(storage_type: StorageAdapterType) -> ArcStorageAdapter {
-    let rocksdb_engine_handler = test_rocksdb_instance();
-    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
-    let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-
-    match storage_type {
-        StorageAdapterType::Memory => {
-            let engine = Arc::new(MemoryStorageEngine::create_standalone(
-                rocksdb_engine_handler,
-                cache_manager,
-                StorageDriverMemoryConfig::default(),
-            ));
-            Arc::new(MemoryStorageAdapter::new(engine))
-        }
-        StorageAdapterType::RocksDB => {
-            let engine = Arc::new(RocksDBStorageEngine::create_standalone(
-                cache_manager,
-                rocksdb_engine_handler,
-            ));
-            Arc::new(RocksDBStorageAdapter::new(engine))
-        }
-        _ => panic!("Unsupported storage type for testing"),
-    }
-}
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1_name = unique_id();
