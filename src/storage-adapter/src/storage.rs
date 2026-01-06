@@ -141,12 +141,13 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
         memory_storage_engine,
         rocksdb_engine_handler: rocksdb_engine_handler.clone(),
         client_connection_manager,
-        offset_manager,
+        offset_manager: offset_manager.clone(),
         write_manager,
         rocksdb_storage_engine,
     };
     let topic_manager = Arc::new(TopicManager::new());
     let engine_adapter_handler = Arc::new(StorageEngineHandler::new(params));
-    let driver = StorageDriverManager::new(topic_manager, engine_adapter_handler).await?;
+    let driver =
+        StorageDriverManager::new(topic_manager, offset_manager, engine_adapter_handler).await?;
     Ok(Arc::new(driver))
 }

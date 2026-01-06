@@ -29,4 +29,3 @@ serde_json.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-topic-mapping.workspace = true

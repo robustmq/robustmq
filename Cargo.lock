@@ -998,7 +998,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "topic-mapping",
  "tracing",
 ]
 
@@ -4012,7 +4011,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tonic",
- "topic-mapping",
  "tracing",
  "tracing-appender",
  "zstd",
@@ -4249,7 +4247,6 @@ dependencies = [
  "tokio-rustls 0.26.4",
  "tokio-util",
  "tonic",
- "topic-mapping",
  "tracing",
 ]
 
@@ -7487,7 +7484,6 @@ dependencies = [
  "storage-engine",
  "tempfile",
  "tokio",
- "topic-mapping",
  "tracing",
 ]
 
@@ -7518,7 +7514,6 @@ dependencies = [
  "tokio-rustls 0.26.4",
  "tokio-util",
  "tonic",
- "topic-mapping",
  "tracing",
  "tracing-appender",
  "twox-hash 2.1.2",
@@ -8166,16 +8161,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "topic-mapping"
-version = "0.2.9"
-dependencies = [
- "common-base",
- "common-config",
- "dashmap",
- "metadata-struct",
 ]
 
 [[package]]

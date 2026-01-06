@@ -57,14 +57,14 @@ pub struct StorageEngineHandlerParams {
 
 #[derive(Clone)]
 pub struct StorageEngineHandler {
-    cache_manager: Arc<StorageCacheManager>,
-    memory_storage_engine: Arc<MemoryStorageEngine>,
-    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
-    client_connection_manager: Arc<ClientConnectionManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    write_manager: Arc<WriteManager>,
-    client_pool: Arc<ClientPool>,
-    offset_manager: Arc<OffsetManager>,
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub write_manager: Arc<WriteManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub offset_manager: Arc<OffsetManager>,
 }
 
 impl StorageEngineHandler {

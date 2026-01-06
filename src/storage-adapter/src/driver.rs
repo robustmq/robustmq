@@ -30,7 +30,7 @@ use std::{
     collections::HashMap,
     sync::{atomic::AtomicU64, Arc},
 };
-use storage_engine::handler::adapter::StorageEngineHandler;
+use storage_engine::{group::OffsetManager, handler::adapter::StorageEngineHandler};
 use topic_mapping::manager::TopicManager;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
@@ -38,6 +38,7 @@ pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 pub struct StorageDriverManager {
     pub driver_list: DashMap<String, ArcStorageAdapter>,
     pub engine_storage_handler: Arc<StorageEngineHandler>,
+    pub offset_manager: Arc<OffsetManager>,
     pub topic_manager: Arc<TopicManager>,
     pub message_seq: Arc<AtomicU64>,
 }
@@ -45,12 +46,14 @@ pub struct StorageDriverManager {
 impl StorageDriverManager {
     pub async fn new(
         topic_manager: Arc<TopicManager>,
+        offset_manager: Arc<OffsetManager>,
         engine_storage_handler: Arc<StorageEngineHandler>,
     ) -> Result<Self, CommonError> {
         Ok(StorageDriverManager {
             driver_list: DashMap::with_capacity(2),
             engine_storage_handler,
             topic_manager,
+            offset_manager,
             message_seq: Arc::new(AtomicU64::new(0)),
         })
     }

@@ -40,7 +40,6 @@ r2d2_mysql.workspace = true
 common-config.workspace = true
 bytes.workspace = true
 storage-engine.workspace = true
-topic-mapping.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -106,13 +106,17 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     sink.validate().await?;
 
     let mut resource = sink.init_sink().await?;
-    let message_storage = MessageStorage::new(storage_driver_manager);
+    let message_storage = MessageStorage::new(
+        storage_driver_manager,
+        storage_driver_manager
+            .engine_storage_handler
+            .offset_manager
+            .clone(),
+    );
     let group_name = connector_name.clone();
 
     loop {
-        let offset = message_storage
-            .get_group_offset(&group_name, &config.topic_name)
-            .await?;
+        let mut offsets = message_storage.get_group_offset(&group_name).await?;
         select! {
             val = stop_recv.recv() => {
                 if let Ok(flag) = val {
@@ -123,7 +127,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                 }
             },
 
-            val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
+            val = message_storage.read_topic_message(&config.topic_name, &offsets, config.record_num) => {
                 match val {
                     Ok(data) => {
                         connector_manager.report_heartbeat(&connector_name);
@@ -139,6 +143,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                         loop{
                             match sink.send_batch(&data, &mut resource).await {
                                 Ok(_) => {
+                                    offsets.insert(config.topic_name.clone(), offset + message_count);
                                     message_storage.commit_group_offset(
                                         &group_name,
                                         &config.topic_name,

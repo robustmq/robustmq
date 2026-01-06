@@ -26,7 +26,6 @@ members = [
     "src/delay-message",
     "src/schema-register",
     "src/common/mmap-file",
-    "src/common/topic-mapping",
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
@@ -284,7 +283,6 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 rate-limit = { path = "src/common/rate-limit" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
-topic-mapping = { path = "src/common/topic-mapping" }
 
 # Protocol & Macros
 protocol = { path = "src/protocol" }
