@@ -393,7 +393,6 @@ mod test {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::Topic;
-    use metadata_struct::storage::adapter_offset::AdapterShardInfo;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::shard::EngineShardConfig;
     use std::collections::HashMap;

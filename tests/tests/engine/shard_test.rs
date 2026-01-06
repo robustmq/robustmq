@@ -29,7 +29,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::storage::segment::SegmentStatus;
-    use metadata_struct::storage::shard::{EngineShardStatus, EngineStorageType};
+    use metadata_struct::storage::shard::EngineShardStatus;
     use protocol::meta::meta_service_journal::{
         CreateNextSegmentRequest, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaRequest,
     };
@@ -85,12 +85,12 @@ mod tests {
         assert_eq!(shard.shard_info.config.max_segment_size, 1073741824);
         assert_eq!(shard.shard_info.config.retention_sec, 86400);
         assert_eq!(
-            shard.shard_info.config.storage_adapter_type,
+            shard.shard_info.config.storage_type,
             StorageType::EngineSegment
         );
         assert_eq!(
             shard.shard_info.config.storage_type,
-            Some(EngineStorageType::EngineSegment)
+            StorageType::EngineSegment
         );
 
         let segment_req = SegmentListReq {

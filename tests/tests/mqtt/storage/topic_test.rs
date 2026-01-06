@@ -31,11 +31,8 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
-        let topic = Topic::new(topic_name.clone());
-        match topic_storage.create_topic(topic).await {
-            Ok(_) => {}
-            Err(e) => panic!("{}", e),
-        }
+        let topic = Topic::build_by_name(&topic_name);
+        topic_storage.create_topic(topic).await.unwrap();
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
         assert_eq!(result.topic_name, topic_name);
@@ -68,7 +65,7 @@ mod tests {
             ..Default::default()
         };
 
-        let topic = Topic::new(topic_name.clone());
+        let topic = Topic::build_by_name(&topic_name);
         println!("{:?}", topic);
         topic_storage.create_topic(topic.clone()).await.unwrap();
 
