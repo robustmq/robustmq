@@ -19,8 +19,6 @@ use metadata_struct::storage::convert::convert_engine_record_to_adapter;
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::driver::StorageDriverManager;
 
-use crate::storage::driver::get_driver_by_mqtt_topic_name;
-
 #[derive(Clone)]
 pub struct MessageStorage {
     pub storage_driver_manager: Arc<StorageDriverManager>,
@@ -36,11 +34,12 @@ impl MessageStorage {
     pub async fn append_topic_message(
         &self,
         topic_name: &str,
-        record: Vec<AdapterWriteRecord>,
+        records: Vec<AdapterWriteRecord>,
     ) -> Result<Vec<u64>, CommonError> {
-        let shard_name = topic_name;
-        let driver = get_driver_by_mqtt_topic_name(&self.storage_driver_manager, topic_name)?;
-        let results = driver.batch_write(shard_name, &record).await?;
+        let results = self
+            .storage_driver_manager
+            .write(topic_name, &records)
+            .await?;
         let mut offsets = Vec::new();
         for row in results {
             if row.is_error() {
@@ -54,17 +53,14 @@ impl MessageStorage {
     pub async fn read_topic_message(
         &self,
         topic_name: &str,
-        offset: u64,
+        offsets: &HashMap<String, u64>,
         record_num: u64,
     ) -> Result<Vec<AdapterWriteRecord>, CommonError> {
-        let shard_name = topic_name;
-
         let mut read_config = AdapterReadConfig::new();
         read_config.max_record_num = record_num;
-
-        let driver = get_driver_by_mqtt_topic_name(&self.storage_driver_manager, topic_name)?;
-        let engine_records = driver
-            .read_by_offset(shard_name, offset, &read_config)
+        let engine_records = self
+            .storage_driver_manager
+            .read_by_offset(topic_name, offsets, &read_config)
             .await?;
 
         let mut adapter_records = Vec::with_capacity(engine_records.len());

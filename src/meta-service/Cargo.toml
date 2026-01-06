@@ -47,5 +47,7 @@ async-stream.workspace = true
 broker-core.workspace = true
 common-metrics.workspace = true
 zstd.workspace = true
+topic-mapping.workspace = true
+
 [dev-dependencies]
 tempfile.workspace = true

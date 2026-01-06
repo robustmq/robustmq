@@ -258,27 +258,24 @@ pub fn start_local_file_connector(
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::now_second;
+    use common_base::tools::{now_second, unique_id};
     use metadata_struct::{
         mqtt::bridge::{
             config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
         },
         storage::{
-            adapter_offset::AdapterShardInfo,
             adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
+            shard::EngineShardConfig,
         },
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
     use storage_adapter::storage::test_build_storage_driver_manager;
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
-    use crate::{
-        bridge::{
-            core::{run_connector_loop, BridgePluginReadConfig},
-            file::FileBridgePlugin,
-            manager::ConnectorManager,
-        },
-        storage::driver::get_driver_by_mqtt_topic_name,
+    use crate::bridge::{
+        core::{run_connector_loop, BridgePluginReadConfig},
+        file::FileBridgePlugin,
+        manager::ConnectorManager,
     };
     use tempfile::tempdir;
 
@@ -286,16 +283,11 @@ mod tests {
     #[tokio::test]
     async fn file_bridge_plugin_test() {
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
-        let shard_name = "test_topic".to_string();
-        let storage_adapter =
-            get_driver_by_mqtt_topic_name(&storage_driver_manager, &shard_name).unwrap();
+        let topic_name = unique_id();
 
         // prepare some data for testing
-        storage_adapter
-            .create_shard(&AdapterShardInfo {
-                shard_name: shard_name.clone(),
-                ..Default::default()
-            })
+        storage_driver_manager
+            .create_storage_resource(&topic_name, &EngineShardConfig::default())
             .await
             .unwrap();
 
@@ -317,8 +309,8 @@ mod tests {
             test_data.push(record);
         }
 
-        storage_adapter
-            .batch_write(&shard_name, &test_data)
+        storage_driver_manager
+            .write(&topic_name, &test_data)
             .await
             .unwrap();
 
@@ -348,7 +340,7 @@ mod tests {
         let file_bridge_plugin = FileBridgePlugin::new(config.clone());
 
         let read_config = BridgePluginReadConfig {
-            topic_name: shard_name.clone(),
+            topic_name: topic_name.clone(),
             record_num: 100,
             strategy: FailureHandlingStrategy::Discard,
         };

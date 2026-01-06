@@ -17,7 +17,6 @@ use common_base::{
     tools::{now_second, unique_id},
     utils::serialize,
 };
-use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

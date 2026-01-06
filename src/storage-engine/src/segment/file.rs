@@ -330,6 +330,7 @@ mod tests {
     use metadata_struct::storage::segment::{EngineSegment, Replica};
     use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
     use std::sync::Arc;
+    use topic_mapping::manager::TopicManager;
 
     #[tokio::test]
     async fn data_fold_shard_test() {
@@ -362,7 +363,11 @@ mod tests {
             ..Default::default()
         };
 
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let topic_manager = Arc::new(TopicManager::new());
+        let broker_cache = Arc::new(BrokerCacheManager::new(
+            BrokerConfig::default(),
+            topic_manager,
+        ));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
 
         let res = open_segment_write(&cache_manager, &segment_iden).await;

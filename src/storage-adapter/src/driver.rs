@@ -117,7 +117,7 @@ impl StorageDriverManager {
     pub async fn read_by_offset(
         &self,
         topic_name: &str,
-        offsets: HashMap<String, u64>,
+        offsets: &HashMap<String, u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;

@@ -150,7 +150,6 @@ mod tests {
     use crate::core::{shard::StorageEngineRunType, test_tool::test_build_engine};
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};
-    use common_config::storage::StorageType;
     use metadata_struct::storage::{
         adapter_offset::AdapterShardInfo,
         adapter_read_config::AdapterReadConfig,
@@ -168,7 +167,6 @@ mod tests {
             shard_name: shard_name.clone(),
             config: EngineShardConfig {
                 retention_sec: 10,
-                storage_adapter_type: StorageType::EngineSegment,
                 engine_storage_type: Some(EngineStorageType::EngineRocksDB),
                 ..Default::default()
             },

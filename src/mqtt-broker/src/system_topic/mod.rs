@@ -386,11 +386,8 @@ pub(crate) async fn write_topic_data(
 
 #[cfg(test)]
 mod test {
+    use crate::handler::tool::test_build_mqtt_cache_manager;
     use crate::system_topic::write_topic_data;
-    use crate::{
-        handler::tool::test_build_mqtt_cache_manager,
-        storage::driver::get_driver_by_mqtt_topic_name,
-    };
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;

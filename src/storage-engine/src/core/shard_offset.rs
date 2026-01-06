@@ -206,6 +206,7 @@ mod tests {
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
     use rocksdb_engine::test::test_rocksdb_instance;
+    use topic_mapping::manager::TopicManager;
 
     #[test]
     fn test_earliest_offset_save_read() {
@@ -246,7 +247,11 @@ mod tests {
     #[test]
     fn test_get_latest_offset() {
         let db = Arc::new(test_rocksdb_instance());
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let topic_manager = Arc::new(TopicManager::new());
+        let broker_cache = Arc::new(BrokerCacheManager::new(
+            BrokerConfig::default(),
+            topic_manager,
+        ));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let shard_name = unique_id();
         let offset = 88888u64;
@@ -270,7 +275,11 @@ mod tests {
     #[test]
     fn test_get_latest_offset_default() {
         let db = Arc::new(test_rocksdb_instance());
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let topic_manager = Arc::new(TopicManager::new());
+        let broker_cache = Arc::new(BrokerCacheManager::new(
+            BrokerConfig::default(),
+            topic_manager,
+        ));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let shard_name = unique_id();
 

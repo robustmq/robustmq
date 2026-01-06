@@ -143,7 +143,11 @@ pub async fn try_init_topic(
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<Topic, MqttBrokerError> {
-    let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
+    let topic = if let Some(tp) = metadata_cache
+        .broker_cache
+        .topic_manager
+        .get_topic_by_name(topic_name)
+    {
         tp
     } else {
         // create Topic

@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{DELAY_QUEUE_INDEX, DELAY_QUEUE_INFO_SHARD_NAME};
+use crate::delay::DELAY_QUEUE_INDEX_TOPIC;
 use crate::manager::DelayMessageManager;
 use crate::pop::delay_message_process;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{self};
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::driver::ArcStorageAdapter;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
@@ -40,9 +40,11 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
         max_size: 10 * 1024 * 1024,
     };
 
+    let offsets = HashMap::new();
     loop {
-        let data = match message_storage_adapter
-            .read_by_offset(DELAY_QUEUE_INDEX, offset, &read_config)
+        let data = match delay_message_manager
+            .storage_driver_manager
+            .read_by_offset(DELAY_QUEUE_INDEX_TOPIC, &offsets, &read_config)
             .await
         {
             Ok(data) => {
@@ -53,7 +55,7 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
                 retry_count += 1;
                 error!(
                     "Reading shard {} at offset {} failed (attempt {}/{}): {:?}",
-                    DELAY_QUEUE_INDEX, offset, retry_count, MAX_READ_RETRY, e
+                    DELAY_QUEUE_INDEX_TOPIC, offset, retry_count, MAX_READ_RETRY, e
                 );
 
                 if retry_count >= MAX_READ_RETRY {
@@ -79,7 +81,7 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
                 Err(e) => {
                     error!(
                         "Failed to deserialize delay message index at shard={}, offset={}: {:?}",
-                        DELAY_QUEUE_INDEX, record.metadata.offset, e
+                        DELAY_QUEUE_INDEX_TOPIC, record.metadata.offset, e
                     );
                     continue;
                 }
@@ -89,28 +91,28 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
             if delay_info.delay_timestamp < now {
                 warn!(
                     "Delay message expired during recovery, sending immediately. \
-                     Delay shard: {}, offset: {}, target: {}, expired by: {}s",
-                    delay_info.delay_shard_name,
+                     Delay offset: {}, target: {}, expired by: {}s",
                     delay_info.offset,
-                    delay_info.target_shard_name,
+                    delay_info.target_topic_name,
                     now - delay_info.delay_timestamp
                 );
 
-                let storage = message_storage_adapter.clone();
                 let info = delay_info.clone();
                 let manager = delay_message_manager.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = delay_message_process(&manager, &storage, &info).await {
+                    if let Err(e) =
+                        delay_message_process(&manager.storage_driver_manager, &info).await
+                    {
                         debug!(
-                            "Failed to send expired delay message (shard: {}, offset: {}): {:?}",
-                            info.delay_shard_name, info.offset, e
+                            "Failed to send expired delay message (offset: {}): {:?}",
+                            info.offset, e
                         );
                     }
                 });
                 continue;
             }
 
-            delay_message_manager.send_to_delay_queue(delay_info.shard_no, &delay_info);
+            delay_message_manager.send_to_delay_queue(&delay_info);
             total_num += 1;
 
             if total_num - last_progress_log >= PROGRESS_LOG_INTERVAL {

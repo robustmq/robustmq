@@ -60,7 +60,10 @@ pub async fn load_metadata_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load topics: {}", e)))?;
     for topic in topic_list.iter() {
-        cache_manager.add_topic(&topic.topic_name, &topic.clone());
+        cache_manager
+            .broker_cache
+            .topic_manager
+            .add_topic(&topic.topic_name, &topic.clone());
     }
 
     let user_list = auth_driver
@@ -229,7 +232,10 @@ pub async fn update_mqtt_cache_metadata(
         BrokerUpdateCacheResourceType::Topic => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
-                cache_manager.add_topic(&topic.topic_name, &topic);
+                cache_manager
+                    .broker_cache
+                    .topic_manager
+                    .add_topic(&topic.topic_name, &topic);
                 subscribe_manager
                     .add_wait_parse_data(ParseSubscribeData {
                         action_type: BrokerUpdateCacheActionType::Set,

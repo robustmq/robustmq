@@ -266,12 +266,7 @@ impl MqttBrokerServer {
         let delay_message_manager = self.delay_message_manager.clone();
         tokio::spawn(async move {
             let conf = broker_config();
-            if let Err(e) = start_delay_message_manager_thread(
-                &delay_message_manager,
-                delay_message_manager.get_shard_num(),
-            )
-            .await
-            {
+            if let Err(e) = start_delay_message_manager_thread(&delay_message_manager).await {
                 error!(
                     "Failed to start delay message manager for cluster '{}': {}",
                     conf.cluster_name, e

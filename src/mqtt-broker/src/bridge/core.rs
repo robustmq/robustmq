@@ -440,13 +440,12 @@ fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        bridge::manager::ConnectorManager, storage::driver::get_driver_by_mqtt_topic_name,
-    };
+    use crate::bridge::manager::ConnectorManager;
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
-        mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::AdapterShardInfo,
+        mqtt::bridge::connector::FailureHandlingStrategy,
+        storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig},
     };
     use storage_adapter::storage::test_build_storage_driver_manager;
 
@@ -547,15 +546,10 @@ mod tests {
         });
         connector_manager.add_connector(&connector);
 
-        let shard_name = connector.topic_name.clone();
+        let topic_name = connector.topic_name.clone();
 
-        let message_store =
-            get_driver_by_mqtt_topic_name(&storage_driver_manager, &shard_name).unwrap();
-        message_store
-            .create_shard(&AdapterShardInfo {
-                shard_name,
-                ..Default::default()
-            })
+        storage_driver_manager
+            .create_storage_resource(&topic_name, &EngineShardConfig::default())
             .await
             .unwrap();
 

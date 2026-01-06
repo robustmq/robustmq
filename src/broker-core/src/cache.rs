@@ -19,6 +19,7 @@ use common_config::config::BrokerConfig;
 use dashmap::DashMap;
 use metadata_struct::meta::node::BrokerNode;
 use tokio::sync::RwLock;
+use topic_mapping::manager::TopicManager;
 
 pub struct BrokerCacheManager {
     // start_time
@@ -33,17 +34,21 @@ pub struct BrokerCacheManager {
     // (cluster_name, Cluster)
     pub cluster_config: Arc<RwLock<BrokerConfig>>,
 
+    // topic
+    pub topic_manager: Arc<TopicManager>,
+
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
 }
 impl BrokerCacheManager {
-    pub fn new(cluster: BrokerConfig) -> Self {
+    pub fn new(cluster: BrokerConfig, topic_manager: Arc<TopicManager>) -> Self {
         BrokerCacheManager {
             cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
             node_lists: DashMap::with_capacity(2),
             cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
+            topic_manager,
         }
     }
 
@@ -95,14 +100,18 @@ impl BrokerCacheManager {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::cache::BrokerCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;
+    use topic_mapping::manager::TopicManager;
 
     #[tokio::test]
     async fn start_time_operations() {
-        let cache_manager = BrokerCacheManager::new(default_broker_config());
+        let topic_manager = Arc::new(TopicManager::new());
+        let cache_manager = BrokerCacheManager::new(default_broker_config(), topic_manager);
         let start_time = cache_manager.get_start_time();
         assert!(start_time > 0);
         assert!(start_time <= now_second());
@@ -110,7 +119,8 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let cache_manager = BrokerCacheManager::new(default_broker_config());
+        let topic_manager = Arc::new(TopicManager::new());
+        let cache_manager = BrokerCacheManager::new(default_broker_config(), topic_manager);
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),

@@ -101,7 +101,12 @@ pub trait StorageAdapter {
 
 pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverManager>, CommonError> {
     let rocksdb_engine_handler = test_rocksdb_instance();
-    let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+
+    let topic_manager = Arc::new(TopicManager::new());
+    let broker_cache = Arc::new(BrokerCacheManager::new(
+        BrokerConfig::default(),
+        topic_manager,
+    ));
     let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
 
     let memory_storage_engine = Arc::new(MemoryStorageEngine::create_standalone(
