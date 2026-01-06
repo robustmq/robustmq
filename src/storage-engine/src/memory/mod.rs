@@ -13,9 +13,7 @@
 // limitations under the License.
 
 pub mod engine;
-pub mod group;
 pub mod index;
 pub mod offset;
 pub mod read;
-pub mod shard;
 pub mod write;

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-
 use crate::memory::engine::MemoryStorageEngine;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
 impl MemoryStorageEngine {
     pub fn save_index(&self, shard_name: &str, offset: u64, msg: &AdapterWriteRecord) {
@@ -59,7 +58,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_index_operations() {
-        let engine = test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        let engine = test_build_memory_engine();
         let shard_name = unique_id();
         let msg = AdapterWriteRecord {
             pkid: 1,

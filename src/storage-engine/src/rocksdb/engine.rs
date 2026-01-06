@@ -14,7 +14,7 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::core::shard::{ShardState, StorageEngineRunType};
+use crate::core::shard::ShardState;
 use dashmap::DashMap;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
@@ -34,32 +34,15 @@ pub struct RocksDBStorageEngine {
     pub cache_manager: Arc<StorageCacheManager>,
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     pub shard_state: DashMap<String, ShardState>,
-    pub engine_type: StorageEngineRunType,
 }
 
 impl RocksDBStorageEngine {
-    pub fn create_standalone(
-        cache_manager: Arc<StorageCacheManager>,
-        db: Arc<RocksDBEngine>,
-    ) -> Self {
-        RocksDBStorageEngine::new(cache_manager, db, StorageEngineRunType::Standalone)
-    }
-
-    pub fn create_storage(cache_manager: Arc<StorageCacheManager>, db: Arc<RocksDBEngine>) -> Self {
-        RocksDBStorageEngine::new(cache_manager, db, StorageEngineRunType::EngineStorage)
-    }
-
-    fn new(
-        cache_manager: Arc<StorageCacheManager>,
-        db: Arc<RocksDBEngine>,
-        engine_type: StorageEngineRunType,
-    ) -> Self {
+    pub fn new(cache_manager: Arc<StorageCacheManager>, db: Arc<RocksDBEngine>) -> Self {
         RocksDBStorageEngine {
             rocksdb_engine_handler: db,
             cache_manager,
             shard_write_locks: DashMap::with_capacity(8),
             shard_state: DashMap::with_capacity(8),
-            engine_type,
         }
     }
 
@@ -72,29 +55,5 @@ impl RocksDBStorageEngine {
                     DB_COLUMN_FAMILY_BROKER
                 ))
             })
-    }
-
-    pub fn storage_type_check(&self) -> Result<(), StorageEngineError> {
-        if self.engine_type == StorageEngineRunType::EngineStorage {
-            return Err(StorageEngineError::NotSupportRocksDBStorageType(
-                "create_shard".to_string(),
-            ));
-        }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::test_tool::test_build_engine;
-
-    #[test]
-    fn test_storage_type_check() {
-        let standalone = test_build_engine(StorageEngineRunType::Standalone);
-        assert!(standalone.storage_type_check().is_ok());
-
-        let engine_storage = test_build_engine(StorageEngineRunType::EngineStorage);
-        assert!(engine_storage.storage_type_check().is_err());
     }
 }

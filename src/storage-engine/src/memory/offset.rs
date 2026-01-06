@@ -15,7 +15,7 @@
 use crate::{
     core::{
         error::StorageEngineError,
-        shard::{ShardState, StorageEngineRunType},
+        shard::ShardState,
         shard_offset::{
             get_earliest_offset, get_latest_offset, save_earliest_offset_by_shard,
             save_latest_offset_by_shard,
@@ -45,9 +45,7 @@ impl MemoryStorageEngine {
     }
 
     pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
-        if self.engine_type == StorageEngineRunType::EngineStorage {
-            save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
-        }
+        save_latest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
 
         if let Some(mut state) = self.shard_state.get_mut(shard) {
             state.latest_offset = offset;
@@ -61,29 +59,16 @@ impl MemoryStorageEngine {
     }
 
     pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        match self.engine_type {
-            StorageEngineRunType::Standalone => {
-                if let Some(state) = self.shard_state.get(shard_name) {
-                    Ok(state.latest_offset)
-                } else {
-                    Ok(0)
-                }
-            }
-            StorageEngineRunType::EngineStorage => {
-                if let Some(state) = self.shard_state.get(shard_name) {
-                    Ok(state.latest_offset)
-                } else {
-                    let (_, latest_offset) = self.recover_shard_data(shard_name)?;
-                    Ok(latest_offset)
-                }
-            }
+        if let Some(state) = self.shard_state.get(shard_name) {
+            Ok(state.latest_offset)
+        } else {
+            let (_, latest_offset) = self.recover_shard_data(shard_name)?;
+            Ok(latest_offset)
         }
     }
 
     pub fn save_earliest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
-        if self.engine_type == StorageEngineRunType::EngineStorage {
-            save_earliest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
-        }
+        save_earliest_offset_by_shard(&self.rocksdb_engine_handler, shard, offset)?;
 
         if let Some(mut state) = self.shard_state.get_mut(shard) {
             state.earliest_offset = offset;
@@ -97,22 +82,11 @@ impl MemoryStorageEngine {
     }
 
     pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        match self.engine_type {
-            StorageEngineRunType::Standalone => {
-                if let Some(state) = self.shard_state.get(shard_name) {
-                    Ok(state.earliest_offset)
-                } else {
-                    Ok(0)
-                }
-            }
-            StorageEngineRunType::EngineStorage => {
-                if let Some(state) = self.shard_state.get(shard_name) {
-                    Ok(state.earliest_offset)
-                } else {
-                    let (earliest_offset, _) = self.recover_shard_data(shard_name)?;
-                    Ok(earliest_offset)
-                }
-            }
+        if let Some(state) = self.shard_state.get(shard_name) {
+            Ok(state.earliest_offset)
+        } else {
+            let (earliest_offset, _) = self.recover_shard_data(shard_name)?;
+            Ok(earliest_offset)
         }
     }
 
@@ -187,7 +161,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_latest_offset() {
-        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let engine = test_build_memory_engine();
         let shard_name = unique_id();
         engine
             .shard_state
@@ -199,7 +173,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_earliest_offset() {
-        let engine = test_build_memory_engine(StorageEngineRunType::Standalone);
+        let engine = test_build_memory_engine();
         let shard_name = unique_id();
         engine
             .shard_state

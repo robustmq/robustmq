@@ -28,7 +28,7 @@
 
 use super::cache::StorageCacheManager;
 use crate::core::segment::create_local_segment;
-use crate::core::shard::StorageEngineRunType;
+use crate::memory::engine::MemoryStorageEngine;
 use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -123,37 +123,21 @@ pub async fn test_init_segment(
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
 
-pub fn test_build_engine(engine_type: StorageEngineRunType) -> RocksDBStorageEngine {
+pub fn test_build_engine() -> RocksDBStorageEngine {
     let db = test_rocksdb_instance();
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
     ))));
 
-    match engine_type {
-        StorageEngineRunType::Standalone => {
-            RocksDBStorageEngine::create_standalone(cache_manager, db)
-        }
-        StorageEngineRunType::EngineStorage => {
-            RocksDBStorageEngine::create_storage(cache_manager, db)
-        }
-    }
+    RocksDBStorageEngine::new(cache_manager, db)
 }
 
-pub fn test_build_memory_engine(
-    engine_type: StorageEngineRunType,
-) -> crate::memory::engine::MemoryStorageEngine {
+pub fn test_build_memory_engine() -> crate::memory::engine::MemoryStorageEngine {
     let db = test_rocksdb_instance();
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
     ))));
     let config = common_config::storage::memory::StorageDriverMemoryConfig::default();
 
-    match engine_type {
-        StorageEngineRunType::Standalone => {
-            crate::memory::engine::MemoryStorageEngine::create_standalone(db, cache_manager, config)
-        }
-        StorageEngineRunType::EngineStorage => {
-            crate::memory::engine::MemoryStorageEngine::create_storage(db, cache_manager, config)
-        }
-    }
+    MemoryStorageEngine::new(db, cache_manager, config)
 }

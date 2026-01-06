@@ -258,12 +258,12 @@ mod tests {
 
         sleep(Duration::from_millis(100)).await;
 
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
-        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::new(
             cache_manager.clone(),
             rocksdb_engine_handler.clone(),
         ));

@@ -14,8 +14,6 @@
 
 pub mod engine;
 pub mod expire;
-pub mod group;
 pub mod offset;
 pub mod read;
-pub mod shard;
 pub mod write;

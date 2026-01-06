@@ -147,30 +147,18 @@ impl RocksDBStorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{shard::StorageEngineRunType, test_tool::test_build_engine};
+    use crate::core::test_tool::test_build_engine;
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};
-    use common_config::storage::StorageType;
     use metadata_struct::storage::{
-        adapter_offset::AdapterShardInfo, adapter_read_config::AdapterReadConfig,
-        adapter_record::AdapterWriteRecord, shard::EngineShardConfig,
+        adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,
     };
 
     #[tokio::test]
     async fn test_scan_and_delete_expire_data() {
-        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let engine = test_build_engine();
         let shard_name = unique_id();
         let now = now_second();
-
-        let shard_info = AdapterShardInfo {
-            shard_name: shard_name.clone(),
-            config: EngineShardConfig {
-                retention_sec: 10,
-                storage_type: StorageType::EngineRocksDB,
-                ..Default::default()
-            },
-        };
-        engine.create_shard(&shard_info).await.unwrap();
 
         let mut expired_records = Vec::new();
         for i in 0..5 {

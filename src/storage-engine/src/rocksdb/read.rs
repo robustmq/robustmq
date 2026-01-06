@@ -184,7 +184,7 @@ impl RocksDBStorageEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::shard::{ShardState, StorageEngineRunType};
+    use crate::core::shard::ShardState;
     use crate::core::test_tool::test_build_engine;
     use common_base::tools::unique_id;
     use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
@@ -192,7 +192,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_batch_write_and_read_by_offset() {
-        let engine = test_build_engine(StorageEngineRunType::Standalone);
+        let engine = test_build_engine();
         let shard_name = unique_id();
         engine
             .shard_state
