@@ -42,7 +42,9 @@ impl RocksDBStorageEngine {
             .await?;
 
         if results.is_empty() {
-            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr(
+                "Write operation returned empty result".to_string(),
+            ));
         }
 
         results.first().cloned().ok_or_else(|| {

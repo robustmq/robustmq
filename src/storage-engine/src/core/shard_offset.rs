@@ -156,7 +156,10 @@ pub fn get_earliest_offset(
             }
             Ok(segment_meta.start_offset as u64)
         }
-        _ => Err(StorageEngineError::CommonErrorStr("".to_string())),
+        _ => Err(StorageEngineError::CommonErrorStr(format!(
+            "Unsupported storage type {:?} for shard {} when getting earliest offset",
+            shard.config.storage_type, shard_name
+        ))),
     }
 }
 
@@ -190,7 +193,10 @@ pub fn get_latest_offset(
             save_latest_offset_by_shard(rocksdb_engine_handler, shard_name, start_offset as u64)?;
             Ok(start_offset as u64)
         }
-        _ => Err(StorageEngineError::CommonErrorStr("".to_string())),
+        _ => Err(StorageEngineError::CommonErrorStr(format!(
+            "Unsupported storage type {:?} for shard {} when getting latest offset",
+            shard.config.storage_type, shard_name
+        ))),
     }
 }
 

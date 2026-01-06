@@ -71,7 +71,12 @@ pub async fn batch_write(
                 )
                 .await?
             }
-            _ => return Err(StorageEngineError::CommonErrorStr("".to_string())),
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when writing data",
+                    shard.config.storage_type, shard_name
+                )))
+            }
         }
     } else {
         write_data_to_remote(

@@ -102,7 +102,12 @@ pub async fn read_by_offset(
                 )
                 .await?
             }
-            _ => return Err(StorageEngineError::CommonErrorStr("".to_string())),
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {}",
+                    shard.config.storage_type, shard_name
+                )))
+            }
         }
     } else {
         read_by_remote(
@@ -223,6 +228,9 @@ fn get_segment_no_by_offset(
                 }
             }
         }
-        _ => Err(StorageEngineError::CommonErrorStr("".to_string())),
+        _ => Err(StorageEngineError::CommonErrorStr(format!(
+            "Unsupported storage type {:?} for shard {}",
+            shard.config.storage_type, shard_name
+        ))),
     }
 }

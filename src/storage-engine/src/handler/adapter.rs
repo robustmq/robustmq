@@ -273,7 +273,12 @@ impl StorageEngineHandler {
                 self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }
 
-            _ => return Err(StorageEngineError::CommonErrorStr("".to_string())),
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when getting offset by timestamp",
+                    shard.config.storage_type, shard_name
+                )))
+            }
         };
 
         Ok(result)
