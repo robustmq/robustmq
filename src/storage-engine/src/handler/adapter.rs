@@ -32,13 +32,14 @@ use crate::{
     segment::write::WriteManager,
 };
 use common_base::error::common::CommonError;
+use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::{EngineShard, EngineStorageType};
+use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -255,23 +256,26 @@ impl StorageEngineHandler {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
-        let result = match shard.get_engine_type()? {
-            EngineStorageType::EngineMemory => {
+        let result = match shard.config.storage_type {
+            StorageType::EngineMemory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
 
-            EngineStorageType::EngineRocksDB => {
+            StorageType::EngineRocksDB => {
                 self.rocksdb_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
 
-            EngineStorageType::EngineSegment => {
+            StorageType::EngineSegment => {
                 self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }
+
+            _ => return Err(StorageEngineError::CommonErrorStr("".to_string())),
         };
+
         Ok(result)
     }
 

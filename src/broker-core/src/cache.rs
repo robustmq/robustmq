@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
 use metadata_struct::{meta::node::BrokerNode, mqtt::topic::Topic};
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use topic_mapping::manager::TopicManager;
 
 pub struct BrokerCacheManager {
     // start_time
@@ -41,7 +39,7 @@ pub struct BrokerCacheManager {
     pub status: Arc<RwLock<NodeStatus>>,
 }
 impl BrokerCacheManager {
-    pub fn new(cluster: BrokerConfig, topic_manager: Arc<TopicManager>) -> Self {
+    pub fn new(cluster: BrokerConfig) -> Self {
         BrokerCacheManager {
             cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
@@ -95,20 +93,6 @@ impl BrokerCacheManager {
             .collect()
     }
 
-    pub fn get_storage_name_list_by_topic(&self, topic_name: &str) -> Vec<String> {
-        let mut results = Vec::new();
-        if let Some(topic) = self.topic_list.get(topic_name) {
-            for i in 0..topic.partition {
-                results.push(self.build_storage_name(topic_name, i));
-            }
-        }
-        results
-    }
-
-    pub fn build_storage_name(&self, topic_name: &str, partition: u32) -> String {
-        format!("{}-{}", topic_name, partition)
-    }
-
     // get start time
     pub fn get_start_time(&self) -> u64 {
         self.start_time
@@ -141,18 +125,14 @@ impl BrokerCacheManager {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use crate::cache::BrokerCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;
-    use topic_mapping::manager::TopicManager;
 
     #[tokio::test]
     async fn start_time_operations() {
-        let topic_manager = Arc::new(TopicManager::new());
-        let cache_manager = BrokerCacheManager::new(default_broker_config(), topic_manager);
+        let cache_manager = BrokerCacheManager::new(default_broker_config());
         let start_time = cache_manager.get_start_time();
         assert!(start_time > 0);
         assert!(start_time <= now_second());
@@ -160,8 +140,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let topic_manager = Arc::new(TopicManager::new());
-        let cache_manager = BrokerCacheManager::new(default_broker_config(), topic_manager);
+        let cache_manager = BrokerCacheManager::new(default_broker_config());
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),

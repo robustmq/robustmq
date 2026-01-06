@@ -19,7 +19,6 @@ use common_config::broker::default_broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::MqttPacket;
 use std::sync::Arc;
-use topic_mapping::manager::TopicManager;
 
 pub type ResultMqttBrokerError = Result<(), MqttBrokerError>;
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
@@ -34,11 +33,7 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
 
 pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-    let topic_manager = Arc::new(TopicManager::new());
-    let broker_cache = Arc::new(BrokerCacheManager::new(
-        default_broker_config(),
-        topic_manager,
-    ));
+    let broker_cache = Arc::new(BrokerCacheManager::new(default_broker_config()));
     let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));
     cache_manager
         .broker_cache

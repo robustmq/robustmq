@@ -28,10 +28,13 @@ use crate::{
     },
 };
 use common_base::tools::now_second;
+use dashmap::DashMap;
 use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::convert::convert_engine_record_to_adapter;
+use metadata_struct::storage::storage_record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
@@ -50,6 +53,7 @@ pub struct SharePushManager {
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<MQTTCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    group_offsets: DashMap<String, HashMap<String, u64>>,
     message_storage: MessageStorage,
     group_name: String,
     seq: AtomicU64,
@@ -70,6 +74,7 @@ impl SharePushManager {
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,
+            group_offsets: DashMap::with_capacity(8),
             group_name,
             seq: AtomicU64::new(0),
         }
@@ -142,15 +147,15 @@ impl SharePushManager {
                 continue;
             }
 
-            let mut last_commit_offset: Option<u64> = None;
             for record in data_list {
-                let record_offset = record.pkid;
-
-                let msg = MqttMessage::decode_record(record.clone())?;
+                let new_record = convert_engine_record_to_adapter(record.clone());
+                let msg = MqttMessage::decode_record(new_record.clone())?;
 
                 // If the message has expired, it will not be delivered.
                 if !send_message_validator_by_message_expire(&msg) {
-                    last_commit_offset = Some(record_offset);
+                    if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
+                        offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
+                    }
                     continue;
                 }
 
@@ -160,8 +165,8 @@ impl SharePushManager {
                 loop {
                     if attempts >= max_attempts {
                         debug!(
-                            "Failed to push message after {} attempts for group {}, skipping record at pkid {}",
-                            attempts, self.group_name, record.pkid
+                            "Failed to push message after {} attempts for group {}, skipping record",
+                            attempts, self.group_name
                         );
                         break_flag = true;
                         break;
@@ -218,7 +223,6 @@ impl SharePushManager {
                                 if pushed {
                                     processed_count += 1;
                                 }
-                                last_commit_offset = Some(record_offset);
                                 pushed
                             }
                             Err(e) => {
@@ -235,9 +239,17 @@ impl SharePushManager {
                             &subscriber.client_id,
                             &subscriber.sub_path,
                             &subscriber.topic_name,
-                            record.size() as u64,
+                            0,
                             success,
                         );
+
+                        if let Some(mut offsets) =
+                            self.group_offsets.get_mut(&subscriber.group_name)
+                        {
+                            offsets
+                                .insert(record.metadata.shard.to_string(), record.metadata.offset);
+                        }
+
                         break;
                     }
                 }
@@ -247,16 +259,16 @@ impl SharePushManager {
                 }
             }
 
-            if let Some(offset) = last_commit_offset {
-                if let Err(e) = self.commit_offset(&self.group_name, topic, offset).await {
+            if let Some(offsets) = self.group_offsets.get(&self.group_name) {
+                if let Err(e) = self.commit_offset(&self.group_name, &offsets).await {
                     error!(
-                        "Failed to commit offset for subscriber [group: {}, topic: {}, offset: {}]: {}. Messages may be redelivered on next poll",
-                        &self.group_name, topic, offset, e
+                        "Failed to commit offset for subscriber [group: {}, topic: {}]: {}. Messages may be redelivered on next poll",
+                        &self.group_name, topic, e
                     );
                 } else {
                     debug!(
-                        "Committed offset {} for share group [group: {}, topic: {}], total processed: {} messages",
-                        offset, self.group_name, topic, processed_count
+                        "Committed offset for share group [group: {}, topic: {}], total processed: {} messages",
+                        self.group_name, topic, processed_count
                     );
                 }
             }
@@ -311,26 +323,29 @@ impl SharePushManager {
         &self,
         group: &str,
         topic_name: &str,
-    ) -> Result<Vec<AdapterWriteRecord>, MqttBrokerError> {
-        let offset = self
-            .message_storage
-            .get_group_offset(group, topic_name)
-            .await?;
+    ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
+        let offsets = if let Some(offsets) = self.group_offsets.get(group) {
+            offsets.clone()
+        } else {
+            let offsets = self.message_storage.get_group_offset(group).await?;
+            self.group_offsets
+                .insert(group.to_string(), offsets.clone());
+            offsets
+        };
 
         Ok(self
             .message_storage
-            .read_topic_message(topic_name, offset, BATCH_SIZE)
+            .read_topic_message(topic_name, &offsets, BATCH_SIZE)
             .await?)
     }
 
     async fn commit_offset(
         &self,
         group: &str,
-        topic_name: &str,
-        offset: u64,
+        offsets: &HashMap<String, u64>,
     ) -> ResultMqttBrokerError {
         self.message_storage
-            .commit_group_offset(group, topic_name, offset + 1)
+            .commit_group_offset(group, offsets)
             .await?;
         Ok(())
     }

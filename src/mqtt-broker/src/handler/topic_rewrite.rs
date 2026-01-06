@@ -44,7 +44,7 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
     }
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    for topic in cache_manager.broker_cache.topic_manager.topic_list.iter() {
+    for topic in cache_manager.broker_cache.topic_list.iter() {
         let topic_name = topic.topic_name.clone();
         let mut new_topic_name = "".to_string();
         for rule in rules.iter() {

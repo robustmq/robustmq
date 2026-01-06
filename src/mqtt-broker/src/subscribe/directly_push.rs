@@ -27,17 +27,19 @@ use crate::{
     },
 };
 use common_base::tools::now_second;
+use dashmap::DashMap;
 use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::convert::convert_engine_record_to_adapter;
+use metadata_struct::storage::storage_record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
 
 const BATCH_SIZE: u64 = 500;
-
 const IDLE_SLEEP_MS: u64 = 100;
 const LOW_LOAD_SLEEP_MS: u64 = 50;
 const HIGH_LOAD_SLEEP_MS: u64 = 10;
@@ -49,6 +51,7 @@ pub struct DirectlyPushManager {
     cache_manager: Arc<MQTTCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     message_storage: MessageStorage,
+    group_offsets: DashMap<String, HashMap<String, u64>>,
     uuid: String,
 }
 
@@ -67,6 +70,7 @@ impl DirectlyPushManager {
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,
+            group_offsets: DashMap::with_capacity(2),
             uuid,
         }
     }
@@ -144,7 +148,6 @@ impl DirectlyPushManager {
         stop_sx: &Sender<bool>,
     ) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
-        let mut last_commit_offset: Option<u64> = None;
 
         let data_list = self
             .next_message(&subscriber.group_name, &subscriber.topic_name)
@@ -158,21 +161,18 @@ impl DirectlyPushManager {
         let model = get_push_model(&subscriber.client_id, &subscriber.topic_name);
 
         for record in data_list {
-            let record_offset = record.pkid;
-
             let success = match self.push_data(subscriber, &record, stop_sx).await {
                 Ok(pushed) => {
                     if pushed {
                         processed_count += 1;
                     }
-                    last_commit_offset = Some(record_offset);
                     pushed
                 }
                 Err(e) => {
                     if !client_unavailable_error(&e) {
                         warn!(
-                            "Directly push fail, pkid [{}], error message:{}",
-                            record.pkid, e
+                            "Directly push fail, offset [{}], error message:{}",
+                            record.metadata.offset, e
                         );
                     }
                     if model == PushModel::RetryFailure {
@@ -186,24 +186,25 @@ impl DirectlyPushManager {
                 &subscriber.client_id,
                 &subscriber.sub_path,
                 &subscriber.topic_name,
-                record.size() as u64,
+                0,
                 success,
             );
+
+            if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
+                offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
+            }
         }
 
-        if let Some(offset) = last_commit_offset {
-            if let Err(e) = self
-                .commit_offset(&subscriber.group_name, &subscriber.topic_name, offset)
-                .await
-            {
+        if let Some(offsets) = self.group_offsets.get(&subscriber.group_name) {
+            if let Err(e) = self.commit_offset(&subscriber.group_name, &offsets).await {
                 error!(
-                    "Failed to commit offset for subscriber [client_id: {}, group: {}, topic: {}, offset: {}]: {}. Messages may be redelivered on next poll",
-                    subscriber.client_id, subscriber.group_name, subscriber.topic_name, offset, e
+                    "Failed to commit offset for subscriber [client_id: {}, group: {}, topic: {}]: {}. Messages may be redelivered on next poll",
+                    subscriber.client_id, subscriber.group_name, subscriber.topic_name, e
                 );
             } else {
                 debug!(
-                    "Committed offset {} for subscriber [client_id: {}, topic: {}], processed: {} messages",
-                    offset, subscriber.client_id, subscriber.topic_name, processed_count
+                    "Committed offset for subscriber [client_id: {}, topic: {}], processed: {} messages",
+                    subscriber.client_id, subscriber.topic_name, processed_count
                 );
             }
         } else if data_list_len > 0 {
@@ -219,10 +220,12 @@ impl DirectlyPushManager {
     async fn push_data(
         &self,
         subscriber: &Subscriber,
-        record: &AdapterWriteRecord,
+        record: &StorageRecord,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
-        let msg = MqttMessage::decode_record(record.clone())?;
+        let new_record = convert_engine_record_to_adapter(record.clone());
+
+        let msg = MqttMessage::decode_record(new_record)?;
         if !send_message_validator(&self.cache_manager, &subscriber.client_id, &msg).await? {
             return Ok(false);
         }
@@ -262,7 +265,7 @@ impl DirectlyPushManager {
             &self.rocksdb_engine_handler,
             subscriber,
             send_time,
-            record.timestamp,
+            record.metadata.create_t,
         )
         .await?;
 
@@ -273,26 +276,30 @@ impl DirectlyPushManager {
         &self,
         group: &str,
         topic_name: &str,
-    ) -> Result<Vec<AdapterWriteRecord>, MqttBrokerError> {
-        let offset = self
-            .message_storage
-            .get_group_offset(group, topic_name)
-            .await?;
+    ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
+        let offsets = if let Some(offsets) = self.group_offsets.get(group) {
+            offsets.clone()
+        } else {
+            let offsets = self.message_storage.get_group_offset(group).await?;
+            self.group_offsets
+                .insert(group.to_string(), offsets.clone());
+            offsets
+        };
 
-        Ok(self
+        let data = self
             .message_storage
-            .read_topic_message(topic_name, offset, BATCH_SIZE)
-            .await?)
+            .read_topic_message(topic_name, &offsets, BATCH_SIZE)
+            .await?;
+        Ok(data)
     }
 
     async fn commit_offset(
         &self,
         group: &str,
-        topic_name: &str,
-        offset: u64,
+        offsets: &HashMap<String, u64>,
     ) -> ResultMqttBrokerError {
         self.message_storage
-            .commit_group_offset(group, topic_name, offset + 1)
+            .commit_group_offset(group, offsets)
             .await?;
         Ok(())
     }

@@ -149,14 +149,14 @@ pub async fn get_sub_topic_name_list(
     let mut result = Vec::new();
     if is_wildcards(sub_path) {
         if let Ok(regex) = build_sub_path_regex(sub_path) {
-            for row in metadata_cache.topic_info.iter() {
+            for row in metadata_cache.broker_cache.topic_list.iter() {
                 if regex.is_match(&row.value().topic_name) {
                     result.push(row.value().topic_name.clone());
                 }
             }
         }
     } else {
-        for row in metadata_cache.topic_info.iter() {
+        for row in metadata_cache.broker_cache.topic_list.iter() {
             if row.value().topic_name == *sub_path {
                 result.push(row.value().topic_name.clone());
                 break;
@@ -367,9 +367,15 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let cache = test_build_mqtt_cache_manager().await;
-        cache.add_topic("/test/topic1", &Topic::new("/test/topic1".to_string()));
-        cache.add_topic("/test/topic2", &Topic::new("/test/topic2".to_string()));
-        cache.add_topic("/other/topic", &Topic::new("/other/topic".to_string()));
+        cache
+            .broker_cache
+            .add_topic("/test/topic1", &Topic::build_by_name("/test/topic1"));
+        cache
+            .broker_cache
+            .add_topic("/test/topic2", &Topic::build_by_name("/test/topic2"));
+        cache
+            .broker_cache
+            .add_topic("/other/topic", &Topic::build_by_name("/other/topic"));
 
         // Exact match
         let result = get_sub_topic_name_list(&cache, "/test/topic1").await;

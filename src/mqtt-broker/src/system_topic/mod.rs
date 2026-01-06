@@ -396,6 +396,7 @@ mod test {
     use metadata_struct::storage::adapter_offset::AdapterShardInfo;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::shard::EngineShardConfig;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use storage_adapter::storage::test_build_storage_driver_manager;
 
@@ -406,19 +407,16 @@ mod test {
         let cache_manger = test_build_mqtt_cache_manager().await;
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
-        let message_adapter =
-            get_driver_by_mqtt_topic_name(&storage_driver_manager, &topic_name).unwrap();
 
-        message_adapter
-            .create_shard(&AdapterShardInfo {
-                shard_name: topic_name.to_string(),
-                config: EngineShardConfig::default(),
-            })
+        storage_driver_manager
+            .create_storage_resource(&topic_name, &EngineShardConfig::default())
             .await
             .unwrap();
 
-        let mqtt_topic = Topic::new(topic_name.clone());
-        cache_manger.add_topic(&topic_name, &mqtt_topic);
+        let mqtt_topic = Topic::build_by_name(&topic_name);
+        cache_manger
+            .broker_cache
+            .add_topic(&topic_name, &mqtt_topic);
 
         let data = "test_write_topic_data".to_string();
 
@@ -434,15 +432,18 @@ mod test {
         )
         .await;
 
-        let topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
+        let topic = cache_manger
+            .broker_cache
+            .get_topic_by_name(&topic_name)
+            .unwrap();
 
         let read_config = AdapterReadConfig {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
 
-        let results = message_adapter
-            .read_by_offset(&topic.topic_name, 0, &read_config)
+        let results = storage_driver_manager
+            .read_by_offset(&topic.topic_name, &HashMap::new(), &read_config)
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
@@ -468,18 +469,16 @@ mod test {
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
 
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
-        let message_adapter =
-            get_driver_by_mqtt_topic_name(&storage_driver_manager, &topic_name).unwrap();
 
-        message_adapter
-            .create_shard(&AdapterShardInfo {
-                shard_name: topic_name.to_string(),
-                config: EngineShardConfig::default(),
-            })
+        storage_driver_manager
+            .create_storage_resource(&topic_name, &EngineShardConfig::default())
             .await
             .unwrap();
-        let mqtt_topic = Topic::new(topic_name.clone());
-        cache_manger.add_topic(&topic_name, &mqtt_topic);
+        let mqtt_topic = Topic::build_by_name(&topic_name);
+        cache_manger
+            .broker_cache
+            .add_topic(&topic_name, &mqtt_topic);
+
         let expect_data = "test_data".to_string();
         super::report_system_data(
             &client_pool,
@@ -490,14 +489,17 @@ mod test {
         )
         .await;
 
-        let mqtt_topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
+        let mqtt_topic = cache_manger
+            .broker_cache
+            .get_topic_by_name(&topic_name)
+            .unwrap();
 
         let read_config = AdapterReadConfig {
             max_record_num: 1,
             max_size: 1024 * 1024 * 1024,
         };
-        let results = message_adapter
-            .read_by_offset(&mqtt_topic.topic_name, 0, &read_config)
+        let results = storage_driver_manager
+            .read_by_offset(&mqtt_topic.topic_name, &HashMap::new(), &read_config)
             .await
             .unwrap();
 

@@ -41,7 +41,7 @@ impl TopicStorage {
         TopicStorage { client_pool }
     }
 
-    pub async fn save_topic(&self, topic: Topic) -> ResultMqttBrokerError {
+    pub async fn create_topic(&self, topic: Topic) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRequest {
             topic_name: topic.topic_name.clone(),

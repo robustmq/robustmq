@@ -115,7 +115,7 @@ pub(crate) async fn delete_delay_index_info(
 pub(crate) async fn init_inner_topic(
     delay_message_manager: &Arc<DelayMessageManager>,
 ) -> Result<(), CommonError> {
-    for topic in vec![
+    for topic in [
         DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
         DELAY_QUEUE_INDEX_TOPIC.to_string(),
     ] {

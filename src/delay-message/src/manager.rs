@@ -44,12 +44,9 @@ pub async fn start_delay_message_manager_thread(
 ) -> Result<(), CommonError> {
     delay_message_manager.start();
 
-    init_inner_topic(&delay_message_manager).await?;
+    init_inner_topic(delay_message_manager).await?;
     recover_delay_queue(delay_message_manager).await;
-    spawn_delay_message_pop_threads(
-        &delay_message_manager,
-        delay_message_manager.delay_queue_num,
-    );
+    spawn_delay_message_pop_threads(delay_message_manager, delay_message_manager.delay_queue_num);
 
     Ok(())
 }

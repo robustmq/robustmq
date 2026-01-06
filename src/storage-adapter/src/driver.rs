@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{engine::EngineStorageAdapter, storage::StorageAdapter};
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
 use dashmap::DashMap;
@@ -31,28 +32,26 @@ use std::{
     sync::{atomic::AtomicU64, Arc},
 };
 use storage_engine::{group::OffsetManager, handler::adapter::StorageEngineHandler};
-use topic_mapping::manager::TopicManager;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 #[derive(Clone)]
 pub struct StorageDriverManager {
     pub driver_list: DashMap<String, ArcStorageAdapter>,
     pub engine_storage_handler: Arc<StorageEngineHandler>,
+    pub broker_cache: Arc<BrokerCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
-    pub topic_manager: Arc<TopicManager>,
     pub message_seq: Arc<AtomicU64>,
 }
 
 impl StorageDriverManager {
     pub async fn new(
-        topic_manager: Arc<TopicManager>,
         offset_manager: Arc<OffsetManager>,
         engine_storage_handler: Arc<StorageEngineHandler>,
     ) -> Result<Self, CommonError> {
         Ok(StorageDriverManager {
             driver_list: DashMap::with_capacity(2),
-            engine_storage_handler,
-            topic_manager,
+            engine_storage_handler: engine_storage_handler.clone(),
+            broker_cache: engine_storage_handler.cache_manager.broker_cache.clone(),
             offset_manager,
             message_seq: Arc::new(AtomicU64::new(0)),
         })
@@ -110,9 +109,7 @@ impl StorageDriverManager {
             .message_seq
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % topic.partition as u64;
-        let partition_name = self
-            .topic_manager
-            .build_storage_name(topic_name, partition as u32);
+        let partition_name = Topic::build_storage_name(topic_name, partition as u32);
 
         driver.batch_write(&partition_name, data).await
     }
@@ -209,7 +206,7 @@ impl StorageDriverManager {
         &self,
         topic_name: &str,
     ) -> Result<(Topic, ArcStorageAdapter), CommonError> {
-        let topic = if let Some(topic) = self.topic_manager.get_topic_by_name(topic_name) {
+        let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
             topic
         } else {
             return Err(CommonError::CommonError("".to_string()));
@@ -223,7 +220,7 @@ impl StorageDriverManager {
         &self,
         topic_name: &str,
     ) -> Result<ArcStorageAdapter, CommonError> {
-        let topic = if let Some(topic) = self.topic_manager.get_topic_by_name(topic_name) {
+        let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
             topic
         } else {
             return Err(CommonError::CommonError("".to_string()));

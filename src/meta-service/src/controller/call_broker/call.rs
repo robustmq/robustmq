@@ -399,7 +399,6 @@ mod tests {
     use protocol::broker::broker_common::{
         BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType,
     };
-    use topic_mapping::manager::TopicManager;
 
     fn create_test_node(node_id: u64) -> BrokerNode {
         BrokerNode {
@@ -468,10 +467,8 @@ mod tests {
 
     #[test]
     fn test_manager_basic_operations() {
-        let topic_manager = Arc::new(TopicManager::new());
         let broker_cache = Arc::new(BrokerCacheManager::new(
             common_config::broker::default_broker_config(),
-            topic_manager,
         ));
         let manager = BrokerCallManager::new(broker_cache);
 
@@ -497,10 +494,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_thread_ready_signal() {
-        let topic_manager = Arc::new(TopicManager::new());
         let broker_cache = Arc::new(BrokerCacheManager::new(
             common_config::broker::default_broker_config(),
-            topic_manager,
         ));
         let manager = Arc::new(BrokerCallManager::new(broker_cache));
         let client_pool = Arc::new(ClientPool::new(1));
@@ -526,10 +521,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_thread_stop() {
-        let topic_manager = Arc::new(TopicManager::new());
         let broker_cache = Arc::new(BrokerCacheManager::new(
             common_config::broker::default_broker_config(),
-            topic_manager,
         ));
         let manager = Arc::new(BrokerCallManager::new(broker_cache));
         let client_pool = Arc::new(ClientPool::new(1));

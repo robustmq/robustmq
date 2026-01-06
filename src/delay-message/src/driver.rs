@@ -15,7 +15,7 @@
 #![allow(clippy::result_large_err)]
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
-use metadata_struct::storage::shard::{EngineShardConfig, EngineStorageType};
+use metadata_struct::storage::shard::EngineShardConfig;
 
 pub fn build_delay_message_shard_config(
     engine_storage_type: &StorageType,
@@ -23,21 +23,20 @@ pub fn build_delay_message_shard_config(
     match engine_storage_type {
         StorageType::EngineMemory => Ok(EngineShardConfig {
             replica_num: 1,
-            max_segment_size: 1073741824,
-            retention_sec: 86400,
-            engine_storage_type: None,
+            storage_type: StorageType::EngineMemory,
+            ..Default::default()
         }),
         StorageType::EngineRocksDB => Ok(EngineShardConfig {
             replica_num: 1,
-            max_segment_size: 1073741824,
             retention_sec: 86400,
-            engine_storage_type: None,
+            storage_type: StorageType::EngineRocksDB,
+            ..Default::default()
         }),
         StorageType::EngineSegment => Ok(EngineShardConfig {
             replica_num: 1,
             max_segment_size: 1073741824,
             retention_sec: 86400,
-            engine_storage_type: Some(EngineStorageType::EngineRocksDB),
+            storage_type: StorageType::EngineSegment,
         }),
         _ => Err(CommonError::CommonError(format!(
             "Unsupported storage adapter type '{:?}' for delay message shard config",

@@ -89,7 +89,7 @@ mod tests {
             StorageType::EngineSegment
         );
         assert_eq!(
-            shard.shard_info.config.engine_storage_type,
+            shard.shard_info.config.storage_type,
             Some(EngineStorageType::EngineSegment)
         );
 

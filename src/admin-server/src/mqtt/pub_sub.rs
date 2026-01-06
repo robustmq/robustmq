@@ -67,7 +67,7 @@ use mqtt_broker::{
     storage::message::MessageStorage,
 };
 use protocol::mqtt::common::{Publish, PublishProperties};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 pub async fn send(
     State(state): State<Arc<HttpState>>,
@@ -147,17 +147,20 @@ pub async fn read_inner(
 ) -> Result<Vec<ReadMessageRow>, CommonError> {
     let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
     let mut results = Vec::new();
+    let mut data = HashMap::new();
+    data.insert(params.topic.clone(), params.offset);
+
     let data = message_storage
-        .read_topic_message(&params.topic, params.offset, 100)
+        .read_topic_message(&params.topic, &data, 100)
         .await?;
 
     for row in data {
         let message = MqttMessage::decode(&row.data)?;
         let content = String::from_utf8_lossy(&message.payload).to_string();
         results.push(ReadMessageRow {
-            offset: row.pkid,
+            offset: row.metadata.offset,
             content,
-            timestamp: row.timestamp,
+            timestamp: row.metadata.create_t,
         });
     }
 

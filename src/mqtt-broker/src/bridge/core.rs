@@ -30,9 +30,9 @@ use metadata_struct::{
         connector_type::ConnectorType,
         status::MQTTStatus,
     },
-    storage::adapter_record::AdapterWriteRecord,
+    storage::{adapter_record::AdapterWriteRecord, convert::convert_engine_record_to_adapter},
 };
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{debug, error, info, warn};
@@ -106,13 +106,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     sink.validate().await?;
 
     let mut resource = sink.init_sink().await?;
-    let message_storage = MessageStorage::new(
-        storage_driver_manager,
-        storage_driver_manager
-            .engine_storage_handler
-            .offset_manager
-            .clone(),
-    );
+    let message_storage = MessageStorage::new(storage_driver_manager);
     let group_name = connector_name.clone();
 
     loop {
@@ -140,14 +134,30 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                         let start_time = now_millis();
                         let message_count = data.len() as u64;
                         let mut retry_times = 0;
+
+                        // get last offset
+                        let mut data_list = Vec::new();
+                        let mut max_offsets:HashMap<String, u64> = HashMap::new();
+                        for raw in data.iter(){
+                            data_list.push(convert_engine_record_to_adapter(raw.clone()));
+                            let current_offset = if let Some(offset) = max_offsets.get(&raw.metadata.shard){
+                                *offset
+                            }else{
+                                0
+                            };
+                            max_offsets.insert(raw.metadata.shard.clone(), current_offset.max(raw.metadata.offset));
+                        }
+
                         loop{
-                            match sink.send_batch(&data, &mut resource).await {
+                            match sink.send_batch(&data_list, &mut resource).await {
                                 Ok(_) => {
-                                    offsets.insert(config.topic_name.clone(), offset + message_count);
+                                    // commit offset
+                                    for (k,v) in max_offsets.iter(){
+                                        offsets.insert(k.to_string(), *v);
+                                    }
                                     message_storage.commit_group_offset(
                                         &group_name,
-                                        &config.topic_name,
-                                        offset + message_count
+                                        &offsets,
                                     ).await?;
 
                                     update_last_active(
@@ -449,8 +459,7 @@ mod tests {
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
-        mqtt::bridge::connector::FailureHandlingStrategy,
-        storage::{adapter_offset::AdapterShardInfo, shard::EngineShardConfig},
+        mqtt::bridge::connector::FailureHandlingStrategy, storage::shard::EngineShardConfig,
     };
     use storage_adapter::storage::test_build_storage_driver_manager;
 

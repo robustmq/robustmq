@@ -152,14 +152,14 @@ pub async fn parse_subscribe_by_new_subscribe(
 ) -> ResultMqttBrokerError {
     subscribe_manager.add_subscribe(subscribe);
     let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.filter.path);
-    let topic_count = cache_manager.topic_info.len();
+    let topic_count = cache_manager.broker_cache.topic_list.len();
 
     debug!(
         "Matching new subscription: client='{}', path='{}' against {} topics",
         subscribe.client_id, subscribe.filter.path, topic_count
     );
 
-    for row in cache_manager.topic_info.iter() {
+    for row in cache_manager.broker_cache.topic_list.iter() {
         let topic = row.value();
         parse_subscribe(ParseSubscribeContext {
             client_pool: client_pool.clone(),
@@ -400,6 +400,7 @@ mod tests {
         let topic = Topic {
             topic_name: "topic".to_string(),
             create_time: now_second(),
+            ..Default::default()
         };
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),
@@ -423,6 +424,7 @@ mod tests {
         let topic = Topic {
             topic_name: "test/topic".to_string(),
             create_time: now_second(),
+            ..Default::default()
         };
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),

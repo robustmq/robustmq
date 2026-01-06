@@ -227,7 +227,6 @@ mod tests {
     use broker_core::cache::BrokerCacheManager;
     use common_config::broker::default_broker_config;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
-    use topic_mapping::manager::TopicManager;
 
     #[test]
     fn is_trigger_scroll_test() {
@@ -250,11 +249,8 @@ mod tests {
         test_init_conf();
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-
-        let topic_manager = Arc::new(TopicManager::new());
         let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
             default_broker_config(),
-            topic_manager,
         ))));
         let client_pool = Arc::new(ClientPool::new(10));
 
@@ -289,10 +285,8 @@ mod tests {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
 
-        let topic_manager = Arc::new(TopicManager::new());
         let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
             default_broker_config(),
-            topic_manager,
         ))));
         let client_pool = Arc::new(ClientPool::new(10));
 

@@ -30,11 +30,9 @@ use crate::{
         read::segment_read_by_offset, SegmentIdentity,
     },
 };
-use common_config::broker::broker_config;
+use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
-    adapter_read_config::AdapterReadConfig,
-    shard::{EngineShard, EngineStorageType},
-    storage_record::StorageRecord,
+    adapter_read_config::AdapterReadConfig, shard::EngineShard, storage_record::StorageRecord,
 };
 use protocol::storage::{
     codec::StorageEnginePacket,
@@ -86,14 +84,14 @@ pub async fn read_by_offset(
 
     let conf = broker_config();
     let results = if conf.broker_id == segment.leader {
-        match shard.get_engine_type()? {
-            EngineStorageType::EngineMemory => {
+        match shard.config.storage_type {
+            StorageType::EngineMemory => {
                 read_by_memory(memory_storage_engine, shard_name, offset, read_config).await?
             }
-            EngineStorageType::EngineRocksDB => {
+            StorageType::EngineRocksDB => {
                 read_by_rocksdb(rocksdb_storage_engine, shard_name, offset, read_config).await?
             }
-            EngineStorageType::EngineSegment => {
+            StorageType::EngineSegment => {
                 read_by_segment(
                     cache_manager,
                     rocksdb_engine_handler,
@@ -104,6 +102,7 @@ pub async fn read_by_offset(
                 )
                 .await?
             }
+            _ => return Err(StorageEngineError::CommonErrorStr("".to_string())),
         }
     } else {
         read_by_remote(
@@ -202,11 +201,9 @@ fn get_segment_no_by_offset(
     shard_name: &str,
     offset: u64,
 ) -> Result<u32, StorageEngineError> {
-    match shard.get_engine_type()? {
-        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => {
-            Ok(shard.active_segment_seq)
-        }
-        EngineStorageType::EngineSegment => {
+    match shard.config.storage_type {
+        StorageType::EngineMemory | StorageType::EngineRocksDB => Ok(shard.active_segment_seq),
+        StorageType::EngineSegment => {
             if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
                 Ok(segment_no)
             } else {
@@ -226,5 +223,6 @@ fn get_segment_no_by_offset(
                 }
             }
         }
+        _ => Err(StorageEngineError::CommonErrorStr("".to_string())),
     }
 }

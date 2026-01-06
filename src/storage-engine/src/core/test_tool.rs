@@ -35,15 +35,13 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use common_config::config::BrokerConfig;
+use common_config::storage::StorageType;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::{
-    EngineShard, EngineShardConfig, EngineShardStatus, EngineStorageType,
-};
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
-use topic_mapping::manager::TopicManager;
 
 #[allow(dead_code)]
 pub fn test_build_segment() -> SegmentIdentity {
@@ -65,7 +63,7 @@ pub fn test_init_conf() {
 
 #[allow(dead_code)]
 pub async fn test_init_segment(
-    engine_storage_type: EngineStorageType,
+    engine_storage_type: StorageType,
 ) -> (
     SegmentIdentity,
     Arc<StorageCacheManager>,
@@ -76,11 +74,8 @@ pub async fn test_init_segment(
     let rocksdb_engine_handler = test_rocksdb_instance();
     let segment_iden = test_build_segment();
     let fold = test_build_data_fold().first().unwrap().to_string();
-
-    let topic_manager = Arc::new(TopicManager::new());
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
-        topic_manager,
     ))));
 
     let shard = EngineShard {
@@ -92,7 +87,7 @@ pub async fn test_init_segment(
         status: EngineShardStatus::Run,
         config: EngineShardConfig {
             retention_sec: 10,
-            engine_storage_type: Some(engine_storage_type),
+            storage_type: engine_storage_type,
             ..Default::default()
         },
         create_time: now_second(),
@@ -130,10 +125,8 @@ pub async fn test_init_segment(
 
 pub fn test_build_engine(engine_type: StorageEngineRunType) -> RocksDBStorageEngine {
     let db = test_rocksdb_instance();
-    let topic_manager = Arc::new(TopicManager::new());
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
-        topic_manager,
     ))));
 
     match engine_type {
@@ -150,10 +143,8 @@ pub fn test_build_memory_engine(
     engine_type: StorageEngineRunType,
 ) -> crate::memory::engine::MemoryStorageEngine {
     let db = test_rocksdb_instance();
-    let topic_manager = Arc::new(TopicManager::new());
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),
-        topic_manager,
     ))));
     let config = common_config::storage::memory::StorageDriverMemoryConfig::default();
 

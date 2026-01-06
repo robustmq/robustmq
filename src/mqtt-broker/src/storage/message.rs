@@ -76,7 +76,7 @@ impl MessageStorage {
             .offset_manager
             .get_offset(group_id)
             .await?;
-        let mut results = HashMap::new();
+        let mut results = HashMap::with_capacity(2);
         for raw in resp {
             results.insert(raw.shard_name, raw.offset);
         }

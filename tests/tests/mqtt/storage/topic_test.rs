@@ -32,7 +32,7 @@ mod tests {
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
         let topic = Topic::new(topic_name.clone());
-        match topic_storage.save_topic(topic).await {
+        match topic_storage.create_topic(topic).await {
             Ok(_) => {}
             Err(e) => panic!("{}", e),
         }
@@ -70,7 +70,7 @@ mod tests {
 
         let topic = Topic::new(topic_name.clone());
         println!("{:?}", topic);
-        topic_storage.save_topic(topic.clone()).await.unwrap();
+        topic_storage.create_topic(topic.clone()).await.unwrap();
 
         let publish_properties = PublishProperties::default();
         let retain_message =
