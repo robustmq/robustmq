@@ -106,11 +106,17 @@ impl StorageAdapter for EngineStorageAdapter {
     }
 
     async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), CommonError> {
-        self.adapter.delete_by_key(shard, key).await
+        if let Err(e) = self.adapter.delete_by_key(shard, key).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
     }
 
     async fn delete_by_offset(&self, shard: &str, offset: u64) -> Result<(), CommonError> {
-        self.adapter.delete_by_offset(shard, offset).await
+        if let Err(e) = self.adapter.delete_by_offset(shard, offset).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
     }
 
     async fn get_offset_by_timestamp(

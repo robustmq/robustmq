@@ -96,13 +96,20 @@ pub async fn delay_message_process(
     storage_driver_manager: &Arc<StorageDriverManager>,
     delay_info: &DelayMessageIndexInfo,
 ) -> Result<(), CommonError> {
-    let offset = send_delay_message_to_shard(storage_driver_manager, delay_info).await?;
+    match send_delay_message_to_shard(storage_driver_manager, delay_info).await {
+        Ok(offset) => {
+            info!(
+                "Delay message processed successfully, target topic:{} offset: {}",
+                delay_info.target_topic_name, offset
+            );
+        }
+        Err(e) => {
+            error!("{}", e);
+        }
+    };
     delete_delay_index_info(storage_driver_manager, delay_info).await?;
     delete_delay_message(storage_driver_manager, &delay_info.unique_id).await?;
-    debug!(
-        "Delay message processed successfully, target offset: {}",
-        offset
-    );
+
     Ok(())
 }
 
@@ -111,23 +118,32 @@ async fn send_delay_message_to_shard(
     delay_message: &DelayMessageIndexInfo,
 ) -> Result<u64, CommonError> {
     // read data
-
     let results = storage_driver_manager
         .read_by_key(DELAY_QUEUE_MESSAGE_TOPIC, &delay_message.unique_id)
         .await?;
 
     if results.is_empty() {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(format!(
+            "Delay message not found: unique_id={}, offset={}",
+            delay_message.unique_id, delay_message.offset
+        )));
     }
 
     if results.len() > 1 {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(format!(
+            "Multiple delay messages found for unique_id={}, expected 1 but found {}",
+            delay_message.unique_id,
+            results.len()
+        )));
     }
 
     let record = if let Some(record) = results.first() {
         record.clone()
     } else {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(format!(
+            "Failed to retrieve delay message record for unique_id={}",
+            delay_message.unique_id
+        )));
     };
 
     let send_record = convert_engine_record_to_adapter(record);
@@ -140,7 +156,10 @@ async fn send_delay_message_to_shard(
     let write_resp = if let Some(data) = resp.first() {
         data.clone()
     } else {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(format!(
+            "Write response is empty when sending delay message to topic '{}'",
+            delay_message.target_topic_name
+        )));
     };
 
     if write_resp.is_error() {

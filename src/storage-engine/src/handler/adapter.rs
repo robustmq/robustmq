@@ -234,16 +234,80 @@ impl StorageEngineHandler {
         self.offset_manager.commit_offset(group_name, offset).await
     }
 
-    pub async fn delete_by_key(&self, _shard: &str, _key: &str) -> Result<(), CommonError> {
-        Err(CommonError::CommonError(
-            "delete_by_key operation is not supported".to_string(),
-        ))
+    pub async fn delete_by_key(
+        &self,
+        shard_name: &str,
+        key: &str,
+    ) -> Result<(), StorageEngineError> {
+        let Some(shard) = self.cache_manager.shards.get(shard_name) else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        };
+
+        match shard.config.storage_type {
+            StorageType::EngineMemory => {
+                self.memory_storage_engine
+                    .delete_by_key(shard_name, key)
+                    .await?;
+            }
+
+            StorageType::EngineRocksDB => {
+                self.rocksdb_storage_engine
+                    .delete_by_key(shard_name, key)
+                    .await?;
+            }
+
+            StorageType::EngineSegment => {
+                return Err(StorageEngineError::CommonErrorStr(
+                    "delete_by_key operation is not supported".to_string(),
+                ));
+            }
+
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when delete by key",
+                    shard.config.storage_type, shard_name
+                )))
+            }
+        }
+        Ok(())
     }
 
-    pub async fn delete_by_offset(&self, _shard: &str, _offset: u64) -> Result<(), CommonError> {
-        Err(CommonError::CommonError(
-            "delete_by_offset operation is not supported".to_string(),
-        ))
+    pub async fn delete_by_offset(
+        &self,
+        shard_name: &str,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
+        let Some(shard) = self.cache_manager.shards.get(shard_name) else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        };
+
+        match shard.config.storage_type {
+            StorageType::EngineMemory => {
+                self.memory_storage_engine
+                    .delete_by_offset(shard_name, offset)
+                    .await?;
+            }
+
+            StorageType::EngineRocksDB => {
+                self.rocksdb_storage_engine
+                    .delete_by_offset(shard_name, offset)
+                    .await?;
+            }
+
+            StorageType::EngineSegment => {
+                return Err(StorageEngineError::CommonErrorStr(
+                    "delete_by_offset operation is not supported".to_string(),
+                ));
+            }
+
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when getting delete by key",
+                    shard.config.storage_type, shard_name
+                )))
+            }
+        }
+        Ok(())
     }
 
     async fn get_offset_by_timestamp0(

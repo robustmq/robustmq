@@ -135,18 +135,8 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                         let message_count = data.len() as u64;
                         let mut retry_times = 0;
 
-                        // get last offset
-                        let mut data_list = Vec::new();
-                        let mut max_offsets:HashMap<String, u64> = HashMap::new();
-                        for raw in data.iter(){
-                            data_list.push(convert_engine_record_to_adapter(raw.clone()));
-                            let current_offset = if let Some(offset) = max_offsets.get(&raw.metadata.shard){
-                                *offset
-                            }else{
-                                0
-                            };
-                            max_offsets.insert(raw.metadata.shard.clone(), current_offset.max(raw.metadata.offset));
-                        }
+                        // Extract max offsets and convert records
+                        let (data_list, max_offsets) = extract_max_offsets_and_convert(&data);
 
                         loop{
                             match sink.send_batch(&data_list, &mut resource).await {
@@ -199,6 +189,28 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     }
 
     Ok(())
+}
+
+fn extract_max_offsets_and_convert(
+    data: &[metadata_struct::storage::storage_record::StorageRecord],
+) -> (Vec<AdapterWriteRecord>, HashMap<String, u64>) {
+    let mut data_list = Vec::with_capacity(data.len());
+    let mut max_offsets = HashMap::new();
+
+    for record in data {
+        data_list.push(convert_engine_record_to_adapter(record.clone()));
+        let current_offset = max_offsets
+            .get(&record.metadata.shard)
+            .copied()
+            .unwrap_or(0);
+        // Use offset + 1 to read next record in next iteration
+        max_offsets.insert(
+            record.metadata.shard.clone(),
+            current_offset.max(record.metadata.offset + 1),
+        );
+    }
+
+    (data_list, max_offsets)
 }
 
 pub async fn start_connector_thread(

@@ -46,7 +46,10 @@ pub(crate) async fn save_delay_message(
     let resp = if let Some(row) = result.first() {
         row.clone()
     } else {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(format!(
+            "Write response is empty when saving delay message to topic '{}'",
+            DELAY_QUEUE_MESSAGE_TOPIC
+        )));
     };
 
     if resp.is_error() {
@@ -93,7 +96,10 @@ pub async fn save_delay_index_info(
     let resp = if let Some(row) = result.first() {
         row.clone()
     } else {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(format!(
+            "Write response is empty when saving delay index info (unique_id={}) to topic '{}'",
+            delay_info.unique_id, DELAY_QUEUE_INDEX_TOPIC
+        )));
     };
 
     if resp.is_error() {
