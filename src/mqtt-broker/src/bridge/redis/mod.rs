@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::async_trait;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     mqtt::bridge::config_redis::RedisConnectorConfig, mqtt::bridge::config_redis::RedisMode,
@@ -285,6 +286,7 @@ impl ConnectorSink for RedisBridgePlugin {
 }
 
 pub fn start_redis_connector(
+    client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
@@ -306,6 +308,7 @@ pub fn start_redis_connector(
 
         if let Err(e) = run_connector_loop(
             &bridge,
+            &client_pool,
             &connector_manager,
             storage_driver_manager.clone(),
             connector.connector_name.clone(),

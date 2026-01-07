@@ -13,14 +13,15 @@
 // limitations under the License.
 
 use crate::{
-    bridge::failure::failure_message_process, handler::tool::ResultMqttBrokerError,
+    bridge::failure::failure_message_process,
+    handler::{error::MqttBrokerError, tool::ResultMqttBrokerError},
     storage::connector::ConnectorStorage,
 };
 use axum::async_trait;
 
 use common_base::{
     error::ResultCommonError,
-    tools::{loop_select_ticket, now_millis},
+    tools::{loop_select_ticket, now_millis, now_second},
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -97,6 +98,7 @@ pub trait ConnectorSink: Send + Sync {
 
 pub async fn run_connector_loop<S: ConnectorSink>(
     sink: &S,
+    client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector_name: String,
@@ -180,6 +182,10 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                     },
                     Err(e) => {
                         update_last_active(connector_manager, &connector_name, now_millis(), 0, false);
+                        if seal_up_connector(client_pool,connector_manager, &connector_name, &e.to_string()).await?{
+                            info!("");
+                            break;
+                        }
                         error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);
                         sleep(Duration::from_millis(100)).await;
                     }
@@ -189,6 +195,25 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     }
 
     Ok(())
+}
+
+async fn seal_up_connector(
+    client_pool: &Arc<ClientPool>,
+    connector_manager: &Arc<ConnectorManager>,
+    connector_name: &str,
+    e: &str,
+) -> Result<bool, MqttBrokerError> {
+    if e.contains("not found in broker cache") && e.contains("Topic") {
+        if let Some(mut connector) = connector_manager.get_connector(connector_name) {
+            let storage = ConnectorStorage::new(client_pool.clone());
+            connector.status = MQTTStatus::SealUp;
+            connector.update_time = now_second();
+            storage.update_connector(connector).await?;
+        }
+        return Ok(true);
+    }
+
+    Ok(false)
 }
 
 fn extract_max_offsets_and_convert(
@@ -305,6 +330,7 @@ async fn check_connector(
         };
 
         start_thread(
+            client_pool.clone(),
             connector_manager.clone(),
             storage_driver_manager.clone(),
             raw.clone(),
@@ -393,6 +419,7 @@ async fn check_connector(
 }
 
 fn start_thread(
+    client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
@@ -409,6 +436,7 @@ fn start_thread(
     match connector_type {
         ConnectorType::LocalFile => {
             start_local_file_connector(
+                client_pool,
                 connector_manager,
                 storage_driver_manager,
                 connector,
@@ -416,10 +444,17 @@ fn start_thread(
             );
         }
         ConnectorType::Kafka => {
-            start_kafka_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_kafka_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::GreptimeDB => {
             start_greptimedb_connector(
+                client_pool,
                 connector_manager,
                 storage_driver_manager,
                 connector,
@@ -427,22 +462,53 @@ fn start_thread(
             );
         }
         ConnectorType::Pulsar => {
-            start_pulsar_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_pulsar_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Postgres => {
-            start_postgres_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_postgres_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::MongoDB => {
-            start_mongodb_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_mongodb_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::RabbitMQ => {
-            start_rabbitmq_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_rabbitmq_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::MySQL => {
-            start_mysql_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_mysql_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Elasticsearch => {
             start_elasticsearch_connector(
+                client_pool,
                 connector_manager,
                 storage_driver_manager,
                 connector,
@@ -450,7 +516,13 @@ fn start_thread(
             );
         }
         ConnectorType::Redis => {
-            start_redis_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_redis_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
     }
 }

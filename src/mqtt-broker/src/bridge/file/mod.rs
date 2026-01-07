@@ -18,6 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::handler::tool::ResultMqttBrokerError;
 use axum::async_trait;
 use chrono::{DateTime, Local, Timelike};
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
@@ -214,6 +215,7 @@ impl ConnectorSink for FileBridgePlugin {
 }
 
 pub fn start_local_file_connector(
+    client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
@@ -235,6 +237,7 @@ pub fn start_local_file_connector(
 
         if let Err(e) = run_connector_loop(
             &bridge,
+            &client_pool,
             &connector_manager,
             storage_driver_manager.clone(),
             connector.connector_name.clone(),
@@ -259,6 +262,7 @@ pub fn start_local_file_connector(
 #[cfg(test)]
 mod tests {
     use common_base::tools::{now_second, unique_id};
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::{
         mqtt::bridge::{
             config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
@@ -284,6 +288,7 @@ mod tests {
     async fn file_bridge_plugin_test() {
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
         let topic_name = unique_id();
+        let client_pool = Arc::new(ClientPool::new(8));
 
         // prepare some data for testing
         storage_driver_manager
@@ -353,6 +358,7 @@ mod tests {
         let handle = tokio::spawn(async move {
             run_connector_loop(
                 &file_bridge_plugin,
+                &client_pool,
                 &connector_manager_clone,
                 storage_driver_manager,
                 connector_name_clone,

@@ -17,6 +17,7 @@ use std::time::Duration;
 
 use axum::async_trait;
 use bson::Document;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     mqtt::bridge::config_mongodb::MongoDBConnectorConfig, mqtt::bridge::connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
@@ -231,6 +232,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
 }
 
 pub fn start_mongodb_connector(
+    client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
@@ -253,6 +255,7 @@ pub fn start_mongodb_connector(
 
         if let Err(e) = run_connector_loop(
             &bridge,
+            &client_pool,
             &connector_manager,
             storage_driver_manager.clone(),
             connector.connector_name.clone(),
