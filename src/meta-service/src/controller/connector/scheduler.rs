@@ -26,7 +26,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 use std::{collections::HashMap, sync::Arc};
-use tokio::{sync::broadcast};
+use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 /// Connector Scheduler - Manages MQTT connector lifecycle and load balancing
