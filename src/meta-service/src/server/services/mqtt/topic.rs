@@ -22,7 +22,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
@@ -76,15 +76,15 @@ pub async fn create_topic_by_req(
 ) -> Result<CreateTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    // Check if topic already exists
+    // interface maintains the idempotent semantics.
     if topic_storage.get(&req.topic_name)?.is_some() {
-        return Err(MetaServiceError::TopicAlreadyExist(req.topic_name.clone()));
+        return Ok(CreateTopicReply {});
     }
 
     let data = StorageData::new(StorageDataType::MqttSetTopic, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let topic = MQTTTopic::decode(&req.content)?;
+    let topic = Topic::decode(&req.content)?;
     update_cache_by_add_topic(call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})

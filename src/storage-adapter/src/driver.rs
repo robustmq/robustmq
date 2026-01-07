@@ -12,102 +12,234 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    engine::StorageEngineAdapter, memory::MemoryStorageAdapter, rocksdb::RocksDBStorageAdapter,
-    storage::StorageAdapter,
-};
+use crate::{engine::EngineStorageAdapter, storage::StorageAdapter};
+use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
-use common_config::storage::{memory::StorageDriverMemoryConfig, StorageAdapterType};
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::sync::Arc;
-use storage_engine::{
-    core::cache::StorageCacheManager, handler::adapter::StorageEngineHandler,
-    memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
+use common_config::storage::StorageType;
+use dashmap::DashMap;
+use metadata_struct::{
+    mqtt::topic::Topic,
+    storage::{
+        adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo},
+        adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
+        adapter_record::AdapterWriteRecord,
+        shard::EngineShardConfig,
+        storage_record::StorageRecord,
+    },
 };
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicU64, Arc},
+};
+use storage_engine::{group::OffsetManager, handler::adapter::StorageEngineHandler};
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
-
+#[derive(Clone)]
 pub struct StorageDriverManager {
-    pub memory_storage: ArcStorageAdapter,
-    pub rocksdb_storage: ArcStorageAdapter,
-    pub engine_storage: ArcStorageAdapter,
+    pub driver_list: DashMap<String, ArcStorageAdapter>,
+    pub engine_storage_handler: Arc<StorageEngineHandler>,
+    pub broker_cache: Arc<BrokerCacheManager>,
+    pub offset_manager: Arc<OffsetManager>,
+    pub message_seq: Arc<AtomicU64>,
 }
 
 impl StorageDriverManager {
     pub async fn new(
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        storage_cache_manager: Arc<StorageCacheManager>,
-        engine_adapter_handler: Arc<StorageEngineHandler>,
+        offset_manager: Arc<OffsetManager>,
+        engine_storage_handler: Arc<StorageEngineHandler>,
     ) -> Result<Self, CommonError> {
-        let memory_storage = StorageDriverManager::build_message_storage_driver(
-            &rocksdb_engine_handler,
-            &storage_cache_manager,
-            &engine_adapter_handler,
-            StorageAdapterType::Memory,
-        )
-        .await?;
-        let rocksdb_storage = StorageDriverManager::build_message_storage_driver(
-            &rocksdb_engine_handler,
-            &storage_cache_manager,
-            &engine_adapter_handler,
-            StorageAdapterType::RocksDB,
-        )
-        .await?;
-        let engine_storage = StorageDriverManager::build_message_storage_driver(
-            &rocksdb_engine_handler,
-            &storage_cache_manager,
-            &engine_adapter_handler,
-            StorageAdapterType::Engine,
-        )
-        .await?;
         Ok(StorageDriverManager {
-            memory_storage,
-            rocksdb_storage,
-            engine_storage,
+            driver_list: DashMap::with_capacity(2),
+            engine_storage_handler: engine_storage_handler.clone(),
+            broker_cache: engine_storage_handler.cache_manager.broker_cache.clone(),
+            offset_manager,
+            message_seq: Arc::new(AtomicU64::new(0)),
         })
     }
 
-    async fn build_message_storage_driver(
-        rocksdb_engine_handler: &Arc<RocksDBEngine>,
-        storage_cache_manager: &Arc<StorageCacheManager>,
-        engine_adapter_handler: &Arc<StorageEngineHandler>,
-        storage_type: StorageAdapterType,
-    ) -> Result<ArcStorageAdapter, CommonError> {
-        let storage: ArcStorageAdapter = match storage_type {
-            StorageAdapterType::Memory => {
-                let engine = MemoryStorageEngine::create_standalone(
-                    rocksdb_engine_handler.clone(),
-                    storage_cache_manager.clone(),
-                    StorageDriverMemoryConfig::default(),
-                );
-                Arc::new(MemoryStorageAdapter::new(Arc::new(engine)))
-            }
+    pub async fn create_storage_resource(
+        &self,
+        topic_name: &str,
+        config: &EngineShardConfig,
+    ) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        for partition in topic.storage_name_list {
+            driver
+                .create_shard(&AdapterShardInfo {
+                    shard_name: partition,
+                    config: config.clone(),
+                })
+                .await?;
+        }
+        Ok(())
+    }
 
-            StorageAdapterType::Engine => {
-                Arc::new(StorageEngineAdapter::new(engine_adapter_handler.clone()).await)
+    pub async fn list_storage_resource(
+        &self,
+        topic_name: &str,
+    ) -> Result<Vec<String>, CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        let mut results = Vec::new();
+        for partition in topic.storage_name_list {
+            let resp = driver.list_shard(Some(partition)).await?;
+            for raw in resp {
+                results.push(serde_json::to_string(&raw)?);
             }
+        }
+        Ok(results)
+    }
 
-            StorageAdapterType::RocksDB => {
-                let engine = Arc::new(RocksDBStorageEngine::create_standalone(
-                    storage_cache_manager.clone(),
-                    rocksdb_engine_handler.clone(),
-                ));
-                Arc::new(RocksDBStorageAdapter::new(engine.clone()))
-            }
+    pub async fn delete_storage_resource(&self, topic_name: &str) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        for partition in topic.storage_name_list {
+            driver.delete_shard(&partition).await?;
+        }
+        Ok(())
+    }
 
-            StorageAdapterType::S3 => {
-                return Err(CommonError::UnavailableStorageType);
-            }
+    pub async fn write(
+        &self,
+        topic_name: &str,
+        data: &[AdapterWriteRecord],
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
 
-            StorageAdapterType::Mysql => {
-                return Err(CommonError::UnavailableStorageType);
-            }
+        // todo write-up strategy needs to be further improved.
+        let partition = self
+            .message_seq
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % topic.partition as u64;
+        let partition_name = Topic::build_storage_name(&topic.topic_id, partition as u32);
 
-            StorageAdapterType::MinIO => {
-                return Err(CommonError::UnavailableStorageType);
-            }
+        driver.batch_write(&partition_name, data).await
+    }
+
+    pub async fn read_by_offset(
+        &self,
+        topic_name: &str,
+        offsets: &HashMap<String, u64>,
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        let mut results = Vec::new();
+        for partition in topic.storage_name_list {
+            let offset = if let Some(offset) = offsets.get(&partition) {
+                *offset
+            } else {
+                0
+            };
+            let resp = driver
+                .read_by_offset(&partition, offset, read_config)
+                .await?;
+            results.extend(resp);
+        }
+        Ok(results)
+    }
+
+    pub async fn read_by_tag(
+        &self,
+        topic_name: &str,
+        tag: &str,
+        start_offset: Option<u64>,
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        let mut results = Vec::new();
+        for partition in topic.storage_name_list {
+            let resp = driver
+                .read_by_tag(&partition, tag, start_offset, read_config)
+                .await?;
+            results.extend(resp);
+        }
+        Ok(results)
+    }
+
+    pub async fn read_by_key(
+        &self,
+        topic_name: &str,
+        key: &str,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        let mut results = Vec::new();
+        for partition in topic.storage_name_list {
+            let resp = driver.read_by_key(&partition, key).await?;
+            results.extend(resp);
+        }
+        Ok(results)
+    }
+
+    pub async fn delete_by_key(&self, topic_name: &str, key: &str) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        for partition in topic.storage_name_list {
+            driver.delete_by_key(&partition, key).await?
+        }
+        Ok(())
+    }
+
+    pub async fn delete_by_offset(&self, topic_name: &str, offset: u64) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        for partition in topic.storage_name_list {
+            driver.delete_by_offset(&partition, offset).await?
+        }
+        Ok(())
+    }
+
+    pub async fn get_offset_by_timestamp(
+        &self,
+        topic_name: &str,
+        timestamp: u64,
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<u64, CommonError> {
+        let (topic, driver) = self.build_driver(topic_name).await?;
+        let mut results = Vec::new();
+        for partition in topic.storage_name_list {
+            let offset = driver
+                .get_offset_by_timestamp(&partition, timestamp, strategy.clone())
+                .await?;
+            results.push(offset);
+        }
+
+        Ok(results.iter().min().copied().unwrap_or(0))
+    }
+
+    async fn build_driver(
+        &self,
+        topic_name: &str,
+    ) -> Result<(Topic, ArcStorageAdapter), CommonError> {
+        let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
+            topic
+        } else {
+            return Err(CommonError::CommonError(format!(
+                "Topic '{}' not found in broker cache",
+                topic_name
+            )));
         };
 
-        Ok(storage)
+        let driver = self.get_storage_driver_by_topic(&topic).await?;
+        Ok((topic, driver))
+    }
+
+    async fn get_storage_driver_by_topic(
+        &self,
+        topic: &Topic,
+    ) -> Result<ArcStorageAdapter, CommonError> {
+        let storage_type_str = format!("{:?}", topic.storage_type);
+        if let Some(driver) = self.driver_list.get(&storage_type_str) {
+            return Ok(driver.clone());
+        }
+
+        let driver = match topic.storage_type {
+            StorageType::EngineMemory | StorageType::EngineRocksDB | StorageType::EngineSegment => {
+                Arc::new(EngineStorageAdapter::new(self.engine_storage_handler.clone()).await)
+            }
+            _ => {
+                return Err(CommonError::CommonError(format!(
+                    "Unsupported storage type '{:?}' for topic '{}'",
+                    topic.storage_type, topic.topic_name
+                )));
+            }
+        };
+        self.driver_list.insert(storage_type_str, driver.clone());
+        Ok(driver)
     }
 }

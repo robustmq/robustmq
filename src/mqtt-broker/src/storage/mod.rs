@@ -16,7 +16,6 @@ pub mod acl;
 pub mod auto_subscribe;
 pub mod blacklist;
 pub mod connector;
-pub mod driver;
 pub mod local;
 pub mod message;
 pub mod schema;

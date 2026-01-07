@@ -16,11 +16,11 @@ use crate::controller::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 
 impl CacheManager {
-    pub fn add_topic(&self, topic: MQTTTopic) {
+    pub fn add_topic(&self, topic: Topic) {
         self.topic_list.insert(topic.topic_name.clone(), topic);
     }
 

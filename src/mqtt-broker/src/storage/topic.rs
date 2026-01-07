@@ -23,7 +23,7 @@ use grpc_clients::meta::mqtt::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
@@ -41,12 +41,13 @@ impl TopicStorage {
         TopicStorage { client_pool }
     }
 
-    pub async fn save_topic(&self, topic: MQTTTopic) -> ResultMqttBrokerError {
+    pub async fn create_topic(&self, topic: Topic) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRequest {
             topic_name: topic.topic_name.clone(),
             content: topic.encode()?,
         };
+
         placement_create_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
@@ -60,7 +61,7 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn all(&self) -> Result<DashMap<String, MQTTTopic>, MqttBrokerError> {
+    pub async fn all(&self) -> Result<DashMap<String, Topic>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRequest {
             topic_name: "".to_string(),
@@ -71,14 +72,14 @@ impl TopicStorage {
         let results = DashMap::with_capacity(2);
 
         while let Some(data) = data_stream.message().await? {
-            let topic = MQTTTopic::decode(&data.topic)?;
+            let topic = Topic::decode(&data.topic)?;
             results.insert(topic.topic_name.clone(), topic);
         }
 
         Ok(results)
     }
 
-    pub async fn get_topic(&self, topic_name: &str) -> Result<Option<MQTTTopic>, MqttBrokerError> {
+    pub async fn get_topic(&self, topic_name: &str) -> Result<Option<Topic>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRequest {
             topic_name: topic_name.to_owned(),
@@ -88,7 +89,7 @@ impl TopicStorage {
             placement_list_topic(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
         if let Some(data) = data_stream.message().await? {
-            let topic = MQTTTopic::decode(&data.topic)?;
+            let topic = Topic::decode(&data.topic)?;
             return Ok(Some(topic));
         }
 

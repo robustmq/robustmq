@@ -49,7 +49,7 @@ max_time = 3600
 default_timeout = 2
 
 [message_storage]
-storage_type = "RocksDB"
+storage_type = "EngineRocksDB"
 
 [prometheus]
 enable = true

@@ -26,10 +26,9 @@ use crate::{
     },
 };
 use common_base::utils::serialize::serialize;
-use common_config::broker::broker_config;
+use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    shard::EngineStorageType,
 };
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
@@ -48,7 +47,7 @@ pub async fn batch_write(
     };
 
     let Some(active_segment) = cache_manager.get_active_segment(shard_name) else {
-        return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        return Err(StorageEngineError::SegmentNotExist(shard_name.to_owned()));
     };
 
     segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
@@ -56,14 +55,14 @@ pub async fn batch_write(
     let conf = broker_config();
 
     let offsets = if conf.broker_id == active_segment.leader {
-        match shard.get_engine_type()? {
-            EngineStorageType::EngineMemory => {
+        match shard.config.storage_type {
+            StorageType::EngineMemory => {
                 write_memory_to_local(memory_storage_engine, shard_name, records).await?
             }
-            EngineStorageType::EngineRocksDB => {
+            StorageType::EngineRocksDB => {
                 write_rocksdb_to_local(rocksdb_storage_engine, shard_name, records).await?
             }
-            EngineStorageType::EngineSegment => {
+            StorageType::EngineSegment => {
                 write_segment_to_local(
                     write_manager,
                     shard_name,
@@ -71,6 +70,12 @@ pub async fn batch_write(
                     records,
                 )
                 .await?
+            }
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when writing data",
+                    shard.config.storage_type, shard_name
+                )))
             }
         }
     } else {

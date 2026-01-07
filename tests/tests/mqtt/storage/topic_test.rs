@@ -19,7 +19,7 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::Topic;
     use mqtt_broker::storage::topic::TopicStorage;
     use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
@@ -31,11 +31,8 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(topic_name.clone());
-        match topic_storage.save_topic(topic).await {
-            Ok(_) => {}
-            Err(e) => panic!("{}", e),
-        }
+        let topic = Topic::build_by_name(&topic_name);
+        topic_storage.create_topic(topic).await.unwrap();
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
         assert_eq!(result.topic_name, topic_name);
@@ -68,9 +65,9 @@ mod tests {
             ..Default::default()
         };
 
-        let topic = MQTTTopic::new(topic_name.clone());
+        let topic = Topic::build_by_name(&topic_name);
         println!("{:?}", topic);
-        topic_storage.save_topic(topic.clone()).await.unwrap();
+        topic_storage.create_topic(topic.clone()).await.unwrap();
 
         let publish_properties = PublishProperties::default();
         let retain_message =

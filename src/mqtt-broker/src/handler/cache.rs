@@ -22,7 +22,6 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
@@ -102,9 +101,6 @@ pub struct MQTTCacheManager {
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, MQTTConnection>,
 
-    // (topic_name, Topic)
-    pub topic_info: DashMap<String, MQTTTopic>,
-
     // (client_id, HeartbeatShard)
     pub heartbeat_data: DashMap<String, ConnectionLiveTime>,
 
@@ -135,7 +131,6 @@ impl MQTTCacheManager {
             broker_cache,
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
-            topic_info: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
@@ -228,36 +223,6 @@ impl MQTTCacheManager {
     // create a function get the number of connections from connection_info
     pub fn get_connection_count(&self) -> usize {
         self.connection_info.len()
-    }
-
-    // topic
-    pub fn add_topic(&self, topic_name: &str, topic: &MQTTTopic) {
-        self.topic_info.insert(topic_name.to_owned(), topic.clone());
-    }
-
-    pub fn delete_topic(&self, topic_name: &str) {
-        self.topic_info.remove(topic_name);
-        self.topic_rewrite_new_name.remove(topic_name);
-        self.topic_is_validator.remove(topic_name);
-        self.delete_auto_subscribe_rule(topic_name);
-    }
-
-    pub fn topic_exists(&self, topic_name: &str) -> bool {
-        self.topic_info.contains_key(topic_name)
-    }
-
-    pub fn get_topic_by_name(&self, topic_name: &str) -> Option<MQTTTopic> {
-        if let Some(topic) = self.topic_info.get(topic_name) {
-            return Some(topic.clone());
-        }
-        None
-    }
-
-    pub fn get_all_topic_name(&self) -> Vec<String> {
-        self.topic_info
-            .iter()
-            .map(|topic| topic.topic_name.clone())
-            .collect()
     }
 
     // topic rewrite rule
@@ -564,52 +529,6 @@ mod tests {
         // get again
         let conn_info_after_remove = cache_manager.get_connection(connect_id);
         assert!(conn_info_after_remove.is_none());
-    }
-
-    #[tokio::test]
-    async fn topic_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let topic_name = "test/topic";
-        let topic = MQTTTopic {
-            topic_name: "topic_1".to_string(),
-            ..Default::default()
-        };
-
-        // add
-        cache_manager.add_topic(topic_name, &topic);
-        assert!(cache_manager.topic_exists(topic_name));
-
-        // get
-        let topic_info = cache_manager.get_topic_by_name(topic_name);
-        assert!(topic_info.is_some());
-        assert_eq!(topic_info.unwrap().topic_name, topic.topic_name);
-
-        // remove
-        cache_manager.delete_topic(topic_name);
-
-        // get again
-        let topic_info_after_remove = cache_manager.get_topic_by_name(topic_name);
-        assert!(topic_info_after_remove.is_none());
-    }
-
-    #[tokio::test]
-    async fn topic_name_name_operations() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let topic_name = "test/topic";
-        let topic = MQTTTopic {
-            topic_name: "topic_1".to_string(),
-            ..Default::default()
-        };
-
-        // add
-        cache_manager.add_topic(topic_name, &topic);
-
-        // remove
-        cache_manager.delete_topic(topic_name);
-
-        // get again
-        let topic_name_from_id_after_remove = cache_manager.get_topic_by_name(&topic.topic_name);
-        assert!(topic_name_from_id_after_remove.is_none());
     }
 
     #[tokio::test]

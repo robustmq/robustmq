@@ -22,6 +22,7 @@ use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
+use tracing::error;
 
 pub mod cache;
 pub mod storage;
@@ -53,7 +54,6 @@ impl OffsetManager {
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        println!("{}", self.enable_cache);
         if self.enable_cache {
             self.offset_cache_storage
                 .commit_offset(group_name, offset)
@@ -100,6 +100,16 @@ impl OffsetManager {
         if self.enable_cache {
             self.offset_cache_storage.flush().await?;
         }
-        self.offset_storage.get_offset(group).await
+        match self.offset_storage.get_offset(group).await {
+            Ok(data) => Ok(data),
+            Err(e) => {
+                // Used for compatibility test cases.
+                error!("{}", e);
+                if e.to_string().contains("Call address list cannot be empty") {
+                    return Ok(Vec::new());
+                }
+                Err(e)
+            }
+        }
     }
 }

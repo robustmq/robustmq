@@ -122,15 +122,15 @@ mod tests {
         },
     };
     use bytes::Bytes;
+    use common_config::storage::StorageType;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::storage::shard::EngineStorageType;
     use protocol::storage::protocol::ReadReqOptions;
     use rocksdb_engine::rocksdb::RocksDBEngine;
     use tokio::{sync::broadcast, time::sleep};
 
     #[allow(dead_code)]
     pub async fn test_base_write_data(
-        engine_storage_type: EngineStorageType,
+        engine_storage_type: StorageType,
         len: u64,
     ) -> (
         SegmentIdentity,
@@ -177,7 +177,7 @@ mod tests {
     #[tokio::test]
     async fn read_by_offset_test() {
         let (segment_iden, _, fold, rocksdb_engine_handler) =
-            test_base_write_data(EngineStorageType::EngineSegment, 30).await;
+            test_base_write_data(StorageType::EngineSegment, 30).await;
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
@@ -227,7 +227,7 @@ mod tests {
     #[tokio::test]
     async fn read_by_key_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
-            test_base_write_data(EngineStorageType::EngineSegment, 30).await;
+            test_base_write_data(StorageType::EngineSegment, 30).await;
 
         let key = "key-5".to_string();
         let resp = segment_read_by_key(
@@ -247,7 +247,7 @@ mod tests {
     #[tokio::test]
     async fn read_by_tag_test() {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
-            test_base_write_data(EngineStorageType::EngineSegment, 30).await;
+            test_base_write_data(StorageType::EngineSegment, 30).await;
 
         let read_options = ReadReqOptions {
             max_record: 10,

@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use axum::async_trait;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig,
     mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
@@ -67,6 +68,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
 }
 
 pub fn start_greptimedb_connector(
+    client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
@@ -88,6 +90,7 @@ pub fn start_greptimedb_connector(
 
         if let Err(e) = run_connector_loop(
             &bridge,
+            &client_pool,
             &connector_manager,
             storage_driver_manager.clone(),
             connector.connector_name.clone(),

@@ -152,21 +152,21 @@ pub fn record_mqtt_retained_dec() {
     gauge_metric_inc_by!(MQTT_RETAINED_COUNT, label, -1);
 }
 
-pub fn record_mqtt_delay_queue_total_capacity_set(shard_no: u64, capacity: i64) {
+pub fn record_mqtt_delay_queue_total_capacity_set(shard_no: u32, capacity: i64) {
     let label = DelayQueueLabel {
         shard_no: shard_no.to_string(),
     };
     gauge_metric_set!(MQTT_DELAY_QUEUE_TOTAL_CAPACITY, label, capacity);
 }
 
-pub fn record_mqtt_delay_queue_used_capacity_set(shard_no: u64, used: i64) {
+pub fn record_mqtt_delay_queue_used_capacity_set(shard_no: u32, used: i64) {
     let label = DelayQueueLabel {
         shard_no: shard_no.to_string(),
     };
     gauge_metric_set!(MQTT_DELAY_QUEUE_USED_CAPACITY, label, used);
 }
 
-pub fn record_mqtt_delay_queue_remaining_capacity_set(shard_no: u64, remaining: i64) {
+pub fn record_mqtt_delay_queue_remaining_capacity_set(shard_no: u32, remaining: i64) {
     let label = DelayQueueLabel {
         shard_no: shard_no.to_string(),
     };

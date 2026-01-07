@@ -139,7 +139,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_batch_write_and_read_by_offset() {
-        let engine = test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        let engine = test_build_memory_engine();
         let shard_name = unique_id();
         engine
             .shard_state

@@ -284,6 +284,7 @@ mod tests {
         test_init_conf();
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
+
         let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
             default_broker_config(),
         ))));

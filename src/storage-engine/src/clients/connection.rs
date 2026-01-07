@@ -129,7 +129,10 @@ impl NodeConnection {
                 conn.last_active_time = now_second();
                 match response {
                     RobustMQCodecWrapper::StorageEngine(pkg) => Ok(pkg),
-                    _ => Err(StorageEngineError::CommonErrorStr("".to_string())),
+                    _ => Err(StorageEngineError::CommonErrorStr(
+                        "Received unexpected packet type, expected StorageEngine packet"
+                            .to_string(),
+                    )),
                 }
             }
             Some(Err(e)) => Err(StorageEngineError::CommonErrorStr(format!(

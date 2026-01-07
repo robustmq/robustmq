@@ -140,13 +140,11 @@ impl BrokerServer {
         );
 
         // build storage driver
-        let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
-        let raw_storage_cache_manager = engine_params.cache_manager.clone();
         let raw_storage_engine_handler = engine_params.storage_engine_handler.clone();
+        let raw_offset_manager = offset_manager.clone();
         let storage_driver_manager = main_runtime.block_on(async move {
             let storage = match StorageDriverManager::new(
-                raw_rocksdb_engine_handler.clone(),
-                raw_storage_cache_manager.clone(),
+                raw_offset_manager.clone(),
                 raw_storage_engine_handler.clone(),
             )
             .await
@@ -389,7 +387,6 @@ impl BrokerServer {
         storage_driver_manager: Arc<StorageDriverManager>,
         offset_manager: Arc<OffsetManager>,
     ) -> Result<MqttBrokerServerParams, CommonError> {
-        let config = broker_config();
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
             broker_cache.clone(),
@@ -398,12 +395,8 @@ impl BrokerServer {
         let connector_manager = Arc::new(ConnectorManager::new());
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(
-            DelayMessageManager::new(
-                storage_driver_manager.clone(),
-                config.message_storage.storage_type,
-                1,
-            )
-            .await?,
+            DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 1)
+                .await?,
         );
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
@@ -441,12 +434,12 @@ impl BrokerServer {
             client_pool.clone(),
             config.storage_runtime.io_thread_num,
         ));
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
-        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::new(
             cache_manager.clone(),
             rocksdb_engine_handler.clone(),
         ));

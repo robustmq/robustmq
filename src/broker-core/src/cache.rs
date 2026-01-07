@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
-use metadata_struct::meta::node::BrokerNode;
+use metadata_struct::{meta::node::BrokerNode, mqtt::topic::Topic};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct BrokerCacheManager {
@@ -33,6 +32,9 @@ pub struct BrokerCacheManager {
     // (cluster_name, Cluster)
     pub cluster_config: Arc<RwLock<BrokerConfig>>,
 
+    // topic
+    pub topic_list: DashMap<String, Topic>,
+
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
 }
@@ -44,6 +46,7 @@ impl BrokerCacheManager {
             node_lists: DashMap::with_capacity(2),
             cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
+            topic_list: DashMap::with_capacity(2),
         }
     }
 
@@ -60,6 +63,33 @@ impl BrokerCacheManager {
         self.node_lists
             .iter()
             .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    // Topic
+    pub fn add_topic(&self, topic_name: &str, topic: &Topic) {
+        self.topic_list.insert(topic_name.to_owned(), topic.clone());
+    }
+
+    pub fn delete_topic(&self, topic_name: &str) {
+        self.topic_list.remove(topic_name);
+    }
+
+    pub fn topic_exists(&self, topic_name: &str) -> bool {
+        self.topic_list.contains_key(topic_name)
+    }
+
+    pub fn get_topic_by_name(&self, topic_name: &str) -> Option<Topic> {
+        if let Some(topic) = self.topic_list.get(topic_name) {
+            return Some(topic.clone());
+        }
+        None
+    }
+
+    pub fn get_all_topic_name(&self) -> Vec<String> {
+        self.topic_list
+            .iter()
+            .map(|topic| topic.topic_name.clone())
             .collect()
     }
 

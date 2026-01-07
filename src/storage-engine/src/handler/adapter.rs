@@ -32,13 +32,14 @@ use crate::{
     segment::write::WriteManager,
 };
 use common_base::error::common::CommonError;
+use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::{EngineShard, EngineStorageType};
+use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -57,14 +58,14 @@ pub struct StorageEngineHandlerParams {
 
 #[derive(Clone)]
 pub struct StorageEngineHandler {
-    cache_manager: Arc<StorageCacheManager>,
-    memory_storage_engine: Arc<MemoryStorageEngine>,
-    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
-    client_connection_manager: Arc<ClientConnectionManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    write_manager: Arc<WriteManager>,
-    client_pool: Arc<ClientPool>,
-    offset_manager: Arc<OffsetManager>,
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub write_manager: Arc<WriteManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub offset_manager: Arc<OffsetManager>,
 }
 
 impl StorageEngineHandler {
@@ -233,16 +234,80 @@ impl StorageEngineHandler {
         self.offset_manager.commit_offset(group_name, offset).await
     }
 
-    pub async fn delete_by_key(&self, _shard: &str, _key: &str) -> Result<(), CommonError> {
-        Err(CommonError::CommonError(
-            "delete_by_key operation is not supported".to_string(),
-        ))
+    pub async fn delete_by_key(
+        &self,
+        shard_name: &str,
+        key: &str,
+    ) -> Result<(), StorageEngineError> {
+        let Some(shard) = self.cache_manager.shards.get(shard_name) else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        };
+
+        match shard.config.storage_type {
+            StorageType::EngineMemory => {
+                self.memory_storage_engine
+                    .delete_by_key(shard_name, key)
+                    .await?;
+            }
+
+            StorageType::EngineRocksDB => {
+                self.rocksdb_storage_engine
+                    .delete_by_key(shard_name, key)
+                    .await?;
+            }
+
+            StorageType::EngineSegment => {
+                return Err(StorageEngineError::CommonErrorStr(
+                    "delete_by_key operation is not supported".to_string(),
+                ));
+            }
+
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when delete by key",
+                    shard.config.storage_type, shard_name
+                )))
+            }
+        }
+        Ok(())
     }
 
-    pub async fn delete_by_offset(&self, _shard: &str, _offset: u64) -> Result<(), CommonError> {
-        Err(CommonError::CommonError(
-            "delete_by_offset operation is not supported".to_string(),
-        ))
+    pub async fn delete_by_offset(
+        &self,
+        shard_name: &str,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
+        let Some(shard) = self.cache_manager.shards.get(shard_name) else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        };
+
+        match shard.config.storage_type {
+            StorageType::EngineMemory => {
+                self.memory_storage_engine
+                    .delete_by_offset(shard_name, offset)
+                    .await?;
+            }
+
+            StorageType::EngineRocksDB => {
+                self.rocksdb_storage_engine
+                    .delete_by_offset(shard_name, offset)
+                    .await?;
+            }
+
+            StorageType::EngineSegment => {
+                return Err(StorageEngineError::CommonErrorStr(
+                    "delete_by_offset operation is not supported".to_string(),
+                ));
+            }
+
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when getting delete by key",
+                    shard.config.storage_type, shard_name
+                )))
+            }
+        }
+        Ok(())
     }
 
     async fn get_offset_by_timestamp0(
@@ -255,23 +320,31 @@ impl StorageEngineHandler {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
-        let result = match shard.get_engine_type()? {
-            EngineStorageType::EngineMemory => {
+        let result = match shard.config.storage_type {
+            StorageType::EngineMemory => {
                 self.memory_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
 
-            EngineStorageType::EngineRocksDB => {
+            StorageType::EngineRocksDB => {
                 self.rocksdb_storage_engine
                     .get_offset_by_timestamp(shard_name, timestamp, strategy)
                     .await?
             }
 
-            EngineStorageType::EngineSegment => {
+            StorageType::EngineSegment => {
                 self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
             }
+
+            _ => {
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Unsupported storage type {:?} for shard {} when getting offset by timestamp",
+                    shard.config.storage_type, shard_name
+                )))
+            }
         };
+
         Ok(result)
     }
 

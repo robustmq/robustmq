@@ -29,13 +29,6 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tracing::{error, info};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum StorageEngineRunType {
-    #[default]
-    Standalone,
-    EngineStorage,
-}
-
 #[derive(Clone, Debug, Default)]
 pub struct ShardState {
     pub earliest_offset: u64,

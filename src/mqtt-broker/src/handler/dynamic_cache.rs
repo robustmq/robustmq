@@ -30,7 +30,7 @@ use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker::broker_common::{
@@ -60,7 +60,9 @@ pub async fn load_metadata_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load topics: {}", e)))?;
     for topic in topic_list.iter() {
-        cache_manager.add_topic(&topic.topic_name, &topic.clone());
+        cache_manager
+            .broker_cache
+            .add_topic(&topic.topic_name, &topic.clone());
     }
 
     let user_list = auth_driver
@@ -228,8 +230,10 @@ pub async fn update_mqtt_cache_metadata(
 
         BrokerUpdateCacheResourceType::Topic => match record.action_type() {
             BrokerUpdateCacheActionType::Set => {
-                let topic = serialize::deserialize::<MQTTTopic>(&record.data)?;
-                cache_manager.add_topic(&topic.topic_name, &topic);
+                let topic = serialize::deserialize::<Topic>(&record.data)?;
+                cache_manager
+                    .broker_cache
+                    .add_topic(&topic.topic_name, &topic);
                 subscribe_manager
                     .add_wait_parse_data(ParseSubscribeData {
                         action_type: BrokerUpdateCacheActionType::Set,
@@ -241,7 +245,7 @@ pub async fn update_mqtt_cache_metadata(
             }
 
             BrokerUpdateCacheActionType::Delete => {
-                let topic = serialize::deserialize::<MQTTTopic>(&record.data)?;
+                let topic = serialize::deserialize::<Topic>(&record.data)?;
                 delete_topic(
                     cache_manager,
                     &topic.topic_name,

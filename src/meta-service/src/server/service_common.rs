@@ -233,7 +233,6 @@ impl MetaServiceService for GrpcPlacementService {
         request: Request<SaveOffsetDataRequest>,
     ) -> Result<Response<SaveOffsetDataReply>, Status> {
         let req = request.into_inner();
-        println!("{:?}", req);
         self.validate_request(&req)?;
 
         save_offset_data_by_req(&self.raft_manager, &req)

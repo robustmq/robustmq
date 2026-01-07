@@ -13,14 +13,15 @@
 // limitations under the License.
 
 use crate::{
-    bridge::failure::failure_message_process, handler::tool::ResultMqttBrokerError,
+    bridge::failure::failure_message_process,
+    handler::{error::MqttBrokerError, tool::ResultMqttBrokerError},
     storage::connector::ConnectorStorage,
 };
 use axum::async_trait;
 
 use common_base::{
     error::ResultCommonError,
-    tools::{loop_select_ticket, now_millis},
+    tools::{loop_select_ticket, now_millis, now_second},
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -30,9 +31,9 @@ use metadata_struct::{
         connector_type::ConnectorType,
         status::MQTTStatus,
     },
-    storage::adapter_record::AdapterWriteRecord,
+    storage::{adapter_record::AdapterWriteRecord, convert::convert_engine_record_to_adapter},
 };
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{debug, error, info, warn};
@@ -97,6 +98,7 @@ pub trait ConnectorSink: Send + Sync {
 
 pub async fn run_connector_loop<S: ConnectorSink>(
     sink: &S,
+    client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector_name: String,
@@ -110,9 +112,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     let group_name = connector_name.clone();
 
     loop {
-        let offset = message_storage
-            .get_group_offset(&group_name, &config.topic_name)
-            .await?;
+        let mut offsets = message_storage.get_group_offset(&group_name).await?;
         select! {
             val = stop_recv.recv() => {
                 if let Ok(flag) = val {
@@ -123,7 +123,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                 }
             },
 
-            val = message_storage.read_topic_message(&config.topic_name, offset, config.record_num) => {
+            val = message_storage.read_topic_message(&config.topic_name, &offsets, config.record_num) => {
                 match val {
                     Ok(data) => {
                         connector_manager.report_heartbeat(&connector_name);
@@ -136,13 +136,20 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                         let start_time = now_millis();
                         let message_count = data.len() as u64;
                         let mut retry_times = 0;
+
+                        // Extract max offsets and convert records
+                        let (data_list, max_offsets) = extract_max_offsets_and_convert(&data);
+
                         loop{
-                            match sink.send_batch(&data, &mut resource).await {
+                            match sink.send_batch(&data_list, &mut resource).await {
                                 Ok(_) => {
+                                    // commit offset
+                                    for (k,v) in max_offsets.iter(){
+                                        offsets.insert(k.to_string(), *v);
+                                    }
                                     message_storage.commit_group_offset(
                                         &group_name,
-                                        &config.topic_name,
-                                        offset + message_count
+                                        &offsets,
                                     ).await?;
 
                                     update_last_active(
@@ -175,6 +182,10 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                     },
                     Err(e) => {
                         update_last_active(connector_manager, &connector_name, now_millis(), 0, false);
+                        if seal_up_connector(client_pool,connector_manager, &connector_name, &e.to_string()).await?{
+                            info!("Connector '{}' has been sealed up and stopped, reason: {}", connector_name, e);
+                            break;
+                        }
                         error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);
                         sleep(Duration::from_millis(100)).await;
                     }
@@ -184,6 +195,47 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     }
 
     Ok(())
+}
+
+async fn seal_up_connector(
+    client_pool: &Arc<ClientPool>,
+    connector_manager: &Arc<ConnectorManager>,
+    connector_name: &str,
+    e: &str,
+) -> Result<bool, MqttBrokerError> {
+    if e.contains("not found in broker cache") && e.contains("Topic") {
+        if let Some(mut connector) = connector_manager.get_connector(connector_name) {
+            let storage = ConnectorStorage::new(client_pool.clone());
+            connector.status = MQTTStatus::SealUp;
+            connector.update_time = now_second();
+            storage.update_connector(connector).await?;
+        }
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+fn extract_max_offsets_and_convert(
+    data: &[metadata_struct::storage::storage_record::StorageRecord],
+) -> (Vec<AdapterWriteRecord>, HashMap<String, u64>) {
+    let mut data_list = Vec::with_capacity(data.len());
+    let mut max_offsets = HashMap::new();
+
+    for record in data {
+        data_list.push(convert_engine_record_to_adapter(record.clone()));
+        let current_offset = max_offsets
+            .get(&record.metadata.shard)
+            .copied()
+            .unwrap_or(0);
+        // Use offset + 1 to read next record in next iteration
+        max_offsets.insert(
+            record.metadata.shard.clone(),
+            current_offset.max(record.metadata.offset + 1),
+        );
+    }
+
+    (data_list, max_offsets)
 }
 
 pub async fn start_connector_thread(
@@ -278,6 +330,7 @@ async fn check_connector(
         };
 
         start_thread(
+            client_pool.clone(),
             connector_manager.clone(),
             storage_driver_manager.clone(),
             raw.clone(),
@@ -366,6 +419,7 @@ async fn check_connector(
 }
 
 fn start_thread(
+    client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
@@ -382,6 +436,7 @@ fn start_thread(
     match connector_type {
         ConnectorType::LocalFile => {
             start_local_file_connector(
+                client_pool,
                 connector_manager,
                 storage_driver_manager,
                 connector,
@@ -389,10 +444,17 @@ fn start_thread(
             );
         }
         ConnectorType::Kafka => {
-            start_kafka_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_kafka_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::GreptimeDB => {
             start_greptimedb_connector(
+                client_pool,
                 connector_manager,
                 storage_driver_manager,
                 connector,
@@ -400,22 +462,53 @@ fn start_thread(
             );
         }
         ConnectorType::Pulsar => {
-            start_pulsar_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_pulsar_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Postgres => {
-            start_postgres_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_postgres_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::MongoDB => {
-            start_mongodb_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_mongodb_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::RabbitMQ => {
-            start_rabbitmq_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_rabbitmq_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::MySQL => {
-            start_mysql_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_mysql_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
         ConnectorType::Elasticsearch => {
             start_elasticsearch_connector(
+                client_pool,
                 connector_manager,
                 storage_driver_manager,
                 connector,
@@ -423,7 +516,13 @@ fn start_thread(
             );
         }
         ConnectorType::Redis => {
-            start_redis_connector(connector_manager, storage_driver_manager, connector, thread);
+            start_redis_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+            );
         }
     }
 }
@@ -440,14 +539,14 @@ fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        bridge::manager::ConnectorManager, storage::driver::get_driver_by_mqtt_topic_name,
-    };
+    use crate::bridge::manager::ConnectorManager;
     use common_base::tools::{now_second, unique_id};
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::{
-        mqtt::bridge::connector::FailureHandlingStrategy, storage::adapter_offset::AdapterShardInfo,
+    use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
+    use metadata_struct::mqtt::bridge::{
+        config_local_file::LocalFileConnectorConfig, ConnectorConfig,
     };
+    use metadata_struct::mqtt::topic::Topic;
     use storage_adapter::storage::test_build_storage_driver_manager;
 
     async fn setup() -> (Arc<StorageDriverManager>, Arc<ConnectorManager>) {
@@ -533,12 +632,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_connector() {
-        use metadata_struct::mqtt::bridge::{
-            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
-        };
-
         let (storage_driver_manager, connector_manager) = setup().await;
-
         let mut connector = create_test_connector();
         connector.broker_id = Some(1);
         connector.config = ConnectorConfig::LocalFile(LocalFileConnectorConfig {
@@ -547,17 +641,10 @@ mod tests {
         });
         connector_manager.add_connector(&connector);
 
-        let shard_name = connector.topic_name.clone();
-
-        let message_store =
-            get_driver_by_mqtt_topic_name(&storage_driver_manager, &shard_name).unwrap();
-        message_store
-            .create_shard(&AdapterShardInfo {
-                shard_name,
-                ..Default::default()
-            })
-            .await
-            .unwrap();
+        let topic_name = connector.topic_name.clone();
+        storage_driver_manager
+            .broker_cache
+            .add_topic(&topic_name, &Topic::build_by_name(&topic_name));
 
         let client_pool = Arc::new(ClientPool::new(1));
         check_connector(&storage_driver_manager, &connector_manager, &client_pool).await;

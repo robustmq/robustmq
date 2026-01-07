@@ -209,9 +209,9 @@ mod tests {
     use common_base::tools::now_second;
     use common_base::utils::serialize::{self, deserialize};
     use common_config::storage::memory::StorageDriverMemoryConfig;
+    use common_config::storage::StorageType;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::shard::EngineStorageType;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
@@ -223,26 +223,26 @@ mod tests {
 
     #[tokio::test]
     async fn read_data_req_test_by_segment() {
-        read_data_req_test(EngineStorageType::EngineSegment).await;
+        read_data_req_test(StorageType::EngineSegment).await;
     }
 
     #[tokio::test]
     async fn read_data_req_test_by_memory() {
-        read_data_req_test(EngineStorageType::EngineMemory).await;
+        read_data_req_test(StorageType::EngineMemory).await;
     }
 
     #[tokio::test]
     async fn read_data_req_test_by_rocksdb() {
-        read_data_req_test(EngineStorageType::EngineRocksDB).await;
+        read_data_req_test(StorageType::EngineRocksDB).await;
     }
 
-    async fn read_data_req_test(engine_storage_type: EngineStorageType) {
+    async fn read_data_req_test(engine_storage_type: StorageType) {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
-            test_init_segment(engine_storage_type.clone()).await;
+            test_init_segment(engine_storage_type).await;
         save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
 
         let shard_info = cache_manager.shards.get(&segment_iden.shard_name).unwrap();
-        assert_eq!(shard_info.get_engine_type().unwrap(), engine_storage_type);
+        assert_eq!(shard_info.config.storage_type, engine_storage_type);
 
         let client_poll = Arc::new(ClientPool::new(100));
 
@@ -258,12 +258,12 @@ mod tests {
 
         sleep(Duration::from_millis(100)).await;
 
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::create_storage(
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
             StorageDriverMemoryConfig::default(),
         ));
-        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::create_storage(
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::new(
             cache_manager.clone(),
             rocksdb_engine_handler.clone(),
         ));

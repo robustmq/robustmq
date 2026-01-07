@@ -37,19 +37,19 @@ mod tests {
 
     #[tokio::test]
     async fn shard_test_by_segment() {
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
         shard_test(config).await
     }
 
     #[tokio::test]
     async fn shard_test_by_memory() {
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineMemory"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineMemory"}"#.to_string();
         shard_test(config).await
     }
 
     #[tokio::test]
     async fn shard_test_by_rocksdb() {
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineRocksDB"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineRocksDB"}"#.to_string();
         shard_test(config).await
     }
 

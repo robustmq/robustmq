@@ -27,7 +27,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
@@ -46,7 +46,7 @@ pub struct CacheManager {
 
     // MQTT
     // (username,(topic_name,topic))
-    pub topic_list: DashMap<String, MQTTTopic>,
+    pub topic_list: DashMap<String, Topic>,
 
     // (username,user)
     pub user_list: DashMap<String, MqttUser>,

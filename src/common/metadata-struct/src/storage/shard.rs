@@ -17,7 +17,7 @@ use common_base::{
     tools::{now_second, unique_id},
     utils::serialize,
 };
-use common_config::storage::StorageAdapterType;
+use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -53,15 +53,6 @@ impl EngineShard {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
-
-    pub fn get_engine_type(&self) -> Result<EngineStorageType, CommonError> {
-        if let Some(engine_type) = self.config.engine_storage_type.clone() {
-            return Ok(engine_type);
-        }
-        Err(CommonError::CommonError(
-            "Value of EngineStorageType should not be None.".to_string(),
-        ))
-    }
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,10 +66,9 @@ pub enum EngineShardStatus {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EngineShardConfig {
     pub replica_num: u32,
+    pub storage_type: StorageType,
     pub max_segment_size: u64,
     pub retention_sec: u64,
-    pub storage_adapter_type: StorageAdapterType,
-    pub engine_storage_type: Option<EngineStorageType>,
 }
 
 impl Default for EngineShardConfig {
@@ -87,8 +77,7 @@ impl Default for EngineShardConfig {
             replica_num: 1,
             max_segment_size: 1073741824,
             retention_sec: 86400,
-            storage_adapter_type: StorageAdapterType::Memory,
-            engine_storage_type: None,
+            storage_type: StorageType::EngineMemory,
         }
     }
 }
@@ -101,12 +90,4 @@ impl EngineShardConfig {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
-}
-
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum EngineStorageType {
-    EngineSegment,
-    #[default]
-    EngineMemory,
-    EngineRocksDB,
 }

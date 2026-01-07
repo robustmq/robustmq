@@ -26,7 +26,7 @@ use common_base::{
     tools::now_millis,
 };
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
+use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
 use mqtt_broker::storage::topic::TopicStorage;
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
 use serde::{Deserialize, Serialize};
@@ -131,7 +131,7 @@ pub struct TopicListRow {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
-    pub topic_info: MQTTTopic,
+    pub topic_info: Topic,
     pub retain_message: Option<MqttMessage>,
     pub retain_message_at: Option<u64>,
     pub sub_list: Vec<TopicSubscribeInfo>,
@@ -162,7 +162,12 @@ pub async fn topic_list(
     let mut topics = Vec::new();
 
     if let Some(tp) = params.topic_name.clone() {
-        if let Some(topic) = state.mqtt_context.cache_manager.get_topic_by_name(&tp) {
+        if let Some(topic) = state
+            .mqtt_context
+            .cache_manager
+            .broker_cache
+            .get_topic_by_name(&tp)
+        {
             topics.push(TopicListRow {
                 topic_name: topic.topic_name.clone(),
                 create_time: topic.create_time,
@@ -170,7 +175,13 @@ pub async fn topic_list(
         }
     } else {
         let topic_type = params.topic_type.as_deref().unwrap_or("all");
-        for entry in state.mqtt_context.cache_manager.topic_info.iter() {
+        for entry in state
+            .mqtt_context
+            .cache_manager
+            .broker_cache
+            .topic_list
+            .iter()
+        {
             let topic = entry.value();
             let allow = if topic_type == "system" {
                 entry.topic_name.contains("$")
@@ -217,6 +228,7 @@ pub async fn topic_detail(
     let topic = if let Some(topic) = state
         .mqtt_context
         .cache_manager
+        .broker_cache
         .get_topic_by_name(&params.topic_name)
     {
         topic

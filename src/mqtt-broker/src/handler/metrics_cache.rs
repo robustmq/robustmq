@@ -81,7 +81,8 @@ fn record_basic_metrics_thread(
                 .record_connection_num(now, connection_manager.connections.len() as u64)?;
 
             // topic num
-            metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u64)?;
+            metrics_cache_manager
+                .record_topic_num(now, cache_manager.broker_cache.topic_list.len() as u64)?;
 
             // subscribe num
             metrics_cache_manager
@@ -90,7 +91,7 @@ fn record_basic_metrics_thread(
             // record metrics
             record_mqtt_connections_set(connection_manager.connections.len() as i64);
             record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
-            record_mqtt_topics_set(cache_manager.topic_info.len() as i64);
+            record_mqtt_topics_set(cache_manager.broker_cache.topic_list.len() as i64);
             record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
             record_mqtt_subscriptions_shared_set(0);
 
@@ -143,7 +144,7 @@ fn record_topic_metrics_thread(
         let record_func = async || -> ResultCommonError {
             let now: u64 = now_second();
 
-            for topic in cache_manager.get_all_topic_name() {
+            for topic in cache_manager.broker_cache.get_all_topic_name() {
                 record_metric_safe!(format!("topic {}", topic), {
                     // topic in
                     let num = get_topic_messages_written(&topic);

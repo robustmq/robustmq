@@ -19,7 +19,7 @@ use crate::config::{
     MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
     StorageOffset, StorageRuntime,
 };
-use crate::storage::{StorageAdapterConfig, StorageAdapterType};
+use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
 use common_base::role::{ROLE_BROKER, ROLE_META};
 use common_base::runtime::get_runtime_worker_threads;
@@ -125,7 +125,7 @@ pub fn default_mqtt_auth_config() -> MqttAuthConfig {
 
 pub fn default_message_storage() -> StorageAdapterConfig {
     StorageAdapterConfig {
-        storage_type: StorageAdapterType::Memory,
+        storage_type: StorageType::EngineMemory,
         ..Default::default()
     }
 }

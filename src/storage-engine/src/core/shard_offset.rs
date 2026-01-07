@@ -16,7 +16,8 @@ use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
     segment::{index::segment::SegmentIndexManager, SegmentIdentity},
 };
-use metadata_struct::storage::shard::EngineStorageType;
+
+use common_config::storage::StorageType;
 use rocksdb_engine::{
     keys::engine::{shard_earliest_offset, shard_high_watermark_offset, shard_latest_offset},
     rocksdb::RocksDBEngine,
@@ -131,8 +132,8 @@ pub fn get_earliest_offset(
         .get(shard_name)
         .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
 
-    match shard.get_engine_type()? {
-        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => {
+    match shard.config.storage_type {
+        StorageType::EngineMemory | StorageType::EngineRocksDB => {
             if let Some(offset) = read_earliest_offset_by_shard(rocksdb_engine_handler, shard_name)?
             {
                 Ok(offset)
@@ -141,7 +142,7 @@ pub fn get_earliest_offset(
             }
         }
 
-        EngineStorageType::EngineSegment => {
+        StorageType::EngineSegment => {
             let segment_iden = SegmentIdentity::new(shard_name, shard.start_segment_seq);
             let segment_meta = cache_manager
                 .get_segment_meta(&segment_iden)
@@ -155,6 +156,10 @@ pub fn get_earliest_offset(
             }
             Ok(segment_meta.start_offset as u64)
         }
+        _ => Err(StorageEngineError::CommonErrorStr(format!(
+            "Unsupported storage type {:?} for shard {} when getting earliest offset",
+            shard.config.storage_type, shard_name
+        ))),
     }
 }
 
@@ -172,10 +177,10 @@ pub fn get_latest_offset(
         return Ok(offset);
     }
 
-    match shard.get_engine_type()? {
-        EngineStorageType::EngineMemory | EngineStorageType::EngineRocksDB => Ok(0),
+    match shard.config.storage_type {
+        StorageType::EngineMemory | StorageType::EngineRocksDB => Ok(0),
 
-        EngineStorageType::EngineSegment => {
+        StorageType::EngineSegment => {
             let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
             let segment_iden = SegmentIdentity::new(shard_name, shard.active_segment_seq);
             let start_offset = segment_index_manager.get_start_offset(&segment_iden)?;
@@ -188,6 +193,10 @@ pub fn get_latest_offset(
             save_latest_offset_by_shard(rocksdb_engine_handler, shard_name, start_offset as u64)?;
             Ok(start_offset as u64)
         }
+        _ => Err(StorageEngineError::CommonErrorStr(format!(
+            "Unsupported storage type {:?} for shard {} when getting latest offset",
+            shard.config.storage_type, shard_name
+        ))),
     }
 }
 
@@ -254,7 +263,7 @@ mod tests {
         let shard = EngineShard {
             shard_name: shard_name.clone(),
             config: EngineShardConfig {
-                engine_storage_type: Some(EngineStorageType::EngineMemory),
+                storage_type: StorageType::EngineMemory,
                 ..Default::default()
             },
             ..Default::default()
@@ -277,7 +286,7 @@ mod tests {
         let shard = EngineShard {
             shard_name: shard_name.clone(),
             config: EngineShardConfig {
-                engine_storage_type: Some(EngineStorageType::EngineMemory),
+                storage_type: StorageType::EngineMemory,
                 ..Default::default()
             },
             ..Default::default()

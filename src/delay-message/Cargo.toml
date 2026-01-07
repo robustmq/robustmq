@@ -31,3 +31,7 @@ tracing.workspace = true
 futures.workspace = true
 common-metrics.workspace = true
 bytes.workspace = true
+grpc-clients.workspace = true
+protocol.workspace = true
+
+broker-core.workspace = true

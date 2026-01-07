@@ -252,7 +252,6 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateTopicReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-
         create_topic_by_req(
             &self.raft_manager,
             &self.call_manager,

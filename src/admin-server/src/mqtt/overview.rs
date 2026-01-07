@@ -102,7 +102,7 @@ async fn cluster_overview_by_req(
         share_subscribe_leader_thread_num: 0, //subscribe_manager.share_push_thread_len() as u32,
         share_subscribe_resub_num: 0,
         share_subscribe_follower_thread_num: 0,
-        topic_num: cache_manager.topic_info.len() as u32,
+        topic_num: cache_manager.broker_cache.topic_list.len() as u32,
         node_list,
         placement_status,
         tcp_connection_num: connection_manager.tcp_write_list.len() as u32,

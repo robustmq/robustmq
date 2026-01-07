@@ -23,13 +23,13 @@ mod tests {
     };
     use common_base::tools::unique_id;
     use common_base::{http_response::AdminServerResponse, tools::now_second};
-    use common_config::storage::StorageAdapterType;
+    use common_config::storage::StorageType;
     use grpc_clients::meta::storage::call::{
         create_next_segment, seal_up_segment, update_start_time_by_segment_meta,
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::storage::segment::SegmentStatus;
-    use metadata_struct::storage::shard::{EngineShardStatus, EngineStorageType};
+    use metadata_struct::storage::shard::EngineShardStatus;
     use protocol::meta::meta_service_journal::{
         CreateNextSegmentRequest, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaRequest,
     };
@@ -55,7 +55,7 @@ mod tests {
     async fn shard_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
 
         let create_result = client
             .create_shard(&ShardCreateReq {
@@ -85,12 +85,12 @@ mod tests {
         assert_eq!(shard.shard_info.config.max_segment_size, 1073741824);
         assert_eq!(shard.shard_info.config.retention_sec, 86400);
         assert_eq!(
-            shard.shard_info.config.storage_adapter_type,
-            StorageAdapterType::Engine
+            shard.shard_info.config.storage_type,
+            StorageType::EngineSegment
         );
         assert_eq!(
-            shard.shard_info.config.engine_storage_type,
-            Some(EngineStorageType::EngineSegment)
+            shard.shard_info.config.storage_type,
+            StorageType::EngineSegment
         );
 
         let segment_req = SegmentListReq {
@@ -137,7 +137,7 @@ mod tests {
     pub async fn update_start_or_end_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
 
         // create shard
         let create_result = client
@@ -210,7 +210,7 @@ mod tests {
     pub async fn create_next_segment_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
 
         // create shard
         let create_result = client
@@ -311,7 +311,7 @@ mod tests {
     pub async fn seal_up_segment_test() {
         let client = create_test_env().await;
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_adapter_type":"Engine","engine_storage_type":"EngineSegment"}"#.to_string();
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
 
         // create shard
         let create_result = client

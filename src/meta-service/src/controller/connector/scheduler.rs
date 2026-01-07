@@ -314,6 +314,10 @@ impl ConnectorScheduler {
                     .update_status_to_running(&connector.connector_name)
                     .await
             }
+            MQTTStatus::SealUp => {
+                // Already seal up, no action needed
+                Ok(())
+            }
         }
     }
 }

@@ -39,6 +39,35 @@ mod tests {
     async fn file_connector_test() {
         let admin_client = create_test_env().await;
         let topic = "/test/t1";
+
+        // send message
+        let network = "tcp";
+        let qos = 1;
+        let client_id = build_client_id(format!("file_connector_{network}_{qos}").as_str());
+
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
+
+        // publish
+        let message = "file_connector_test mqtt message".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message.clone())
+            .topic(topic)
+            .qos(qos)
+            .finalize();
+        publish_data(&cli, msg, false);
+        distinct_conn(cli);
+
+        sleep(Duration::from_secs(5)).await;
+
+        // create connector
         let connector_name = unique_id();
         let config = LocalFileConnectorConfig {
             local_file_path: format!("/tmp/{}.log", unique_id()),
@@ -74,32 +103,6 @@ mod tests {
         let connector = results.data.first().unwrap();
         assert_eq!(connector.status, "Running".to_string());
 
-        // send message
-        let network = "tcp";
-        let qos = 1;
-        let client_id = build_client_id(format!("file_connector_{network}_{qos}").as_str());
-
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
-            ..Default::default()
-        };
-        let cli = connect_server(&client_properties);
-
-        // publish retain
-        let message = "file_connector_test mqtt message".to_string();
-        let msg = MessageBuilder::new()
-            .payload(message.clone())
-            .topic(topic)
-            .qos(qos)
-            .finalize();
-        publish_data(&cli, msg, false);
-        distinct_conn(cli);
-
-        sleep(Duration::from_secs(5)).await;
         // get status
         let request = ConnectorDetailReq {
             connector_name: connector_name.clone(),

@@ -81,14 +81,14 @@ message ListUserReply {
 }
 
 message CreateUserRequest {
-  string user_name = 2;
-  bytes content = 3;
+  string user_name = 2 [(validate.rules).string.min_len = 1];
+  bytes content = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message CreateUserReply {}
 
 message DeleteUserRequest {
-  string user_name = 2;
+  string user_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteUserReply {}
@@ -102,28 +102,28 @@ message ListTopicReply {
 }
 
 message CreateTopicRequest {
-  string topic_name = 2;
-  bytes content = 3;
+  string topic_name = 2 [(validate.rules).string.min_len = 1];
+  bytes content = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message CreateTopicReply {}
 
 message DeleteTopicRequest {
-  string topic_name = 2;
+  string topic_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteTopicReply {}
 
 message SetTopicRetainMessageRequest {
-  string topic_name = 2;
+  string topic_name = 2 [(validate.rules).string.min_len = 1];
   optional bytes retain_message = 3;
-  uint64 retain_message_expired_at = 4;
+  uint64 retain_message_expired_at = 4 [(validate.rules).uint64.gte = 0];
 }
 
 message SetTopicRetainMessageReply {}
 
 message GetTopicRetainMessageRequest {
-  string topic_name = 2;
+  string topic_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message GetTopicRetainMessageReply {
@@ -140,37 +140,37 @@ message ListSessionReply {
 }
 
 message CreateSessionRequest {
-  string client_id = 2;
-  bytes session = 3;
+  string client_id = 2 [(validate.rules).string.min_len = 1];
+  bytes session = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message CreateSessionReply {}
 
 message UpdateSessionRequest {
-  string client_id = 2;
-  uint64 connection_id = 3;
-  uint64 broker_id = 4;
-  uint64 reconnect_time = 5;
-  uint64 distinct_time = 6;
+  string client_id = 2 [(validate.rules).string.min_len = 1];
+  uint64 connection_id = 3 [(validate.rules).uint64.gte = 0];
+  uint64 broker_id = 4 [(validate.rules).uint64.gte = 0];
+  uint64 reconnect_time = 5 [(validate.rules).uint64.gte = 0];
+  uint64 distinct_time = 6 [(validate.rules).uint64.gte = 0];
 }
 
 message UpdateSessionReply {}
 
 message DeleteSessionRequest {
-  string client_id = 2;
+  string client_id = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteSessionReply {}
 
 message SaveLastWillMessageRequest {
-  string client_id = 2;
-  bytes last_will_message = 3;
+  string client_id = 2 [(validate.rules).string.min_len = 1];
+  bytes last_will_message = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message SaveLastWillMessageReply {}
 
 message GetLastWillMessageRequest {
-  string client_id = 2;
+  string client_id = 2 [(validate.rules).string.min_len = 1];
 }
 
 message GetLastWillMessageReply {
@@ -185,13 +185,13 @@ message ListAclReply {
 }
 
 message DeleteAclRequest {
-  bytes acl = 2;
+  bytes acl = 2 [(validate.rules).bytes.min_len = 1];
 }
 
 message DeleteAclReply {}
 
 message CreateAclRequest {
-  bytes acl = 2;
+  bytes acl = 2 [(validate.rules).bytes.min_len = 1];
 }
 
 message CreateAclReply {}
@@ -204,30 +204,30 @@ message ListBlacklistReply {
 }
 
 message CreateBlacklistRequest {
-  bytes blacklist = 2;
+  bytes blacklist = 2 [(validate.rules).bytes.min_len = 1];
 }
 
 message CreateBlacklistReply {}
 
 message DeleteBlacklistRequest {
-  string blacklist_type = 2;
-  string resource_name = 3;
+  string blacklist_type = 2 [(validate.rules).string.min_len = 1];
+  string resource_name = 3 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteBlacklistReply {}
 
 message CreateTopicRewriteRuleRequest {
-  string action = 2;
-  string source_topic = 3;
-  string dest_topic = 4;
-  string regex = 5;
+  string action = 2 [(validate.rules).string.min_len = 1];
+  string source_topic = 3 [(validate.rules).string.min_len = 1];
+  string dest_topic = 4 [(validate.rules).string.min_len = 1];
+  string regex = 5 [(validate.rules).string.min_len = 1];
 }
 
 message CreateTopicRewriteRuleReply {}
 
 message DeleteTopicRewriteRuleRequest {
-  string action = 2;
-  string source_topic = 3;
+  string action = 2 [(validate.rules).string.min_len = 1];
+  string source_topic = 3 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteTopicRewriteRuleReply {}
@@ -240,16 +240,16 @@ message ListTopicRewriteRuleReply {
 }
 
 message SetSubscribeRequest {
-  string client_id = 3;
-  string path = 4;
-  bytes subscribe = 5;
+  string client_id = 3 [(validate.rules).string.min_len = 1];
+  string path = 4 [(validate.rules).string.min_len = 1];
+  bytes subscribe = 5 [(validate.rules).bytes.min_len = 1];
 }
 
 message SetSubscribeReply {}
 
 message DeleteSubscribeRequest {
-  string client_id = 2;
-  string path = 3;
+  string client_id = 2 [(validate.rules).string.min_len = 1];
+  string path = 3 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteSubscribeReply {}
@@ -270,49 +270,49 @@ message ListConnectorReply {
 }
 
 message CreateConnectorRequest {
-  string connector_name = 2;
-  bytes connector = 3;
+  string connector_name = 2 [(validate.rules).string.min_len = 1];
+  bytes connector = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message CreateConnectorReply {}
 
 message UpdateConnectorRequest {
-  string connector_name = 2;
-  bytes connector = 3;
+  string connector_name = 2 [(validate.rules).string.min_len = 1];
+  bytes connector = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message UpdateConnectorReply {}
 
 message DeleteConnectorRequest {
-  string connector_name = 2;
+  string connector_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteConnectorReply {}
 
 message ConnectorHeartbeatRequest {
-  repeated ConnectorHeartbeatRaw heatbeats = 2;
+  repeated ConnectorHeartbeatRaw heatbeats = 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message ConnectorHeartbeatRaw {
-  string connector_name = 1;
-  uint64 broker_id = 2;
-  uint64 heartbeat_time = 3;
+  string connector_name = 1 [(validate.rules).string.min_len = 1];
+  uint64 broker_id = 2 [(validate.rules).uint64.gte = 0];
+  uint64 heartbeat_time = 3 [(validate.rules).uint64.gte = 0];
 }
 
 message ConnectorHeartbeatReply {}
 
 message SetAutoSubscribeRuleRequest {
-  string topic = 2;
-  uint32 qos = 3;
+  string topic = 2 [(validate.rules).string.min_len = 1];
+  uint32 qos = 3 [(validate.rules).uint32.lte = 2];
   bool no_local = 4;
   bool retain_as_published = 5;
-  uint32 retained_handling = 6;
+  uint32 retained_handling = 6 [(validate.rules).uint32.lte = 2];
 }
 
 message SetAutoSubscribeRuleReply {}
 
 message DeleteAutoSubscribeRuleRequest {
-  string topic = 2;
+  string topic = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteAutoSubscribeRuleReply {}

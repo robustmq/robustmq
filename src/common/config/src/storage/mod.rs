@@ -31,7 +31,7 @@ pub mod s3;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StorageAdapterConfig {
-    pub storage_type: StorageAdapterType,
+    pub storage_type: StorageType,
     pub engine_config: Option<StorageDriverEngineConfig>,
     pub memory_config: Option<StorageDriverMemoryConfig>,
     pub minio_config: Option<StorageDriverMinIoConfig>,
@@ -41,59 +41,28 @@ pub struct StorageAdapterConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
-pub enum StorageAdapterType {
+pub enum StorageType {
     #[default]
-    Memory,
-    Engine,
+    EngineMemory,
+    EngineSegment,
+    EngineRocksDB,
     Mysql,
-    RocksDB,
     MinIO,
     S3,
 }
 
-impl FromStr for StorageAdapterType {
+impl FromStr for StorageType {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "engine" => Ok(StorageAdapterType::Engine),
-            "memory" => Ok(StorageAdapterType::Memory),
-            "mysql" => Ok(StorageAdapterType::Mysql),
-            "rocksdb" => Ok(StorageAdapterType::RocksDB), // "rocksdb" is an alias for backward compatibility
-            "minio" => Ok(StorageAdapterType::MinIO),
-            "s3" => Ok(StorageAdapterType::S3),
+            "EngineSegment" => Ok(StorageType::EngineSegment),
+            "EngineMemory" => Ok(StorageType::EngineMemory),
+            "EngineRocksDB" => Ok(StorageType::EngineRocksDB),
+            "MinIO" => Ok(StorageType::MinIO),
+            "S3" => Ok(StorageType::S3),
+            "Mysql" => Ok(StorageType::Mysql),
             _ => Err(()),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use crate::storage::StorageAdapterType;
-
-    #[test]
-    fn storage_type_from_str() {
-        assert_eq!(
-            StorageAdapterType::from_str("engine").unwrap(),
-            StorageAdapterType::Engine
-        );
-        assert_eq!(
-            StorageAdapterType::from_str("memory").unwrap(),
-            StorageAdapterType::Memory
-        );
-        // assert_eq!(
-        //     StorageAdapterType::from_str("mysql").unwrap(),
-        //     StorageAdapterType::Mysql
-        // );
-        assert_eq!(
-            StorageAdapterType::from_str("rocksdb").unwrap(),
-            StorageAdapterType::RocksDB
-        );
-        assert_eq!(
-            StorageAdapterType::from_str("minio").unwrap(),
-            StorageAdapterType::MinIO
-        );
     }
 }

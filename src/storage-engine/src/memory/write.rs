@@ -213,8 +213,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_try_remove_old_data() {
-        let mut engine =
-            test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        let mut engine = test_build_memory_engine();
         engine.config.max_records_per_shard = 10;
         let shard_name = unique_id();
         engine.shard_state.insert(
@@ -256,7 +255,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_and_delete() {
-        let engine = test_build_memory_engine(crate::core::shard::StorageEngineRunType::Standalone);
+        let engine = test_build_memory_engine();
         let shard_name = unique_id();
         engine.shard_state.insert(
             shard_name.clone(),
