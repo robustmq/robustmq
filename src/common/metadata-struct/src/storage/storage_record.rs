@@ -37,15 +37,13 @@ pub struct StorageRecordMetadata {
 
 impl StorageRecordMetadata {
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<_, 256>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
-        unsafe {
-            let archived = rkyv::archived_root::<Self>(bytes);
-            let deserialized: Self = archived.deserialize(&mut rkyv::Infallible).unwrap();
-            Ok(deserialized)
-        }
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
     }
 
     pub fn new(
