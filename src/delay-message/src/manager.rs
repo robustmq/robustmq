@@ -90,11 +90,13 @@ impl DelayMessageManager {
         target_topic: &str,
         delay_seconds: u64,
         data: AdapterWriteRecord,
-    ) -> Result<(), CommonError> {
-        let offset = save_delay_message(&self.storage_driver_manager, data).await?;
+    ) -> Result<String, CommonError> {
+        let delay_message_id = unique_id();
+        let offset =
+            save_delay_message(&self.storage_driver_manager, &delay_message_id, data).await?;
 
         let delay_index_info = DelayMessageIndexInfo {
-            unique_id: unique_id(),
+            unique_id: delay_message_id.clone(),
             target_topic_name: target_topic.to_string(),
             offset,
             delay_timestamp: now_second() + delay_seconds,
@@ -104,7 +106,7 @@ impl DelayMessageManager {
 
         self.send_to_delay_queue(&delay_index_info);
 
-        Ok(())
+        Ok(delay_message_id)
     }
 
     pub async fn stop(&self) -> Result<(), CommonError> {

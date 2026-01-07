@@ -142,7 +142,7 @@ async fn save_delay_message(
         &Some(new_publish_properties),
         message_expire,
     ) {
-        let target_shard_name = delay_info.tagget_shard_name.as_ref().unwrap();
+        let target_shard_name = delay_info.target_shard_name.as_ref().unwrap();
         delay_message_manager
             .send(target_shard_name, delay_info.delay_timestamp, record)
             .await?;

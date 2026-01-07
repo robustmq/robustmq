@@ -183,7 +183,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                     Err(e) => {
                         update_last_active(connector_manager, &connector_name, now_millis(), 0, false);
                         if seal_up_connector(client_pool,connector_manager, &connector_name, &e.to_string()).await?{
-                            info!("");
+                            info!("Connector '{}' has been sealed up and stopped, reason: {}", connector_name, e);
                             break;
                         }
                         error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);

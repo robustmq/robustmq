@@ -22,7 +22,7 @@ pub const DELAY_MESSAGE_TARGET_MS: &str = "delay_message_save_ms";
 #[derive(Debug, Clone)]
 pub struct DelayPublishTopic {
     pub target_topic_name: String,
-    pub tagget_shard_name: Option<String>,
+    pub target_shard_name: Option<String>,
     pub delay_timestamp: u64,
 }
 
@@ -43,7 +43,7 @@ pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerEr
 
     let msg = DelayPublishTopic {
         target_topic_name,
-        tagget_shard_name: None,
+        target_shard_name: None,
         delay_timestamp,
     };
 

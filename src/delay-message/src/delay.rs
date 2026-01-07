@@ -37,8 +37,10 @@ pub const DELAY_QUEUE_INDEX_TOPIC: &str = "$delay-queue-index";
 
 pub(crate) async fn save_delay_message(
     storage_driver_manager: &Arc<StorageDriverManager>,
-    data: AdapterWriteRecord,
+    delay_message_id: &str,
+    mut data: AdapterWriteRecord,
 ) -> Result<u64, CommonError> {
+    data.key = Some(delay_message_id.to_string());
     let result = storage_driver_manager
         .write(DELAY_QUEUE_MESSAGE_TOPIC, &[data])
         .await?;
