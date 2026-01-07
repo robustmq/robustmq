@@ -25,8 +25,8 @@ use common_base::{
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
-use std::{collections::HashMap, sync::Arc, time::Duration};
-use tokio::{sync::broadcast, time::sleep};
+use std::{collections::HashMap, sync::Arc};
+use tokio::{sync::broadcast};
 use tracing::{info, warn};
 
 /// Connector Scheduler - Manages MQTT connector lifecycle and load balancing
@@ -58,8 +58,6 @@ impl ConnectorScheduler {
     }
 
     pub async fn run(&self, stop_send: broadcast::Sender<bool>) {
-        // Controller scheduling process only begins one minute after the service is started.
-        sleep(Duration::from_secs(60)).await;
         let scheduler = self;
         let ac_fn = async move || -> ResultCommonError {
             scheduler.scheduler_cycle().await;

@@ -191,7 +191,10 @@ impl DirectlyPushManager {
             );
 
             if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
-                offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
+                offsets.insert(
+                    record.metadata.shard.to_string(),
+                    record.metadata.offset + 1,
+                );
             }
         }
 

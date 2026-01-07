@@ -89,7 +89,7 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        // publish retain
+        // publish 
         let message = "file_connector_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
