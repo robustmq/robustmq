@@ -54,7 +54,6 @@ impl OffsetManager {
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        println!("{}", self.enable_cache);
         if self.enable_cache {
             self.offset_cache_storage
                 .commit_offset(group_name, offset)
