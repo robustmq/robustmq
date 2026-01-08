@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{commitlog::rocksdb::engine::RocksDBStorageEngine, core::error::StorageEngineError};
+use crate::{
+    commitlog::{
+        offset::{get_earliest_offset, save_earliest_offset},
+        rocksdb::engine::RocksDBStorageEngine,
+    },
+    core::error::StorageEngineError,
+};
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::{loop_select_ticket, now_second},
@@ -76,7 +82,11 @@ impl RocksDBStorageEngine {
         shard: EngineShard,
     ) -> Result<(), StorageEngineError> {
         let earliest_timestamp = now_second() - shard.config.retention_sec;
-        let earliest_offset = self.get_earliest_offset(&shard.shard_name)?;
+        let earliest_offset = get_earliest_offset(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            &shard.shard_name,
+        )?;
         let new_earliest_offset = self
             .get_offset_by_timestamp(
                 &shard.shard_name,
@@ -139,7 +149,12 @@ impl RocksDBStorageEngine {
         }
 
         self.rocksdb_engine_handler.write_batch(batch)?;
-        self.save_earliest_offset(&shard.shard_name, new_earliest_offset)?;
+        save_earliest_offset(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            &shard.shard_name,
+            new_earliest_offset,
+        )?;
 
         Ok(())
     }
@@ -148,7 +163,8 @@ impl RocksDBStorageEngine {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
+        commitlog::{offset::get_earliest_offset, rocksdb::engine::RocksDBStorageEngine},
+        core::cache::StorageCacheManager,
     };
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
@@ -207,7 +223,12 @@ mod tests {
 
         engine.scan_and_delete_expire_data().await.unwrap();
 
-        let earliest_after = engine.get_earliest_offset(&shard_name).unwrap();
+        let earliest_after = get_earliest_offset(
+            &engine.cache_manager,
+            &engine.rocksdb_engine_handler,
+            &shard_name,
+        )
+        .unwrap();
 
         let read_config = AdapterReadConfig {
             max_record_num: 5,

@@ -14,6 +14,7 @@
 
 use crate::core::error::StorageEngineError;
 use crate::core::offset_index::SegmentOffsetIndex;
+use crate::core::shard::ShardOffsetState;
 use crate::segment::file::SegmentFile;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
@@ -55,6 +56,9 @@ pub struct StorageCacheManager {
 
     // (shard_name, segment_seq)
     pub is_next_segment: DashMap<String, u32>,
+
+    // (shard_name, ShardOffsetState)
+    pub shard_offset_state: DashMap<String, ShardOffsetState>,
 }
 
 impl StorageCacheManager {
@@ -66,6 +70,7 @@ impl StorageCacheManager {
         let leader_segments = DashMap::with_capacity(8);
         let segment_file_writer = DashMap::with_capacity(2);
         let is_next_segment = DashMap::with_capacity(2);
+        let shard_offset_state = DashMap::with_capacity(2);
         StorageCacheManager {
             shards,
             segments,
@@ -75,6 +80,7 @@ impl StorageCacheManager {
             broker_cache,
             segment_file_writer,
             is_next_segment,
+            shard_offset_state,
         }
     }
 
@@ -240,6 +246,30 @@ impl StorageCacheManager {
     pub fn sort_offset_index(&self, shard_name: &str) {
         if let Some(mut index) = self.segment_offset_index.get_mut(shard_name) {
             index.sort();
+        }
+    }
+
+    // Shard Offset start
+    pub fn save_offset_state(&self, shard_name: String, offset_state: ShardOffsetState) {
+        self.shard_offset_state.insert(shard_name, offset_state);
+    }
+
+    pub fn get_offset_state(&self, shard_name: &str) -> Option<ShardOffsetState> {
+        if let Some(state) = self.shard_offset_state.get(shard_name) {
+            return Some(state.clone());
+        }
+        None
+    }
+
+    pub fn update_latest_offset(&self, shard_name: &str, offset: u64) {
+        if let Some(mut state) = self.shard_offset_state.get_mut(shard_name) {
+            state.latest_offset = offset;
+        }
+    }
+
+    pub fn update_earliest_offset(&self, shard_name: &str, offset: u64) {
+        if let Some(mut state) = self.shard_offset_state.get_mut(shard_name) {
+            state.earliest_offset = offset;
         }
     }
 }

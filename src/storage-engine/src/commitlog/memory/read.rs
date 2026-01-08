@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::storage::{
-    adapter_read_config::AdapterReadConfig, storage_record::StorageRecord,
+use crate::{
+    commitlog::{
+        memory::engine::MemoryStorageEngine,
+        offset::{get_earliest_offset, get_latest_offset},
+    },
+    core::error::StorageEngineError,
 };
-
-use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
+use metadata_struct::storage::{
+    adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
+    storage_record::StorageRecord,
+};
 
 impl MemoryStorageEngine {
     pub async fn read_by_offset(
@@ -127,12 +133,75 @@ impl MemoryStorageEngine {
 
         Ok(vec![record.clone()])
     }
+
+    pub async fn get_offset_by_timestamp(
+        &self,
+        shard: &str,
+        timestamp: u64,
+        strategy: AdapterOffsetStrategy,
+    ) -> Result<u64, StorageEngineError> {
+        let index_offset = self.search_index_by_timestamp(shard, timestamp);
+
+        if let Some(offset) = self.read_data_by_time(shard, index_offset, timestamp) {
+            return Ok(offset);
+        }
+
+        match strategy {
+            AdapterOffsetStrategy::Earliest => Ok(get_earliest_offset(
+                &self.cache_manager,
+                &self.rocksdb_engine_handler,
+                shard,
+            )?),
+            AdapterOffsetStrategy::Latest => Ok(get_latest_offset(
+                &self.cache_manager,
+                &self.rocksdb_engine_handler,
+                shard,
+            )?),
+        }
+    }
+
+    fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
+        let ts_map = self.timestamp_index.get(shard)?;
+
+        ts_map
+            .iter()
+            .filter(|entry| *entry.key() <= timestamp)
+            .max_by_key(|entry| *entry.key())
+            .map(|entry| *entry.value())
+    }
+
+    fn read_data_by_time(
+        &self,
+        shard: &str,
+        start_offset: Option<u64>,
+        timestamp: u64,
+    ) -> Option<u64> {
+        let data_map = self.shard_data.get(shard)?;
+        let shard_state = self.cache_manager.get_offset_state(shard)?;
+
+        let start = start_offset.unwrap_or(0);
+        let end = shard_state.latest_offset;
+
+        const MAX_SCAN: u64 = 10000;
+        let scan_end = end.min(start + MAX_SCAN);
+
+        for offset in start..scan_end {
+            let Some(record) = data_map.get(&offset) else {
+                continue;
+            };
+
+            if record.metadata.create_t >= timestamp {
+                return Some(offset);
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::shard::ShardState;
     use crate::core::test_tool::test_build_memory_engine;
     use common_base::tools::unique_id;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -141,9 +210,6 @@ mod tests {
     async fn test_batch_write_and_read_by_offset() {
         let engine = test_build_memory_engine();
         let shard_name = unique_id();
-        engine
-            .shard_state
-            .insert(shard_name.clone(), ShardState::default());
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
                 pkid: i,

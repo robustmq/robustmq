@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
+use crate::{
+    commitlog::{
+        memory::engine::MemoryStorageEngine,
+        offset::{get_latest_offset, save_latest_offset},
+    },
+    core::error::StorageEngineError,
+};
 use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    convert::convert_adapter_record_to_engine, storage_record::StorageRecord,
+    convert::convert_adapter_record_to_engine,
 };
 use std::sync::Arc;
 
@@ -132,7 +138,11 @@ impl MemoryStorageEngine {
 
         // save data
         let mut offset_res = Vec::with_capacity(messages.len());
-        let mut offset = self.get_latest_offset(shard_name)?;
+        let mut offset = get_latest_offset(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            shard_name,
+        )?;
         for msg in messages.iter() {
             offset_res.push(AdapterWriteRespRow {
                 pkid: msg.pkid,
@@ -149,64 +159,22 @@ impl MemoryStorageEngine {
             offset += 1;
         }
 
-        self.save_latest_offset(shard_name, offset)?;
+        save_latest_offset(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            shard_name,
+            offset,
+        )?;
         Ok(offset_res)
-    }
-
-    fn try_remove_old_data(
-        &self,
-        shard_name: &str,
-        current_shard_data: &DashMap<u64, StorageRecord>,
-        new_message_count: usize,
-    ) -> Result<(), StorageEngineError> {
-        let next_num = current_shard_data.len() + new_message_count;
-        if next_num > self.config.max_records_per_shard {
-            let offset = self.get_earliest_offset(shard_name)?;
-            let discard_num = (current_shard_data.len() as f64 * 0.2) as u64;
-
-            if let Some(key_map) = self.key_index.get_mut(shard_name) {
-                for i in offset..(offset + discard_num) {
-                    if let Some((_, record)) = current_shard_data.remove(&i) {
-                        if let Some(key) = &record.metadata.key {
-                            key_map.remove(key);
-                        }
-                    }
-                }
-            } else {
-                for i in offset..(offset + discard_num) {
-                    current_shard_data.remove(&i);
-                }
-            }
-
-            let new_earliest = offset + discard_num;
-            self.save_earliest_offset(shard_name, new_earliest)?;
-            self.cleanup_indexes_by_offset(shard_name, new_earliest);
-        }
-        Ok(())
-    }
-
-    fn cleanup_indexes_by_offset(&self, shard_name: &str, earliest_offset: u64) {
-        if let Some(tag_map) = self.tag_index.get_mut(shard_name) {
-            for mut offsets in tag_map.iter_mut() {
-                offsets.value_mut().retain(|&o| o >= earliest_offset);
-            }
-            tag_map.retain(|_, v| !v.is_empty());
-        }
-
-        if let Some(key_map) = self.key_index.get_mut(shard_name) {
-            key_map.retain(|_, &mut o| o >= earliest_offset);
-        }
-
-        if let Some(ts_map) = self.timestamp_index.get_mut(shard_name) {
-            ts_map.retain(|_, &mut o| o >= earliest_offset);
-        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::test_tool::test_build_memory_engine;
+    use crate::{
+        commitlog::offset::get_earliest_offset, core::test_tool::test_build_memory_engine,
+    };
     use bytes::Bytes;
     use common_base::tools::unique_id;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -216,10 +184,6 @@ mod tests {
         let mut engine = test_build_memory_engine();
         engine.config.max_records_per_shard = 10;
         let shard_name = unique_id();
-        engine.shard_state.insert(
-            shard_name.clone(),
-            crate::core::shard::ShardState::default(),
-        );
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
                 pkid: i,
@@ -245,7 +209,12 @@ mod tests {
         assert!(!data.contains_key(&1));
         assert!(data.contains_key(&2));
         assert!(data.contains_key(&10));
-        let earliest = engine.get_earliest_offset(&shard_name).unwrap();
+        let earliest = get_earliest_offset(
+            &engine.cache_manager,
+            &engine.rocksdb_engine_handler,
+            &shard_name,
+        )
+        .unwrap();
         assert_eq!(earliest, 2);
         let key_map = engine.key_index.get(&shard_name).unwrap();
         assert!(!key_map.contains_key("key0"));
@@ -257,10 +226,6 @@ mod tests {
     async fn test_write_and_delete() {
         let engine = test_build_memory_engine();
         let shard_name = unique_id();
-        engine.shard_state.insert(
-            shard_name.clone(),
-            crate::core::shard::ShardState::default(),
-        );
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {

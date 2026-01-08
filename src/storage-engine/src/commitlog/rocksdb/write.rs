@@ -15,7 +15,10 @@
 use std::sync::Arc;
 
 use crate::{
-    commitlog::rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
+    commitlog::{
+        offset::{get_latest_offset, save_latest_offset},
+        rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
+    },
     core::error::StorageEngineError,
 };
 use common_base::{
@@ -82,7 +85,11 @@ impl RocksDBStorageEngine {
         let _guard = lock.lock().await;
 
         let cf = self.get_cf()?;
-        let mut offset = self.get_latest_offset(shard_name)?;
+        let mut offset = get_latest_offset(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            shard_name,
+        )?;
 
         let mut results = Vec::with_capacity(messages.len());
         let mut batch = WriteBatch::default();
@@ -138,7 +145,12 @@ impl RocksDBStorageEngine {
             offset += 1;
         }
         self.rocksdb_engine_handler.write_batch(batch)?;
-        self.save_latest_offset(shard_name, offset)?;
+        save_latest_offset(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            shard_name,
+            offset,
+        )?;
         Ok(results)
     }
 
@@ -198,7 +210,6 @@ impl RocksDBStorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::shard::ShardState;
     use crate::core::test_tool::test_build_rocksdb_engine;
     use bytes::Bytes;
     use common_base::tools::unique_id;
@@ -209,9 +220,6 @@ mod tests {
     async fn test_write_and_delete() {
         let engine = test_build_rocksdb_engine();
         let shard_name = unique_id();
-        engine
-            .shard_state
-            .insert(shard_name.clone(), ShardState::default());
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {

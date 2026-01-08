@@ -14,6 +14,5 @@
 
 pub mod engine;
 pub mod expire;
-pub mod offset;
 pub mod read;
 pub mod write;

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::cache::StorageCacheManager;
-use crate::core::shard::ShardState;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::storage_record::StorageRecord;
@@ -28,10 +27,6 @@ pub struct MemoryStorageEngine {
     pub config: StorageDriverMemoryConfig,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
-
-    // ====Metadata data====
-    //(shard, ShardState)
-    pub shard_state: DashMap<String, ShardState>,
 
     // ====Message Data====
     //(shard, (offset,Record))
@@ -54,7 +49,6 @@ impl MemoryStorageEngine {
             cache_manager,
             rocksdb_engine_handler,
             shard_data: DashMap::with_capacity(8),
-            shard_state: DashMap::with_capacity(8),
             tag_index: DashMap::with_capacity(8),
             key_index: DashMap::with_capacity(8),
             timestamp_index: DashMap::with_capacity(8),

@@ -19,12 +19,7 @@ use crate::{
     },
     commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine,
-    core::{
-        cache::StorageCacheManager,
-        error::StorageEngineError,
-        segment::segment_validator,
-        shard_offset::{get_earliest_offset, get_latest_offset},
-    },
+    core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     segment::{
         file::open_segment_write, index::read::get_in_segment_by_offset,
         read::segment_read_by_offset, SegmentIdentity,

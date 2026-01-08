@@ -14,7 +14,6 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::core::shard::ShardState;
 use dashmap::DashMap;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
@@ -33,7 +32,6 @@ pub struct RocksDBStorageEngine {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
-    pub shard_state: DashMap<String, ShardState>,
 }
 
 impl RocksDBStorageEngine {
@@ -42,7 +40,6 @@ impl RocksDBStorageEngine {
             rocksdb_engine_handler: db,
             cache_manager,
             shard_write_locks: DashMap::with_capacity(8),
-            shard_state: DashMap::with_capacity(8),
         }
     }
 

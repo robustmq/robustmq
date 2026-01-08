@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod engine;
+pub mod exipre;
 pub mod index;
-pub mod offset;
 pub mod read;
 pub mod write;
