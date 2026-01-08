@@ -17,9 +17,9 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_write_req, write_resp_parse},
     },
+    commitlog::memory::engine::MemoryStorageEngine,
+    commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
-    memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine,
     segment::{
         write::{WriteChannelDataRecord, WriteManager},
         SegmentIdentity,

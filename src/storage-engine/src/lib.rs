@@ -15,9 +15,9 @@
 #![allow(clippy::result_large_err)]
 
 use crate::clients::manager::ClientConnectionManager;
+use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::handler::adapter::StorageEngineHandler;
-use crate::memory::engine::MemoryStorageEngine;
-use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::expire::start_segment_expire_thread;
 use crate::server::Server;
 use crate::{clients::gc::start_conn_gc_thread, segment::write::WriteManager};
@@ -30,12 +30,11 @@ use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
 
 pub mod clients;
+pub mod commitlog;
 pub mod core;
 pub mod group;
 pub mod handler;
 pub mod isr;
-pub mod memory;
-pub mod rocksdb;
 pub mod segment;
 pub mod server;
 

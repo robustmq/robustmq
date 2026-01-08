@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use crate::clients::manager::ClientConnectionManager;
+use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::write::batch_write;
-use crate::memory::engine::MemoryStorageEngine;
-use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::write::WriteManager;
 use common_base::utils::serialize::{deserialize, serialize};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -198,11 +198,11 @@ pub async fn read_data_req(
 
 #[cfg(test)]
 mod tests {
+    use crate::commitlog::memory::engine::MemoryStorageEngine;
+    use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use crate::core::shard_offset::save_latest_offset_by_shard;
     use crate::core::test_tool::test_init_segment;
     use crate::handler::data::read_data_req;
-    use crate::memory::engine::MemoryStorageEngine;
-    use crate::rocksdb::engine::RocksDBStorageEngine;
     use crate::segment::write::WriteManager;
     use crate::{clients::manager::ClientConnectionManager, handler::data::write_data_req};
     use bytes::Bytes;

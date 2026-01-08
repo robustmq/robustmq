@@ -22,13 +22,13 @@ use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by
 use crate::segment::SegmentIdentity;
 use crate::{
     clients::manager::ClientConnectionManager,
+    commitlog::memory::engine::MemoryStorageEngine,
+    commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{
         cache::StorageCacheManager,
         shard::{create_shard_to_place, delete_shard_to_place},
         write::batch_write,
     },
-    memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine,
     segment::write::WriteManager,
 };
 use common_base::error::common::CommonError;

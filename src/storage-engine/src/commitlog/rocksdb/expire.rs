@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{core::error::StorageEngineError, rocksdb::engine::RocksDBStorageEngine};
+use crate::{commitlog::rocksdb::engine::RocksDBStorageEngine, core::error::StorageEngineError};
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::{loop_select_ticket, now_second},
@@ -147,7 +147,9 @@ impl RocksDBStorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::{core::cache::StorageCacheManager, rocksdb::engine::RocksDBStorageEngine};
+    use crate::{
+        commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
+    };
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
     use common_base::tools::{now_second, unique_id};

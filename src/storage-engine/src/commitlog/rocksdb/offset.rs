@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    commitlog::rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
     core::{
         error::StorageEngineError,
         shard::ShardState,
@@ -21,7 +22,6 @@ use crate::{
             save_latest_offset_by_shard,
         },
     },
-    rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
 };
 use common_base::utils::serialize::deserialize;
 use metadata_struct::storage::{

@@ -27,9 +27,9 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
+use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::segment::create_local_segment;
-use crate::memory::engine::MemoryStorageEngine;
-use crate::rocksdb::engine::RocksDBStorageEngine;
 use crate::segment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
@@ -132,7 +132,7 @@ pub fn test_build_rocksdb_engine() -> RocksDBStorageEngine {
     RocksDBStorageEngine::new(cache_manager, db)
 }
 
-pub fn test_build_memory_engine() -> crate::memory::engine::MemoryStorageEngine {
+pub fn test_build_memory_engine() -> MemoryStorageEngine {
     let db = test_rocksdb_instance();
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),

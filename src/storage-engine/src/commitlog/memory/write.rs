@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{core::error::StorageEngineError, memory::engine::MemoryStorageEngine};
+use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
 use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,

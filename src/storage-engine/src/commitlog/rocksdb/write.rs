@@ -15,8 +15,8 @@
 use std::sync::Arc;
 
 use crate::{
+    commitlog::rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
     core::error::StorageEngineError,
-    rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
 };
 use common_base::{
     tools::now_second,

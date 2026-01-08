@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{
+    commitlog::memory::engine::MemoryStorageEngine,
     core::{
         error::StorageEngineError,
         shard::ShardState,
@@ -21,7 +22,6 @@ use crate::{
             save_latest_offset_by_shard,
         },
     },
-    memory::engine::MemoryStorageEngine,
 };
 use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
 
