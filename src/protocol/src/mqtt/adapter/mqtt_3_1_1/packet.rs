@@ -12,8 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod adapter;
-pub mod codec;
-pub mod common;
-pub mod mqttv4;
-pub mod mqttv5;
+#[allow(dead_code)]
+pub enum Packet {}

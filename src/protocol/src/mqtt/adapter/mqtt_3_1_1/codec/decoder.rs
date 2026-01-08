@@ -12,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod adapter;
-pub mod codec;
-pub mod common;
-pub mod mqttv4;
-pub mod mqttv5;
+use crate::mqtt::adapter::mqtt_3_1_1::codec::Mqtt3_1_1Codec;
+use crate::mqtt::adapter::mqtt_3_1_1::packet::Packet;
+use bytes::BytesMut;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
+use tokio_util::codec;
+#[allow(dead_code)]
+impl codec::Encoder<Packet> for Mqtt3_1_1Codec {
+    type Error = MQTTProtocolError;
+
+    fn encode(&mut self, _item: Packet, _dst: &mut BytesMut) -> Result<(), Self::Error> {
+        todo!()
+    }
+}

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod adapter;
-pub mod codec;
-pub mod common;
-pub mod mqttv4;
-pub mod mqttv5;
+mod codec;
+mod fixed_header;
+mod packet;
+mod payload;
+mod variable_header;
