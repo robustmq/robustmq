@@ -18,10 +18,11 @@ use bytes::BytesMut;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use tokio_util::codec;
 #[allow(dead_code)]
-impl codec::Encoder<Packet> for Mqtt3_1_1Codec {
+impl codec::Decoder for Mqtt3_1_1Codec {
+    type Item = Packet;
     type Error = MQTTProtocolError;
 
-    fn encode(&mut self, _item: Packet, _dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn decode(&mut self, _src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         todo!()
     }
 }
