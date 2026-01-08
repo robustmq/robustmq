@@ -15,7 +15,6 @@
 use super::error::MqttBrokerError;
 use crate::handler::cache::MQTTCacheManager;
 use crate::handler::tool::ResultMqttBrokerError;
-use crate::storage::topic::TopicStorage;
 use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
 use common_base::tools::{now_second, unique_id};
@@ -30,7 +29,7 @@ use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
-use tokio::time::{sleep, timeout};
+use tokio::time::sleep;
 
 pub fn payload_format_validator(
     payload: &Bytes,
