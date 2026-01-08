@@ -21,7 +21,7 @@ use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::write::batch_write;
-use crate::segment::write::WriteManager;
+use crate::filesegment::write::WriteManager;
 use common_base::utils::serialize::{deserialize, serialize};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -200,10 +200,9 @@ pub async fn read_data_req(
 mod tests {
     use crate::commitlog::memory::engine::MemoryStorageEngine;
     use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
-    use crate::core::shard_offset::save_latest_offset_by_shard;
     use crate::core::test_tool::test_init_segment;
+    use crate::filesegment::write::WriteManager;
     use crate::handler::data::read_data_req;
-    use crate::segment::write::WriteManager;
     use crate::{clients::manager::ClientConnectionManager, handler::data::write_data_req};
     use bytes::Bytes;
     use common_base::tools::now_second;
@@ -239,7 +238,6 @@ mod tests {
     async fn read_data_req_test(engine_storage_type: StorageType) {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_init_segment(engine_storage_type).await;
-        save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
 
         let shard_info = cache_manager.shards.get(&segment_iden.shard_name).unwrap();
         assert_eq!(shard_info.config.storage_type, engine_storage_type);

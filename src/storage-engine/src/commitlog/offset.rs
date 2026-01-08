@@ -99,7 +99,7 @@ impl CommitLogOffset {
     }
 
     //======== high watermark offset ========
-    fn save_high_watermark_offset_by_shard(
+    fn _save_high_watermark_offset_by_shard(
         &self,
         shard: &str,
         offset: u64,
@@ -113,7 +113,7 @@ impl CommitLogOffset {
         )?)
     }
 
-    fn read_high_watermark_offset_by_shard(
+    fn _read_high_watermark_offset_by_shard(
         &self,
         shard: &str,
     ) -> Result<Option<u64>, StorageEngineError> {

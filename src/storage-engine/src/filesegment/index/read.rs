@@ -14,8 +14,8 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::segment::index::build::IndexData;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::index::build::IndexData;
+use crate::filesegment::SegmentIdentity;
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb_engine::keys::engine::{
     index_key_key, index_position_key_prefix, index_tag_key_prefix, index_timestamp_key_prefix,

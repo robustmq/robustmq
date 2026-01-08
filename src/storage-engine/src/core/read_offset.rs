@@ -17,11 +17,10 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
-    commitlog::memory::engine::MemoryStorageEngine,
-    commitlog::rocksdb::engine::RocksDBStorageEngine,
+    commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     filesegment::{
-        file::open_segment_write, index::read::get_in_segment_by_offset,
+        file::open_segment_write, index::read::get_in_segment_by_offset, offset::FileSegmentOffset,
         read::segment_read_by_offset, SegmentIdentity,
     },
 };
@@ -207,10 +206,10 @@ fn get_segment_no_by_offset(
             if let Some(segment_no) = get_in_segment_by_offset(cache_manager, shard_name, offset)? {
                 Ok(segment_no)
             } else {
-                let earliest_offset =
-                    get_earliest_offset(rocksdb_engine_handler, cache_manager, shard_name)?;
-                let latest_offset =
-                    get_latest_offset(rocksdb_engine_handler, cache_manager, shard_name)?;
+                let file_segment_offset =
+                    FileSegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+                let earliest_offset = file_segment_offset.get_earliest_offset(shard_name)?;
+                let latest_offset = file_segment_offset.get_latest_offset(shard_name)?;
                 if offset <= earliest_offset {
                     Ok(shard.start_segment_seq)
                 } else if offset >= latest_offset {

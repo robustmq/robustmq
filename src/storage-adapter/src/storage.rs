@@ -37,9 +37,9 @@ use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
 use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
+use storage_engine::filesegment::write::WriteManager;
 use storage_engine::group::OffsetManager;
 use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams};
-use storage_engine::segment::write::WriteManager;
 
 #[async_trait]
 pub trait StorageAdapter {

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::StorageEngineError;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::SegmentIdentity;
 use common_base::utils::serialize::serialize;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::engine::{
@@ -181,7 +181,7 @@ pub fn delete_segment_index(
 mod tests {
     use super::*;
     use crate::core::test_tool::test_build_segment;
-    use crate::segment::index::read::{
+    use crate::filesegment::index::read::{
         get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag,
         get_index_data_by_timestamp,
     };

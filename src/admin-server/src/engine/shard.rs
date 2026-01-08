@@ -28,7 +28,7 @@ use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use storage_engine::segment::SegmentIdentity;
+use storage_engine::filesegment::SegmentIdentity;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ShardListReq {

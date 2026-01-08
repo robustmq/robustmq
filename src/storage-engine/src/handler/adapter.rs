@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commitlog::offset::get_earliest_offset;
 use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::group::OffsetManager;
-use crate::segment::index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp};
-use crate::segment::SegmentIdentity;
 use crate::{
     clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
@@ -29,7 +26,7 @@ use crate::{
         shard::{create_shard_to_place, delete_shard_to_place},
         write::batch_write,
     },
-    segment::write::WriteManager,
+    filesegment::write::WriteManager,
 };
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
@@ -334,7 +331,8 @@ impl StorageEngineHandler {
             }
 
             StorageType::EngineSegment => {
-                self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
+                // self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
+                0
             }
 
             _ => {

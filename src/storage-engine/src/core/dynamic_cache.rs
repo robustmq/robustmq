@@ -15,7 +15,7 @@
 use super::cache::StorageCacheManager;
 use crate::{
     core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    filesegment::{SegmentIdentity, file::open_segment_write, segment_offset::SegmentOffset},
+    filesegment::{file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity},
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;

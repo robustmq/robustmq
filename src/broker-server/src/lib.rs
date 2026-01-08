@@ -66,7 +66,7 @@ use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{
     clients::manager::ClientConnectionManager, commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
-    group::OffsetManager, handler::adapter::StorageEngineHandler, segment::write::WriteManager,
+    filesegment::write::WriteManager, group::OffsetManager, handler::adapter::StorageEngineHandler,
     StorageEngineParams, StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};

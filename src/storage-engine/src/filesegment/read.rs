@@ -16,7 +16,7 @@ use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
-    segment::{
+    filesegment::{
         file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
     },
@@ -111,11 +111,8 @@ mod tests {
 
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{
-        core::{
-            cache::StorageCacheManager,
-            test_tool::test_init_segment,
-        },
-        segment::{
+        core::{cache::StorageCacheManager, test_tool::test_init_segment},
+        filesegment::{
             file::SegmentFile,
             write::{WriteChannelDataRecord, WriteManager},
             SegmentIdentity,
@@ -140,7 +137,6 @@ mod tests {
     ) {
         let (segment_iden, cache_manager, fold, rocksdb_engine_handler) =
             test_init_segment(engine_storage_type).await;
-        save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
 
         let client_poll = Arc::new(ClientPool::new(100));
 

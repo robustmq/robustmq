@@ -17,10 +17,10 @@
 use crate::clients::manager::ClientConnectionManager;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
+use crate::filesegment::expire::start_segment_expire_thread;
 use crate::handler::adapter::StorageEngineHandler;
-use crate::segment::expire::start_segment_expire_thread;
 use crate::server::Server;
-use crate::{clients::gc::start_conn_gc_thread, segment::write::WriteManager};
+use crate::{clients::gc::start_conn_gc_thread, filesegment::write::WriteManager};
 use core::cache::{load_metadata_cache, StorageCacheManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
