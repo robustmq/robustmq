@@ -14,7 +14,6 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::core::shard_offset::{get_latest_offset, save_latest_offset_by_shard};
 use crate::segment::file::open_segment_write;
 use crate::segment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::segment::scroll::{
@@ -527,7 +526,6 @@ async fn batch_write(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::shard_offset::save_latest_offset_by_shard;
     use crate::core::test_tool::test_init_segment;
     use crate::segment::file::SegmentFile;
     use bytes::Bytes;

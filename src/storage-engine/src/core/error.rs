@@ -19,7 +19,7 @@ use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-use crate::segment::write::WriteChannelData;
+use crate::filesegment::write::WriteChannelData;
 
 #[derive(Error, Debug)]
 pub enum StorageEngineError {

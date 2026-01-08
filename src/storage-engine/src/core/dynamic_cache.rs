@@ -15,7 +15,7 @@
 use super::cache::StorageCacheManager;
 use crate::{
     core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    segment::{file::open_segment_write, index::segment::SegmentIndexManager, SegmentIdentity},
+    filesegment::{SegmentIdentity, file::open_segment_write, segment_offset::SegmentOffset},
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
@@ -134,7 +134,7 @@ async fn parse_segment_meta(
             let meta = EngineSegmentMetadata::decode(data)?;
             let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
 
-            let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
+            let segment_index_manager = SegmentOffset::new(rocksdb_engine_handler.clone());
             segment_index_manager.batch_save_segment_metadata(
                 &segment_iden,
                 meta.start_offset,

@@ -20,7 +20,7 @@ use crate::{
     commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
-    segment::{
+    filesegment::{
         file::open_segment_write, index::read::get_in_segment_by_offset,
         read::segment_read_by_offset, SegmentIdentity,
     },

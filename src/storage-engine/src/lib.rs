@@ -32,10 +32,10 @@ use tracing::{error, info};
 pub mod clients;
 pub mod commitlog;
 pub mod core;
+pub mod filesegment;
 pub mod group;
 pub mod handler;
 pub mod isr;
-pub mod segment;
 pub mod server;
 
 #[derive(Clone)]

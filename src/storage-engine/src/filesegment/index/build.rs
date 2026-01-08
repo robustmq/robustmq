@@ -36,38 +36,6 @@ pub struct IndexData {
     pub position: u64,
 }
 
-pub fn delete_segment_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), StorageEngineError> {
-    let prefix_key_name = segment_base(&segment_iden.shard_name, segment_iden.segment);
-    let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_STORAGE_ENGINE,
-        &prefix_key_name,
-    )?;
-
-    if data.is_empty() {
-        return Ok(());
-    }
-
-    let cf = rocksdb_engine_handler
-        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
-        .ok_or_else(|| {
-            StorageEngineError::CommonErrorStr(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_STORAGE_ENGINE
-            ))
-        })?;
-
-    let mut batch = WriteBatch::default();
-    for raw in data.iter() {
-        batch.delete_cf(&cf, raw.key().as_bytes());
-    }
-    rocksdb_engine_handler.write_batch(batch)?;
-    Ok(())
-}
-
 #[derive(Default, Clone)]
 pub enum IndexTypeEnum {
     #[default]
@@ -173,6 +141,38 @@ pub fn save_index(
         return Ok(());
     }
 
+    rocksdb_engine_handler.write_batch(batch)?;
+    Ok(())
+}
+
+pub fn delete_segment_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), StorageEngineError> {
+    let prefix_key_name = segment_base(&segment_iden.shard_name, segment_iden.segment);
+    let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
+        &prefix_key_name,
+    )?;
+
+    if data.is_empty() {
+        return Ok(());
+    }
+
+    let cf = rocksdb_engine_handler
+        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+        .ok_or_else(|| {
+            StorageEngineError::CommonErrorStr(format!(
+                "Column family '{}' not found",
+                DB_COLUMN_FAMILY_STORAGE_ENGINE
+            ))
+        })?;
+
+    let mut batch = WriteBatch::default();
+    for raw in data.iter() {
+        batch.delete_cf(&cf, raw.key().as_bytes());
+    }
     rocksdb_engine_handler.write_batch(batch)?;
     Ok(())
 }

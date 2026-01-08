@@ -12,13 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    commitlog::{
-        memory::engine::MemoryStorageEngine,
-        offset::{get_latest_offset, save_latest_offset},
-    },
-    core::error::StorageEngineError,
-};
+use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
 use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
@@ -138,11 +132,7 @@ impl MemoryStorageEngine {
 
         // save data
         let mut offset_res = Vec::with_capacity(messages.len());
-        let mut offset = get_latest_offset(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            shard_name,
-        )?;
+        let mut offset = self.commitlog_offset.get_latest_offset(shard_name)?;
         for msg in messages.iter() {
             offset_res.push(AdapterWriteRespRow {
                 pkid: msg.pkid,
@@ -159,12 +149,8 @@ impl MemoryStorageEngine {
             offset += 1;
         }
 
-        save_latest_offset(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            shard_name,
-            offset,
-        )?;
+        self.commitlog_offset
+            .save_latest_offset(shard_name, offset)?;
         Ok(offset_res)
     }
 }
@@ -172,9 +158,7 @@ impl MemoryStorageEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        commitlog::offset::get_earliest_offset, core::test_tool::test_build_memory_engine,
-    };
+    use crate::core::test_tool::test_build_memory_engine;
     use bytes::Bytes;
     use common_base::tools::unique_id;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -209,12 +193,10 @@ mod tests {
         assert!(!data.contains_key(&1));
         assert!(data.contains_key(&2));
         assert!(data.contains_key(&10));
-        let earliest = get_earliest_offset(
-            &engine.cache_manager,
-            &engine.rocksdb_engine_handler,
-            &shard_name,
-        )
-        .unwrap();
+        let earliest = engine
+            .commitlog_offset
+            .get_earliest_offset(&shard_name)
+            .unwrap();
         assert_eq!(earliest, 2);
         let key_map = engine.key_index.get(&shard_name).unwrap();
         assert!(!key_map.contains_key("key0"));

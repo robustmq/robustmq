@@ -25,7 +25,7 @@ use crate::{
         error::StorageEngineError,
         segment::segment_validator,
     },
-    segment::read::segment_read_by_tag,
+    filesegment::read::segment_read_by_tag,
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{

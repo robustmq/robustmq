@@ -30,7 +30,7 @@ use super::cache::StorageCacheManager;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::segment::create_local_segment;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};

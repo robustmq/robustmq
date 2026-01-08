@@ -15,8 +15,8 @@
 use crate::core::error::StorageEngineError;
 use crate::core::offset_index::SegmentOffsetIndex;
 use crate::core::shard::ShardOffsetState;
-use crate::segment::file::SegmentFile;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::file::SegmentFile;
+use crate::filesegment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
 use dashmap::DashMap;

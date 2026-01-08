@@ -15,10 +15,7 @@
 use std::sync::Arc;
 
 use crate::{
-    commitlog::{
-        offset::{get_latest_offset, save_latest_offset},
-        rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
-    },
+    commitlog::rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
     core::error::StorageEngineError,
 };
 use common_base::{
@@ -85,11 +82,7 @@ impl RocksDBStorageEngine {
         let _guard = lock.lock().await;
 
         let cf = self.get_cf()?;
-        let mut offset = get_latest_offset(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            shard_name,
-        )?;
+        let mut offset = self.commitlog_offset.get_latest_offset(shard_name)?;
 
         let mut results = Vec::with_capacity(messages.len());
         let mut batch = WriteBatch::default();
@@ -145,12 +138,8 @@ impl RocksDBStorageEngine {
             offset += 1;
         }
         self.rocksdb_engine_handler.write_batch(batch)?;
-        save_latest_offset(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            shard_name,
-            offset,
-        )?;
+        self.commitlog_offset
+            .save_latest_offset(shard_name, offset)?;
         Ok(results)
     }
 

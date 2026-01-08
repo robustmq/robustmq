@@ -12,13 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    commitlog::{
-        memory::engine::MemoryStorageEngine,
-        offset::{get_earliest_offset, get_latest_offset},
-    },
-    core::error::StorageEngineError,
-};
+use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
 use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
     storage_record::StorageRecord,
@@ -147,16 +141,10 @@ impl MemoryStorageEngine {
         }
 
         match strategy {
-            AdapterOffsetStrategy::Earliest => Ok(get_earliest_offset(
-                &self.cache_manager,
-                &self.rocksdb_engine_handler,
-                shard,
-            )?),
-            AdapterOffsetStrategy::Latest => Ok(get_latest_offset(
-                &self.cache_manager,
-                &self.rocksdb_engine_handler,
-                shard,
-            )?),
+            AdapterOffsetStrategy::Earliest => {
+                Ok(self.commitlog_offset.get_earliest_offset(shard)?)
+            }
+            AdapterOffsetStrategy::Latest => Ok(self.commitlog_offset.get_latest_offset(shard)?),
         }
     }
 

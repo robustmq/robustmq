@@ -112,7 +112,7 @@ mod tests {
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{
         core::{
-            cache::StorageCacheManager, shard_offset::save_latest_offset_by_shard,
+            cache::StorageCacheManager,
             test_tool::test_init_segment,
         },
         segment::{

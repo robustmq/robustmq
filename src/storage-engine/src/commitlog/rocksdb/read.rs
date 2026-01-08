@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    commitlog::{
-        offset::{get_earliest_offset, get_latest_offset},
-        rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
-    },
+    commitlog::rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
     core::error::StorageEngineError,
 };
 use common_base::utils::serialize::deserialize;
@@ -189,16 +186,10 @@ impl RocksDBStorageEngine {
             }
         }
         match strategy {
-            AdapterOffsetStrategy::Earliest => Ok(get_earliest_offset(
-                &self.cache_manager,
-                &self.rocksdb_engine_handler,
-                shard,
-            )?),
-            AdapterOffsetStrategy::Latest => Ok(get_latest_offset(
-                &self.cache_manager,
-                &self.rocksdb_engine_handler,
-                shard,
-            )?),
+            AdapterOffsetStrategy::Earliest => {
+                Ok(self.commitlog_offset.get_earliest_offset(shard)?)
+            }
+            AdapterOffsetStrategy::Latest => Ok(self.commitlog_offset.get_latest_offset(shard)?),
         }
     }
 
