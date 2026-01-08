@@ -29,7 +29,7 @@ use regex::Regex;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::driver::StorageDriverManager;
+use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
 use tokio::time::{sleep, timeout};
 
 pub fn payload_format_validator(
@@ -147,7 +147,6 @@ pub async fn try_init_topic(
     let topic = if let Some(tp) = metadata_cache.broker_cache.get_topic_by_name(topic_name) {
         tp
     } else {
-        // Create metadata
         let uid = unique_id();
         let topic = Topic {
             topic_id: uid.clone(),
@@ -158,42 +157,21 @@ pub async fn try_init_topic(
             storage_name_list: Topic::create_partition_name(&uid, 1),
             create_time: now_second(),
         };
-        let topic_storage = TopicStorage::new(client_pool.clone());
-        topic_storage.create_topic(topic.clone()).await?;
 
-        // wait topic create complete with timeout (30 seconds)
-        let wait_result = timeout(Duration::from_secs(30), async {
-            loop {
-                if metadata_cache
-                    .broker_cache
-                    .get_topic_by_name(topic_name)
-                    .is_some()
-                {
-                    break;
-                }
-                sleep(Duration::from_millis(10)).await;
-            }
-        })
-        .await;
-
-        if wait_result.is_err() {
-            return Err(MqttBrokerError::CommonError(format!(
-                "Timeout waiting for topic '{}' to be created after 30 seconds",
-                topic_name
-            )));
-        }
-
-        // Create the underlying actual resources
-        let config = EngineShardConfig {
+        let shard_config = EngineShardConfig {
             replica_num: 1,
             storage_type: StorageType::EngineRocksDB,
+
             ..Default::default()
         };
-        storage_driver_manager
-            .create_storage_resource(&topic.topic_name, &config)
-            .await?;
-
-        metadata_cache.set_re_calc_topic_rewrite(true).await;
+        create_topic_full(
+            &metadata_cache.broker_cache,
+            storage_driver_manager,
+            client_pool,
+            &topic,
+            &shard_config,
+        )
+        .await?;
         topic
     };
     Ok(topic)
