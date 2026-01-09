@@ -58,17 +58,6 @@ As a **community-driven project** (not a commercial venture), we embrace being s
 
 *Target: Become the next-generation cloud-native and AI-native messaging infrastructure, aspiring to Apache top-level project status.*
 
-## ✨ Features
-
-- **🚀 High Performance**: Rust-powered zero-cost abstractions with microsecond latency and zero GC pauses
-- **🏗️ Compute-Storage Separation**: Stateless broker nodes enable second-level elastic scaling and Serverless deployment
-- **🔌 Multi-Protocol Unified**: Native support for MQTT 3.1/3.1.1/5.0, Kafka, and AMQP with protocol isolation
-- **💾 Intelligent Storage Tiering**: Memory/SSD/Object storage with Topic-level engine selection for cost optimization
-- **☁️ Cloud-Native Ready**: Kubernetes-native with auto-scaling, service discovery, and container-friendly deployment
-- **🛠️ Zero-Operations**: Single binary deployment with built-in Raft consensus and comprehensive management tools
-- **🔐 Enterprise Security**: Multi-auth support, fine-grained permissions, and end-to-end encryption
-- **📊 Full Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
-
 ## 🗺️ RobustMQ Development Roadmap
 
 **Long-term Vision**: Minimalist architecture with multi-protocol support, pluggable storage, and minimal deployment footprint.
@@ -80,6 +69,20 @@ As a **community-driven project** (not a commercial venture), we embrace being s
 **Phase 2: MQTT Broker** - Deliver a stable, high-performance MQTT Broker with complete protocol support (MQTT 3.x/5.0/SN) and optimized for edge deployment with package size under 20MB.
 
 **Phase 3: Kafka Protocol** - Start Kafka protocol adaptation work after achieving Phase 1 and 2 goals.
+
+
+
+## ✨ Features
+
+- **🚀 High Performance**: Rust-powered zero-cost abstractions with microsecond latency and zero GC pauses
+- **🏗️ Compute-Storage Separation**: Stateless broker nodes enable second-level elastic scaling and Serverless deployment
+- **🔌 Multi-Protocol Unified**: Native support for MQTT 3.1/3.1.1/5.0, Kafka, and AMQP with protocol isolation
+- **💾 Intelligent Storage Tiering**: Memory/SSD/Object storage with Topic-level engine selection for cost optimization
+- **☁️ Cloud-Native Ready**: Kubernetes-native with auto-scaling, service discovery, and container-friendly deployment
+- **🛠️ Zero-Operations**: Single binary deployment with built-in Raft consensus and comprehensive management tools
+- **🔐 Enterprise Security**: Multi-auth support, fine-grained permissions, and end-to-end encryption
+- **📊 Full Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
+
 
 ## 🏗️ Architecture
 
