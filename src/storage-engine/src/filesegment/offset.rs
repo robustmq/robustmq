@@ -16,9 +16,11 @@ use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
     filesegment::{
         index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp},
+        segment_offset::SegmentOffset,
         SegmentIdentity,
     },
 };
+use common_base::tools::now_second;
 use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -27,6 +29,7 @@ use std::sync::Arc;
 pub struct FileSegmentOffset {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
+    pub segment_offset: SegmentOffset,
 }
 
 impl FileSegmentOffset {
@@ -35,30 +38,55 @@ impl FileSegmentOffset {
         cache_manager: Arc<StorageCacheManager>,
     ) -> Self {
         FileSegmentOffset {
-            rocksdb_engine_handler,
+            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
             cache_manager,
+            segment_offset: SegmentOffset::new(rocksdb_engine_handler.clone()),
         }
+    }
+
+    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        let segment = if let Some(shard) = self.cache_manager.get_active_segment(shard_name) {
+            shard.clone()
+        } else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
+        };
+
+        // The end offset of the active segment is restored from persistence.
+        let segment_iden = SegmentIdentity::new(shard_name, segment.segment_seq);
+        let offset = self.segment_offset.get_end_offset(&segment_iden)?;
+        Ok(offset as u64)
     }
 
     pub fn save_latest_offset(
         &self,
-        shard_name: &str,
+        segment_iden: &SegmentIdentity,
         offset: u64,
-    ) -> Result<u64, StorageEngineError> {
-        Ok(0)
-    }
-
-    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        
-        Ok(0)
-    }
-
-    pub fn save_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        Ok(0)
+    ) -> Result<(), StorageEngineError> {
+        self.cache_manager.update_end_meta(segment_iden, offset);
+        self.segment_offset
+            .save_end_offset(segment_iden, offset as i64)?;
+        self.segment_offset
+            .save_end_timestamp(segment_iden, now_second() as i64)?;
+        Ok(())
     }
 
     pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        Ok(0)
+        let shard = if let Some(shard) = self.cache_manager.shards.get(shard_name) {
+            shard.clone()
+        } else {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
+        };
+
+        let segment_iden = SegmentIdentity::new(shard_name, shard.start_segment_seq);
+        let meta = if let Some(meta) = self.cache_manager.get_segment_meta(&segment_iden) {
+            meta.clone()
+        } else {
+            return Err(StorageEngineError::SegmentMetaNotExists(
+                segment_iden.name(),
+            ));
+        };
+
+        Ok(meta.start_offset as u64)
     }
 
     pub fn get_offset_by_timestamp(

@@ -18,6 +18,7 @@ use crate::core::shard::ShardOffsetState;
 use crate::filesegment::file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::storage::call::{list_segment, list_segment_meta, list_shard};
@@ -193,6 +194,24 @@ impl StorageCacheManager {
             segment.start_timestamp,
             segment.end_timestamp,
         );
+    }
+
+    pub fn update_start_meta(&self, segment_iden: &SegmentIdentity, offset: u64) {
+        if let Some(list) = self.segment_metadatas.get(&segment_iden.shard_name) {
+            if let Some(mut meta) = list.get_mut(&segment_iden.segment) {
+                meta.start_offset = offset as i64;
+                meta.start_timestamp = now_second() as i64;
+            }
+        }
+    }
+
+    pub fn update_end_meta(&self, segment_iden: &SegmentIdentity, offset: u64) {
+        if let Some(list) = self.segment_metadatas.get(&segment_iden.shard_name) {
+            if let Some(mut meta) = list.get_mut(&segment_iden.segment) {
+                meta.end_offset = offset as i64;
+                meta.end_timestamp = now_second() as i64;
+            }
+        }
     }
 
     pub fn get_segment_meta(

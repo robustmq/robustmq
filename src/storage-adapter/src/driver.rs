@@ -110,7 +110,6 @@ impl StorageDriverManager {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % topic.partition as u64;
         let partition_name = Topic::build_storage_name(&topic.topic_id, partition as u32);
-
         driver.batch_write(&partition_name, data).await
     }
 

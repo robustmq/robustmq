@@ -43,6 +43,7 @@ impl MessageStorage {
             .await?;
         let mut offsets = Vec::new();
         for row in results {
+            println!("{:?}", row);
             if row.is_error() {
                 return Err(CommonError::CommonError(row.error_info()));
             }

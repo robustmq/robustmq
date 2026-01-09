@@ -162,13 +162,19 @@ impl CommitLogOffset {
             if let Some(offset) = self.read_earliest_offset_by_shard(shard_name)? {
                 offset
             } else {
-                return Err(StorageEngineError::CommonErrorStr("".to_string()));
+                return Err(StorageEngineError::CommonErrorStr(format!(
+                    "Failed to recover shard '{}': earliest offset not found in storage",
+                    shard_name
+                )));
             };
 
         let latest_offset = if let Some(offset) = self.read_latest_offset_by_shard(shard_name)? {
             offset
         } else {
-            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Failed to recover shard '{}': latest offset not found in storage",
+                shard_name
+            )));
         };
 
         self.cache_manager.save_offset_state(

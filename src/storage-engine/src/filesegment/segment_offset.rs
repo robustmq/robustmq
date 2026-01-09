@@ -24,6 +24,7 @@ use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engin
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct SegmentOffset {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }

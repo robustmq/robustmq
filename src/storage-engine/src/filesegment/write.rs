@@ -171,10 +171,15 @@ impl IoWork {
         Ok(offset)
     }
 
-    pub fn save_offset(&self, shard_name: &str, offset: u64) -> Result<(), StorageEngineError> {
+    pub fn save_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
         self.file_segment_offset
-            .save_latest_offset(shard_name, offset)?;
-        self.offset_data.insert(shard_name.to_string(), offset);
+            .save_latest_offset(segment_iden, offset)?;
+        self.offset_data
+            .insert(segment_iden.shard_name.to_string(), offset);
         Ok(())
     }
 }
@@ -383,7 +388,7 @@ fn success_save_offset(
     segment_iden: &SegmentIdentity,
 ) -> bool {
     if let Some(max_offset) = pkid_offset_list.values().max() {
-        if let Err(ex) = io_work.save_offset(&segment_iden.shard_name, *max_offset + 1) {
+        if let Err(ex) = io_work.save_offset(segment_iden, *max_offset + 1) {
             call_error_response(shard_sender_list, segment_iden, &ex.to_string());
             return false;
         }
