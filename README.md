@@ -36,7 +36,7 @@
 ---
 
 > **⚠️ Development Status**
-> RobustMQ is currently in early preview phase with active development and testing. A stable release is anticipated in Q3-Q4 2025. Our roadmap includes achieving production readiness and pursuing Apache top-level project status.
+> RobustMQ is currently in the early development stage and cannot be used in a production environment. The primary goal of the first phase is to have a stable and streamlined architecture code framework and an MQTT Broker. It is expected that by version 0.3 or 0.4 (estimated in 2026), there will be a stable and high-performance MQTT Broker. In the early stages, we will invest a significant amount of effort in the design of the basic framework, hoping that the architecture and code are solid enough and that there will be no frequent refactoring in the long term.
 
 ## 🚀 Introduction
 
