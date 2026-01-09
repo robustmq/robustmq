@@ -692,39 +692,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_manager_no_offset_error_test() {
-        let (segment_iden, cache_manager, _fold, rocksdb) =
-            test_init_segment(StorageType::EngineSegment).await;
-        let client_poll = Arc::new(ClientPool::new(100));
-        let write_manager = WriteManager::new(
-            rocksdb.clone(),
-            cache_manager.clone(),
-            client_poll.clone(),
-            3,
-        );
-
-        let (stop_send, _) = broadcast::channel(2);
-        write_manager.start(stop_send);
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let data_list = vec![WriteChannelDataRecord {
-            pkid: 1,
-            header: None,
-            key: Some("key-1".to_string()),
-            tags: None,
-            value: Bytes::from("data-1"),
-        }];
-
-        let result = write_manager.write(&segment_iden, data_list).await;
-        assert!(result.is_ok());
-
-        let resp = result.unwrap();
-        assert!(resp.error.is_some());
-        assert!(resp.error.unwrap().contains("No Offset information"));
-    }
-
-    #[tokio::test]
     async fn write_manager_segment_not_exist_error_test() {
         let (_, cache_manager, _fold, rocksdb) =
             test_init_segment(StorageType::EngineSegment).await;

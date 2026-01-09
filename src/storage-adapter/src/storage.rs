@@ -35,6 +35,7 @@ use rocksdb_engine::test::test_rocksdb_instance;
 use std::{collections::HashMap, sync::Arc};
 use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
+use storage_engine::commitlog::offset::CommitLogOffset;
 use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
 use storage_engine::filesegment::write::WriteManager;
@@ -190,4 +191,16 @@ pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_
             segment_seq: 0,
             ..Default::default()
         });
+    let commit_offset = CommitLogOffset::new(
+        storage_driver_manager
+            .engine_storage_handler
+            .cache_manager
+            .clone(),
+        storage_driver_manager
+            .engine_storage_handler
+            .rocksdb_engine_handler
+            .clone(),
+    );
+    commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
+    commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 }

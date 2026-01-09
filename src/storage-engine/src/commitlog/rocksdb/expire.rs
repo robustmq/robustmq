@@ -151,7 +151,8 @@ impl RocksDBStorageEngine {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
+        commitlog::{offset::CommitLogOffset, rocksdb::engine::RocksDBStorageEngine},
+        core::cache::StorageCacheManager,
     };
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
@@ -167,11 +168,16 @@ mod tests {
     #[tokio::test]
     async fn test_scan_and_delete_expire_data() {
         let shard_name = unique_id();
-
         let db = test_rocksdb_instance();
         let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
             BrokerConfig::default(),
         ))));
+
+        let commit_offset = CommitLogOffset::new(cache_manager.clone(), db.clone());
+
+        commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
+        commit_offset.save_latest_offset(&shard_name, 0).unwrap();
+
         let engine = RocksDBStorageEngine::new(cache_manager.clone(), db);
         cache_manager.set_shard(EngineShard {
             shard_name: shard_name.clone(),

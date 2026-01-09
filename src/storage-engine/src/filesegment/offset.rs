@@ -54,6 +54,9 @@ impl FileSegmentOffset {
         // The end offset of the active segment is restored from persistence.
         let segment_iden = SegmentIdentity::new(shard_name, segment.segment_seq);
         let offset = self.segment_offset.get_end_offset(&segment_iden)?;
+        if offset < 0 {
+            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+        }
         Ok(offset as u64)
     }
 
@@ -86,6 +89,9 @@ impl FileSegmentOffset {
             ));
         };
 
+        if meta.start_offset < 0 {
+            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+        }
         Ok(meta.start_offset as u64)
     }
 

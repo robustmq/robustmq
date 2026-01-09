@@ -111,6 +111,7 @@ mod tests {
 
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{
+        commitlog::offset::CommitLogOffset,
         core::{cache::StorageCacheManager, test_tool::test_init_segment},
         filesegment::{
             file::SegmentFile,
@@ -172,12 +173,20 @@ mod tests {
 
     #[tokio::test]
     async fn read_by_offset_test() {
-        let (segment_iden, _, fold, rocksdb_engine_handler) =
+        let (segment_iden, cache_manager, fold, rocksdb_engine_handler) =
             test_base_write_data(StorageType::EngineSegment, 30).await;
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
+        let commit_offset =
+            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        commit_offset
+            .save_earliest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
+        commit_offset
+            .save_latest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
 
         let max_record = 2;
         let max_size = 1024 * 1024 * 1024;
@@ -196,7 +205,7 @@ mod tests {
 
         let mut i = 5;
         for row in resp {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
+            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
             i += 1;
         }
 
@@ -215,7 +224,7 @@ mod tests {
 
         let mut i: i32 = 10;
         for row in resp {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
+            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
             i += 1;
         }
     }

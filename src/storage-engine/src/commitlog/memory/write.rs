@@ -158,9 +158,14 @@ impl MemoryStorageEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::test_tool::test_build_memory_engine;
+    use crate::{
+        commitlog::offset::CommitLogOffset,
+        core::{cache::StorageCacheManager, test_tool::test_build_memory_engine},
+    };
+    use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
     use common_base::tools::unique_id;
+    use common_config::config::BrokerConfig;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 
     #[tokio::test]
@@ -168,6 +173,14 @@ mod tests {
         let mut engine = test_build_memory_engine();
         engine.config.max_records_per_shard = 10;
         let shard_name = unique_id();
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let commit_offset =
+            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+
+        commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
+        commit_offset.save_latest_offset(&shard_name, 0).unwrap();
+
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
                 pkid: i,
@@ -208,6 +221,13 @@ mod tests {
     async fn test_write_and_delete() {
         let engine = test_build_memory_engine();
         let shard_name = unique_id();
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let commit_offset =
+            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+
+        commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
+        commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
