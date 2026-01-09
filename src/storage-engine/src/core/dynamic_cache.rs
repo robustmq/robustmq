@@ -131,7 +131,7 @@ async fn parse_segment_meta(
     data: &[u8],
 ) -> Result<(), StorageEngineError> {
     match action_type {
-        BrokerUpdateCacheActionType::Set => {
+        BrokerUpdateCacheActionType::Create => {
             let meta = EngineSegmentMetadata::decode(data)?;
             let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
 
